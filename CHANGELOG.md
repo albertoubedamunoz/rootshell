@@ -3,6 +3,30 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.10-132 - August 9, 2026
+
+### Stability
+
+- **Fixed Background Termination on iOS and iPadOS:** Fixed a background termination seen in crash reports since 1.0.9. The system kills any app that draws to the screen while the device is locked, and several paths could still trigger a frame while the app was long-backgrounded: tmux control mode traffic selecting a tab, sessions restoring in the background, and Screen Sharing panes, which never paused at all. Rendering is now latched off from the moment the app leaves the foreground until it is active again, and Screen Sharing panes suspend frame presentation alongside the terminals.
+- **Fixed a Hang That Froze the Whole App:** Fixed a hang that froze the app until the system killed it, most commonly seen as herdr crashing the app on launch. The flaw has been in the terminal engine since tmux control mode arrived in build 101: output dense with title updates or terminal queries could deadlock the parser against the rest of the app. Coding Agents detection in build 128 made it much easier to hit, since herdr's dashboard produces exactly that output. The parser no longer holds the contested lock while it waits, and the agent scanner backs off instead of blocking on a busy terminal.
+
+### macOS
+
+- **Window Transparency Survives Reopen:** Fixed window transparency lost on reopen (#279). Closing the last terminal window and bringing the app back from the Dock or with Cmd-N returned a fully opaque window even though transparency was enabled. Background opacity and blur now survive reopen, and the window re-asserts its appearance if the system repaints it later.
+- **Dock Icon Opens a Window Again:** Clicking the Dock icon with no windows open did nothing if the visor had ever been summoned and hidden. The hidden visor was silently swallowing the reopen; a new terminal window now opens as expected.
+- **Hidden Visor No Longer Leaks Into Window Geometry:** Relaunching the app could size the new main window like the visor, and a reopened window could come up in the wrong position because the invisible visor counted as an existing window. Both paths now ignore it.
+- **Transparent Pinned Sidebar:** A new appearance option. When the vertical tab sidebar is pinned, this applies the window's background opacity to the sidebar instead of its normal opaque fill, so the whole window reads as one translucent surface. Settings, Appearance, Transparency, off by default, and included in settings backups.
+
+### Git
+
+- **Updated Git Engine:** The engine behind the built-in git command (libgit2) was updated to the latest upstream. Path-filtered history commands like git log -- <path> now use commit-graph Bloom filters when the repository has them, which can make those walks dramatically faster, and repositories using Git's newer reftable reference format read more reliably.
+- **Correctness and Stability Fixes:** git blame no longer crashes on hunks with a missing summary, git apply accepts patches that add or remove an empty file, merges and checkouts position directory/file conflicts correctly in the index, shallow clones are detected properly when working from a linked worktree, and HTTPS authentication prompts for the right host after a redirect. Submodule paths are now also checked so a hostile repository cannot use them to escape the working tree.
+
+### Profiles
+
+- **Terminal Type Picker:** The per-profile Terminal Type override moved from a cramped inline text field to its own picker screen. It shows the inherited global default, the common presets, and a Custom entry with validation warnings, and the profile form now displays a compact summary that stays readable on narrow screens.
+- **Corrected VPN Wording:** The profile editor's VPN section now correctly states that VPN tunneling on macOS requires the standalone version; the App Store build previously claimed VPN was only available on iOS and iPadOS.
+
 ## 1.0.10-131 - August 5, 2026
 
 ### Terminal
