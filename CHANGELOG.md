@@ -3,6 +3,35 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.10-133 - August 12, 2026
+
+### Screen Sharing
+
+- **Faster Standard Mode on a Slow Network:** Standard Mode sessions respond faster on a slow network. Each coarse frame was held back while the sharper refinement pass finished, adding latency to every update on a busy link and, at worst, leaving the picture looking frozen. The wait is now bounded to a fraction of a second, so the picture keeps moving and sharpens as detail arrives.
+- **Fixed Corruption with Adaptive Quality:** Fixed rendering corruption in Standard sessions using Adaptive quality. Tile-copy commands could copy from a stale tile left over from an earlier update, leaving misplaced 8x8 blocks on screen; copies are now validated against the update that produced their source.
+- **No More Partially Drawn Desktop on Connect:** Connecting over a slow network no longer shows a partially drawn desktop. The first frame waits until the initial update covers the whole screen, and the gate is per connection, so a reconnect cannot let leftover drawing from the old connection slip into the new one.
+- **Reorganized Session HUD Menu:** The session HUD menu is easier to scan: Type User Password at the top, viewport panning, zoom and curtain mode under a Display submenu, and the keyboard toolbar, quick actions and connection info under a Session submenu, with nothing hidden.
+
+### Apple Pencil
+
+- **Apple Pencil as a First-Class Pointer:** The terminal now treats Apple Pencil as a first-class pointer (#282). Apps that capture the mouse, like nvim and herdr, get a precise pointer: pen-down clicks exactly where the tip lands and dragging is a mouse drag. Everywhere else the pencil matches your finger: tap to click, selection gestures and scrolling. A barrel double-tap sends a right-click to the pane under the pencil, and Scribble is suppressed because it double-typed words into the terminal.
+- **Pencil in Screen Sharing:** Screen Sharing gets the same treatment: the remote pointer moves to the landing spot before the first tap registers so remote UIs respond in the right place, drags and hover pan the viewport while zoomed in, and a barrel double-tap sends a remote right-click.
+- **Steady Layout on the iPadOS 27 Beta:** On the iPadOS 27 beta, a pencil tap on a focused terminal made the system present a minimized keyboard pill, and the layout jumped around it. The pill is now suppressed and the layout holds still.
+
+### Keyboard
+
+- **Hardware Keyboard Settings on iPhone:** Hardware keyboard settings now appear on iPhone instead of being iPad-only, part of ongoing work for the Clicks Power Keyboard.
+- **Steadier Key Toolbar on iPhone:** With a hardware keyboard on iPhone, the key toolbar sits at the bottom of the screen, and its height no longer jumps while swiping tabs.
+- **Toolbar Keys Yield to the Home Gesture:** Toolbar keys no longer fight the Home gesture: a swipe up from the bottom edge that starts on a key now cancels cleanly instead of typing into the terminal. Keys there fire on release, and holding one still auto-repeats. With the gesture handled, the reserved gap below the toolbar is gone in more cases, on iPad too, and the terminal gets the space.
+
+### AI
+
+- **Fixed Anthropic-Compatible Custom Providers:** Fixed custom providers pointed at Anthropic-compatible servers (#281). The Endpoint URL field meant opposite things depending on the API format, so one format always requested a URL the server does not route. The typed URL now resolves to the correct API root for the selected format, and the editor shows the exact chat and model-list URLs it will request, live as you type.
+- **Custom Providers Without an API Key:** Custom providers no longer require an API key. Local servers like Ollama, LM Studio, oMLX and llama.cpp commonly run without credentials, but a keyless provider used to vanish from the picker. With no key saved, no Authorization header is sent, which matters for servers that reject an unknown token.
+- **Model Discovery for the Anthropic API Format:** Model discovery now understands the Anthropic API format; previously models could only be listed from OpenAI-format endpoints.
+- **Clearer Provider Errors:** Errors from custom providers now surface the server's own message instead of a generic "Model Unavailable", and authentication and rate-limit failures are classified from the HTTP status even when the error body is unusual.
+- **Editor Cleanups:** The API key field shows the saved key, clearing it deletes the key, and discovered models are only kept if you save.
+
 ## 1.0.10-132 - August 9, 2026
 
 ### Stability
