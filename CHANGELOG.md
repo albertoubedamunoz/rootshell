@@ -3,6 +3,23 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.10-134 - August 18, 2026
+
+### herdr
+
+- **Deep herdr Integration:** herdr gets the same deep integration as tmux and zellij. It always ran fine when launched by hand or through a custom profile command; now the app understands it too. Connecting to a host running herdr lists its sessions in the session picker with running/stopped status, the agents active in each session, and a live preview of the focused pane. Attaching to a stopped session restarts it. Hosts that merely have herdr installed stay quiet; the picker only appears when there is a real session to offer.
+- **Auto-Start herdr:** The per-connection "Auto-start tmux" option is now "Auto-start multiplexer" with Off, tmux, tmux -CC and herdr. herdr auto-start attaches to your session or creates it on first use, works under ssh, mosh and tssh, and syncs across devices like the tmux setting. Settings gains a herdr discovery toggle and an Auto-Start page for the session name and an optional custom command, with a preview of the exact command that will run.
+- **herdr Command-Line Flag:** A --herdr flag is accepted on typed ssh command lines, alongside the existing --tmux.
+
+### Security
+
+- **Fixed Authentication for Synced Keys:** Fixed authentication for iCloud-synced SSH and GPG keys (#284). A key set to require Face ID or Touch ID could show the wrong prompt after syncing to another device.
+
+### iOS and iPadOS 27 Beta 5
+
+- **SwiftUI Beta Workarounds:** Worked around several Apple SwiftUI bugs in beta 5 of iOS and iPadOS 27: connection type tabs in the New Connection sheet ignoring taps, and a crash when the terminal's input accessory was rebuilt during a keyboard handoff between fields. The workarounds only activate on version 27.
+- **More Reliable Connection Type Tabs:** If you are on beta 5 with an earlier build, including the current App Store release, the connection type tabs may need repeated taps before one activates. This build works around that, and hopefully Apple fixes the underlying bug in the next beta.
+
 ## 1.0.10-133 - August 12, 2026
 
 ### Screen Sharing

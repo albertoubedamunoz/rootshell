@@ -1,0 +1,26 @@
+// Standalone.xcconfig - Settings for direct distribution (non-App Store)
+
+// Sandbox DISABLED for Standalone
+ENABLE_APP_SANDBOX = NO
+ENABLE_HARDENED_RUNTIME = YES
+
+// Standalone entitlements (platform-specific)
+// iOS/iPadOS/visionOS: includes NFC for YubiKey PIV
+// Mac Catalyst: excludes NFC (not supported on macOS)
+CODE_SIGN_ENTITLEMENTS = rootshell/Entitlements/Standalone.entitlements
+CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = rootshell/Entitlements/Standalone-MacCatalyst.entitlements
+
+// Include rootshell-helper (no exclusions)
+EXCLUDED_SOURCE_FILE_NAMES =
+
+// Swift conditional compilation flag
+// Keep aligned with the pinned YubiKit fork release. Restoring Lightning requires
+// a new package release plus UISupportedExternalAccessoryProtocols in Info.plist.
+OTHER_SWIFT_FLAGS = $(inherited) -D STANDALONE -D DISABLE_MFI_LIGHTNING
+
+// Sparkle is linked through the pinned Swift package on the Standalone target.
+// Carbon is linked for the Visor's RegisterEventHotKey (HIToolbox.framework
+// is bundled inside Carbon.framework; we forward-declare the C entry points
+// in VisorCarbonShim.swift because the Carbon umbrella header is broken on
+// recent Catalyst SDKs).
+OTHER_LDFLAGS[sdk=macosx*] = $(inherited) -framework Carbon

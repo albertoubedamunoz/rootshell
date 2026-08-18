@@ -14,17 +14,18 @@
 
 ## About
 
-rootshell is a terminal emulator built for Apple platforms. It features GPU-accelerated rendering powered by libghostty, native SSH with post-quantum key exchange, Secure Enclave key storage, VPN tunneling, high performance HEVC screen sharing, an agent inbox that tracks coding agents and long-running commands across sessions, a built-in file browser and native git client, a voice-controlled AI agent, cloud provider integration (AWS, Azure, Linode, DigitalOcean), Kubernetes node debugging, native tmux control mode, and Rootshell Roam, a mosh-compatible and tssh (QUIC+KCP) mobile terminal protocol with seamless network roaming and session persistence.
+rootshell is an MIT-licensed open source terminal emulator built for Apple platforms. It features GPU-accelerated rendering powered by libghostty, native SSH with post-quantum key exchange, Secure Enclave key storage, VPN tunneling, high performance HEVC screen sharing, an agent inbox that tracks coding agents and long-running commands across sessions, a built-in file browser and native git client, a voice-controlled AI agent, cloud provider integration (AWS, Azure, Linode, DigitalOcean), Kubernetes node debugging, native tmux control mode, and Rootshell Roam, a mosh-compatible and tssh (QUIC+KCP) mobile terminal protocol with seamless network roaming and session persistence.
 
 For full feature details, screenshots, and documentation, visit **[www.rootshell.com](https://www.rootshell.com)**.
 
-## This Repository
+## Open Source
 
-This repository serves as the **public issue tracker** for rootshell. Use it to:
+rootshell is open source under the [MIT License](LICENSE). This repository contains the app source and is also the place to:
 
 - Report bugs
 - Request features
 - Ask questions about functionality
+- Contribute improvements
 
 ## Reporting Issues
 
@@ -228,6 +229,39 @@ brew install --cask rootshell
 ## Privacy
 
 rootshell collects no analytics or crash data unless otherwise part of the TestFlight platform itself.
+
+## Building from Source
+
+Building rootshell requires:
+
+- iOS/iPadOS 18.0+, macOS 14.0+, or visionOS 26.0+
+- Xcode 26.4+
+- An Apple Silicon Mac for iOS Simulator builds
+
+Clone the repository, open `rootshell.xcodeproj` in Xcode, and let Swift Package Manager resolve the project dependencies:
+
+```bash
+git clone https://github.com/kitknox/rootshell.git
+cd rootshell
+open rootshell.xcodeproj
+```
+
+Use the `rootshell-AppStore` scheme for sandboxed App Store builds or `rootshell-Standalone` for the unsandboxed Mac Catalyst build. For example, build for the iOS Simulator with:
+
+```bash
+xcodebuild -project rootshell.xcodeproj \
+  -scheme rootshell-AppStore \
+  -configuration DebugAppStore \
+  -sdk iphonesimulator -arch arm64 build
+```
+
+### macOS Local Shells
+
+Local shells on macOS require the Standalone build and the separate [`rootshell-helper`](https://github.com/kitknox/rootshell-helper). Build the helper and deploy its executable to `rootshell/Resources/rootshell-helper` before building the app so it is included in the app bundle. See the helper repository for its build, signing, and deployment instructions.
+
+## License
+
+rootshell is released under the [MIT License](LICENSE). See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for licenses and attribution covering bundled dependencies.
 
 ## Links
 

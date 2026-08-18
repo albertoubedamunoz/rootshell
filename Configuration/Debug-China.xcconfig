@@ -1,0 +1,3 @@
+// Debug-China.xcconfig - Debug build for China App Store variant
+#include "Debug.xcconfig"
+#include "China.xcconfig"
