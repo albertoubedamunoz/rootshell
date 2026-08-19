@@ -450,6 +450,9 @@ public final class ReconnectionManager: ObservableObject {
     }
 
     private func isPermanentFailure(_ error: Error) -> Bool {
+        // Legacy-encrypted key with no local passphrase — needs manual unlock
+        if case SSHKeyManager.LoadError.legacyKeyNeedsUnlock = error { return true }
+
         // Check for authentication-related errors that shouldn't be retried
         let errorDescription = error.localizedDescription.lowercased()
 

@@ -440,6 +440,9 @@ private struct OpenSSHImportPreviewSheet: View {
                     .padding(8)
                     .background(Color.secondary.opacity(0.08))
                     .cornerRadius(6)
+                Text("Used once to decrypt the key during import; never stored.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
     }

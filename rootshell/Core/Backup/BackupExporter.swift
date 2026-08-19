@@ -136,12 +136,31 @@ enum BackupExporter {
                 continue
             }
 
-            let passphrase = keychainManager.loadPassphrase(forKey: key.id.uuidString)
+            var exportKeyData = privateKeyData
+            var exportMetadata = key
+
+            // Legacy-encrypted blobs are exported normalized (decrypted); an
+            // encrypted entry without its passphrase could never restore.
+            if let keyString = String(data: privateKeyData, encoding: .utf8) {
+                let passphrase = keychainManager.loadPassphrase(forKey: key.id.uuidString)
+                do {
+                    switch try OpenSSHKeyNormalizer.normalize(keyString: keyString, passphrase: passphrase) {
+                    case .normalized(let text):
+                        exportKeyData = Data(text.utf8)
+                        exportMetadata.hasPassphrase = false
+                    case .alreadyPlaintext, .notOpenSSHContainer:
+                        exportMetadata.hasPassphrase = false
+                    }
+                } catch {
+                    logger.warning("Skipping key '\(key.name)': encrypted with no usable local passphrase")
+                    skippedNames.append(key.name)
+                    continue
+                }
+            }
 
             entries.append(SSHKeyBackupEntry(
-                metadata: key,
-                privateKeyData: privateKeyData,
-                passphrase: passphrase
+                metadata: exportMetadata,
+                privateKeyData: exportKeyData
             ))
         }
 

@@ -38,7 +38,11 @@ struct SSHKeyManagementView: View {
                         NavigationLink {
                             SSHKeyDetailView(key: key)
                         } label: {
-                            SSHKeyRow(key: key, defaultPriority: sshKeyManager.defaultPriority(for: key.id))
+                            SSHKeyRow(
+                                key: key,
+                                defaultPriority: sshKeyManager.defaultPriority(for: key.id),
+                                needsUnlock: sshKeyManager.keysNeedingUnlock.contains(key.id)
+                            )
                         }
                     }.onDelete(perform: deleteKeys).themedRow()
                 }
@@ -155,6 +159,8 @@ struct SSHKeyRow: View {
     let key: SSHKey
     /// Priority in the default keys list (0 = highest priority, nil = not a default)
     let defaultPriority: Int?
+    /// Legacy-encrypted key that needs a one-time manual unlock on this device
+    let needsUnlock: Bool
 
     /// Fixed width for badge alignment (accommodates "ED25519")
     private static let badgeWidth: CGFloat = 62
@@ -163,11 +169,13 @@ struct SSHKeyRow: View {
     init(key: SSHKey, isDefault: Bool) {
         self.key = key
         self.defaultPriority = isDefault ? 0 : nil
+        self.needsUnlock = false
     }
 
-    init(key: SSHKey, defaultPriority: Int?) {
+    init(key: SSHKey, defaultPriority: Int?, needsUnlock: Bool = false) {
         self.key = key
         self.defaultPriority = defaultPriority
+        self.needsUnlock = needsUnlock
     }
 
     var body: some View {
@@ -200,6 +208,12 @@ struct SSHKeyRow: View {
                         Image(systemName: cert.isExpired ? "xmark.seal.fill" : "checkmark.seal.fill").font(.caption2).foregroundColor(
                             certificateBadgeColor(cert)
                         ).padding(.horizontal, 4).padding(.vertical, 2).background(certificateBadgeColor(cert).opacity(0.2)).cornerRadius(4)
+                    }
+
+                    if needsUnlock {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundColor(.orange).padding(
+                            .horizontal, 4
+                        ).padding(.vertical, 2).background(Color.orange.opacity(0.2)).cornerRadius(4)
                     }
                 }
 

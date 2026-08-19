@@ -115,7 +115,7 @@ struct SSHKeyImportView: View {
                     } header: {
                         Text("Passphrase")
                     } footer: {
-                        Text("This key appears to be encrypted. The passphrase will be stored securely in the Keychain.")
+                        Text("This key appears to be encrypted. The passphrase is used once to decrypt the key during import and is never stored.")
                     }
                 }
 
@@ -230,7 +230,7 @@ struct SSHKeyImportView: View {
                             .font(.caption.bold())
                             .foregroundColor(.green)
 
-                        Text("Your passphrase will be stored securely in the Keychain")
+                        Text("The passphrase is used once to decrypt the key during import and is never stored; the imported key is protected by the Keychain")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

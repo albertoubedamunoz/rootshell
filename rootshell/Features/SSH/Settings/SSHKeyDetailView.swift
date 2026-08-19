@@ -28,6 +28,11 @@ struct SSHKeyDetailView: View {
     // Install on server
     @State private var showingCopyIDSheet = false
 
+    // Legacy key unlock
+    @State private var showingUnlockAlert = false
+    @State private var unlockPassphrase = ""
+    @State private var isUnlocking = false
+
     // OpenPGP public key export
     @State private var showingGPGExportSheet = false
 
@@ -92,8 +97,30 @@ struct SSHKeyDetailView: View {
                 }
                 LabeledRow(label: "Created", value: formattedDate)
                     .themedRow()
-                LabeledRow(label: "Encrypted", value: key.hasPassphrase ? "Yes" : "No")
+                if isSoftwareKey {
+                    HStack {
+                        Text("Key Material")
+                        Spacer()
+                        if keyNeedsUnlock {
+                            Label("Unlock Required", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                        } else {
+                            Text(currentKey.hasPassphrase ? "Migration Pending" : "Keychain Protected")
+                                .foregroundColor(.secondary)
+                        }
+                    }
                     .themedRow()
+                    if keyNeedsUnlock {
+                        Button {
+                            unlockPassphrase = ""
+                            showingUnlockAlert = true
+                        } label: {
+                            Label("Unlock Legacy Key", systemImage: "lock.open")
+                        }
+                        .disabled(isUnlocking)
+                        .themedRow()
+                    }
+                }
             }
 
             // Fingerprint section
@@ -640,6 +667,17 @@ struct SSHKeyDetailView: View {
         } message: {
             Text("Remove the certificate from '\(currentKey.name)'? The key itself is not affected; connections will use the plain key.")
         }
+        .alert("Unlock Legacy Key", isPresented: $showingUnlockAlert) {
+            SecureField("Passphrase", text: $unlockPassphrase)
+            Button("Cancel", role: .cancel) {
+                unlockPassphrase = ""
+            }
+            Button("Unlock") {
+                unlockLegacyKey()
+            }
+        } message: {
+            Text("This key was imported with a passphrase on another device. Enter it once to decrypt the key; it will then be protected by the Keychain and won't need the passphrase again.")
+        }
         .alert("Rename Key", isPresented: $showingRenameAlert) {
             TextField("Key name", text: $newKeyName)
             Button("Cancel", role: .cancel) {
@@ -665,6 +703,34 @@ struct SSHKeyDetailView: View {
 
     private var isDefault: Bool {
         sshKeyManager.isDefault(id: key.id)
+    }
+
+    /// Keys backed by software material in the Keychain (not hardware/agent references)
+    private var isSoftwareKey: Bool {
+        currentKey.yubiKeyInfo == nil &&
+        currentKey.appleFIDO2Info == nil &&
+        currentKey.secureEnclaveInfo == nil &&
+        currentKey.externalAgentInfo == nil
+    }
+
+    private var keyNeedsUnlock: Bool {
+        sshKeyManager.keysNeedingUnlock.contains(key.id)
+    }
+
+    private func unlockLegacyKey() {
+        let passphrase = unlockPassphrase
+        unlockPassphrase = ""
+        guard !passphrase.isEmpty else { return }
+        isUnlocking = true
+        Task {
+            defer { isUnlocking = false }
+            do {
+                try await sshKeyManager.unlockLegacyKey(id: key.id, passphrase: passphrase)
+            } catch {
+                errorMessage = error.localizedDescription
+                showingError = true
+            }
+        }
     }
 
     /// Server auth attempts the default keys consume: certified keys count twice

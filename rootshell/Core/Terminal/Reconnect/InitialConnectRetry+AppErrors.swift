@@ -20,6 +20,10 @@ extension InitialConnectRetry {
         // App-side host-key-rejection error (separate from Citadel's InvalidHostKey)
         if error is HostKeyRejectedError { return true }
 
+        // Legacy-encrypted key with no local passphrase — retry can't help;
+        // the user must unlock the key once in Settings → SSH Keys.
+        if case SSHKeyManager.LoadError.legacyKeyNeedsUnlock = error { return true }
+
         if let ssh = error as? SSHError, ssh.isAuthenticationRelated { return true }
 
         if let jump = error as? SSHJumpError {

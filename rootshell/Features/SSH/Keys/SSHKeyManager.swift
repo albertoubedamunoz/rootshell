@@ -84,6 +84,20 @@ class SSHKeyManager: ObservableObject {
     /// Publisher for key changes
     let keysDidChange = PassthroughSubject<Void, Never>()
 
+    /// Legacy-encrypted keys with no usable local passphrase; unusable on
+    /// this device until unlocked once via `unlockLegacyKey`.
+    @Published private(set) var keysNeedingUnlock: Set<UUID> = []
+
+    /// Single-flight guard for the background legacy-key migration scan.
+    private var legacyKeyMigrationTask: Task<Void, Never>?
+
+    /// Authenticated LAContexts from in-flight loads, reused by the
+    /// opportunistic legacy-key migration write.
+    private var authenticatedLoadContexts: [UUID: LAContext] = [:]
+
+    /// Keys with an opportunistic migration in flight (single-flight per key).
+    private var opportunisticMigrationsInFlight: Set<UUID> = []
+
     private let keychainManager: KeychainManager
 
     private init() {
@@ -105,6 +119,8 @@ class SSHKeyManager: ObservableObject {
         // ──────────────────────────────────────────────────────────────
         // Backfill cached public key blobs for existing keys that don't have them
         backfillPublicKeyBlobs()
+        // Normalize legacy passphrase-encrypted keys in place (#285)
+        scheduleLegacyKeyMigrationIfNeeded()
     }
 
     /// Throw-away one-shot migration; see init for context.
@@ -164,8 +180,29 @@ class SSHKeyManager: ObservableObject {
 
         Self.logger.info("Importing key '\(name)'")
 
+        // Store encrypted OpenSSH keys decrypted: passphrases are device-local
+        // and never sync, so an encrypted blob is unusable after iCloud sync.
+        let storedKeyString: String
+        do {
+            switch try OpenSSHKeyNormalizer.normalize(keyString: keyString, passphrase: passphrase) {
+            case .normalized(let normalizedText):
+                storedKeyString = normalizedText
+                Self.logger.info("Normalized encrypted key to unencrypted OpenSSH container")
+            case .alreadyPlaintext, .notOpenSSHContainer:
+                storedKeyString = keyString
+            }
+        } catch OpenSSHKeyNormalizer.NormalizerError.passphraseRequired {
+            throw SSHKeyParser.ParserError.encryptedKeyNeedsPassphrase
+        } catch OpenSSHKeyNormalizer.NormalizerError.incorrectPassphrase {
+            throw SSHKeyParser.ParserError.incorrectPassphrase
+        } catch {
+            // Fall back to legacy storage; the parse below decides usability.
+            Self.logger.warning("Key normalization failed, storing original: \(error.localizedDescription)")
+            storedKeyString = keyString
+        }
+
         // Parse the key
-        let parsedKey = try SSHKeyParser.parse(keyString: keyString, passphrase: passphrase)
+        let parsedKey = try SSHKeyParser.parse(keyString: storedKeyString, passphrase: passphrase)
         Self.logger.info("Parsed as key type: \(parsedKey.keyType.rawValue)")
         Self.logger.info("Fingerprint: \(parsedKey.fingerprint)")
         Self.logger.info("Has NIO SSH key: \(parsedKey.nioSSHKey != nil)")
@@ -213,7 +250,7 @@ class SSHKeyManager: ObservableObject {
         Self.logger.info("Cached public key blob: \(sshKey.publicKeyBlob?.count ?? 0) bytes")
 
         // Store key data in Keychain with security configuration
-        guard let keyData = keyString.data(using: .utf8) else {
+        guard let keyData = storedKeyString.data(using: .utf8) else {
             throw ImportError.dataConversionFailed
         }
 
@@ -225,17 +262,30 @@ class SSHKeyManager: ObservableObject {
                 authRequirement: authRequirement
             )
 
-            // Store passphrase if provided
-            if let passphrase = passphrase {
+            // Retain the passphrase only when the stored blob still needs it.
+            if let passphrase = passphrase, parsedKey.isEncrypted {
                 try keychainManager.savePassphrase(passphrase, forKey: sshKey.id.uuidString)
             }
         } catch {
             throw ImportError.keychainError(error)
         }
 
+        // Roll back the key material if metadata persistence fails.
+        do {
+            let metadataData = try JSONEncoder().encode(sshKey)
+            try keychainManager.saveSSHKeyMetadata(
+                metadataData,
+                identifier: sshKey.id.uuidString,
+                storageLevel: storageLevel
+            )
+        } catch {
+            try? keychainManager.deletePrivateKey(identifier: sshKey.id.uuidString)
+            keychainManager.deletePassphrase(forKey: sshKey.id.uuidString)
+            throw ImportError.keychainError(error)
+        }
+
         // Add to saved keys
         savedKeys.append(sshKey)
-        saveKeys()
         keysDidChange.send()
 
         // Add as default if it's the first key
@@ -549,7 +599,14 @@ class SSHKeyManager: ObservableObject {
             // means the metadata changed into an unsupported reference form.
             throw LoadError.invalidKeyData
         }
-        let parsedKey = try SSHKeyParser.parse(keyString: prep.keyString, passphrase: prep.passphrase)
+        let parsedKey: SSHKeyParser.ParsedKey
+        do {
+            parsedKey = try SSHKeyParser.parse(keyString: prep.keyString, passphrase: prep.passphrase)
+        } catch SSHKeyParser.ParserError.encryptedKeyNeedsPassphrase,
+                SSHKeyParser.ParserError.incorrectPassphrase {
+            applyLegacyMigrationOutcome(.needsUnlock, keyID: id)
+            throw LoadError.legacyKeyNeedsUnlock(keyID: id, keyName: savedKey.name)
+        }
         return try Self.materializeParsedKey(parsedKey)
     }
 
@@ -587,9 +644,16 @@ class SSHKeyManager: ObservableObject {
         }
         let keyString = prep.keyString
         let passphrase = prep.passphrase
-        let parsedKey = try await Task.detached(priority: .userInitiated) {
-            try SSHKeyParser.parse(keyString: keyString, passphrase: passphrase)
-        }.value
+        let parsedKey: SSHKeyParser.ParsedKey
+        do {
+            parsedKey = try await Task.detached(priority: .userInitiated) {
+                try SSHKeyParser.parse(keyString: keyString, passphrase: passphrase)
+            }.value
+        } catch SSHKeyParser.ParserError.encryptedKeyNeedsPassphrase,
+                SSHKeyParser.ParserError.incorrectPassphrase {
+            applyLegacyMigrationOutcome(.needsUnlock, keyID: id)
+            throw LoadError.legacyKeyNeedsUnlock(keyID: id, keyName: savedKey.name)
+        }
         return try Self.materializeParsedKey(parsedKey)
     }
 
@@ -1073,6 +1137,9 @@ class SSHKeyManager: ObservableObject {
             // snapshots whenever the effective key set changes.
             ConnectionProfileManager.shared.refreshVPNSharedProfiles()
 
+            // Newly synced blobs may carry (or resolve) legacy encryption.
+            scheduleLegacyKeyMigrationIfNeeded()
+
             let keyCount = savedKeys.count
             Self.logger.info("SSH keys refreshed: \(keyCount) keys")
         } else if defaultsPruned {
@@ -1495,11 +1562,17 @@ class SSHKeyManager: ObservableObject {
 
                 // Load key data from Keychain with authentication
                 do {
-                    return try keychainManager.loadPrivateKey(
+                    let data = try keychainManager.loadPrivateKey(
                         identifier: id.uuidString,
                         authRequirement: savedKey.authRequirement,
                         context: context
                     )
+                    // Keep the authenticated context so the opportunistic
+                    // legacy-key migration can rewrite the item promptless.
+                    await MainActor.run {
+                        SSHKeyManager.shared.authenticatedLoadContexts[id] = context
+                    }
+                    return data
                 } catch let error as KeychainManager.KeychainError {
                     switch error {
                     case .authenticationCancelled:
@@ -1538,6 +1611,15 @@ class SSHKeyManager: ObservableObject {
 
         Self.logger.info("Loaded \(keyData.count) bytes from keychain")
 
+        // Clear the stored context on every exit unless a scheduled
+        // migration takes ownership of it.
+        var contextOwnedByMigration = false
+        defer {
+            if !contextOwnedByMigration {
+                authenticatedLoadContexts.removeValue(forKey: id)
+            }
+        }
+
         guard let keyString = String(data: keyData, encoding: .utf8) else {
             throw LoadError.dataConversionFailed
         }
@@ -1549,9 +1631,31 @@ class SSHKeyManager: ObservableObject {
         // expensive enough to introduce visible UI hangs every time a
         // biometric-gated key is used. The `keyString`/`passphrase`
         // are plain `String`s (Sendable), so the detached hop is free.
-        let parsedKey = try await Task.detached(priority: .userInitiated) {
-            try SSHKeyParser.parse(keyString: keyString, passphrase: passphrase)
-        }.value
+        let parsedKey: SSHKeyParser.ParsedKey
+        do {
+            parsedKey = try await Task.detached(priority: .userInitiated) {
+                try SSHKeyParser.parse(keyString: keyString, passphrase: passphrase)
+            }.value
+        } catch SSHKeyParser.ParserError.encryptedKeyNeedsPassphrase,
+                SSHKeyParser.ParserError.incorrectPassphrase {
+            // Legacy-encrypted blob without a usable local passphrase (the
+            // passphrase never syncs) — needs a one-time manual unlock.
+            applyLegacyMigrationOutcome(.needsUnlock, keyID: id)
+            throw LoadError.legacyKeyNeedsUnlock(keyID: id, keyName: savedKey.name)
+        }
+
+        // The key just decrypted: normalize the stored blob in place (#285).
+        // The stored context stays in place for the migration to consume —
+        // dedup waiters all pass through here, and only the first schedules.
+        if parsedKey.isEncrypted, let passphrase {
+            contextOwnedByMigration = true
+            scheduleOpportunisticLegacyMigration(
+                id: id,
+                keyString: keyString,
+                passphrase: passphrase,
+                expectedFingerprint: savedKey.fingerprint
+            )
+        }
 
         // Return the appropriate key type
         let keyVariant: SSHPrivateKeyVariant
@@ -2234,6 +2338,270 @@ class SSHKeyManager: ObservableObject {
         }
     }
 
+    // MARK: - Legacy Encrypted-Key Migration (#285)
+
+    private enum LegacyMigrationOutcome: Sendable {
+        case migrated
+        case alreadyNormalized
+        case clean                // no legacy state; only clear stale markers
+        case needsUnlock          // encrypted, no usable local passphrase
+        case skipped              // transient; retry on a later scan
+    }
+
+    /// Normalize one stored legacy blob in place. The blob header, not the
+    /// metadata flag, is authoritative (sync can deliver either first).
+    /// Never shows UI; callers must only pass interaction-free items.
+    private nonisolated static func runInteractionFreeLegacyMigration(
+        identifier: String,
+        expectedFingerprint: String,
+        hasPassphraseHint: Bool
+    ) -> LegacyMigrationOutcome {
+        let km = KeychainManager.shared
+        let storedPassphrase = km.loadPassphrase(forKey: identifier)
+
+        // Always inspect the blob: normalized metadata can sync before the
+        // still-encrypted blob, so the flag alone proves nothing.
+        guard let blob = try? km.loadPrivateKey(identifier: identifier),
+              let keyString = String(data: blob, encoding: .utf8) else {
+            return .skipped
+        }
+
+        do {
+            switch try OpenSSHKeyNormalizer.normalize(keyString: keyString, passphrase: storedPassphrase) {
+            case .alreadyPlaintext, .notOpenSSHContainer:
+                return (hasPassphraseHint || storedPassphrase != nil) ? .alreadyNormalized : .clean
+            case .normalized(let normalizedText):
+                guard let normalizedData = normalizedText.data(using: .utf8),
+                      let parsed = try? SSHKeyParser.parse(keyString: normalizedText, passphrase: nil),
+                      parsed.fingerprint == expectedFingerprint else {
+                    return .skipped
+                }
+                // Re-read so a newer synced blob is never clobbered.
+                guard let current = try? km.loadPrivateKey(identifier: identifier),
+                      current == blob else {
+                    return .skipped
+                }
+                do {
+                    try km.updatePrivateKey(normalizedData, identifier: identifier)
+                } catch {
+                    logger.warning("Legacy key migration write failed for \(identifier): \(error.localizedDescription)")
+                    return .skipped
+                }
+                return .migrated
+            }
+        } catch OpenSSHKeyNormalizer.NormalizerError.passphraseRequired,
+                OpenSSHKeyNormalizer.NormalizerError.incorrectPassphrase {
+            return .needsUnlock
+        } catch {
+            logger.warning("Legacy key migration failed for \(identifier): \(error.localizedDescription)")
+            return .skipped
+        }
+    }
+
+    /// Metadata first, passphrase deletion last — re-runnable after a crash
+    /// at any boundary.
+    private func applyLegacyMigrationOutcome(_ outcome: LegacyMigrationOutcome, keyID: UUID) {
+        switch outcome {
+        case .migrated, .alreadyNormalized:
+            var changed = false
+            if let index = savedKeys.firstIndex(where: { $0.id == keyID }),
+               savedKeys[index].hasPassphrase {
+                savedKeys[index].hasPassphrase = false
+                saveKeys()
+                changed = true
+            }
+            keychainManager.deletePassphrase(forKey: keyID.uuidString)
+            if keysNeedingUnlock.remove(keyID) != nil { changed = true }
+            if case .migrated = outcome {
+                Self.logger.info("Normalized legacy encrypted key \(keyID.uuidString) in place")
+            }
+            if changed { keysDidChange.send() }
+        case .clean:
+            if keysNeedingUnlock.remove(keyID) != nil {
+                keysDidChange.send()
+            }
+        case .needsUnlock:
+            if !keysNeedingUnlock.contains(keyID) {
+                keysNeedingUnlock.insert(keyID)
+                Self.logger.warning("Legacy encrypted key \(keyID.uuidString) has no usable local passphrase; manual unlock required")
+                keysDidChange.send()
+            }
+        case .skipped:
+            break
+        }
+    }
+
+    /// Background-migrates keys whose items are readable without interaction:
+    /// `authRequirement == .none` plus `.iCloudSync` (synced items carry no
+    /// SecAccessControl; the app-level gate covers key *use* only).
+    /// ACL-protected keys migrate during their next authenticated load.
+    func scheduleLegacyKeyMigrationIfNeeded() {
+        guard legacyKeyMigrationTask == nil else { return }
+
+        struct Candidate: Sendable {
+            let id: UUID
+            let fingerprint: String
+            let hasPassphrase: Bool
+        }
+        let candidates: [Candidate] = savedKeys.compactMap { key in
+            guard key.yubiKeyInfo == nil,
+                  key.appleFIDO2Info == nil,
+                  key.secureEnclaveInfo == nil,
+                  key.externalAgentInfo == nil,
+                  key.authRequirement == .none || key.storageLevel == .iCloudSync else {
+                return nil
+            }
+            return Candidate(id: key.id, fingerprint: key.fingerprint, hasPassphrase: key.hasPassphrase)
+        }
+        guard !candidates.isEmpty else { return }
+
+        legacyKeyMigrationTask = Task { @MainActor [weak self] in
+            for candidate in candidates {
+                let outcome = await Task.detached(priority: .utility) {
+                    Self.runInteractionFreeLegacyMigration(
+                        identifier: candidate.id.uuidString,
+                        expectedFingerprint: candidate.fingerprint,
+                        hasPassphraseHint: candidate.hasPassphrase
+                    )
+                }.value
+                guard let self else { return }
+                self.applyLegacyMigrationOutcome(outcome, keyID: candidate.id)
+            }
+            self?.legacyKeyMigrationTask = nil
+        }
+    }
+
+    /// Normalizes an already-decrypted legacy key after an authenticated
+    /// load, reusing that load's stored LAContext so the ACL-protected
+    /// re-read and write need no second prompt. Single-flight per key;
+    /// Keychain calls stay on the main actor to keep the context in one
+    /// isolation region.
+    private func scheduleOpportunisticLegacyMigration(
+        id: UUID,
+        keyString: String,
+        passphrase: String,
+        expectedFingerprint: String
+    ) {
+        guard opportunisticMigrationsInFlight.insert(id).inserted else { return }
+        Task { @MainActor [weak self] in
+            let normalizedData: Data? = await Task.detached(priority: .utility) {
+                guard case .normalized(let text) = try? OpenSSHKeyNormalizer.normalize(
+                    keyString: keyString,
+                    passphrase: passphrase
+                ),
+                      let parsed = try? SSHKeyParser.parse(keyString: text, passphrase: nil),
+                      parsed.fingerprint == expectedFingerprint else {
+                    return nil
+                }
+                return text.data(using: .utf8)
+            }.value
+
+            guard let self else { return }
+            defer {
+                self.opportunisticMigrationsInFlight.remove(id)
+                self.authenticatedLoadContexts.removeValue(forKey: id)
+            }
+            guard let normalizedData else { return }
+
+            let identifier = id.uuidString
+            let context = self.authenticatedLoadContexts[id]
+            // Authenticated re-read (ACL items would otherwise re-prompt):
+            // bail if the blob changed since this load decrypted it.
+            guard let currentKey = self.savedKeys.first(where: { $0.id == id }),
+                  let current = try? self.keychainManager.loadPrivateKey(
+                    identifier: identifier,
+                    authRequirement: currentKey.authRequirement,
+                    context: context
+                  ),
+                  String(data: current, encoding: .utf8) == keyString else {
+                return
+            }
+            do {
+                try self.keychainManager.updatePrivateKey(normalizedData, identifier: identifier, context: context)
+            } catch {
+                Self.logger.warning("Opportunistic legacy key migration failed for \(identifier): \(error.localizedDescription)")
+                return
+            }
+            self.applyLegacyMigrationOutcome(.migrated, keyID: id)
+        }
+    }
+
+    /// One-time manual repair for a legacy-encrypted key with no local
+    /// passphrase (typically synced from another device). Authenticates per
+    /// the key's policy, normalizes, and rewrites the blob in place.
+    func unlockLegacyKey(id: UUID, passphrase: String) async throws {
+        guard let savedKey = savedKeys.first(where: { $0.id == id }) else {
+            throw LoadError.keyNotFound
+        }
+        let identifier = id.uuidString
+
+        var context: LAContext?
+        if savedKey.authRequirement != .none {
+            let reason = "Authenticate to unlock '\(savedKey.name)'"
+            let ctx = SSHKeyAuthManager.shared.createContext(for: savedKey, reason: reason)
+            if savedKey.storageLevel == .iCloudSync {
+                try await Self.evaluateDeviceOwnerAuthentication(on: ctx, reason: reason)
+            }
+            context = ctx
+        }
+
+        let keyData: Data
+        do {
+            keyData = try keychainManager.loadPrivateKey(
+                identifier: identifier,
+                authRequirement: savedKey.authRequirement,
+                context: context
+            )
+        } catch let error as KeychainManager.KeychainError {
+            switch error {
+            case .authenticationCancelled: throw LoadError.authenticationCancelled
+            case .authenticationFailed: throw LoadError.authenticationFailed
+            default: throw error
+            }
+        }
+        guard let keyString = String(data: keyData, encoding: .utf8) else {
+            throw LoadError.dataConversionFailed
+        }
+
+        let expectedFingerprint = savedKey.fingerprint
+        let normalizedData: Data? = try await Task.detached(priority: .userInitiated) {
+            switch try OpenSSHKeyNormalizer.normalize(keyString: keyString, passphrase: passphrase) {
+            case .normalized(let text):
+                guard let parsed = try? SSHKeyParser.parse(keyString: text, passphrase: nil),
+                      parsed.fingerprint == expectedFingerprint,
+                      let data = text.data(using: .utf8) else {
+                    throw OpenSSHKeyNormalizer.NormalizerError.verificationFailed("Fingerprint mismatch")
+                }
+                return data
+            case .alreadyPlaintext, .notOpenSSHContainer:
+                return nil
+            }
+        }.value
+
+        if let normalizedData {
+            // Authenticated re-read: don't clobber a blob that changed since
+            // we loaded it, and don't re-prompt for ACL-protected items.
+            let current: Data
+            do {
+                current = try keychainManager.loadPrivateKey(
+                    identifier: identifier,
+                    authRequirement: savedKey.authRequirement,
+                    context: context
+                )
+            } catch {
+                throw MigrationError.keychainError(error)
+            }
+            guard current == keyData else {
+                throw MigrationError.keyChangedDuringAuthentication
+            }
+            try keychainManager.updatePrivateKey(normalizedData, identifier: identifier, context: context)
+            applyLegacyMigrationOutcome(.migrated, keyID: id)
+        } else {
+            applyLegacyMigrationOutcome(.alreadyNormalized, keyID: id)
+        }
+        scheduleLegacyKeyMigrationIfNeeded()
+    }
+
     // MARK: - Error Types
 
     enum ImportError: LocalizedError {
@@ -2279,6 +2647,7 @@ class SSHKeyManager: ObservableObject {
         case authenticationUnavailable
         case authenticationFailed
         case externalAgentUnavailable
+        case legacyKeyNeedsUnlock(keyID: UUID, keyName: String)
 
         var errorDescription: String? {
             switch self {
@@ -2298,6 +2667,8 @@ class SSHKeyManager: ObservableObject {
                 return "Authentication failed. Please try again."
             case .externalAgentUnavailable:
                 return "This key is served by an SSH agent on a Mac and can't be used on this device."
+            case .legacyKeyNeedsUnlock(_, let keyName):
+                return "'\(keyName)' was imported with a passphrase on another device, and passphrases don't sync. Open Settings → SSH Keys → \(keyName) and unlock it once with its passphrase."
             }
         }
     }
