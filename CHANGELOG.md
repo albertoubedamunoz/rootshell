@@ -3,7 +3,26 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
-## 1.0.10-134 - August 18, 2026
+## 1.0.10-135 - August 19, 2026
+
+### SSH
+
+- **Authentication Banners:** Servers can now tell you something during login. Authentication banners sent before you are logged in appear in a card over the pane as they arrive, with Open in Browser and Copy Link buttons for any http or https links. Tailscale SSH check mode works as a result (#290): the re-authentication URL it sends is now visible and tappable instead of being swallowed. Banners from a jump host are labeled as such so a hop's URL is never mistaken for the target's, the card also appears above the prompts in the two-factor sheet on iPhone, and the message survives a failed attempt, a password fallback, and a reconnect. Works over ssh, mosh and tssh.
+- **Host Certificates on Every SSH Path:** Host certificates are now negotiated on every SSH path, not just the terminal one. With a trusted certificate authority configured for a host, mosh, tssh, Git over SSH and AI agent connections asked for a plain host key instead and could not verify the server. They now advertise certificate algorithms like a regular connection does.
+
+### SSH Keys
+
+- **Imported Keys Sync Across Devices:** An SSH key imported with a passphrase now works on your other devices (#285). Passphrases are device local and never sync, so a synced key would ask for one with nowhere to type it. Imported keys are decrypted once and stored under Keychain protection instead, and backups export them in the same form. Existing keys show their status in key settings, with an Unlock Legacy Key button to enter the passphrase one final time.
+
+### macOS
+
+- **Themes and Font Size on Intel Macs:** Fixed themes and font size not applying to the terminal on Intel Macs (#294). The terminal configuration failed to load at all on x86_64, so appearance changes only ever reached the app around it.
+
+### Open Source
+
+- **rootshell Is Open Source:** rootshell is now open source under the MIT license.
+
+## 1.0.10-134 - August 13, 2026
 
 ### herdr
 

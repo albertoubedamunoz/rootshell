@@ -52639,7 +52639,7 @@
       }
     },
     "Always" : {
-      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nPrediction mode: always show predictions\nShader animation: always",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -127237,7 +127237,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -154569,7 +154569,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
+      "comment" : "Location Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -239487,7 +239487,7 @@
       }
     },
     "Identity" : {
-      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
+      "comment" : "OpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -332575,7 +332575,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -340458,7 +340458,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -340922,7 +340922,7 @@
       }
     },
     "On" : {
-      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -570543,7 +570543,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
+      "comment" : "Agent usage window title: weekly quota",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
