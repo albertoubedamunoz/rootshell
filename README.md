@@ -143,7 +143,7 @@ brew install --cask rootshell
 - **Flexible Placement** - A tab, a split beside terminals, a separate window, or full screen, with a draggable HUD for status and controls. Standard mode tunnels over SSH or tssh jump hosts; Macs appear in Browse via Bonjour; profiles sync across devices
 
 ### YubiKey & FIDO2
-- **YubiKey PIV** - SSH authentication with hardware-bound private keys via Lightning, NFC, or USB-C. Supports RSA, ECDSA, and Ed25519 (firmware 5.7+) with key generation directly on device
+- **YubiKey PIV** - SSH authentication with hardware-bound private keys via NFC or USB-C. Lightning is not enabled because Yubico has not provided MFi approval. Supports RSA, ECDSA, and Ed25519 (firmware 5.7+) with key generation directly on device
 - **FIDO2 Security Keys** - Any FIDO2-compatible key (YubiKey 5, SoloKeys, etc.) for touch-to-sign SSH authentication using `webauthn-sk-ecdsa-sha2-nistp256@openssh.com`
 - **Key Import** - Import existing SSH private keys to YubiKey PIV slots with optional keychain deletion
 - **Smart PIN Caching** - Wired connections cache for the session; NFC connections cache across taps with session batching for multi-tab signing
