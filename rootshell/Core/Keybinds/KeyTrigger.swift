@@ -579,6 +579,9 @@ struct KeyTrigger: Codable, Hashable, CustomStringConvertible, Sendable {
     let key: KeyCode
     let modifiers: KeybindModifiers
 
+    /// The chord Apple platforms reserve as the system Cancel/Escape shortcut.
+    static let commandPeriod = KeyTrigger(key: .period, modifiers: .command)
+
     init(key: KeyCode, modifiers: KeybindModifiers = []) {
         self.key = key
         self.modifiers = modifiers

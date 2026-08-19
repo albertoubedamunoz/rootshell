@@ -432,6 +432,37 @@ extension Ghostty.TerminalView {
 
         let hasOption = effectiveModifiers.contains(.alternate)
 
+        // The reserved Cmd+Period system-cancel chord can arrive translated as
+        // plain Escape. Give a cmd+period binding first refusal; a twin of a
+        // chord delivery already handled on another rail is swallowed. Unbound
+        // falls through to normal Escape handling, which is exactly the
+        // chord's default behavior. This never fires for a real Escape press
+        // because the Escape key itself is physically down then.
+        if key.keyCode == .keyboardEscape, key.modifierFlags.isEmpty,
+           KeyboardTracker.isSystemCancelChordPhysicallyDown() {
+            guard inputController.consumeSystemCancelChordDelivery() else {
+                return (true, true)
+            }
+            if dispatchKeybindTrigger(.commandPeriod) {
+                return (true, true)
+            }
+        }
+
+        // The chord can also reach pressesBegan as Period with the Command bit
+        // restored by the GCKeyboard merge above (iPadOS strips it from
+        // reserved chords). Intercept before the generic binding checks so a
+        // bound chord routes through the chord dispatcher and gets held-key
+        // repeat; unbound gets the shared cancel default (overlay dismissal,
+        // else one one-shot ESC).
+        if key.keyCode == .keyboardPeriod,
+           KeybindModifiers(uiModifierFlags: effectiveModifiers) == .command {
+            guard inputController.consumeSystemCancelChordDelivery() else {
+                return (true, true)
+            }
+            handleSystemCancelChordDelivery()
+            return (true, true)
+        }
+
         #if !targetEnvironment(macCatalyst)
         // This catches virtual/mod-tap Control after effective modifiers are
         // merged; the earlier pressesBegan check only sees the hardware event.
@@ -975,6 +1006,11 @@ extension Ghostty.TerminalView {
             }
 
             guard let key = press.key else { continue }
+            // A translated Cmd+Period press can be tracked as Escape by the
+            // overlay handlers but released as physical Period.
+            if key.keyCode == .keyboardPeriod {
+                keysConsumedByOverlayAction.remove(.keyboardEscape)
+            }
             keyRepeatManager.stopIfMatches(key.keyCode)
             keysConsumedByOverlayAction.remove(key.keyCode)
             // Send release event for special keys routed through Ghostty,
@@ -1713,6 +1749,18 @@ extension Ghostty.TerminalView {
     }
 
     @objc func handleEscapeKey(_ command: UIKeyCommand) {
+        // The reserved Cmd+Period system-cancel chord can arrive as a
+        // translated plain Escape. Give a cmd+period binding first refusal; a
+        // twin of a chord delivery already handled on another rail is
+        // swallowed. Unbound falls through to normal Escape behavior below,
+        // which is exactly the chord's default. This never fires for a real
+        // Escape press because the Escape key itself is physically down then.
+        if command.modifierFlags.isEmpty,
+           KeyboardTracker.isSystemCancelChordPhysicallyDown() {
+            guard inputController.consumeSystemCancelChordDelivery() else { return }
+            if dispatchKeybindTrigger(.commandPeriod) { return }
+        }
+
         commitKoreanCompositionIfNeeded(external: true)
         if keysConsumedByOverlayAction.contains(.keyboardEscape) { return }
         if discoveredSessions != nil {
@@ -1753,6 +1801,45 @@ extension Ghostty.TerminalView {
         if let data = sequence.data(using: .utf8) {
             sendUserInput(data)
         }
+    }
+
+    /// Fallback for Apple's reserved Cmd+Period system-cancel chord when no
+    /// keybind claims cmd+period (KeybindCommandGenerator only registers this
+    /// command then).
+    @objc func handleSystemCancelCommand(_ command: UIKeyCommand) {
+        guard inputController.consumeSystemCancelChordDelivery() else { return }
+        handleSystemCancelChordDelivery()
+    }
+
+    /// Catalyst menu rail for the reserved chord: macOS delivers Cmd+Period to
+    /// no responder UIKeyCommand or press event at all, so a menu key
+    /// equivalent (the same mechanism as Xcode's ⌘. Stop item) is the one rail
+    /// that both receives and consumes it — consuming also suppresses the
+    /// system beep. ShortcutCaptureUIView implements this selector too and
+    /// wins while it is first responder, so recording works.
+    @objc func menuSystemCancel(_ sender: Any?) {
+        guard inputController.consumeSystemCancelChordDelivery() else { return }
+        handleSystemCancelChordDelivery()
+    }
+
+    /// One normalized chord press: binding dispatch first, then overlay cancel
+    /// semantics, then a single one-shot ESC byte. A plain byte (not the
+    /// enhanced-protocol press/release pair) is correct for a synthesized
+    /// chord. Deliberately one-shot: no rail auto-repeats a reserved chord,
+    /// and self-driven repeat is not attempted.
+    private func handleSystemCancelChordDelivery() {
+        commitKoreanCompositionIfNeeded(external: true)
+        if dispatchKeybindTrigger(.commandPeriod) { return }
+        if discoveredSessions != nil {
+            dismissSessionDiscovery()
+            return
+        }
+        if aiAgentOverlayActive {
+            NotificationCenter.default.post(name: .toggleAIAgent, object: self)
+            return
+        }
+        NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
+        sendUserInput(Data([0x1B]))
     }
 
     #if targetEnvironment(macCatalyst)
@@ -2233,11 +2320,35 @@ extension Ghostty.TerminalView {
     /// Handler for dynamically bound keyboard shortcuts from KeybindCommandGenerator
     @objc func handleKeybindCommand(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
-        guard let trigger = KeyTrigger(uiKeyCommand: command) else {
+        guard let commandTrigger = KeyTrigger(uiKeyCommand: command) else {
             Ghostty.logger.warning("handleKeybindCommand: Failed to parse trigger from command")
             return
         }
 
+        // A custom plain-Escape binding may own the command that a translated
+        // Cmd+Period delivery lands on. Give the physical chord first refusal
+        // at a cmd+period binding before dispatching Escape.
+        if commandTrigger.key == .escape,
+           commandTrigger.modifiers.isEmpty,
+           KeyboardTracker.isSystemCancelChordPhysicallyDown() {
+            guard inputController.consumeSystemCancelChordDelivery() else { return }
+            if dispatchKeybindTrigger(.commandPeriod) { return }
+        } else if commandTrigger == .commandPeriod {
+            // Reject a twin of a chord delivery already handled on another rail.
+            guard inputController.consumeSystemCancelChordDelivery() else { return }
+        }
+
+        guard dispatchKeybindTrigger(commandTrigger) else {
+            let trigFormat = commandTrigger.ghosttyFormat
+            Ghostty.logger.debug("handleKeybindCommand: No action for trigger \(trigFormat)")
+            return
+        }
+    }
+
+    /// Route a normalized trigger through sequence handling and then the active
+    /// keybind table. Returns false only when no binding or sequence claims it.
+    @discardableResult
+    func dispatchKeybindTrigger(_ trigger: KeyTrigger) -> Bool {
         // Route through KeySequenceTracker so sequence prefixes (Ctrl+A→N) and
         // ambiguous prefix+direct bindings are handled correctly. The tracker
         // short-circuits for triggers that are neither awaiting nor prefixes.
@@ -2249,23 +2360,22 @@ extension Ghostty.TerminalView {
             let actionName = trackerKeybind.action.rawValue
             Ghostty.logger.debug("Executing keybind action (via tracker): \(actionName)")
             executeKeybindAction(trackerKeybind.action, parameter: trackerKeybind.actionParameter)
-            return
+            return true
         }
         if handled {
             // Prefix swallowed; pending-direct-action (if any) will fire on timeout.
-            return
+            return true
         }
 
         // Look up keybind in KeybindManager (includes action parameter)
         guard let keybind = KeybindManager.shared.keybind(for: trigger) else {
-            let trigFormat = trigger.ghosttyFormat
-            Ghostty.logger.debug("handleKeybindCommand: No action for trigger \(trigFormat)")
-            return
+            return false
         }
 
         let actionName = keybind.action.rawValue
         Ghostty.logger.debug("Executing keybind action: \(actionName)")
         executeKeybindAction(keybind.action, parameter: keybind.actionParameter)
+        return true
     }
 
     /// Install the tracker's timeout callback. The callback dispatches the
