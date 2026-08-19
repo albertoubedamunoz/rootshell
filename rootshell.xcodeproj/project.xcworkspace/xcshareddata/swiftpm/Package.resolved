@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/helix-rootshell.git",
       "state" : {
-        "revision" : "5ad7aae2523b7d051013ef673ef118882137309a",
-        "version" : "0.1.3"
+        "revision" : "549560b940a2968a1f05fb780537af5da4000316",
+        "version" : "0.1.5"
       }
     },
     {
@@ -114,8 +114,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/libgit2-rootshell.git",
       "state" : {
-        "revision" : "96022a154c6942ae1751cdf5ff2b1af865ebe117",
-        "version" : "0.1.4"
+        "revision" : "ed3a4d8cc0ce153821917d4121ecfdd30221f3fb",
+        "version" : "0.1.6"
       }
     },
     {
@@ -383,8 +383,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/trzsz-ssh-rootshell.git",
       "state" : {
-        "revision" : "9f14938ea09857cb4a118fbdba893fbe15402ae6",
-        "version" : "0.2.0"
+        "revision" : "bd9e777620a2ec40e7be59ec31e8a008ff5f7fa5",
+        "version" : "0.2.2"
       }
     },
     {
