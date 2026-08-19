@@ -3,7 +3,6 @@ xcuserdata/
 .local-packages/
 Frameworks/
 rootshell/Resources/rootshell-helper
-rootshell/Core/BuildInfo.swift
 Configuration/Secrets.xcconfig
 releases
 /build/
