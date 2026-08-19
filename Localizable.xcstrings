@@ -71011,7 +71011,159 @@
       }
     },
     "Auto-start herdr on the remote host" : {
-      "comment" : "Mosh help: --herdr option\nSSH help: --herdr option\nTrzsz help: --herdr option"
+      "comment" : "Mosh help: --herdr option\nSSH help: --herdr option\nTrzsz help: --herdr option",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بدء herdr تلقائيًا على المضيف البعيد"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar herdr automàticament a l'amfitrió remot"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automaticky spustit herdr na vzdáleném hostiteli"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start herdr automatisk på fjernværten"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "herdr automatisch auf dem Remote-Host starten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar herdr automáticamente en el host remoto"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistä herdr automaattisesti etäisännässä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarrer herdr automatiquement sur l'hôte distant"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעלה אוטומטית של herdr במארח המרוחק"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A herdr automatikus indítása a távoli gazdagépen"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avvia automaticamente herdr sull'host remoto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リモートホストで herdr を自動起動"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원격 호스트에서 herdr 자동 시작"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start herdr automatisk på fjernverten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "herdr automatisch starten op de externe host"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatycznie uruchom herdr na zdalnym hoście"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar o herdr automaticamente no host remoto"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar o herdr automaticamente no anfitrião remoto"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pornește automat herdr pe gazda la distanță"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Samodejno zaženi herdr na oddaljenem gostitelju"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starta herdr automatiskt på fjärrvärden"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Автоматично запускати herdr на віддаленому хості"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tự động khởi động herdr trên máy chủ từ xa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在远程主机上自动启动 herdr"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在遠端主機上自動啟動 herdr"
+          }
+        }
+      }
     },
     "Auto-start multiplexer" : {
       "localizations" : {
@@ -109007,6 +109159,161 @@
         }
       }
     },
+    "Collapse server message" : {
+      "comment" : "Accessibility label for SSH auth banner collapse button",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "طي رسالة الخادم"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replegar el missatge del servidor"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sbalit zprávu serveru"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skjul serverbesked"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servernachricht einklappen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraer el mensaje del servidor"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiivistä palvelimen viesti"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réduire le message du serveur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כיווץ הודעת השרת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szerverüzenet összecsukása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprimi il messaggio del server"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サーバーメッセージを折りたたむ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서버 메시지 접기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skjul servermelding"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbericht inklappen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zwiń komunikat serwera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recolher mensagem do servidor"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recolher mensagem do servidor"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restrânge mesajul serverului"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strni sporočilo strežnika"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fäll ihop servermeddelandet"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Згорнути повідомлення сервера"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thu gọn thông báo máy chủ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "折叠服务器消息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收合伺服器訊息"
+          }
+        }
+      }
+    },
     "Collections" : {
       "comment" : "Settings section title: app icon collections",
       "localizations" : {
@@ -126930,7 +127237,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -128167,6 +128474,7 @@
       }
     },
     "Copy Link" : {
+      "comment" : "SSH auth banner URL action",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -128316,6 +128624,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拷貝連結"
+          }
+        }
+      }
+    },
+    "Copy link to %@" : {
+      "comment" : "Accessibility label for SSH auth banner copy-URL button",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نسخ الرابط إلى %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar l'enllaç a %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopírovat odkaz na %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiér link til %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link zu %@ kopieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar el enlace a %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopioi linkki kohteeseen %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier le lien vers %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "העתקת הקישור אל %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link másolása ide: %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia il link a %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ へのリンクをコピー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 링크 복사"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopier lenke til %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopieer link naar %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiuj łącze do %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar link para %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar ligação para %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiați linkul către %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiraj povezavo do %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiera länk till %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скопіювати посилання на %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sao chép liên kết đến %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝指向 %@ 的链接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷貝指向 %@ 的連結"
           }
         }
       }
@@ -154106,7 +154569,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -214644,6 +215107,161 @@
         }
       }
     },
+    "From jump host %@" : {
+      "comment" : "SSH auth banner jump-host attribution",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "من مضيف القفز %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De l'amfitrió de salt %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z jump hostu %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fra jump host %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von Jump-Host %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Del host de salto %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hyppyisännältä %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis le Jump Host %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ממארח Jump ‏%@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A(z) %@ Jump gazdagépről"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dal jump host %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジャンプホスト %@ から"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "점프 호스트 %@에서"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fra mellomtjeneren %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Van Jump Host %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z hosta pośredniego %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do Jump Host %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do anfitrião de salto %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De la Jump Host %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Od jump gostitelja %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Från Jump Host %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Від проміжного хоста %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Từ Jump Host %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来自跳板机 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來自跳板機 %@"
+          }
+        }
+      }
+    },
     "Full host access via nsenter" : {
       "comment" : "Kubernetes debug pod type description: node shell",
       "localizations" : {
@@ -238869,7 +239487,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -266687,6 +267305,160 @@
         }
       }
     },
+    "Key Material" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مادة المفتاح"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Material de la clau"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Materiál klíče"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nøglemateriale"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlüsselmaterial"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Material de la clave"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avainmateriaali"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matériel de clé"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חומר המפתח"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kulcsanyag"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Materiale della chiave"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーマテリアル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키 자료"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nøkkelmateriale"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleutelmateriaal"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Materiał klucza"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Material da Chave"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Material da Chave"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Material cheie"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gradivo ključa"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nyckelmaterial"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Матеріал ключа"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dữ liệu khóa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密钥材料"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "金鑰材料"
+          }
+        }
+      }
+    },
     "Key missing" : {
       "localizations" : {
         "ar" : {
@@ -270078,6 +270850,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "鑰匙圈已鎖定"
+          }
+        }
+      }
+    },
+    "Keychain Protected" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "محمي بسلسلة المفاتيح"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protegida pel Keychain"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chráněno Klíčenkou"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beskyttet af Keychain"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durch Schlüsselbund geschützt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protegida por el llavero"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avainnipun suojaama"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protégée par le trousseau"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מוגן על ידי Keychain"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keychain által védett"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protetta dal Portachiavi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーチェーン保護"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키체인으로 보호됨"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beskyttet av nøkkelringen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beveiligd door Sleutelhanger"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chroniony przez Keychain"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protegida pelo Keychain"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protegida pelo Porta-chaves"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protejat de Keychain"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaščiteno s Keychainom"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skyddad av nyckelringen"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Захищено Keychain"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Được Keychain bảo vệ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "钥匙串保护"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鑰匙圈保護"
           }
         }
       }
@@ -296765,6 +297691,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "從 Ghostty 移轉"
+          }
+        }
+      }
+    },
+    "Migration Pending" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "في انتظار الترحيل"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migració pendent"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Čeká na migraci"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migrering afventer"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migration ausstehend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migración pendiente"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siirto odottaa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migration en attente"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ממתין להעברה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migrálás függőben"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migrazione in sospeso"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移行待ち"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "마이그레이션 대기 중"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migrering venter"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migratie in behandeling"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oczekuje na migrację"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migração Pendente"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migração Pendente"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migrare în așteptare"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Čaka na selitev"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migrering väntar"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очікує міграції"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang chờ di chuyển"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待迁移"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待遷移"
           }
         }
       }
@@ -331495,7 +332575,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -339378,7 +340458,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -339842,7 +340922,7 @@
       }
     },
     "On" : {
-      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -342001,6 +343081,161 @@
         }
       }
     },
+    "Open %@ in browser" : {
+      "comment" : "Accessibility label for SSH auth banner open-URL button",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح %@ في المتصفح"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrir %@ al navegador"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevřít %@ v prohlížeči"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åbn %@ i browseren"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ im Browser öffnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %@ en el navegador"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaa %@ selaimessa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir %@ dans le navigateur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פתיחת %@ בדפדפן"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ megnyitása böngészőben"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri %@ nel browser"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ をブラウザで開く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "브라우저에서 %@ 열기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpne %@ i nettleseren"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ openen in browser"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz %@ w przeglądarce"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %@ no navegador"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %@ no navegador"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deschide %@ în browser"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpri %@ v brskalniku"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppna %@ i webbläsaren"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити %@ у браузері"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở %@ trong trình duyệt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在浏览器中打开 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在瀏覽器中開啟 %@"
+          }
+        }
+      }
+    },
     "Open a new local shell tab, or a new tmux window in the current session." : {
       "localizations" : {
         "ar" : {
@@ -343075,6 +344310,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在入口網站中開啟 Entra ID"
+          }
+        }
+      }
+    },
+    "Open in Browser" : {
+      "comment" : "SSH auth banner URL action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح في المتصفح"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrir al navegador"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevřít v prohlížeči"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åbn i browser"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Browser öffnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir en el navegador"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaa selaimessa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans le navigateur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פתיחה בדפדפן"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Megnyitás böngészőben"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri nel browser"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブラウザで開く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "브라우저에서 열기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpne i nettleser"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Openen in browser"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz w przeglądarce"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir no Navegador"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir no Navegador"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deschide în browser"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpri v brskalniku"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppna i webbläsare"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити у браузері"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở trong trình duyệt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在浏览器中打开"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在瀏覽器中開啟"
           }
         }
       }
@@ -437105,6 +438495,470 @@
         }
       }
     },
+    "Server message" : {
+      "comment" : "Collapsed SSH auth banner pill\nSSH auth banner card title",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسالة الخادم"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missatge del servidor"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zpráva serveru"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbesked"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servernachricht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensaje del servidor"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palvelimen viesti"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message du serveur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הודעת שרת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szerverüzenet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messaggio del server"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サーバーメッセージ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서버 메시지"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servermelding"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbericht"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Komunikat serwera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensagem do servidor"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensagem do servidor"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj de la server"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sporočilo strežnika"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servermeddelande"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повідомлення сервера"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thông báo máy chủ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器消息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器訊息"
+          }
+        }
+      }
+    },
+    "Server Message" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسالة الخادم"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missatge del servidor"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zpráva serveru"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbesked"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servernachricht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensaje del servidor"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palvelimen viesti"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message du serveur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הודעת שרת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szerverüzenet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messaggio del server"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サーバーメッセージ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서버 메시지"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servermelding"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbericht"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Komunikat serwera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensagem do Servidor"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensagem do Servidor"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj de la server"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sporočilo strežnika"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servermeddelande"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повідомлення сервера"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thông báo máy chủ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器消息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器訊息"
+          }
+        }
+      }
+    },
+    "Server message during SSH authentication. Tap to expand." : {
+      "comment" : "Accessibility label for collapsed SSH auth banner pill",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسالة من الخادم أثناء مصادقة SSH. اضغط للتوسيع."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missatge del servidor durant l'autenticació SSH. Toqueu per expandir."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zpráva serveru během ověřování SSH. Klepnutím rozbalíte."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbesked under SSH-godkendelse. Tryk for at udvide."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servernachricht während der SSH-Authentifizierung. Zum Aufklappen tippen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensaje del servidor durante la autenticación SSH. Toca para expandir."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palvelimen viesti SSH-todennuksen aikana. Laajenna napauttamalla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message du serveur pendant l'authentification SSH. Touchez pour développer."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הודעת שרת במהלך אימות SSH. יש להקיש כדי להרחיב."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szerverüzenet az SSH-hitelesítés során. Koppintson a kibontáshoz."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messaggio del server durante l'autenticazione SSH. Tocca per espandere."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH認証中のサーバーメッセージ。タップして展開します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH 인증 중 서버 메시지입니다. 탭하여 확장합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servermelding under SSH-autentisering. Trykk for å utvide."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbericht tijdens SSH-verificatie. Tik om uit te vouwen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Komunikat serwera podczas uwierzytelniania SSH. Dotknij, aby rozwinąć."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensagem do servidor durante a autenticação SSH. Toque para expandir."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensagem do servidor durante a autenticação SSH. Toque para expandir."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesaj de la server în timpul autentificării SSH. Atingeți pentru a extinde."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sporočilo strežnika med overjanjem SSH. Tapnite za razširitev."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servermeddelande under SSH-autentisering. Tryck för att expandera."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повідомлення сервера під час автентифікації SSH. Торкніться, щоб розгорнути."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thông báo máy chủ trong quá trình xác thực SSH. Chạm để mở rộng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH 认证期间的服务器消息。轻点以展开。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH 認證期間的伺服器訊息。點一下以展開。"
+          }
+        }
+      }
+    },
     "Server Prompt" : {
       "localizations" : {
         "ar" : {
@@ -500579,6 +502433,160 @@
         }
       }
     },
+    "The passphrase is used once to decrypt the key during import and is never stored; the imported key is protected by the Keychain" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تُستخدم عبارة المرور مرة واحدة لفك تشفير المفتاح أثناء الاستيراد ولا يتم تخزينها أبدًا؛ المفتاح المستورد محمي بسلسلة المفاتيح"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La frase de pas s'utilitza una sola vegada per desxifrar la clau durant la importació i mai no es desa; la clau importada està protegida pel Keychain"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heslová fráze se použije jednou k dešifrování klíče při importu a nikdy se neukládá; importovaný klíč je chráněn Klíčenkou"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adgangsfrasen bruges én gang til at dekryptere nøglen under importen og gemmes aldrig; den importerede nøgle beskyttes af Keychain"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Passphrase wird einmalig zum Entschlüsseln des Schlüssels beim Import verwendet und nie gespeichert; der importierte Schlüssel wird durch den Schlüsselbund geschützt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La frase de contraseña se usa una sola vez para descifrar la clave durante la importación y nunca se almacena; la clave importada está protegida por el llavero"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tunnuslausetta käytetään kerran avaimen purkamiseen tuonnin aikana, eikä sitä tallenneta koskaan; tuotu avain on avainnipun suojaama"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La phrase secrète est utilisée une seule fois pour déchiffrer la clé lors de l'importation et n'est jamais conservée ; la clé importée est protégée par le trousseau"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ביטוי הסיסמה משמש פעם אחת לפענוח המפתח בעת הייבוא ולעולם אינו נשמר; המפתח המיובא מוגן על ידי Keychain"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A jelmondat egyszer, az importálás során a kulcs visszafejtéséhez szolgál, és soha nem kerül tárolásra; az importált kulcsot a Keychain védi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La passphrase viene usata una sola volta per decifrare la chiave durante l'importazione e non viene mai memorizzata; la chiave importata è protetta dal Portachiavi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスフレーズは読み込み時にキーを復号するために一度だけ使用され、保存されることはありません。読み込まれたキーはキーチェーンで保護されます"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "패스프레이즈는 가져오는 동안 키를 복호화하는 데 한 번만 사용되며 저장되지 않습니다. 가져온 키는 키체인으로 보호됩니다"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passfrasen brukes én gang til å dekryptere nøkkelen under importen og lagres aldri; den importerte nøkkelen beskyttes av nøkkelringen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De wachtwoordzin wordt eenmalig gebruikt om de sleutel te ontsleutelen tijdens het importeren en wordt nooit bewaard; de geïmporteerde sleutel wordt beveiligd door de Sleutelhanger"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hasło klucza jest używane jednorazowo do odszyfrowania klucza podczas importu i nigdy nie jest przechowywane; zaimportowany klucz jest chroniony przez Keychain"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A frase-senha é usada uma única vez para descriptografar a chave durante a importação e nunca é armazenada; a chave importada é protegida pelo Keychain"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A frase-passe é usada uma única vez para desencriptar a chave durante a importação e nunca é armazenada; a chave importada é protegida pelo Porta-chaves"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fraza de acces este folosită o singură dată pentru a decripta cheia în timpul importului și nu este stocată niciodată; cheia importată este protejată de Keychain"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geslo se enkrat uporabi za dešifriranje ključa med uvozom in se nikoli ne shrani; uvoženi ključ je zaščiten s Keychainom"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lösenfrasen används en gång för att dekryptera nyckeln vid importen och lagras aldrig; den importerade nyckeln skyddas av nyckelringen"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Парольна фраза використовується один раз для розшифрування ключа під час імпорту й ніколи не зберігається; імпортований ключ захищено Keychain"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cụm mật khẩu chỉ được dùng một lần để giải mã khóa trong quá trình nhập và không bao giờ được lưu trữ; khóa đã nhập được Keychain bảo vệ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码短语仅在导入时用于解密密钥一次，不会被存储；导入后的密钥由钥匙串保护"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密碼片語僅在匯入時用於解密金鑰一次，不會被儲存；匯入後的金鑰由鑰匙圈保護"
+          }
+        }
+      }
+    },
     "The private key is generated inside the Secure Enclave and can never be read, exported, backed up, or synced — not even by this app. P-256 only." : {
       "localizations" : {
         "ar" : {
@@ -509070,7 +511078,162 @@
         }
       }
     },
+    "This key appears to be encrypted. The passphrase is used once to decrypt the key during import and is never stored." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يبدو أن هذا المفتاح مشفّر. تُستخدم عبارة المرور مرة واحدة لفك تشفير المفتاح أثناء الاستيراد ولا يتم تخزينها أبدًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sembla que aquesta clau està xifrada. La frase de pas s'utilitza una sola vegada per desxifrar la clau durant la importació i mai no es desa."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zdá se, že tento klíč je zašifrovaný. Heslová fráze se použije jednou k dešifrování klíče při importu a nikdy se neukládá."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne nøgle ser ud til at være krypteret. Adgangsfrasen bruges én gang til at dekryptere nøglen under importen og gemmes aldrig."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Schlüssel scheint verschlüsselt zu sein. Die Passphrase wird einmalig zum Entschlüsseln des Schlüssels beim Import verwendet und nie gespeichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parece que esta clave está cifrada. La frase de contraseña se usa una sola vez para descifrar la clave durante la importación y nunca se almacena."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tämä avain näyttää olevan salattu. Tunnuslausetta käytetään kerran avaimen purkamiseen tuonnin aikana, eikä sitä tallenneta koskaan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette clé semble être chiffrée. La phrase secrète est utilisée une seule fois pour déchiffrer la clé lors de l'importation et n'est jamais conservée."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נראה שהמפתח הזה מוצפן. ביטוי הסיסמה משמש פעם אחת לפענוח המפתח בעת הייבוא ולעולם אינו נשמר."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Úgy tűnik, hogy ez a kulcs titkosított. A jelmondat egyszer, az importálás során a kulcs visszafejtéséhez szolgál, és soha nem kerül tárolásra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa chiave sembra essere cifrata. La passphrase viene usata una sola volta per decifrare la chiave durante l'importazione e non viene mai memorizzata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このキーは暗号化されているようです。パスフレーズは読み込み時にキーを復号するために一度だけ使用され、保存されることはありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 키는 암호화된 것으로 보입니다. 패스프레이즈는 가져오는 동안 키를 복호화하는 데 한 번만 사용되며 저장되지 않습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne nøkkelen ser ut til å være kryptert. Passfrasen brukes én gang til å dekryptere nøkkelen under importen og lagres aldri."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze sleutel lijkt versleuteld te zijn. De wachtwoordzin wordt eenmalig gebruikt om de sleutel te ontsleutelen tijdens het importeren en wordt nooit bewaard."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wygląda na to, że ten klucz jest zaszyfrowany. Hasło klucza jest używane jednorazowo do odszyfrowania klucza podczas importu i nigdy nie jest przechowywane."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta chave parece estar criptografada. A frase-senha é usada uma única vez para descriptografar a chave durante a importação e nunca é armazenada."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta chave parece estar encriptada. A frase-passe é usada uma única vez para desencriptar a chave durante a importação e nunca é armazenada."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Această cheie pare să fie criptată. Fraza de acces este folosită o singură dată pentru a decripta cheia în timpul importului și nu este stocată niciodată."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Videti je, da je ta ključ šifriran. Geslo se enkrat uporabi za dešifriranje ključa med uvozom in se nikoli ne shrani."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den här nyckeln verkar vara krypterad. Lösenfrasen används en gång för att dekryptera nyckeln vid importen och lagras aldrig."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Здається, цей ключ зашифровано. Парольна фраза використовується один раз для розшифрування ключа під час імпорту й ніколи не зберігається."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khóa này có vẻ đã được mã hóa. Cụm mật khẩu chỉ được dùng một lần để giải mã khóa trong quá trình nhập và không bao giờ được lưu trữ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此密钥似乎已加密。密码短语仅在导入时用于解密密钥一次，不会被存储。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此金鑰似乎已加密。密碼片語僅在匯入時用於解密金鑰一次，不會被儲存。"
+          }
+        }
+      }
+    },
     "This key appears to be encrypted. The passphrase will be stored securely in the Keychain." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -510145,6 +512308,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此金鑰是在 PKDECRYPT 支援推出之前匯入的。若你原本的金鑰環有加密子金鑰,請重新匯入私鑰區塊,以便透過轉發的代理啟用 `gpg -d`。"
+          }
+        }
+      }
+    },
+    "This key was imported with a passphrase on another device. Enter it once to decrypt the key; it will then be protected by the Keychain and won't need the passphrase again." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم استيراد هذا المفتاح باستخدام عبارة مرور على جهاز آخر. أدخلها مرة واحدة لفك تشفير المفتاح؛ بعد ذلك سيصبح محميًا بسلسلة المفاتيح ولن يحتاج إلى عبارة المرور مرة أخرى."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquesta clau es va importar amb una frase de pas en un altre dispositiu. Introduïu-la una vegada per desxifrar la clau; a partir d'aleshores quedarà protegida pel Keychain i ja no caldrà la frase de pas."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tento klíč byl importován s heslovou frází na jiném zařízení. Zadejte ji jednou k dešifrování klíče; poté bude chráněn Klíčenkou a heslovou frázi už nebude potřebovat."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne nøgle blev importeret med en adgangsfrase på en anden enhed. Indtast den én gang for at dekryptere nøglen; derefter beskyttes den af Keychain og har ikke brug for adgangsfrasen igen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Schlüssel wurde auf einem anderen Gerät mit einer Passphrase importiert. Geben Sie sie einmal ein, um den Schlüssel zu entschlüsseln; danach wird er durch den Schlüsselbund geschützt und benötigt die Passphrase nicht mehr."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta clave se importó con una frase de contraseña en otro dispositivo. Introdúcela una vez para descifrar la clave; después quedará protegida por el llavero y ya no necesitará la frase de contraseña."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tämä avain tuotiin toisella laitteella tunnuslauseella. Anna se kerran avaimen purkamiseksi; sen jälkeen avain on avainnipun suojaama eikä tunnuslausetta tarvita enää."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette clé a été importée avec une phrase secrète sur un autre appareil. Saisissez-la une fois pour déchiffrer la clé ; elle sera ensuite protégée par le trousseau et n'aura plus besoin de la phrase secrète."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מפתח זה יובא עם ביטוי סיסמה במכשיר אחר. יש להזין אותו פעם אחת כדי לפענח את המפתח; לאחר מכן הוא יהיה מוגן על ידי Keychain ולא יזדקק שוב לביטוי הסיסמה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ezt a kulcsot egy másik eszközön, jelmondattal importálták. Adja meg egyszer a kulcs visszafejtéséhez; ezután a Keychain védi majd, és többé nem lesz szükség a jelmondatra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa chiave è stata importata con una passphrase su un altro dispositivo. Inseriscila una volta per decifrare la chiave; in seguito sarà protetta dal Portachiavi e non richiederà più la passphrase."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このキーは別のデバイスでパスフレーズ付きで読み込まれました。キーを復号するために一度だけ入力してください。その後はキーチェーンで保護され、パスフレーズは不要になります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 키는 다른 기기에서 패스프레이즈와 함께 가져온 것입니다. 키를 복호화하려면 한 번 입력하세요. 이후에는 키체인으로 보호되어 패스프레이즈가 다시 필요하지 않습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne nøkkelen ble importert med en passfrase på en annen enhet. Skriv den inn én gang for å dekryptere nøkkelen; deretter beskyttes den av nøkkelringen og trenger ikke passfrasen igjen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze sleutel is op een ander apparaat geïmporteerd met een wachtwoordzin. Voer deze eenmalig in om de sleutel te ontsleutelen; daarna wordt hij beveiligd door de Sleutelhanger en is de wachtwoordzin niet meer nodig."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ten klucz został zaimportowany z hasłem na innym urządzeniu. Wprowadź je raz, aby odszyfrować klucz; potem będzie on chroniony przez Keychain i hasło nie będzie już potrzebne."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta chave foi importada com uma frase-senha em outro dispositivo. Digite-a uma vez para descriptografar a chave; depois disso, ela será protegida pelo Keychain e não precisará mais da frase-senha."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta chave foi importada com uma frase-passe noutro dispositivo. Introduza-a uma vez para desencriptar a chave; depois disso, ficará protegida pelo Porta-chaves e deixará de precisar da frase-passe."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Această cheie a fost importată cu o frază de acces pe alt dispozitiv. Introduceți-o o dată pentru a decripta cheia; după aceea va fi protejată de Keychain și nu va mai avea nevoie de fraza de acces."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta ključ je bil uvožen z geslom v drugi napravi. Vnesite ga enkrat za dešifriranje ključa; nato bo zaščiten s Keychainom in gesla ne bo več potreboval."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den här nyckeln importerades med en lösenfras på en annan enhet. Ange den en gång för att dekryptera nyckeln; därefter skyddas den av nyckelringen och behöver inte lösenfrasen igen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей ключ було імпортовано з парольною фразою на іншому пристрої. Введіть її один раз, щоб розшифрувати ключ; після цього він буде захищений Keychain і парольна фраза більше не знадобиться."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khóa này đã được nhập kèm cụm mật khẩu trên một thiết bị khác. Hãy nhập cụm mật khẩu một lần để giải mã khóa; sau đó khóa sẽ được Keychain bảo vệ và không cần cụm mật khẩu nữa."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此密钥是在另一台设备上带密码短语导入的。请输入一次以解密该密钥；之后它将由钥匙串保护，无需再次输入密码短语。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此金鑰是在另一部裝置上帶密碼片語匯入的。請輸入一次以解密該金鑰；之後它將由鑰匙圈保護，無需再次輸入密碼片語。"
           }
         }
       }
@@ -538407,6 +540724,314 @@
         }
       }
     },
+    "Unlock Legacy Key" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إلغاء قفل المفتاح القديم"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquejar la clau antiga"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odemknout starší klíč"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lås ældre nøgle op"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alten Schlüssel entsperren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear clave antigua"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaa vanhan avaimen lukitus"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouiller la clé héritée"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ביטול נעילת מפתח ישן"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Régi kulcs feloldása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocca chiave legacy"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旧形式のキーのロックを解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "레거시 키 잠금 해제"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lås opp eldre nøkkel"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oude sleutel ontgrendelen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odblokuj starszy klucz"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear Chave Antiga"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloquear Chave Antiga"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deblocare cheie veche"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odkleni starejši ključ"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lås upp äldre nyckel"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Розблокувати застарілий ключ"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở khóa khóa cũ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解锁旧版密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解鎖舊版金鑰"
+          }
+        }
+      }
+    },
+    "Unlock Required" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يلزم إلغاء القفل"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cal desbloquejar"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vyžaduje odemknutí"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oplåsning påkrævet"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entsperren erforderlich"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere desbloqueo"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vaatii lukituksen avaamisen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouillage requis"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נדרש ביטול נעילה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feloldás szükséges"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sblocco richiesto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ロック解除が必要"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "잠금 해제 필요"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opplåsing kreves"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ontgrendelen vereist"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wymagane odblokowanie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloqueio Necessário"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desbloqueio Necessário"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Necesită deblocare"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potrebno odklepanje"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upplåsning krävs"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потрібно розблокувати"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cần mở khóa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要解锁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要解鎖"
+          }
+        }
+      }
+    },
     "Unlock with %@" : {
       "localizations" : {
         "ar" : {
@@ -548456,6 +551081,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "供本機 Shell 使用。rootshell 內建 xterm-ghostty 的 terminfo 項目，並將 TERMINFO 指向它，因此本機 Shell 無需安裝任何東西即可獲得完整的 Ghostty 功能。"
+          }
+        }
+      }
+    },
+    "Used once to decrypt the key during import; never stored." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تُستخدم مرة واحدة لفك تشفير المفتاح أثناء الاستيراد؛ ولا يتم تخزينها أبدًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'utilitza una sola vegada per desxifrar la clau durant la importació; mai no es desa."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použije se jednou k dešifrování klíče při importu; nikdy se neukládá."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruges én gang til at dekryptere nøglen under importen; gemmes aldrig."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird einmalig zum Entschlüsseln des Schlüssels beim Import verwendet; nie gespeichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se usa una sola vez para descifrar la clave durante la importación; nunca se almacena."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytetään kerran avaimen purkamiseen tuonnin aikana; ei tallenneta koskaan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisée une seule fois pour déchiffrer la clé lors de l'importation ; jamais conservée."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "משמש פעם אחת לפענוח המפתח בעת הייבוא; לעולם אינו נשמר."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Egyszer, az importálás során a kulcs visszafejtéséhez szolgál; soha nem kerül tárolásra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usata una sola volta per decifrare la chiave durante l'importazione; mai memorizzata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込み時にキーを復号するために一度だけ使用され、保存されることはありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가져오는 동안 키를 복호화하는 데 한 번만 사용되며 저장되지 않습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brukes én gang til å dekryptere nøkkelen under importen; lagres aldri."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wordt eenmalig gebruikt om de sleutel te ontsleutelen tijdens het importeren; wordt nooit bewaard."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Używane jednorazowo do odszyfrowania klucza podczas importu; nigdy nie jest przechowywane."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usada uma única vez para descriptografar a chave durante a importação; nunca é armazenada."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usada uma única vez para desencriptar a chave durante a importação; nunca é armazenada."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folosită o singură dată pentru a decripta cheia în timpul importului; nu este stocată niciodată."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uporabi se enkrat za dešifriranje ključa med uvozom; nikoli se ne shrani."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Används en gång för att dekryptera nyckeln vid importen; lagras aldrig."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовується один раз для розшифрування ключа під час імпорту; ніколи не зберігається."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chỉ được dùng một lần để giải mã khóa trong quá trình nhập; không bao giờ được lưu trữ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅在导入时用于解密密钥一次，不会被存储。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅在匯入時用於解密金鑰一次，不會被儲存。"
           }
         }
       }
@@ -567764,7 +570543,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -576415,6 +579194,7 @@
       }
     },
     "Your passphrase will be stored securely in the Keychain" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
