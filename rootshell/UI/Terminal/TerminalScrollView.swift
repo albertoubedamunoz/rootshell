@@ -162,6 +162,18 @@ extension Ghostty {
     /// Attachment upload banner host view
     private var uploadBannerHostView: AttachmentUploadBannerHostView?
 
+    /// SSH auth-banner card host view (shows SSH_MSG_USERAUTH_BANNER live
+    /// during authentication)
+    private var authBannerCardHostView: SSHAuthBannerCardHostView?
+
+    /// The auth card's top constraint. Recomputed whenever any banner in the
+    /// stacking chain changes — anchoring only at creation goes stale when the
+    /// roam/upload banner above it appears or is removed.
+    private var authBannerCardTopConstraint: NSLayoutConstraint?
+
+    /// Task consuming the session's auth-banner card state stream
+    private var authBannerObserveTask: Task<Void, Never>?
+
     /// Cancellable for observing terminal session changes
     private var sessionObserverCancellable: AnyCancellable?
 
@@ -217,6 +229,7 @@ extension Ghostty {
 
     deinit {
         foregroundBannerGraceTask?.cancel()
+        authBannerObserveTask?.cancel()
         restoreNativeScrollIndicatorWorkItem?.cancel()
         selectionScrollIndicatorHoldWorkItem?.cancel()
         // Clean up notification observers
@@ -253,6 +266,10 @@ extension Ghostty {
             // slider/Reset button never see it). The brightness HUD is
             // cross-platform; the dimension overlay is iOS-only.
             if let hitView = brightnessHUDHitTest(point, with: event) {
+                return hitView
+            }
+
+            if let hitView = authBannerCardHitTest(point, with: event) {
                 return hitView
             }
 
@@ -303,6 +320,13 @@ extension Ghostty {
             return hitView
         }
 
+        // Same carve-out for the auth-banner card: it must stay tappable on
+        // Catalyst where the in-bounds check below would otherwise return
+        // terminalView for every click.
+        if let hitView = authBannerCardHitTest(point, with: event) {
+            return hitView
+        }
+
         let terminalPoint = convert(point, to: terminalView)
         if terminalView.bounds.contains(terminalPoint) {
             if let event {
@@ -330,6 +354,18 @@ extension Ghostty {
         }
         let hudPoint = convert(point, to: hudView)
         return hudView.hitTest(hudPoint, with: event)
+    }
+
+    /// If the SSH auth-banner card covers `point`, return the hit subview so
+    /// its open/copy/collapse controls receive the click/touch even during
+    /// mouse capture or under the Catalyst transparent-scroll-view routing.
+    private func authBannerCardHitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let cardView = authBannerCardHostView, cardView.superview != nil,
+              cardView.alpha > 0 else {
+            return nil
+        }
+        let cardPoint = convert(point, to: cardView)
+        return cardView.hitTest(cardPoint, with: event)
     }
 
     #if !targetEnvironment(macCatalyst)
@@ -864,6 +900,11 @@ extension Ghostty {
 
     /// Updates the roaming session observer when the terminal's session changes
     private func updateMoshSessionObserver() {
+        // The auth-banner card tracks the session through the exact same
+        // invalidation sites (initial setup, session adoption, embedded-mosh
+        // change, reconnect), so re-resolve it here too.
+        updateAuthBannerObserver()
+
         // Cancel existing observer
         roamBannerCancellable?.cancel()
         roamBannerCancellable = nil
@@ -904,6 +945,31 @@ extension Ghostty {
 
         // Not a roaming session - hide any existing banner
         updateRoamBanner(state: nil)
+    }
+
+    /// Re-resolves the auth-banner card subscription for the current session.
+    /// Invoked from the same sites as the roam-banner observer so it tracks
+    /// session adoption, reconnect replacement, and embedded-session changes.
+    /// LocalShellSession conforms to SSHAuthBannerCardProviding directly
+    /// (forwarding its embedded session's state), so one subscription per
+    /// session object covers all embedded transitions.
+    private func updateAuthBannerObserver() {
+        authBannerObserveTask?.cancel()
+        authBannerObserveTask = nil
+
+        guard let provider = terminalView.session as? SSHAuthBannerCardProviding else {
+            updateAuthBannerCard(state: nil)
+            return
+        }
+
+        // The stream replays the current value first, so banners that arrived
+        // before this pane observed the session still show.
+        authBannerObserveTask = Task { [weak self] in
+            for await state in provider.authBannerCardStates() {
+                guard let self, !Task.isCancelled else { return }
+                self.updateAuthBannerCard(state: state)
+            }
+        }
     }
 
     /// Observes a MoshSession's roamBannerState and updates the banner accordingly
@@ -980,6 +1046,7 @@ extension Ghostty {
         }
 
         roamBannerHostView?.update(state: state)
+        refreshAuthBannerCardTopConstraint()
 
         // Remove host view when state is nil (after animation completes)
         if state == nil {
@@ -988,6 +1055,7 @@ extension Ghostty {
                 guard self?.roamBannerHostView?.currentState == nil else { return }
                 self?.roamBannerHostView?.removeFromSuperview()
                 self?.roamBannerHostView = nil
+                self?.refreshAuthBannerCardTopConstraint()
             }
         }
     }
@@ -1062,14 +1130,90 @@ extension Ghostty {
         }
 
         uploadBannerHostView?.update(state: state)
+        refreshAuthBannerCardTopConstraint()
 
         if state == nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard self?.uploadBannerHostView?.currentState == nil else { return }
                 self?.uploadBannerHostView?.removeFromSuperview()
                 self?.uploadBannerHostView = nil
+                self?.refreshAuthBannerCardTopConstraint()
             }
         }
+    }
+
+    // MARK: - SSH Auth Banner Card Handling
+
+    /// Re-homes the auth-banner card's hosting controller under a new parent
+    /// view controller. Called from the pane's `prepareForAttachment` during
+    /// window transfer, before the split tree inserts the pane into the
+    /// destination hierarchy.
+    func refreshAuthBannerParentViewController(_ viewController: UIViewController?) {
+        authBannerCardHostView?.setParentViewController(viewController)
+    }
+
+    private func updateAuthBannerCard(state: SSHAuthBannerCardState?) {
+        if state != nil && authBannerCardHostView == nil {
+            let hostView = SSHAuthBannerCardHostView()
+            hostView.translatesAutoresizingMaskIntoConstraints = false
+
+            if let parentVC = findViewController() {
+                hostView.setParentViewController(parentVC)
+            }
+
+            addSubview(hostView)
+
+            NSLayoutConstraint.activate([
+                hostView.centerXAnchor.constraint(equalTo: centerXAnchor),
+                hostView.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 16),
+                hostView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
+                // A hostile 64 KiB banner scrolls inside the card instead of
+                // covering the pane (and the auth prompts under it).
+                hostView.heightAnchor.constraint(lessThanOrEqualTo: heightAnchor, multiplier: 0.6)
+            ])
+
+            authBannerCardHostView = hostView
+        }
+
+        refreshAuthBannerCardTopConstraint()
+        authBannerCardHostView?.update(state: state)
+
+        if state == nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard self?.authBannerCardHostView?.currentState == nil else { return }
+                self?.authBannerCardHostView?.removeFromSuperview()
+                self?.authBannerCardHostView = nil
+            }
+        }
+    }
+
+    /// Re-anchors the auth card in the banner stacking chain: below the upload
+    /// banner, else below the roam banner, else at the top. Called whenever
+    /// the card or either banner above it changes, so the card never keeps a
+    /// constraint to a banner that has since disappeared (which would leave
+    /// its vertical position ambiguous) or overlaps one that appeared later.
+    private func refreshAuthBannerCardTopConstraint() {
+        guard let hostView = authBannerCardHostView, hostView.superview === self else { return }
+
+        let topAnchor: NSLayoutYAxisAnchor
+        let topConstant: CGFloat
+        if let uploadBanner = uploadBannerHostView, uploadBanner.superview === self,
+           uploadBanner.currentState != nil {
+            topAnchor = uploadBanner.bottomAnchor
+            topConstant = 4
+        } else if let roamBanner = roamBannerHostView, roamBanner.superview === self,
+                  roamBanner.currentState != nil {
+            topAnchor = roamBanner.bottomAnchor
+            topConstant = 4
+        } else {
+            topAnchor = self.topAnchor
+            topConstant = 8
+        }
+
+        authBannerCardTopConstraint?.isActive = false
+        let constraint = hostView.topAnchor.constraint(equalTo: topAnchor, constant: topConstant)
+        constraint.isActive = true
+        authBannerCardTopConstraint = constraint
     }
 
     // MARK: - Progress Bar Handling

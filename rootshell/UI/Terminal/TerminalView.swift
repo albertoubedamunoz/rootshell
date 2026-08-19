@@ -1393,6 +1393,15 @@ extension Ghostty {
             cleanup(reason: .userClose)
         }
 
+        /// Re-home overlay child view controllers (the SSH auth-banner card)
+        /// under the destination window's controller before the split tree
+        /// inserts this pane — a live card mid-auth must not keep a child-VC
+        /// relationship with the old window after a tab transfer.
+        override func prepareForAttachment(to parentViewController: UIViewController?) -> Bool {
+            enclosingTerminalScrollView?.refreshAuthBannerParentViewController(parentViewController)
+            return true
+        }
+
         /// Explicitly cleanup resources before deallocation.
         /// Call this from MainView when closing a tab/split.
         func cleanup(reason: CleanupReason = .sceneTeardown) {

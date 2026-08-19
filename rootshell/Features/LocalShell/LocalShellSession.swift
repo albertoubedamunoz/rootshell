@@ -119,11 +119,42 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
         }
     }
 
-    var embeddedSSHSession: TerminalSession?
+    var embeddedSSHSession: TerminalSession? {
+        didSet { updateAuthBannerCardForwarding() }
+    }
     var embeddedSCPTransfer: SCPTransfer?
     var embeddedSFTPSession: SFTPSession?
-    var embeddedMoshSession: MoshSession?
-    var embeddedTrzszSession: TrzszSession?
+    var embeddedMoshSession: MoshSession? {
+        didSet { updateAuthBannerCardForwarding() }
+    }
+    var embeddedTrzszSession: TrzszSession? {
+        didSet { updateAuthBannerCardForwarding() }
+    }
+
+    /// Relays the active embedded session's auth-banner card state through
+    /// this session's own model, so the pane's single observation (of this
+    /// LocalShellSession) sees banners from whichever embedded SSH/Mosh/Trzsz
+    /// session is currently authenticating.
+    let authBannerCardModel = SSHAuthBannerCardModel()
+    private var authBannerCardForwardingTask: Task<Void, Never>?
+
+    private func updateAuthBannerCardForwarding() {
+        authBannerCardForwardingTask?.cancel()
+        authBannerCardForwardingTask = nil
+        let provider = (embeddedSSHSession as? SSHAuthBannerCardProviding)
+            ?? (embeddedMoshSession as SSHAuthBannerCardProviding?)
+            ?? (embeddedTrzszSession as SSHAuthBannerCardProviding?)
+        guard let provider else {
+            authBannerCardModel.clear()
+            return
+        }
+        authBannerCardForwardingTask = Task { [weak self] in
+            for await state in provider.authBannerCardStates() {
+                guard let self, !Task.isCancelled else { return }
+                self.authBannerCardModel.relay(state)
+            }
+        }
+    }
     var embeddedConnectionStartTask: Task<Void, Never>?
     var embeddedConnectionStartTaskID: UUID?
     var activePingCommand: PingCommand?
@@ -1683,6 +1714,18 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
     deinit {
         // Cancel shell task
         shellTask?.cancel()
+    }
+}
+
+// MARK: - Auth banner card
+
+extension LocalShellSession: SSHAuthBannerCardProviding {
+    var authBannerCardState: SSHAuthBannerCardState? {
+        authBannerCardModel.current
+    }
+
+    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
+        authBannerCardModel.states()
     }
 }
 

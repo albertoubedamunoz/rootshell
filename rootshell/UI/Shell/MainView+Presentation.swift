@@ -282,7 +282,8 @@ extension MainView {
                         },
                         onCancel: {
                             respondToKeyboardInteractive(nil)
-                        }
+                        },
+                        authBannerStates: entry.authBannerStates
                     )
                     // Force an explicit Submit/Cancel: a swipe-dismiss must still
                     // resume the continuation, so treat interactive dismissal as

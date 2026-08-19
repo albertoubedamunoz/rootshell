@@ -128,9 +128,22 @@ final class MoshSession: TerminalSession {
     /// Current session state
     private(set) var state: MoshSessionState = .initial {
         didSet {
+            // Clear the auth-banner card on user-initiated teardown
+            // (stop/terminate set .disconnected) — but NOT on .failed:
+            // Tailscale SSH sends its rejection reason as an auth banner
+            // immediately before disconnecting, so on bootstrap-auth failure
+            // the card is the only surface holding the explanation and must
+            // outlive the failure.
+            if case .disconnected = state {
+                authBannerCardModel.clear()
+            }
             onStateChange?(state)
         }
     }
+
+    /// Mirrors bootstrap SSH auth banners into the nonmodal per-pane card
+    /// while mosh-server spawn authentication is pending.
+    let authBannerCardModel = SSHAuthBannerCardModel()
 
     /// Current roam banner state for SwiftUI overlay
     /// nil when banner should not be visible
@@ -805,6 +818,11 @@ final class MoshSession: TerminalSession {
             spawner.delegate = self
             spawner.onKeyboardInteractiveChallenge = onKeyboardInteractiveChallenge
             spawner.onHostKeyValidation = onHostKeyValidation
+            // Live card during bootstrap auth; the spawn-success drain fires
+            // `.reset` and removes it once the SSH phase completes.
+            spawner.setAuthBannerObserver(
+                authBannerCardModel.makeBufferObserver(hostLabel: config.sshConfig.host)
+            )
             self.spawner = spawner
 
             let spawnResult = try await spawner.spawn(resolvedHost: connectionHost)
@@ -2120,5 +2138,17 @@ extension MoshSession {
         }
 
         return false
+    }
+}
+
+// MARK: - Auth banner card
+
+extension MoshSession: SSHAuthBannerCardProviding {
+    var authBannerCardState: SSHAuthBannerCardState? {
+        authBannerCardModel.current
+    }
+
+    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
+        authBannerCardModel.states()
     }
 }

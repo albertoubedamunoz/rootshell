@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Modal for answering a keyboard-interactive (RFC 4256) SSH challenge: the
 /// server supplies a name/instruction and one or more prompts (each marked echo
@@ -9,21 +10,29 @@ struct KeyboardInteractivePromptView: View {
     let sessionLabel: String
     let onSubmit: ([String]) -> Void
     let onCancel: () -> Void
+    /// Factory for the session's live auth-banner state stream, shown
+    /// display-only above the prompts. The sheet covers the pane's
+    /// auth-banner card on iPhone, so OTP-style banner instructions (and
+    /// their URLs) must appear here too.
+    let authBannerStates: (@MainActor () -> AsyncStream<SSHAuthBannerCardState?>)?
 
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     @State private var responses: [String]
+    @State private var bannerState: SSHAuthBannerCardState?
     @FocusState private var focusedIndex: Int?
 
     init(
         challenge: KeyboardInteractiveChallenge,
         sessionLabel: String,
         onSubmit: @escaping ([String]) -> Void,
-        onCancel: @escaping () -> Void
+        onCancel: @escaping () -> Void,
+        authBannerStates: (@MainActor () -> AsyncStream<SSHAuthBannerCardState?>)? = nil
     ) {
         self.challenge = challenge
         self.sessionLabel = sessionLabel
         self.onSubmit = onSubmit
         self.onCancel = onCancel
+        self.authBannerStates = authBannerStates
         _responses = State(initialValue: Array(repeating: "", count: challenge.prompts.count))
     }
 
@@ -50,6 +59,26 @@ struct KeyboardInteractivePromptView: View {
                 } footer: {
                     if !challenge.instruction.isEmpty {
                         Text(challenge.instruction)
+                    }
+                }
+
+                if let bannerState {
+                    Section {
+                        SSHAuthBannerContentView(
+                            state: bannerState,
+                            onOpenURL: { url in
+                                UIApplication.shared.open(url)
+                            },
+                            onCopyURL: { url in
+                                UIPasteboard.general.string = url.absoluteString
+                                ClipboardHistoryManager.shared.record(
+                                    url.absoluteString, source: .copyLink
+                                )
+                            }
+                        )
+                        .themedRow()
+                    } header: {
+                        Text("Server Message")
                     }
                 }
 
@@ -88,6 +117,12 @@ struct KeyboardInteractivePromptView: View {
                 guard !challenge.prompts.isEmpty else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     focusedIndex = 0
+                }
+            }
+            .task {
+                guard let authBannerStates else { return }
+                for await state in authBannerStates() {
+                    bannerState = state
                 }
             }
         }

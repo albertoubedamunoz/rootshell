@@ -87,6 +87,13 @@ final class MoshServerSpawner {
     /// `SpawnResult` once spawning completes.
     private let authBannerBuffer = AuthBannerBuffer()
 
+    /// Installs a live observer on the banner buffer so the owning session can
+    /// mirror banners into the auth-banner card while spawn auth is pending.
+    /// Set before `spawn` is called.
+    func setAuthBannerObserver(_ handler: (@Sendable (AuthBannerBuffer.Event) -> Void)?) {
+        authBannerBuffer.setObserver(handler)
+    }
+
     /// Logger
     private nonisolated static let logger = Logger(
         subsystem: "com.kk2.rootshell",
@@ -313,8 +320,8 @@ final class MoshServerSpawner {
             jumpSettings.algorithms = .all
             jumpSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             jumpSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: jumpHost.host)
-            jumpSettings.onUserAuthBanner = { [authBannerBuffer = self.authBannerBuffer] message, _ in
-                authBannerBuffer.append(message)
+            jumpSettings.onUserAuthBanner = { [authBannerBuffer = self.authBannerBuffer, jumpHostName = jumpHost.host] message, _ in
+                authBannerBuffer.append(message, source: jumpHostName)
             }
             let jumpClientConnection: SSHClient
             do {

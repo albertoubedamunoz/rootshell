@@ -127,6 +127,11 @@ final class CitadelSSHSession: SSHTerminalSession {
     /// main actor at the `.running` emit site.
     private let authBannerBuffer = AuthBannerBuffer()
 
+    /// Mirrors auth banners into the nonmodal per-pane card as they arrive,
+    /// so the user can act on them (e.g. Tailscale check-mode re-auth URLs)
+    /// while authentication is still pending.
+    let authBannerCardModel = SSHAuthBannerCardModel()
+
     func consumeAuthBanners() -> [String] { authBannerBuffer.drain() }
 
     var onOutput: (@Sendable (String) -> Void)? {
@@ -206,6 +211,13 @@ final class CitadelSSHSession: SSHTerminalSession {
 
     /// Transitions to a new state and notifies the callback
     private func transition(to state: SSHSessionState) {
+        // Deliberately NO card clear on .failed/.disconnected: Tailscale SSH
+        // sends its rejection reason ("tailnet policy does not permit you to
+        // SSH as user …", "tailscale: access denied") as an auth banner
+        // immediately before disconnecting, so on auth failure the card is the
+        // only surface holding the explanation and must outlive the failure.
+        // Teardown still clears it: stop() clears the buffer (firing .reset),
+        // and a replacement session's observer replays nil on re-subscribe.
         onStateChange?(state)
     }
 
@@ -218,6 +230,9 @@ final class CitadelSSHSession: SSHTerminalSession {
     init(pty: TerminalPTY, config: SSHConfig) {
         self.pty = pty
         self.config = config
+        authBannerBuffer.setObserver(
+            authBannerCardModel.makeBufferObserver(hostLabel: config.host)
+        )
         wireEscapeFilter()
     }
 
@@ -437,6 +452,12 @@ final class CitadelSSHSession: SSHTerminalSession {
     /// the generous fixed `SSHTimeoutConfig.citadelLoginTimeout` (5 min) — the
     /// same budget every other Citadel call site in the app uses.
     private func performInitialConnect(timeout: TimeAmount) async throws -> SSHClient {
+        // Fresh per attempt: drop any auth banners a prior failed attempt
+        // buffered so the `.running` flush and the auth-banner card reflect
+        // only this connection (mirrors TrzszSpawnHelper.createSSHClient).
+        // The clear fires `.reset`, resetting the card between attempts.
+        authBannerBuffer.clear()
+
         // Per-attempt cleanup: a previous attempt may have partially populated
         // self.jumpClient before the target connect failed. Close it before
         // retrying so we don't leak event-loop threads parked on a dead socket.
@@ -522,8 +543,8 @@ final class CitadelSSHSession: SSHTerminalSession {
             // The per-attempt `timeout` bounds only TCP connect (above).
             jumpSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             jumpSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: jumpConfig.host)
-            jumpSettings.onUserAuthBanner = { [authBannerBuffer = self.authBannerBuffer] message, _ in
-                authBannerBuffer.append(message)
+            jumpSettings.onUserAuthBanner = { [authBannerBuffer = self.authBannerBuffer, jumpHost = jumpConfig.host] message, _ in
+                authBannerBuffer.append(message, source: jumpHost)
             }
             let jumpChannelBox = CancellationChannelBox(jumpChannel)
             let jumpClientConnection: SSHClient
@@ -2025,3 +2046,15 @@ final class CitadelHostKeyValidatorDelegate: NIOSSHClientServerAuthenticationDel
 
 // CancellationChannelBox and CancellationSSHClientBox live in
 // SSHCancellationBoxes.swift — shared with SSHConnectionHelper.
+
+// MARK: - Auth banner card
+
+extension CitadelSSHSession: SSHAuthBannerCardProviding {
+    var authBannerCardState: SSHAuthBannerCardState? {
+        authBannerCardModel.current
+    }
+
+    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
+        authBannerCardModel.states()
+    }
+}
