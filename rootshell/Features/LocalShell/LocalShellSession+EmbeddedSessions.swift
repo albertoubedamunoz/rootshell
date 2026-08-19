@@ -566,9 +566,19 @@ extension LocalShellSession {
         // Also guard if we're already in password prompt mode (fallback already happened)
         if case .passwordPrompt = sessionMode { return }
 
+        // Preserve the auth-banner card across teardown: Tailscale-style
+        // rejection reasons arrive as auth banners immediately before the
+        // failure, and stop() plus the session-property didSet would erase
+        // the only copy. Restored below; replaced when the next connection
+        // attempt starts (its stream replays nil) or the shell tears down.
+        let failureBanner = (embeddedSSHSession as? SSHAuthBannerCardProviding)?
+            .authBannerCardState ?? authBannerCardModel.current
+
         embeddedSSHSession?.stop()
         embeddedSSHSession = nil
         activeEmbeddedSSHConfig = nil
+
+        if let failureBanner { authBannerCardModel.relay(failureBanner) }
 
         // Check if this is an auth failure we can retry with password
         // Only offer password fallback if:
@@ -1798,10 +1808,16 @@ extension LocalShellSession {
         // Also guard if we're already in password prompt mode (fallback already happened)
         if case .moshPasswordPrompt = sessionMode { return }
 
+        // Preserve the auth-banner card across teardown (see handleSSHSessionError).
+        let failureBanner = embeddedMoshSession?.authBannerCardState
+            ?? authBannerCardModel.current
+
         embeddedMoshSession?.stop()
         embeddedMoshSession = nil
         activeEmbeddedMoshConfig = nil
         NotificationCenter.default.post(name: .ghosttyEmbeddedMoshSessionDidChange, object: self)
+
+        if let failureBanner { authBannerCardModel.relay(failureBanner) }
 
         // Check if this is an auth failure we can retry with password
         if attemptPasswordFallback(
@@ -2121,10 +2137,16 @@ extension LocalShellSession {
         // the restored scrollback with no failure UI.
         onEmbeddedTrzszFailedBeforeRunning?()
 
+        // Preserve the auth-banner card across teardown (see handleSSHSessionError).
+        let failureBanner = embeddedTrzszSession?.authBannerCardState
+            ?? authBannerCardModel.current
+
         embeddedTrzszSession?.stop()
         embeddedTrzszSession = nil
         activeEmbeddedTrzszConfig = nil
         NotificationCenter.default.post(name: .ghosttyEmbeddedTrzszSessionDidChange, object: self)
+
+        if let failureBanner { authBannerCardModel.relay(failureBanner) }
 
         // Check if this is an auth failure we can retry with password
         if attemptPasswordFallback(

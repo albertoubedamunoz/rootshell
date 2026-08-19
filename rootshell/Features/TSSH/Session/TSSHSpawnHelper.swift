@@ -49,7 +49,8 @@ enum TrzszSpawnHelper {
         config: TrzszConfig,
         resolvedHost: String,
         onHostKeyValidation: ((HostKeyValidationRequest) async -> HostKeyValidationResult)?,
-        onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)? = nil
+        onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)? = nil,
+        authBannerObserver: (@Sendable (AuthBannerBuffer.Event) -> Void)? = nil
     ) async throws -> SpawnResult {
         let command = config.serverCommand()
         logger.info("Spawning tsshd: \(command)")
@@ -57,8 +58,10 @@ enum TrzszSpawnHelper {
         // Captures server auth banners (`SSH_MSG_USERAUTH_BANNER`) from the NIO
         // event loop during authentication. Cleared at the start of each connect
         // attempt (in `createSSHClient`) so only the successful attempt's banners
-        // remain after the retry loop.
+        // remain after the retry loop — the per-attempt clear also resets the
+        // live observer's card between attempts.
         let authBannerBuffer = AuthBannerBuffer()
+        authBannerBuffer.setObserver(authBannerObserver)
 
         // Connect SSH with bounded retry on transient connection failures.
         // The per-attempt `timeout` drives only the retry cadence here; the
@@ -233,8 +236,8 @@ enum TrzszSpawnHelper {
             jumpSettings.loginTimeout = loginTimeout
             jumpSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: jumpHost.host)
             if let authBannerBuffer {
-                jumpSettings.onUserAuthBanner = { [authBannerBuffer] message, _ in
-                    authBannerBuffer.append(message)
+                jumpSettings.onUserAuthBanner = { [authBannerBuffer, jumpHostName = jumpHost.host] message, _ in
+                    authBannerBuffer.append(message, source: jumpHostName)
                 }
             }
             let jumpClient: SSHClient

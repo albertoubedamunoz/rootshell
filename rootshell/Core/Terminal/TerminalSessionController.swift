@@ -853,6 +853,12 @@ final class TerminalSessionController {
 
         let newSession = try createReconnectSession()
         adopt(newSession, pty: pty)
+        // Let the pane re-subscribe its session-scoped observers (the SSH
+        // auth-banner card in particular) BEFORE start() begins authenticating
+        // — a Tailscale check-mode re-auth banner arrives during this very
+        // reconnect attempt, and the old subscription points at the replaced
+        // session.
+        host.terminalNotifySessionDidChange()
         try await newSession.start()
 
         // Cancellation is cooperative: "Cancel Recovery" (or pause on

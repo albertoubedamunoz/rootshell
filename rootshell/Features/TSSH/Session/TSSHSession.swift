@@ -147,9 +147,25 @@ final class TrzszSession: TerminalSession {
     /// Current session state
     private(set) var state: TrzszSessionState = .initial {
         didSet {
+            // Clear the auth-banner card on user-initiated or clean teardown
+            // (.disconnected / .serverShutdown) — but NOT on .failed:
+            // Tailscale SSH sends its rejection reason as an auth banner
+            // immediately before disconnecting, so on bootstrap-auth failure
+            // the card is the only surface holding the explanation and must
+            // outlive the failure.
+            switch state {
+            case .disconnected, .serverShutdown:
+                authBannerCardModel.clear()
+            default:
+                break
+            }
             onStateChange?(state)
         }
     }
+
+    /// Mirrors bootstrap SSH auth banners into the nonmodal per-pane card
+    /// while tsshd spawn authentication is pending.
+    let authBannerCardModel = SSHAuthBannerCardModel()
 
     /// Current latency in milliseconds
     var latencyMs: Int? {
@@ -873,7 +889,10 @@ final class TrzszSession: TerminalSession {
             config: config,
             resolvedHost: resolvedHost,
             onHostKeyValidation: onHostKeyValidation,
-            onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge
+            onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge,
+            authBannerObserver: authBannerCardModel.makeBufferObserver(
+                hostLabel: config.sshConfig.host
+            )
         )
 
         // Capture bootstrap SSH algorithms from spawn
@@ -2137,5 +2156,17 @@ extension TrzszSession {
 
         startPeriodicStateUpdates()
         onReady?()
+    }
+}
+
+// MARK: - Auth banner card
+
+extension TrzszSession: SSHAuthBannerCardProviding {
+    var authBannerCardState: SSHAuthBannerCardState? {
+        authBannerCardModel.current
+    }
+
+    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
+        authBannerCardModel.states()
     }
 }

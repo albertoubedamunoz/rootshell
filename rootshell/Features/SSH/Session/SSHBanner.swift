@@ -50,6 +50,91 @@ nonisolated enum SSHBanner {
         return lines.joined(separator: "\r\n") + "\r\n"
     }
 
+    /// Sanitizes a server auth banner for native (non-terminal) display, such
+    /// as the auth-banner card. Unlike `renderAuthBanner`, ALL escape
+    /// sequences are stripped — including SGR — because native views render
+    /// plain text. Keeps printable Unicode and TAB, drops C0/C1 controls and
+    /// DEL, normalizes line endings to `\n`, and trims surrounding whitespace.
+    static func plainText(_ raw: String) -> String {
+        guard !raw.isEmpty else { return "" }
+        var normalized = raw.replacingOccurrences(of: "\r\n", with: "\n")
+        normalized = normalized.replacingOccurrences(of: "\r", with: "\n")
+        let lines = normalized.components(separatedBy: "\n").map { line in
+            let scalars = Array(line.unicodeScalars)
+            var out = String.UnicodeScalarView()
+            var i = 0
+            while i < scalars.count {
+                let v = scalars[i].value
+                if v == 0x1b {
+                    // ESC — consume the whole sequence, emit nothing (no SGR
+                    // survives; native text has no use for it).
+                    i = scanEscapeSequence(scalars, from: i).next
+                } else if v == 0x09 {  // TAB
+                    out.append(scalars[i]); i += 1
+                } else if v < 0x20 || (v >= 0x7f && v <= 0x9f) {
+                    i += 1  // C0 controls, DEL, C1 range
+                } else {
+                    out.append(scalars[i]); i += 1
+                }
+            }
+            return String(out)
+        }
+        return lines.joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Extracts http/https URLs from sanitized plain text (the output of
+    /// `plainText`), in order of first appearance, deduplicated, capped at 8.
+    /// A deliberate manual scan rather than NSDataDetector: only explicit
+    /// `http://` / `https://` prefixes qualify, so custom schemes and schemeless
+    /// hosts in server-controlled pre-auth text never become tappable actions.
+    static func extractHTTPURLs(from plainText: String) -> [URL] {
+        let maxURLs = 8
+        // Characters that end a URL token beyond whitespace: common banner
+        // delimiters like <...>, quotes, and backticks.
+        let terminators = Set<Character>(["<", ">", "\"", "'", "`"])
+        // Trailing punctuation that is far more likely prose than URL.
+        let trailing = Set<Character>([".", ",", ";", ":", "!", "?", ")", "]", "}", ">", "'", "\""])
+
+        var urls: [URL] = []
+        var seen = Set<String>()
+        var searchStart = plainText.startIndex
+        while urls.count < maxURLs,
+              let range = plainText.range(
+                of: "http", options: [.caseInsensitive],
+                range: searchStart..<plainText.endIndex
+              ) {
+            let candidateStart = range.lowerBound
+            let rest = plainText[candidateStart...]
+            guard rest.range(of: "http://", options: [.caseInsensitive, .anchored]) != nil
+                || rest.range(of: "https://", options: [.caseInsensitive, .anchored]) != nil
+            else {
+                searchStart = plainText.index(after: candidateStart)
+                continue
+            }
+            var end = candidateStart
+            while end < plainText.endIndex {
+                let c = plainText[end]
+                if c.isWhitespace || c.isNewline || terminators.contains(c) { break }
+                end = plainText.index(after: end)
+            }
+            var token = String(plainText[candidateStart..<end])
+            while let last = token.last, trailing.contains(last) {
+                token.removeLast()
+            }
+            searchStart = end
+            guard let url = URL(string: token),
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https",
+                  let host = url.host, !host.isEmpty
+            else { continue }
+            if seen.insert(url.absoluteString).inserted {
+                urls.append(url)
+            }
+        }
+        return urls
+    }
+
     /// Filters a banner line to printable text plus a safe subset of ANSI: only
     /// SGR color/style sequences (`ESC[…m` with standard params) survive. Every
     /// other escape sequence is stripped — CSI cursor moves / erase / device
@@ -287,38 +372,70 @@ nonisolated final class AuthBannerBuffer: @unchecked Sendable {
     /// `SSH_MSG_USERAUTH_BANNER` repeatedly before authentication completes.
     private static let maxTotalBytes = 64 * 1024
 
+    /// Live buffer activity, for observers that mirror banners into native UI
+    /// (the auth-banner card) as they arrive rather than waiting for the
+    /// `.running` drain.
+    enum Event: Sendable {
+        /// A banner was accepted into the buffer (post-truncation text).
+        /// `source` names the host that sent it when it is NOT the target
+        /// host (i.e. a jump hop) — a jump host's re-auth URL must not be
+        /// attributed to the target for a security-sensitive action.
+        case appended(String, source: String?)
+        /// The buffer was drained or cleared — the auth phase ended one way
+        /// or another, so any mirrored display should be torn down.
+        case reset
+    }
+
     private let lock = NSLock()
     private var banners: [String] = []
     private var totalBytes = 0
+    private var observer: (@Sendable (Event) -> Void)?
 
-    func append(_ banner: String) {
+    /// Sets the live observer. Invoked outside the lock on the caller's thread
+    /// (the NIO event loop for `append`; any thread for `drain`/`clear`).
+    /// Set before the connection starts.
+    func setObserver(_ handler: (@Sendable (Event) -> Void)?) {
+        lock.lock()
+        observer = handler
+        lock.unlock()
+    }
+
+    func append(_ banner: String, source: String? = nil) {
         var text = banner
         if text.utf8.count > Self.maxBannerBytes {
             text = String(decoding: text.utf8.prefix(Self.maxBannerBytes), as: UTF8.self)
         }
         let cost = text.utf8.count
         lock.lock()
-        defer { lock.unlock() }
-        guard totalBytes + cost <= Self.maxTotalBytes else { return }
-        banners.append(text)
-        totalBytes += cost
+        let accepted = totalBytes + cost <= Self.maxTotalBytes
+        if accepted {
+            banners.append(text)
+            totalBytes += cost
+        }
+        let handler = observer
+        lock.unlock()
+        if accepted { handler?(.appended(text, source: source)) }
     }
 
     /// Returns and clears all buffered banners.
     func drain() -> [String] {
         lock.lock()
-        defer { lock.unlock() }
         let result = banners
         banners.removeAll()
         totalBytes = 0
+        let handler = observer
+        lock.unlock()
+        handler?(.reset)
         return result
     }
 
     /// Discards any buffered banners without returning them (failure/teardown).
     func clear() {
         lock.lock()
-        defer { lock.unlock() }
         banners.removeAll()
         totalBytes = 0
+        let handler = observer
+        lock.unlock()
+        handler?(.reset)
     }
 }

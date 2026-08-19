@@ -106,6 +106,14 @@ struct PendingKeyboardInteractiveChallenge: Identifiable {
     /// that session tears down before the user responds.
     let terminalID: ObjectIdentifier
     let continuation: CheckedContinuation<[String]?, Never>
+    /// Factory for the session's live auth-banner state stream, shown
+    /// display-only inside the prompt sheet. The sheet is modal, so on iPhone
+    /// it hides the pane's auth-banner card exactly when OTP-style banner
+    /// instructions matter — this carries them into the sheet. A factory
+    /// rather than a stream because each stream is single-consumption; the
+    /// view's `.task` makes a fresh one per appearance. Live: banners
+    /// arriving while the sheet is up still appear.
+    let authBannerStates: (@MainActor () -> AsyncStream<SSHAuthBannerCardState?>)?
 }
 
 extension MainView {
@@ -123,7 +131,9 @@ extension MainView {
                 challenge: challenge,
                 sessionLabel: label,
                 terminalID: ObjectIdentifier(terminalView),
-                continuation: continuation
+                continuation: continuation,
+                authBannerStates: (terminalView.session as? SSHAuthBannerCardProviding)
+                    .map { provider in { @MainActor in provider.authBannerCardStates() } }
             )
             keyboardInteractiveQueue.append(entry)
             if !showKeyboardInteractivePrompt {
