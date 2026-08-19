@@ -112,7 +112,32 @@ struct SSHKeysBackup: Codable {
 struct SSHKeyBackupEntry: Codable {
     var metadata: SSHKey
     var privateKeyData: Data?
+    /// Read from legacy backups for restore; never written to new backups —
+    /// exported key data is normalized (decrypted) instead.
     var passphrase: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case metadata, privateKeyData, passphrase
+    }
+
+    init(metadata: SSHKey, privateKeyData: Data?, passphrase: String? = nil) {
+        self.metadata = metadata
+        self.privateKeyData = privateKeyData
+        self.passphrase = passphrase
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        metadata = try container.decode(SSHKey.self, forKey: .metadata)
+        privateKeyData = try container.decodeIfPresent(Data.self, forKey: .privateKeyData)
+        passphrase = try container.decodeIfPresent(String.self, forKey: .passphrase)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(metadata, forKey: .metadata)
+        try container.encodeIfPresent(privateKeyData, forKey: .privateKeyData)
+    }
 }
 
 // MARK: - SSH Passwords Backup

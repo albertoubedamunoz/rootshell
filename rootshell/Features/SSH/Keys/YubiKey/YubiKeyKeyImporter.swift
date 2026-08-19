@@ -170,7 +170,15 @@ final class YubiKeyKeyImporter {
         let passphrase = keychainManager.loadPassphrase(forKey: keyID.uuidString)
 
         // 3. Parse the key to get raw material
-        let parsedKey = try SSHKeyParser.parse(keyString: keyString, passphrase: passphrase)
+        let parsedKey: SSHKeyParser.ParsedKey
+        do {
+            parsedKey = try SSHKeyParser.parse(keyString: keyString, passphrase: passphrase)
+        } catch SSHKeyParser.ParserError.encryptedKeyNeedsPassphrase,
+                SSHKeyParser.ParserError.incorrectPassphrase {
+            throw YubiKeyError.importFailed(
+                "This key is encrypted and its passphrase isn't on this device. Unlock it once in Settings → SSH Keys, then retry."
+            )
+        }
 
         // 4. Get PIV session and authenticate
         let session = try await connectionManager.getPIVSession()

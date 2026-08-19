@@ -25,6 +25,7 @@ nonisolated final class SSHKeyParser {
         case invalidFormat
         case unsupportedKeyType(String)
         case encryptedKeyNeedsPassphrase
+        case unsupportedEncryptedPEM
         case incorrectPassphrase
         case parseError(String)
 
@@ -36,6 +37,8 @@ nonisolated final class SSHKeyParser {
                 return "Unsupported key type: \(type). Supported types: RSA, Ed25519, ECDSA (P-256, P-384, P-521)."
             case .encryptedKeyNeedsPassphrase:
                 return "This key is encrypted. Please provide the passphrase to decrypt it."
+            case .unsupportedEncryptedPEM:
+                return "Encrypted PEM keys in this format aren't supported. Convert the key to the OpenSSH format first with: ssh-keygen -p -o -f <keyfile>"
             case .incorrectPassphrase:
                 return "Incorrect passphrase or corrupted key data."
             case .parseError(let message):
@@ -158,6 +161,15 @@ nonisolated final class SSHKeyParser {
         // Try to parse as OpenSSH format first (more common for modern keys)
         if trimmed.contains("BEGIN OPENSSH PRIVATE KEY") {
             return try parseOpenSSHFormat(keyString: trimmed, passphrase: passphrase)
+        }
+
+        // Encrypted non-OpenSSH PEM (PKCS#8 "BEGIN ENCRYPTED PRIVATE KEY" or
+        // legacy PKCS#1 with Proc-Type/DEK-Info headers) can't be decrypted
+        // here — fail with an actionable message instead of silently ignoring
+        // the passphrase and reporting a generic format error.
+        if trimmed.contains("BEGIN ENCRYPTED PRIVATE KEY") ||
+           trimmed.contains("Proc-Type: 4,ENCRYPTED") {
+            throw ParserError.unsupportedEncryptedPEM
         }
 
         // Fall back to PEM format

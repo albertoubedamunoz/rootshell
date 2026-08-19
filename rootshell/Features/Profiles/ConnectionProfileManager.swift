@@ -893,6 +893,16 @@ final class ConnectionProfileManager {
             if KeychainManager.shared.sshPrivateKeyRequiresInteraction(keyID: keyID) {
                 return VPNSharedProfileAuth(method: .passwordRequired, keyID: nil)
             }
+
+            // Legacy-encrypted blob without its local passphrase (synced from
+            // another device) can't be decrypted in the extension. Check the
+            // blob header, not metadata — the two sync independently.
+            if let blob = try? KeychainManager.shared.loadPrivateKey(identifier: keyID.uuidString),
+               let keyString = String(data: blob, encoding: .utf8),
+               SSHKeyParser.isEncrypted(keyString: keyString),
+               KeychainManager.shared.loadPassphrase(forKey: keyID.uuidString) == nil {
+                return VPNSharedProfileAuth(method: .passwordRequired, keyID: nil)
+            }
             return VPNSharedProfileAuth(method: .key, keyID: keyID)
         case .password:
             return VPNSharedProfileAuth(method: .passwordRequired, keyID: nil)

@@ -648,60 +648,10 @@ nonisolated enum SSHKeyGenerator {
     }
 
     /// Wrap an SSH public-key blob + private section in the `openssh-key-v1`
-    /// container and PEM armor. Shared by every key-type generator so the
-    /// container layout, padding rules, and line wrapping live in one place.
+    /// container and PEM armor. Shared with encrypted-key normalization via
+    /// `OpenSSHContainer` so both paths emit byte-identical layout.
     private static func wrapOpenSSHPrivateKey(publicKeyBlob: ByteBuffer, privateSection: ByteBuffer) -> String {
-        var buffer = ByteBuffer()
-
-        // 1. AUTH_MAGIC = "openssh-key-v1\0"
-        buffer.writeString("openssh-key-v1")
-        buffer.writeInteger(UInt8(0))
-
-        // 2. Cipher name = "none" (unencrypted)
-        buffer.writeSSHString("none")
-
-        // 3. KDF name = "none" (no key derivation)
-        buffer.writeSSHString("none")
-
-        // 4. KDF options = empty string
-        buffer.writeSSHString("")
-
-        // 5. Number of keys = 1
-        buffer.writeInteger(UInt32(1))
-
-        // 6. Public key blob (SSH wire format)
-        buffer.writeSSHBuffer(publicKeyBlob)
-
-        // 7. Private section padded to 8-byte block boundary
-        let padded = padPrivateSection(privateSection, blockSize: 8)
-        buffer.writeSSHBuffer(padded)
-
-        let data = Data(buffer.readableBytesView)
-        let base64 = data.base64EncodedString()
-
-        var pemLines = ["-----BEGIN OPENSSH PRIVATE KEY-----"]
-        var remaining = base64
-        while !remaining.isEmpty {
-            let lineLength = min(70, remaining.count)
-            pemLines.append(String(remaining.prefix(lineLength)))
-            remaining = String(remaining.dropFirst(lineLength))
-        }
-        pemLines.append("-----END OPENSSH PRIVATE KEY-----")
-        return pemLines.joined(separator: "\n")
-    }
-
-    /// Pad the private section to a multiple of `blockSize` with the
-    /// OpenSSH-mandated 01,02,03,... filler. Only adds bytes when the
-    /// section isn't already aligned — the previous implementation always
-    /// padded on a boundary by writing a full block, which is non-standard
-    /// and would have produced PEMs that `ssh-keygen` parses but flags.
-    private static func padPrivateSection(_ section: ByteBuffer, blockSize: Int) -> ByteBuffer {
-        var padded = section
-        let paddingNeeded = (blockSize - (padded.readableBytes % blockSize)) % blockSize
-        for i in 0..<paddingNeeded {
-            padded.writeInteger(UInt8(i + 1))
-        }
-        return padded
+        OpenSSHContainer.wrapUnencryptedPrivateKey(publicKeyBlob: publicKeyBlob, privateSection: privateSection)
     }
 
     /// Format a single-line OpenSSH authorized_keys entry:

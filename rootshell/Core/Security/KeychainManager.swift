@@ -369,14 +369,20 @@ class KeychainManager {
     ///   - keyData: The new private key data
     ///   - identifier: Unique identifier for the key
     /// - Throws: KeychainError if update fails
-    func updatePrivateKey(_ keyData: Data, identifier: String) throws {
-        let query: [String: Any] = [
+    /// Updates only `kSecValueData`, preserving accessibility, sync class,
+    /// and access control. Pass an authenticated `context` to update an
+    /// ACL-protected item without a second biometric prompt.
+    nonisolated func updatePrivateKey(_ keyData: Data, identifier: String, context: LAContext? = nil) throws {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "com.ghostty.ssh.privatekey",
             kSecAttrAccount as String: identifier,
             kSecAttrAccessGroup as String: accessGroup,
             kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
         ]
+        if let context {
+            query[kSecUseAuthenticationContext as String] = context
+        }
 
         let attributes: [String: Any] = [
             kSecValueData as String: keyData
