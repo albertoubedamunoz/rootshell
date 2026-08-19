@@ -291,22 +291,15 @@ extension Ghostty {
             // Mac Catalyst: Spawn shell directly instead of via /usr/bin/login
             // /usr/bin/login has issues with PTY setup in Catalyst (no job control)
             #if targetEnvironment(macCatalyst)
-            // Get the user's shell from environment
-            var shellPath = "/bin/zsh"  // Default
-            if let shellEnv = getenv("SHELL") {
-                if let path = String(validatingUTF8: shellEnv) {
-                    shellPath = path
-                }
-            }
-
-            // Spawn shell directly with -l (login shell) to load profile
-            configLines.append("command = \(shellPath) -l")
+            // Honours the Local Shell setting; falls back to $SHELL -l when unset.
+            let shellCommand = LocalShellSettings.ghosttyConfigCommand
+            configLines.append("command = \(shellCommand)")
 
             // Set initial working directory to home
             let homeDir = NSHomeDirectory()
             configLines.append("working-directory = \(homeDir)")
 
-            logger.info("Catalyst config: command=\"\(shellPath) -l\", working-directory=\"\(homeDir)\"")
+            logger.info("Catalyst config: command=\"\(shellCommand)\", working-directory=\"\(homeDir)\"")
             #endif
 
             // Always include clipboard paste safety setting
@@ -472,13 +465,7 @@ extension Ghostty {
 
             // Mac Catalyst: Spawn shell directly instead of via /usr/bin/login
             #if targetEnvironment(macCatalyst)
-            var shellPath = "/bin/zsh"
-            if let shellEnv = getenv("SHELL") {
-                if let path = String(validatingUTF8: shellEnv) {
-                    shellPath = path
-                }
-            }
-            configLines.append("command = \(shellPath) -l")
+            configLines.append("command = \(LocalShellSettings.ghosttyConfigCommand)")
             let homeDir = NSHomeDirectory()
             configLines.append("working-directory = \(homeDir)")
             #endif
