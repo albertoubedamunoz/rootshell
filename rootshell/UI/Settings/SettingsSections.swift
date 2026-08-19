@@ -246,6 +246,10 @@ struct SettingsTerminalSection: View {
     @AppStorage(TaskDetectionSettings.enabledKey) private var taskDetectionEnabled: Bool = false
     #if targetEnvironment(macCatalyst)
     @AppStorage("tabsInTitlebarEnabled") private var tabsInTitlebarEnabled: Bool = true
+    #if STANDALONE
+    // Read only to redraw the summary; the value itself comes from LocalShellSettings.
+    @AppStorage(LocalShellSettings.commandKey) private var localShellCommand: String = ""
+    #endif
     #else
     @AppStorage("scrollModeEnabled") private var scrollModeEnabled: Bool = true
     @AppStorage("doubleSpaceForPeriod") private var doubleSpaceForPeriod: Bool = false
@@ -300,6 +304,34 @@ struct SettingsTerminalSection: View {
         }
         .themedRow()
     }
+
+    #if STANDALONE && targetEnvironment(macCatalyst)
+    /// Resolves the stored string so the summary shows what will really launch
+    /// rather than what was typed.
+    private var localShellSummary: String {
+        LocalShellSettings.resolved(localShellCommand)
+            ?? String(localized: "Login Shell",
+                      comment: "Local shell setting: use the login shell from the passwd database")
+    }
+
+    private var localShellRow: some View {
+        NavigationLink {
+            LocalShellSettingsView()
+        } label: {
+            HStack(spacing: 12) {
+                SettingsIcon(systemName: "apple.terminal")
+                Text("Local Shell")
+                Spacer()
+                Text(localShellSummary)
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .themedRow()
+    }
+    #endif
 
     private var lineScrollingToggle: some View {
         Toggle(isOn: Binding(
@@ -664,6 +696,10 @@ struct SettingsTerminalSection: View {
                 .themedRow()
 
                 terminalTypeRow
+
+                #if STANDALONE
+                localShellRow
+                #endif
 
                 NavigationLink {
                     GeoProviderSettingsView()

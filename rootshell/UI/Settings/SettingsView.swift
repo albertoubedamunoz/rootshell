@@ -68,6 +68,7 @@ enum SettingsSearchDestination: Hashable {
     case bookmarkedLocations
     case locale
     case terminalType
+    case localShell
     case ipGeolocation
     case sshKeys
     case savedPasswords
@@ -776,6 +777,19 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 isSuggested: false
             )
         ])
+        #if STANDALONE
+        entries.append(
+            .init(
+                id: "local-shell",
+                title: String(localized: "Local Shell"),
+                subtitle: String(localized: "Terminal"),
+                systemImage: "apple.terminal",
+                action: .destination(.localShell),
+                keywords: ["shell", "zsh", "bash", "fish", "nushell", "nu", "command", "login shell"],
+                isSuggested: false
+            )
+        )
+        #endif
         #else
         entries.append(contentsOf: [
             .init(
@@ -1341,6 +1355,12 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         LocaleSettingsView()
     case .terminalType:
         TerminalTypeSettingsView()
+    case .localShell:
+        #if STANDALONE && targetEnvironment(macCatalyst)
+        LocalShellSettingsView()
+        #else
+        EmptyView()
+        #endif
     case .ipGeolocation:
         GeoProviderSettingsView()
     case .sshKeys:

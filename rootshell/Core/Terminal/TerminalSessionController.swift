@@ -475,13 +475,14 @@ final class TerminalSessionController {
             return
         }
 
-        Ghostty.logger.info("Creating Catalyst shell session: \(surfaceSize.cols)x\(surfaceSize.rows), cwd=\(workingDirectory ?? "nil")")
+        let shell = LocalShellSettings.command
+        Ghostty.logger.info("Creating Catalyst shell session: \(surfaceSize.cols)x\(surfaceSize.rows), cwd=\(workingDirectory ?? "nil"), shell=\(shell ?? "login")")
 
         CatalystLocalShellSession.create(
             rows: surfaceSize.rows,
             cols: surfaceSize.cols,
             workingDirectory: workingDirectory,
-            shell: nil,
+            shell: shell,
             enableShellIntegration: true
         ) { [weak self] result in
             guard let self, let host = self.host else { return }
