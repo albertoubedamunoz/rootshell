@@ -146,12 +146,25 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     // Rides the CloudKit `extensionData` envelope, not a schema field.
     var terminalType: String?
 
+    // Per-profile multiplexer session name. nil uses the global default for
+    // whichever multiplexer auto-start selects. Rides the CloudKit
+    // `extensionData` envelope, not a schema field.
+    var multiplexerSessionName: String?
+
     /// True when this entry was decoded from a CloudKit record that carried an
-    /// extension envelope, i.e. the writing device knew about the fields inside
-    /// it. Lets the merge tell "explicitly cleared" from "written by a build
-    /// that predates the field". Sync-only: never persisted, never sent, and
+    /// extension envelope, i.e. the writing device knew about the envelope at
+    /// all. Lets the merge tell "explicitly cleared" from "written by a build
+    /// that predates the envelope". Sync-only: never persisted, never sent, and
     /// meaningless on entries that didn't come from CloudKit.
     var syncCarriedExtensions: Bool = false
+
+    /// Envelope version the writing device stamped, nil when it wrote none.
+    /// Presence of an envelope only proves the writer knew the members of *its*
+    /// version, so members added later must gate on this rather than on
+    /// `syncCarriedExtensions` — otherwise an older build that round-trips the
+    /// envelope without them reads as an explicit clear. Sync-only, like the
+    /// flag above.
+    var syncEnvelopeVersion: Int?
 
     // Connection protocol (SSH or Mosh) - nil defaults to SSH for backward compatibility
     var connectionProtocol: ConnectionProtocol?
@@ -169,6 +182,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
          jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
          lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil, agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
          terminalType: String? = nil,
+         multiplexerSessionName: String? = nil,
          keyResolutionHints: [String: KeyResolutionHint]? = nil) {
         self.id = UUID()
         self.username = username
@@ -192,6 +206,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.launchCommand = launchCommand
         self.launchCommandMode = launchCommandMode
         self.terminalType = terminalType
+        self.multiplexerSessionName = multiplexerSessionName
         self.keyResolutionHints = keyResolutionHints
         self.modifiedAt = Date()
         self.isDeleted = false
@@ -203,7 +218,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
          jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
          lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil,
          agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil,
-         launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil, terminalType: String? = nil, keyResolutionHints: [String: KeyResolutionHint]? = nil,
+         launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil, terminalType: String? = nil, multiplexerSessionName: String? = nil, keyResolutionHints: [String: KeyResolutionHint]? = nil,
          modifiedAt: Date? = nil, isDeleted: Bool = false) {
         self.id = id
         self.username = username
@@ -227,6 +242,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.launchCommand = launchCommand
         self.launchCommandMode = launchCommandMode
         self.terminalType = terminalType
+        self.multiplexerSessionName = multiplexerSessionName
         self.keyResolutionHints = keyResolutionHints
         self.modifiedAt = modifiedAt ?? Date()
         self.isDeleted = isDeleted
@@ -239,7 +255,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         case jumpHost, jumpPort, jumpUsername, jumpAuthType
         case hssShorthand, agentConfig, gpgAgentConfig, portForwardConfig, tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, launchCommand, launchCommandMode
         case connectionProtocol, keyResolutionHints
-        case terminalType
+        case terminalType, multiplexerSessionName
         case modifiedAt, isDeleted
     }
 
@@ -271,6 +287,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         launchCommand = try container.decodeIfPresent(String.self, forKey: .launchCommand)
         launchCommandMode = try container.decodeIfPresent(SSHConfig.LaunchCommandMode.self, forKey: .launchCommandMode)
         terminalType = try container.decodeIfPresent(String.self, forKey: .terminalType)
+        multiplexerSessionName = try container.decodeIfPresent(String.self, forKey: .multiplexerSessionName)
 
         // Connection protocol: nil defaults to SSH for backward compatibility
         connectionProtocol = try container.decodeIfPresent(ConnectionProtocol.self, forKey: .connectionProtocol)
@@ -451,6 +468,7 @@ class SSHConnectionHistoryManager: ObservableObject {
         launchCommand: String? = nil,
         launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
         terminalType: String? = nil,
+        multiplexerSessionName: String? = nil,
         keyResolutionHints: [String: KeyResolutionHint]? = nil
     ) {
         // Only cache IP for .local hostnames
@@ -492,8 +510,9 @@ class SSHConnectionHistoryManager: ObservableObject {
             updated.launchCommand = launchCommand
             updated.launchCommandMode = launchCommandMode
             // Always write, like launchCommand: nil means the user cleared the
-            // override and the entry must stop pinning a TERM.
+            // override and the entry must stop pinning a TERM or a session.
             updated.terminalType = terminalType
+            updated.multiplexerSessionName = multiplexerSessionName
             if let keyResolutionHints = keyResolutionHints {
                 updated.keyResolutionHints = keyResolutionHints
             }
@@ -545,8 +564,9 @@ class SSHConnectionHistoryManager: ObservableObject {
             updated.launchCommand = launchCommand
             updated.launchCommandMode = launchCommandMode
             // Always write, like launchCommand: nil means the user cleared the
-            // override and the entry must stop pinning a TERM.
+            // override and the entry must stop pinning a TERM or a session.
             updated.terminalType = terminalType
+            updated.multiplexerSessionName = multiplexerSessionName
             if let keyResolutionHints = keyResolutionHints {
                 updated.keyResolutionHints = keyResolutionHints
             }
@@ -574,6 +594,7 @@ class SSHConnectionHistoryManager: ObservableObject {
                 launchCommand: launchCommand,
                 launchCommandMode: launchCommandMode,
                 terminalType: terminalType,
+                multiplexerSessionName: multiplexerSessionName,
                 keyResolutionHints: keyResolutionHints
             )
             try? store.save(newEntry)
@@ -692,6 +713,14 @@ class SSHConnectionHistoryManager: ObservableObject {
                     terminalType: remote.syncCarriedExtensions
                         ? remote.terminalType
                         : (remote.terminalType ?? existing.terminalType),
+                    // Gated on the envelope version, not on its presence: a
+                    // build that predates this field still writes a valid
+                    // (older) envelope, and its silence is a gap rather than a
+                    // clear. Without this, reconnecting once on an older device
+                    // during a mixed-version rollout erases the override.
+                    multiplexerSessionName: (remote.syncEnvelopeVersion ?? 0) >= HistoryExtensionPayload.multiplexerSessionNameVersion
+                        ? remote.multiplexerSessionName
+                        : (remote.multiplexerSessionName ?? existing.multiplexerSessionName),
                     keyResolutionHints: remote.keyResolutionHints ?? existing.keyResolutionHints,
                     modifiedAt: remote.modifiedAt,
                     isDeleted: remote.isDeleted
