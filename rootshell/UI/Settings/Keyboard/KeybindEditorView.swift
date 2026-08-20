@@ -503,8 +503,9 @@ class ShortcutCaptureUIView: UIView {
             // representation so the chord is recordable; the twin keyCommands
             // delivery dedups via duplicateDeliveryWindow since both produce
             // the identical trigger.
-            if (key.keyCode == .keyboardPeriod || key.keyCode == .keyboardEscape),
-               KeyboardTracker.isSystemCancelChordPhysicallyDown() {
+            if (key.keyCode != .keyboardEscape && KeyCode.sentinelKey(for: key.characters) == .escape)
+                || ((key.keyCode == .keyboardPeriod || key.keyCode == .keyboardEscape)
+                    && KeyboardTracker.isSystemCancelChordPhysicallyDown()) {
                 processCapture(trigger: .commandPeriod)
                 return
             }

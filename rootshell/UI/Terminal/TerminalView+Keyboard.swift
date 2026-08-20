@@ -448,14 +448,20 @@ extension Ghostty.TerminalView {
             }
         }
 
-        // The chord can also reach pressesBegan as Period with the Command bit
-        // restored by the GCKeyboard merge above (iPadOS strips it from
-        // reserved chords). Intercept before the generic binding checks so a
-        // bound chord routes through the chord dispatcher and gets held-key
-        // repeat; unbound gets the shared cancel default (overlay dismissal,
-        // else one one-shot ESC).
-        if key.keyCode == .keyboardPeriod,
-           KeybindModifiers(uiModifierFlags: effectiveModifiers) == .command {
+        // The chord also reaches pressesBegan as a non-Escape key (usually
+        // Period) whose characters are the Escape sentinel — UIKit's own proof
+        // that it translated the chord, so this resolves even when the merge
+        // above could not restore Command from a distrusted GCKeyboard snapshot.
+        let isTranslatedCancelChord = key.keyCode != .keyboardEscape
+            && KeyCode.sentinelKey(for: key.characters) == .escape
+        if isTranslatedCancelChord
+            || (key.keyCode == .keyboardPeriod
+                && KeybindModifiers(uiModifierFlags: effectiveModifiers) == .command) {
+            // Translation only happens with Command physically down, so the
+            // snapshot is live again.
+            if isTranslatedCancelChord {
+                isGCKeyboardModifierStateTrusted = true
+            }
             guard inputController.consumeSystemCancelChordDelivery() else {
                 return (true, true)
             }
@@ -834,7 +840,7 @@ extension Ghostty.TerminalView {
                         } else if isAscii, let ch = charsIM.first {
                             keyText = String(Self.shiftedCharacter(ch))
                         } else if let kc = KeyCode(hidUsage: key.keyCode),
-                                  let baseChar = kc.uiKeyInput.first {
+                                  let baseChar = kc.literalKeyInput?.first {
                             keyText = String(Self.shiftedCharacter(baseChar))
                         }
                         consumed.insert(.shift)
@@ -844,7 +850,8 @@ extension Ghostty.TerminalView {
                         if !charsIM.isEmpty && charsIM.unicodeScalars.allSatisfy({ $0.value >= 0x20 && $0.value < 0x7F }) {
                             keyText = charsIM
                         } else if let kc = KeyCode(hidUsage: key.keyCode) {
-                            keyText = kc.uiKeyInput
+                            // literalKeyInput: a sentinel is never key text.
+                            keyText = kc.literalKeyInput
                         }
                     }
                 }
@@ -920,6 +927,12 @@ extension Ghostty.TerminalView {
                 // Start key repeat for special keys
                 startKeyRepeat(for: key, sequence: finalSequence)
             }
+            return (true, true)
+        } else if let sentinel = KeyCode.sentinelKey(for: key.characters),
+                  !effectiveModifiers.contains(.command) {
+            // Sentinel characters on an unrecognized key: never text. Swallow
+            // so super cannot re-offer it to the text input system.
+            Ghostty.logger.debug("processKeyPress: dropped UIKit sentinel \(sentinel.rawValue)")
             return (true, true)
         } else if !key.characters.isEmpty && !effectiveModifiers.contains(.command) {
             // When a CJK input method is active, defer character keys to the text
@@ -1461,7 +1474,7 @@ extension Ghostty.TerminalView {
         #endif
 
         if let kc = KeyCode(hidUsage: hidUsage),
-           let baseChar = kc.uiKeyInput.first {
+           let baseChar = kc.literalKeyInput?.first {
             return shift ? String(Self.shiftedCharacter(baseChar)) : String(baseChar)
         }
 
@@ -1527,8 +1540,9 @@ extension Ghostty.TerminalView {
             }
         }
 
+        // Sentinel-backed keys have no unshifted codepoint; 0 is correct.
         if let kc = KeyCode(hidUsage: hidUsage),
-           let scalar = kc.uiKeyInput.unicodeScalars.first {
+           let scalar = kc.literalKeyInput?.unicodeScalars.first {
             return scalar.value
         }
 
