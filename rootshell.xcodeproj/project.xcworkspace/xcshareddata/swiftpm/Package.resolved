@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/Citadel-rootshell.git",
       "state" : {
-        "revision" : "e375463b9464c8824a12f69b417ed268a2043004",
-        "version" : "0.12.1"
+        "revision" : "cdcd7c51828926dadbba0434dc160ae3692aff37",
+        "version" : "0.12.2"
       }
     },
     {
