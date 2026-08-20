@@ -2113,6 +2113,16 @@ extension Ghostty {
         // MARK: - Window Focus Management
         
         private func windowIsActiveForFocus() -> Bool {
+            // The override may only NARROW focus, never claim it while the scene
+            // is not foreground-active. `updateWindowFocusState` leaves it armed
+            // across an app transition to preserve the software keyboard, and a
+            // stale `true` let becomeFirstResponder() present the keyboard under
+            // lock (FrontBoard 0x2BAD45EC).
+            #if !targetEnvironment(macCatalyst)
+            if let scene = window?.windowScene, scene.activationState != .foregroundActive {
+                return false
+            }
+            #endif
             if let windowActiveOverride {
                 return windowActiveOverride
             }
@@ -3399,6 +3409,17 @@ extension Ghostty {
                 return false
             }
 
+            // Acquiring first responder installs our custom inputView and runs a
+            // UIInputWindowController placement animation, which draws into the
+            // lock snapshot while the latch is armed (FrontBoard 0x2BAD45EC).
+            // Left to the foreground resume, which re-focuses from
+            // `isLogicallyFocused` (preserved here) rather than a re-armed hint —
+            // a stale hint on a pane that later loses focus is a focus thief.
+            guard !Ghostty.isSecureDrawProhibitedAtomic else {
+                Ghostty.logger.info("becomeFirstResponder() BLOCKED on terminal \(self.uuid.uuidString.prefix(8)) - secure draw prohibited")
+                return false
+            }
+
             // Re-arm pinned-hidden mode before acquiring first responder so
             // inputView already returns emptyInputView and the keyboard
             // never flashes on focus regain.
@@ -3509,6 +3530,14 @@ extension Ghostty {
                 return
             }
 
+            // Rebuilding the input view set moves the input window placement,
+            // which animates and draws. That lands in the lock snapshot while
+            // the secure-draw latch is armed — FrontBoard 0x2BAD45EC.
+            guard !Ghostty.isSecureDrawProhibitedAtomic else {
+                pendingInputViewReload = false
+                return
+            }
+
             // iOS 27 nil-anchors the input-accessory host
             // (-[NSLayoutAnchor initWithItem:attribute:] asserts item != nil) if we
             // rebuild the input view set while a keyboard placement animation is in
@@ -3528,6 +3557,12 @@ extension Ghostty {
         fileprivate func flushPendingInputViewReloadIfNeeded() {
             guard pendingInputViewReload else { return }
             guard isFirstResponder, window != nil else {
+                pendingInputViewReload = false
+                return
+            }
+            // Same secure-mode rule as `reloadInputViews()`: never rebuild the
+            // input set while the lock snapshot could capture it.
+            guard !Ghostty.isSecureDrawProhibitedAtomic else {
                 pendingInputViewReload = false
                 return
             }

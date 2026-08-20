@@ -169,6 +169,10 @@ struct SidebarSearchField: UIViewRepresentable {
             // here. We do NOT record the request as applied, so the retry is
             // event-driven, not a poll.
             guard field.window != nil else { return }
+            // Presenting a keyboard while the app is inactive/locked draws into
+            // the lock snapshot (FrontBoard 0x2BAD45EC). Not recorded as applied,
+            // so the request replays on the next update after resume.
+            guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
             if field.isFirstResponder {
                 lastAppliedFocusRequestID = request
                 return

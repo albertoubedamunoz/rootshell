@@ -250,6 +250,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         nc.addObserver(forName: UIApplication.protectedDataWillBecomeUnavailableNotification,
                        object: nil, queue: .main) { _ in
+            // A lock that reaches us here rather than via willResignActive must
+            // still close the secure-draw gate.
+            Ghostty.isSecureDrawProhibitedAtomic = true
+            LifecycleDebugLogger.shared.checkpoint("SECURE.latch.arm", ms: nil, [
+                ("trigger", "protectedDataWillBecomeUnavailable"),
+            ])
             LifecycleDebugLogger.shared.checkpoint("OS.protectedData.willBecomeUnavailable")
             VNCDebugLogger.shared.lifecycle("protectedDataWillBecomeUnavailable")
         }

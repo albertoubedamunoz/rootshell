@@ -37,8 +37,13 @@ final class EmptyStateView: UIView {
         super.init(frame: frame)
         backgroundColor = .clear
 
-        // Automatically become first responder when added to window
+        // Automatically become first responder when added to window; skipped
+        // while backgrounded, where the claim is pointless work. NOT a
+        // secure-draw guard: this view has no inputView and cannot present a
+        // keyboard, so it has no path into the lock snapshot. The latch is also
+        // armed at launch and would block cold-start focus with no retry.
         DispatchQueue.main.async { [weak self] in
+            guard UIApplication.shared.applicationState != .background else { return }
             self?.becomeFirstResponder()
         }
     }
@@ -51,7 +56,7 @@ final class EmptyStateView: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window != nil {
+        if window != nil, UIApplication.shared.applicationState != .background {
             becomeFirstResponder()
         }
     }

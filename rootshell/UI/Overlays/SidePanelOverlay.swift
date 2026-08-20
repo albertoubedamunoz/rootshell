@@ -412,6 +412,12 @@ class SidePanelOverlayViewController: UIViewController {
             if escapeDismisses {
                 DispatchQueue.main.async { [weak self] in
                     guard let self, self.escapeDismisses, self.currentPresented else { return }
+                    // Pointless work while backgrounded. Not a secure-draw
+                    // guard: this controller has no inputView and only wires up
+                    // ESC, so it cannot present a keyboard. The panel's own
+                    // keyboard-bearing field (SidebarSearchField) carries that
+                    // gate.
+                    guard UIApplication.shared.applicationState != .background else { return }
                     self.becomeFirstResponder()
                 }
             }
