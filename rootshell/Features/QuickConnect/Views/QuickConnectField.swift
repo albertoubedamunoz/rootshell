@@ -116,7 +116,10 @@ class QuickConnectTextField: UITextField, KeyboardButtonDelegate {
             self.focusRequestScheduled = false
             guard self.wantsFocus,
                   self.window != nil,
-                  !self.isFirstResponder else { return }
+                  !self.isFirstResponder,
+                  // Raising the keyboard under lock draws into the lock
+                  // snapshot (FrontBoard 0x2BAD45EC).
+                  !Ghostty.isSecureDrawProhibitedAtomic else { return }
             _ = self.becomeFirstResponder()
         }
     }
@@ -128,6 +131,12 @@ class QuickConnectTextField: UITextField, KeyboardButtonDelegate {
     /// UIKit attach its accessory to another field's remote-keyboard host.
     override func reloadInputViews() {
         guard isFirstResponder, window != nil else {
+            pendingInputViewReload = false
+            return
+        }
+        // The placement move this triggers draws; under lock that is a
+        // FrontBoard 0x2BAD45EC kill.
+        guard !Ghostty.isSecureDrawProhibitedAtomic else {
             pendingInputViewReload = false
             return
         }

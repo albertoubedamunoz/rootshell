@@ -249,8 +249,12 @@ private struct ComposeTextView: UIViewRepresentable {
         applyAutocorrectSettings(textView)
         textView.text = text
 
-        // Auto-focus after a brief delay to let the view settle into the hierarchy
+        // Auto-focus after a brief delay to let the view settle into the hierarchy.
+        // Skipped while the secure-draw latch is armed: presenting the keyboard
+        // under lock is a FrontBoard 0x2BAD45EC kill. The overlay is dismissed
+        // with the app inactive anyway, so there is nothing to restore.
         DispatchQueue.main.async {
+            guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
             textView.becomeFirstResponder()
         }
 
@@ -270,8 +274,11 @@ private struct ComposeTextView: UIViewRepresentable {
         let currentAutocorrect = textView.autocorrectionType == .yes
         if currentAutocorrect != autocorrectEnabled {
             applyAutocorrectSettings(textView)
-            // Reload input views to apply the change immediately
-            textView.reloadInputViews()
+            // Reload input views to apply the change immediately. Never while the
+            // secure-draw latch is armed — the placement move draws under lock.
+            if !Ghostty.isSecureDrawProhibitedAtomic {
+                textView.reloadInputViews()
+            }
         }
     }
 
