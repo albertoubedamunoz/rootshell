@@ -93,17 +93,13 @@ struct ProfileEditorSheet: View {
     // herdr auto-attach (mutually exclusive with enableTmux via the picker)
     @State private var enableHerdr: Bool = false
 
-    // Tmux session name from global settings
+    // Globals the multiplexer captions fall back to. Observed rather than read
+    // directly so the captions refresh when Settings change; the values
+    // themselves come from SSHConfig.multiplexerSessionDisplayName.
     @AppStorage("tmuxSessionName") private var tmuxSessionNameSetting: String = ""
     @AppStorage("tmuxCustomCommand") private var tmuxCustomCommandSetting: String = ""
-
-    private var tmuxEffectiveSessionName: String {
-        if !tmuxCustomCommandSetting.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "custom"
-        }
-        let name = tmuxSessionNameSetting.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.isEmpty ? "main" : name
-    }
+    @AppStorage("herdrSessionName") private var herdrSessionNameSetting: String = ""
+    @AppStorage("herdrCustomCommand") private var herdrCustomCommandSetting: String = ""
 
     // Launch command state
     @State private var launchCommand: String = ""
@@ -111,6 +107,10 @@ struct ProfileEditorSheet: View {
 
     // TERM override. Empty inherits the global remote default.
     @State private var terminalType: String = ""
+
+    // Multiplexer session name override. Empty inherits the global default for
+    // whichever multiplexer the auto-start picker selects.
+    @State private var multiplexerSessionName: String = ""
 
     // VPN state
     @State private var vpnEnabled: Bool = false
@@ -1327,6 +1327,21 @@ struct ProfileEditorSheet: View {
         return trimmed.isEmpty ? String(localized: "Default") : trimmed
     }
 
+    /// Session name the captions describe: the pinned override when set,
+    /// otherwise the global the profile inherits.
+    private var multiplexerCaptionSessionName: String {
+        SSHConfig.multiplexerSessionDisplayName(for: tmuxLaunchSelection.wrappedValue,
+                                                override: multiplexerSessionName)
+    }
+
+    private var multiplexerSessionSummary: String {
+        let trimmed = multiplexerSessionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty
+            ? String(localized: "Default")
+            : SSHConfig.multiplexerSessionDisplayName(for: tmuxLaunchSelection.wrappedValue,
+                                                      override: trimmed)
+    }
+
     private var terminalOptionsSection: some View {
         Section("Terminal Options") {
             Picker("Auto-start multiplexer", selection: tmuxLaunchSelection) {
@@ -1340,18 +1355,34 @@ struct ProfileEditorSheet: View {
             .pickerStyle(.menu)
             .themedRow()
 
+            if tmuxLaunchSelection.wrappedValue != .off {
+                NavigationLink {
+                    ProfileMultiplexerSessionEditor(sessionName: $multiplexerSessionName,
+                                                    selection: tmuxLaunchSelection.wrappedValue)
+                } label: {
+                    LabeledContent("Session Name") {
+                        Text(multiplexerSessionSummary)
+                            .font(.system(.subheadline, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                .themedRow()
+            }
+
             if tmuxLaunchSelection.wrappedValue == .control {
-                Text("Start a tmux -CC control-mode gateway for session \"\(tmuxEffectiveSessionName)\" on connect")
+                Text("Start a tmux -CC control-mode gateway for session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .themedRow()
             } else if enableTmux {
-                Text("Attach to or create tmux session \"\(tmuxEffectiveSessionName)\" on connect")
+                Text("Attach to or create tmux session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .themedRow()
             } else if enableHerdr {
-                Text("Attach to or create herdr session \"\(SSHConfig.herdrEffectiveSessionName)\" on connect")
+                Text("Attach to or create herdr session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .themedRow()
@@ -1835,6 +1866,9 @@ struct ProfileEditorSheet: View {
             // Load the TERM override
             terminalType = config.terminalType ?? ""
 
+            // Load the multiplexer session override
+            multiplexerSessionName = config.multiplexerSessionName ?? ""
+
             // Load VPN settings
             vpnEnabled = profile.vpnEnabled
             vpnDNSServers = profile.vpnDNSServers
@@ -1949,6 +1983,7 @@ struct ProfileEditorSheet: View {
 
             // TERM override from history
             terminalType = entry.terminalType ?? ""
+            multiplexerSessionName = entry.multiplexerSessionName ?? ""
             return
         }
 
@@ -2110,6 +2145,13 @@ struct ProfileEditorSheet: View {
         // rather than pinning a value that would silently fall back anyway.
         let trimmedTerminalType = terminalType.trimmingCharacters(in: .whitespacesAndNewlines)
         finalConfig.terminalType = TerminalTypeSettings.isValid(trimmedTerminalType) ? trimmedTerminalType : nil
+
+        // Same rule for the multiplexer session name: store only a value that
+        // is legal for either multiplexer, so switching the picker can't leave
+        // a name behind that silently falls back.
+        let trimmedSessionName = multiplexerSessionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        finalConfig.multiplexerSessionName =
+            SSHConfig.isEmbeddableMultiplexerSessionName(trimmedSessionName) ? trimmedSessionName : nil
         // GPG forwarding from the form. Now that the editor has a
         // full GPG section we drive this from the @State vars
         // instead of passing through the existing profile's value.
@@ -2366,6 +2408,134 @@ private struct ProfileTerminalTypeEditor: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(usesMonospacedFont ? .system(.body, design: .monospaced) : .body)
+                    if let detail {
+                        Text(detail)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 8)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.tint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .themedRow()
+    }
+}
+
+private struct ProfileMultiplexerSessionEditor: View {
+    @Binding var sessionName: String
+    let selection: TmuxLaunchSelection
+
+    @AppStorage("tmuxSessionName") private var tmuxSessionNameSetting = ""
+    @AppStorage("tmuxCustomCommand") private var tmuxCustomCommandSetting = ""
+    @AppStorage("herdrSessionName") private var herdrSessionNameSetting = ""
+    @AppStorage("herdrCustomCommand") private var herdrCustomCommandSetting = ""
+
+    @State private var isCustom: Bool
+
+    init(sessionName: Binding<String>, selection: TmuxLaunchSelection) {
+        _sessionName = sessionName
+        self.selection = selection
+        _isCustom = State(initialValue:
+            !sessionName.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        )
+    }
+
+    private var isHerdr: Bool { selection == .herdr }
+
+    private var trimmed: String {
+        sessionName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The global this profile inherits when no override is set, shown as the
+    /// detail on the "Use Global Default" row.
+    private var globalDetail: String {
+        if isHerdr {
+            let name = herdrSessionNameSetting.trimmingCharacters(in: .whitespacesAndNewlines)
+            return SSHConfig.isEmbeddableHerdrSessionName(name) ? name : "default"
+        }
+        let name = tmuxSessionNameSetting.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "main" : name
+    }
+
+    /// A full-command override in Settings replaces the session name outright,
+    /// so pinning one here would do nothing.
+    private var hasCustomCommand: Bool {
+        let command = isHerdr ? herdrCustomCommandSetting : tmuxCustomCommandSetting
+        return !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var customWarning: String? {
+        guard isCustom, !trimmed.isEmpty,
+              !SSHConfig.isEmbeddableMultiplexerSessionName(trimmed) else { return nil }
+        return String(localized: "Use letters, digits, and . _ - only, up to 64 characters. Other names fall back to the global default.")
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                sessionChoice(
+                    title: String(localized: "Use Global Default"),
+                    detail: globalDetail,
+                    isSelected: !isCustom
+                ) {
+                    isCustom = false
+                    sessionName = ""
+                }
+
+                sessionChoice(title: String(localized: "Custom"), isSelected: isCustom) {
+                    isCustom = true
+                }
+
+                if isCustom {
+                    TextField("Session name", text: $sessionName)
+                        .font(.system(.body, design: .monospaced))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .submitLabel(.done)
+                        .disabled(hasCustomCommand)
+                        .foregroundStyle(hasCustomCommand ? .secondary : .primary)
+                        .themedRow()
+
+                    if let customWarning {
+                        Label(customWarning, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .themedRow()
+                    }
+                }
+            } header: {
+                Text("Session Name")
+            } footer: {
+                if hasCustomCommand {
+                    Text("Ignored when a custom auto-start command is set in Settings.")
+                } else if isHerdr {
+                    Text("The herdr session this profile attaches to on connect. Leave on the global default to use the session name from Settings. Names may use letters, numbers, '.', '_' and '-' (\".\" and \"..\" alone are reserved).")
+                } else {
+                    Text("The tmux session this profile attaches to or creates on connect. Leave on the global default to use the session name from Settings. A pinned name also overrides the session you were last attached to on this host.")
+                }
+            }
+        }
+        .themedList()
+        .navigationTitle("Session Name")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func sessionChoice(
+        title: String,
+        detail: String? = nil,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
                     if let detail {
                         Text(detail)
                             .font(.caption.monospaced())

@@ -98,10 +98,13 @@ struct SSHConnectionView: View {
     // here — the profile editor owns that UI. Empty inherits the global default.
     @State private var terminalType: String = ""
 
-    /// Normalized identity (user@host:port) the current `terminalType` was
-    /// restored for. The override is only valid for that destination, so
-    /// retargeting the form at a different connection drops it.
-    @State private var terminalTypeEndpoint: String?
+    // Multiplexer session name carried in the same way. Also not editable here.
+    @State private var multiplexerSessionName: String = ""
+
+    /// Normalized identity (user@host:port) the carried overrides were restored
+    /// for. They are only valid for that destination, so retargeting the form at
+    /// a different connection drops them.
+    @State private var carriedOverrideEndpoint: String?
 
     // Connection protocol (SSH or Mosh)
     @State private var connectionProtocol: ConnectionProtocol = .ssh
@@ -116,16 +119,19 @@ struct SSHConnectionView: View {
     // Initialization tracking (prevents onAppear from resetting state on navigation return)
     @State private var hasInitialized: Bool = false
     
-    // Tmux session name from global settings
+    // Globals the multiplexer captions fall back to. Observed rather than read
+    // directly so the captions refresh when Settings change; the values
+    // themselves come from SSHConfig.multiplexerSessionDisplayName.
     @AppStorage("tmuxSessionName") private var tmuxSessionNameSetting: String = ""
     @AppStorage("tmuxCustomCommand") private var tmuxCustomCommandSetting: String = ""
-    
-    private var tmuxEffectiveSessionName: String {
-        if !tmuxCustomCommandSetting.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "custom"
-        }
-        let name = tmuxSessionNameSetting.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.isEmpty ? "main" : name
+    @AppStorage("herdrSessionName") private var herdrSessionNameSetting: String = ""
+    @AppStorage("herdrCustomCommand") private var herdrCustomCommandSetting: String = ""
+
+    /// Session name the multiplexer captions describe: the override carried in
+    /// from a profile or history entry, else the global.
+    private var multiplexerCaptionSessionName: String {
+        SSHConfig.multiplexerSessionDisplayName(for: tmuxLaunchSelection.wrappedValue,
+                                                override: multiplexerSessionName)
     }
     
     @State private var isConnecting: Bool = false
@@ -1110,15 +1116,15 @@ struct SSHConnectionView: View {
             .pickerStyle(.menu)
 
             if tmuxLaunchSelection.wrappedValue == .control {
-                Text("Start a tmux -CC control-mode gateway for session \"\(tmuxEffectiveSessionName)\" on connect")
+                Text("Start a tmux -CC control-mode gateway for session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else if enableTmux {
-                Text("Attach to or create tmux session \"\(tmuxEffectiveSessionName)\" on connect")
+                Text("Attach to or create tmux session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else if enableHerdr {
-                Text("Attach to or create herdr session \"\(SSHConfig.herdrEffectiveSessionName)\" on connect")
+                Text("Attach to or create herdr session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1662,10 +1668,11 @@ struct SSHConnectionView: View {
             enableHerdr = config.herdrAutoEnable
             launchCommand = config.launchCommand ?? ""
             launchCommandMode = config.launchCommandMode
-            restoreTerminalType(config.terminalType,
-                                host: config.host,
-                                username: config.username,
-                                port: config.port)
+            restoreCarriedOverrides(terminalType: config.terminalType,
+                                    multiplexerSessionName: config.multiplexerSessionName,
+                                    host: config.host,
+                                    username: config.username,
+                                    port: config.port)
             errorMessage = "Authentication failed. Please check your credentials."
         }
         
@@ -1880,6 +1887,10 @@ struct SSHConnectionView: View {
                 forHost: hostname.trimmingCharacters(in: .whitespacesAndNewlines),
                 username: username.trimmingCharacters(in: .whitespacesAndNewlines),
                 port: Int(port) ?? 22),
+            multiplexerSessionName: multiplexerSessionNameOverride(
+                forHost: hostname.trimmingCharacters(in: .whitespacesAndNewlines),
+                username: username.trimmingCharacters(in: .whitespacesAndNewlines),
+                port: Int(port) ?? 22),
             keyResolutionHints: hints
         )
     }
@@ -2065,13 +2076,16 @@ struct SSHConnectionView: View {
         // the convenience initializers above don't carry it.
         config.gpgAgentConfig = gpgConfig
 
-        // Quick Connect has no TERM field; this carries an override forward when
-        // the form was populated from a history entry or a profile, so a
-        // reconnect doesn't silently drop it. Applied only when the override
-        // was saved for the endpoint actually being connected to.
+        // Quick Connect has no TERM or session-name field; these carry the
+        // overrides forward when the form was populated from a history entry or
+        // a profile, so a reconnect doesn't silently drop them. Applied only
+        // when they were saved for the endpoint actually being connected to.
         config.terminalType = terminalTypeOverride(forHost: trimmedHost,
                                                    username: trimmedUsername,
                                                    port: portNum)
+        config.multiplexerSessionName = multiplexerSessionNameOverride(forHost: trimmedHost,
+                                                                      username: trimmedUsername,
+                                                                      port: portNum)
 
         // Validate config
         guard config.isValid else {
@@ -2189,17 +2203,20 @@ struct SSHConnectionView: View {
         endpointIdentity(host: hostname, username: username, port: Int(port) ?? 22)
     }
 
-    /// Restores a connection's TERM override and records which destination it
-    /// belongs to.
-    private func restoreTerminalType(_ value: String?, host: String, username: String, port: Int) {
+    /// Restores a connection's carried overrides and records which destination
+    /// they belong to.
+    private func restoreCarriedOverrides(terminalType value: String?,
+                                         multiplexerSessionName sessionName: String?,
+                                         host: String, username: String, port: Int) {
         terminalType = value ?? ""
-        terminalTypeEndpoint = endpointIdentity(host: host, username: username, port: port)
+        multiplexerSessionName = sessionName ?? ""
+        carriedOverrideEndpoint = endpointIdentity(host: host, username: username, port: port)
     }
 
     /// The TERM override to apply to the connection being built, or nil when
     /// the stored override belongs to a different destination.
     ///
-    /// This is the guard that actually matters, and it deliberately sits at the
+    /// The ownership check is the guard that actually matters, and it deliberately sits at the
     /// point of consumption rather than at each restore site. Restores happen
     /// from several places and some of them match loosely — the cloud-instance
     /// and local-network branches look up history by hostname alone, so a
@@ -2210,27 +2227,43 @@ struct SSHConnectionView: View {
     /// later, is covered without having to tighten each match.
     private func terminalTypeOverride(forHost host: String, username: String, port: Int) -> String? {
         guard !terminalType.isEmpty,
-              let owner = terminalTypeEndpoint,
-              owner == endpointIdentity(host: host, username: username, port: port) else {
+              ownsCarriedOverrides(host: host, username: username, port: port) else {
             return nil
         }
         return terminalType
     }
 
-    /// Drops the TERM override unless it belongs to `endpoint`.
+    /// The multiplexer session override to apply, guarded by the same endpoint
+    /// ownership rule as the TERM override above.
+    private func multiplexerSessionNameOverride(forHost host: String, username: String, port: Int) -> String? {
+        guard !multiplexerSessionName.isEmpty,
+              ownsCarriedOverrides(host: host, username: username, port: port) else {
+            return nil
+        }
+        return multiplexerSessionName
+    }
+
+    private func ownsCarriedOverrides(host: String, username: String, port: Int) -> Bool {
+        guard let owner = carriedOverrideEndpoint else { return false }
+        return owner == endpointIdentity(host: host, username: username, port: port)
+    }
+
+    /// Drops the carried overrides unless they belong to `endpoint`.
     ///
     /// Deliberately keyed on the destination rather than on "the text changed":
     /// several paths (profile acceptance, browse selection, HSS expansion) set
     /// `quickConnectText` programmatically right before restoring an override,
     /// so a change-triggered clear would race them and throw the override away.
     /// Comparing identities is order-independent, and it still catches the case
-    /// that matters — retargeting a restored override at a different
+    /// that matters — retargeting restored overrides at a different
     /// connection, which would otherwise connect a legacy host with an
-    /// unsupported TERM and record that in history.
-    private func dropTerminalTypeIfNotFor(_ endpoint: String?) {
-        guard terminalTypeEndpoint != endpoint else { return }
+    /// unsupported TERM, or attach to another host's session, and record that
+    /// in history.
+    private func dropCarriedOverridesIfNotFor(_ endpoint: String?) {
+        guard carriedOverrideEndpoint != endpoint else { return }
         terminalType = ""
-        terminalTypeEndpoint = nil
+        multiplexerSessionName = ""
+        carriedOverrideEndpoint = nil
     }
 
     private func updateFieldsFromQuickConnect(_ text: String) {
@@ -2241,9 +2274,9 @@ struct SSHConnectionView: View {
 
         // vnc://host[:port] switches to the Screen Sharing form
         if let vncTarget = Self.parseVNCQuickConnect(text) {
-            // Screen Sharing has no TERM, and the form has left the SSH target
-            // behind entirely, so the override can never still apply.
-            dropTerminalTypeIfNotFor(nil)
+            // Screen Sharing has no TERM or multiplexer, and the form has left
+            // the SSH target behind entirely, so the overrides can never apply.
+            dropCarriedOverridesIfNotFor(nil)
             if !vncTarget.host.isEmpty {
                 applyVNCTarget(hostname: vncTarget.host, port: vncTarget.port)
             }
@@ -2269,7 +2302,7 @@ struct SSHConnectionView: View {
             // The shorthand sets host, username, and port, so the form's fields
             // are the resolved destination by the time this runs.
             updateFieldsFromHSS(effectiveText)
-            dropTerminalTypeIfNotFor(currentEndpointIdentity)
+            dropCarriedOverridesIfNotFor(currentEndpointIdentity)
             return
         }
         
@@ -2296,7 +2329,7 @@ struct SSHConnectionView: View {
 
         // Only now do host, username, and port all describe the new target, so
         // this is the earliest point the override's identity can be judged.
-        dropTerminalTypeIfNotFor(currentEndpointIdentity)
+        dropCarriedOverridesIfNotFor(currentEndpointIdentity)
 
         // Update jump host fields if present in quick connect
         if parsed.hasJumpHost {
@@ -2526,11 +2559,12 @@ struct SSHConnectionView: View {
         launchCommand = entry.launchCommand ?? ""
         launchCommandMode = entry.launchCommandMode ?? .afterConnect
 
-        // Restore the TERM override if present
-        restoreTerminalType(entry.terminalType,
-                            host: entry.host,
-                            username: entry.username,
-                            port: entry.port)
+        // Restore the carried overrides if present
+        restoreCarriedOverrides(terminalType: entry.terminalType,
+                                multiplexerSessionName: entry.multiplexerSessionName,
+                                host: entry.host,
+                                username: entry.username,
+                                port: entry.port)
     }
     
     private func handleProfileAccepted(_ profile: ConnectionProfile) {
@@ -2656,11 +2690,12 @@ struct SSHConnectionView: View {
         launchCommand = config.launchCommand ?? ""
         launchCommandMode = config.launchCommandMode
 
-        // Set the TERM override
-        restoreTerminalType(config.terminalType,
-                            host: config.host,
-                            username: config.username,
-                            port: config.port)
+        // Set the carried overrides
+        restoreCarriedOverrides(terminalType: config.terminalType,
+                                multiplexerSessionName: config.multiplexerSessionName,
+                                host: config.host,
+                                username: config.username,
+                                port: config.port)
 
         // Record usage
         ConnectionProfileManager.shared.recordUsage(id: profile.id)
@@ -2811,9 +2846,9 @@ struct SSHConnectionView: View {
         // clears the label for the previous destination. Setting it
         // synchronously means that clear lands last and wins, so a browse
         // selection lost its cloud instance label. Same reasoning, and same
-        // shape, as handleUnifiedSuggestionAccepted. (The TERM override doesn't
-        // depend on this ordering — dropTerminalTypeIfNotFor keys off the
-        // destination identity.)
+        // shape, as handleUnifiedSuggestionAccepted. (The carried overrides
+        // don't depend on this ordering — dropCarriedOverridesIfNotFor keys off
+        // the destination identity.)
         Task { @MainActor in
             // Set cloud instance label for tab naming
             selectedCloudInstanceLabel = selection.cloudInstanceLabel

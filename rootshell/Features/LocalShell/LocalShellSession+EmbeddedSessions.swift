@@ -96,7 +96,8 @@ extension LocalShellSession {
             tmuxAutoMode: config.tmuxAutoMode,
             herdrAutoEnable: config.herdrAutoEnable,
             remoteCommand: config.remoteCommand,
-            remoteCommandPolicy: config.remoteCommandPolicy
+            remoteCommandPolicy: config.remoteCommandPolicy,
+            multiplexerSessionName: config.multiplexerSessionName
         )
     }
 
@@ -279,7 +280,8 @@ extension LocalShellSession {
             herdrAutoEnable: config.herdrAutoEnable,
             launchCommand: config.launchCommand,
             launchCommandMode: config.launchCommandMode,
-            terminalType: config.terminalType
+            terminalType: config.terminalType,
+            multiplexerSessionName: config.multiplexerSessionName
         )
     }
 

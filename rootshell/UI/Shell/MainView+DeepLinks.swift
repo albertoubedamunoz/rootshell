@@ -17,15 +17,19 @@ import UIKit
 #endif
 
 private extension SSHConfig {
-    /// A copy carrying the history entry's TERM override.
+    /// A copy carrying the history entry's per-connection overrides.
     ///
     /// Deep links rebuild an `SSHConfig` from a history entry by hand, and the
-    /// convenience initializers don't take `terminalType`, so without this an
-    /// ssh:// or mosh:// link silently falls back to the global default even
-    /// though the saved connection pins a TERM.
-    func carryingTerminalType(from entry: SSHConnectionHistoryEntry) -> SSHConfig {
+    /// convenience initializers don't take these, so without this an ssh:// or
+    /// mosh:// link silently falls back to the global defaults even though the
+    /// saved connection pins a value.
+    ///
+    /// The session name is inert here until deep links also carry the auto-start
+    /// flags, which they don't today; it rides along so the two can't drift.
+    func carryingOverrides(from entry: SSHConnectionHistoryEntry) -> SSHConfig {
         var copy = self
         copy.terminalType = entry.terminalType
+        copy.multiplexerSessionName = entry.multiplexerSessionName
         return copy
     }
 }
@@ -81,7 +85,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: entry.portForwardConfig ?? .none
                 )
-                createSSHTab(with: config.carryingTerminalType(from: entry))
+                createSSHTab(with: config.carryingOverrides(from: entry))
                 
             case .password:
                 // Password auth - need to show connection sheet pre-filled
@@ -113,7 +117,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: entry.portForwardConfig ?? .none
                 )
-                reconnectConfig = prefillConfig.carryingTerminalType(from: entry)
+                reconnectConfig = prefillConfig.carryingOverrides(from: entry)
                 showConnectionSidebar = true
 
             case .savedPassword:
@@ -145,7 +149,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: entry.portForwardConfig ?? .none
                 )
-                createSSHTab(with: config.carryingTerminalType(from: entry))
+                createSSHTab(with: config.carryingOverrides(from: entry))
 
             case .none:
                 // None auth (Tailscale/WireGuard) - connect directly
@@ -176,7 +180,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: entry.portForwardConfig ?? .none
                 )
-                createSSHTab(with: config.carryingTerminalType(from: entry))
+                createSSHTab(with: config.carryingOverrides(from: entry))
 
             case .keyboardInteractive:
                 // Server-driven prompts (2FA/OTP/PAM) — connect directly; the
@@ -208,7 +212,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: entry.portForwardConfig ?? .none
                 )
-                createSSHTab(with: config.carryingTerminalType(from: entry))
+                createSSHTab(with: config.carryingOverrides(from: entry))
 
             case .unknown:
                 // Auth method from a newer app version — prefill the sidebar so
@@ -219,7 +223,7 @@ extension MainView {
                     username: components.username ?? entry.username,
                     password: ""
                 )
-                reconnectConfig = prefillConfig.carryingTerminalType(from: entry)
+                reconnectConfig = prefillConfig.carryingOverrides(from: entry)
                 showConnectionSidebar = true
             }
         } else {
@@ -310,7 +314,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: .none  // Mosh handles its own transport
                 )
-                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingTerminalType(from: entry))
+                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingOverrides(from: entry))
                 createMoshTab(with: moshConfig)
 
             case .password:
@@ -324,7 +328,7 @@ extension MainView {
                     password: "",
                     cachedIP: entry.cachedIP
                 )
-                reconnectConfig = prefillConfig.carryingTerminalType(from: entry)
+                reconnectConfig = prefillConfig.carryingOverrides(from: entry)
                 showConnectionSidebar = true
 
             case .savedPassword:
@@ -356,7 +360,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: .none
                 )
-                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingTerminalType(from: entry))
+                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingOverrides(from: entry))
                 createMoshTab(with: moshConfig)
 
             case .none:
@@ -388,7 +392,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: .none
                 )
-                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingTerminalType(from: entry))
+                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingOverrides(from: entry))
                 createMoshTab(with: moshConfig)
 
             case .keyboardInteractive:
@@ -421,7 +425,7 @@ extension MainView {
                     agentConfig: entry.agentConfig ?? .disabled,
                     portForwardConfig: .none
                 )
-                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingTerminalType(from: entry))
+                let moshConfig = MoshConfig(sshConfig: sshConfig.carryingOverrides(from: entry))
                 createMoshTab(with: moshConfig)
 
             case .unknown:
@@ -432,7 +436,7 @@ extension MainView {
                     username: components.username ?? entry.username,
                     password: ""
                 )
-                reconnectConfig = prefillConfig.carryingTerminalType(from: entry)
+                reconnectConfig = prefillConfig.carryingOverrides(from: entry)
                 showConnectionSidebar = true
             }
         } else {
