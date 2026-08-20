@@ -939,10 +939,11 @@ extension Ghostty {
         var handleDragPanGesture: UIPanGestureRecognizer?
         /// Which handle is currently being dragged
         var activeHandleDrag: Ghostty.SelectionHandlePosition?
-        /// Magnifier shown while dragging a selection handle.
-        var selectionMagnifierView: SelectionMagnifierView?
-        /// Last handle-drag point used to position the magnifier.
-        var selectionMagnifierPoint: CGPoint?
+        /// System loupe shown while selecting or dragging a selection handle.
+        var selectionLoupe: SelectionLoupe?
+        /// Last touch point handed to the loupe; used to re-target it when the
+        /// selection geometry moves (auto-scroll, layout).
+        var selectionLoupePoint: CGPoint?
         /// Last cell position during drag (for haptic on cell boundary crossing)
         var lastDragCell: (col: Int, row: Int)?
         #if !os(visionOS)
@@ -1452,9 +1453,9 @@ extension Ghostty {
             selectionEndHandle?.removeFromSuperview()
             selectionEndHandle = nil
             selectionHandlesVisible = false
-            selectionMagnifierView?.removeFromSuperview()
-            selectionMagnifierView = nil
-            selectionMagnifierPoint = nil
+            selectionLoupe?.invalidate()
+            selectionLoupe = nil
+            selectionLoupePoint = nil
 
             inputModeDismissTask?.cancel()
             inputModeDismissTask = nil
@@ -3358,9 +3359,6 @@ extension Ghostty {
                     self?.syncSelectionHandleVisibility()
                     if self?.selectionHandlesVisible == true {
                         self?.updateSelectionHandlePositions()
-                    }
-                    if let self, let point = self.selectionMagnifierPoint, let handle = self.activeHandleDrag {
-                        self.updateSelectionMagnifier(at: point, for: handle)
                     }
                 }
             }
