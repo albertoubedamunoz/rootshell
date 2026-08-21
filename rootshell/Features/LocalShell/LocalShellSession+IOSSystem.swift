@@ -585,7 +585,7 @@ extension LocalShellSession {
                 session.sharedShellEnvironment.setLastExitCode(exitCode)
                 // Invalidate prompt cache - directory may have changed (cd command)
                 session.promptCache.invalidate()
-                session.displayPrompt()
+                session.displayPrompt(ensureAtLineStart: wasFullScreenAtEnd)
 
                 // Replay type-ahead buffer through line editor
                 if !session.typeAheadBuffer.isEmpty {

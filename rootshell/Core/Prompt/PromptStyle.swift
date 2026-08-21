@@ -535,6 +535,8 @@ struct PromptStyle {
         var rightPromptWidth: Int = 0
         /// Number of visible lines in the info bar (above the input line)
         var infoLineCount: Int = 1
+        /// Whether to leave a blank row between prior output and this prompt.
+        var addsLeadingSeparator: Bool = false
     }
 
     /// Generate Starship-style two-line prompt
@@ -548,34 +550,37 @@ struct PromptStyle {
     static func starship(lastCommandSucceeded: Bool = true, theme: StarshipTheme = .catppuccin, directory: String, gitInfo: PromptGitInfo? = nil, columns: Int = 80, showTime: Bool = true) -> PromptResult {
         let content = fitContent(columns: columns, theme: theme, directory: directory, gitInfo: gitInfo, showTime: showTime)
         let effectiveGit = content.gitBranch != nil ? gitInfo : nil
+        var result: PromptResult
         switch theme {
         case .catppuccin:
-            return starshipCatppuccin(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipCatppuccin(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .tokyoNight:
-            return starshipTokyoNight(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipTokyoNight(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .pastelPowerline:
-            return starshipPastelPowerline(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipPastelPowerline(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .gruvboxRainbow:
-            return starshipGruvboxRainbow(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipGruvboxRainbow(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .dracula:
-            return starshipDracula(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipDracula(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .nord:
-            return starshipNord(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipNord(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .oneDark:
-            return starshipOneDark(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipOneDark(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .solarizedDark:
-            return starshipSolarizedDark(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipSolarizedDark(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .monokaiPro:
-            return starshipMonokaiPro(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipMonokaiPro(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .kanagawaWave:
-            return starshipKanagawaWave(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipKanagawaWave(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .rosePine:
-            return starshipRosePine(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipRosePine(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .synthwave84:
-            return starshipSynthwave84(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipSynthwave84(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         case .everforest:
-            return starshipEverforest(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
+            result = starshipEverforest(lastCommandSucceeded: lastCommandSucceeded, content: content, gitInfo: effectiveGit, showTime: showTime)
         }
+        result.addsLeadingSeparator = true
+        return result
     }
 
     /// Generate a themed right-prompt segment (time in theme colors with Powerline caps)

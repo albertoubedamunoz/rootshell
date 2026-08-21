@@ -78,7 +78,7 @@ extension LocalShellSession {
     }
 
     /// Displays command prompt — generates fresh prompt and caches it for redrawLine reuse
-    func displayPrompt() {
+    func displayPrompt(ensureAtLineStart: Bool = false) {
         // A stopped session must not emit output or touch prompt state —
         // sessionCurrentDirectory would allocate a fresh ios_system key
         // after teardown released the old one.
@@ -110,14 +110,23 @@ extension LocalShellSession {
         let formattedPath = formatPathForTitle(currentPath)
         onTitleChange?(formattedPath)
 
-        // Ensure cursor at column 1 before prompt (standard shell behavior)
-        onOutput?("\r\n")
+        // Full-screen programs can restore the primary screen with the cursor
+        // partway across its row. Return to column zero without adding a line.
+        if ensureAtLineStart {
+            onOutput?("\r")
+        }
 
         let prompt = generateFreshPrompt()
 
         // Count lines the prompt occupies (for transient prompt replacement later)
         let visibleText = PromptStyle.stripANSI(prompt.text)
         lastPromptLineCount = max(1, visibleText.components(separatedBy: "\n").count)
+
+        // Styled prompts opt into visual separation from prior output. The
+        // single-line "$ " fallback renders directly on the next available row.
+        if prompt.addsLeadingSeparator {
+            onOutput?("\r\n")
+        }
 
         // Render the prompt with optional right-aligned component
         if prompt.rightPromptWidth > 0 {
@@ -199,7 +208,7 @@ extension LocalShellSession {
     /// Render a prompt with right-aligned text on the info bar line.
     /// Uses ANSI cursor positioning (CHA) to place the right prompt at an absolute
     /// column, avoiding fragile width measurement of the left prompt.
-    private func renderPromptWithRightAlign(_ prompt: PromptStyle.PromptResult) -> String {
+    func renderPromptWithRightAlign(_ prompt: PromptStyle.PromptResult) -> String {
         let columns = Int(pty.windowSize.cols)
         let rightWidth = prompt.rightPromptWidth
         guard columns > 0, rightWidth > 0, rightWidth < columns else { return prompt.text }
