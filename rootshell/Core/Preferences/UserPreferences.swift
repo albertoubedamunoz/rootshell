@@ -14,6 +14,16 @@ nonisolated enum UserPreferences {
 
     static let showTabScopeMenuKey = "showTabScopeMenu"
 
+    // MARK: - Text Selection
+
+    static let useNativeSelectionLoupeKey = "useNativeSelectionLoupe"
+
+    /// Custom is the default; the system loupe is an explicit iOS/iPadOS opt-in.
+    static var useNativeSelectionLoupe: Bool {
+        get { UserDefaults.standard.bool(forKey: useNativeSelectionLoupeKey) }
+        set { UserDefaults.standard.set(newValue, forKey: useNativeSelectionLoupeKey) }
+    }
+
     // MARK: - Background Keepalive
 
     static let backgroundSessionKeepaliveEnabledKey = "backgroundSessionKeepaliveEnabled"

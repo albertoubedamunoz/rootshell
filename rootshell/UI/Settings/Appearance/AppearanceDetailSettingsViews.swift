@@ -229,6 +229,9 @@ struct WindowSettingsView: View {
     @AppStorage(SplitFocusBorderColor.storageKey) private var splitFocusBorderColor: String = SplitFocusBorderColor.accent.rawValue
     @AppStorage(SplitFocusBorderColor.customHexKey) private var splitFocusBorderCustomHex: String = "007AFF"
     @AppStorage("copyOnSelect") private var copyOnSelect: Bool = true
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    @AppStorage(UserPreferences.useNativeSelectionLoupeKey) private var useNativeSelectionLoupe: Bool = false
+    #endif
     @Bindable private var selectionManager = SelectionManager.shared
     @Bindable private var paddingManager = PaddingManager.shared
     // HDR "brightness boost" — the same global gain the floating brightness HUD
@@ -561,6 +564,12 @@ struct WindowSettingsView: View {
                 Toggle("Copy on Select", isOn: $copyOnSelect)
                     .padding(.vertical, 4)
                     .themedRow()
+
+                #if os(iOS) && !targetEnvironment(macCatalyst)
+                Toggle("Use Native Selection Loupe", isOn: $useNativeSelectionLoupe)
+                    .padding(.vertical, 4)
+                    .themedRow()
+                #endif
             } header: {
                 Text("Text Selection")
             } footer: {

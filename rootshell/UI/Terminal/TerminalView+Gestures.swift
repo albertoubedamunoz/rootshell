@@ -2655,9 +2655,7 @@ extension Ghostty.TerminalView {
 
     // MARK: - Coordinate Helpers
 
-    /// Compute selection bounds plus the geometry needed to map handle drags
-    /// back into viewport cell coordinates.
-    private func selectionHandleMetrics() -> (
+    private typealias SelectionHandleMetrics = (
         startCell: SelectionCell,
         endCell: SelectionCell,
         startPoint: CGPoint,
@@ -2670,7 +2668,11 @@ extension Ghostty.TerminalView {
         rows: Int,
         startVisible: Bool,
         endVisible: Bool
-    )? {
+    )
+
+    /// Compute selection bounds plus the geometry needed to map handle drags
+    /// back into viewport cell coordinates.
+    private func selectionHandleMetrics() -> SelectionHandleMetrics? {
         guard let surface = surface, ghostty_surface_has_selection(surface) else { return nil }
 
         // Which endpoints fall within the viewport. read_selection clamps an
@@ -2753,34 +2755,31 @@ extension Ghostty.TerminalView {
         return convert(point, to: window)
     }
 
-    fileprivate func magnifierCenter(
+    private func magnifierCenter(
         for point: CGPoint,
         horizontalOffset: CGFloat,
+        magnifier: Ghostty.SelectionMagnifierView,
         in window: UIWindow
     ) -> CGPoint {
         let windowPoint = convert(point, to: window)
-        let desired = CGPoint(
-            x: windowPoint.x + horizontalOffset,
-            y: windowPoint.y - Ghostty.SelectionMagnifierView.verticalOffset
-        )
-
-        let halfWidth = Ghostty.SelectionMagnifierView.contentSize.width / 2
-        let halfHeight = Ghostty.SelectionMagnifierView.contentSize.height / 2
-        let safeFrame = window.bounds.insetBy(dx: halfWidth + 8, dy: halfHeight + 8)
-
-        var center = CGPoint(
-            x: min(max(desired.x, safeFrame.minX), safeFrame.maxX),
-            y: desired.y
-        )
-
-        if center.y < safeFrame.minY {
-            center.y = min(
-                windowPoint.y + Ghostty.SelectionMagnifierView.verticalOffset,
-                safeFrame.maxY
-            )
+        let windowFrame = window.bounds.insetBy(dx: 8, dy: 8)
+        let safeFrame = window.safeAreaLayoutGuide.layoutFrame.insetBy(dx: 8, dy: 8)
+        let minimumSize = Ghostty.SelectionMagnifierView.contentSize
+        let usableFrame: CGRect
+        if safeFrame.width >= minimumSize.width,
+           safeFrame.height >= minimumSize.height,
+           !safeFrame.isNull,
+           !safeFrame.isEmpty {
+            usableFrame = safeFrame.intersection(windowFrame)
+        } else {
+            usableFrame = windowFrame
         }
 
-        return center
+        return magnifier.resolvedCenter(
+            for: windowPoint,
+            horizontalOffset: horizontalOffset,
+            inside: usableFrame
+        )
     }
 
     private func preferredSelectionEditMenuPoint(fallback: CGPoint) -> CGPoint {
@@ -2813,23 +2812,57 @@ extension Ghostty.TerminalView {
         (handle == .start ? 1 : -1) * Ghostty.SelectionMagnifierView.horizontalOffset
     }
 
-    /// Press-and-drag (capture) mode: no lateral offset. The magnifier sits
-    /// directly above the finger and slides along the safe-frame edge if the
-    /// touch approaches the screen boundary, matching the feel of Apple's
-    /// native loupe. No mid-drag horizontal jumps.
+    private func magnifierCellSize() -> CGSize? {
+        guard let sizeInfo = surfaceSize else { return nil }
+        let scale = Double(contentScaleFactor)
+        guard scale > 0 else { return nil }
+        let width = Double(sizeInfo.cell_width_px) / scale
+        let height = Double(sizeInfo.cell_height_px) / scale
+        guard width > 0, height > 0 else { return nil }
+        return CGSize(width: width, height: height)
+    }
+
+    private var prefersNativeSelectionLoupe: Bool {
+        #if os(iOS)
+        UserPreferences.useNativeSelectionLoupe
+        #else
+        false
+        #endif
+    }
+
+    /// Press-and-drag (capture) mode: the native loupe follows the finger when
+    /// enabled; otherwise the custom loupe uses its centered, zero-offset path.
     func showCaptureMagnifier(at point: CGPoint) {
-        showSelectionMagnifier(at: point, horizontalOffset: 0)
+        if prefersNativeSelectionLoupe,
+           presentNativeSelectionLoupe(at: point, widget: nil) {
+            selectionMagnifierPoint = point
+            return
+        }
+        showCustomSelectionMagnifier(at: point, horizontalOffset: 0)
     }
 
     func updateCaptureMagnifier(at point: CGPoint) {
-        updateSelectionMagnifier(at: point, horizontalOffset: 0)
+        if let loupe = selectionLoupe {
+            selectionMagnifierPoint = point
+            loupe.move(to: point, caretRect: .null, tracksCaret: false)
+        } else {
+            updateCustomSelectionMagnifier(at: point, horizontalOffset: 0)
+        }
     }
 
     func showSelectionMagnifier(at point: CGPoint, for handle: Ghostty.SelectionHandlePosition) {
-        showSelectionMagnifier(at: point, horizontalOffset: Self.handleMagnifierOffset(for: handle))
+        if prefersNativeSelectionLoupe {
+            let widget = handle == .start ? selectionStartHandle : selectionEndHandle
+            if presentNativeSelectionLoupe(at: point, widget: widget) {
+                selectionMagnifierPoint = point
+                syncNativeHandleDragLoupe(touchPoint: point)
+                return
+            }
+        }
+        showCustomSelectionMagnifier(at: point, horizontalOffset: Self.handleMagnifierOffset(for: handle))
     }
 
-    private func showSelectionMagnifier(at point: CGPoint, horizontalOffset: CGFloat) {
+    private func showCustomSelectionMagnifier(at point: CGPoint, horizontalOffset: CGFloat) {
         guard let window = self.window else { return }
 
         let magnifier = selectionMagnifierView ?? Ghostty.SelectionMagnifierView()
@@ -2838,52 +2871,121 @@ extension Ghostty.TerminalView {
             selectionMagnifierView = magnifier
         }
 
-        magnifier.center = magnifierCenter(for: point, horizontalOffset: horizontalOffset, in: window)
-        magnifier.refreshSnapshot(from: self, around: point)
+        window.bringSubviewToFront(magnifier)
+        magnifier.resetPlacement()
+        magnifier.center = magnifierCenter(
+            for: point,
+            horizontalOffset: horizontalOffset,
+            magnifier: magnifier,
+            in: window
+        )
+        magnifier.requestSnapshot(
+            from: self,
+            around: point,
+            cellSize: magnifierCellSize(),
+            immediately: true
+        )
         selectionMagnifierPoint = point
-
-        if magnifier.alpha == 0 {
-            magnifier.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
-            UIView.animate(withDuration: 0.12, delay: 0, options: [.allowUserInteraction, .curveEaseOut]) {
-                magnifier.alpha = 1
-                magnifier.transform = .identity
-            }
-        } else {
-            magnifier.alpha = 1
-            magnifier.transform = .identity
-        }
+        magnifier.present(animated: true)
     }
 
     func updateSelectionMagnifier(at point: CGPoint, for handle: Ghostty.SelectionHandlePosition) {
-        updateSelectionMagnifier(at: point, horizontalOffset: Self.handleMagnifierOffset(for: handle))
+        if selectionLoupe != nil {
+            selectionMagnifierPoint = point
+            syncNativeHandleDragLoupe(touchPoint: point)
+        } else {
+            updateCustomSelectionMagnifier(at: point, horizontalOffset: Self.handleMagnifierOffset(for: handle))
+        }
     }
 
-    private func updateSelectionMagnifier(at point: CGPoint, horizontalOffset: CGFloat) {
+    private func updateCustomSelectionMagnifier(at point: CGPoint, horizontalOffset: CGFloat) {
         guard let magnifier = selectionMagnifierView, let window = self.window else { return }
-        magnifier.center = magnifierCenter(for: point, horizontalOffset: horizontalOffset, in: window)
-        magnifier.refreshSnapshot(from: self, around: point)
+        magnifier.center = magnifierCenter(
+            for: point,
+            horizontalOffset: horizontalOffset,
+            magnifier: magnifier,
+            in: window
+        )
+        magnifier.requestSnapshot(from: self, around: point, cellSize: magnifierCellSize())
         selectionMagnifierPoint = point
     }
 
     func hideSelectionMagnifier(animated: Bool = true) {
         selectionMagnifierPoint = nil
-        let magnifier = selectionMagnifierView
-        selectionMagnifierView = nil
+        selectionLoupe?.invalidate()
+        selectionLoupe = nil
 
-        let cleanup = {
-            magnifier?.removeFromSuperview()
+        guard let magnifier = selectionMagnifierView else { return }
+        magnifier.dismiss(animated: animated) { [weak self, weak magnifier] in
+            guard let magnifier else { return }
+            if self?.selectionMagnifierView === magnifier {
+                self?.selectionMagnifierView = nil
+            }
+            magnifier.removeFromSuperview()
+        }
+    }
+
+    @discardableResult
+    private func presentNativeSelectionLoupe(at point: CGPoint, widget: UIView?) -> Bool {
+        if let loupe = selectionLoupe {
+            loupe.move(to: point, caretRect: .null, tracksCaret: false)
+            return true
         }
 
-        guard animated, let magnifier else {
-            cleanup()
+        selectionLoupe = Ghostty.SelectionLoupe.begin(
+            at: point,
+            in: self,
+            fromSelectionWidgetView: widget
+        )
+        return selectionLoupe != nil
+    }
+
+    private func syncNativeHandleDragLoupe(touchPoint: CGPoint) {
+        guard selectionLoupe != nil else { return }
+        syncNativeHandleDragLoupe(touchPoint: touchPoint, metrics: selectionHandleMetrics())
+    }
+
+    /// Re-target the native loupe at the endpoint nearest the finger. The core
+    /// can reorder endpoints when the dragged handle crosses its fixed anchor.
+    private func syncNativeHandleDragLoupe(
+        touchPoint: CGPoint,
+        metrics: SelectionHandleMetrics?
+    ) {
+        guard let loupe = selectionLoupe else { return }
+        guard let metrics else {
+            loupe.move(to: touchPoint, caretRect: .null, tracksCaret: false)
             return
         }
 
-        UIView.animate(withDuration: 0.12, delay: 0, options: [.allowUserInteraction, .curveEaseIn]) {
-            magnifier.alpha = 0
-            magnifier.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
-        } completion: { _ in
-            cleanup()
+        let cellHeight = CGFloat(metrics.cellHeight)
+        let startRect = CGRect(
+            x: metrics.startPoint.x,
+            y: metrics.startPoint.y - cellHeight,
+            width: 2,
+            height: cellHeight
+        )
+        let endRect = CGRect(
+            x: metrics.endPoint.x,
+            y: metrics.endPoint.y,
+            width: 2,
+            height: cellHeight
+        )
+        let startDistance = hypot(
+            touchPoint.x - startRect.midX,
+            touchPoint.y - startRect.midY
+        )
+        let endDistance = hypot(
+            touchPoint.x - endRect.midX,
+            touchPoint.y - endRect.midY
+        )
+        let (caretRect, visible) = startDistance <= endDistance
+            ? (startRect, metrics.startVisible)
+            : (endRect, metrics.endVisible)
+
+        if visible {
+            loupe.move(to: touchPoint, caretRect: caretRect, tracksCaret: true)
+        } else {
+            loupe.move(to: touchPoint, caretRect: .null, tracksCaret: false)
         }
     }
 
@@ -2990,10 +3092,12 @@ extension Ghostty.TerminalView {
             // The magnifier mirrors the live terminal rendering, so update it
             // immediately; the render-driven layout hook keeps refreshing it
             // during a held-finger auto-scroll.
-            let magnifierPoint = CGPoint(
-                x: max(0, min(location.x, bounds.width)),
-                y: max(0, min(location.y, bounds.height))
-            )
+            let magnifierPoint = selectionLoupe == nil
+                ? CGPoint(
+                    x: max(0, min(location.x, bounds.width)),
+                    y: max(0, min(location.y, bounds.height))
+                )
+                : location
             updateSelectionMagnifier(at: magnifierPoint, for: which)
 
             // Pass the unclamped finger location so the core's edge test can
@@ -3178,8 +3282,29 @@ extension Ghostty.TerminalView {
         }
 
         guard let metrics = selectionHandleMetrics() else {
-            if !dragging { hideSelectionHandles() }
+            if dragging, let point = selectionMagnifierPoint, let handle = activeHandleDrag {
+                if selectionLoupe != nil {
+                    syncNativeHandleDragLoupe(touchPoint: point, metrics: nil)
+                } else {
+                    updateCustomSelectionMagnifier(
+                        at: point,
+                        horizontalOffset: Self.handleMagnifierOffset(for: handle)
+                    )
+                }
+            } else if !dragging {
+                hideSelectionHandles()
+            }
             return
+        }
+        if dragging, let point = selectionMagnifierPoint, let handle = activeHandleDrag {
+            if selectionLoupe != nil {
+                syncNativeHandleDragLoupe(touchPoint: point, metrics: metrics)
+            } else {
+                updateCustomSelectionMagnifier(
+                    at: point,
+                    horizontalOffset: Self.handleMagnifierOffset(for: handle)
+                )
+            }
         }
         // Tear down only when neither endpoint is on screen (and not mid-drag).
         // A cross-viewport selection keeps one endpoint visible; we position both

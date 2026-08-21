@@ -939,9 +939,11 @@ extension Ghostty {
         var handleDragPanGesture: UIPanGestureRecognizer?
         /// Which handle is currently being dragged
         var activeHandleDrag: Ghostty.SelectionHandlePosition?
-        /// Magnifier shown while dragging a selection handle.
+        /// Magnifier shown during touch selection and selection-handle drags.
         var selectionMagnifierView: SelectionMagnifierView?
-        /// Last handle-drag point used to position the magnifier.
+        /// System loupe used when the iOS/iPadOS native-loupe preference is enabled.
+        var selectionLoupe: SelectionLoupe?
+        /// Last touch point used to position and refresh the magnifier.
         var selectionMagnifierPoint: CGPoint?
         /// Last cell position during drag (for haptic on cell boundary crossing)
         var lastDragCell: (col: Int, row: Int)?
@@ -1452,8 +1454,11 @@ extension Ghostty {
             selectionEndHandle?.removeFromSuperview()
             selectionEndHandle = nil
             selectionHandlesVisible = false
+            selectionMagnifierView?.dismiss(animated: false) {}
             selectionMagnifierView?.removeFromSuperview()
             selectionMagnifierView = nil
+            selectionLoupe?.invalidate()
+            selectionLoupe = nil
             selectionMagnifierPoint = nil
 
             inputModeDismissTask?.cancel()
@@ -3353,14 +3358,21 @@ extension Ghostty {
             #endif
 
             #if !targetEnvironment(macCatalyst)
-            if selectionHandlesVisible || selectionWasTouchInitiated {
+            if selectionHandlesVisible || selectionWasTouchInitiated || selectionMagnifierPoint != nil {
                 DispatchQueue.main.async { [weak self] in
-                    self?.syncSelectionHandleVisibility()
-                    if self?.selectionHandlesVisible == true {
-                        self?.updateSelectionHandlePositions()
+                    guard let self else { return }
+                    if self.selectionHandlesVisible || self.selectionWasTouchInitiated {
+                        self.syncSelectionHandleVisibility()
+                        if self.selectionHandlesVisible {
+                            self.updateSelectionHandlePositions()
+                        }
                     }
-                    if let self, let point = self.selectionMagnifierPoint, let handle = self.activeHandleDrag {
-                        self.updateSelectionMagnifier(at: point, for: handle)
+                    if let point = self.selectionMagnifierPoint {
+                        if let handle = self.activeHandleDrag {
+                            self.updateSelectionMagnifier(at: point, for: handle)
+                        } else {
+                            self.updateCaptureMagnifier(at: point)
+                        }
                     }
                 }
             }
