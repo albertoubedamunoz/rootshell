@@ -965,28 +965,17 @@ extension LocalShellSession {
             let formattedPath = self.formatPathForTitle(currentPath)
             self.onTitleChange?(formattedPath)
 
-            // Output prompt
-            self.onOutput?("\r\n")
-
             let prompt = self.getCurrentPromptResult()
+            if prompt.addsLeadingSeparator {
+                self.onOutput?("\r\n")
+            }
+
             let isMultiLine = prompt.secondLinePrefix > 0 && (self.useStarshipPrompt || PromptConfigManager.shared.hasConfigFile())
 
-            self.onOutput?(prompt.text)
-
-            // Render right prompt if present
-            if prompt.rightPromptWidth > 0, !prompt.rightPromptText.isEmpty {
-                let termWidth = Int(self.pty.windowSize.cols)
-                let rightCol = termWidth - prompt.rightPromptWidth + 1
-                if rightCol > 0 {
-                    var rp = "\u{1b}[1A"                        // CUU 1 — up to info bar
-                    rp += "\u{1b}[\(rightCol)G"                 // CHA — right column
-                    rp += prompt.rightPromptText                // Right prompt text
-                    rp += PromptStyle.ansiReset                 // Reset
-                    rp += "\u{1b}[1B"                           // CUD 1 — back to input line
-                    rp += "\r"                                  // CR
-                    rp += "\u{1b}[\(prompt.secondLinePrefix)C"  // CUF — input start
-                    self.onOutput?(rp)
-                }
+            if prompt.rightPromptWidth > 0 {
+                self.onOutput?(self.renderPromptWithRightAlign(prompt))
+            } else {
+                self.onOutput?(prompt.text)
             }
 
             // Render existing buffer content with cursor positioning

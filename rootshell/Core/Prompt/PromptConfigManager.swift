@@ -173,6 +173,7 @@ final class PromptConfigManager {
             config: config,
             context: context
         )
+        result.addsLeadingSeparator = true
 
         // Validate we have a usable prompt
         let visible = PromptStyle.stripANSI(result.text)
