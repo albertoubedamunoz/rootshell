@@ -2755,6 +2755,33 @@ extension Ghostty.TerminalView {
         return convert(point, to: window)
     }
 
+    private func magnifierCenter(
+        for point: CGPoint,
+        horizontalOffset: CGFloat,
+        magnifier: Ghostty.SelectionMagnifierView,
+        in window: UIWindow
+    ) -> CGPoint {
+        let windowPoint = convert(point, to: window)
+        let windowFrame = window.bounds.insetBy(dx: 8, dy: 8)
+        let safeFrame = window.safeAreaLayoutGuide.layoutFrame.insetBy(dx: 8, dy: 8)
+        let minimumSize = Ghostty.SelectionMagnifierView.contentSize
+        let usableFrame: CGRect
+        if safeFrame.width >= minimumSize.width,
+           safeFrame.height >= minimumSize.height,
+           !safeFrame.isNull,
+           !safeFrame.isEmpty {
+            usableFrame = safeFrame.intersection(windowFrame)
+        } else {
+            usableFrame = windowFrame
+        }
+
+        return magnifier.resolvedCenter(
+            for: windowPoint,
+            horizontalOffset: horizontalOffset,
+            inside: usableFrame
+        )
+    }
+
     private func preferredSelectionEditMenuPoint(fallback: CGPoint) -> CGPoint {
         guard let metrics = selectionHandleMetrics() else { return fallback }
 
@@ -2777,72 +2804,180 @@ extension Ghostty.TerminalView {
         return anchor
     }
 
-    // MARK: - Loupe
+    /// Lateral offset to apply for an explicit selection-handle drag. The
+    /// `.start` handle sits at the top-left of the selection and the `.end`
+    /// handle at the bottom-right, so we offset the magnifier away from each
+    /// to keep the finger from obscuring the magnified content.
+    private static func handleMagnifierOffset(for handle: Ghostty.SelectionHandlePosition) -> CGFloat {
+        (handle == .start ? 1 : -1) * Ghostty.SelectionMagnifierView.horizontalOffset
+    }
 
-    /// Press-and-drag (capture / pan / long-press selection): the system loupe
-    /// follows the finger and owns its own placement and edge handling.
+    private func magnifierCellSize() -> CGSize? {
+        guard let sizeInfo = surfaceSize else { return nil }
+        let scale = Double(contentScaleFactor)
+        guard scale > 0 else { return nil }
+        let width = Double(sizeInfo.cell_width_px) / scale
+        let height = Double(sizeInfo.cell_height_px) / scale
+        guard width > 0, height > 0 else { return nil }
+        return CGSize(width: width, height: height)
+    }
+
+    private var prefersNativeSelectionLoupe: Bool {
+        #if os(iOS)
+        UserPreferences.useNativeSelectionLoupe
+        #else
+        false
+        #endif
+    }
+
+    /// Press-and-drag (capture) mode: the native loupe follows the finger when
+    /// enabled; otherwise the custom loupe uses its centered, zero-offset path.
     func showCaptureMagnifier(at point: CGPoint) {
-        presentLoupe(at: point, widget: nil)
-        selectionLoupePoint = point
+        if prefersNativeSelectionLoupe,
+           presentNativeSelectionLoupe(at: point, widget: nil) {
+            selectionMagnifierPoint = point
+            return
+        }
+        showCustomSelectionMagnifier(at: point, horizontalOffset: 0)
     }
 
     func updateCaptureMagnifier(at point: CGPoint) {
-        selectionLoupePoint = point
-        selectionLoupe?.move(to: point, caretRect: .null, tracksCaret: false)
+        if let loupe = selectionLoupe {
+            selectionMagnifierPoint = point
+            loupe.move(to: point, caretRect: .null, tracksCaret: false)
+        } else {
+            updateCustomSelectionMagnifier(at: point, horizontalOffset: 0)
+        }
     }
 
-    /// Handle drag: the loupe animates in from the handle and tracks the
-    /// dragged endpoint's caret.
     func showSelectionMagnifier(at point: CGPoint, for handle: Ghostty.SelectionHandlePosition) {
-        let widget = handle == .start ? selectionStartHandle : selectionEndHandle
-        presentLoupe(at: point, widget: widget)
-        selectionLoupePoint = point
-        syncHandleDragLoupe(touchPoint: point)
+        if prefersNativeSelectionLoupe {
+            let widget = handle == .start ? selectionStartHandle : selectionEndHandle
+            if presentNativeSelectionLoupe(at: point, widget: widget) {
+                selectionMagnifierPoint = point
+                syncNativeHandleDragLoupe(touchPoint: point)
+                return
+            }
+        }
+        showCustomSelectionMagnifier(at: point, horizontalOffset: Self.handleMagnifierOffset(for: handle))
+    }
+
+    private func showCustomSelectionMagnifier(at point: CGPoint, horizontalOffset: CGFloat) {
+        guard let window = self.window else { return }
+
+        let magnifier = selectionMagnifierView ?? Ghostty.SelectionMagnifierView()
+        if selectionMagnifierView == nil {
+            window.addSubview(magnifier)
+            selectionMagnifierView = magnifier
+        }
+
+        window.bringSubviewToFront(magnifier)
+        magnifier.resetPlacement()
+        magnifier.center = magnifierCenter(
+            for: point,
+            horizontalOffset: horizontalOffset,
+            magnifier: magnifier,
+            in: window
+        )
+        magnifier.requestSnapshot(
+            from: self,
+            around: point,
+            cellSize: magnifierCellSize(),
+            immediately: true
+        )
+        selectionMagnifierPoint = point
+        magnifier.present(animated: true)
     }
 
     func updateSelectionMagnifier(at point: CGPoint, for handle: Ghostty.SelectionHandlePosition) {
-        selectionLoupePoint = point
-        syncHandleDragLoupe(touchPoint: point)
+        if selectionLoupe != nil {
+            selectionMagnifierPoint = point
+            syncNativeHandleDragLoupe(touchPoint: point)
+        } else {
+            updateCustomSelectionMagnifier(at: point, horizontalOffset: Self.handleMagnifierOffset(for: handle))
+        }
     }
 
-    /// `animated` is kept for call-site stability; the system loupe always
-    /// animates its own dismissal.
+    private func updateCustomSelectionMagnifier(at point: CGPoint, horizontalOffset: CGFloat) {
+        guard let magnifier = selectionMagnifierView, let window = self.window else { return }
+        magnifier.center = magnifierCenter(
+            for: point,
+            horizontalOffset: horizontalOffset,
+            magnifier: magnifier,
+            in: window
+        )
+        magnifier.requestSnapshot(from: self, around: point, cellSize: magnifierCellSize())
+        selectionMagnifierPoint = point
+    }
+
     func hideSelectionMagnifier(animated: Bool = true) {
-        selectionLoupePoint = nil
+        selectionMagnifierPoint = nil
         selectionLoupe?.invalidate()
         selectionLoupe = nil
+
+        guard let magnifier = selectionMagnifierView else { return }
+        magnifier.dismiss(animated: animated) { [weak self, weak magnifier] in
+            guard let magnifier else { return }
+            if self?.selectionMagnifierView === magnifier {
+                self?.selectionMagnifierView = nil
+            }
+            magnifier.removeFromSuperview()
+        }
     }
 
-    private func presentLoupe(at point: CGPoint, widget: UIView?) {
+    @discardableResult
+    private func presentNativeSelectionLoupe(at point: CGPoint, widget: UIView?) -> Bool {
         if let loupe = selectionLoupe {
             loupe.move(to: point, caretRect: .null, tracksCaret: false)
-            return
+            return true
         }
-        selectionLoupe = Ghostty.SelectionLoupe.begin(at: point, in: self, fromSelectionWidgetView: widget)
+
+        selectionLoupe = Ghostty.SelectionLoupe.begin(
+            at: point,
+            in: self,
+            fromSelectionWidgetView: widget
+        )
+        return selectionLoupe != nil
     }
 
-    private func syncHandleDragLoupe(touchPoint: CGPoint) {
+    private func syncNativeHandleDragLoupe(touchPoint: CGPoint) {
         guard selectionLoupe != nil else { return }
-        syncHandleDragLoupe(touchPoint: touchPoint, metrics: selectionHandleMetrics())
+        syncNativeHandleDragLoupe(touchPoint: touchPoint, metrics: selectionHandleMetrics())
     }
 
-    /// Re-target the loupe at the selection endpoint nearest the finger. The
-    /// core re-orders start/end when the finger crosses the anchor, so the
-    /// endpoint is chosen by proximity rather than by `activeHandleDrag`.
-    /// Falls back to finger tracking while that endpoint is off-viewport (the
-    /// core clamps its geometry to the edge) or metrics are unavailable.
-    private func syncHandleDragLoupe(touchPoint: CGPoint, metrics: SelectionHandleMetrics?) {
+    /// Re-target the native loupe at the endpoint nearest the finger. The core
+    /// can reorder endpoints when the dragged handle crosses its fixed anchor.
+    private func syncNativeHandleDragLoupe(
+        touchPoint: CGPoint,
+        metrics: SelectionHandleMetrics?
+    ) {
         guard let loupe = selectionLoupe else { return }
         guard let metrics else {
             loupe.move(to: touchPoint, caretRect: .null, tracksCaret: false)
             return
         }
 
-        let cellH = CGFloat(metrics.cellHeight)
-        let startRect = CGRect(x: metrics.startPoint.x, y: metrics.startPoint.y - cellH, width: 2, height: cellH)
-        let endRect = CGRect(x: metrics.endPoint.x, y: metrics.endPoint.y, width: 2, height: cellH)
-        let startDistance = hypot(touchPoint.x - startRect.midX, touchPoint.y - startRect.midY)
-        let endDistance = hypot(touchPoint.x - endRect.midX, touchPoint.y - endRect.midY)
+        let cellHeight = CGFloat(metrics.cellHeight)
+        let startRect = CGRect(
+            x: metrics.startPoint.x,
+            y: metrics.startPoint.y - cellHeight,
+            width: 2,
+            height: cellHeight
+        )
+        let endRect = CGRect(
+            x: metrics.endPoint.x,
+            y: metrics.endPoint.y,
+            width: 2,
+            height: cellHeight
+        )
+        let startDistance = hypot(
+            touchPoint.x - startRect.midX,
+            touchPoint.y - startRect.midY
+        )
+        let endDistance = hypot(
+            touchPoint.x - endRect.midX,
+            touchPoint.y - endRect.midY
+        )
         let (caretRect, visible) = startDistance <= endDistance
             ? (startRect, metrics.startVisible)
             : (endRect, metrics.endVisible)
@@ -2954,9 +3089,16 @@ extension Ghostty.TerminalView {
                 lastDragCell = cell
             }
 
-            // Re-target the loupe now; updateSelectionHandlePositions re-syncs
-            // it once the core has moved the endpoint (and during auto-scroll).
-            updateSelectionMagnifier(at: location, for: which)
+            // The magnifier mirrors the live terminal rendering, so update it
+            // immediately; the render-driven layout hook keeps refreshing it
+            // during a held-finger auto-scroll.
+            let magnifierPoint = selectionLoupe == nil
+                ? CGPoint(
+                    x: max(0, min(location.x, bounds.width)),
+                    y: max(0, min(location.y, bounds.height))
+                )
+                : location
+            updateSelectionMagnifier(at: magnifierPoint, for: which)
 
             // Pass the unclamped finger location so the core's edge test can
             // start auto-scrolling when the finger reaches the top/bottom of the
@@ -3140,15 +3282,29 @@ extension Ghostty.TerminalView {
         }
 
         guard let metrics = selectionHandleMetrics() else {
-            if dragging, let point = selectionLoupePoint {
-                syncHandleDragLoupe(touchPoint: point, metrics: nil)
-            } else {
+            if dragging, let point = selectionMagnifierPoint, let handle = activeHandleDrag {
+                if selectionLoupe != nil {
+                    syncNativeHandleDragLoupe(touchPoint: point, metrics: nil)
+                } else {
+                    updateCustomSelectionMagnifier(
+                        at: point,
+                        horizontalOffset: Self.handleMagnifierOffset(for: handle)
+                    )
+                }
+            } else if !dragging {
                 hideSelectionHandles()
             }
             return
         }
-        if dragging, let point = selectionLoupePoint {
-            syncHandleDragLoupe(touchPoint: point, metrics: metrics)
+        if dragging, let point = selectionMagnifierPoint, let handle = activeHandleDrag {
+            if selectionLoupe != nil {
+                syncNativeHandleDragLoupe(touchPoint: point, metrics: metrics)
+            } else {
+                updateCustomSelectionMagnifier(
+                    at: point,
+                    horizontalOffset: Self.handleMagnifierOffset(for: handle)
+                )
+            }
         }
         // Tear down only when neither endpoint is on screen (and not mid-drag).
         // A cross-viewport selection keeps one endpoint visible; we position both
