@@ -15,12 +15,12 @@ extension MainView {
     /// Top layer of `terminalContentZStack`; always mounted, inert while hidden.
     @ViewBuilder
     func tabExposeHost(geometry: GeometryProxy, width: CGFloat) -> some View {
-        TabExposeHost(
+        TabExposeSafeAreaHost(
             controller: tabExpose,
             configuration: tabExposeConfiguration(),
-            appearance: tabExposeAppearance()
+            appearance: tabExposeAppearance(),
+            width: width
         )
-        .frame(width: width)
         // Above every sibling in the content ZStack (SwiftUI-drawn fills and
         // re-inserted platform views alike), independent of insertion order.
         .zIndex(1)
@@ -186,5 +186,31 @@ extension MainView {
                 _ = focused.focusDidChange(true)
             }
         }
+    }
+}
+
+/// Keeps the safe-area modifier behind a nominal view boundary. Inlining this
+/// extra generic layer into terminalContentZStack's already-large ViewBuilder
+/// can produce invalid AttributeGraph metadata on iOS during the first render.
+private struct TabExposeSafeAreaHost: View {
+    let controller: TabExposeController
+    let configuration: TabExposeView.Configuration
+    let appearance: TabExposeView.Appearance
+    let width: CGFloat
+
+    var body: some View {
+        TabExposeHost(
+            controller: controller,
+            configuration: configuration,
+            appearance: appearance
+        )
+        .frame(width: width)
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        // Match terminalTabsView's container escape so the opaque exposé
+        // surface owns every pixel the terminal can draw in the bottom safe
+        // area. The wrapper remains inside the terminal column, leaving
+        // adjacent sidebars and the tab bar untouched.
+        .ignoresSafeArea(.container, edges: .bottom)
+        #endif
     }
 }
