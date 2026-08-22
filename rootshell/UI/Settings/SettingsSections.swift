@@ -1602,6 +1602,34 @@ struct SettingsNotificationsSection: View {
     }
 }
 
+/// Open source notice shown as the About section footer.
+struct SettingsOpenSourceFooter: View {
+    private static let repositoryURL = URL(string: "https://github.com/kitknox/rootshell")!
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Link(destination: Self.repositoryURL) {
+                HStack(spacing: 6) {
+                    Image("GitHubMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                    Text(verbatim: "kitknox/rootshell")
+                        .fontWeight(.medium)
+                }
+                .font(.footnote)
+            }
+
+            Text("Open source under the MIT License")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
+        .padding(.top, 12)
+    }
+}
+
 /// About section detail
 struct SettingsAboutSection: View {
     var externalShowDebugSettings: Binding<Bool>? = nil
@@ -1661,6 +1689,8 @@ struct SettingsAboutSection: View {
                     }
                 }
                 .themedRow()
+            } footer: {
+                SettingsOpenSourceFooter()
             }
         }
         .themedList()

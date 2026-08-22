@@ -1012,6 +1012,8 @@ struct SettingsHomeList: View {
                     }
                 }
                 .themedRow()
+            } footer: {
+                SettingsOpenSourceFooter()
             }
         }
         .themedList()
