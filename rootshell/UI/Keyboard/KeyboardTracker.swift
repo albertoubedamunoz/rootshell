@@ -30,6 +30,13 @@ class KeyboardTracker {
     @MainActor
     private(set) var isHardwareKeyboard: Bool = false
 
+    /// Set when UIKit presents a full software keyboard while GCKeyboard still
+    /// claims a hardware keyboard (stale gamecontrollerd state, e.g. after
+    /// iPhone Mirroring). Cleared by a real GCKeyboard connect/disconnect or
+    /// the first real key event. Masks `isHardwareKeyboard` while set.
+    @MainActor
+    private var hardwareKeyboardClaimContradicted = false
+
     /// True if the on-screen (software) keyboard is currently visible
     @MainActor
     private(set) var isSoftwareKeyboardVisible: Bool = false
@@ -342,6 +349,8 @@ class KeyboardTracker {
     @MainActor
     @objc private func hardwareKeyboardDidConnect(_ notification: Notification) {
         Ghostty.logger.debug("KeyboardTracker: GCKeyboard connected")
+        // A real connect event supersedes the stale-claim heuristic.
+        hardwareKeyboardClaimContradicted = false
         updateHardwareKeyboardState(true)
         setupKeyboardInputHandler()
     }
@@ -349,7 +358,20 @@ class KeyboardTracker {
     @MainActor
     @objc private func hardwareKeyboardDidDisconnect(_ notification: Notification) {
         Ghostty.logger.debug("KeyboardTracker: GCKeyboard disconnected")
+        hardwareKeyboardClaimContradicted = false
         updateHardwareKeyboardState(false)
+    }
+
+    /// A real key event proves the GCKeyboard is not a phantom: lift the
+    /// contradiction mask. Phantom (stale) keyboards never deliver key events.
+    @MainActor
+    private func hardwareKeyEventObserved() {
+        guard hardwareKeyboardClaimContradicted else { return }
+        hardwareKeyboardClaimContradicted = false
+        Ghostty.logger.debug("KeyboardTracker: Hardware key event observed, clearing stale-claim mask")
+        #if !os(visionOS)
+        updateHardwareKeyboardState(GCKeyboard.coalesced != nil)
+        #endif
     }
 
     #if targetEnvironment(macCatalyst)
@@ -638,6 +660,9 @@ class KeyboardTracker {
         }
 
         keyboardInput.keyChangedHandler = { [weak self] _, key, keyCode, pressed in
+            Task { @MainActor in
+                self?.hardwareKeyEventObserved()
+            }
             // Detect modifier key changes to refresh link detection
             // (e.g., Cmd+hover should highlight links without requiring mouse movement)
             let isModifierKey = keyCode == .leftGUI || keyCode == .rightGUI ||
@@ -672,6 +697,12 @@ class KeyboardTracker {
             let leftAlt = input.button(forKeyCode: .leftAlt)?.isPressed ?? false
             let rightAlt = input.button(forKeyCode: .rightAlt)?.isPressed ?? false
             let altHeld = leftAlt || rightAlt
+            // ⌘⌥ chords are app shortcuts (UIKeyCommand / keybinds via
+            // pressesBegan, which does fire with Command held); forwarding them
+            // here would also type Alt+key into whatever terminal is focused.
+            let leftCmd = input.button(forKeyCode: .leftGUI)?.isPressed ?? false
+            let rightCmd = input.button(forKeyCode: .rightGUI)?.isPressed ?? false
+            let cmdHeld = leftCmd || rightCmd
 
             let isSpecialKey = isArrowKey
                 || keyCode == .tab || keyCode == .escape || keyCode == .returnOrEnter
@@ -681,7 +712,7 @@ class KeyboardTracker {
                 || (keyCode.rawValue >= GCKeyCode.F1.rawValue
                     && keyCode.rawValue <= GCKeyCode.F12.rawValue)
 
-            if altHeld && !isSpecialKey {
+            if altHeld && !cmdHeld && !isSpecialKey {
                 if pressed {
                     Task { @MainActor in
                         self?.handleModifierPrintableKeyDown(
@@ -1163,17 +1194,36 @@ class KeyboardTracker {
         // On iOS/iPadOS, GCKeyboard handles detection - we just track the frame here
         // Double-check GCKeyboard state in case notifications were missed
         let gcKeyboardConnected = GCKeyboard.coalesced != nil
-        if gcKeyboardConnected != isHardwareKeyboard {
-            Ghostty.logger.debug("KeyboardTracker: GCKeyboard state sync - was \(self.isHardwareKeyboard), now \(gcKeyboardConnected)")
-            updateHardwareKeyboardState(gcKeyboardConnected)
-            // Reinstall key handler if keyboard reconnected - the old handler was on a different instance
-            if gcKeyboardConnected {
-                setupKeyboardInputHandler()
-            }
+        // Previous GCKeyboard claim: hardware true implies connected, and the
+        // mask is only ever set while connected.
+        let gcKeyboardWasConnected = isHardwareKeyboard || hardwareKeyboardClaimContradicted
+        if !gcKeyboardConnected {
+            hardwareKeyboardClaimContradicted = false
+        }
+        // UIKit never presents a full software keyboard with a real hardware
+        // keyboard attached; if it does while GCKeyboard claims one, the claim
+        // is stale (system-level, survives app relaunch). Mask it until a real
+        // key event or connect/disconnect proves otherwise.
+        if gcKeyboardConnected,
+           visibleHeight > Self.softwareKeyboardHeightThreshold,
+           !hardwareKeyboardClaimContradicted {
+            hardwareKeyboardClaimContradicted = true
+            Ghostty.logger.debug("KeyboardTracker: Software keyboard shown while GCKeyboard claims hardware - masking stale claim")
+        }
+        let effectiveHardware = gcKeyboardConnected && !hardwareKeyboardClaimContradicted
+        if effectiveHardware != isHardwareKeyboard {
+            Ghostty.logger.debug("KeyboardTracker: GCKeyboard state sync - was \(self.isHardwareKeyboard), now \(effectiveHardware) (gc=\(gcKeyboardConnected), contradicted=\(self.hardwareKeyboardClaimContradicted))")
+            updateHardwareKeyboardState(effectiveHardware)
+        }
+        // Reinstall key handler if keyboard reconnected - the old handler was on
+        // a different instance. Done even while masked: the handler is what
+        // observes the real key event that lifts the mask.
+        if gcKeyboardConnected && !gcKeyboardWasConnected {
+            setupKeyboardInputHandler()
         }
         #endif
 
-        Ghostty.logger.debug("KeyboardTracker: Frame updated, height=\(keyboardFrameEnd.height), isHardware=\(self.isHardwareKeyboard)")
+        Ghostty.logger.debug("KeyboardTracker: Frame updated, height=\(keyboardFrameEnd.height), isHardware=\(self.isHardwareKeyboard), contradicted=\(self.hardwareKeyboardClaimContradicted)")
     }
 
     @MainActor

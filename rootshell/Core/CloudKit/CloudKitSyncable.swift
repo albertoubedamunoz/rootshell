@@ -154,11 +154,13 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
         record["launchCommand"] = launchCommand
         record["launchCommandMode"] = launchCommandMode?.rawValue
 
-        // Extension envelope. Always written, never omitted when empty: its
-        // presence is what tells a receiving device that this record came from
-        // a build that knows these fields, so a nil member inside means the
-        // user cleared it rather than that the writer was too old to know.
-        let envelope = HistoryExtensionPayload(terminalType: terminalType)
+        // Extension envelope. Always written, never omitted when empty: it
+        // carries this build's `currentVersion`, which is what tells a receiving
+        // device which members the writer knew. A nil member means the user
+        // cleared it only when the stamped version is at least the version that
+        // introduced that member.
+        let envelope = HistoryExtensionPayload(terminalType: terminalType,
+                                               multiplexerSessionName: multiplexerSessionName)
         if let envelopeData = try? JSONEncoder().encode(envelope) {
             record["extensionData"] = envelopeData
         } else {
@@ -281,12 +283,16 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
             launchCommand: launchCommand,
             launchCommandMode: launchCommandMode,
             terminalType: extensionPayload?.terminalType,
+            multiplexerSessionName: extensionPayload?.multiplexerSessionName,
             modifiedAt: modifiedAt,
             isDeleted: isDeleted
         )
-        // Records the envelope's presence so the merge can distinguish a
-        // cleared override from a writer that predates the field.
+        // Records the envelope's presence and the version the writer stamped,
+        // so the merge can distinguish a cleared override from a writer that
+        // predates the envelope (nil version) or predates an individual member
+        // added in a later version.
         entry.syncCarriedExtensions = extensionPayload != nil
+        entry.syncEnvelopeVersion = extensionPayload?.version
         return entry
     }
 }

@@ -43,6 +43,9 @@ struct SSHCommandParser {
         var herdrAutoEnable: Bool = false
         var remoteCommand: String?
         var remoteCommandPolicy: SSHConfig.RemoteCommandPolicy = .verbatim
+        /// Per-profile multiplexer session name, carried through the password
+        /// prompt round-trip. Not settable from the command line.
+        var multiplexerSessionName: String?
 
         /// Convert to full SSHConfig with password
         func toSSHConfig(password: String) -> SSHConfig {
@@ -59,6 +62,7 @@ struct SSHCommandParser {
                 tmuxAutoMode: tmuxAutoMode
             )
             config.herdrAutoEnable = herdrAutoEnable
+            config.multiplexerSessionName = multiplexerSessionName
             config.remoteCommand = remoteCommand
             config.remoteCommandPolicy = remoteCommandPolicy
             return config

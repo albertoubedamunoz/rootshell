@@ -136,6 +136,9 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         /// Per-connection TERM override. Optional for backward compat — older
         /// serialized sessions decode as nil and inherit the global default.
         let terminalType: String?
+        /// Per-profile multiplexer session name. Optional for backward compat —
+        /// older serialized sessions decode as nil and use the global default.
+        let multiplexerSessionName: String?
 
         /// Auth method that doesn't store actual passwords
         nonisolated enum AuthMethodSafe: Codable, Equatable, Sendable {
@@ -168,6 +171,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             self.launchCommand = config.launchCommand
             self.launchCommandMode = config.launchCommandMode
             self.terminalType = config.terminalType
+            self.multiplexerSessionName = config.multiplexerSessionName
 
             // Convert auth method, stripping passwords
             switch config.authMethod {
@@ -248,6 +252,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             config.launchCommand = launchCommand
             config.launchCommandMode = launchCommandMode ?? .afterConnect
             config.terminalType = terminalType
+            config.multiplexerSessionName = multiplexerSessionName
 
             if let jump = jumpHost {
                 let jumpAuth: SSHConfig.AuthMethod

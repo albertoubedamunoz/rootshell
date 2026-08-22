@@ -104,6 +104,7 @@ final class TerminalConnectionHistoryRecorder {
                 launchCommand: sshConfig.launchCommand,
                 launchCommandMode: sshConfig.launchCommandMode,
                 terminalType: sshConfig.terminalType,
+                multiplexerSessionName: sshConfig.multiplexerSessionName,
                 keyResolutionHints: hints
             )
 

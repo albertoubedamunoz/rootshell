@@ -149,6 +149,11 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     case toggle_group_mode = "toggle_group_mode"
     /// Toggle tab switcher panel
     case toggle_tab_switcher = "toggle_tab_switcher"
+    /// Toggle the tab exposé (live previews of the current scope)
+    case toggle_tab_expose = "toggle_tab_expose"
+    /// Switch to the previous / next tab group (or project) while grouped
+    case previous_group = "previous_group"
+    case next_group = "next_group"
     /// Toggle window transparency (Mac Catalyst only)
     case toggle_transparency = "toggle_transparency"
     /// Toggle the macOS window title bar (Mac Catalyst only)
@@ -291,7 +296,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
 
         case .new_local_shell, .new_tab, .new_window, .close_tab, .duplicate_ssh_tab,
              .previous_tab, .next_tab, .show_tmux_sessions, .detach_other_clients, .toggle_tab_switcher,
-             .select_tab_1, .select_tab_2, .select_tab_3, .select_tab_4, .select_tab_5,
+             .toggle_tab_expose, .previous_group, .next_group, .select_tab_1, .select_tab_2, .select_tab_3, .select_tab_4, .select_tab_5,
              .select_tab_6, .select_tab_7, .select_tab_8, .select_tab_9:
             return .tabs
 
@@ -377,6 +382,9 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .toggle_tab_bar: return String(localized: "Toggle Top Tab Bar", comment: "Keybind action")
         case .toggle_group_mode: return String(localized: "Toggle Group Mode", comment: "Keybind action")
         case .toggle_tab_switcher: return String(localized: "Toggle Vertical Tab Bar", comment: "Keybind action")
+        case .toggle_tab_expose: return String(localized: "Toggle Tab Exposé", comment: "Keybind action")
+        case .previous_group: return String(localized: "Previous Group", comment: "Keybind action")
+        case .next_group: return String(localized: "Next Group", comment: "Keybind action")
         case .toggle_transparency: return String(localized: "Toggle Transparency", comment: "Keybind action")
         case .toggle_titlebar: return String(localized: "Toggle Title Bar", comment: "Keybind action")
         case .toggle_auto_redact: return String(localized: "Toggle Auto-Redact", comment: "Keybind action")
@@ -460,6 +468,9 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .toggle_tab_bar: return .toggleTabBar
         case .toggle_group_mode: return .toggleGroupMode
         case .toggle_tab_switcher: return .showTabSwitcher
+        case .toggle_tab_expose: return .toggleTabExpose
+        case .previous_group: return .previousGroup
+        case .next_group: return .nextGroup
         case .toggle_transparency: return .toggleTransparency
         case .toggle_titlebar: return .toggleTitleBar
         case .toggle_auto_redact: return .toggleAutoRedact
@@ -538,7 +549,11 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     var needsSystemPriority: Bool {
         switch self {
         case .close_tab, .new_tab, .new_window, .new_local_shell, .start_search, .toggle_compose,
-             .send_text, .send_esc, .send_csi:
+             .send_text, .send_esc, .send_csi,
+             // ⌘⌥[ / ⌘⌥]: Option composes a different character, so the menu
+             // key-equivalent path can't claim the press before the terminal
+             // encodes it as Alt-[; a prioritized UIKeyCommand must own it.
+             .previous_group, .next_group:
             return true
         default:
             return false
@@ -584,7 +599,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .toggle_split_zoom, .equalize_splits, .open_settings, .browse_hosts,
              .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_tab_bar, .toggle_group_mode, .toggle_transparency,
              .toggle_titlebar, .toggle_auto_redact,
-             .toggle_background_effect, .toggle_tab_switcher, .show_tmux_sessions,
+             .toggle_background_effect, .toggle_tab_switcher, .toggle_tab_expose, .show_tmux_sessions,
              .detach_other_clients,
              .increase_font_size, .decrease_font_size,
              .reset_font_size, .start_search:
@@ -598,8 +613,9 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .brightness_boost:
             return true
 
-        // These actions don't have menu entries
-        case .reset_terminal, .send_text, .send_esc, .send_csi:
+        // These actions don't have menu entries, or (group navigation) have
+        // menu entries but keep the shortcut on a prioritized UIKeyCommand.
+        case .reset_terminal, .send_text, .send_esc, .send_csi, .previous_group, .next_group:
             return false
 
         // Control characters are handled separately

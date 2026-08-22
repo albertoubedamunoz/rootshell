@@ -421,6 +421,19 @@ final class TabModel: Identifiable {
     /// flush. Coalesced — only the most recent is kept.
     @ObservationIgnored private var deferredTitle: String?
 
+    /// High-rate OSC/tmux titles are presentation data, but `title` is an
+    /// observed property consumed by the window, top tabs, and sidebar. A
+    /// tmux agent spinner can otherwise invalidate that entire graph about ten
+    /// times per second. Preserve a responsive leading update and the newest
+    /// trailing value while limiting observed publication to 5 Hz. Codex and
+    /// Claude commonly animate their title spinners at about 10 Hz; publishing
+    /// every other frame keeps that motion legible without making SwiftUI
+    /// process every source update.
+    @ObservationIgnored private var pendingPublishedTitle: String?
+    @ObservationIgnored private var titlePublicationTimer: Timer?
+    @ObservationIgnored private var lastTitlePublicationUptime: TimeInterval = 0
+    private static let minimumTitlePublicationInterval: TimeInterval = 0.2
+
     private func markGroupingChanged<T: Equatable>(_ oldValue: T, _ newValue: T) {
         if oldValue != newValue {
             groupingRevision &+= 1
@@ -540,6 +553,7 @@ final class TabModel: Identifiable {
         // is safe here because the class is `@MainActor`-isolated and Swift
         // 6 deinit on a MainActor class runs on the main actor.
         observationCancellables.removeAll()
+        titlePublicationTimer?.invalidate()
     }
 
     // MARK: - Observation
@@ -555,6 +569,7 @@ final class TabModel: Identifiable {
     /// title (typically "ghostty").
     func startObserving(preserveExistingTitle: Bool = false) {
         observationCancellables.removeAll()
+        cancelPendingTitlePublication()
 
         // Resolve the focused pane first (not the terminal shim) so a focused
         // non-terminal pane isn't silently skipped in favor of a background
@@ -658,13 +673,15 @@ final class TabModel: Identifiable {
 
     func stopObserving() {
         observationCancellables.removeAll()
+        cancelPendingTitlePublication()
     }
 
     /// Apply a resolved tab title. During a tab-switch animation the write is
     /// deferred (coalesced to the latest value) and flushed on gate-close, so
     /// high-rate OSC/tmux title churn can't starve the selection spring with
-    /// TabBarItem re-renders. Outside the animation it's an immediate,
-    /// equality-guarded write — steady state is unchanged.
+    /// TabBarItem re-renders. Outside the animation, publication is
+    /// leading-and-trailing coalesced so frequently animated titles stay live
+    /// without driving the whole SwiftUI graph at spinner frequency.
     func applyResolvedTitle(_ resolved: String) {
         // An empty title means "no update", never "blank the tab". For tmux
         // window tabs the reconcile is the sole title writer, so a blank that
@@ -676,7 +693,7 @@ final class TabModel: Identifiable {
             return
         }
         deferredTitle = nil
-        if title != resolved { title = resolved }
+        scheduleTitlePublication(resolved)
     }
 
     /// Flush the most recent title deferred during the animation. Called from
@@ -684,7 +701,51 @@ final class TabModel: Identifiable {
     func flushDeferredTitle() {
         guard let pending = deferredTitle else { return }
         deferredTitle = nil
+        scheduleTitlePublication(pending)
+    }
+
+    private func scheduleTitlePublication(_ resolved: String) {
+        guard title != resolved || pendingPublishedTitle != nil else { return }
+        pendingPublishedTitle = resolved
+
+        let now = ProcessInfo.processInfo.systemUptime
+        let elapsed = now - lastTitlePublicationUptime
+        if lastTitlePublicationUptime == 0 || elapsed >= Self.minimumTitlePublicationInterval {
+            publishPendingTitle()
+            return
+        }
+
+        guard titlePublicationTimer == nil else { return }
+        let timer = Timer(
+            timeInterval: Self.minimumTitlePublicationInterval - elapsed,
+            repeats: false
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.publishPendingTitle()
+            }
+        }
+        titlePublicationTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func publishPendingTitle() {
+        titlePublicationTimer?.invalidate()
+        titlePublicationTimer = nil
+        guard let pending = pendingPublishedTitle else { return }
+        pendingPublishedTitle = nil
+        lastTitlePublicationUptime = ProcessInfo.processInfo.systemUptime
         if title != pending { title = pending }
+    }
+
+    /// Drop titles captured from the previously observed pane. In particular,
+    /// a coalescing timer must not be allowed to overwrite the synchronous
+    /// initial title installed by `startObserving()` for a newly focused pane.
+    private func cancelPendingTitlePublication() {
+        titlePublicationTimer?.invalidate()
+        titlePublicationTimer = nil
+        pendingPublishedTitle = nil
+        deferredTitle = nil
+        lastTitlePublicationUptime = 0
     }
 
     /// Recompute `activeRoamProtocol` from the current split tree's session
@@ -803,6 +864,7 @@ final class TabsModel {
         didSet {
             guard oldValue != selectedTabID else { return }
             beginTabSwitchAnimationGate()
+            if let tab = selectedTab { rememberSelectionScope(of: tab) }
             if isGroupedModeEnabled, !isProjectGroupingActive,
                let selectedGroup = effectiveGroupID(for: selectedTab),
                activeGroupID != selectedGroup {
@@ -812,6 +874,9 @@ final class TabsModel {
             AgentAttentionCenter.shared.visibilityDidChange()
         }
     }
+
+    /// Last selected tab per group / project (see `rememberSelectionScope`).
+    @ObservationIgnored private var lastSelectedTabByScope: [ScopeKey: UUID] = [:]
 
     /// The tab whose content is shown at full opacity. Lags `selectedTabID`
     /// until every terminal in the target tab has presented its first frame,
@@ -1527,6 +1592,92 @@ final class TabsModel {
         guard let index = ids.firstIndex(of: id),
               ids.indices.contains(index + delta) else { return }
         moveProjectSection(id, to: ids[index + delta])
+    }
+
+    // MARK: - Scope navigation (groups / projects)
+
+    /// A user group or a project section, for per-scope selection memory.
+    nonisolated enum ScopeKey: Hashable {
+        case group(TabGroupID)
+        case project(ProjectGroupID)
+    }
+
+    /// Remembered per scope so returning to a group lands on the tab you
+    /// left, not its first tab. Updated on every selection change.
+    private func rememberSelectionScope(of tab: TabModel) {
+        if let group = effectiveGroupID(for: tab) {
+            lastSelectedTabByScope[.group(group)] = tab.id
+        }
+        lastSelectedTabByScope[.project(primaryProjectGroupID(for: tab))] = tab.id
+    }
+
+    /// First tab a user can land on in a group/section (skips hidden tmux
+    /// windows). Shared by the scope menu and scope navigation.
+    func firstNavigableTabID(in tabIDs: [UUID]) -> UUID? {
+        tabIDs.first { tab(withID: $0)?.isHiddenTmuxWindow == false }
+    }
+
+    /// The tab to land on when entering a scope: its last selected tab if it
+    /// is still there and navigable, else the first navigable one.
+    func preferredTabID(in tabIDs: [UUID], scope: ScopeKey) -> UUID? {
+        if let remembered = lastSelectedTabByScope[scope],
+           tabIDs.contains(remembered),
+           tab(withID: remembered)?.isHiddenTmuxWindow == false {
+            return remembered
+        }
+        return firstNavigableTabID(in: tabIDs)
+    }
+
+    func preferredTabID(inGroup group: TabGroup) -> UUID? {
+        preferredTabID(in: group.tabIDs, scope: .group(group.id))
+    }
+
+    func preferredTabID(inProjectSection section: ProjectTabSection) -> UUID? {
+        preferredTabID(in: section.tabIDs, scope: .project(section.id))
+    }
+
+    /// A group / project section as the exposé and scope navigation see it.
+    nonisolated struct ScopeInfo {
+        let key: ScopeKey
+        let title: String?
+        /// Navigable members (hidden tmux windows excluded), in scope order:
+        /// exactly `orderProjection.navigationTabIDs` once this scope is active.
+        let tabIDs: [UUID]
+    }
+
+    /// The scope `offset` steps from the active one, wrapping: user groups
+    /// in sidebar order, or project sections; scopes with no navigable tab
+    /// (hidden-only tmux groups) are skipped. nil in flat mode or when there
+    /// is only one scope.
+    func neighborScope(offset: Int) -> ScopeInfo? {
+        let projection = orderProjection
+        let scopes: [ScopeInfo]
+        let activeIndex: Int?
+        switch projection.mode {
+        case .flat:
+            return nil
+        case .userGrouped:
+            let visible = Set(groupingSnapshot().visibleTabs.map(\.id))
+            scopes = orderedGroups.compactMap { group in
+                let ids = group.tabIDs.filter(visible.contains)
+                return ids.isEmpty ? nil : ScopeInfo(key: .group(group.id), title: group.title, tabIDs: ids)
+            }
+            activeIndex = activeGroupID.flatMap { id in scopes.firstIndex { $0.key == .group(id) } }
+        case .projectGrouped:
+            scopes = projection.projectSections
+                .filter { !$0.tabIDs.isEmpty }
+                .map { ScopeInfo(key: .project($0.id), title: $0.title, tabIDs: $0.tabIDs) }
+            activeIndex = projection.activeProjectID.flatMap { id in scopes.firstIndex { $0.key == .project(id) } }
+        }
+        guard scopes.count > 1, let activeIndex else { return nil }
+        let count = scopes.count
+        return scopes[((activeIndex + offset) % count + count) % count]
+    }
+
+    /// Preferred tab of the neighbor scope (see `neighborScope(offset:)`).
+    func firstTabIDInNeighborScope(offset: Int) -> UUID? {
+        guard let scope = neighborScope(offset: offset) else { return nil }
+        return preferredTabID(in: scope.tabIDs, scope: scope.key)
     }
 
     var availableGroups: [TabGroup] {

@@ -1020,13 +1020,20 @@ nonisolated enum AgentDetectionManifestData {
               },
               {
                 "lineRegex": [
-                  "^[•◦]\\s+Working \\([^)]*esc to interrupt\\)"
+                  "^\\s*[•◦]\\s+.*\\((?:\\d+h )?(?:\\d+m )?\\d+s • esc to interrupt\\)"
                 ]
               },
               {
                 "lineRegex": [
                   "(?i)^\\s*gpt-\\S+(?: [a-z][a-z-]*)+ ·"
                 ]
+              },
+              {
+                "lineRegex": [
+                  "^\\s*›(?: |$)",
+                  "(?i)^\\s*\\S+(?: [a-z][a-z-]*)+ · .*\\bcontext\\s+\\d+%\\s+used\\b"
+                ],
+                "region": "bottom_non_empty_lines(6)"
               },
               {
                 "any": [
@@ -1245,7 +1252,7 @@ nonisolated enum AgentDetectionManifestData {
               "region": "bottom_non_empty_lines(3)",
               "visibleWorking": true,
               "lineRegex": [
-                "^[•◦]\\s+Working \\([^)]*esc to interrupt\\)(?: · .*)?$"
+                "^\\s*[•◦]\\s+.*\\((?:\\d+h )?(?:\\d+m )?\\d+s • esc to interrupt\\)(?: · .*)?$"
               ],
               "not": [
                 {
@@ -1284,7 +1291,7 @@ nonisolated enum AgentDetectionManifestData {
               "region": "bottom_non_empty_lines(6)",
               "visibleWorking": true,
               "lineRegex": [
-                "^\\s*[•◦]\\s+Working \\("
+                "^\\s*[•◦]\\s+.*\\((?:\\d+h )?(?:\\d+m )?\\d+s • esc to interrupt\\)"
               ]
             },
             {
@@ -1294,8 +1301,19 @@ nonisolated enum AgentDetectionManifestData {
               "region": "bottom_non_empty_lines(6)",
               "visibleIdle": true,
               "lineRegex": [
-                "(?i)^\\s*gpt-\\S+ (minimal|low|medium|high|xhigh) ·",
                 "^\\s*›(?: |$)"
+              ],
+              "any": [
+                {
+                  "lineRegex": [
+                    "(?i)^\\s*gpt-\\S+ (minimal|low|medium|high|xhigh|default) ·"
+                  ]
+                },
+                {
+                  "lineRegex": [
+                    "(?i)^\\s*\\S+ [a-z][a-z-]* · .*\\bcontext\\s+\\d+%\\s+used\\b"
+                  ]
+                }
               ],
               "not": [
                 {

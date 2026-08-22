@@ -276,6 +276,8 @@ struct VerticalTabSidebar: View {
     let sheetThemeColors: SheetThemeColors?
     let sheetAccentColor: Color?
     let sheetColorScheme: ColorScheme?
+    /// Open the tab exposé (shown with the header actions when the top tab bar is hidden).
+    var onExposeRequested: () -> Void = {}
 
     @AppStorage("showTabShortcutIndicators") private var showTabShortcutIndicators: Bool = false
     @AppStorage("tabBarHidden") private var tabBarHidden: Bool = false
@@ -906,6 +908,9 @@ struct VerticalTabSidebar: View {
 
             if showsHeaderActionButtons {
                 headerButton("gearshape", action: onOpenSettings)
+
+                // Vertical-tabs-only users have no tab bar band to pull down.
+                headerButton("rectangle.grid.2x2", help: "Tab Exposé", action: onExposeRequested)
 
                 headerButton("plus", action: onNewTab)
             }

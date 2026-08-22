@@ -136,25 +136,18 @@ struct TabIndicatorOverlay: View {
     var body: some View {
         VStack(spacing: 12) {
             // Tab title with optional keyboard shortcut
-            HStack(spacing: 8) {
-                if let tab {
-                    RoamTabBadgeView(roamProtocol: tab.activeRoamProtocol)
-
-                    if let tmuxBadge = TmuxTabBadgeResolver.badge(for: tab, allTabs: allTabs) {
-                        TmuxTabBadgeView(badge: tmuxBadge, palette: tmuxBadgePalette)
-                    }
-                }
-
-                Text(tab?.title ?? "Terminal")
+            if let tab {
+                TabTitleLine(
+                    tab: tab,
+                    allTabs: allTabs,
+                    tmuxBadgePalette: tmuxBadgePalette,
+                    keyboardShortcut: keyboardShortcut
+                )
+            } else {
+                Text("Terminal")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
-
-                if let shortcut = keyboardShortcut {
-                    Text(shortcut)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                }
             }
 
             // Position indicator dots

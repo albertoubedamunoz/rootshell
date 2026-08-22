@@ -283,7 +283,7 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 subtitle: String(localized: "Appearance"),
                 systemImage: "macwindow",
                 action: .destination(.window),
-                keywords: ["tab bar", "group menu", "project switcher", "layout", "display", "brightness", "hdr", "edr", "boost", "dynamic range"],
+                keywords: ["tab bar", "group menu", "project switcher", "layout", "display", "brightness", "hdr", "edr", "boost", "dynamic range", "selection", "loupe", "magnifier", "native"],
                 isSuggested: false
             ),
             .init(
@@ -1012,6 +1012,8 @@ struct SettingsHomeList: View {
                     }
                 }
                 .themedRow()
+            } footer: {
+                SettingsOpenSourceFooter()
             }
         }
         .themedList()

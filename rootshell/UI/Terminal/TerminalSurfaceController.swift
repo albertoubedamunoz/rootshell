@@ -126,7 +126,8 @@ final class TerminalSurfaceController: NSObject {
         }
     }
 
-    private func rendererSublayer() -> CALayer? {
+    /// The core's "IOSurfaceLayer": each presented frame lands in its `contents`.
+    func rendererLayer() -> CALayer? {
         host.surfaceLayer.sublayers?.first {
             String(cString: object_getClassName($0)) == "IOSurfaceLayer"
         }
@@ -143,7 +144,7 @@ final class TerminalSurfaceController: NSObject {
     }
 
     fileprivate func firstFramePollTick() {
-        if rendererSublayer()?.contents != nil {
+        if rendererLayer()?.contents != nil {
             markFirstFrameRendered()
         } else if CACurrentMediaTime() - firstFramePollStart > 2.0 {
             markFirstFrameRendered(failOpen: true)

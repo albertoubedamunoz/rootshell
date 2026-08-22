@@ -245,6 +245,7 @@ final class ConnectionProfileManager {
         sshConfig.launchCommand = historyEntry.launchCommand
         sshConfig.launchCommandMode = historyEntry.launchCommandMode ?? .afterConnect
         sshConfig.terminalType = historyEntry.terminalType
+        sshConfig.multiplexerSessionName = historyEntry.multiplexerSessionName
         // GPG forwarding isn't part of any SSHConfig convenience
         // initializer (kept out to avoid bloating the call sites that
         // don't use it). Apply directly so profile creation preserves

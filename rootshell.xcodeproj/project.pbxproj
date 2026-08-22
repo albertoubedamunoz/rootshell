@@ -5622,7 +5622,7 @@
 			repositoryURL = "https://github.com/kitknox/rootshell-vnc.git";
 			requirement = {
 				kind = revision;
-				revision = b7110df2d8c7a33b20464202b8133faa5e1e65f8;
+				revision = f4023314af1c29509e7810fc39f9f16e2ef84076;
 			};
 		};
 		477408912ED51B9F0035CE92 /* XCRemoteSwiftPackageReference "Yams-rootshell" */ = {
@@ -5758,7 +5758,7 @@
 			repositoryURL = "https://github.com/kitknox/ghosttykit-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.1.2;
+				version = 0.2.1;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

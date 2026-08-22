@@ -478,6 +478,12 @@ extension Ghostty.TerminalView {
         }
         #endif
 
+        // A presented overlay (tab exposé) owns navigation keys while up; it
+        // must see Escape before the tmux-detach and AI-agent handlers below.
+        if let overlayHandler = presentedOverlayKeyHandler, overlayHandler(OverlayKeyEvent(key)) {
+            return (true, true)
+        }
+
         // Handle Escape overlays early so key is marked handled when routed via pressesBegan
         // (not UIKeyCommand), such as on Mac Catalyst with mod-tap source-key support.
         if key.keyCode == .keyboardEscape && aiAgentOverlayActive {
@@ -579,6 +585,7 @@ extension Ghostty.TerminalView {
             if let keybind = KeybindManager.shared.keybind(for: trigger),
                keybind.source != .default,
                !keybind.action.isControlCharacter {
+                if effectiveModifiers.contains(.alternate) { didHandleOptionKey = true }
                 executeKeybindAction(keybind.action, parameter: keybind.actionParameter)
                 return (true, true)
             }
@@ -788,6 +795,8 @@ extension Ghostty.TerminalView {
                 return (false, false)
             }
 
+            // Suppress the composed-character insertText that follows an Option chord.
+            if effectiveModifiers.contains(.alternate) { didHandleOptionKey = true }
             // Execute the action through the keybind system (with parameter if present)
             executeKeybindAction(keybind.action, parameter: keybind.actionParameter)
 
@@ -1647,9 +1656,25 @@ extension Ghostty.TerminalView {
     }
     #endif
 
+    /// Dedicated UIKeyCommand handlers fire before `pressesBegan`, so a
+    /// presented overlay (tab exposé) must get first refusal here too.
+    /// Return/Escape repeats are swallowed until release so a held key can't
+    /// leak into the session the overlay just revealed.
+    private func overlayConsumedKeyCommand(_ command: UIKeyCommand) -> Bool {
+        guard let handler = presentedOverlayKeyHandler,
+              let event = OverlayKeyEvent(keyCommand: command) else { return false }
+        if keysConsumedByOverlayAction.contains(event.keyCode) { return true }
+        guard handler(event) else { return false }
+        if event.keyCode == .keyboardReturnOrEnter || event.keyCode == .keyboardEscape {
+            keysConsumedByOverlayAction.insert(event.keyCode)
+        }
+        return true
+    }
+
     @objc func handleArrowKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
         guard let input = command.input else { return }
+        if overlayConsumedKeyCommand(command) { return }
 
         if discoveredSessions != nil {
             switch input {
@@ -1693,6 +1718,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleReturnKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command) { return }
         // A one-shot action consumed this press; swallow repeats until release
         // so the held key doesn't leak input into the newly focused session.
         if keysConsumedByOverlayAction.contains(.keyboardReturnOrEnter) { return }
@@ -1729,6 +1755,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleModifiedReturnKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command) { return }
         if keysConsumedByOverlayAction.contains(.keyboardReturnOrEnter) { return }
         if discoveredSessions != nil {
             keysConsumedByOverlayAction.insert(.keyboardReturnOrEnter)
@@ -1776,6 +1803,7 @@ extension Ghostty.TerminalView {
         }
 
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command) { return }
         if keysConsumedByOverlayAction.contains(.keyboardEscape) { return }
         if discoveredSessions != nil {
             keysConsumedByOverlayAction.insert(.keyboardEscape)
@@ -1844,6 +1872,12 @@ extension Ghostty.TerminalView {
     private func handleSystemCancelChordDelivery() {
         commitKoreanCompositionIfNeeded(external: true)
         if dispatchKeybindTrigger(.commandPeriod) { return }
+        let cancelEvent = OverlayKeyEvent(
+            keyCode: .keyboardEscape,
+            modifiers: [],
+            characters: UIKeyCommand.inputEscape
+        )
+        if presentedOverlayKeyHandler?(cancelEvent) == true { return }
         if discoveredSessions != nil {
             dismissSessionDiscovery()
             return
@@ -1871,6 +1905,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleTabKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command) { return }
         if command.modifierFlags.isEmpty,
            let rule = ModTapManager.shared.activeRulesByKey[.keyboardTab] {
             modTapInterceptor.startPending(for: rule)
@@ -1889,6 +1924,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleShiftTabKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command) { return }
         // Send backtab escape sequence \e[Z to session
         if let data = "\u{1B}[Z".data(using: .utf8) {
             sendUserInput(data)
@@ -2246,6 +2282,18 @@ extension Ghostty.TerminalView {
         NotificationCenter.default.post(name: .showTabSwitcher, object: self)
     }
 
+    @objc func menuToggleTabExpose(_ sender: Any?) {
+        NotificationCenter.default.post(name: .toggleTabExpose, object: self)
+    }
+
+    @objc func menuPreviousGroup(_ sender: Any?) {
+        NotificationCenter.default.post(name: .previousGroup, object: self)
+    }
+
+    @objc func menuNextGroup(_ sender: Any?) {
+        NotificationCenter.default.post(name: .nextGroup, object: self)
+    }
+
     @objc func menuShowTmuxSessions(_ sender: Any?) {
         NotificationCenter.default.post(name: .showTmuxSessions, object: self)
     }
@@ -2334,6 +2382,9 @@ extension Ghostty.TerminalView {
     /// Handler for dynamically bound keyboard shortcuts from KeybindCommandGenerator
     @objc func handleKeybindCommand(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        // An Option chord (⌘⌥[) still reaches the text input system as its
+        // composed character ("“"); insertText would turn that into ESC+[.
+        if command.modifierFlags.contains(.alternate) { didHandleOptionKey = true }
         guard let commandTrigger = KeyTrigger(uiKeyCommand: command) else {
             Ghostty.logger.warning("handleKeybindCommand: Failed to parse trigger from command")
             return
@@ -2351,6 +2402,12 @@ extension Ghostty.TerminalView {
             // Reject a twin of a chord delivery already handled on another rail.
             guard inputController.consumeSystemCancelChordDelivery() else { return }
         }
+
+        // A user-bound navigation key (arrow/Return/Tab/Escape/digit) still
+        // belongs to a presented overlay before the keybind runs. Do this after
+        // normalizing Cmd+Period above because UIKit can translate that chord
+        // into plain Escape, which must not cancel the overlay when it is bound.
+        if overlayConsumedKeyCommand(command) { return }
 
         guard dispatchKeybindTrigger(commandTrigger) else {
             let trigFormat = commandTrigger.ghosttyFormat

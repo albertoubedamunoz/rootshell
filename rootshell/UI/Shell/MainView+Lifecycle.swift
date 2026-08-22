@@ -453,9 +453,14 @@ extension MainView {
             preserveIDs.insert(swipe.sourceTabID)
             preserveIDs.insert(swipe.targetTabID)
         }
+        // Tab exposé mirrors every scope tab live (plus a neighbor scope being
+        // swiped in); they must render while it's up.
+        let exposeVisibleIDs: Set<UUID> = tabExpose.isActive
+            ? Set(tabExpose.tabIDs).union(tabExpose.previewTabIDs)
+            : []
 
         for tab in terminals {
-            if tab.id == selectedID {
+            if tab.id == selectedID || exposeVisibleIDs.contains(tab.id) {
                 for terminal in tab.splitTree { terminal.setOcclusion(true) }
             } else if preserveIDs.contains(tab.id) {
                 continue
@@ -557,6 +562,8 @@ extension MainView {
     }
 
     func handleAppBackgrounded() {
+        // The exposé keeps scope tabs un-occluded; drop it before the sweep.
+        tabExpose.forceHide(reason: "background")
         let totalTerminals = terminals.flatMap { $0.splitTree.terminalLeaves }.count
         let sshCountSnapshot = terminals.flatMap { $0.splitTree.terminalLeaves }.filter {
             if case .ssh = $0.connectionConfig { return true }

@@ -259,11 +259,8 @@ extension Ghostty.TerminalView {
     private static var trackpadAppTabSwipeDirectionKey: UInt8 = 0
     private static var trackpadScrollAxisKey: UInt8 = 0
     private static var trackpadScrollAxisResetTimerKey: UInt8 = 0
-    private static var trackpadTabSwipeEndTimerKey: UInt8 = 0
+    private static var trackpadTabSwipePhaseKey: UInt8 = 0
     private static var trackpadSwipeBindingObserverKey: UInt8 = 0
-    private static var trackpadTabSwipeVelocityXKey: UInt8 = 0
-    private static var trackpadTabSwipeLastSampleTimeKey: UInt8 = 0
-    private static var trackpadTabSwipeFinishedGuardUntilKey: UInt8 = 0
 
     /// Multiplier applied to capture-mode trackpad translation before tab-swipe
     /// accumulation, compensating for the [.discrete,.continuous] attenuation so the
@@ -300,37 +297,23 @@ extension Ghostty.TerminalView {
         set { objc_setAssociatedObject(self, &Self.trackpadScrollAxisResetTimerKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
 
-    private var tabSwipeEndTimer: Timer? {
-        get { objc_getAssociatedObject(self, &Self.trackpadTabSwipeEndTimerKey) as? Timer }
-        set { objc_setAssociatedObject(self, &Self.trackpadTabSwipeEndTimerKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    /// Synthesized phase for the trackpad app-tab swipe: inactivity end timer,
+    /// inertia guard, and EMA release velocity (raw pre-gain units, so the ±900
+    /// commit threshold reads the same in capture and non-capture modes).
+    private var trackpadTabSwipePhase: TrackpadScrollPhaseTracker {
+        if let tracker = objc_getAssociatedObject(self, &Self.trackpadTabSwipePhaseKey) as? TrackpadScrollPhaseTracker {
+            return tracker
+        }
+        let tracker = TrackpadScrollPhaseTracker { [weak self] in
+            self?.completeTrackpadTabSwipe()
+        }
+        objc_setAssociatedObject(self, &Self.trackpadTabSwipePhaseKey, tracker, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        return tracker
     }
 
     private var trackpadSwipeBindingObserver: NSObjectProtocol? {
         get { objc_getAssociatedObject(self, &Self.trackpadSwipeBindingObserverKey) as? NSObjectProtocol }
         set { objc_setAssociatedObject(self, &Self.trackpadSwipeBindingObserverKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-
-    /// Smoothed horizontal release velocity (points/sec, raw pre-gain units) for
-    /// the trackpad app-tab swipe. Estimated via EMA over per-event deltas so the
-    /// scroll-wheel path can flick-to-commit like the touch path — Catalyst
-    /// reports velocity 0 at the synthetic end. Mirrors `trackScrollVelocity`.
-    private var tabSwipeVelocityX: CGFloat {
-        get { (objc_getAssociatedObject(self, &Self.trackpadTabSwipeVelocityXKey) as? CGFloat) ?? 0 }
-        set { objc_setAssociatedObject(self, &Self.trackpadTabSwipeVelocityXKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-
-    private var tabSwipeLastSampleTime: CFTimeInterval {
-        get { (objc_getAssociatedObject(self, &Self.trackpadTabSwipeLastSampleTimeKey) as? CFTimeInterval) ?? 0 }
-        set { objc_setAssociatedObject(self, &Self.trackpadTabSwipeLastSampleTimeKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-
-    /// Deadline (CACurrentMediaTime) until which trailing inertial scroll events
-    /// are dropped after a swipe ends. Trackpad momentum keeps delivering
-    /// `.continuous` events after the user lifts; without this latch they re-arm
-    /// the end timer and drift the peek, producing the macOS release stutter.
-    private var tabSwipeFinishedGuardUntil: CFTimeInterval {
-        get { (objc_getAssociatedObject(self, &Self.trackpadTabSwipeFinishedGuardUntilKey) as? CFTimeInterval) ?? 0 }
-        set { objc_setAssociatedObject(self, &Self.trackpadTabSwipeFinishedGuardUntilKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
 
     /// True when the user has disabled both left and right swipe bindings.
@@ -427,9 +410,7 @@ extension Ghostty.TerminalView {
         guard !binding.isDisabled else { return false }
 
         tabSwipeCumulativeX = 0
-        tabSwipeVelocityX = 0
-        tabSwipeLastSampleTime = 0
-        tabSwipeFinishedGuardUntil = 0
+        trackpadTabSwipePhase.reset()
         trackpadScrollAxis = .horizontal
 
         if binding.isAppTabNavigation {
@@ -451,8 +432,8 @@ extension Ghostty.TerminalView {
             // `appTabSwipeState` just posted by `requestAppTabSwipeBegin` would
             // never be cleared, permanently wedging ALL tab switching (every
             // non-source/target tab renders at opacity 0). Arming here guarantees
-            // `finishTrackpadTabSwipe()` runs even when no movement follows.
-            armTrackpadTabSwipeEndTimer()
+            // `completeTrackpadTabSwipe()` runs even when no movement follows.
+            trackpadTabSwipePhase.arm()
         }
 
         return true
@@ -482,8 +463,7 @@ extension Ghostty.TerminalView {
             NotificationCenter.default.removeObserver(obs)
             trackpadSwipeBindingObserver = nil
         }
-        tabSwipeEndTimer?.invalidate()
-        tabSwipeEndTimer = nil
+        trackpadTabSwipePhase.reset()
         trackpadAppTabSwipeDirection = nil
         trackpadScrollAxisResetTimer?.invalidate()
         trackpadScrollAxisResetTimer = nil
@@ -510,14 +490,12 @@ extension Ghostty.TerminalView {
 
         // Drop trailing inertial events for a swipe that just ended. Trackpad
         // momentum keeps delivering `.continuous` events after the user lifts;
-        // without this latch they re-arm the timer below and drift the peek.
-        guard CACurrentMediaTime() >= tabSwipeFinishedGuardUntil else { return false }
+        // without this latch they re-arm the timer and drift the peek.
+        guard !trackpadTabSwipePhase.isInInertiaGuard else { return false }
 
-        // Reset inactivity timer — new scroll events keep arriving
-        armTrackpadTabSwipeEndTimer()
-
+        // Re-arms the inactivity timer and updates the release velocity.
+        trackpadTabSwipePhase.noteEvent(delta: rawDeltaX ?? translationX)
         tabSwipeCumulativeX += translationX
-        updateTabSwipeVelocity(rawDeltaX: rawDeltaX ?? translationX)
         guard abs(tabSwipeCumulativeX) > 3 else { return trackpadAppTabSwipeDirection != nil }
 
         let direction: SwipeDirection = tabSwipeCumulativeX < 0 ? .left : .right
@@ -559,61 +537,26 @@ extension Ghostty.TerminalView {
         return false
     }
 
-    /// (Re)arm the 0.15s inactivity timer that ends a trackpad app-tab swipe.
-    /// Shared by `processTrackpadTabSwipe` (re-armed on each movement) and
-    /// `shouldBeginTrackpadTabSwipeGesture` (armed at begin) so a started swipe
-    /// is ALWAYS guaranteed an end — even if the recognizer fails before
-    /// delivering any movement (e.g. it loses arbitration to the Catalyst
-    /// capture-mode scroll-wheel gesture). Without this, `appTabSwipeState`
-    /// could be left set with nothing to clear it, wedging tab switching.
-    private func armTrackpadTabSwipeEndTimer() {
-        tabSwipeEndTimer?.invalidate()
-        // 0.08s comfortably exceeds the active trackpad event cadence (~8–16ms at
-        // 60–120Hz) and plausible mid-drag micro-pauses, while roughly halving the
-        // frozen-peek window versus the old 0.15s. Don't drop below ~0.07s.
-        tabSwipeEndTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated { self?.finishTrackpadTabSwipe() }
-        }
+    /// End the trackpad swipe now (fast path on a real `.ended`, or a swipe that
+    /// curved into a vertical scroll). The inactivity timer is the backstop that
+    /// guarantees an end even when the recognizer fails before any movement.
+    private func finishTrackpadTabSwipe(zeroVelocity: Bool = false) {
+        trackpadTabSwipePhase.finish(zeroVelocity: zeroVelocity)
     }
 
-    /// Update the smoothed release velocity from a per-event raw delta. Mirrors
-    /// the EMA in `trackScrollVelocity`. Uses the raw (pre-gain) delta so the
-    /// estimate stays in the same units as the ±900 commit threshold in both
-    /// capture and non-capture modes.
-    private func updateTabSwipeVelocity(rawDeltaX: CGFloat) {
-        let now = CACurrentMediaTime()
-        let dt = now - tabSwipeLastSampleTime
-        // First sample (or a stale gap): seed conservatively instead of dividing
-        // by a tiny frame time. ~60 events/sec matches this path's per-event cadence.
-        if tabSwipeLastSampleTime == 0 || dt > 0.1 {
-            tabSwipeVelocityX = rawDeltaX * 60
-        } else if dt > 0 {
-            let instant = rawDeltaX / CGFloat(dt)
-            let alpha: CGFloat = 0.4
-            tabSwipeVelocityX = tabSwipeVelocityX * (1 - alpha) + instant * alpha
-        }
-        tabSwipeLastSampleTime = now
-    }
-
-    private func finishTrackpadTabSwipe() {
+    /// `onEnd` of `trackpadTabSwipePhase`: deliver the Ended and reset swipe state.
+    private func completeTrackpadTabSwipe() {
         if let direction = trackpadAppTabSwipeDirection {
             postAppTabSwipeNotification(
                 .appTabSwipeEnded,
                 direction: direction,
                 translationX: normalizedTrackpadAppTabSwipeTranslation(tabSwipeCumulativeX, direction: direction),
-                velocityX: tabSwipeVelocityX
+                velocityX: trackpadTabSwipePhase.velocity
             )
         }
-        // Latch: drop trailing inertial events for a short window so trackpad
-        // momentum can't revive or drift the swipe we just ended.
-        tabSwipeFinishedGuardUntil = CACurrentMediaTime() + 0.3
         tabSwipeCumulativeX = 0
-        tabSwipeVelocityX = 0
-        tabSwipeLastSampleTime = 0
         tabSwipeTriggered = false
         trackpadAppTabSwipeDirection = nil
-        tabSwipeEndTimer?.invalidate()
-        tabSwipeEndTimer = nil
         trackpadScrollAxisResetTimer?.invalidate()
         trackpadScrollAxisResetTimer = nil
         trackpadScrollAxis = nil
@@ -629,8 +572,7 @@ extension Ghostty.TerminalView {
 
         // A swipe that curved into a vertical scroll should snap back, not
         // flick-commit on stale horizontal velocity.
-        tabSwipeVelocityX = 0
-        finishTrackpadTabSwipe()
+        finishTrackpadTabSwipe(zeroVelocity: true)
         return true
     }
 

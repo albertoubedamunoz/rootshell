@@ -75,9 +75,9 @@ fi
 
 if [[ -z "$ZIG_BIN" ]]; then
     if command -v brew >/dev/null 2>&1; then
-        ZIG_015_PREFIX="$(brew --prefix zig@0.15 2>/dev/null || true)"
-        if [[ -x "$ZIG_015_PREFIX/bin/zig" ]]; then
-            ZIG_BIN="$ZIG_015_PREFIX/bin/zig"
+        ZIG_016_PREFIX="$(brew --prefix zig@0.16 2>/dev/null || true)"
+        if [[ -x "$ZIG_016_PREFIX/bin/zig" ]]; then
+            ZIG_BIN="$ZIG_016_PREFIX/bin/zig"
         fi
     fi
 fi
@@ -89,18 +89,19 @@ if [[ -z "$ZIG_BIN" || ! -x "$ZIG_BIN" ]]; then
     exit 1
 fi
 ZIG_VERSION="$($ZIG_BIN version)"
-if [[ "$ZIG_VERSION" != 0.15.* ]]; then
-    echo "ERROR: GhosttyKit currently requires Zig 0.15.x; found $ZIG_VERSION" >&2
+if [[ "$ZIG_VERSION" != 0.16.* ]]; then
+    echo "ERROR: GhosttyKit currently requires Zig 0.16.x; found $ZIG_VERSION" >&2
     exit 1
 fi
 
+# Zig 0.15.x needed a locally patched stdlib (scripts/patch-zig.sh) to teach it
+# about visionOS/tvOS and to fix Mac Catalyst's 64-bit inode symbol selection.
+# Zig 0.16 handles all of that upstream — Catalyst is its own `.maccatalyst` OS
+# tag now — so we build against the stock toolchain.
 LOCAL_BUILD_DIR="$PROJECT_DIR/.build/ghosttykit"
-PATCHED_ZIG_LIB="$LOCAL_BUILD_DIR/zig-lib/$ZIG_VERSION"
 LOCAL_PACKAGE_DIR="$PROJECT_DIR/.local-packages/ghosttykit-rootshell"
 ARTIFACTS_DIR="$LOCAL_PACKAGE_DIR/Artifacts"
 mkdir -p "$ARTIFACTS_DIR/AppStore" "$ARTIFACTS_DIR/Standalone"
-
-"$SCRIPT_DIR/patch-zig.sh" --zig "$ZIG_BIN" --output "$PATCHED_ZIG_LIB" >/dev/null
 
 if [[ "$CLEAN" == true ]]; then
     echo "Cleaning Ghostty build outputs..."
@@ -181,7 +182,6 @@ build_variant() {
     (
         cd "$GHOSTTY_SOURCE"
         "$ZIG_BIN" build \
-            --zig-lib-dir "$PATCHED_ZIG_LIB" \
             -Dxcframework-target="$target" \
             -Doptimize=ReleaseFast \
             -Dappstore="$appstore" \

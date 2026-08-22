@@ -222,6 +222,7 @@ struct WindowSettingsView: View {
     @AppStorage("showTabShortcutIndicators") private var showTabShortcutIndicators: Bool = false
     @AppStorage(UserPreferences.showTabScopeMenuKey) private var showTabScopeMenu: Bool = true
     @AppStorage("tabBarAnimationsDisabled") private var tabBarAnimationsDisabled: Bool = false
+    @AppStorage(TabExposeSettings.showsCaptionsKey) private var tabExposeShowsCaptions: Bool = true
     @AppStorage("tabSidebarTranslucent") private var tabSidebarTranslucent: Bool = true
     @AppStorage("tabSidebarAutoHideOnSelect") private var tabSidebarAutoHideOnSelect: Bool = false
     @AppStorage("tabSidebarRowLines") private var tabSidebarRowLines: Int = 1
@@ -229,6 +230,9 @@ struct WindowSettingsView: View {
     @AppStorage(SplitFocusBorderColor.storageKey) private var splitFocusBorderColor: String = SplitFocusBorderColor.accent.rawValue
     @AppStorage(SplitFocusBorderColor.customHexKey) private var splitFocusBorderCustomHex: String = "007AFF"
     @AppStorage("copyOnSelect") private var copyOnSelect: Bool = true
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    @AppStorage(UserPreferences.useNativeSelectionLoupeKey) private var useNativeSelectionLoupe: Bool = false
+    #endif
     @Bindable private var selectionManager = SelectionManager.shared
     @Bindable private var paddingManager = PaddingManager.shared
     // HDR "brightness boost" — the same global gain the floating brightness HUD
@@ -320,6 +324,13 @@ struct WindowSettingsView: View {
 
                 Toggle("Disable Tab Animations", isOn: $tabBarAnimationsDisabled)
                     .themedRow()
+
+                DescribedToggle(
+                    title: "Tab Exposé Captions",
+                    description: "Show tab titles and badges under each live preview in Tab Exposé.",
+                    isOn: $tabExposeShowsCaptions
+                )
+                .themedRow()
 
                 #if !os(visionOS)
                 Toggle(
@@ -561,6 +572,12 @@ struct WindowSettingsView: View {
                 Toggle("Copy on Select", isOn: $copyOnSelect)
                     .padding(.vertical, 4)
                     .themedRow()
+
+                #if os(iOS) && !targetEnvironment(macCatalyst)
+                Toggle("Use Native Selection Loupe", isOn: $useNativeSelectionLoupe)
+                    .padding(.vertical, 4)
+                    .themedRow()
+                #endif
             } header: {
                 Text("Text Selection")
             } footer: {

@@ -148,6 +148,11 @@ struct SSHConfig: Codable, Hashable {
     /// are somehow set, tmux wins.
     var herdrAutoEnable: Bool = false
 
+    /// Session name for whichever multiplexer the auto-start picker selects.
+    /// nil or empty falls back to the global default, which is how every
+    /// existing profile decodes.
+    var multiplexerSessionName: String? = nil
+
     /// Command to run when the session starts. The mode controls whether this is
     /// sent as terminal input or used as the initial PTY exec command.
     var launchCommand: String? = nil
@@ -543,7 +548,7 @@ struct SSHConfig: Codable, Hashable {
         case host, port, username, authMethod, cachedIP, jumpHost
         case hssShorthand, cloudInstanceLabel, agentConfig, gpgAgentConfig, portForwardConfig
         case tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, launchCommand, launchCommandMode, fallbackKeyIDs, keyResolutionHints
-        case terminalType
+        case terminalType, multiplexerSessionName
     }
 
     init(from decoder: Decoder) throws {
@@ -568,6 +573,7 @@ struct SSHConfig: Codable, Hashable {
         fallbackKeyIDs = try container.decodeIfPresent([UUID].self, forKey: .fallbackKeyIDs)
         keyResolutionHints = try container.decodeIfPresent([String: KeyResolutionHint].self, forKey: .keyResolutionHints)
         terminalType = try container.decodeIfPresent(String.self, forKey: .terminalType)
+        multiplexerSessionName = try container.decodeIfPresent(String.self, forKey: .multiplexerSessionName)
     }
 
     /// Creates a new SSH configuration with password authentication
@@ -657,11 +663,17 @@ struct SSHConfig: Codable, Hashable {
         return "sh -c '\(remoteExecPathPrefix)command -v tmux >/dev/null && exec tmux \(cc)new-session -A -s \(sessionName) || exec $SHELL'"
     }
 
-    /// Session name to attach to for this connection: the one the user was last
-    /// attached to ON THIS CONNECTION (recorded by the tmux session dashboard on
+    /// Session name to attach to for this connection. The profile's explicit
+    /// override wins, since declared intent outranks the inferred last-attached
+    /// memory; then the session the user was last attached to ON THIS
+    /// CONNECTION (recorded by the tmux session dashboard on
     /// attach/switch/rename, and only ever an embeddable name — see
-    /// TmuxGatewaySessionStore), falling back to the global default.
+    /// TmuxGatewaySessionStore); then the global default.
     var tmuxSessionNameForConnection: String {
+        if let override = multiplexerSessionNameOverride,
+           TmuxControlModeParser.isEmbeddableSessionName(override) {
+            return override
+        }
         let key = TmuxGatewaySessionStore.connectionKey(host: host, port: port, username: username)
         if let name = TmuxGatewaySessionStore.lastSessionName(forConnection: key),
            TmuxControlModeParser.isEmbeddableSessionName(name) {
@@ -706,6 +718,22 @@ struct SSHConfig: Codable, Hashable {
         }
     }
 
+    /// The profile's session-name override, trimmed, or nil when unset. Which
+    /// multiplexer it applies to is decided by the auto-start picker, never by
+    /// the value.
+    var multiplexerSessionNameOverride: String? {
+        guard let name = multiplexerSessionName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty else { return nil }
+        return name
+    }
+
+    /// Strictest of the two multiplexers' rules, so one stored value stays
+    /// legal for whichever the picker selects: herdr's rule is tmux's charset
+    /// plus a 64-byte cap and the reserved `.`/`..` names.
+    static func isEmbeddableMultiplexerSessionName(_ name: String) -> Bool {
+        isEmbeddableHerdrSessionName(name)
+    }
+
     /// Builds the `sh -c '...'` line that attaches to (or creates) a herdr
     /// session, falling back to `$SHELL` when herdr is missing. herdr's bare
     /// launch is attach-or-create, so no `-A` analogue is needed.
@@ -732,14 +760,57 @@ struct SSHConfig: Codable, Hashable {
         return isEmbeddableHerdrSessionName(name) ? name : "default"
     }
 
+    /// Raw name handed to the exec builder: profile override, else global. An
+    /// empty string stays empty on purpose - that is what makes the command a
+    /// bare `herdr` attaching to herdr's own unnamed session. Never substitute
+    /// "default" here; that is a display label, not a session name.
+    var herdrRawSessionNameForConnection: String {
+        multiplexerSessionNameOverride ?? Self.herdrGlobalSessionName
+    }
+
     var herdrSessionNameForConnection: String {
-        Self.herdrEffectiveSessionName
+        let raw = herdrRawSessionNameForConnection
+        return Self.isEmbeddableHerdrSessionName(raw) ? raw : "default"
     }
 
     /// Per-connection variant of `herdrExecCommand`. A custom
     /// "herdrCustomCommand" still wins.
     var herdrExecCommandForConnection: String {
-        Self.herdrExecCommand
+        if let custom = UserDefaults.standard.string(forKey: "herdrCustomCommand"),
+           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return custom
+        }
+        return Self.herdrExecCommandLine(sessionName: herdrRawSessionNameForConnection)
+    }
+
+    /// Session name the given picker selection would attach to, for the editor
+    /// captions. Deliberately ignores TmuxGatewaySessionStore: the editor may
+    /// describe a profile with no live connection, and the captions already
+    /// showed the global before this override existed.
+    static func multiplexerSessionDisplayName(for selection: TmuxLaunchSelection,
+                                              override: String?) -> String {
+        let trimmed = override?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let pinned = trimmed.isEmpty ? nil : trimmed
+        switch selection {
+        case .off:
+            return ""
+        case .regular, .control:
+            if let custom = UserDefaults.standard.string(forKey: "tmuxCustomCommand"),
+               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return "custom"
+            }
+            if let pinned, TmuxControlModeParser.isEmbeddableSessionName(pinned) {
+                return pinned
+            }
+            return tmuxGlobalSessionName
+        case .herdr:
+            if let custom = UserDefaults.standard.string(forKey: "herdrCustomCommand"),
+               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return "custom"
+            }
+            let raw = pinned ?? herdrGlobalSessionName
+            return isEmbeddableHerdrSessionName(raw) ? raw : "default"
+        }
     }
 
     static func command(_ command: String, applying policy: RemoteCommandPolicy) -> String {

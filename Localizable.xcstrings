@@ -4379,6 +4379,160 @@
         }
       }
     },
+    "/opt/homebrew/bin/nu --login" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/opt/homebrew/bin/nu --login"
+          }
+        }
+      }
+    },
     "/path/to/agent.sock" : {
       "comment" : "External SSH agents manual path placeholder",
       "localizations" : {
@@ -52639,7 +52793,7 @@
       }
     },
     "Always" : {
-      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nPrediction mode: always show predictions\nShader animation: always",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -59583,6 +59737,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple 系統二進位檔 · %@"
+          }
+        }
+      }
+    },
+    "Applies to sessions opened from now on. Existing tabs keep the shell they started with." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ينطبق على الجلسات التي تُفتح من الآن فصاعدًا. تحتفظ علامات التبويب الحالية بالصدفة التي بدأت بها."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'aplica a les sessions que s'obrin a partir d'ara. Les pestanyes existents conserven el shell amb què s'han iniciat."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Platí pro relace otevřené od této chvíle. Stávající karty si ponechají shell, se kterým byly spuštěny."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gælder for sessioner, der åbnes fra nu af. Eksisterende faner beholder den shell, de blev startet med."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gilt für ab jetzt geöffnete Sitzungen. Bestehende Tabs behalten die Shell, mit der sie gestartet wurden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se aplica a las sesiones que abras a partir de ahora. Las pestañas existentes conservan la shell con la que se iniciaron."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koskee tästä eteenpäin avattavia istuntoja. Olemassa olevat välilehdet säilyttävät komentotulkin, jolla ne käynnistettiin."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'applique aux sessions ouvertes à partir de maintenant. Les onglets existants conservent le shell avec lequel ils ont démarré."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חל על הפעלות שייפתחו מעתה והלאה. לשוניות קיימות שומרות על המעטפת שאיתה הופעלו."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A mostantól megnyitott munkamenetekre vonatkozik. A meglévő lapok megtartják azt a shellt, amellyel elindultak."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si applica alle sessioni aperte da ora in poi. Le schede esistenti mantengono la shell con cui sono state avviate."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今後開くセッションに適用されます。既存のタブは起動時のシェルをそのまま使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지금부터 여는 세션에 적용됩니다. 기존 탭은 시작할 때 사용한 셸을 그대로 유지합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gjelder økter som åpnes fra nå av. Eksisterende faner beholder skallet de ble startet med."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geldt voor sessies die vanaf nu worden geopend. Bestaande tabbladen behouden de shell waarmee ze zijn gestart."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dotyczy sesji otwieranych od teraz. Istniejące karty zachowują powłokę, z którą zostały uruchomione."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica-se às sessões abertas a partir de agora. As abas existentes mantêm o shell com o qual foram iniciadas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica-se às sessões abertas a partir de agora. Os separadores existentes mantêm a shell com que foram iniciados."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se aplică sesiunilor deschise de acum înainte. Filele existente păstrează shell-ul cu care au pornit."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velja za seje, odprte od zdaj naprej. Obstoječi zavihki ohranijo lupino, s katero so se zagnali."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gäller sessioner som öppnas från och med nu. Befintliga flikar behåller skalet de startades med."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Застосовується до сеансів, відкритих відтепер. Наявні вкладки зберігають оболонку, з якою їх було запущено."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Áp dụng cho các phiên được mở từ giờ trở đi. Các tab hiện có vẫn giữ shell mà chúng đã khởi chạy."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅对此后打开的会话生效。现有标签页仍使用启动时的 Shell。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅套用於此後開啟的工作階段。現有分頁仍使用啟動時的 Shell。"
           }
         }
       }
@@ -124146,6 +124454,161 @@
         }
       }
     },
+    "Contains a line break or control character, so the login shell will be used." : {
+      "comment" : "Local shell warning: illegal characters",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحتوي على فاصل أسطر أو حرف تحكم، لذا ستُستخدم صدفة تسجيل الدخول."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conté un salt de línia o un caràcter de control, així que s'utilitzarà el shell d'inici de sessió."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obsahuje konec řádku nebo řídicí znak, proto bude použit přihlašovací shell."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indeholder et linjeskift eller et kontroltegn, så login-shellen bruges."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enthält einen Zeilenumbruch oder ein Steuerzeichen, daher wird die Login-Shell verwendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contiene un salto de línea o un carácter de control, por lo que se usará la shell de inicio de sesión."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sisältää rivinvaihdon tai ohjausmerkin, joten käytetään kirjautumiskomentotulkkia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contient un saut de ligne ou un caractère de contrôle : le shell de connexion sera utilisé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מכיל מעבר שורה או תו בקרה, ולכן תשמש מעטפת הכניסה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortörést vagy vezérlőkaraktert tartalmaz, ezért a bejelentkezési shell lesz használva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contiene un'interruzione di riga o un carattere di controllo, quindi verrà usata la shell di login."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改行または制御文字が含まれているため、ログインシェルが使用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "줄바꿈 또는 제어 문자가 포함되어 있어 로그인 셸이 사용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inneholder et linjeskift eller kontrolltegn, så påloggingsskallet brukes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bevat een regeleinde of stuurteken, dus de login-shell wordt gebruikt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zawiera znak nowego wiersza lub znak sterujący, więc zostanie użyta powłoka logowania."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contém uma quebra de linha ou caractere de controle, portanto o shell de login será usado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contém uma quebra de linha ou carácter de controlo, por isso será usada a shell de login."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conține un salt de linie sau un caracter de control, așa că se va folosi shell-ul de autentificare."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vsebuje prelom vrstice ali krmilni znak, zato bo uporabljena prijavna lupina."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Innehåller en radbrytning eller ett kontrolltecken, så inloggningsskalet används."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Містить розрив рядка або керівний символ, тому буде використано оболонку входу."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chứa ký tự xuống dòng hoặc ký tự điều khiển, nên shell đăng nhập sẽ được dùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包含换行符或控制字符，因此将使用登录 Shell。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包含換行字元或控制字元，因此將使用登入 Shell。"
+          }
+        }
+      }
+    },
     "Context" : {
       "localizations" : {
         "ar" : {
@@ -127237,7 +127700,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -154569,7 +155032,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -177870,6 +178333,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未輸入值，將使用預設值。"
+          }
+        }
+      }
+    },
+    "Empty, so the login shell will be used." : {
+      "comment" : "Local shell warning: no value entered",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فارغ، لذا ستُستخدم صدفة تسجيل الدخول."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buit, així que s'utilitzarà el shell d'inici de sessió."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prázdné, proto bude použit přihlašovací shell."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomt, så login-shellen bruges."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leer, daher wird die Login-Shell verwendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vacío, por lo que se usará la shell de inicio de sesión."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tyhjä, joten käytetään kirjautumiskomentotulkkia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vide : le shell de connexion sera utilisé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ריק, ולכן תשמש מעטפת הכניסה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Üres, ezért a bejelentkezési shell lesz használva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuoto, quindi verrà usata la shell di login."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空のため、ログインシェルが使用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비어 있어 로그인 셸이 사용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomt, så påloggingsskallet brukes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leeg, dus de login-shell wordt gebruikt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puste, więc zostanie użyta powłoka logowania."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vazio, portanto o shell de login será usado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vazio, por isso será usada a shell de login."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gol, așa că se va folosi shell-ul de autentificare."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prazno, zato bo uporabljena prijavna lupina."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomt, så inloggningsskalet används."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Порожньо, тому буде використано оболонку входу."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trống, nên shell đăng nhập sẽ được dùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为空，因此将使用登录 Shell。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為空，因此將使用登入 Shell。"
           }
         }
       }
@@ -239487,7 +240105,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -241179,6 +241797,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "如果您的 HSS 設定使用 external() 載入其他 YAML 檔案，請將這些檔案放在 App 的「文件」資料夾中。"
+          }
+        }
+      }
+    },
+    "Ignored when a custom auto-start command is set in Settings." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتم تجاهله عند تعيين أمر بدء تلقائي مخصص في الإعدادات."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'ignora quan s'estableix una ordre d'inici automàtic personalitzada a la Configuració."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorováno, pokud je v Nastavení nastaven vlastní příkaz automatického spuštění."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignoreres, når en brugerdefineret autostartkommando er angivet i Indstillinger."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird ignoriert, wenn in den Einstellungen ein benutzerdefinierter Autostart-Befehl gesetzt ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ignora cuando se establece un comando de inicio automático personalizado en Ajustes."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohitetaan, kun Asetuksissa on määritetty mukautettu automaattikäynnistyskomento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignoré lorsqu'une commande de démarrage automatique personnalisée est définie dans les Réglages."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מתעלמים כאשר מוגדרת פקודת הפעלה אוטומטית מותאמת בהגדרות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Figyelmen kívül hagyva, ha a Beállításokban egyéni automatikus indítási parancs van megadva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorato quando in Impostazioni è impostato un comando di avvio automatico personalizzato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定でカスタムの自動起動コマンドが指定されている場合は無視されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 사용자 지정 자동 시작 명령이 지정된 경우 무시됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignoreres når en egendefinert autostartkommando er angitt i Innstillinger."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genegeerd wanneer in Instellingen een aangepast autostartcommando is ingesteld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorowane, gdy w Ustawieniach ustawiono niestandardowe polecenie automatycznego uruchamiania."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorado quando um comando de início automático personalizado é definido em Configurações."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorado quando está definido um comando de arranque automático personalizado nas Definições."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorat când în Setări este configurată o comandă personalizată de pornire automată."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prezrto, ko je v Nastavitvah nastavljen ukaz za samodejni zagon po meri."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignoreras när ett anpassat autostartkommando är inställt i Inställningar."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ігнорується, коли в Налаштуваннях задано користувацьку команду автозапуску."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bị bỏ qua khi đã đặt lệnh tự khởi chạy tùy chỉnh trong Cài đặt."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“设置”中指定了自定义自动启动命令时忽略。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在「設定」中指定了自訂自動啟動指令時忽略。"
           }
         }
       }
@@ -278412,6 +279184,160 @@
         }
       }
     },
+    "Launched for every new local tab. Arguments are supported, and the line is parsed by a shell, so a path containing spaces has to be quoted." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُشغَّل مع كل علامة تبويب محلية جديدة. الوسائط مدعومة، ويُحلَّل السطر بواسطة صدفة، لذا يجب وضع أي مسار يحتوي على مسافات بين علامتي اقتباس."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'inicia per a cada nova pestanya local. S'admeten arguments i la línia s'analitza amb un shell, així que un camí amb espais s'ha d'escriure entre cometes."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spustí se pro každou novou místní kartu. Argumenty jsou podporovány a řádek zpracovává shell, takže cestu obsahující mezery je nutné uvést v uvozovkách."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startes for hver ny lokal fane. Argumenter understøttes, og linjen fortolkes af en shell, så en sti med mellemrum skal sættes i anførselstegn."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird für jeden neuen lokalen Tab gestartet. Argumente werden unterstützt, und die Zeile wird von einer Shell ausgewertet, daher muss ein Pfad mit Leerzeichen in Anführungszeichen stehen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se lanza en cada nueva pestaña local. Se admiten argumentos y la línea la analiza una shell, así que una ruta con espacios debe ir entre comillas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistetään jokaista uutta paikallista välilehteä varten. Argumentit ovat tuettuja, ja komentotulkki jäsentää rivin, joten välilyöntejä sisältävä polku on kirjoitettava lainausmerkkeihin."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lancé pour chaque nouvel onglet local. Les arguments sont pris en charge et la ligne est analysée par un shell : un chemin contenant des espaces doit donc être entre guillemets."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מופעל עבור כל לשונית מקומית חדשה. יש תמיכה בארגומנטים, והשורה מנותחת על ידי מעטפת, ולכן נתיב שמכיל רווחים חייב להיות במירכאות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minden új helyi lapnál elindul. Az argumentumok támogatottak, és a sort egy shell dolgozza fel, ezért a szóközt tartalmazó elérési utat idézőjelbe kell tenni."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avviato per ogni nuova scheda locale. Gli argomenti sono supportati e la riga viene interpretata da una shell, quindi un percorso che contiene spazi va racchiuso tra virgolette."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しいローカルタブごとに起動されます。引数を指定でき、行はシェルによって解析されるため、スペースを含むパスは引用符で囲む必要があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 로컬 탭마다 실행됩니다. 인수를 사용할 수 있으며 이 줄은 셸이 해석하므로 공백이 포함된 경로는 따옴표로 감싸야 합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startes for hver ny lokal fane. Argumenter støttes, og linjen tolkes av et skall, så en sti som inneholder mellomrom må stå i anførselstegn."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wordt gestart voor elk nieuw lokaal tabblad. Argumenten worden ondersteund en de regel wordt door een shell verwerkt, dus een pad met spaties moet tussen aanhalingstekens staan."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uruchamiane dla każdej nowej karty lokalnej. Argumenty są obsługiwane, a wiersz jest przetwarzany przez powłokę, więc ścieżkę ze spacjami trzeba ująć w cudzysłów."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciado a cada nova aba local. Argumentos são aceitos e a linha é interpretada por um shell, portanto um caminho com espaços precisa estar entre aspas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciado em cada novo separador local. Os argumentos são suportados e a linha é interpretada por uma shell, por isso um caminho com espaços tem de estar entre aspas."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se lansează pentru fiecare filă locală nouă. Argumentele sunt acceptate, iar linia este interpretată de un shell, așa că o cale care conține spații trebuie pusă între ghilimele."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zažene se za vsak nov lokalni zavihek. Argumenti so podprti, vrstico pa razčleni lupina, zato mora biti pot s presledki v narekovajih."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startas för varje ny lokal flik. Argument stöds och raden tolkas av ett skal, så en sökväg som innehåller mellanslag måste stå inom citattecken."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запускається для кожної нової локальної вкладки. Аргументи підтримуються, а рядок обробляє оболонка, тому шлях із пробілами потрібно взяти в лапки."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Được khởi chạy cho mỗi tab cục bộ mới. Hỗ trợ đối số, và dòng lệnh được một shell phân tích, nên đường dẫn có khoảng trắng phải được đặt trong dấu ngoặc kép."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每次新建本地标签页时启动。支持参数，且该行由 Shell 解析，因此包含空格的路径必须加引号。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每次新增本機分頁時啟動。支援參數，且該行由 Shell 解析，因此包含空格的路徑必須加上引號。"
+          }
+        }
+      }
+    },
     "Leaf icon — nature inspired" : {
       "localizations" : {
         "ar" : {
@@ -289518,6 +290444,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "記錄檔儲存於 Documents/.ghostty/vnc_debug.log"
+          }
+        }
+      }
+    },
+    "Login Shell" : {
+      "comment" : "Local shell option: use the login shell from the passwd database\nLocal shell setting: use the login shell from the passwd database",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صدفة تسجيل الدخول"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell d'inici de sessió"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přihlašovací shell"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Login-shell"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Login-Shell"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell de inicio de sesión"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kirjautumiskomentotulkki"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell de connexion"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מעטפת כניסה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bejelentkezési shell"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell di login"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ログインシェル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로그인 셸"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Påloggingsskall"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Login-shell"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powłoka logowania"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell de Login"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell de Início de Sessão"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell de autentificare"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prijavna lupina"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inloggningsskal"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оболонка входу"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell đăng nhập"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录 Shell"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入 Shell"
           }
         }
       }
@@ -317919,6 +319000,161 @@
         }
       }
     },
+    "Next Group" : {
+      "comment" : "Keybind action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المجموعة التالية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grup següent"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Další skupina"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Næste gruppe"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächste Gruppe"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siguiente grupo"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seuraava ryhmä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groupe suivant"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הקבוצה הבאה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Következő csoport"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gruppo successivo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次のグループ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 그룹"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neste gruppe"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volgende groep"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Następna grupa"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próximo Grupo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo Seguinte"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupul următor"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Naslednja skupina"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nästa grupp"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Наступна група"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhóm tiếp theo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一个分组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一個群組"
+          }
+        }
+      }
+    },
     "Next Tab" : {
       "comment" : "Keybind action\nSwipe preset: switch to next app tab",
       "localizations" : {
@@ -332575,7 +333811,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -333654,6 +334890,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不是有效的 terminfo 名稱。只能使用字母、數字和 . _ + - 等字元。"
+          }
+        }
+      }
+    },
+    "Not an absolute path. The shell is launched with a minimal PATH, so a bare name may not be found." : {
+      "comment" : "Local shell warning: relative command",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ليس مسارًا مطلقًا. تُشغَّل الصدفة باستخدام PATH محدود، لذا قد لا يُعثر على اسم مجرد."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No és un camí absolut. El shell s'inicia amb un PATH mínim, així que és possible que un nom sense ruta no es trobi."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Není to absolutní cesta. Shell se spouští s minimální proměnnou PATH, takže samotný název nemusí být nalezen."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ikke en absolut sti. Shellen startes med en minimal PATH, så et bart navn findes måske ikke."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein absoluter Pfad. Die Shell wird mit einem minimalen PATH gestartet, daher wird ein bloßer Name möglicherweise nicht gefunden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es una ruta absoluta. La shell se inicia con un PATH mínimo, así que puede que un nombre sin ruta no se encuentre."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei ole absoluuttinen polku. Komentotulkki käynnistetään minimaalisella PATH-muuttujalla, joten pelkkää nimeä ei ehkä löydy."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce n'est pas un chemin absolu. Le shell est lancé avec un PATH minimal : un nom seul risque de ne pas être trouvé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא נתיב מוחלט. המעטפת מופעלת עם PATH מינימלי, ולכן ייתכן ששם ללא נתיב לא יימצא."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nem abszolút elérési út. A shell minimális PATH értékkel indul, ezért előfordulhat, hogy a puszta név nem található meg."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è un percorso assoluto. La shell viene avviata con un PATH minimo, quindi un nome senza percorso potrebbe non essere trovato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "絶対パスではありません。シェルは最小限の PATH で起動されるため、名前だけでは見つからない場合があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "절대 경로가 아닙니다. 셸은 최소한의 PATH로 실행되므로 이름만으로는 찾지 못할 수 있습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ikke en absolutt sti. Skallet startes med en minimal PATH, så et rent navn blir kanskje ikke funnet."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen absoluut pad. De shell wordt met een minimale PATH gestart, dus een kale naam wordt mogelijk niet gevonden."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To nie jest ścieżka bezwzględna. Powłoka jest uruchamiana z minimalną zmienną PATH, więc sama nazwa może nie zostać znaleziona."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é um caminho absoluto. O shell é iniciado com um PATH mínimo, portanto um nome sem caminho pode não ser encontrado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é um caminho absoluto. A shell é iniciada com um PATH mínimo, por isso um nome isolado pode não ser encontrado."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu este o cale absolută. Shell-ul este lansat cu un PATH minim, așa că este posibil ca un nume simplu să nu fie găsit."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni absolutna pot. Lupina se zažene z minimalno spremenljivko PATH, zato samo ime morda ne bo najdeno."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inte en absolut sökväg. Skalet startas med en minimal PATH, så enbart ett namn hittas kanske inte."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Це не абсолютний шлях. Оболонка запускається з мінімальним PATH, тому саму лише назву може бути не знайдено."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không phải đường dẫn tuyệt đối. Shell được khởi chạy với PATH tối thiểu, nên có thể không tìm thấy tên không kèm đường dẫn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是绝对路径。Shell 以最小的 PATH 启动，因此可能找不到不带路径的名称。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是絕對路徑。Shell 以最小的 PATH 啟動，因此可能找不到不含路徑的名稱。"
           }
         }
       }
@@ -337366,6 +338757,161 @@
         }
       }
     },
+    "Nothing executable at that path. Sessions will fail to start." : {
+      "comment" : "Local shell warning: binary is missing",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا يوجد ملف قابل للتنفيذ في هذا المسار. ستفشل الجلسات في البدء."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hi ha res executable en aquest camí. Les sessions no s'iniciaran."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na této cestě není nic spustitelného. Relace se nepodaří spustit."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der er intet eksekverbart på den sti. Sessioner kan ikke starte."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter diesem Pfad ist nichts Ausführbares vorhanden. Sitzungen können nicht gestartet werden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay nada ejecutable en esa ruta. Las sesiones no podrán iniciarse."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kyseisessä polussa ei ole suoritettavaa tiedostoa. Istuntojen käynnistys epäonnistuu."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun exécutable à ce chemin. Les sessions ne pourront pas démarrer."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אין קובץ בר-הרצה בנתיב הזה. ההפעלות ייכשלו."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ezen az elérési úton nincs futtatható fájl. A munkamenetek nem fognak elindulni."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun eseguibile in quel percorso. Le sessioni non riusciranno ad avviarsi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "そのパスに実行可能ファイルがありません。セッションを開始できません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "해당 경로에 실행 파일이 없습니다. 세션을 시작할 수 없습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingenting kjørbart på den stien. Økter vil ikke kunne starte."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niets uitvoerbaars op dat pad. Sessies kunnen niet starten."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pod tą ścieżką nie ma pliku wykonywalnego. Sesje nie uruchomią się."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada executável nesse caminho. As sessões não conseguirão iniciar."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não existe nada executável nesse caminho. As sessões não conseguirão iniciar."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu există niciun executabil la această cale. Sesiunile nu vor putea porni."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na tej poti ni izvršljive datoteke. Seje se ne bodo zagnale."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inget körbart på den sökvägen. Sessioner kommer inte att kunna starta."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За цим шляхом немає виконуваного файлу. Сеанси не запустяться."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có tệp thực thi tại đường dẫn đó. Các phiên sẽ không khởi chạy được."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该路径下没有可执行文件。会话将无法启动。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該路徑下沒有可執行檔。工作階段將無法啟動。"
+          }
+        }
+      }
+    },
     "Notification Sound" : {
       "localizations" : {
         "ar" : {
@@ -340458,7 +342004,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -340922,7 +342468,7 @@
       }
     },
     "On" : {
-      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -345389,6 +346935,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在登入相同 iCloud 帳號的另一部 iPhone、iPad、Mac 或 Vision Pro 上打開 rootshell，然後點一下「接續互通」橫幅。\n\n在 Mac 和 iPad 上，橫幅會顯示於 Dock 的最右端。在 iPhone 上，從螢幕底部邊緣向上滑動並暫停以打開 App 切換器。橫幅位於螢幕底部。"
+          }
+        }
+      }
+    },
+    "Open source under the MIT License" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مفتوح المصدر بموجب رخصة MIT"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codi obert sota la llicència MIT"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevřený zdrojový kód pod licencí MIT"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open source under MIT-licensen"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Source unter der MIT-Lizenz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código abierto bajo la licencia MIT"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avointa lähdekoodia MIT-lisenssillä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open source sous licence MIT"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קוד פתוח ברישיון MIT"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nyílt forráskódú, MIT licenc alatt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open source con licenza MIT"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MITライセンスのオープンソース"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT 라이선스 기반 오픈 소스"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpen kildekode under MIT-lisensen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opensource onder de MIT-licentie"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwarte oprogramowanie na licencji MIT"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código aberto sob a licença MIT"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código aberto sob a licença MIT"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sursă deschisă sub licența MIT"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odprta koda pod licenco MIT"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppen källkod under MIT-licensen"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкритий код за ліцензією MIT"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mã nguồn mở theo giấy phép MIT"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于 MIT 许可证的开源软件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基於 MIT 授權的開源軟體"
           }
         }
       }
@@ -371640,6 +373340,161 @@
         }
       }
     },
+    "Previous Group" : {
+      "comment" : "Keybind action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المجموعة السابقة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grup anterior"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Předchozí skupina"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forrige gruppe"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorherige Gruppe"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo anterior"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edellinen ryhmä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groupe précédent"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הקבוצה הקודמת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Előző csoport"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gruppo precedente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前のグループ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이전 그룹"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forrige gruppe"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorige groep"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poprzednia grupa"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo Anterior"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo Anterior"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupul anterior"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prejšnja skupina"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Föregående grupp"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Попередня група"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhóm trước"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一个分组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一個群組"
+          }
+        }
+      }
+    },
     "Previous Tab" : {
       "comment" : "Keybind action\nSwipe preset: switch to previous app tab",
       "localizations" : {
@@ -377651,6 +379506,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "公鑰（用於 authorized_keys）"
+          }
+        }
+      }
+    },
+    "Pull Down for Tab Exposé" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "السحب للأسفل لفتح Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llisca avall per a l'Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stažením dolů otevřít Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Træk ned for Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach unten ziehen für Tab-Exposé"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslizar hacia abajo para el Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vedä alas avataksesi Välilehti-Exposén"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tirer vers le bas pour l'Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "משיכה מטה ל-Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lehúzás a Lap-Exposéhoz"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trascina verso il basso per l'Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下に引いてタブExposéを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "아래로 당겨 탭 Exposé 열기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dra ned for Fane-Exposé"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omlaag trekken voor Tab-Exposé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pociągnij w dół, aby otworzyć Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puxar para Baixo para o Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puxar para Baixo para o Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trage în jos pentru Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povlecite navzdol za Exposé zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dra nedåt för Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потягніть вниз для Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kéo xuống để mở Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下拉打开标签页 Exposé"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下拉開啟分頁 Exposé"
           }
         }
       }
@@ -450551,6 +452560,160 @@
         }
       }
     },
+    "Show tab titles and badges under each live preview in Tab Exposé." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار عناوين علامات التبويب والشارات أسفل كل معاينة مباشرة في Exposé علامات التبويب."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra els títols i els distintius de les pestanyes sota cada previsualització en directe de l'Exposé de pestanyes."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazovat názvy karet a odznaky pod každým živým náhledem v Exposé karet."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis fanetitler og mærker under hver live-forhåndsvisning i Fane-Exposé."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt Tab-Titel und Abzeichen unter jeder Live-Vorschau im Tab-Exposé an."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra los títulos y distintivos de las pestañas debajo de cada vista previa en directo del Exposé de pestañas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä välilehtien otsikot ja merkit kunkin reaaliaikaisen esikatselun alla Välilehti-Exposéssa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les titres et les pastilles des onglets sous chaque aperçu en direct de l'Exposé des onglets."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצג כותרות לשוניות ותגים מתחת לכל תצוגה מקדימה חיה ב-Exposé לשוניות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lapcímek és jelvények megjelenítése az egyes élő előnézetek alatt a Lap-Exposéban."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra i titoli delle schede e i contrassegni sotto ogni anteprima in tempo reale nell'Exposé schede."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposéで各ライブプレビューの下にタブのタイトルとバッジを表示します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé에서 각 실시간 미리보기 아래에 탭 제목과 배지를 표시합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis fanetitler og merker under hver direkteforhåndsvisning i Fane-Exposé."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toon tabtitels en badges onder elk livevoorbeeld in Tab-Exposé."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuj nazwy kart i odznaki pod każdym podglądem na żywo w Exposé kart."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar títulos e selos das abas abaixo de cada pré-visualização ao vivo no Exposé de Abas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar títulos e selos dos separadores por baixo de cada pré-visualização em direto no Exposé de Separadores."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează titlurile filelor și insignele sub fiecare previzualizare live din Exposé file."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pod vsakim živim predogledom v Exposéju zavihkov prikaže naslove zavihkov in značke."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa flikarnas titlar och märken under varje direktförhandsvisning i Flik-Exposé."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показувати назви вкладок і значки під кожним живим переглядом у Exposé вкладок."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện tiêu đề tab và huy hiệu bên dưới mỗi bản xem trước trực tiếp trong Exposé tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在标签页 Exposé 中于每个实时预览下方显示标签页标题和标记。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在分頁 Exposé 中於每個即時預覽下方顯示分頁標題與標記。"
+          }
+        }
+      }
+    },
     "Show the active group or project switcher in the top tab bar while tabs are grouped." : {
       "localizations" : {
         "ar" : {
@@ -482986,6 +485149,314 @@
         }
       }
     },
+    "Swipe down from the tab bar (one finger, two fingers, or trackpad scroll) to show live previews of your tabs." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مرّر للأسفل من شريط علامات التبويب (بإصبع واحد أو بإصبعين أو بالتمرير على لوحة التتبع) لعرض معاينات مباشرة لعلامات التبويب."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llisca cap avall des de la barra de pestanyes (amb un dit, dos dits o desplaçament al ratolí tàctil) per mostrar previsualitzacions en directe de les pestanyes."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přejetím dolů z panelu karet (jedním prstem, dvěma prsty nebo posouváním na trackpadu) zobrazíte živé náhledy karet."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stryg ned fra fanelinjen (med én finger, to fingre eller scroll på pegefeltet) for at se live-forhåndsvisninger af dine faner."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wischen Sie von der Tab-Leiste nach unten (mit einem Finger, zwei Fingern oder Trackpad-Scrollen), um Live-Vorschauen Ihrer Tabs anzuzeigen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desliza hacia abajo desde la barra de pestañas (con un dedo, dos dedos o desplazamiento en el trackpad) para mostrar vistas previas en directo de tus pestañas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pyyhkäise alas välilehtipalkista (yhdellä sormella, kahdella sormella tai ohjauslevyn vierityksellä) nähdäksesi välilehtiesi reaaliaikaiset esikatselut."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balayez vers le bas depuis la barre d'onglets (un doigt, deux doigts ou défilement sur le trackpad) pour afficher des aperçus en direct de vos onglets."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החלק מטה מסרגל הלשוניות (אצבע אחת, שתי אצבעות או גלילה במשטח המגע) כדי להציג תצוגות מקדימות חיות של הלשוניות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Húzzon lefelé a lapsávból (egy ujjal, két ujjal vagy érintőpados görgetéssel) a lapok élő előnézetének megjelenítéséhez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scorri verso il basso dalla barra delle schede (con un dito, due dita o lo scorrimento sul trackpad) per mostrare anteprime in tempo reale delle tue schede."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブバーから下にスワイプ（1本指、2本指、またはトラックパッドのスクロール）すると、タブのライブプレビューが表示されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 바에서 아래로 스와이프하면(한 손가락, 두 손가락 또는 트랙패드 스크롤) 탭의 실시간 미리보기가 표시됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sveip ned fra fanelinjen (med én finger, to fingre eller rulling på styreflaten) for å vise direkteforhåndsvisninger av fanene dine."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veeg omlaag vanaf de tabbalk (met één vinger, twee vingers of scrollen op het trackpad) om livevoorbeelden van je tabs te tonen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przesuń w dół od paska kart (jednym palcem, dwoma palcami lub przewijaniem na gładziku), aby wyświetlić podglądy kart na żywo."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de abas (com um dedo, dois dedos ou rolagem no trackpad) para mostrar pré-visualizações ao vivo das suas abas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de separadores (com um dedo, dois dedos ou deslocação no trackpad) para mostrar pré-visualizações em direto dos seus separadores."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glisează în jos din bara de file (cu un deget, două degete sau derulare pe trackpad) pentru a afișa previzualizări live ale filelor."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povlecite navzdol iz vrstice zavihkov (z enim prstom, dvema prstoma ali drsenjem po sledilni ploščici) za prikaz živih predogledov zavihkov."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Svep nedåt från flikfältet (med ett finger, två fingrar eller scroll på styrplattan) för att visa direktförhandsvisningar av dina flikar."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проведіть вниз від панелі вкладок (одним пальцем, двома пальцями або прокруткою на трекпаді), щоб показати живі перегляди вкладок."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuốt xuống từ thanh tab (một ngón, hai ngón hoặc cuộn trên trackpad) để hiện bản xem trước trực tiếp của các tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从标签栏向下滑动（单指、双指或触控板滚动）以显示标签页的实时预览。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從分頁列向下滑動（單指、雙指或觸控板捲動）以顯示分頁的即時預覽。"
+          }
+        }
+      }
+    },
+    "Swipe down from the tab bar to show live previews of your tabs. Two fingers also work from above the terminal." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مرّر للأسفل من شريط علامات التبويب لعرض معاينات مباشرة لعلامات التبويب. يعمل التمرير بإصبعين أيضًا من أعلى الطرفية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llisca cap avall des de la barra de pestanyes per mostrar previsualitzacions en directe de les pestanyes. Amb dos dits també funciona des de sobre el terminal."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přejetím dolů z panelu karet zobrazíte živé náhledy karet. Dvěma prsty to funguje i nad terminálem."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stryg ned fra fanelinjen for at se live-forhåndsvisninger af dine faner. Med to fingre virker det også oven over terminalen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wischen Sie von der Tab-Leiste nach unten, um Live-Vorschauen Ihrer Tabs anzuzeigen. Mit zwei Fingern funktioniert das auch oberhalb des Terminals."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desliza hacia abajo desde la barra de pestañas para mostrar vistas previas en directo de tus pestañas. Con dos dedos también funciona desde encima del terminal."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pyyhkäise alas välilehtipalkista nähdäksesi välilehtiesi reaaliaikaiset esikatselut. Kahdella sormella se toimii myös terminaalin yläpuolelta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balayez vers le bas depuis la barre d'onglets pour afficher des aperçus en direct de vos onglets. À deux doigts, cela fonctionne aussi au-dessus du terminal."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החלק מטה מסרגל הלשוניות כדי להציג תצוגות מקדימות חיות של הלשוניות. בשתי אצבעות זה עובד גם מעל המסוף."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Húzzon lefelé a lapsávból a lapok élő előnézetének megjelenítéséhez. Két ujjal a terminál felett is működik."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scorri verso il basso dalla barra delle schede per mostrare anteprime in tempo reale delle tue schede. Con due dita funziona anche sopra il terminale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブバーから下にスワイプすると、タブのライブプレビューが表示されます。2本指ならターミナルの上からでも操作できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 바에서 아래로 스와이프하면 탭의 실시간 미리보기가 표시됩니다. 두 손가락으로는 터미널 위쪽에서도 작동합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sveip ned fra fanelinjen for å vise direkteforhåndsvisninger av fanene dine. Med to fingre virker det også over terminalen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veeg omlaag vanaf de tabbalk om livevoorbeelden van je tabs te tonen. Met twee vingers werkt het ook boven de terminal."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przesuń w dół od paska kart, aby wyświetlić podglądy kart na żywo. Dwoma palcami działa to także nad terminalem."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de abas para mostrar pré-visualizações ao vivo das suas abas. Com dois dedos também funciona acima do terminal."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de separadores para mostrar pré-visualizações em direto dos seus separadores. Com dois dedos também funciona acima do terminal."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glisează în jos din bara de file pentru a afișa previzualizări live ale filelor. Cu două degete funcționează și deasupra terminalului."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povlecite navzdol iz vrstice zavihkov za prikaz živih predogledov zavihkov. Z dvema prstoma deluje tudi nad terminalom."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Svep nedåt från flikfältet för att visa direktförhandsvisningar av dina flikar. Med två fingrar fungerar det även ovanför terminalen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проведіть вниз від панелі вкладок, щоб показати живі перегляди вкладок. Двома пальцями це працює й над терміналом."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuốt xuống từ thanh tab để hiện bản xem trước trực tiếp của các tab. Với hai ngón, thao tác này cũng hoạt động từ phía trên terminal."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从标签栏向下滑动以显示标签页的实时预览。双指滑动在终端上方同样有效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從分頁列向下滑動以顯示分頁的即時預覽。雙指滑動在終端機上方同樣有效。"
+          }
+        }
+      }
+    },
     "Swipe Gestures" : {
       "localizations" : {
         "ar" : {
@@ -489920,6 +492391,314 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "分頁列可見"
+          }
+        }
+      }
+    },
+    "Tab Exposé" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välilehti-Exposé"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lap-Exposé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposé"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fane-Exposé"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签页 Exposé"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分頁 Exposé"
+          }
+        }
+      }
+    },
+    "Tab Exposé Captions" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسميات Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Títols de l'Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Popisky v Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketter i Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé-Beschriftungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Títulos del Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välilehti-Exposén tekstit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Légendes de l'Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כיתובים ב-Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lap-Exposé feliratai"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didascalie Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposéのキャプション"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé 캡션"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketter i Fane-Exposé"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé-bijschriften"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podpisy w Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legendas do Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legendas do Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etichete în Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Napisi v Exposéju zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketter i Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Підписи в Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chú thích Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签页 Exposé 标题"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分頁 Exposé 標題"
           }
         }
       }
@@ -499190,6 +501969,160 @@
         }
       }
     },
+    "The command replaces your login shell, so it starts inside the same login environment and SHELL still reports the shell set in your account. Some shells only take login behaviour from an explicit flag, such as --login." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحل الأمر محل صدفة تسجيل الدخول، لذا يبدأ داخل بيئة تسجيل الدخول نفسها، ويظل SHELL يشير إلى الصدفة المحددة في حسابك. بعض الصدفات لا تعتمد سلوك تسجيل الدخول إلا عبر علامة صريحة، مثل --login."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'ordre substitueix el vostre shell d'inici de sessió, de manera que s'inicia dins del mateix entorn d'inici de sessió i SHELL continua indicant el shell definit al vostre compte. Alguns shells només adopten el comportament d'inici de sessió amb un indicador explícit, com ara --login."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Příkaz nahradí váš přihlašovací shell, takže se spustí ve stejném přihlašovacím prostředí a SHELL nadále uvádí shell nastavený ve vašem účtu. Některé shelly převezmou přihlašovací chování jen na základě výslovného přepínače, například --login."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kommandoen erstatter din login-shell, så den starter i det samme login-miljø, og SHELL angiver stadig den shell, der er indstillet på din konto. Nogle shells anvender kun login-adfærd via et eksplicit flag, f.eks. --login."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Befehl ersetzt Ihre Login-Shell, startet also in derselben Login-Umgebung, und SHELL meldet weiterhin die in Ihrem Konto festgelegte Shell. Manche Shells übernehmen das Login-Verhalten nur über eine ausdrückliche Option wie --login."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El comando reemplaza tu shell de inicio de sesión, por lo que se inicia dentro del mismo entorno de inicio de sesión y SHELL sigue indicando la shell definida en tu cuenta. Algunas shells solo adoptan el comportamiento de inicio de sesión con un indicador explícito, como --login."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Komento korvaa kirjautumiskomentotulkkisi, joten se käynnistyy samassa kirjautumisympäristössä ja SHELL ilmoittaa edelleen tilillesi määritetyn komentotulkin. Jotkin komentotulkit ottavat kirjautumiskäyttäytymisen käyttöön vain nimenomaisella valitsimella, kuten --login."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La commande remplace votre shell de connexion : elle démarre donc dans le même environnement de connexion et SHELL indique toujours le shell défini dans votre compte. Certains shells n'adoptent le comportement de connexion qu'avec une option explicite, comme --login."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפקודה מחליפה את מעטפת הכניסה שלך, ולכן היא מופעלת בתוך אותה סביבת כניסה ו-SHELL עדיין מדווח על המעטפת שהוגדרה בחשבון שלך. חלק מהמעטפות מאמצות התנהגות כניסה רק באמצעות דגל מפורש, כגון --login."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A parancs a bejelentkezési shell helyére lép, ezért ugyanabban a bejelentkezési környezetben indul, és a SHELL továbbra is a fiókjában beállított shellt jelzi. Egyes shellek csak kifejezett kapcsolóból, például a --login megadásából veszik át a bejelentkezési viselkedést."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il comando sostituisce la tua shell di login, quindi si avvia nello stesso ambiente di login e SHELL continua a indicare la shell impostata nel tuo account. Alcune shell adottano il comportamento di login solo con un'opzione esplicita, come --login."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このコマンドはログインシェルを置き換えるため、同じログイン環境の中で起動し、SHELL はアカウントに設定されたシェルを引き続き報告します。シェルによっては、--login のような明示的なフラグを指定した場合にのみログインとして動作します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 명령은 로그인 셸을 대체하므로 동일한 로그인 환경에서 시작되며, SHELL은 계정에 설정된 셸을 계속 보고합니다. 일부 셸은 --login 같은 명시적 플래그가 있어야만 로그인 동작을 사용합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kommandoen erstatter påloggingsskallet ditt, så den starter i det samme påloggingsmiljøet, og SHELL rapporterer fortsatt skallet som er angitt på kontoen din. Noen skall tar bare i bruk påloggingsatferd via et eksplisitt flagg, for eksempel --login."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het commando vervangt je login-shell, dus het start in dezelfde login-omgeving en SHELL blijft de shell melden die in je account is ingesteld. Sommige shells nemen login-gedrag alleen over via een expliciete optie, zoals --login."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polecenie zastępuje powłokę logowania, więc uruchamia się w tym samym środowisku logowania, a zmienna SHELL nadal wskazuje powłokę ustawioną na koncie. Niektóre powłoki włączają zachowanie logowania tylko po podaniu jawnej flagi, takiej jak --login."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O comando substitui o seu shell de login, portanto ele inicia dentro do mesmo ambiente de login e SHELL continua indicando o shell definido na sua conta. Alguns shells só adotam o comportamento de login com um sinalizador explícito, como --login."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O comando substitui a sua shell de início de sessão, por isso arranca dentro do mesmo ambiente de início de sessão e SHELL continua a indicar a shell definida na sua conta. Algumas shells só adotam o comportamento de início de sessão com uma opção explícita, como --login."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comanda înlocuiește shell-ul dvs. de autentificare, deci pornește în același mediu de autentificare, iar SHELL indică în continuare shell-ul setat în contul dvs. Unele shell-uri preiau comportamentul de autentificare doar printr-un indicator explicit, precum --login."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ukaz nadomesti vašo prijavno lupino, zato se zažene v istem prijavnem okolju, spremenljivka SHELL pa še naprej navaja lupino, nastavljeno v vašem računu. Nekatere lupine prevzamejo prijavno vedenje samo z izrecno zastavico, na primer --login."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kommandot ersätter ditt inloggningsskal, så det startar i samma inloggningsmiljö och SHELL anger fortfarande det skal som är inställt på ditt konto. Vissa skal använder inloggningsbeteende endast med en uttrycklig flagga, till exempel --login."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Команда замінює вашу оболонку входу, тому вона запускається в тому самому середовищі входу, а SHELL і далі повідомляє оболонку, задану у вашому обліковому записі. Деякі оболонки вмикають поведінку входу лише за явним прапорцем, як-от --login."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lệnh này thay thế shell đăng nhập của bạn, nên nó khởi chạy trong cùng môi trường đăng nhập và SHELL vẫn báo shell được đặt trong tài khoản của bạn. Một số shell chỉ áp dụng hành vi đăng nhập khi có cờ tường minh, chẳng hạn --login."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该命令会取代你的登录 Shell，因此它在同一登录环境中启动，SHELL 仍会报告账户中设置的 Shell。有些 Shell 只有在显式传入 --login 之类的标志时才会按登录方式运行。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該指令會取代你的登入 Shell，因此它在同一個登入環境中啟動，SHELL 仍會回報帳號中設定的 Shell。有些 Shell 只有在明確傳入 --login 之類的旗標時才會以登入方式執行。"
+          }
+        }
+      }
+    },
     "The current font does not expose any stylistic set or alternate glyph features." : {
       "localizations" : {
         "ar" : {
@@ -500112,6 +503045,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自動啟動使用的 herdr 工作階段名稱。留空則使用 herdr 的預設工作階段。名稱可使用英文字母、數字、'.'、'_' 和 '-'（單獨的 \".\" 與 \"..\" 為保留名稱）。"
+          }
+        }
+      }
+    },
+    "The herdr session this profile attaches to on connect. Leave on the global default to use the session name from Settings. Names may use letters, numbers, '.', '_' and '-' (\".\" and \"..\" alone are reserved)." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جلسة herdr التي يرتبط بها هذا الملف الشخصي عند الاتصال. اترك الخيار على الافتراضي العام لاستخدام اسم الجلسة من الإعدادات. يمكن أن تحتوي الأسماء على أحرف وأرقام و'.' و'_' و'-' (\".\" و\"..\" وحدهما محجوزان)."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sessió de herdr a la qual s'adjunta aquest perfil en connectar-se. Deixeu-ho al valor global per defecte per utilitzar el nom de sessió de la Configuració. Els noms poden contenir lletres, números, '.', '_' i '-' (\".\" i \"..\" tots sols estan reservats)."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relace herdr, ke které se tento profil při připojení připojí. Ponechte globální výchozí hodnotu, chcete-li použít název relace z Nastavení. Názvy mohou obsahovat písmena, číslice, '.', '_' a '-' (\".\" a \"..\" samostatně jsou vyhrazené)."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den herdr-session, som denne profil tilknyttes ved forbindelse. Lad den stå på den globale standard for at bruge sessionsnavnet fra Indstillinger. Navne kan indeholde bogstaver, tal, '.', '_' og '-' (\".\" og \"..\" alene er reserveret)."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die herdr-Sitzung, an die sich dieses Profil beim Verbinden anhängt. Belassen Sie den globalen Standard, um den Sitzungsnamen aus den Einstellungen zu verwenden. Namen dürfen Buchstaben, Ziffern, '.', '_' und '-' enthalten (\".\" und \"..\" allein sind reserviert)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sesión de herdr a la que se conecta este perfil al establecer la conexión. Déjalo en el valor predeterminado global para usar el nombre de sesión de Ajustes. Los nombres pueden usar letras, números, '.', '_' y '-' (\".\" y \"..\" por sí solos están reservados)."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "herdr-istunto, johon tämä profiili liittyy yhdistettäessä. Jätä yleiseen oletukseen, jos haluat käyttää Asetusten istuntonimeä. Nimissä voi käyttää kirjaimia, numeroita sekä merkkejä '.', '_' ja '-' (pelkät \".\" ja \"..\" on varattu)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La session herdr à laquelle ce profil s'attache lors de la connexion. Laissez la valeur par défaut globale pour utiliser le nom de session défini dans les Réglages. Les noms peuvent contenir des lettres, des chiffres, '.', '_' et '-' (\".\" et \"..\" seuls sont réservés)."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעלת herdr שאליה פרופיל זה מתחבר בעת ההתחברות. השאר את ברירת המחדל הכללית כדי להשתמש בשם ההפעלה מההגדרות. שמות יכולים לכלול אותיות, ספרות, '.', '_' ו-'-' (\".\" ו-\"..\" לבדם שמורים)."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az a herdr-munkamenet, amelyhez ez a profil csatlakozáskor kapcsolódik. Hagyja a globális alapértelmezetten, ha a Beállításokban megadott munkamenetnevet szeretné használni. A nevek betűket, számokat, valamint '.', '_' és '-' karaktereket tartalmazhatnak (a \".\" és a \"..\" önmagában foglalt)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sessione herdr a cui questo profilo si collega alla connessione. Lascia il valore predefinito globale per usare il nome di sessione impostato in Impostazioni. I nomi possono contenere lettere, numeri, '.', '_' e '-' (\".\" e \"..\" da soli sono riservati)."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続時にこのプロファイルがアタッチする herdr セッションです。設定のセッション名を使用するには、グローバルのデフォルトのままにします。名前には英字、数字、'.'、'_'、'-' を使用できます（\".\" と \"..\" 単独は予約されています）。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결할 때 이 프로필이 연결되는 herdr 세션입니다. 설정의 세션 이름을 사용하려면 전역 기본값으로 두십시오. 이름에는 문자, 숫자, '.', '_', '-'를 사용할 수 있습니다(\".\"와 \"..\"는 단독으로 사용할 수 없도록 예약되어 있습니다)."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "herdr-økten denne profilen kobles til ved tilkobling. La den stå på global standard for å bruke øktnavnet fra Innstillinger. Navn kan inneholde bokstaver, tall, '.', '_' og '-' (\".\" og \"..\" alene er reservert)."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De herdr-sessie waaraan dit profiel bij verbinden wordt gekoppeld. Laat dit op de globale standaard staan om de sessienaam uit Instellingen te gebruiken. Namen mogen letters, cijfers, '.', '_' en '-' bevatten (\".\" en \"..\" op zichzelf zijn gereserveerd)."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesja herdr, do której ten profil dołącza po połączeniu. Pozostaw globalną wartość domyślną, aby użyć nazwy sesji z Ustawień. Nazwy mogą zawierać litery, cyfry oraz '.', '_' i '-' (same \".\" i \"..\" są zarezerwowane)."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sessão herdr à qual este perfil se conecta ao conectar. Mantenha o padrão global para usar o nome de sessão definido em Configurações. Os nomes podem usar letras, números, '.', '_' e '-' (\".\" e \"..\" sozinhos são reservados)."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sessão herdr à qual este perfil se associa ao ligar. Mantenha a predefinição global para usar o nome de sessão definido nas Definições. Os nomes podem usar letras, números, '.', '_' e '-' (\".\" e \"..\" isolados estão reservados)."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesiunea herdr la care se atașează acest profil la conectare. Lăsați valoarea implicită globală pentru a folosi numele sesiunii din Setări. Numele pot conține litere, cifre, '.', '_' și '-' (\".\" și \"..\" singure sunt rezervate)."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seja herdr, ki se ji ta profil pripne ob povezavi. Pustite globalno privzeto vrednost, če želite uporabiti ime seje iz Nastavitev. Imena lahko vsebujejo črke, števke, '.', '_' in '-' (samostojna \".\" in \"..\" sta rezervirani)."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "herdr-sessionen som den här profilen ansluts till vid anslutning. Låt den stå kvar på global standard för att använda sessionsnamnet från Inställningar. Namn får innehålla bokstäver, siffror, '.', '_' och '-' (\".\" och \"..\" ensamma är reserverade)."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сеанс herdr, до якого цей профіль приєднується під час підключення. Залиште глобальне типове значення, щоб використовувати назву сеансу з Налаштувань. Назви можуть містити літери, цифри, '.', '_' і '-' (окремі \".\" і \"..\" зарезервовані)."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phiên herdr mà hồ sơ này gắn vào khi kết nối. Giữ ở mặc định toàn cục để dùng tên phiên trong Cài đặt. Tên có thể dùng chữ cái, chữ số, '.', '_' và '-' (riêng \".\" và \"..\" được dành riêng)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置在连接时附加到的 herdr 会话。保持为全局默认值即可使用“设置”中的会话名称。名称可使用字母、数字、'.'、'_' 和 '-'（单独的 \".\" 和 \"..\" 为保留名称）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此設定檔在連線時附加的 herdr 工作階段。保持為全域預設值即可使用「設定」中的工作階段名稱。名稱可使用字母、數字、'.'、'_' 和 '-'（單獨的 \".\" 和 \"..\" 為保留名稱）。"
           }
         }
       }
@@ -505821,6 +508908,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自動啟動使用的 tmux 工作階段名稱。為空時預設為「main」。"
+          }
+        }
+      }
+    },
+    "The tmux session this profile attaches to or creates on connect. Leave on the global default to use the session name from Settings. A pinned name also overrides the session you were last attached to on this host." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جلسة tmux التي يرتبط بها هذا الملف الشخصي أو ينشئها عند الاتصال. اترك الخيار على الافتراضي العام لاستخدام اسم الجلسة من الإعدادات. كما يتجاوز الاسم المثبَّت الجلسة التي كنت مرتبطًا بها آخر مرة على هذا المضيف."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sessió de tmux a la qual s'adjunta aquest perfil o que crea en connectar-se. Deixeu-ho al valor global per defecte per utilitzar el nom de sessió de la Configuració. Un nom fixat també substitueix la sessió a què us vau adjuntar per última vegada en aquest amfitrió."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relace tmux, ke které se tento profil při připojení připojí nebo kterou vytvoří. Ponechte globální výchozí hodnotu, chcete-li použít název relace z Nastavení. Připnutý název také přepíše relaci, ke které jste byli na tomto hostiteli naposledy připojeni."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den tmux-session, som denne profil tilknyttes eller opretter ved forbindelse. Lad den stå på den globale standard for at bruge sessionsnavnet fra Indstillinger. Et fastgjort navn tilsidesætter også den session, du sidst var tilknyttet på denne vært."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die tmux-Sitzung, an die sich dieses Profil beim Verbinden anhängt oder die es erstellt. Belassen Sie den globalen Standard, um den Sitzungsnamen aus den Einstellungen zu verwenden. Ein angehefteter Name überschreibt auch die Sitzung, mit der Sie auf diesem Host zuletzt verbunden waren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sesión de tmux a la que se conecta este perfil o que crea al conectarse. Déjalo en el valor predeterminado global para usar el nombre de sesión de Ajustes. Un nombre fijado también anula la sesión a la que te conectaste por última vez en este host."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tmux-istunto, johon tämä profiili liittyy tai jonka se luo yhdistettäessä. Jätä yleiseen oletukseen, jos haluat käyttää Asetusten istuntonimeä. Kiinnitetty nimi ohittaa myös istunnon, johon viimeksi liityit tässä isännässä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La session tmux à laquelle ce profil s'attache ou qu'il crée lors de la connexion. Laissez la valeur par défaut globale pour utiliser le nom de session défini dans les Réglages. Un nom épinglé remplace également la session à laquelle vous étiez attaché en dernier sur cet hôte."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעלת tmux שאליה פרופיל זה מתחבר או שאותה הוא יוצר בעת ההתחברות. השאר את ברירת המחדל הכללית כדי להשתמש בשם ההפעלה מההגדרות. שם מוצמד גם עוקף את ההפעלה שאליה היית מחובר לאחרונה במארח זה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az a tmux-munkamenet, amelyhez ez a profil csatlakozáskor kapcsolódik, vagy amelyet létrehoz. Hagyja a globális alapértelmezetten, ha a Beállításokban megadott munkamenetnevet szeretné használni. A rögzített név felülírja azt a munkamenetet is, amelyhez ezen a gazdagépen utoljára csatlakozott."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sessione tmux a cui questo profilo si collega o che crea alla connessione. Lascia il valore predefinito globale per usare il nome di sessione impostato in Impostazioni. Un nome fissato ha la precedenza anche sulla sessione a cui eri collegato l'ultima volta su questo host."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続時にこのプロファイルがアタッチする、または作成する tmux セッションです。設定のセッション名を使用するには、グローバルのデフォルトのままにします。固定した名前は、このホストで最後にアタッチしていたセッションよりも優先されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결할 때 이 프로필이 연결하거나 생성하는 tmux 세션입니다. 설정의 세션 이름을 사용하려면 전역 기본값으로 두십시오. 고정된 이름은 이 호스트에서 마지막으로 연결했던 세션보다 우선합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tmux-økten denne profilen kobles til eller oppretter ved tilkobling. La den stå på global standard for å bruke øktnavnet fra Innstillinger. Et festet navn overstyrer også økten du sist var koblet til på denne verten."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De tmux-sessie waaraan dit profiel bij verbinden wordt gekoppeld of die het aanmaakt. Laat dit op de globale standaard staan om de sessienaam uit Instellingen te gebruiken. Een vastgezette naam overschrijft ook de sessie waarmee je op deze host het laatst verbonden was."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesja tmux, do której ten profil dołącza lub którą tworzy po połączeniu. Pozostaw globalną wartość domyślną, aby użyć nazwy sesji z Ustawień. Przypięta nazwa zastępuje też sesję, do której ostatnio dołączono na tym hoście."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sessão tmux à qual este perfil se conecta ou que ele cria ao conectar. Mantenha o padrão global para usar o nome de sessão definido em Configurações. Um nome fixado também substitui a sessão à qual você esteve conectado por último neste host."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sessão tmux à qual este perfil se associa ou que cria ao ligar. Mantenha a predefinição global para usar o nome de sessão definido nas Definições. Um nome fixado substitui também a sessão a que esteve associado pela última vez neste anfitrião."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesiunea tmux la care se atașează sau pe care o creează acest profil la conectare. Lăsați valoarea implicită globală pentru a folosi numele sesiunii din Setări. Un nume fixat înlocuiește și sesiunea la care ați fost atașat ultima dată pe această gazdă."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seja tmux, ki se ji ta profil pripne ali jo ustvari ob povezavi. Pustite globalno privzeto vrednost, če želite uporabiti ime seje iz Nastavitev. Pripeto ime tudi nadomesti sejo, na katero ste bili nazadnje pripeti na tem gostitelju."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tmux-sessionen som den här profilen ansluts till eller skapar vid anslutning. Låt den stå kvar på global standard för att använda sessionsnamnet från Inställningar. Ett fäst namn åsidosätter även sessionen du senast var ansluten till på den här värden."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сеанс tmux, до якого цей профіль приєднується або який створює під час підключення. Залиште глобальне типове значення, щоб використовувати назву сеансу з Налаштувань. Закріплена назва також має пріоритет над сеансом, до якого ви востаннє приєднувалися на цьому хості."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phiên tmux mà hồ sơ này gắn vào hoặc tạo khi kết nối. Giữ ở mặc định toàn cục để dùng tên phiên trong Cài đặt. Tên được ghim cũng sẽ được ưu tiên hơn phiên bạn gắn vào lần gần nhất trên máy chủ này."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置在连接时附加或创建的 tmux 会话。保持为全局默认值即可使用“设置”中的会话名称。固定的名称还会覆盖你在此主机上最后一次附加的会话。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此設定檔在連線時附加或建立的 tmux 工作階段。保持為全域預設值即可使用「設定」中的工作階段名稱。釘選的名稱也會覆蓋你在此主機上最後一次附加的工作階段。"
           }
         }
       }
@@ -524356,6 +527597,161 @@
         }
       }
     },
+    "Toggle Tab Exposé" : {
+      "comment" : "Keybind action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تبديل Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar l'Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přepnout Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skift Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé umschalten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vaihda Välilehti-Exposé"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer/désactiver l'Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החלפת Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lap-Exposé be/ki"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva/disattiva Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposé切替"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé 전환"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slå Fane-Exposé av/på"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé schakelen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przełącz Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comutare Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preklopi Exposé zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Växla Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перемкнути Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật/Tắt Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换标签页 Exposé"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切換分頁 Exposé"
+          }
+        }
+      }
+    },
     "Toggle Theme Picker" : {
       "comment" : "Keybind action",
       "localizations" : {
@@ -537632,6 +541028,161 @@
         }
       }
     },
+    "Unbalanced quote." : {
+      "comment" : "Local shell warning: quote is never closed",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "علامة اقتباس غير مغلقة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cometa sense tancar."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuzavřená uvozovka."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uafsluttet anførselstegn."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht geschlossenes Anführungszeichen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comilla sin cerrar."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sulkematon lainausmerkki."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guillemet non fermé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מירכאות לא סגורות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lezáratlan idézőjel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Virgoletta non chiusa."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引用符が閉じられていません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "따옴표가 닫히지 않았습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uavsluttet anførselstegn."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet-gesloten aanhalingsteken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niezamknięty cudzysłów."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aspas não fechadas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aspas não fechadas."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghilimea neînchisă."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nezaprt narekovaj."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oavslutat citattecken."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Незакриті лапки."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dấu ngoặc kép chưa đóng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引号未闭合。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引號未閉合。"
+          }
+        }
+      }
+    },
     "Unbind" : {
       "comment" : "Keybind action: remove binding",
       "localizations" : {
@@ -549690,6 +553241,160 @@
         }
       }
     },
+    "Use letters, digits, and . _ - only, up to 64 characters. Other names fall back to the global default." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدم الأحرف والأرقام والرموز . _ - فقط، بحد أقصى 64 حرفًا. الأسماء الأخرى تعود إلى الافتراضي العام."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilitzeu només lletres, xifres i els caràcters . _ -, fins a 64 caràcters. Els altres noms recorren al valor global per defecte."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použijte pouze písmena, číslice a znaky . _ -, maximálně 64 znaků. Ostatní názvy použijí globální výchozí hodnotu."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brug kun bogstaver, tal og tegnene . _ -, højst 64 tegn. Andre navne falder tilbage til den globale standard."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwenden Sie nur Buchstaben, Ziffern und die Zeichen . _ -, maximal 64 Zeichen. Andere Namen greifen auf den globalen Standard zurück."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa solo letras, dígitos y los caracteres . _ -, hasta 64 caracteres. Los demás nombres recurren al valor predeterminado global."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytä vain kirjaimia, numeroita ja merkkejä . _ -, enintään 64 merkkiä. Muut nimet käyttävät yleistä oletusta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisez uniquement des lettres, des chiffres et les caractères . _ -, dans la limite de 64 caractères. Les autres noms utilisent la valeur par défaut globale."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "השתמש באותיות, בספרות ובתווים . _ - בלבד, עד 64 תווים. שמות אחרים חוזרים לברירת המחדל הכללית."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Csak betűket, számjegyeket, valamint a . _ - karaktereket használja, legfeljebb 64 karakter hosszan. A többi név a globális alapértelmezettre vált vissza."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa solo lettere, cifre e i caratteri . _ -, fino a 64 caratteri. Gli altri nomi ricadono sul valore predefinito globale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "英字、数字、および . _ - のみを使用し、64 文字以内にしてください。それ以外の名前はグローバルのデフォルトに戻ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "문자, 숫자 및 . _ - 만 사용하고 최대 64자까지 입력하세요. 다른 이름은 전역 기본값으로 대체됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruk bare bokstaver, sifre og tegnene . _ -, opptil 64 tegn. Andre navn faller tilbake til global standard."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik alleen letters, cijfers en de tekens . _ -, maximaal 64 tekens. Andere namen vallen terug op de globale standaard."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Używaj wyłącznie liter, cyfr oraz znaków . _ -, maksymalnie 64 znaki. Inne nazwy zostaną zastąpione globalną wartością domyślną."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use apenas letras, dígitos e . _ -, com até 64 caracteres. Outros nomes voltam ao padrão global."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilize apenas letras, algarismos e . _ -, até 64 caracteres. Os outros nomes revertem para a predefinição global."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folosiți doar litere, cifre și caracterele . _ -, maximum 64 de caractere. Celelalte nume revin la valoarea implicită globală."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uporabite samo črke, števke in znake . _ -, do 64 znakov. Druga imena se povrnejo na globalno privzeto vrednost."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd endast bokstäver, siffror och tecknen . _ -, upp till 64 tecken. Andra namn återgår till global standard."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовуйте лише літери, цифри та символи . _ -, до 64 символів. Інші назви повертаються до глобального типового значення."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chỉ dùng chữ cái, chữ số và . _ -, tối đa 64 ký tự. Các tên khác sẽ quay về mặc định toàn cục."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅可使用字母、数字和 . _ - 这几个字符，最多 64 个字符。其他名称将回退到全局默认值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只能使用字母、數字和 . _ - 等字元，最多 64 個字元。其他名稱將回復為全域預設值。"
+          }
+        }
+      }
+    },
     "Use Line Scrolling" : {
       "localizations" : {
         "ar" : {
@@ -549846,6 +553551,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用逐行捲動"
+          }
+        }
+      }
+    },
+    "Use Native Selection Loupe" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدام عدسة التحديد الأصلية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilitza la lupa de selecció nativa"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použít nativní lupu výběru"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brug systemets markeringslup"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Native Auswahllupe verwenden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar la lupa de selección nativa"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytä natiivia valintaluuppia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser la loupe de sélection native"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שימוש בזכוכית מגדלת מובנית לבחירה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natív kijelölési nagyító használata"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa la lente di selezione nativa"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネイティブの選択ルーペを使用"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본 선택 돋보기 사용"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruk systemets markeringslupe"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Native selectieloep gebruiken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj natywnej lupy zaznaczania"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar Lupa de Seleção Nativa"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar Lupa de Seleção Nativa"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilizează lupa de selecție nativă"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uporabi izvorno lupo za izbiro"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd inbyggd markeringslupp"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовувати системну лупу виділення"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng kính lúp chọn của hệ thống"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用原生选择放大镜"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用原生選取放大鏡"
           }
         }
       }
@@ -570543,7 +574402,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
