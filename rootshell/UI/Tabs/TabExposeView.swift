@@ -272,7 +272,11 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         }
         controller.columns = primary.layoutResult.columns
 
-        backdrop.frame = heroRect
+        // Coverage belongs to the exposé host, not to the terminal host's
+        // converted frame. The latter can transiently lag safe-area changes;
+        // using it for the opaque fill could expose terminal pixels around the
+        // home-indicator strip even though preview geometry was otherwise right.
+        backdrop.frame = bounds
         hero.transform = .identity
         hero.frame = heroRect
         lastAppliedProgress = -1
