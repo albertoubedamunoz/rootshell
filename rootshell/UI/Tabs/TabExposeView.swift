@@ -72,6 +72,16 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         tray.alwaysBounceVertical = false
         tray.contentInsetAdjustmentBehavior = .never
         tray.delaysContentTouches = false
+        // UIKit 26 applies an automatic glass "scroll edge effect" to scroll
+        // views it considers under a bar; on Catalyst the window titlebar
+        // qualifies and the effect blurs/tints the whole tray. The tray is a
+        // live preview grid, never bar-adjacent content: opt out entirely.
+        if #available(iOS 26.0, macCatalyst 26.0, visionOS 26.0, *) {
+            tray.topEdgeEffect.isHidden = true
+            tray.bottomEdgeEffect.isHidden = true
+            tray.leftEdgeEffect.isHidden = true
+            tray.rightEdgeEffect.isHidden = true
+        }
         addSubview(tray)
 
         headerIcon.contentMode = .scaleAspectFit

@@ -21,6 +21,9 @@ extension MainView {
             appearance: tabExposeAppearance()
         )
         .frame(width: width)
+        // Above every sibling in the content ZStack (SwiftUI-drawn fills and
+        // re-inserted platform views alike), independent of insertion order.
+        .zIndex(1)
         .onAppear { installTabExposeHooks() }
     }
 
