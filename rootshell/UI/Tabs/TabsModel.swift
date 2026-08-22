@@ -421,6 +421,19 @@ final class TabModel: Identifiable {
     /// flush. Coalesced — only the most recent is kept.
     @ObservationIgnored private var deferredTitle: String?
 
+    /// High-rate OSC/tmux titles are presentation data, but `title` is an
+    /// observed property consumed by the window, top tabs, and sidebar. A
+    /// tmux agent spinner can otherwise invalidate that entire graph about ten
+    /// times per second. Preserve a responsive leading update and the newest
+    /// trailing value while limiting observed publication to 5 Hz. Codex and
+    /// Claude commonly animate their title spinners at about 10 Hz; publishing
+    /// every other frame keeps that motion legible without making SwiftUI
+    /// process every source update.
+    @ObservationIgnored private var pendingPublishedTitle: String?
+    @ObservationIgnored private var titlePublicationTimer: Timer?
+    @ObservationIgnored private var lastTitlePublicationUptime: TimeInterval = 0
+    private static let minimumTitlePublicationInterval: TimeInterval = 0.2
+
     private func markGroupingChanged<T: Equatable>(_ oldValue: T, _ newValue: T) {
         if oldValue != newValue {
             groupingRevision &+= 1
@@ -540,6 +553,7 @@ final class TabModel: Identifiable {
         // is safe here because the class is `@MainActor`-isolated and Swift
         // 6 deinit on a MainActor class runs on the main actor.
         observationCancellables.removeAll()
+        titlePublicationTimer?.invalidate()
     }
 
     // MARK: - Observation
@@ -555,6 +569,7 @@ final class TabModel: Identifiable {
     /// title (typically "ghostty").
     func startObserving(preserveExistingTitle: Bool = false) {
         observationCancellables.removeAll()
+        cancelPendingTitlePublication()
 
         // Resolve the focused pane first (not the terminal shim) so a focused
         // non-terminal pane isn't silently skipped in favor of a background
@@ -658,13 +673,15 @@ final class TabModel: Identifiable {
 
     func stopObserving() {
         observationCancellables.removeAll()
+        cancelPendingTitlePublication()
     }
 
     /// Apply a resolved tab title. During a tab-switch animation the write is
     /// deferred (coalesced to the latest value) and flushed on gate-close, so
     /// high-rate OSC/tmux title churn can't starve the selection spring with
-    /// TabBarItem re-renders. Outside the animation it's an immediate,
-    /// equality-guarded write — steady state is unchanged.
+    /// TabBarItem re-renders. Outside the animation, publication is
+    /// leading-and-trailing coalesced so frequently animated titles stay live
+    /// without driving the whole SwiftUI graph at spinner frequency.
     func applyResolvedTitle(_ resolved: String) {
         // An empty title means "no update", never "blank the tab". For tmux
         // window tabs the reconcile is the sole title writer, so a blank that
@@ -676,7 +693,7 @@ final class TabModel: Identifiable {
             return
         }
         deferredTitle = nil
-        if title != resolved { title = resolved }
+        scheduleTitlePublication(resolved)
     }
 
     /// Flush the most recent title deferred during the animation. Called from
@@ -684,7 +701,51 @@ final class TabModel: Identifiable {
     func flushDeferredTitle() {
         guard let pending = deferredTitle else { return }
         deferredTitle = nil
+        scheduleTitlePublication(pending)
+    }
+
+    private func scheduleTitlePublication(_ resolved: String) {
+        guard title != resolved || pendingPublishedTitle != nil else { return }
+        pendingPublishedTitle = resolved
+
+        let now = ProcessInfo.processInfo.systemUptime
+        let elapsed = now - lastTitlePublicationUptime
+        if lastTitlePublicationUptime == 0 || elapsed >= Self.minimumTitlePublicationInterval {
+            publishPendingTitle()
+            return
+        }
+
+        guard titlePublicationTimer == nil else { return }
+        let timer = Timer(
+            timeInterval: Self.minimumTitlePublicationInterval - elapsed,
+            repeats: false
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.publishPendingTitle()
+            }
+        }
+        titlePublicationTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func publishPendingTitle() {
+        titlePublicationTimer?.invalidate()
+        titlePublicationTimer = nil
+        guard let pending = pendingPublishedTitle else { return }
+        pendingPublishedTitle = nil
+        lastTitlePublicationUptime = ProcessInfo.processInfo.systemUptime
         if title != pending { title = pending }
+    }
+
+    /// Drop titles captured from the previously observed pane. In particular,
+    /// a coalescing timer must not be allowed to overwrite the synchronous
+    /// initial title installed by `startObserving()` for a newly focused pane.
+    private func cancelPendingTitlePublication() {
+        titlePublicationTimer?.invalidate()
+        titlePublicationTimer = nil
+        pendingPublishedTitle = nil
+        deferredTitle = nil
+        lastTitlePublicationUptime = 0
     }
 
     /// Recompute `activeRoamProtocol` from the current split tree's session

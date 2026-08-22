@@ -10,6 +10,128 @@
 //
 
 import SwiftUI
+import UIKit
+
+/// A symbol whose opacity animation is owned by Core Animation rather than
+/// SwiftUI's ViewGraph. The render server can composite the breathing glyph
+/// without waking and re-laying out the app's entire SwiftUI scene each frame.
+private final class BreathingSymbolView: UIView {
+    private let imageView = UIImageView()
+    private var shouldBreathe = false
+    private var minimumOpacity: Float = 0.75
+    private var halfCycle: TimeInterval = 1.7
+    private var isBreathing = false
+    private var animationGeneration: UInt = 0
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        isAccessibilityElement = false
+        imageView.contentMode = .center
+        imageView.isUserInteractionEnabled = false
+        addSubview(imageView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        imageView.frame = bounds
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        updateAnimation()
+    }
+
+    func configure(
+        systemName: String,
+        pointSize: CGFloat,
+        color: UIColor,
+        breathes: Bool,
+        minimumOpacity: Float,
+        halfCycle: TimeInterval
+    ) {
+        let configuration = UIImage.SymbolConfiguration(
+            pointSize: pointSize,
+            weight: .semibold
+        )
+        imageView.image = UIImage(
+            systemName: systemName,
+            withConfiguration: configuration
+        )?.withRenderingMode(.alwaysTemplate)
+        imageView.tintColor = color
+        shouldBreathe = breathes
+        self.minimumOpacity = minimumOpacity
+        self.halfCycle = halfCycle
+        updateAnimation()
+    }
+
+    private func updateAnimation() {
+        guard shouldBreathe, window != nil else {
+            stopAnimation()
+            return
+        }
+        guard !isBreathing else { return }
+
+        isBreathing = true
+        animationGeneration &+= 1
+        imageView.alpha = 1
+        animateStep(dimmed: true, generation: animationGeneration)
+    }
+
+    private func animateStep(dimmed: Bool, generation: UInt) {
+        UIView.animate(
+            withDuration: halfCycle,
+            delay: 0,
+            options: [.curveEaseInOut, .allowUserInteraction]
+        ) { [weak self] in
+            guard let self else { return }
+            imageView.alpha = dimmed ? CGFloat(minimumOpacity) : 1
+        } completion: { [weak self] finished in
+            guard let self,
+                  finished,
+                  isBreathing,
+                  animationGeneration == generation,
+                  shouldBreathe,
+                  window != nil else { return }
+            animateStep(dimmed: !dimmed, generation: generation)
+        }
+    }
+
+    private func stopAnimation() {
+        animationGeneration &+= 1
+        isBreathing = false
+        imageView.layer.removeAllAnimations()
+        imageView.alpha = 1
+    }
+}
+
+private struct CompositorBreathingSymbol: UIViewRepresentable {
+    let systemName: String
+    let pointSize: CGFloat
+    let color: Color
+    let breathes: Bool
+    let minimumOpacity: Float
+    let halfCycle: TimeInterval
+
+    func makeUIView(context: Context) -> BreathingSymbolView {
+        BreathingSymbolView()
+    }
+
+    func updateUIView(_ view: BreathingSymbolView, context: Context) {
+        view.configure(
+            systemName: systemName,
+            pointSize: pointSize,
+            color: UIColor(color),
+            breathes: breathes,
+            minimumOpacity: minimumOpacity,
+            halfCycle: halfCycle
+        )
+    }
+}
 
 extension AgentAttentionStatus {
     /// Status palette. Rollups use `worst(of:)`, so a dot tinted with
@@ -119,13 +241,12 @@ struct AgentStatusLabel: View {
     var fontSize: CGFloat = 12
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var dimmed = false
 
     /// Half a breathe: full opacity down to `breatheDim` and back is 3.4s.
     /// Easing settles the label at each end rather than pinging between
     /// them, so no explicit hold is needed.
     private static let breatheHalfCycle: TimeInterval = 1.7
-    private static let breatheDim: Double = 0.75
+    private static let breatheDim: Double = 0.45
 
     /// Only in-flight rows breathe. Decorative motion is the first thing to
     /// drop when the user has asked for less of it, or when the device is
@@ -137,31 +258,25 @@ struct AgentStatusLabel: View {
     }
 
     var body: some View {
-        if breathes {
-            label
-                .opacity(dimmed ? Self.breatheDim : 1)
-                .onAppear {
-                    withAnimation(
-                        .easeInOut(duration: Self.breatheHalfCycle)
-                            .repeatForever(autoreverses: true)
-                    ) {
-                        dimmed = true
-                    }
-                }
-                .onDisappear { dimmed = false }
-        } else {
-            label
-        }
+        label
     }
 
-    /// The status word, its glyph, and the live elapsed span. The breathe
-    /// covers all three together so the label reads as one element.
+    /// The status word, its glyph, and the live elapsed span. Only the glyph
+    /// breathes, allowing Core Animation to own the continuous compositing;
+    /// the SwiftUI label updates only when its actual data changes.
     private var label: some View {
         HStack(spacing: 4) {
             switch row.status {
             case .working:
-                Image(systemName: "circle.dashed")
-                    .font(.system(size: fontSize - 1, weight: .semibold))
+                CompositorBreathingSymbol(
+                    systemName: "circle.dashed",
+                    pointSize: fontSize - 1,
+                    color: labelColor,
+                    breathes: breathes,
+                    minimumOpacity: Float(Self.breatheDim),
+                    halfCycle: Self.breatheHalfCycle
+                )
+                .frame(width: fontSize, height: fontSize)
                 Text(row.status.displayLabel)
                     .fontWeight(.medium)
                 if row.backgroundAgentCount > 0 {
