@@ -96,6 +96,12 @@ extension MainView {
             reassertSelectedTabVisibility(reason: "tabExpose")
         }
         tabExpose.onNavigateScope = { delta in navigateScope(by: delta) }
+        tabExpose.onScopePreviewChanged = { ids in
+            // A group swipe drags the neighbor's live mirrors in: wake them;
+            // the reconcile re-occludes a preview that was replaced or ended.
+            for id in ids { setTabOcclusion(tabID: id, visible: true) }
+            reconcileSurfaceOcclusion(reason: "tabExposePreview")
+        }
         tabExpose.onScopeDidChange = { ids in
             // Newcomers must render live; the reconcile re-occludes leavers
             // (it treats the controller's current scope as visible).
@@ -120,8 +126,8 @@ extension MainView {
     }
 
     /// Switch the active group / project by `delta` (wraps). Lands on the
-    /// scope's first navigable tab; no-op in flat mode or with one scope.
-    /// While the exposé is up it stays up and re-scopes (see controller).
+    /// scope's remembered (else first navigable) tab; no-op in flat mode or
+    /// with one scope. While the exposé is up it stays up and pages over.
     func navigateScope(by delta: Int) {
         guard let id = tabsModel.firstTabIDInNeighborScope(offset: delta) else { return }
         if tabExpose.isActive { tabExpose.pendingScopeTransition = delta }

@@ -453,8 +453,11 @@ extension MainView {
             preserveIDs.insert(swipe.sourceTabID)
             preserveIDs.insert(swipe.targetTabID)
         }
-        // Tab exposé mirrors every scope tab live; they must render while it's up.
-        let exposeVisibleIDs: Set<UUID> = tabExpose.isActive ? Set(tabExpose.tabIDs) : []
+        // Tab exposé mirrors every scope tab live (plus a neighbor scope being
+        // swiped in); they must render while it's up.
+        let exposeVisibleIDs: Set<UUID> = tabExpose.isActive
+            ? Set(tabExpose.tabIDs).union(tabExpose.previewTabIDs)
+            : []
 
         for tab in terminals {
             if tab.id == selectedID || exposeVisibleIDs.contains(tab.id) {

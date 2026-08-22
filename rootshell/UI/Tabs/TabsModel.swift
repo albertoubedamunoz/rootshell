@@ -1636,29 +1636,48 @@ final class TabsModel {
         preferredTabID(in: section.tabIDs, scope: .project(section.id))
     }
 
-    /// Preferred tab of the scope `offset` steps from the active one,
-    /// wrapping: user groups in sidebar order, or non-empty project sections.
-    /// nil in flat mode or when there is only one scope.
-    func firstTabIDInNeighborScope(offset: Int) -> UUID? {
+    /// A group / project section as the exposé and scope navigation see it.
+    nonisolated struct ScopeInfo {
+        let key: ScopeKey
+        let title: String?
+        /// Navigable members (hidden tmux windows excluded), in scope order:
+        /// exactly `orderProjection.navigationTabIDs` once this scope is active.
+        let tabIDs: [UUID]
+    }
+
+    /// The scope `offset` steps from the active one, wrapping: user groups
+    /// in sidebar order, or project sections; scopes with no navigable tab
+    /// (hidden-only tmux groups) are skipped. nil in flat mode or when there
+    /// is only one scope.
+    func neighborScope(offset: Int) -> ScopeInfo? {
         let projection = orderProjection
-        let scopes: [(tabIDs: [UUID], key: ScopeKey)]
+        let scopes: [ScopeInfo]
         let activeIndex: Int?
         switch projection.mode {
         case .flat:
             return nil
         case .userGrouped:
-            let groups = orderedGroups
-            scopes = groups.map { ($0.tabIDs, .group($0.id)) }
-            activeIndex = groups.firstIndex { $0.id == activeGroupID }
+            let visible = Set(groupingSnapshot().visibleTabs.map(\.id))
+            scopes = orderedGroups.compactMap { group in
+                let ids = group.tabIDs.filter(visible.contains)
+                return ids.isEmpty ? nil : ScopeInfo(key: .group(group.id), title: group.title, tabIDs: ids)
+            }
+            activeIndex = activeGroupID.flatMap { id in scopes.firstIndex { $0.key == .group(id) } }
         case .projectGrouped:
-            let sections = projection.projectSections.filter { !$0.tabIDs.isEmpty }
-            scopes = sections.map { ($0.tabIDs, .project($0.id)) }
-            activeIndex = sections.firstIndex { $0.id == projection.activeProjectID }
+            scopes = projection.projectSections
+                .filter { !$0.tabIDs.isEmpty }
+                .map { ScopeInfo(key: .project($0.id), title: $0.title, tabIDs: $0.tabIDs) }
+            activeIndex = projection.activeProjectID.flatMap { id in scopes.firstIndex { $0.key == .project(id) } }
         }
         guard scopes.count > 1, let activeIndex else { return nil }
         let count = scopes.count
-        let target = scopes[((activeIndex + offset) % count + count) % count]
-        return preferredTabID(in: target.tabIDs, scope: target.key)
+        return scopes[((activeIndex + offset) % count + count) % count]
+    }
+
+    /// Preferred tab of the neighbor scope (see `neighborScope(offset:)`).
+    func firstTabIDInNeighborScope(offset: Int) -> UUID? {
+        guard let scope = neighborScope(offset: offset) else { return nil }
+        return preferredTabID(in: scope.tabIDs, scope: scope.key)
     }
 
     var availableGroups: [TabGroup] {

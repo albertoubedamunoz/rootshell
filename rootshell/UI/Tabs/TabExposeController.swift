@@ -48,8 +48,15 @@ final class TabExposeController {
     /// The tab whose full-size live picture slides in/out with the tray.
     private(set) var heroTabID: UUID?
     var highlightedTabID: UUID? {
-        didSet { if highlightedTabID != oldValue { observer?.tabExposeDidChangeCells(self) } }
+        didSet {
+            guard highlightedTabID != oldValue else { return }
+            // Inside refreshScope the single announce at its end delivers this.
+            if isRefreshingScope { highlightChangedDuringRefresh = true } else { observer?.tabExposeDidChangeCells(self) }
+        }
     }
+    /// Tabs of the neighbor scope being previewed by an in-flight group swipe
+    /// (the host keeps their renderers live; empty when no preview).
+    @ObservationIgnored private(set) var previewTabIDs: [UUID] = []
     var isActive: Bool { phase != .hidden }
     /// Grouped/project mode with more than one scope to move between.
     var canNavigateScope: Bool {
@@ -80,9 +87,12 @@ final class TabExposeController {
     /// Move to the previous (-1) / next (+1) group or project. The host
     /// switches the selection; the exposé stays up and re-scopes.
     @ObservationIgnored var onNavigateScope: ((Int) -> Void)?
-    /// Direction of an in-flight scope switch, for the view's slide; consumed
-    /// by `takeScopeTransition()`.
+    /// `previewTabIDs` changed: wake the newcomers, re-occlude the leavers.
+    @ObservationIgnored var onScopePreviewChanged: (([UUID]) -> Void)?
+    /// Direction of a scope switch in flight; published as `scopeTransition`
+    /// with the scope-changed announce so the view pages in that direction.
     @ObservationIgnored var pendingScopeTransition: Int?
+    @ObservationIgnored private var scopeTransition: Int?
     /// The terminal carrying `presentedOverlayKeyHandler` while presented.
     @ObservationIgnored weak var keyHandlerTerminal: Ghostty.TerminalView?
     /// No terminal to hook keys on (VNC pane focused): the view takes first
@@ -100,6 +110,8 @@ final class TabExposeController {
     @ObservationIgnored private var hideDeadline: CFTimeInterval = 0
     @ObservationIgnored private var pendingSelectedTabID: UUID?
     @ObservationIgnored private var scopeObservationArmed = false
+    @ObservationIgnored private var isRefreshingScope = false
+    @ObservationIgnored private var highlightChangedDuringRefresh = false
 
     // MARK: - Interactive reveal / dismiss
 
@@ -203,10 +215,23 @@ final class TabExposeController {
         onNavigateScope?(delta)
     }
 
-    /// The view consumes the slide direction of a scope switch, if any.
+    /// The view consumes the page direction of the scope switch this
+    /// `tabExposeDidChangeCells` announces, if it is one.
     func takeScopeTransition() -> Int? {
-        defer { pendingScopeTransition = nil }
-        return pendingScopeTransition
+        defer { scopeTransition = nil }
+        return scopeTransition
+    }
+
+    /// The neighbor scope a swipe would land on (nil: flat mode / one scope).
+    func neighborScope(offset: Int) -> TabsModel.ScopeInfo? {
+        tabsModel?.neighborScope(offset: offset)
+    }
+
+    /// The view is previewing `ids` (a neighbor scope dragged in); empty ends it.
+    func setScopePreview(_ ids: [UUID]) {
+        guard ids != previewTabIDs else { return }
+        previewTabIDs = ids
+        onScopePreviewChanged?(ids)
     }
 
     /// Immediate teardown (scene background, scope emptied).
@@ -315,10 +340,8 @@ final class TabExposeController {
     }
 
     private func stepSpring(toward target: CGFloat, dt: CGFloat) {
-        let omega = 2 * CGFloat.pi / max(springResponse, 0.05)
-        let accel = -omega * omega * (progress - target) - 2 * springDamping * omega * velocity
-        velocity += accel * dt
-        progress += velocity * dt
+        ExposeSpring.step(value: &progress, velocity: &velocity, target: target,
+                          response: springResponse, damping: springDamping, dt: dt)
     }
 
     // MARK: - Internals
@@ -367,6 +390,9 @@ final class TabExposeController {
         pendingSelectedTabID = nil
         hideDeadline = 0
         scopeObservationArmed = false
+        pendingScopeTransition = nil
+        scopeTransition = nil
+        previewTabIDs = []
         observer?.tabExposeDidChangeActivity(self)
         onDidDismiss?()
     }
@@ -390,6 +416,11 @@ final class TabExposeController {
         }()
         let scopeChanged = ids != tabIDs
         let changed = scopeChanged || title != scopeTitle || scoped != isScoped
+        // Only a real scope change pages; a stale direction must not leak
+        // into a later announce.
+        let transition = pendingScopeTransition
+        pendingScopeTransition = nil
+        let previousIDs = tabIDs
         tabIDs = ids
         scopeTitle = title
         isScoped = scoped
@@ -399,6 +430,9 @@ final class TabExposeController {
             forceHide(reason: "scopeEmpty")
             return
         }
+        isRefreshingScope = true
+        highlightChangedDuringRefresh = false
+        defer { isRefreshingScope = false }
         if let selected = tabsModel.selectedTabID, selected != heroTabID, ids.contains(selected) {
             if scopeChanged || phase == .settling(target: 0) {
                 // The selection moved to another scope (group swipe, ⌘⌥[ ],
@@ -407,6 +441,7 @@ final class TabExposeController {
                 highlightedTabID = selected
             } else if phase == .presented || phase == .interactive {
                 // Selection changed within the scope (⌘N, sidebar): ride it out as a select.
+                isRefreshingScope = false
                 select(selected)
                 return
             } else {
@@ -418,9 +453,17 @@ final class TabExposeController {
         if let h = highlightedTabID, !ids.contains(h) {
             highlightedTabID = ids.first
         }
-        if changed, announce {
-            onScopeDidChange?(ids)
+        scopeTransition = scopeChanged ? transition : nil
+        if scopeTransition != nil {
+            // The old scope's page slides out: its renderers stay live through
+            // the host's reconcile until the view drops it (`setScopePreview([])`).
+            previewTabIDs = previousIDs
+        }
+        if announce, changed || highlightChangedDuringRefresh {
+            if changed { onScopeDidChange?(ids) }
             observer?.tabExposeDidChangeCells(self)
+        } else {
+            scopeTransition = nil
         }
     }
 

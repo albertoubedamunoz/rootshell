@@ -10,6 +10,17 @@
 import CoreGraphics
 import Foundation
 
+/// Damped spring step shared by the reveal progress and the page shift.
+nonisolated struct ExposeSpring {
+    static func step(value: inout CGFloat, velocity: inout CGFloat, target: CGFloat,
+                     response: CGFloat, damping: CGFloat, dt: CGFloat) {
+        let omega = 2 * CGFloat.pi / max(response, 0.05)
+        let accel = -omega * omega * (value - target) - 2 * damping * omega * velocity
+        velocity += accel * dt
+        value += velocity * dt
+    }
+}
+
 nonisolated struct TabExposeLayout {
     struct Metrics: Equatable {
         var margin: CGFloat
