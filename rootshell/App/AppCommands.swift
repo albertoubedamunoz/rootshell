@@ -537,6 +537,13 @@ struct WindowCommands: Commands {
             }
             .modifier(DynamicShortcut(action: .toggle_tab_switcher, shortcuts: shortcutState.shortcuts))
 
+            Button("Tab Exposé") {
+                // Posts the window-scoped notification directly so it works
+                // with no terminal in the responder chain (VNC pane focused).
+                UIApplication.shared.menuToggleTabExpose(nil)
+            }
+            .modifier(DynamicShortcut(action: .toggle_tab_expose, shortcuts: shortcutState.shortcuts))
+
             Button("Previous Tab") {
                 UIApplication.shared.menuPreviousTab(
                     VNCReservedKeyboardShortcut.previousTab.notificationSender
@@ -550,6 +557,16 @@ struct WindowCommands: Commands {
                 )
             }
             .modifier(DynamicShortcut(action: .next_tab, shortcuts: shortcutState.shortcuts))
+
+            // No DynamicShortcut: ⌘⌥[ / ⌘⌥] are owned by a prioritized
+            // UIKeyCommand (see KeybindAction.needsSystemPriority), not the menu.
+            Button("Previous Group") {
+                UIApplication.shared.menuPreviousGroup(nil)
+            }
+
+            Button("Next Group") {
+                UIApplication.shared.menuNextGroup(nil)
+            }
 
             Button("tmux Sessions") {
                 UIApplication.shared.sendAction(

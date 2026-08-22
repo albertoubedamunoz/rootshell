@@ -964,6 +964,9 @@ extension MainView {
                         )
                     )
             }
+            // Tab exposé: live previews pulled down over the terminal. Last so it
+            // covers the HUD overlays; inert (hit-test nil) while hidden.
+            tabExposeHost(geometry: geometry, width: width)
         }
         .frame(width: width)
         // Disable SwiftUI's automatic keyboard avoidance - we handle it manually via terminalBottomPadding

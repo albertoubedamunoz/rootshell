@@ -3,13 +3,10 @@
 //  rootshell
 //
 //  Pull the vertical tab sidebar in from the left screen edge on iPad, like a
-//  native drawer. A `UIPanGestureRecognizer` is installed on the host *window*
-//  (not on this representable's view) because the sidebar overlay is
-//  `isUserInteractionEnabled = false` while closed and so cannot catch the edge
-//  touch itself. A plain pan (rather than `UIScreenEdgePanGestureRecognizer`)
-//  is used so we control the activation band ourselves and don't fight the
-//  system edge recognizer's hidden margin; the iPad system multitasking edge is
-//  yielded to us via `.defersSystemGestures(on: .leading)` on `MainView`.
+//  native drawer. Built on `InteractiveEdgePanRecognizer` (a window-level pan,
+//  since the sidebar overlay is `isUserInteractionEnabled = false` while closed
+//  and cannot catch the edge touch itself); the iPad system multitasking edge
+//  is yielded to us via `.defersSystemGestures(on: .leading)` on `MainView`.
 //
 //  For the floating (unpinned) sidebar the drag is interactive: the panel
 //  tracks the finger via the `tabSidebarOpenDrag*` notifications that
@@ -67,13 +64,45 @@ struct TabSidebarEdgeSwipe: UIViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+    final class Coordinator {
         var showingTabSwitcher: Binding<Bool>
         var canOpen: () -> Bool
         var opensDocked: Bool
         var panelWidth: CGFloat
 
         private var interactiveOpenInProgress = false
+        private(set) lazy var recognizer: InteractiveEdgePanRecognizer = makeRecognizer()
+
+        private func makeRecognizer() -> InteractiveEdgePanRecognizer {
+            var configuration = InteractiveEdgePanRecognizer.Configuration(
+                axis: .horizontal,
+                // iPad only: the phone keeps its bottom-rising panel.
+                idioms: [.pad]
+            )
+            configuration.touchCounts = [1]
+            // Our edge pan should beat the terminal's tab-swipe recognizers: a
+            // left-edge swipe-in reads as a `.right` swipe.
+            configuration.beatsSiblingRecognizers = { $0 is UISwipeGestureRecognizer }
+
+            let isInBand: (CGPoint, UIWindow, Int) -> Bool = { start, _, _ in
+                start.x <= edgeActivationWidth
+            }
+            let shouldBegin: (CGPoint, CGPoint, UIWindow, Int) -> Bool = { [weak self] _, translation, _, _ in
+                guard let self else { return false }
+                let headingRight = translation.x > 0 && abs(translation.x) >= abs(translation.y)
+                return self.canOpen() && headingRight
+            }
+            let callbacks = InteractiveEdgePanRecognizer.Callbacks(
+                isInActivationBand: isInBand,
+                shouldBegin: shouldBegin,
+                length: { [weak self] in max(self?.panelWidth ?? 1, 1) },
+                onBegin: { [weak self] window in self?.begin(window: window) },
+                onChange: { [weak self] progress in self?.change(progress: progress) },
+                onEnd: { [weak self] progress, velocity in self?.end(progress: progress, velocity: velocity) },
+                onCancel: { [weak self] in self?.cancel() }
+            )
+            return InteractiveEdgePanRecognizer(configuration: configuration, callbacks: callbacks)
+        }
 
         init(
             showingTabSwitcher: Binding<Bool>,
@@ -87,102 +116,56 @@ struct TabSidebarEdgeSwipe: UIViewRepresentable {
             self.panelWidth = panelWidth
         }
 
-        @objc
-        func handleEdgePan(_ gesture: UIPanGestureRecognizer) {
-            guard let view = gesture.view else { return }
-            // The recognizer lives on the window; scope every post to it so a
-            // swipe in one scene never drives another window's overlay.
-            let window = gesture.view
-            let width = max(panelWidth, 1)
+        // Every post is scoped to the window so a swipe in one scene never
+        // drives another window's overlay.
+        private weak var window: UIWindow?
 
-            switch gesture.state {
-            case .began:
-                // `gestureRecognizerShouldBegin` already gated on `canOpen()`;
-                // re-check defensively in case state changed between callbacks.
-                guard canOpen() else {
-                    interactiveOpenInProgress = false
-                    return
-                }
-                if opensDocked {
-                    // Docked column: no finger-tracking, just open.
-                    interactiveOpenInProgress = false
-                    showingTabSwitcher.wrappedValue = true
-                } else {
-                    // Floating drawer: arm the overlay to sit hidden, then flip
-                    // the binding true so it mounts without auto-springing. The
-                    // synchronous post lands before SwiftUI's update cycle.
-                    interactiveOpenInProgress = true
-                    NotificationCenter.default.post(name: .tabSidebarBeginInteractiveOpen, object: window)
-                    showingTabSwitcher.wrappedValue = true
-                }
-
-            case .changed:
-                guard interactiveOpenInProgress else { return }
-                let progress = max(0, min(1, gesture.translation(in: view).x / width))
-                NotificationCenter.default.post(
-                    name: .tabSidebarOpenDragChanged,
-                    object: window,
-                    userInfo: ["progress": progress]
-                )
-
-            case .ended:
-                guard interactiveOpenInProgress else { return }
+        private func begin(window: UIWindow) {
+            self.window = window
+            // `shouldBegin` already gated on `canOpen()`; re-check defensively.
+            guard canOpen() else {
                 interactiveOpenInProgress = false
-                let translation = gesture.translation(in: view)
-                let velocity = gesture.velocity(in: view)
-                let commit = translation.x > width / 3 || velocity.x > 800
-                if commit {
-                    NotificationCenter.default.post(name: .tabSidebarOpenDragCommit, object: window)
-                } else {
-                    NotificationCenter.default.post(name: .tabSidebarOpenDragCancel, object: window)
-                    showingTabSwitcher.wrappedValue = false
-                }
-
-            case .cancelled, .failed:
-                guard interactiveOpenInProgress else { return }
+                return
+            }
+            if opensDocked {
+                // Docked column: no finger-tracking, just open.
                 interactiveOpenInProgress = false
-                NotificationCenter.default.post(name: .tabSidebarOpenDragCancel, object: window)
-                showingTabSwitcher.wrappedValue = false
-
-            default:
-                break
+                showingTabSwitcher.wrappedValue = true
+            } else {
+                // Floating drawer: arm the overlay to sit hidden, then flip the
+                // binding true so it mounts without auto-springing. The
+                // synchronous post lands before SwiftUI's update cycle.
+                interactiveOpenInProgress = true
+                NotificationCenter.default.post(name: .tabSidebarBeginInteractiveOpen, object: window)
+                showingTabSwitcher.wrappedValue = true
             }
         }
 
-        // MARK: - UIGestureRecognizerDelegate
-
-        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = gestureRecognizer as? UIPanGestureRecognizer,
-                  let view = pan.view else { return false }
-            // A plain pan fires anywhere; only claim a drag that STARTED within
-            // the left-edge band and is heading right. (Computed from the
-            // current point minus accumulated translation — `location` alone is
-            // the current finger, not the touch-down.)
-            let translation = pan.translation(in: view)
-            let location = pan.location(in: view)
-            let startX = location.x - translation.x
-            let fromEdge = startX <= edgeActivationWidth
-            let headingRight = translation.x > 0 && abs(translation.x) >= abs(translation.y)
-            return canOpen() && fromEdge && headingRight
+        private func change(progress: CGFloat) {
+            guard interactiveOpenInProgress else { return }
+            NotificationCenter.default.post(
+                name: .tabSidebarOpenDragChanged,
+                object: window,
+                userInfo: ["progress": max(0, min(1, progress))]
+            )
         }
 
-        func gestureRecognizer(
-            _ gestureRecognizer: UIGestureRecognizer,
-            shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
-        ) -> Bool {
-            // Our edge pan should beat the terminal's tab-swipe recognizers: a
-            // left-edge swipe-in reads as a `.right` swipe. Make any sibling
-            // swipe wait for the edge pan to fail before it fires. Decoupled —
-            // no reference to TerminalView's recognizers needed.
-            otherGestureRecognizer is UISwipeGestureRecognizer
+        private func end(progress: CGFloat, velocity: CGFloat) {
+            guard interactiveOpenInProgress else { return }
+            interactiveOpenInProgress = false
+            if progress > 1 / 3 || velocity > 800 {
+                NotificationCenter.default.post(name: .tabSidebarOpenDragCommit, object: window)
+            } else {
+                NotificationCenter.default.post(name: .tabSidebarOpenDragCancel, object: window)
+                showingTabSwitcher.wrappedValue = false
+            }
         }
 
-        func gestureRecognizer(
-            _ gestureRecognizer: UIGestureRecognizer,
-            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
-        ) -> Bool {
-            // Permissive: don't let an unrelated recognizer block the edge pan.
-            true
+        private func cancel() {
+            guard interactiveOpenInProgress else { return }
+            interactiveOpenInProgress = false
+            NotificationCenter.default.post(name: .tabSidebarOpenDragCancel, object: window)
+            showingTabSwitcher.wrappedValue = false
         }
     }
 
@@ -191,8 +174,6 @@ struct TabSidebarEdgeSwipe: UIViewRepresentable {
     /// it leaves the hierarchy.
     final class EdgeSwipeInstallerView: UIView {
         weak var coordinator: Coordinator?
-        private weak var installedWindow: UIWindow?
-        private var edgePan: UIPanGestureRecognizer?
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -209,37 +190,7 @@ struct TabSidebarEdgeSwipe: UIViewRepresentable {
         }
 
         func installIfNeeded() {
-            // iPad only: the phone keeps its bottom-rising panel; visionOS uses
-            // a sheet (this type isn't compiled there).
-            guard UIDevice.current.userInterfaceIdiom == .pad else {
-                removeRecognizer()
-                return
-            }
-            guard window !== installedWindow else { return }
-            removeRecognizer()
-            guard let window, let coordinator else { return }
-            let pan = UIPanGestureRecognizer(
-                target: coordinator,
-                action: #selector(Coordinator.handleEdgePan(_:))
-            )
-            pan.maximumNumberOfTouches = 1
-            // Finger-only — like the terminal's tab-swipe recognizers. Without
-            // this the window pan steals indirect-pointer (Magic Keyboard
-            // trackpad / mouse) drags near the left edge, breaking text
-            // selection there.
-            pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
-            pan.delegate = coordinator
-            window.addGestureRecognizer(pan)
-            edgePan = pan
-            installedWindow = window
-        }
-
-        private func removeRecognizer() {
-            if let edgePan, let installedWindow {
-                installedWindow.removeGestureRecognizer(edgePan)
-            }
-            edgePan = nil
-            installedWindow = nil
+            coordinator?.recognizer.install(on: window)
         }
     }
 }

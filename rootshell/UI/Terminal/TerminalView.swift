@@ -659,6 +659,12 @@ extension Ghostty {
 
         // Multiplexer session discovery state (tmux + zellij)
         var discoveredSessions: [MultiplexerSession]?
+
+        /// While an in-window overlay (tab exposé) is presented it takes keys
+        /// here instead of stealing first responder, so the software keyboard
+        /// and grid stay put. Fed from both `processKeyPress` and the dedicated
+        /// UIKeyCommand handlers (arrows/Return/Tab/Escape). Return true to consume.
+        var presentedOverlayKeyHandler: ((OverlayKeyEvent) -> Bool)?
         var discoveredSessionTypes: Set<MultiplexerType> = []
         var discoveredMultiplexerSwipeBindings = MultiplexerSwipeBindings()
         var hasUserTyped: Bool = false
@@ -3291,6 +3297,12 @@ extension Ghostty {
         /// tab visible via `notifyOnFirstFrame`.
         var hasRenderedFirstFrame: Bool {
             surfaceController.hasRenderedFirstFrame
+        }
+
+        /// The core's renderer layer; its `contents` is the live frame's
+        /// IOSurface, which a mirror layer can share (tab exposé previews).
+        var rendererLayer: CALayer? {
+            surfaceController.rendererLayer()
         }
 
         /// Invoke `callback` on the main actor once the first frame has been

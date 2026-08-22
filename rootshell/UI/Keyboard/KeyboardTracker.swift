@@ -673,6 +673,12 @@ class KeyboardTracker {
             let leftAlt = input.button(forKeyCode: .leftAlt)?.isPressed ?? false
             let rightAlt = input.button(forKeyCode: .rightAlt)?.isPressed ?? false
             let altHeld = leftAlt || rightAlt
+            // ⌘⌥ chords are app shortcuts (UIKeyCommand / keybinds via
+            // pressesBegan, which does fire with Command held); forwarding them
+            // here would also type Alt+key into whatever terminal is focused.
+            let leftCmd = input.button(forKeyCode: .leftGUI)?.isPressed ?? false
+            let rightCmd = input.button(forKeyCode: .rightGUI)?.isPressed ?? false
+            let cmdHeld = leftCmd || rightCmd
 
             let isSpecialKey = isArrowKey
                 || keyCode == .tab || keyCode == .escape || keyCode == .returnOrEnter
@@ -682,7 +688,7 @@ class KeyboardTracker {
                 || (keyCode.rawValue >= GCKeyCode.F1.rawValue
                     && keyCode.rawValue <= GCKeyCode.F12.rawValue)
 
-            if altHeld && !isSpecialKey {
+            if altHeld && !cmdHeld && !isSpecialKey {
                 if pressed {
                     Task { @MainActor in
                         self?.handleModifierPrintableKeyDown(

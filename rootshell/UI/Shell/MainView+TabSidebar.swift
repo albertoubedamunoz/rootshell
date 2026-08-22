@@ -139,7 +139,11 @@ extension MainView {
             onMoveTabsToNewWindow: { ids in moveTabsToNewWindow(ids) },
             sheetThemeColors: sheetTheme.themeColors,
             sheetAccentColor: sheetTheme.accentColor,
-            sheetColorScheme: sheetTheme.colorScheme
+            sheetColorScheme: sheetTheme.colorScheme,
+            onExposeRequested: {
+                if !tabSidebarIsDocked { dismissTabSidebar() }
+                toggleTabExpose()
+            }
         )
     }
 

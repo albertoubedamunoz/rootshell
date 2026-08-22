@@ -165,6 +165,18 @@ extension UIApplication {
         ghostty_postNotification(.toggleGroupMode)
     }
 
+    @objc func menuToggleTabExpose(_ sender: Any?) {
+        ghostty_postNotification(.toggleTabExpose)
+    }
+
+    @objc func menuPreviousGroup(_ sender: Any?) {
+        ghostty_postNotification(.previousGroup)
+    }
+
+    @objc func menuNextGroup(_ sender: Any?) {
+        ghostty_postNotification(.nextGroup)
+    }
+
     @objc func menuToggleTabSwitcher(_ sender: Any?) {
         // Critical for the tab sidebar's toggle-to-dismiss: presenting the
         // sidebar resigns the terminal's first responder, so the terminal's
