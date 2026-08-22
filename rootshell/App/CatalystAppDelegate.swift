@@ -115,6 +115,14 @@ extension UIApplication {
         }
     }
 
+    @objc func ghostty_previousGroup(_ sender: Any?) {
+        menuPreviousGroup(sender)
+    }
+
+    @objc func ghostty_nextGroup(_ sender: Any?) {
+        menuNextGroup(sender)
+    }
+
     @objc func ghostty_toggleTransparency(_ sender: Any?) {
         sendAction(#selector(Ghostty.TerminalView.menuToggleTransparency(_:)), to: nil, from: sender, for: nil)
     }
@@ -1161,8 +1169,22 @@ class CatalystAppDelegate: AppDelegate {
             modifierFlags: [.command, .shift]
         )
 
+        let previousGroup = UIKeyCommand(
+            title: String(localized: "Previous Group"),
+            action: #selector(UIApplication.ghostty_previousGroup(_:)),
+            input: "[",
+            modifierFlags: [.command, .alternate]
+        )
+
+        let nextGroup = UIKeyCommand(
+            title: String(localized: "Next Group"),
+            action: #selector(UIApplication.ghostty_nextGroup(_:)),
+            input: "]",
+            modifierFlags: [.command, .alternate]
+        )
+
         let navGroup = UIMenu(title: "", options: .displayInline, children: [
-            toggleTabSwitcher, toggleTabExpose, previousTab, nextTab, tmuxSessions, detachOtherClients
+            toggleTabSwitcher, toggleTabExpose, previousTab, nextTab, previousGroup, nextGroup, tmuxSessions, detachOtherClients
         ])
 
         // Tab selection (1-9)

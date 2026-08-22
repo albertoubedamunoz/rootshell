@@ -608,9 +608,8 @@ struct TabBar: View {
                     Menu {
                         ForEach(tabsModel.orderedGroups) { group in
                             Button {
-                                guard let targetID = group.tabIDs.first(where: { id in
-                                    tabsModel.tab(withID: id)?.isHiddenTmuxWindow == false
-                                }), let rawIndex = tabsModel.index(of: targetID) else { return }
+                                guard let targetID = tabsModel.preferredTabID(inGroup: group),
+                                      let rawIndex = tabsModel.index(of: targetID) else { return }
                                 onSelectTab(rawIndex)
                             } label: {
                                 if tabsModel.activeGroupID == group.id {
@@ -634,7 +633,7 @@ struct TabBar: View {
                     Menu {
                         ForEach(tabsModel.projectSections.filter { !$0.tabIDs.isEmpty }) { section in
                             Button {
-                                guard let targetID = section.tabIDs.first,
+                                guard let targetID = tabsModel.preferredTabID(inProjectSection: section),
                                       let rawIndex = tabsModel.index(of: targetID) else { return }
                                 onSelectTab(rawIndex)
                             } label: {

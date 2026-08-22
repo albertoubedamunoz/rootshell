@@ -116,6 +116,12 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
         activePan = nil
     }
 
+    /// True for this instance's own recognizers (so two instances on one
+    /// window don't require each other to fail).
+    func owns(_ recognizer: UIGestureRecognizer) -> Bool {
+        touchPans.contains { $0 === recognizer } || trackpadPan === recognizer
+    }
+
     /// Finger count a recognizer stands for; 0 for the trackpad pan.
     private func touchCount(of pan: UIPanGestureRecognizer) -> Int {
         pan === trackpadPan ? 0 : pan.minimumNumberOfTouches

@@ -558,6 +558,16 @@ struct WindowCommands: Commands {
             }
             .modifier(DynamicShortcut(action: .next_tab, shortcuts: shortcutState.shortcuts))
 
+            // No DynamicShortcut: ⌘⌥[ / ⌘⌥] are owned by a prioritized
+            // UIKeyCommand (see KeybindAction.needsSystemPriority), not the menu.
+            Button("Previous Group") {
+                UIApplication.shared.menuPreviousGroup(nil)
+            }
+
+            Button("Next Group") {
+                UIApplication.shared.menuNextGroup(nil)
+            }
+
             Button("tmux Sessions") {
                 UIApplication.shared.sendAction(
                     #selector(Ghostty.TerminalView.menuShowTmuxSessions(_:)),

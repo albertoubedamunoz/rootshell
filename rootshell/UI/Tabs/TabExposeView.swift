@@ -56,6 +56,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     private var displayLink: CADisplayLink?
     private var lastAppliedProgress: CGFloat = -1
     private lazy var edgePan: InteractiveEdgePanRecognizer = makeEdgePan()
+    private lazy var scopePan: InteractiveEdgePanRecognizer = makeScopePan()
 
     init(controller: TabExposeController) {
         self.controller = controller
@@ -118,6 +119,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         super.didMoveToWindow()
         #if !os(visionOS)
         edgePan.install(on: window)
+        scopePan.install(on: window)
         #endif
     }
 
@@ -179,20 +181,52 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
     func tabExposeDidChangeCells(_ controller: TabExposeController) {
         guard controller.isActive else { return }
-        rebuildCells()
+        let transition = controller.takeScopeTransition()
+        let entering = rebuildCells(slideOutDirection: transition)
         setNeedsLayout()
+        if let transition, !controller.reduceMotion() {
+            layoutIfNeeded()
+            slideIn(entering, from: transition)
+        }
         scrollHighlightedCellIntoView(animated: true)
+    }
+
+    /// Scope switch: the old grid slides out toward `-direction`, the new one
+    /// slides in from `+direction` (swipe left = next = content comes from the right).
+    private func slideIn(_ entering: [TabExposeCellView], from direction: Int) {
+        let dx = CGFloat(direction) * 48
+        for cell in entering {
+            cell.alpha = 0
+            cell.transform = CGAffineTransform(translationX: dx, y: 0)
+        }
+        UIView.animate(withDuration: 0.28, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0,
+                       options: [.beginFromCurrentState, .allowUserInteraction]) {
+            for cell in entering {
+                cell.alpha = 1
+                cell.transform = cell.isHighlighted ? CGAffineTransform(scaleX: 1.02, y: 1.02) : .identity
+            }
+        }
     }
 
     // MARK: - Cells
 
-    private func rebuildCells() {
-        guard let tabsModel = controller.tabsModel else { return }
+    /// Returns the cells created by this rebuild. With `slideOutDirection`,
+    /// stale cells animate out instead of vanishing.
+    @discardableResult
+    private func rebuildCells(slideOutDirection: Int? = nil) -> [TabExposeCellView] {
+        guard let tabsModel = controller.tabsModel else { return [] }
         var byID = Dictionary(uniqueKeysWithValues: cells.map { ($0.tabID, $0) })
         var ordered: [TabExposeCellView] = []
+        var entering: [TabExposeCellView] = []
         for (index, id) in controller.tabIDs.enumerated() {
             guard let tab = tabsModel.tab(withID: id) else { continue }
-            let cell = byID.removeValue(forKey: id) ?? makeCell(for: tab)
+            let cell: TabExposeCellView
+            if let existing = byID.removeValue(forKey: id) {
+                cell = existing
+            } else {
+                cell = makeCell(for: tab)
+                entering.append(cell)
+            }
             cell.mirror.tab = tab
             cell.isCurrent = id == tabsModel.selectedTabID
             cell.isHighlighted = id == controller.highlightedTabID
@@ -204,7 +238,20 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             }
             ordered.append(cell)
         }
-        for (_, stale) in byID { stale.removeFromSuperview() }
+        if let slideOutDirection, !controller.reduceMotion(), !byID.isEmpty {
+            let dx = CGFloat(-slideOutDirection) * 48
+            let leaving = Array(byID.values)
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .curveEaseIn]) {
+                for cell in leaving {
+                    cell.alpha = 0
+                    cell.transform = CGAffineTransform(translationX: dx, y: 0)
+                }
+            } completion: { _ in
+                for cell in leaving { cell.removeFromSuperview() }
+            }
+        } else {
+            for (_, stale) in byID { stale.removeFromSuperview() }
+        }
         cells = ordered
         hero.tab = controller.heroTabID.flatMap { tabsModel.tab(withID: $0) }
 
@@ -218,6 +265,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             headerIcon.image = UIImage(systemName: symbol)
         }
         applyAppearance()
+        return entering
     }
 
     private func makeCell(for tab: TabModel) -> TabExposeCellView {
@@ -429,7 +477,10 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         config.includesTrackpadScroll = true
         config.trackpadGain = configuration.trackpadGain
         // In the band, swipes and scroll pans wait for us (we refuse fast outside it).
-        config.beatsSiblingRecognizers = { $0 is UISwipeGestureRecognizer || $0 is UIPanGestureRecognizer }
+        config.beatsSiblingRecognizers = { [weak self] other in
+            guard let self, !self.scopePan.owns(other) else { return false }
+            return other is UISwipeGestureRecognizer || other is UIPanGestureRecognizer
+        }
 
         let isInBand: (CGPoint, UIWindow, Int) -> Bool = { [weak self] start, window, touches in
             guard let self else { return false }
@@ -466,6 +517,66 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             onCancel: { [weak self] in self?.controller.cancelInteractive() }
         )
         return InteractiveEdgePanRecognizer(configuration: config, callbacks: callbacks)
+    }
+}
+
+// MARK: - Horizontal swipe between groups (while presented)
+
+extension TabExposeView {
+    /// One-finger (or two) touch swipe and two-finger trackpad swipe over the
+    /// presented grid move to the previous / next group. The tray follows the
+    /// finger a little for feedback; the cell slide does the rest.
+    private func makeScopePan() -> InteractiveEdgePanRecognizer {
+        var config = InteractiveEdgePanRecognizer.Configuration(axis: .horizontal, idioms: [.phone, .pad, .mac])
+        config.touchCounts = [1, 2]
+        config.includesTrackpadScroll = true
+        config.trackpadGain = 1.5
+        config.beatsSiblingRecognizers = { [weak self] other in
+            guard let self, !self.edgePan.owns(other) else { return false }
+            return other is UISwipeGestureRecognizer || other is UIPanGestureRecognizer
+        }
+
+        let isInBand: (CGPoint, UIWindow, Int) -> Bool = { [weak self] start, window, _ in
+            guard let self, self.controller.phase == .presented, self.controller.canNavigateScope else { return false }
+            return self.convert(self.bounds, to: window).contains(start)
+        }
+        let shouldBegin: (CGPoint, CGPoint, UIWindow, Int) -> Bool = { _, translation, _, _ in
+            abs(translation.x) > abs(translation.y) * 1.5
+        }
+        let callbacks = InteractiveEdgePanRecognizer.Callbacks(
+            isInActivationBand: isInBand,
+            shouldBegin: shouldBegin,
+            length: { [weak self] in max(self?.bounds.width ?? 1, 1) },
+            onBegin: { _ in },
+            onChange: { [weak self] p in self?.nudgeTray(progress: p) },
+            onEnd: { [weak self] p, v in self?.endScopeSwipe(progress: p, velocity: v) },
+            onCancel: { [weak self] in self?.settleTray() }
+        )
+        return InteractiveEdgePanRecognizer(configuration: config, callbacks: callbacks)
+    }
+
+    private func nudgeTray(progress: CGFloat) {
+        guard controller.phase == .presented else { return }
+        let clamped = min(max(progress, -1), 1)
+        tray.transform = CGAffineTransform(translationX: clamped * bounds.width * 0.2, y: 0)
+    }
+
+    private func endScopeSwipe(progress: CGFloat, velocity: CGFloat) {
+        // Swipe left (negative) = next group; content then slides in from the right.
+        if progress < -0.12 || velocity < -500 {
+            controller.navigateScope(by: 1)
+        } else if progress > 0.12 || velocity > 500 {
+            controller.navigateScope(by: -1)
+        }
+        settleTray()
+    }
+
+    private func settleTray() {
+        guard controller.phase == .presented else { return }
+        UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.86, initialSpringVelocity: 0,
+                       options: [.beginFromCurrentState, .allowUserInteraction]) {
+            self.tray.transform = .identity
+        }
     }
 }
 

@@ -51,6 +51,10 @@ final class TabExposeController {
         didSet { if highlightedTabID != oldValue { observer?.tabExposeDidChangeCells(self) } }
     }
     var isActive: Bool { phase != .hidden }
+    /// Grouped/project mode with more than one scope to move between.
+    var canNavigateScope: Bool {
+        isScoped && tabsModel?.firstTabIDInNeighborScope(offset: 1) != nil
+    }
 
     /// 0 hidden … 1 presented (may overshoot slightly). Read per frame by the
     /// view; deliberately not observed so scrubbing never invalidates SwiftUI.
@@ -73,6 +77,12 @@ final class TabExposeController {
     /// Scope membership changed while presented (new ids). Host wakes the
     /// newcomers and reconciles occlusion for the rest.
     @ObservationIgnored var onScopeDidChange: (([UUID]) -> Void)?
+    /// Move to the previous (-1) / next (+1) group or project. The host
+    /// switches the selection; the exposé stays up and re-scopes.
+    @ObservationIgnored var onNavigateScope: ((Int) -> Void)?
+    /// Direction of an in-flight scope switch, for the view's slide; consumed
+    /// by `takeScopeTransition()`.
+    @ObservationIgnored var pendingScopeTransition: Int?
     /// The terminal carrying `presentedOverlayKeyHandler` while presented.
     @ObservationIgnored weak var keyHandlerTerminal: Ghostty.TerminalView?
     /// No terminal to hook keys on (VNC pane focused): the view takes first
@@ -184,6 +194,19 @@ final class TabExposeController {
             onSelect?(id)
         }
         settle(to: 0, fast: false)
+    }
+
+    /// Previous / next group or project while presented (swipe, keys).
+    func navigateScope(by delta: Int) {
+        guard isActive, delta != 0 else { return }
+        pendingScopeTransition = delta
+        onNavigateScope?(delta)
+    }
+
+    /// The view consumes the slide direction of a scope switch, if any.
+    func takeScopeTransition() -> Int? {
+        defer { pendingScopeTransition = nil }
+        return pendingScopeTransition
     }
 
     /// Immediate teardown (scene background, scope emptied).
@@ -365,7 +388,8 @@ final class TabExposeController {
             if case .flat = projection.mode { return false }
             return true
         }()
-        let changed = ids != tabIDs || title != scopeTitle || scoped != isScoped
+        let scopeChanged = ids != tabIDs
+        let changed = scopeChanged || title != scopeTitle || scoped != isScoped
         tabIDs = ids
         scopeTitle = title
         isScoped = scoped
@@ -375,19 +399,24 @@ final class TabExposeController {
             forceHide(reason: "scopeEmpty")
             return
         }
-        if let h = highlightedTabID, !ids.contains(h) {
-            highlightedTabID = ids.first
-        }
-        if let selected = tabsModel.selectedTabID, selected != heroTabID,
-           ids.contains(selected), pendingSelectedTabID == nil || pendingSelectedTabID != selected {
-            // Selection changed under us (⌘N, sidebar...): ride it out as a select.
-            if phase == .presented || phase == .interactive {
+        if let selected = tabsModel.selectedTabID, selected != heroTabID, ids.contains(selected) {
+            if scopeChanged || phase == .settling(target: 0) {
+                // The selection moved to another scope (group swipe, ⌘⌥[ ],
+                // scope menu): stay up and re-scope around the new selection.
+                heroTabID = selected
+                highlightedTabID = selected
+            } else if phase == .presented || phase == .interactive {
+                // Selection changed within the scope (⌘N, sidebar): ride it out as a select.
                 select(selected)
                 return
+            } else {
+                heroTabID = selected
             }
-            heroTabID = selected
         } else if let hero = heroTabID, !ids.contains(hero) {
             heroTabID = tabsModel.selectedTabID
+        }
+        if let h = highlightedTabID, !ids.contains(h) {
+            highlightedTabID = ids.first
         }
         if changed, announce {
             onScopeDidChange?(ids)

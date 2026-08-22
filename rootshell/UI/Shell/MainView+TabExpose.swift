@@ -95,11 +95,16 @@ extension MainView {
             reconcileSurfaceOcclusion(reason: "tabExpose")
             reassertSelectedTabVisibility(reason: "tabExpose")
         }
+        tabExpose.onNavigateScope = { delta in navigateScope(by: delta) }
         tabExpose.onScopeDidChange = { ids in
             // Newcomers must render live; the reconcile re-occludes leavers
             // (it treats the controller's current scope as visible).
             for id in ids { setTabOcclusion(tabID: id, visible: true) }
             reconcileSurfaceOcclusion(reason: "tabExposeScope")
+            // A scope switch selects a tab in the new scope: the key hook must
+            // move to that terminal or navigation keys leak into it.
+            removeTabExposeKeyHandler()
+            installTabExposeKeyHandler()
         }
         tabExpose.onSelect = { id in
             if tabBarHidden && id != tabsModel.selectedTabID {
@@ -112,6 +117,18 @@ extension MainView {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
         #endif
+    }
+
+    /// Switch the active group / project by `delta` (wraps). Lands on the
+    /// scope's first navigable tab; no-op in flat mode or with one scope.
+    /// While the exposé is up it stays up and re-scopes (see controller).
+    func navigateScope(by delta: Int) {
+        guard let id = tabsModel.firstTabIDInNeighborScope(offset: delta) else { return }
+        if tabExpose.isActive { tabExpose.pendingScopeTransition = delta }
+        if tabBarHidden && id != tabsModel.selectedTabID {
+            tabIndicator.suppressNextHiddenIndicator = tabExpose.isActive
+        }
+        selectTab(id: id)
     }
 
     func toggleTabExpose() {
@@ -144,7 +161,9 @@ extension MainView {
             guard controller.isActive else { return false }
             if key.isModifierOnly { return false }
             if controller.handleKey(key) { return true }
-            // Anything else: get out of the way and let the key through.
+            // App shortcuts (⌘-chords such as group navigation) run without
+            // closing the exposé; any other key dismisses it and passes through.
+            if key.modifiers.contains(.command) { return false }
             controller.cancel()
             return false
         }

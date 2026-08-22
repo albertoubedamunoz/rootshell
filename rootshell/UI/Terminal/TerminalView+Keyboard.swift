@@ -548,6 +548,7 @@ extension Ghostty.TerminalView {
             if let keybind = KeybindManager.shared.keybind(for: trigger),
                keybind.source != .default,
                !keybind.action.isControlCharacter {
+                if effectiveModifiers.contains(.alternate) { didHandleOptionKey = true }
                 executeKeybindAction(keybind.action, parameter: keybind.actionParameter)
                 return (true, true)
             }
@@ -757,6 +758,8 @@ extension Ghostty.TerminalView {
                 return (false, false)
             }
 
+            // Suppress the composed-character insertText that follows an Option chord.
+            if effectiveModifiers.contains(.alternate) { didHandleOptionKey = true }
             // Execute the action through the keybind system (with parameter if present)
             executeKeybindAction(keybind.action, parameter: keybind.actionParameter)
 
@@ -2176,6 +2179,14 @@ extension Ghostty.TerminalView {
         NotificationCenter.default.post(name: .toggleTabExpose, object: self)
     }
 
+    @objc func menuPreviousGroup(_ sender: Any?) {
+        NotificationCenter.default.post(name: .previousGroup, object: self)
+    }
+
+    @objc func menuNextGroup(_ sender: Any?) {
+        NotificationCenter.default.post(name: .nextGroup, object: self)
+    }
+
     @objc func menuShowTmuxSessions(_ sender: Any?) {
         NotificationCenter.default.post(name: .showTmuxSessions, object: self)
     }
@@ -2264,6 +2275,9 @@ extension Ghostty.TerminalView {
     /// Handler for dynamically bound keyboard shortcuts from KeybindCommandGenerator
     @objc func handleKeybindCommand(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        // An Option chord (⌘⌥[) still reaches the text input system as its
+        // composed character ("“"); insertText would turn that into ESC+[.
+        if command.modifierFlags.contains(.alternate) { didHandleOptionKey = true }
         // A user-bound navigation key (arrow/Return/Tab/Escape/digit) still
         // belongs to a presented overlay before the keybind runs.
         if overlayConsumedKeyCommand(command) { return }

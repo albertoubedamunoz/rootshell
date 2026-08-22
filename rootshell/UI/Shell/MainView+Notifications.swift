@@ -493,6 +493,16 @@ extension MainView {
             self.toggleTabExpose()
         }
 
+        observerBag.observeOnMainActor(.previousGroup) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            self.navigateScope(by: -1)
+        }
+
+        observerBag.observeOnMainActor(.nextGroup) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            self.navigateScope(by: 1)
+        }
+
         observerBag.observeOnMainActor(.toggleBrightnessBoostHUD) { [self] notification in
             guard self.shouldHandleNotification(notification),
                   self.terminals.indices.contains(self.selectedTabIndex),

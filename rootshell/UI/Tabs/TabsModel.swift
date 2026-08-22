@@ -803,6 +803,7 @@ final class TabsModel {
         didSet {
             guard oldValue != selectedTabID else { return }
             beginTabSwitchAnimationGate()
+            if let tab = selectedTab { rememberSelectionScope(of: tab) }
             if isGroupedModeEnabled, !isProjectGroupingActive,
                let selectedGroup = effectiveGroupID(for: selectedTab),
                activeGroupID != selectedGroup {
@@ -812,6 +813,9 @@ final class TabsModel {
             AgentAttentionCenter.shared.visibilityDidChange()
         }
     }
+
+    /// Last selected tab per group / project (see `rememberSelectionScope`).
+    @ObservationIgnored private var lastSelectedTabByScope: [ScopeKey: UUID] = [:]
 
     /// The tab whose content is shown at full opacity. Lags `selectedTabID`
     /// until every terminal in the target tab has presented its first frame,
@@ -1527,6 +1531,73 @@ final class TabsModel {
         guard let index = ids.firstIndex(of: id),
               ids.indices.contains(index + delta) else { return }
         moveProjectSection(id, to: ids[index + delta])
+    }
+
+    // MARK: - Scope navigation (groups / projects)
+
+    /// A user group or a project section, for per-scope selection memory.
+    nonisolated enum ScopeKey: Hashable {
+        case group(TabGroupID)
+        case project(ProjectGroupID)
+    }
+
+    /// Remembered per scope so returning to a group lands on the tab you
+    /// left, not its first tab. Updated on every selection change.
+    private func rememberSelectionScope(of tab: TabModel) {
+        if let group = effectiveGroupID(for: tab) {
+            lastSelectedTabByScope[.group(group)] = tab.id
+        }
+        lastSelectedTabByScope[.project(primaryProjectGroupID(for: tab))] = tab.id
+    }
+
+    /// First tab a user can land on in a group/section (skips hidden tmux
+    /// windows). Shared by the scope menu and scope navigation.
+    func firstNavigableTabID(in tabIDs: [UUID]) -> UUID? {
+        tabIDs.first { tab(withID: $0)?.isHiddenTmuxWindow == false }
+    }
+
+    /// The tab to land on when entering a scope: its last selected tab if it
+    /// is still there and navigable, else the first navigable one.
+    func preferredTabID(in tabIDs: [UUID], scope: ScopeKey) -> UUID? {
+        if let remembered = lastSelectedTabByScope[scope],
+           tabIDs.contains(remembered),
+           tab(withID: remembered)?.isHiddenTmuxWindow == false {
+            return remembered
+        }
+        return firstNavigableTabID(in: tabIDs)
+    }
+
+    func preferredTabID(inGroup group: TabGroup) -> UUID? {
+        preferredTabID(in: group.tabIDs, scope: .group(group.id))
+    }
+
+    func preferredTabID(inProjectSection section: ProjectTabSection) -> UUID? {
+        preferredTabID(in: section.tabIDs, scope: .project(section.id))
+    }
+
+    /// Preferred tab of the scope `offset` steps from the active one,
+    /// wrapping: user groups in sidebar order, or non-empty project sections.
+    /// nil in flat mode or when there is only one scope.
+    func firstTabIDInNeighborScope(offset: Int) -> UUID? {
+        let projection = orderProjection
+        let scopes: [(tabIDs: [UUID], key: ScopeKey)]
+        let activeIndex: Int?
+        switch projection.mode {
+        case .flat:
+            return nil
+        case .userGrouped:
+            let groups = orderedGroups
+            scopes = groups.map { ($0.tabIDs, .group($0.id)) }
+            activeIndex = groups.firstIndex { $0.id == activeGroupID }
+        case .projectGrouped:
+            let sections = projection.projectSections.filter { !$0.tabIDs.isEmpty }
+            scopes = sections.map { ($0.tabIDs, .project($0.id)) }
+            activeIndex = sections.firstIndex { $0.id == projection.activeProjectID }
+        }
+        guard scopes.count > 1, let activeIndex else { return nil }
+        let count = scopes.count
+        let target = scopes[((activeIndex + offset) % count + count) % count]
+        return preferredTabID(in: target.tabIDs, scope: target.key)
     }
 
     var availableGroups: [TabGroup] {
