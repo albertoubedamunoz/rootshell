@@ -127700,7 +127700,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -155032,7 +155032,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -240105,7 +240105,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -319000,6 +319000,161 @@
         }
       }
     },
+    "Next Group" : {
+      "comment" : "Keybind action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المجموعة التالية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grup següent"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Další skupina"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Næste gruppe"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächste Gruppe"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siguiente grupo"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seuraava ryhmä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groupe suivant"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הקבוצה הבאה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Következő csoport"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gruppo successivo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次のグループ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 그룹"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neste gruppe"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volgende groep"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Następna grupa"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próximo Grupo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo Seguinte"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupul următor"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Naslednja skupina"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nästa grupp"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Наступна група"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhóm tiếp theo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一个分组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一個群組"
+          }
+        }
+      }
+    },
     "Next Tab" : {
       "comment" : "Keybind action\nSwipe preset: switch to next app tab",
       "localizations" : {
@@ -333656,7 +333811,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -341849,7 +342004,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -342313,7 +342468,7 @@
       }
     },
     "On" : {
-      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -346780,6 +346935,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在登入相同 iCloud 帳號的另一部 iPhone、iPad、Mac 或 Vision Pro 上打開 rootshell，然後點一下「接續互通」橫幅。\n\n在 Mac 和 iPad 上，橫幅會顯示於 Dock 的最右端。在 iPhone 上，從螢幕底部邊緣向上滑動並暫停以打開 App 切換器。橫幅位於螢幕底部。"
+          }
+        }
+      }
+    },
+    "Open source under the MIT License" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مفتوح المصدر بموجب رخصة MIT"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codi obert sota la llicència MIT"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevřený zdrojový kód pod licencí MIT"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open source under MIT-licensen"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Source unter der MIT-Lizenz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código abierto bajo la licencia MIT"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avointa lähdekoodia MIT-lisenssillä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open source sous licence MIT"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קוד פתוח ברישיון MIT"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nyílt forráskódú, MIT licenc alatt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open source con licenza MIT"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MITライセンスのオープンソース"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT 라이선스 기반 오픈 소스"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpen kildekode under MIT-lisensen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opensource onder de MIT-licentie"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwarte oprogramowanie na licencji MIT"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código aberto sob a licença MIT"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código aberto sob a licença MIT"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sursă deschisă sub licența MIT"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odprta koda pod licenco MIT"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppen källkod under MIT-licensen"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкритий код за ліцензією MIT"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mã nguồn mở theo giấy phép MIT"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于 MIT 许可证的开源软件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基於 MIT 授權的開源軟體"
           }
         }
       }
@@ -373031,6 +373340,161 @@
         }
       }
     },
+    "Previous Group" : {
+      "comment" : "Keybind action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المجموعة السابقة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grup anterior"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Předchozí skupina"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forrige gruppe"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorherige Gruppe"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo anterior"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edellinen ryhmä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groupe précédent"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הקבוצה הקודמת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Előző csoport"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gruppo precedente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前のグループ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이전 그룹"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forrige gruppe"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorige groep"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poprzednia grupa"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo Anterior"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupo Anterior"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupul anterior"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prejšnja skupina"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Föregående grupp"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Попередня група"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhóm trước"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一个分组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一個群組"
+          }
+        }
+      }
+    },
     "Previous Tab" : {
       "comment" : "Keybind action\nSwipe preset: switch to previous app tab",
       "localizations" : {
@@ -379042,6 +379506,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "公鑰（用於 authorized_keys）"
+          }
+        }
+      }
+    },
+    "Pull Down for Tab Exposé" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "السحب للأسفل لفتح Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llisca avall per a l'Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stažením dolů otevřít Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Træk ned for Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach unten ziehen für Tab-Exposé"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslizar hacia abajo para el Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vedä alas avataksesi Välilehti-Exposén"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tirer vers le bas pour l'Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "משיכה מטה ל-Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lehúzás a Lap-Exposéhoz"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trascina verso il basso per l'Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下に引いてタブExposéを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "아래로 당겨 탭 Exposé 열기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dra ned for Fane-Exposé"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omlaag trekken voor Tab-Exposé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pociągnij w dół, aby otworzyć Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puxar para Baixo para o Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puxar para Baixo para o Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trage în jos pentru Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povlecite navzdol za Exposé zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dra nedåt för Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потягніть вниз для Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kéo xuống để mở Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下拉打开标签页 Exposé"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下拉開啟分頁 Exposé"
           }
         }
       }
@@ -451942,6 +452560,160 @@
         }
       }
     },
+    "Show tab titles and badges under each live preview in Tab Exposé." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار عناوين علامات التبويب والشارات أسفل كل معاينة مباشرة في Exposé علامات التبويب."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra els títols i els distintius de les pestanyes sota cada previsualització en directe de l'Exposé de pestanyes."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazovat názvy karet a odznaky pod každým živým náhledem v Exposé karet."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis fanetitler og mærker under hver live-forhåndsvisning i Fane-Exposé."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt Tab-Titel und Abzeichen unter jeder Live-Vorschau im Tab-Exposé an."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra los títulos y distintivos de las pestañas debajo de cada vista previa en directo del Exposé de pestañas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä välilehtien otsikot ja merkit kunkin reaaliaikaisen esikatselun alla Välilehti-Exposéssa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les titres et les pastilles des onglets sous chaque aperçu en direct de l'Exposé des onglets."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצג כותרות לשוניות ותגים מתחת לכל תצוגה מקדימה חיה ב-Exposé לשוניות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lapcímek és jelvények megjelenítése az egyes élő előnézetek alatt a Lap-Exposéban."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra i titoli delle schede e i contrassegni sotto ogni anteprima in tempo reale nell'Exposé schede."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposéで各ライブプレビューの下にタブのタイトルとバッジを表示します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé에서 각 실시간 미리보기 아래에 탭 제목과 배지를 표시합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis fanetitler og merker under hver direkteforhåndsvisning i Fane-Exposé."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toon tabtitels en badges onder elk livevoorbeeld in Tab-Exposé."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuj nazwy kart i odznaki pod każdym podglądem na żywo w Exposé kart."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar títulos e selos das abas abaixo de cada pré-visualização ao vivo no Exposé de Abas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar títulos e selos dos separadores por baixo de cada pré-visualização em direto no Exposé de Separadores."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează titlurile filelor și insignele sub fiecare previzualizare live din Exposé file."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pod vsakim živim predogledom v Exposéju zavihkov prikaže naslove zavihkov in značke."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa flikarnas titlar och märken under varje direktförhandsvisning i Flik-Exposé."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показувати назви вкладок і значки під кожним живим переглядом у Exposé вкладок."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện tiêu đề tab và huy hiệu bên dưới mỗi bản xem trước trực tiếp trong Exposé tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在标签页 Exposé 中于每个实时预览下方显示标签页标题和标记。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在分頁 Exposé 中於每個即時預覽下方顯示分頁標題與標記。"
+          }
+        }
+      }
+    },
     "Show the active group or project switcher in the top tab bar while tabs are grouped." : {
       "localizations" : {
         "ar" : {
@@ -484377,6 +485149,314 @@
         }
       }
     },
+    "Swipe down from the tab bar (one finger, two fingers, or trackpad scroll) to show live previews of your tabs." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مرّر للأسفل من شريط علامات التبويب (بإصبع واحد أو بإصبعين أو بالتمرير على لوحة التتبع) لعرض معاينات مباشرة لعلامات التبويب."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llisca cap avall des de la barra de pestanyes (amb un dit, dos dits o desplaçament al ratolí tàctil) per mostrar previsualitzacions en directe de les pestanyes."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přejetím dolů z panelu karet (jedním prstem, dvěma prsty nebo posouváním na trackpadu) zobrazíte živé náhledy karet."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stryg ned fra fanelinjen (med én finger, to fingre eller scroll på pegefeltet) for at se live-forhåndsvisninger af dine faner."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wischen Sie von der Tab-Leiste nach unten (mit einem Finger, zwei Fingern oder Trackpad-Scrollen), um Live-Vorschauen Ihrer Tabs anzuzeigen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desliza hacia abajo desde la barra de pestañas (con un dedo, dos dedos o desplazamiento en el trackpad) para mostrar vistas previas en directo de tus pestañas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pyyhkäise alas välilehtipalkista (yhdellä sormella, kahdella sormella tai ohjauslevyn vierityksellä) nähdäksesi välilehtiesi reaaliaikaiset esikatselut."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balayez vers le bas depuis la barre d'onglets (un doigt, deux doigts ou défilement sur le trackpad) pour afficher des aperçus en direct de vos onglets."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החלק מטה מסרגל הלשוניות (אצבע אחת, שתי אצבעות או גלילה במשטח המגע) כדי להציג תצוגות מקדימות חיות של הלשוניות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Húzzon lefelé a lapsávból (egy ujjal, két ujjal vagy érintőpados görgetéssel) a lapok élő előnézetének megjelenítéséhez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scorri verso il basso dalla barra delle schede (con un dito, due dita o lo scorrimento sul trackpad) per mostrare anteprime in tempo reale delle tue schede."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブバーから下にスワイプ（1本指、2本指、またはトラックパッドのスクロール）すると、タブのライブプレビューが表示されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 바에서 아래로 스와이프하면(한 손가락, 두 손가락 또는 트랙패드 스크롤) 탭의 실시간 미리보기가 표시됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sveip ned fra fanelinjen (med én finger, to fingre eller rulling på styreflaten) for å vise direkteforhåndsvisninger av fanene dine."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veeg omlaag vanaf de tabbalk (met één vinger, twee vingers of scrollen op het trackpad) om livevoorbeelden van je tabs te tonen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przesuń w dół od paska kart (jednym palcem, dwoma palcami lub przewijaniem na gładziku), aby wyświetlić podglądy kart na żywo."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de abas (com um dedo, dois dedos ou rolagem no trackpad) para mostrar pré-visualizações ao vivo das suas abas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de separadores (com um dedo, dois dedos ou deslocação no trackpad) para mostrar pré-visualizações em direto dos seus separadores."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glisează în jos din bara de file (cu un deget, două degete sau derulare pe trackpad) pentru a afișa previzualizări live ale filelor."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povlecite navzdol iz vrstice zavihkov (z enim prstom, dvema prstoma ali drsenjem po sledilni ploščici) za prikaz živih predogledov zavihkov."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Svep nedåt från flikfältet (med ett finger, två fingrar eller scroll på styrplattan) för att visa direktförhandsvisningar av dina flikar."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проведіть вниз від панелі вкладок (одним пальцем, двома пальцями або прокруткою на трекпаді), щоб показати живі перегляди вкладок."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuốt xuống từ thanh tab (một ngón, hai ngón hoặc cuộn trên trackpad) để hiện bản xem trước trực tiếp của các tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从标签栏向下滑动（单指、双指或触控板滚动）以显示标签页的实时预览。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從分頁列向下滑動（單指、雙指或觸控板捲動）以顯示分頁的即時預覽。"
+          }
+        }
+      }
+    },
+    "Swipe down from the tab bar to show live previews of your tabs. Two fingers also work from above the terminal." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مرّر للأسفل من شريط علامات التبويب لعرض معاينات مباشرة لعلامات التبويب. يعمل التمرير بإصبعين أيضًا من أعلى الطرفية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llisca cap avall des de la barra de pestanyes per mostrar previsualitzacions en directe de les pestanyes. Amb dos dits també funciona des de sobre el terminal."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přejetím dolů z panelu karet zobrazíte živé náhledy karet. Dvěma prsty to funguje i nad terminálem."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stryg ned fra fanelinjen for at se live-forhåndsvisninger af dine faner. Med to fingre virker det også oven over terminalen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wischen Sie von der Tab-Leiste nach unten, um Live-Vorschauen Ihrer Tabs anzuzeigen. Mit zwei Fingern funktioniert das auch oberhalb des Terminals."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desliza hacia abajo desde la barra de pestañas para mostrar vistas previas en directo de tus pestañas. Con dos dedos también funciona desde encima del terminal."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pyyhkäise alas välilehtipalkista nähdäksesi välilehtiesi reaaliaikaiset esikatselut. Kahdella sormella se toimii myös terminaalin yläpuolelta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balayez vers le bas depuis la barre d'onglets pour afficher des aperçus en direct de vos onglets. À deux doigts, cela fonctionne aussi au-dessus du terminal."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החלק מטה מסרגל הלשוניות כדי להציג תצוגות מקדימות חיות של הלשוניות. בשתי אצבעות זה עובד גם מעל המסוף."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Húzzon lefelé a lapsávból a lapok élő előnézetének megjelenítéséhez. Két ujjal a terminál felett is működik."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scorri verso il basso dalla barra delle schede per mostrare anteprime in tempo reale delle tue schede. Con due dita funziona anche sopra il terminale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブバーから下にスワイプすると、タブのライブプレビューが表示されます。2本指ならターミナルの上からでも操作できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 바에서 아래로 스와이프하면 탭의 실시간 미리보기가 표시됩니다. 두 손가락으로는 터미널 위쪽에서도 작동합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sveip ned fra fanelinjen for å vise direkteforhåndsvisninger av fanene dine. Med to fingre virker det også over terminalen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veeg omlaag vanaf de tabbalk om livevoorbeelden van je tabs te tonen. Met twee vingers werkt het ook boven de terminal."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przesuń w dół od paska kart, aby wyświetlić podglądy kart na żywo. Dwoma palcami działa to także nad terminalem."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de abas para mostrar pré-visualizações ao vivo das suas abas. Com dois dedos também funciona acima do terminal."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslize para baixo a partir da barra de separadores para mostrar pré-visualizações em direto dos seus separadores. Com dois dedos também funciona acima do terminal."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glisează în jos din bara de file pentru a afișa previzualizări live ale filelor. Cu două degete funcționează și deasupra terminalului."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povlecite navzdol iz vrstice zavihkov za prikaz živih predogledov zavihkov. Z dvema prstoma deluje tudi nad terminalom."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Svep nedåt från flikfältet för att visa direktförhandsvisningar av dina flikar. Med två fingrar fungerar det även ovanför terminalen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проведіть вниз від панелі вкладок, щоб показати живі перегляди вкладок. Двома пальцями це працює й над терміналом."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuốt xuống từ thanh tab để hiện bản xem trước trực tiếp của các tab. Với hai ngón, thao tác này cũng hoạt động từ phía trên terminal."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从标签栏向下滑动以显示标签页的实时预览。双指滑动在终端上方同样有效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從分頁列向下滑動以顯示分頁的即時預覽。雙指滑動在終端機上方同樣有效。"
+          }
+        }
+      }
+    },
     "Swipe Gestures" : {
       "localizations" : {
         "ar" : {
@@ -491311,6 +492391,314 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "分頁列可見"
+          }
+        }
+      }
+    },
+    "Tab Exposé" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välilehti-Exposé"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lap-Exposé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposé"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fane-Exposé"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签页 Exposé"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分頁 Exposé"
+          }
+        }
+      }
+    },
+    "Tab Exposé Captions" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسميات Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Títols de l'Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Popisky v Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketter i Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé-Beschriftungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Títulos del Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välilehti-Exposén tekstit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Légendes de l'Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כיתובים ב-Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lap-Exposé feliratai"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didascalie Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposéのキャプション"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé 캡션"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketter i Fane-Exposé"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé-bijschriften"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podpisy w Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legendas do Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legendas do Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etichete în Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Napisi v Exposéju zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketter i Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Підписи в Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chú thích Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签页 Exposé 标题"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分頁 Exposé 標題"
           }
         }
       }
@@ -526205,6 +527593,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "切換分割畫面縮放"
+          }
+        }
+      }
+    },
+    "Toggle Tab Exposé" : {
+      "comment" : "Keybind action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تبديل Exposé علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar l'Exposé de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přepnout Exposé karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skift Fane-Exposé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé umschalten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar Exposé de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vaihda Välilehti-Exposé"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer/désactiver l'Exposé des onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החלפת Exposé לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lap-Exposé be/ki"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva/disattiva Exposé schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブExposé切替"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 Exposé 전환"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slå Fane-Exposé av/på"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Exposé schakelen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przełącz Exposé kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar Exposé de Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternar Exposé de Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comutare Exposé file"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preklopi Exposé zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Växla Flik-Exposé"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перемкнути Exposé вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật/Tắt Exposé tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换标签页 Exposé"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切換分頁 Exposé"
           }
         }
       }
@@ -572859,7 +574402,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
