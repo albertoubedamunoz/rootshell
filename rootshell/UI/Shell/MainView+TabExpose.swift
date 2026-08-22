@@ -127,7 +127,11 @@ extension MainView {
     private func installTabExposeKeyHandler() {
         let tab = tabsModel.selectedTab
         let focused = tab?.focusedPane
-        guard let terminal = focused?.asTerminal ?? tab?.splitTree.terminalLeaves.first else {
+        // Hook the focused terminal; with no focus yet, any terminal in the tab.
+        // A focused non-terminal pane (VNC) owns the keys, so never hook an
+        // unfocused sibling terminal in its place.
+        let terminal: Ghostty.TerminalView? = focused.map { $0.asTerminal } ?? tab?.splitTree.terminalLeaves.first
+        guard let terminal else {
             // Non-terminal focus (VNC): the exposé view takes first responder
             // itself and the pane yields keyboard capture meanwhile.
             tabExpose.wantsFirstResponderFallback = true

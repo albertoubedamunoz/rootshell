@@ -1082,8 +1082,8 @@ class CatalystAppDelegate: AppDelegate {
         let aiAgent = UIKeyCommand(
             title: String(localized: "AI Agent"),
             action: #selector(UIApplication.ghostty_toggleAIAgent(_:)),
-            input: "a",
-            modifierFlags: [.command, .shift]
+            input: "i",
+            modifierFlags: .command
         )
 
         let voiceAgent = UIKeyCommand(

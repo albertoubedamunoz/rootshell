@@ -173,22 +173,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     }
 
     @objc private func handleFallbackKeyCommand(_ command: UIKeyCommand) {
-        guard let input = command.input else { return }
-        let keyCode: UIKeyboardHIDUsage
-        switch input {
-        case UIKeyCommand.inputEscape: keyCode = .keyboardEscape
-        case "\r": keyCode = .keyboardReturnOrEnter
-        case " ": keyCode = .keyboardSpacebar
-        case "\t": keyCode = .keyboardTab
-        case UIKeyCommand.inputUpArrow: keyCode = .keyboardUpArrow
-        case UIKeyCommand.inputDownArrow: keyCode = .keyboardDownArrow
-        case UIKeyCommand.inputLeftArrow: keyCode = .keyboardLeftArrow
-        case UIKeyCommand.inputRightArrow: keyCode = .keyboardRightArrow
-        case UIKeyCommand.inputHome: keyCode = .keyboardHome
-        case UIKeyCommand.inputEnd: keyCode = .keyboardEnd
-        default: keyCode = .keyboardErrorUndefined
-        }
-        _ = controller.handleKey(OverlayKeyEvent(keyCode: keyCode, modifiers: command.modifierFlags, characters: input))
+        guard let event = OverlayKeyEvent(keyCommand: command) else { return }
+        _ = controller.handleKey(event)
     }
 
     func tabExposeDidChangeCells(_ controller: TabExposeController) {
