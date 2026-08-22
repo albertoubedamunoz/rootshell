@@ -488,6 +488,11 @@ extension MainView {
             }
         }
 
+        observerBag.observeOnMainActor(.toggleTabExpose) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            self.toggleTabExpose()
+        }
+
         observerBag.observeOnMainActor(.toggleBrightnessBoostHUD) { [self] notification in
             guard self.shouldHandleNotification(notification),
                   self.terminals.indices.contains(self.selectedTabIndex),

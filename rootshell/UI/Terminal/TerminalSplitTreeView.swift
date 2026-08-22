@@ -1052,6 +1052,7 @@ extension Notification.Name {
     static let touchModeChanged = Notification.Name("com.rootshell.touchModeChanged")
     static let keyboardToolbarHardwareSettingChanged = Notification.Name("com.rootshell.keyboardToolbarHardwareSettingChanged")
     static let showTabSwitcher = Notification.Name("com.rootshell.showTabSwitcher")
+    static let toggleTabExpose = Notification.Name("com.rootshell.toggleTabExpose")
     static let tabSwitcherVisibilityChanged = Notification.Name("com.rootshell.tabSwitcherVisibilityChanged")
     static let ghosttyComposeStateChanged = Notification.Name("com.rootshell.composeStateChanged")
     static let toggleFullScreen = Notification.Name("com.rootshell.toggleFullScreen")

@@ -109,6 +109,12 @@ extension UIApplication {
         menuToggleTabSwitcher(VNCReservedKeyboardShortcut.toggleTabSwitcher.notificationSender)
     }
 
+    @objc func ghostty_toggleTabExpose(_ sender: Any?) {
+        if !sendAction(#selector(Ghostty.TerminalView.menuToggleTabExpose(_:)), to: nil, from: sender, for: nil) {
+            menuToggleTabExpose(sender)
+        }
+    }
+
     @objc func ghostty_toggleTransparency(_ sender: Any?) {
         sendAction(#selector(Ghostty.TerminalView.menuToggleTransparency(_:)), to: nil, from: sender, for: nil)
     }
@@ -1148,8 +1154,15 @@ class CatalystAppDelegate: AppDelegate {
             modifierFlags: [.command, .shift]
         )
 
+        let toggleTabExpose = UIKeyCommand(
+            title: String(localized: "Tab Exposé"),
+            action: #selector(UIApplication.ghostty_toggleTabExpose(_:)),
+            input: UIKeyCommand.inputDownArrow,
+            modifierFlags: [.command, .shift]
+        )
+
         let navGroup = UIMenu(title: "", options: .displayInline, children: [
-            toggleTabSwitcher, previousTab, nextTab, tmuxSessions, detachOtherClients
+            toggleTabSwitcher, toggleTabExpose, previousTab, nextTab, tmuxSessions, detachOtherClients
         ])
 
         // Tab selection (1-9)

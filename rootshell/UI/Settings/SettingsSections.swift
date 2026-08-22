@@ -244,6 +244,7 @@ struct SettingsTerminalSection: View {
     @AppStorage("rubberBandScrollbackEnabled") private var rubberBandScrollbackEnabled: Bool = true
     @AppStorage(AgentAttentionSettings.detectionEnabledKey) private var agentDetectionEnabled: Bool = true
     @AppStorage(TaskDetectionSettings.enabledKey) private var taskDetectionEnabled: Bool = false
+    @AppStorage(TabExposeSettings.gestureEnabledKey) private var tabExposeGestureEnabled: Bool = true
     #if targetEnvironment(macCatalyst)
     @AppStorage("tabsInTitlebarEnabled") private var tabsInTitlebarEnabled: Bool = true
     #if STANDALONE
@@ -478,6 +479,17 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+
+                #if !os(visionOS)
+                DescribedToggle(
+                    title: "Pull Down for Tab Exposé",
+                    description: UIDevice.current.userInterfaceIdiom == .phone
+                        ? "Two-finger swipe down from the tab bar shows live previews of your tabs."
+                        : "Two-finger swipe down (or trackpad scroll) from the tab bar shows live previews of your tabs.",
+                    isOn: $tabExposeGestureEnabled
+                )
+                .themedRow()
+                #endif
 
                 #if !targetEnvironment(macCatalyst)
                 Picker(selection: Binding(

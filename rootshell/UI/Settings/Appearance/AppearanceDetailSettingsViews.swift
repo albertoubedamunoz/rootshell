@@ -222,6 +222,7 @@ struct WindowSettingsView: View {
     @AppStorage("showTabShortcutIndicators") private var showTabShortcutIndicators: Bool = false
     @AppStorage(UserPreferences.showTabScopeMenuKey) private var showTabScopeMenu: Bool = true
     @AppStorage("tabBarAnimationsDisabled") private var tabBarAnimationsDisabled: Bool = false
+    @AppStorage(TabExposeSettings.showsCaptionsKey) private var tabExposeShowsCaptions: Bool = true
     @AppStorage("tabSidebarTranslucent") private var tabSidebarTranslucent: Bool = true
     @AppStorage("tabSidebarAutoHideOnSelect") private var tabSidebarAutoHideOnSelect: Bool = false
     @AppStorage("tabSidebarRowLines") private var tabSidebarRowLines: Int = 1
@@ -323,6 +324,13 @@ struct WindowSettingsView: View {
 
                 Toggle("Disable Tab Animations", isOn: $tabBarAnimationsDisabled)
                     .themedRow()
+
+                DescribedToggle(
+                    title: "Tab Exposé Captions",
+                    description: "Show tab titles and badges under each live preview in Tab Exposé.",
+                    isOn: $tabExposeShowsCaptions
+                )
+                .themedRow()
 
                 #if !os(visionOS)
                 Toggle(

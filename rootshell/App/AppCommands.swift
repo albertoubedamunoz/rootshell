@@ -537,6 +537,14 @@ struct WindowCommands: Commands {
             }
             .modifier(DynamicShortcut(action: .toggle_tab_switcher, shortcuts: shortcutState.shortcuts))
 
+            Button("Tab Exposé") {
+                UIApplication.shared.sendAction(
+                    #selector(Ghostty.TerminalView.menuToggleTabExpose(_:)),
+                    to: nil, from: nil, for: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .toggle_tab_expose, shortcuts: shortcutState.shortcuts))
+
             Button("Previous Tab") {
                 UIApplication.shared.menuPreviousTab(
                     VNCReservedKeyboardShortcut.previousTab.notificationSender

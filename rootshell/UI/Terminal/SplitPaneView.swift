@@ -112,6 +112,17 @@ extension SplitPaneView {
     /// The pane as a terminal, or nil for non-terminal panes. The single
     /// idiom for terminal-only scans (tmux, roam protocol, session counting).
     var asTerminal: Ghostty.TerminalView? { self as? Ghostty.TerminalView }
+
+    /// The split host this pane is attached to (terminals sit one level deeper,
+    /// inside their `TerminalScrollView` wrapper). nil while detached.
+    var enclosingSplitHost: SplitTreeHostingView? {
+        var view = superview
+        while let current = view {
+            if let host = current as? SplitTreeHostingView { return host }
+            view = current.superview
+        }
+        return nil
+    }
 }
 
 extension SplitTree where ViewType == SplitPaneView {

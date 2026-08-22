@@ -441,6 +441,12 @@ extension Ghostty.TerminalView {
         }
         #endif
 
+        // A presented overlay (tab exposé) owns navigation keys while up; it
+        // must see Escape before the tmux-detach and AI-agent handlers below.
+        if let overlayHandler = presentedOverlayKeyHandler, overlayHandler(key) {
+            return (true, true)
+        }
+
         // Handle Escape overlays early so key is marked handled when routed via pressesBegan
         // (not UIKeyCommand), such as on Mac Catalyst with mod-tap source-key support.
         if key.keyCode == .keyboardEscape && aiAgentOverlayActive {
@@ -2143,6 +2149,10 @@ extension Ghostty.TerminalView {
 
     @objc func menuToggleTabSwitcher(_ sender: Any?) {
         NotificationCenter.default.post(name: .showTabSwitcher, object: self)
+    }
+
+    @objc func menuToggleTabExpose(_ sender: Any?) {
+        NotificationCenter.default.post(name: .toggleTabExpose, object: self)
     }
 
     @objc func menuShowTmuxSessions(_ sender: Any?) {

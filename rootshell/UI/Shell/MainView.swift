@@ -194,6 +194,9 @@ struct MainView: View {
     // and its one-shot suppression flags (see TabIndicatorController).
     @State var tabIndicator = TabIndicatorController()
     @State var appTabSwipeState: AppTabSwipeState?
+
+    // Tab exposé (live previews of the current scope; see TabExposeController).
+    @State var tabExpose = TabExposeController()
     
     
     // Unified main-alert queue: host-key validation, SSH/GPG agent

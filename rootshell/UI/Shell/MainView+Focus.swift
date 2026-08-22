@@ -501,7 +501,7 @@ extension MainView {
         ])
     }
 
-    private func setTabOcclusion(tabID: UUID, visible: Bool) {
+    func setTabOcclusion(tabID: UUID, visible: Bool) {
         guard let tab = tabsModel.tab(withID: tabID) else { return }
         for terminal in tab.splitTree {
             terminal.setOcclusion(visible)
