@@ -131,7 +131,7 @@ final class KeybindManager: ObservableObject {
             Keybind(key: .b, modifiers: [.command, .shift], action: .toggle_tab_bar),
             Keybind(key: .g, modifiers: [.command, .shift], action: .toggle_group_mode),
             Keybind(key: .backslash, modifiers: [.command, .shift], action: .toggle_tab_switcher),
-            Keybind(key: .down, modifiers: [.command, .shift], action: .toggle_tab_expose),
+            Keybind(key: .a, modifiers: [.command, .shift], action: .toggle_tab_expose),
             Keybind(key: .o, modifiers: [.command, .shift], action: .toggle_transparency),
             Keybind(key: .h, modifiers: [.command, .shift], action: .toggle_titlebar),
             Keybind(key: .r, modifiers: [.command, .control], action: .toggle_auto_redact),

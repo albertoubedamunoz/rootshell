@@ -484,8 +484,8 @@ struct SettingsTerminalSection: View {
                 DescribedToggle(
                     title: "Pull Down for Tab Exposé",
                     description: UIDevice.current.userInterfaceIdiom == .phone
-                        ? "Two-finger swipe down from the tab bar shows live previews of your tabs."
-                        : "Two-finger swipe down (or trackpad scroll) from the tab bar shows live previews of your tabs.",
+                        ? "Swipe down from the tab bar to show live previews of your tabs. Two fingers also work from above the terminal."
+                        : "Swipe down from the tab bar (one finger, two fingers, or trackpad scroll) to show live previews of your tabs.",
                     isOn: $tabExposeGestureEnabled
                 )
                 .themedRow()

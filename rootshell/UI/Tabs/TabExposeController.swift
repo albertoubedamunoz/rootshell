@@ -70,19 +70,14 @@ final class TabExposeController {
     @ObservationIgnored var onSelect: ((UUID) -> Void)?
     @ObservationIgnored var onCommitHaptic: (() -> Void)?
     @ObservationIgnored var reduceMotion: () -> Bool = { false }
+    /// Scope membership changed while presented (new ids). Host wakes the
+    /// newcomers and reconciles occlusion for the rest.
+    @ObservationIgnored var onScopeDidChange: (([UUID]) -> Void)?
     /// The terminal carrying `presentedOverlayKeyHandler` while presented.
     @ObservationIgnored weak var keyHandlerTerminal: Ghostty.TerminalView?
-
-    static func isModifierOnly(_ key: UIKey) -> Bool {
-        switch key.keyCode {
-        case .keyboardLeftControl, .keyboardLeftShift, .keyboardLeftAlt, .keyboardLeftGUI,
-             .keyboardRightControl, .keyboardRightShift, .keyboardRightAlt, .keyboardRightGUI,
-             .keyboardCapsLock:
-            return true
-        default:
-            return false
-        }
-    }
+    /// No terminal to hook keys on (VNC pane focused): the view takes first
+    /// responder itself while presented.
+    @ObservationIgnored var wantsFirstResponderFallback = false
 
     // MARK: - Private
 
@@ -215,7 +210,7 @@ final class TabExposeController {
 
     /// Keys routed from the focused terminal while presented. Returns false
     /// for anything the exposé doesn't own (the host dismisses and lets it through).
-    func handleKey(_ key: UIKey) -> Bool {
+    func handleKey(_ key: OverlayKeyEvent) -> Bool {
         guard isActive else { return false }
         switch key.keyCode {
         case .keyboardEscape:
@@ -237,7 +232,7 @@ final class TabExposeController {
             moveHighlight(by: max(columns, 1), wrap: false)
             return true
         case .keyboardTab:
-            moveHighlight(by: key.modifierFlags.contains(.shift) ? -1 : 1, wrap: true)
+            moveHighlight(by: key.modifiers.contains(.shift) ? -1 : 1, wrap: true)
             return true
         case .keyboardHome:
             highlightedTabID = tabIDs.first
@@ -248,7 +243,7 @@ final class TabExposeController {
         default:
             break
         }
-        if key.modifierFlags.isDisjoint(with: [.control, .alternate]),
+        if key.modifiers.isDisjoint(with: [.control, .alternate]),
            key.characters.count == 1,
            let digit = key.characters.first?.wholeNumberValue,
            (1...9).contains(digit),
@@ -395,6 +390,7 @@ final class TabExposeController {
             heroTabID = tabsModel.selectedTabID
         }
         if changed, announce {
+            onScopeDidChange?(ids)
             observer?.tabExposeDidChangeCells(self)
         }
     }

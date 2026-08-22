@@ -538,10 +538,9 @@ struct WindowCommands: Commands {
             .modifier(DynamicShortcut(action: .toggle_tab_switcher, shortcuts: shortcutState.shortcuts))
 
             Button("Tab Exposé") {
-                UIApplication.shared.sendAction(
-                    #selector(Ghostty.TerminalView.menuToggleTabExpose(_:)),
-                    to: nil, from: nil, for: nil
-                )
+                // Posts the window-scoped notification directly so it works
+                // with no terminal in the responder chain (VNC pane focused).
+                UIApplication.shared.menuToggleTabExpose(nil)
             }
             .modifier(DynamicShortcut(action: .toggle_tab_expose, shortcuts: shortcutState.shortcuts))
 

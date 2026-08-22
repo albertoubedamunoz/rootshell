@@ -21,7 +21,11 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         /// No sheet, no in-flight tab swipe, etc.
         var canBeginReveal: () -> Bool = { true }
         /// Extra band into the terminal when nothing sits above it (tab bar hidden).
+        /// Two-finger / trackpad only.
         var fallbackBandHeight: () -> CGFloat = { 0 }
+        /// Height of the tab bar strip directly above the terminal where a
+        /// one-finger pull may start (0 = no one-finger reveal).
+        var oneFingerBandHeight: () -> CGFloat = { 0 }
         var trackpadGain: CGFloat = 2
     }
 
@@ -123,13 +127,58 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             layoutIfNeeded()
             scrollHighlightedCellIntoView(animated: false)
             startDisplayLink()
+            if controller.wantsFirstResponderFallback {
+                becomeFirstResponder()
+            }
         } else {
             stopDisplayLink()
+            if isFirstResponder { resignFirstResponder() }
             isHidden = true
             hero.tab = nil
             for cell in cells { cell.removeFromSuperview() }
             cells.removeAll()
         }
+    }
+
+    // MARK: - First-responder fallback (no terminal to hook keys on)
+
+    override var canBecomeFirstResponder: Bool {
+        controller.isActive && controller.wantsFirstResponderFallback
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        guard controller.isActive, controller.wantsFirstResponderFallback else { return nil }
+        var inputs: [(String, UIKeyModifierFlags)] = [
+            (UIKeyCommand.inputEscape, []), ("\r", []), (" ", []), ("\t", []), ("\t", .shift),
+            (UIKeyCommand.inputUpArrow, []), (UIKeyCommand.inputDownArrow, []),
+            (UIKeyCommand.inputLeftArrow, []), (UIKeyCommand.inputRightArrow, []),
+            (UIKeyCommand.inputHome, []), (UIKeyCommand.inputEnd, []),
+        ]
+        inputs += (1...9).map { (String($0), []) }
+        return inputs.map { input, flags in
+            let command = UIKeyCommand(input: input, modifierFlags: flags, action: #selector(handleFallbackKeyCommand(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            return command
+        }
+    }
+
+    @objc private func handleFallbackKeyCommand(_ command: UIKeyCommand) {
+        guard let input = command.input else { return }
+        let keyCode: UIKeyboardHIDUsage
+        switch input {
+        case UIKeyCommand.inputEscape: keyCode = .keyboardEscape
+        case "\r": keyCode = .keyboardReturnOrEnter
+        case " ": keyCode = .keyboardSpacebar
+        case "\t": keyCode = .keyboardTab
+        case UIKeyCommand.inputUpArrow: keyCode = .keyboardUpArrow
+        case UIKeyCommand.inputDownArrow: keyCode = .keyboardDownArrow
+        case UIKeyCommand.inputLeftArrow: keyCode = .keyboardLeftArrow
+        case UIKeyCommand.inputRightArrow: keyCode = .keyboardRightArrow
+        case UIKeyCommand.inputHome: keyCode = .keyboardHome
+        case UIKeyCommand.inputEnd: keyCode = .keyboardEnd
+        default: keyCode = .keyboardErrorUndefined
+        }
+        _ = controller.handleKey(OverlayKeyEvent(keyCode: keyCode, modifiers: command.modifierFlags, characters: input))
     }
 
     func tabExposeDidChangeCells(_ controller: TabExposeController) {
@@ -378,22 +427,31 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
     private func makeEdgePan() -> InteractiveEdgePanRecognizer {
         var config = InteractiveEdgePanRecognizer.Configuration(axis: .vertical, idioms: [.phone, .pad, .mac])
-        config.touches = 2
+        // One finger from the tab bar strip; two fingers from anywhere above
+        // the terminal (and the in-terminal fallback band); trackpad scroll.
+        config.touchCounts = [1, 2]
         config.includesTrackpadScroll = true
         config.trackpadGain = configuration.trackpadGain
         // In the band, swipes and scroll pans wait for us (we refuse fast outside it).
         config.beatsSiblingRecognizers = { $0 is UISwipeGestureRecognizer || $0 is UIPanGestureRecognizer }
 
-        let isInBand: (CGPoint, UIWindow) -> Bool = { [weak self] start, window in
+        let isInBand: (CGPoint, UIWindow, Int) -> Bool = { [weak self] start, window, touches in
             guard let self else { return false }
             let frame = self.convert(self.bounds, to: window)
             guard start.x >= frame.minX, start.x <= frame.maxX else { return false }
             if self.controller.isActive { return start.y <= frame.maxY }
+            if touches == 1 {
+                // Only the strip itself: the status bar edge belongs to the system.
+                let strip = self.configuration.oneFingerBandHeight()
+                return strip > 0 && start.y >= frame.minY - strip && start.y < frame.minY
+            }
             return start.y < frame.minY + self.configuration.fallbackBandHeight()
         }
-        let shouldBegin: (CGPoint, CGPoint, UIWindow) -> Bool = { [weak self] _, translation, _ in
+        let shouldBegin: (CGPoint, CGPoint, UIWindow, Int) -> Bool = { [weak self] _, translation, _, touches in
             guard let self, self.configuration.gestureEnabled() else { return false }
-            let vertical = abs(translation.y) > abs(translation.x) * 1.25
+            // One finger competes with horizontal tab scrolling: demand a clearer vertical intent.
+            let ratio: CGFloat = touches == 1 ? 2 : 1.25
+            let vertical = abs(translation.y) > abs(translation.x) * ratio
             guard vertical else { return false }
             if self.controller.isActive {
                 // Push back up to dismiss; not while already finger-driven,

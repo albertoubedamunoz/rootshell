@@ -106,6 +106,35 @@ class SplitPaneView: UIView, Identifiable {
     var defersBottomSystemGestureForKeyboardToolbar: Bool { false }
 }
 
+/// A hardware key as seen by an in-window overlay (tab exposé), normalized
+/// from either a `UIKey` (pressesBegan) or a `UIKeyCommand` (dedicated handlers).
+struct OverlayKeyEvent {
+    let keyCode: UIKeyboardHIDUsage
+    let modifiers: UIKeyModifierFlags
+    let characters: String
+
+    init(keyCode: UIKeyboardHIDUsage, modifiers: UIKeyModifierFlags, characters: String) {
+        self.keyCode = keyCode
+        self.modifiers = modifiers
+        self.characters = characters
+    }
+
+    init(_ key: UIKey) {
+        self.init(keyCode: key.keyCode, modifiers: key.modifierFlags, characters: key.characters)
+    }
+
+    var isModifierOnly: Bool {
+        switch keyCode {
+        case .keyboardLeftControl, .keyboardLeftShift, .keyboardLeftAlt, .keyboardLeftGUI,
+             .keyboardRightControl, .keyboardRightShift, .keyboardRightAlt, .keyboardRightGUI,
+             .keyboardCapsLock:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 // MARK: - Terminal-scan helpers
 
 extension SplitPaneView {

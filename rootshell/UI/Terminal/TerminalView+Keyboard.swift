@@ -443,7 +443,7 @@ extension Ghostty.TerminalView {
 
         // A presented overlay (tab exposé) owns navigation keys while up; it
         // must see Escape before the tmux-detach and AI-agent handlers below.
-        if let overlayHandler = presentedOverlayKeyHandler, overlayHandler(key) {
+        if let overlayHandler = presentedOverlayKeyHandler, overlayHandler(OverlayKeyEvent(key)) {
             return (true, true)
         }
 
@@ -1603,9 +1603,35 @@ extension Ghostty.TerminalView {
     }
     #endif
 
+    /// Dedicated UIKeyCommand handlers fire before `pressesBegan`, so a
+    /// presented overlay (tab exposé) must get first refusal here too.
+    /// Return/Escape repeats are swallowed until release so a held key can't
+    /// leak into the session the overlay just revealed.
+    private func overlayConsumedKeyCommand(_ command: UIKeyCommand, hid: UIKeyboardHIDUsage) -> Bool {
+        guard let handler = presentedOverlayKeyHandler else { return false }
+        if keysConsumedByOverlayAction.contains(hid) { return true }
+        let event = OverlayKeyEvent(keyCode: hid, modifiers: command.modifierFlags, characters: command.input ?? "")
+        guard handler(event) else { return false }
+        if hid == .keyboardReturnOrEnter || hid == .keyboardEscape {
+            keysConsumedByOverlayAction.insert(hid)
+        }
+        return true
+    }
+
     @objc func handleArrowKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
         guard let input = command.input else { return }
+
+        if presentedOverlayKeyHandler != nil {
+            let hid: UIKeyboardHIDUsage? = switch input {
+            case UIKeyCommand.inputUpArrow: .keyboardUpArrow
+            case UIKeyCommand.inputDownArrow: .keyboardDownArrow
+            case UIKeyCommand.inputRightArrow: .keyboardRightArrow
+            case UIKeyCommand.inputLeftArrow: .keyboardLeftArrow
+            default: nil
+            }
+            if let hid, overlayConsumedKeyCommand(command, hid: hid) { return }
+        }
 
         if discoveredSessions != nil {
             switch input {
@@ -1649,6 +1675,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleReturnKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command, hid: .keyboardReturnOrEnter) { return }
         // A one-shot action consumed this press; swallow repeats until release
         // so the held key doesn't leak input into the newly focused session.
         if keysConsumedByOverlayAction.contains(.keyboardReturnOrEnter) { return }
@@ -1685,6 +1712,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleModifiedReturnKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command, hid: .keyboardReturnOrEnter) { return }
         if keysConsumedByOverlayAction.contains(.keyboardReturnOrEnter) { return }
         if discoveredSessions != nil {
             keysConsumedByOverlayAction.insert(.keyboardReturnOrEnter)
@@ -1720,6 +1748,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleEscapeKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command, hid: .keyboardEscape) { return }
         if keysConsumedByOverlayAction.contains(.keyboardEscape) { return }
         if discoveredSessions != nil {
             keysConsumedByOverlayAction.insert(.keyboardEscape)
@@ -1776,6 +1805,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleTabKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command, hid: .keyboardTab) { return }
         if command.modifierFlags.isEmpty,
            let rule = ModTapManager.shared.activeRulesByKey[.keyboardTab] {
             modTapInterceptor.startPending(for: rule)
@@ -1794,6 +1824,7 @@ extension Ghostty.TerminalView {
 
     @objc func handleShiftTabKey(_ command: UIKeyCommand) {
         commitKoreanCompositionIfNeeded(external: true)
+        if overlayConsumedKeyCommand(command, hid: .keyboardTab) { return }
         // Send backtab escape sequence \e[Z to session
         if let data = "\u{1B}[Z".data(using: .utf8) {
             sendUserInput(data)

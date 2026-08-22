@@ -68,10 +68,18 @@ final class TabPreviewMirrorView: UIView {
             let sourceRect: CGRect
             if let terminal = pane.asTerminal, let source = terminal.rendererLayer {
                 sourceRect = source.convert(source.bounds, to: host.layer)
-                if source.contents != nil, mirror.layer.contents as AnyObject? !== source.contents as AnyObject? {
-                    mirror.layer.contents = source.contents
-                    mirror.layer.contentsScale = source.contentsScale
-                    mirror.layer.isGeometryFlipped = source.isGeometryFlipped
+                if let contents = source.contents {
+                    // Re-assign every tick even when it's the same IOSurface:
+                    // the renderer draws into it in place, and CA only
+                    // re-reads the pixels when `contents` is set (the core's
+                    // own layer does the same per frame).
+                    mirror.layer.contents = contents
+                    if mirror.layer.contentsScale != source.contentsScale {
+                        mirror.layer.contentsScale = source.contentsScale
+                    }
+                    if mirror.layer.isGeometryFlipped != source.isGeometryFlipped {
+                        mirror.layer.isGeometryFlipped = source.isGeometryFlipped
+                    }
                     mirror.placeholder?.removeFromSuperlayer()
                     mirror.placeholder = nil
                 }

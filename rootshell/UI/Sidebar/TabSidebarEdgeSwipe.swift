@@ -79,15 +79,15 @@ struct TabSidebarEdgeSwipe: UIViewRepresentable {
                 // iPad only: the phone keeps its bottom-rising panel.
                 idioms: [.pad]
             )
-            configuration.touches = 1
+            configuration.touchCounts = [1]
             // Our edge pan should beat the terminal's tab-swipe recognizers: a
             // left-edge swipe-in reads as a `.right` swipe.
             configuration.beatsSiblingRecognizers = { $0 is UISwipeGestureRecognizer }
 
-            let isInBand: (CGPoint, UIWindow) -> Bool = { start, _ in
+            let isInBand: (CGPoint, UIWindow, Int) -> Bool = { start, _, _ in
                 start.x <= edgeActivationWidth
             }
-            let shouldBegin: (CGPoint, CGPoint, UIWindow) -> Bool = { [weak self] _, translation, _ in
+            let shouldBegin: (CGPoint, CGPoint, UIWindow, Int) -> Bool = { [weak self] _, translation, _, _ in
                 guard let self else { return false }
                 let headingRight = translation.x > 0 && abs(translation.x) >= abs(translation.y)
                 return self.canOpen() && headingRight

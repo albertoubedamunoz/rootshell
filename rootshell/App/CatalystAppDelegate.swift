@@ -1157,7 +1157,7 @@ class CatalystAppDelegate: AppDelegate {
         let toggleTabExpose = UIKeyCommand(
             title: String(localized: "Tab Exposé"),
             action: #selector(UIApplication.ghostty_toggleTabExpose(_:)),
-            input: UIKeyCommand.inputDownArrow,
+            input: "a",
             modifierFlags: [.command, .shift]
         )
 

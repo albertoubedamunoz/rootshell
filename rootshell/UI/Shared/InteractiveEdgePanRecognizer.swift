@@ -21,8 +21,9 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
 
     struct Configuration {
         var axis: Axis
-        /// Finger count for the touch recognizer.
-        var touches: Int = 1
+        /// One touch recognizer per finger count (e.g. `[1, 2]`); callbacks
+        /// receive the count so bands can differ per finger count.
+        var touchCounts: [Int] = [1]
         var idioms: Set<UIUserInterfaceIdiom>
         /// Also install a scroll-type pan (`allowedScrollTypesMask = [.continuous]`).
         var includesTrackpadScroll: Bool = false
@@ -34,10 +35,11 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
     }
 
     struct Callbacks {
-        /// Whether a touch-down at `start` (window coords) is inside the activation band.
-        var isInActivationBand: (_ start: CGPoint, _ window: UIWindow) -> Bool
+        /// Whether a touch-down at `start` (window coords) is inside the
+        /// activation band. `touches` is the finger count; 0 = trackpad.
+        var isInActivationBand: (_ start: CGPoint, _ window: UIWindow, _ touches: Int) -> Bool
         /// Final gate once direction is known. `translation` is in window coords.
-        var shouldBegin: (_ start: CGPoint, _ translation: CGPoint, _ window: UIWindow) -> Bool
+        var shouldBegin: (_ start: CGPoint, _ translation: CGPoint, _ window: UIWindow, _ touches: Int) -> Bool
         /// Distance along the axis that maps to progress 1.
         var length: () -> CGFloat
         var onBegin: (UIWindow) -> Void
@@ -52,10 +54,12 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
     var callbacks: Callbacks
 
     private(set) weak var installedWindow: UIWindow?
-    private var touchPan: UIPanGestureRecognizer?
+    private var touchPans: [UIPanGestureRecognizer] = []
     private var trackpadPan: UIPanGestureRecognizer?
     private var active = false
     private var activeIsTrackpad = false
+    /// The recognizer currently driving; others are ignored until it ends.
+    private weak var activePan: UIPanGestureRecognizer?
     private var lastTrackpadTranslation: CGPoint = .zero
     private lazy var trackpadPhase = TrackpadScrollPhaseTracker { [weak self] in
         self?.trackpadDidEnd()
@@ -77,14 +81,16 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
         uninstall()
         guard let window else { return }
 
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleTouchPan(_:)))
-        pan.minimumNumberOfTouches = configuration.touches
-        pan.maximumNumberOfTouches = configuration.touches
-        // Finger-only: a window pan must not steal indirect-pointer drags.
-        pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
-        pan.delegate = self
-        window.addGestureRecognizer(pan)
-        touchPan = pan
+        for count in configuration.touchCounts {
+            let pan = UIPanGestureRecognizer(target: self, action: #selector(handleTouchPan(_:)))
+            pan.minimumNumberOfTouches = count
+            pan.maximumNumberOfTouches = count
+            // Finger-only: a window pan must not steal indirect-pointer drags.
+            pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+            pan.delegate = self
+            window.addGestureRecognizer(pan)
+            touchPans.append(pan)
+        }
 
         if configuration.includesTrackpadScroll {
             let scroll = UIPanGestureRecognizer(target: self, action: #selector(handleTrackpadPan(_:)))
@@ -99,14 +105,20 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
 
     func uninstall() {
         if let installedWindow {
-            if let touchPan { installedWindow.removeGestureRecognizer(touchPan) }
+            for pan in touchPans { installedWindow.removeGestureRecognizer(pan) }
             if let trackpadPan { installedWindow.removeGestureRecognizer(trackpadPan) }
         }
-        touchPan = nil
+        touchPans.removeAll()
         trackpadPan = nil
         installedWindow = nil
         trackpadPhase.reset()
         active = false
+        activePan = nil
+    }
+
+    /// Finger count a recognizer stands for; 0 for the trackpad pan.
+    private func touchCount(of pan: UIPanGestureRecognizer) -> Int {
+        pan === trackpadPan ? 0 : pan.minimumNumberOfTouches
     }
 
     // MARK: - Geometry
@@ -136,20 +148,24 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
         guard let window = pan.view as? UIWindow else { return }
         switch pan.state {
         case .began:
+            guard !active else { return }
             active = true
             activeIsTrackpad = false
+            activePan = pan
             callbacks.onBegin(window)
         case .changed:
-            guard active, !activeIsTrackpad else { return }
+            guard active, activePan === pan else { return }
             callbacks.onChange(progress(for: pan.translation(in: window), gain: 1))
         case .ended:
-            guard active, !activeIsTrackpad else { return }
+            guard active, activePan === pan else { return }
             active = false
+            activePan = nil
             callbacks.onEnd(progress(for: pan.translation(in: window), gain: 1),
                             along(pan.velocity(in: window)))
         case .cancelled, .failed:
-            guard active, !activeIsTrackpad else { return }
+            guard active, activePan === pan else { return }
             active = false
+            activePan = nil
             callbacks.onCancel()
         default:
             break
@@ -162,9 +178,10 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
         guard let window = pan.view as? UIWindow else { return }
         switch pan.state {
         case .began:
-            guard !trackpadPhase.isInInertiaGuard else { return }
+            guard !active, !trackpadPhase.isInInertiaGuard else { return }
             active = true
             activeIsTrackpad = true
+            activePan = pan
             lastTrackpadTranslation = .zero
             trackpadPhase.arm()
             callbacks.onBegin(window)
@@ -179,11 +196,12 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
                 }
                 let translation = pan.translation(in: window)
                 let start = startPoint(of: pan, in: window)
-                guard callbacks.isInActivationBand(start, window),
-                      callbacks.shouldBegin(start, translation, window) else { return }
+                guard callbacks.isInActivationBand(start, window, 0),
+                      callbacks.shouldBegin(start, translation, window, 0) else { return }
                 pan.setTranslation(.zero, in: window)
                 active = true
                 activeIsTrackpad = true
+                activePan = pan
                 lastTrackpadTranslation = .zero
                 trackpadPhase.arm()
                 callbacks.onBegin(window)
@@ -213,6 +231,7 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
     private func trackpadDidEnd() {
         guard active, activeIsTrackpad else { return }
         active = false
+        activePan = nil
         let gain = configuration.trackpadGain
         // Fresh origin for a possible restart within the same recognizer session.
         if let trackpadPan, let window = trackpadPan.view {
@@ -235,8 +254,9 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
             translation = CGPoint(x: velocity.x / 60, y: velocity.y / 60)
         }
         let start = startPoint(of: pan, in: window)
-        guard callbacks.isInActivationBand(start, window) else { return false }
-        return callbacks.shouldBegin(start, translation, window)
+        let touches = touchCount(of: pan)
+        guard callbacks.isInActivationBand(start, window, touches) else { return false }
+        return callbacks.shouldBegin(start, translation, window, touches)
     }
 
     func gestureRecognizer(
@@ -248,8 +268,9 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
               let window = pan.view as? UIWindow else { return false }
         // Only delay siblings for a pan that started inside the band, so a
         // recognizer that will never fire doesn't hold up ordinary scrolling.
-        if pan === touchPan, pan.numberOfTouches < configuration.touches { return false }
-        return callbacks.isInActivationBand(startPoint(of: pan, in: window), window)
+        let touches = touchCount(of: pan)
+        if touches > 0, pan.numberOfTouches < touches { return false }
+        return callbacks.isInActivationBand(startPoint(of: pan, in: window), window, touches)
     }
 
     func gestureRecognizer(
