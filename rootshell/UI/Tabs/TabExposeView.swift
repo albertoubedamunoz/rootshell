@@ -9,6 +9,10 @@
 //  the controller's spring and refreshes the mirrors. Hosted as the top layer
 //  of the terminal content area (`TabExposeHost`).
 //
+//  Group navigation pages horizontally like the regular tab swipe: the active
+//  scope's tray follows the finger at `pageShift` while the neighbor scope's
+//  tray sits one page over; release springs to commit or cancel.
+//
 
 import UIKit
 import SwiftUI
@@ -46,15 +50,28 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
     private let backdrop = UIView()
     private let hero = TabPreviewMirrorView()
-    private let tray = UIScrollView()
-    private let header = UIView()
-    private let headerIcon = UIImageView()
-    private let headerLabel = UILabel()
-    private var cells: [TabExposeCellView] = []
-    private var layoutResult = TabExposeLayout.Result.empty
+    /// The active scope's page.
+    private var primary = TabExposeTrayView()
+    /// A neighbor scope's page while a swipe / ⌘⌥[ ] is in flight.
+    private var companion: TabExposeTrayView?
+    /// +1: companion sits one page right of the primary; -1: left.
+    private var companionSide = 0
+    /// Primary's horizontal offset in points (companion at `pageShift + side * W`).
+    private var pageShift: CGFloat = 0
+    private var pageVelocity: CGFloat = 0
+    /// Spring target for `pageShift`; nil while finger-driven or at rest.
+    private var pageTarget: CGFloat?
+    private var pageSpringFast = false
+    private var lastPageTick: CFTimeInterval = 0
+    private var scopeSwipeActive = false
+    private var scopeSwipeBase: CGFloat = 0
+    /// A committed swipe waits for the scope-changed announce until this.
+    private var scopeCommitDeadline: CFTimeInterval = 0
+
     private var heroRect: CGRect = .zero
     private var displayLink: CADisplayLink?
     private var lastAppliedProgress: CGFloat = -1
+    private var lastAppliedShift: CGFloat = 0
     private lazy var edgePan: InteractiveEdgePanRecognizer = makeEdgePan()
     private lazy var scopePan: InteractiveEdgePanRecognizer = makeScopePan()
 
@@ -68,30 +85,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
         backdrop.isUserInteractionEnabled = false
         addSubview(backdrop)
-
-        tray.showsHorizontalScrollIndicator = false
-        tray.alwaysBounceVertical = false
-        tray.contentInsetAdjustmentBehavior = .never
-        tray.delaysContentTouches = false
-        // UIKit 26 applies an automatic glass "scroll edge effect" to scroll
-        // views it considers under a bar; on Catalyst the window titlebar
-        // qualifies and the effect blurs/tints the whole tray. The tray is a
-        // live preview grid, never bar-adjacent content: opt out entirely.
-        if #available(iOS 26.0, macCatalyst 26.0, visionOS 26.0, *) {
-            tray.topEdgeEffect.isHidden = true
-            tray.bottomEdgeEffect.isHidden = true
-            tray.leftEdgeEffect.isHidden = true
-            tray.rightEdgeEffect.isHidden = true
-        }
-        addSubview(tray)
-
-        headerIcon.contentMode = .scaleAspectFit
-        headerLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        headerLabel.lineBreakMode = .byTruncatingTail
-        header.addSubview(headerIcon)
-        header.addSubview(headerLabel)
-        header.isUserInteractionEnabled = false
-        tray.addSubview(header)
+        addSubview(primary)
 
         hero.isUserInteractionEnabled = false
         addSubview(hero)
@@ -134,10 +128,11 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         if controller.isActive {
             isHidden = false
             lastAppliedProgress = -1
-            rebuildCells()
+            resetPage()
+            rebuildPrimary()
             setNeedsLayout()
             layoutIfNeeded()
-            scrollHighlightedCellIntoView(animated: false)
+            primary.scrollCellIntoView(id: controller.highlightedTabID, animated: false)
             startDisplayLink()
             if controller.wantsFirstResponderFallback {
                 becomeFirstResponder()
@@ -147,8 +142,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             if isFirstResponder { resignFirstResponder() }
             isHidden = true
             hero.tab = nil
-            for cell in cells { cell.removeFromSuperview() }
-            cells.removeAll()
+            resetPage()
+            primary.removeAllCells()
         }
     }
 
@@ -181,109 +176,49 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
     func tabExposeDidChangeCells(_ controller: TabExposeController) {
         guard controller.isActive else { return }
-        let transition = controller.takeScopeTransition()
-        let entering = rebuildCells(slideOutDirection: transition)
-        setNeedsLayout()
-        if let transition, !controller.reduceMotion() {
-            layoutIfNeeded()
-            slideIn(entering, from: transition)
-        }
-        scrollHighlightedCellIntoView(animated: true)
-    }
-
-    /// Scope switch: the old grid slides out toward `-direction`, the new one
-    /// slides in from `+direction` (swipe left = next = content comes from the right).
-    private func slideIn(_ entering: [TabExposeCellView], from direction: Int) {
-        let dx = CGFloat(direction) * 48
-        for cell in entering {
-            cell.alpha = 0
-            cell.transform = CGAffineTransform(translationX: dx, y: 0)
-        }
-        UIView.animate(withDuration: 0.28, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0,
-                       options: [.beginFromCurrentState, .allowUserInteraction]) {
-            for cell in entering {
-                cell.alpha = 1
-                cell.transform = cell.isHighlighted ? CGAffineTransform(scaleX: 1.02, y: 1.02) : .identity
+        if let direction = controller.takeScopeTransition() {
+            if controller.reduceMotion() {
+                resetPage()
+                rebuildPrimary()
+            } else {
+                pageToNewScope(direction: direction)
             }
+        } else {
+            rebuildPrimary()
         }
+        setNeedsLayout()
+        primary.scrollCellIntoView(id: controller.highlightedTabID, animated: true)
     }
 
     // MARK: - Cells
 
-    /// Returns the cells created by this rebuild. With `slideOutDirection`,
-    /// stale cells animate out instead of vanishing.
-    @discardableResult
-    private func rebuildCells(slideOutDirection: Int? = nil) -> [TabExposeCellView] {
-        guard let tabsModel = controller.tabsModel else { return [] }
-        var byID = Dictionary(uniqueKeysWithValues: cells.map { ($0.tabID, $0) })
-        var ordered: [TabExposeCellView] = []
-        var entering: [TabExposeCellView] = []
-        for (index, id) in controller.tabIDs.enumerated() {
-            guard let tab = tabsModel.tab(withID: id) else { continue }
-            let cell: TabExposeCellView
-            if let existing = byID.removeValue(forKey: id) {
-                cell = existing
-            } else {
-                cell = makeCell(for: tab)
-                entering.append(cell)
-            }
-            cell.mirror.tab = tab
-            cell.isCurrent = id == tabsModel.selectedTabID
-            cell.isHighlighted = id == controller.highlightedTabID
-            // Captions only re-host when the cell's position changes (hover
-            // highlight churn must not rebuild SwiftUI per cell).
-            if cell.captionIndex != index {
-                cell.captionIndex = index
-                cell.setCaption(appearance.showsCaptions ? appearance.captionProvider?(tab, index) : nil)
-            }
-            ordered.append(cell)
-        }
-        if let slideOutDirection, !controller.reduceMotion(), !byID.isEmpty {
-            let dx = CGFloat(-slideOutDirection) * 48
-            let leaving = Array(byID.values)
-            UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .curveEaseIn]) {
-                for cell in leaving {
-                    cell.alpha = 0
-                    cell.transform = CGAffineTransform(translationX: dx, y: 0)
-                }
-            } completion: { _ in
-                for cell in leaving { cell.removeFromSuperview() }
-            }
-        } else {
-            for (_, stale) in byID { stale.removeFromSuperview() }
-        }
-        cells = ordered
+    private func rebuildPrimary() {
+        guard let tabsModel = controller.tabsModel else { return }
+        primary.rebuildCells(
+            tabIDs: controller.tabIDs,
+            scopeTitle: controller.scopeTitle,
+            scoped: controller.isScoped,
+            tabsModel: tabsModel,
+            selectedID: tabsModel.selectedTabID,
+            highlightedID: controller.highlightedTabID,
+            appearance: appearance
+        )
         hero.tab = controller.heroTabID.flatMap { tabsModel.tab(withID: $0) }
-
-        let scoped = controller.isScoped
-        header.isHidden = !scoped
-        if scoped {
-            headerLabel.text = [controller.scopeTitle, "\(controller.tabIDs.count)"]
-                .compactMap { $0 }
-                .joined(separator: " · ")
-            let symbol = tabsModel.isProjectGroupingActive ? "folder" : "square.grid.2x2"
-            headerIcon.image = UIImage(systemName: symbol)
-        }
         applyAppearance()
-        return entering
     }
 
-    private func makeCell(for tab: TabModel) -> TabExposeCellView {
-        let cell = TabExposeCellView(tabID: tab.id)
-        tray.addSubview(cell)
-        return cell
+    private func makeTray(interactive: Bool) -> TabExposeTrayView {
+        let tray = TabExposeTrayView()
+        tray.isUserInteractionEnabled = interactive
+        insertSubview(tray, belowSubview: hero)
+        return tray
     }
 
     private func applyAppearance() {
         backdrop.backgroundColor = appearance.backgroundColor
         hero.backgroundColor = appearance.backgroundColor
-        headerLabel.textColor = appearance.textColor.withAlphaComponent(0.85)
-        headerIcon.tintColor = appearance.textColor.withAlphaComponent(0.7)
-        for cell in cells {
-            cell.previewBackgroundColor = appearance.backgroundColor
-            cell.accentColor = appearance.accentColor
-            cell.currentRingColor = appearance.textColor.withAlphaComponent(0.3)
-        }
+        primary.applyAppearance(appearance)
+        companion?.applyAppearance(appearance)
     }
 
     // MARK: - Layout
@@ -291,6 +226,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     private var isCompact: Bool {
         UIDevice.current.userInterfaceIdiom == .phone || bounds.width < 500
     }
+
+    private var pageWidth: CGFloat { max(heroRect.width, 1) }
 
     private func currentHeroRect() -> CGRect {
         guard let hero = controller.heroTabID ?? controller.tabsModel?.selectedTabID,
@@ -322,64 +259,55 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             compact: isCompact, mac: mac, vision: vision,
             showsCaptions: appearance.showsCaptions, hasHeader: controller.isScoped
         )
-        layoutResult = TabExposeLayout.grid(
-            in: CGRect(origin: .zero, size: heroRect.size),
-            count: cells.count,
-            aspect: heroRect.width / H,
-            metrics: metrics
-        )
-        controller.columns = layoutResult.columns
+        let radius: CGFloat = vision ? 16 : (isCompact ? 8 : 10)
+        let aspect = heroRect.width / H
+        for tray in [primary, companion].compactMap({ $0 }) {
+            tray.layoutGrid(size: heroRect.size, aspect: aspect, metrics: metrics, cornerRadius: radius)
+            // bounds/center, not frame: trays carry the reveal/page transform.
+            // A scroll view's bounds origin is its content offset; keep it.
+            var b = tray.bounds
+            b.size = heroRect.size
+            tray.bounds = b
+            tray.center = CGPoint(x: heroRect.midX, y: heroRect.midY)
+        }
+        controller.columns = primary.layoutResult.columns
 
         backdrop.frame = heroRect
         hero.transform = .identity
         hero.frame = heroRect
-        tray.transform = .identity
-        tray.frame = heroRect
-        tray.contentSize = CGSize(width: heroRect.width, height: max(layoutResult.contentHeight, heroRect.height))
-        tray.isScrollEnabled = !layoutResult.fits
-
-        header.frame = layoutResult.headerFrame
-        let iconSide = max(0, min(16, header.bounds.height))
-        headerIcon.frame = CGRect(x: 0, y: (header.bounds.height - iconSide) / 2, width: iconSide, height: iconSide)
-        headerLabel.frame = CGRect(x: iconSide + 6, y: 0, width: header.bounds.width - iconSide - 6, height: header.bounds.height)
-
-        let radius: CGFloat = vision ? 16 : (isCompact ? 8 : 10)
-        for (index, cell) in cells.enumerated() where index < layoutResult.frames.count {
-            // bounds/center, not frame: highlighted cells carry a scale transform.
-            let frame = layoutResult.frames[index]
-            cell.bounds = CGRect(origin: .zero, size: frame.size)
-            cell.center = CGPoint(x: frame.midX, y: frame.midY)
-            cell.layoutContent(previewSize: layoutResult.cellSize, cornerRadius: radius)
-        }
         lastAppliedProgress = -1
         applyProgress()
     }
 
-    /// Everything visual derives from `controller.progress` (0 hidden … 1 presented).
+    /// Everything visual derives from `controller.progress` (0 hidden … 1
+    /// presented) and `pageShift` (horizontal paging between scopes).
     private func applyProgress() {
         let p = controller.progress
-        guard p != lastAppliedProgress else { return }
+        guard p != lastAppliedProgress || pageShift != lastAppliedShift else { return }
         lastAppliedProgress = p
+        lastAppliedShift = pageShift
         let H = max(heroRect.height, 1)
         let clamped = min(max(p, 0), 1)
+        let y = -(1 - clamped) * H
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         hero.transform = CGAffineTransform(translationX: 0, y: clamped * H)
         hero.isHidden = clamped >= 1
-        tray.transform = CGAffineTransform(translationX: 0, y: -(1 - clamped) * H)
+        var primaryTransform = CGAffineTransform(translationX: pageShift, y: y)
+        var companionTransform = CGAffineTransform(translationX: pageShift + CGFloat(companionSide) * pageWidth, y: y)
         if p > 1 {
             // Overshoot: the tray breathes instead of tearing away from the edge.
             let breathe = 1 + (p - 1) * 0.3
-            tray.transform = tray.transform.scaledBy(x: breathe, y: breathe)
+            primaryTransform = primaryTransform.scaledBy(x: breathe, y: breathe)
+            companionTransform = companionTransform.scaledBy(x: breathe, y: breathe)
         }
+        primary.transform = primaryTransform
+        companion?.transform = companionTransform
         let chromeAlpha = Self.smoothstep(0.6, 0.9, p)
         let ringAlpha = Self.smoothstep(0.8, 1.0, p)
-        header.alpha = chromeAlpha
-        for cell in cells {
-            cell.captionAlpha = chromeAlpha
-            cell.ringAlpha = ringAlpha
-        }
+        primary.setChrome(captionAlpha: chromeAlpha, ringAlpha: ringAlpha)
+        companion?.setChrome(captionAlpha: chromeAlpha, ringAlpha: ringAlpha)
         backdrop.isHidden = p <= 0
         CATransaction.commit()
     }
@@ -387,13 +315,6 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     private static func smoothstep(_ a: CGFloat, _ b: CGFloat, _ x: CGFloat) -> CGFloat {
         let t = min(max((x - a) / max(b - a, 0.0001), 0), 1)
         return t * t * (3 - 2 * t)
-    }
-
-    private func scrollHighlightedCellIntoView(animated: Bool) {
-        guard tray.isScrollEnabled,
-              let id = controller.highlightedTabID,
-              let cell = cells.first(where: { $0.tabID == id }) else { return }
-        tray.scrollRectToVisible(cell.frame.insetBy(dx: 0, dy: -12), animated: animated)
     }
 
     // MARK: - Display link
@@ -422,12 +343,11 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             setNeedsLayout()
             layoutIfNeeded()
         }
+        stepPageSpring(now: link.timestamp)
         applyProgress()
         if !hero.isHidden { hero.sync() }
-        let visible = tray.bounds
-        for cell in cells where cell.frame.intersects(visible) {
-            cell.mirror.sync()
-        }
+        primary.syncVisibleMirrors()
+        companion?.syncVisibleMirrors()
     }
 
     private final class DisplayLinkProxy: NSObject {
@@ -441,8 +361,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     // MARK: - Touch / pointer
 
     @objc private func handleTap(_ tap: UITapGestureRecognizer) {
-        guard controller.phase == .presented else { return }
-        if let cell = cell(at: tap.location(in: tray)) {
+        guard controller.phase == .presented, !isPageInteracting else { return }
+        if let cell = primary.cell(at: tap.location(in: primary)) {
             controller.select(cell.tabID)
         } else {
             controller.cancel()
@@ -451,10 +371,10 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
     #if !os(visionOS)
     @objc private func handleHover(_ hover: UIHoverGestureRecognizer) {
-        guard controller.phase == .presented else { return }
+        guard controller.phase == .presented, !isPageInteracting else { return }
         switch hover.state {
         case .began, .changed:
-            if let cell = cell(at: hover.location(in: tray)) {
+            if let cell = primary.cell(at: hover.location(in: primary)) {
                 controller.highlightedTabID = cell.tabID
             }
         default:
@@ -462,10 +382,6 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         }
     }
     #endif
-
-    private func cell(at pointInTray: CGPoint) -> TabExposeCellView? {
-        cells.first { $0.frame.contains(pointInTray) }
-    }
 
     // MARK: - Window-level pull gesture
 
@@ -502,8 +418,9 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             guard vertical else { return false }
             if self.controller.isActive {
                 // Push back up to dismiss; not while already finger-driven,
-                // and not when the tray scrolls instead.
-                return translation.y < 0 && self.controller.phase != .interactive && !self.tray.isScrollEnabled
+                // not mid group swipe, and not when the tray scrolls instead.
+                return translation.y < 0 && self.controller.phase != .interactive
+                    && !self.scopeSwipeActive && !self.primary.isScrollEnabled
             }
             return translation.y > 0 && self.configuration.canBeginReveal()
         }
@@ -520,12 +437,17 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     }
 }
 
-// MARK: - Horizontal swipe between groups (while presented)
+// MARK: - Horizontal paging between scopes (while presented)
 
 extension TabExposeView {
+    /// A swipe, a settle, or a companion page still on screen.
+    private var isPageInteracting: Bool {
+        scopeSwipeActive || companion != nil || pageTarget != nil
+    }
+
     /// One-finger (or two) touch swipe and two-finger trackpad swipe over the
-    /// presented grid move to the previous / next group. The tray follows the
-    /// finger a little for feedback; the cell slide does the rest.
+    /// presented grid drag the neighbor group's page in beside the current
+    /// one, exactly like the regular tab swipe; release commits or snaps back.
     private func makeScopePan() -> InteractiveEdgePanRecognizer {
         var config = InteractiveEdgePanRecognizer.Configuration(axis: .horizontal, idioms: [.phone, .pad, .mac])
         config.touchCounts = [1, 2]
@@ -546,37 +468,186 @@ extension TabExposeView {
         let callbacks = InteractiveEdgePanRecognizer.Callbacks(
             isInActivationBand: isInBand,
             shouldBegin: shouldBegin,
-            length: { [weak self] in max(self?.bounds.width ?? 1, 1) },
-            onBegin: { _ in },
-            onChange: { [weak self] p in self?.nudgeTray(progress: p) },
+            length: { [weak self] in self?.pageWidth ?? 1 },
+            onBegin: { [weak self] _ in self?.beginScopeSwipe() },
+            onChange: { [weak self] p in self?.updateScopeSwipe(progress: p) },
             onEnd: { [weak self] p, v in self?.endScopeSwipe(progress: p, velocity: v) },
-            onCancel: { [weak self] in self?.settleTray() }
+            onCancel: { [weak self] in self?.cancelScopeSwipe() }
         )
         return InteractiveEdgePanRecognizer(configuration: config, callbacks: callbacks)
     }
 
-    private func nudgeTray(progress: CGFloat) {
-        guard controller.phase == .presented else { return }
-        let clamped = min(max(progress, -1), 1)
-        tray.transform = CGAffineTransform(translationX: clamped * bounds.width * 0.2, y: 0)
+    private func beginScopeSwipe() {
+        guard controller.phase == .presented, controller.canNavigateScope else { return }
+        // Take over a settling page where it is so flicks chain.
+        scopeSwipeBase = pageShift
+        pageTarget = nil
+        pageVelocity = 0
+        scopeCommitDeadline = 0
+        scopeSwipeActive = true
+    }
+
+    /// `progress` is the gesture's signed distance / page width (right-positive).
+    private func updateScopeSwipe(progress: CGFloat) {
+        guard scopeSwipeActive else { return }
+        let W = pageWidth
+        pageShift = Self.rubberBanded(scopeSwipeBase + progress * W, limit: W)
+        updateCompanionForShift()
+        applyProgress()
+    }
+
+    /// Keep the companion on the side the primary is being dragged away from.
+    private func updateCompanionForShift() {
+        guard pageShift != 0 else { return }
+        let delta = pageShift < 0 ? 1 : -1  // swipe left = next group
+        if companion != nil, companionSide == delta { return }
+        guard let tabsModel = controller.tabsModel,
+              let neighbor = controller.neighborScope(offset: delta) else { return }
+        companion?.removeFromSuperview()
+        let tray = makeTray(interactive: false)
+        tray.rebuildCells(
+            tabIDs: neighbor.tabIDs,
+            scopeTitle: neighbor.title,
+            scoped: true,
+            tabsModel: tabsModel,
+            selectedID: tabsModel.preferredTabID(in: neighbor.tabIDs, scope: neighbor.key),
+            highlightedID: nil,
+            appearance: appearance
+        )
+        companion = tray
+        companionSide = delta
+        setNeedsLayout()
+        layoutIfNeeded()
+        // Wake the neighbor's renderers so its mirrors are live while dragging.
+        controller.setScopePreview(neighbor.tabIDs)
     }
 
     private func endScopeSwipe(progress: CGFloat, velocity: CGFloat) {
-        // Swipe left (negative) = next group; content then slides in from the right.
-        if progress < -0.12 || velocity < -500 {
-            controller.navigateScope(by: 1)
-        } else if progress > 0.12 || velocity > 500 {
-            controller.navigateScope(by: -1)
+        guard scopeSwipeActive else { return }
+        scopeSwipeActive = false
+        let W = pageWidth
+        let delta = pageShift < 0 ? 1 : -1
+        // Regular tab swipe thresholds: distance or a flick in the drag direction.
+        let threshold = max(120, min(0.45 * W, 260))
+        let flick = velocity * CGFloat(-delta) >= 900
+        let commits = companion != nil && companionSide == delta && (abs(pageShift) >= threshold || flick)
+        if commits {
+            // Switch now (as the regular swipe does); the scope-changed announce
+            // relabels the pages in place and settles the new primary to 0.
+            controller.navigateScope(by: delta)
+            scopeCommitDeadline = CACurrentMediaTime() + 0.5
+            settlePage(to: CGFloat(-delta) * W, fast: false)
+        } else {
+            settlePage(to: 0, fast: true)
         }
-        settleTray()
     }
 
-    private func settleTray() {
-        guard controller.phase == .presented else { return }
-        UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.86, initialSpringVelocity: 0,
-                       options: [.beginFromCurrentState, .allowUserInteraction]) {
-            self.tray.transform = .identity
+    private func cancelScopeSwipe() {
+        guard scopeSwipeActive else { return }
+        scopeSwipeActive = false
+        settlePage(to: 0, fast: true)
+    }
+
+    /// The scope changed by `direction` (swipe commit, ⌘⌥[ ], scope menu):
+    /// the new scope's page slides to the center while the old one leaves.
+    private func pageToNewScope(direction: Int) {
+        let W = pageWidth
+        let previousShift = pageShift
+        let outgoing = primary
+        if let companion, companion.tabIDs == controller.tabIDs {
+            // The dragged-in preview is the new scope: swap roles where they
+            // stand (primary at shift, companion at shift + side·W).
+            primary = companion
+            pageShift += CGFloat(companionSide) * W
+            companionSide = -companionSide
+        } else {
+            companion?.removeFromSuperview()
+            primary = makeTray(interactive: true)
+            companionSide = -direction
+            pageShift = CGFloat(direction) * W
         }
+        companion = outgoing
+        outgoing.isUserInteractionEnabled = false
+        primary.isUserInteractionEnabled = true
+        rebuildPrimary()
+        setNeedsLayout()
+        layoutIfNeeded()
+        // The controller already holds the outgoing page's tabs as the preview
+        // so they render until `dropCompanion` ends it on landing.
+        scopeCommitDeadline = 0
+        if scopeSwipeActive {
+            // Finger still down: keep following it from the relabeled position.
+            scopeSwipeBase += pageShift - previousShift
+        } else {
+            settlePage(to: 0, fast: false)
+        }
+    }
+
+    private func settlePage(to target: CGFloat, fast: Bool) {
+        if controller.reduceMotion() {
+            pageShift = target
+            pageVelocity = 0
+            pageTarget = nil
+            applyProgress()
+            pageDidLand()
+            return
+        }
+        pageTarget = target
+        pageSpringFast = fast
+        lastPageTick = 0
+    }
+
+    private func stepPageSpring(now: CFTimeInterval) {
+        // A committed swipe whose selection never changed: snap back.
+        if scopeCommitDeadline > 0, now >= scopeCommitDeadline, !scopeSwipeActive {
+            scopeCommitDeadline = 0
+            settlePage(to: 0, fast: true)
+        }
+        guard let target = pageTarget else {
+            lastPageTick = now
+            return
+        }
+        let dt = lastPageTick == 0 ? 1.0 / 60.0 : min(max(now - lastPageTick, 0), 1.0 / 20.0)
+        lastPageTick = now
+        ExposeSpring.step(value: &pageShift, velocity: &pageVelocity, target: target,
+                          response: pageSpringFast ? 0.26 : 0.32,
+                          damping: pageSpringFast ? 0.9 : 0.86,
+                          dt: CGFloat(dt))
+        if abs(pageShift - target) < 0.5, abs(pageVelocity) < 1 {
+            pageShift = target
+            pageVelocity = 0
+            pageTarget = nil
+            pageDidLand()
+        }
+    }
+
+    private func pageDidLand() {
+        if pageShift == 0 { dropCompanion() }
+    }
+
+    private func dropCompanion() {
+        companion?.removeFromSuperview()
+        companion = nil
+        companionSide = 0
+        controller.setScopePreview([])
+    }
+
+    /// Back to a single page at rest (activation, deactivation, reduce motion).
+    private func resetPage() {
+        scopeSwipeActive = false
+        pageTarget = nil
+        pageVelocity = 0
+        pageShift = 0
+        scopeCommitDeadline = 0
+        dropCompanion()
+        primary.isUserInteractionEnabled = true
+    }
+
+    /// Beyond one page the drag stiffens instead of tearing away.
+    private static func rubberBanded(_ shift: CGFloat, limit: CGFloat) -> CGFloat {
+        guard abs(shift) > limit else { return shift }
+        let over = (abs(shift) - limit) / limit
+        return (shift < 0 ? -1 : 1) * limit * (1 + 0.08 * tanh(over * 4))
     }
 }
 
