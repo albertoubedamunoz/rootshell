@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		47ABC10F2FF50000AABB000F /* PTYManagerImpl.m in Sources */ = {isa = PBXBuildFile; fileRef = 47ABC10D2FF50000AABB000D /* PTYManagerImpl.m */; };
-		47ABC1102FF50000AABB0010 /* ProcessSpawner.m in Sources */ = {isa = PBXBuildFile; fileRef = 47ABC10E2FF50000AABB000E /* ProcessSpawner.m */; };
 		06402925345B9813ECE3B11E /* Debug-AppStore.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 47511ACC2EDF598900696C18 /* Debug-AppStore.xcconfig */; };
 		06641C55E10A388BA59C6B87 /* AppIconRadicalSolarizedLight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 47A1000B2F9D0BCD009B5D30 /* AppIconRadicalSolarizedLight.icon */; };
 		0668A4F421BC22AFA165E265 /* GhosttyKitStandalone in Frameworks */ = {isa = PBXBuildFile; productRef = 417549D6E2D63FC56F6548A4 /* GhosttyKitStandalone */; };
@@ -103,6 +101,8 @@
 		47A810B22EE40000005A0B9C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; platformFilter = maccatalyst; productRef = 47A810B12EE40000005A0B9C /* Sparkle */; };
 		47A85EE92EE639FB005A0B9C /* jq_ios in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47JQPKG12FB00000AABB0001 /* jq_ios */; };
 		47AABB012FF40000AABB0001 /* rootshell-helper.app in Embed Helper */ = {isa = PBXBuildFile; fileRef = 47AABB072FF40000AABB0007 /* rootshell-helper.app */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		47ABC10F2FF50000AABB000F /* rootshell-helper/Sources/PTYManagerImpl.m in Sources */ = {isa = PBXBuildFile; fileRef = 47ABC10D2FF50000AABB000D /* rootshell-helper/Sources/PTYManagerImpl.m */; };
+		47ABC1102FF50000AABB0010 /* rootshell-helper/Sources/ProcessSpawner.m in Sources */ = {isa = PBXBuildFile; fileRef = 47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */; };
 		47AE8FBE2F4BBBAA0032A651 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
 		47B9B9322F996A6D003FFF58 /* AppIconUnderscore.icon in Resources */ = {isa = PBXBuildFile; fileRef = 47B9B9312F996A6D003FFF58 /* AppIconUnderscore.icon */; };
 		47CD00000E00000000000000 /* SwiftkubeClient in Frameworks */ = {isa = PBXBuildFile; productRef = 477408A42ED5F6B60035CE92 /* SwiftkubeClient */; };
@@ -464,15 +464,6 @@
 		47511ACF2EDF598900696C18 /* Release-AppStore.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release-AppStore.xcconfig"; sourceTree = "<group>"; };
 		47511AD02EDF598900696C18 /* Release-Standalone.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release-Standalone.xcconfig"; sourceTree = "<group>"; };
 		47511AD12EDF598900696C18 /* Standalone.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Standalone.xcconfig; sourceTree = "<group>"; };
-		47ABC1172FF50000AABB0017 /* Helper.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Helper.xcconfig; sourceTree = "<group>"; };
-		47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = HelperTests.xcconfig; sourceTree = "<group>"; };
-		47ABC1022FF50000AABB0002 /* rootshell-helperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "rootshell-helperTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		47ABC1062FF50000AABB0006 /* rootshell-helper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "rootshell-helper.entitlements"; sourceTree = "<group>"; };
-		47ABC1072FF50000AABB0007 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		47ABC1082FF50000AABB0008 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
-		47ABC1092FF50000AABB0009 /* THIRD_PARTY_NOTICES */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES; sourceTree = "<group>"; };
-		47ABC10D2FF50000AABB000D /* PTYManagerImpl.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "rootshell-helper/Sources/PTYManagerImpl.m"; sourceTree = SOURCE_ROOT; };
-		47ABC10E2FF50000AABB000E /* ProcessSpawner.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "rootshell-helper/Sources/ProcessSpawner.m"; sourceTree = SOURCE_ROOT; };
 		4771ED462ECBE635009B57F8 /* themes */ = {isa = PBXFileReference; lastKnownFileType = folder; name = themes; path = Resources/themes; sourceTree = "<group>"; };
 		477408652ED3F1880035CE92 /* shell-integration */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "shell-integration"; path = "Resources/shell-integration"; sourceTree = "<group>"; };
 		477738A82F9C3553009B5D30 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
@@ -497,6 +488,15 @@
 		47A51A922EEDC704000D76E0 /* VimRuntime.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = VimRuntime.bundle; sourceTree = "<group>"; };
 		47A810A72EE39B03005A0B9C /* curl */ = {isa = PBXFileReference; lastKnownFileType = folder; name = curl; path = Resources/curl; sourceTree = "<group>"; };
 		47AABB072FF40000AABB0007 /* rootshell-helper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "rootshell-helper.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		47ABC1022FF50000AABB0002 /* rootshell-helperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "rootshell-helperTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		47ABC1062FF50000AABB0006 /* rootshell-helper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "rootshell-helper.entitlements"; sourceTree = "<group>"; };
+		47ABC1072FF50000AABB0007 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		47ABC1082FF50000AABB0008 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		47ABC1092FF50000AABB0009 /* THIRD_PARTY_NOTICES */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES; sourceTree = "<group>"; };
+		47ABC10D2FF50000AABB000D /* rootshell-helper/Sources/PTYManagerImpl.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "rootshell-helper/Sources/PTYManagerImpl.m"; sourceTree = SOURCE_ROOT; };
+		47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "rootshell-helper/Sources/ProcessSpawner.m"; sourceTree = SOURCE_ROOT; };
+		47ABC1172FF50000AABB0017 /* Helper.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Helper.xcconfig; sourceTree = "<group>"; };
+		47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = HelperTests.xcconfig; sourceTree = "<group>"; };
 		47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		47B9B9312F996A6D003FFF58 /* AppIconUnderscore.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIconUnderscore.icon; sourceTree = "<group>"; };
 		47C100012F990000BBCC0001 /* Debug-China.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Debug-China.xcconfig"; sourceTree = "<group>"; };
@@ -518,13 +518,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		47ABC12B2FF50000AABB002B /* Exceptions for "Sources" folder in "rootshell-helper" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 47ABC1002FF50000AABB0000 /* rootshell-helper */;
-		};
 		473119092FFC2B4D00FB3C83 /* Exceptions for "tunnel" folder in "tunnel" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -538,6 +531,13 @@
 				Info.plist,
 			);
 			target = 47D8B2412ECAAE7F00CA99EC /* rootshell */;
+		};
+		47ABC12B2FF50000AABB002B /* Exceptions for "Sources" folder in "rootshell-helper" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 47ABC1002FF50000AABB0000 /* rootshell-helper */;
 		};
 		47CD00009900000000000000 /* Exceptions for "rootshell" folder in "rootshell-china" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -651,19 +651,6 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		47ABC1032FF50000AABB0003 /* Sources */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				47ABC12B2FF50000AABB002B /* Exceptions for "Sources" folder in "rootshell-helper" target */,
-			);
-			path = Sources;
-			sourceTree = "<group>";
-		};
-		47ABC1042FF50000AABB0004 /* Tests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Tests;
-			sourceTree = "<group>";
-		};
 		473118C02FFC2B1500FB3C83 /* rootshellvpn */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = rootshellvpn;
@@ -685,6 +672,19 @@
 				473119092FFC2B4D00FB3C83 /* Exceptions for "tunnel" folder in "tunnel" target */,
 			);
 			path = tunnel;
+			sourceTree = "<group>";
+		};
+		47ABC1032FF50000AABB0003 /* Sources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				47ABC12B2FF50000AABB002B /* Exceptions for "Sources" folder in "rootshell-helper" target */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		47ABC1042FF50000AABB0004 /* Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		47CWP0062F560000DDEE0006 /* CoreWLANPlugin */ = {
@@ -729,20 +729,6 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		47ABC1122FF50000AABB0012 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		47ABC1152FF50000AABB0015 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		2E9213D623394D5239FD4075 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -802,6 +788,20 @@
 				473118FE2FFC2B4D00FB3C83 /* NetworkExtension.framework in Frameworks */,
 				47VPNT0100000000000000C2 /* Citadel in Frameworks */,
 				47VPNT0100000000000000F1 /* VPNTunnel in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47ABC1122FF50000AABB0012 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47ABC1152FF50000AABB0015 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -981,6 +981,7 @@
 				47A51A922EEDC704000D76E0 /* VimRuntime.bundle */,
 				47AAAD932F99299F00587DC3 /* AltIcons */,
 				477738A82F9C3553009B5D30 /* AppIcon.icon */,
+				47E4DFFB303B992000224D87 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1013,49 +1014,18 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		47E4DFFB303B992000224D87 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				47ABC10D2FF50000AABB000D /* rootshell-helper/Sources/PTYManagerImpl.m */,
+				47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		47ABC1002FF50000AABB0000 /* rootshell-helper */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 47ABC1192FF50000AABB0019 /* Build configuration list for PBXNativeTarget "rootshell-helper" */;
-			buildPhases = (
-				47ABC1112FF50000AABB0011 /* Sources */,
-				47ABC1122FF50000AABB0012 /* Frameworks */,
-				47ABC1132FF50000AABB0013 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				47ABC1032FF50000AABB0003 /* Sources */,
-			);
-			name = "rootshell-helper";
-			productName = "rootshell-helper";
-			productReference = 47AABB072FF40000AABB0007 /* rootshell-helper.app */;
-			productType = "com.apple.product-type.application";
-		};
-		47ABC1012FF50000AABB0001 /* rootshell-helperTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 47ABC11A2FF50000AABB001A /* Build configuration list for PBXNativeTarget "rootshell-helperTests" */;
-			buildPhases = (
-				47ABC1142FF50000AABB0014 /* Sources */,
-				47ABC1152FF50000AABB0015 /* Frameworks */,
-				47ABC1162FF50000AABB0016 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				47ABC1042FF50000AABB0004 /* Tests */,
-			);
-			name = "rootshell-helperTests";
-			productName = "rootshell-helperTests";
-			productReference = 47ABC1022FF50000AABB0002 /* rootshell-helperTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 		473118BE2FFC2B1500FB3C83 /* rootshellvpn */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 473118F52FFC2B1700FB3C83 /* Build configuration list for PBXNativeTarget "rootshellvpn" */;
@@ -1143,6 +1113,46 @@
 			productName = tunnel;
 			productReference = 473118FC2FFC2B4D00FB3C83 /* com.kk2.rootshellvpn.tunnel.systemextension */;
 			productType = "com.apple.product-type.system-extension";
+		};
+		47ABC1002FF50000AABB0000 /* rootshell-helper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47ABC1192FF50000AABB0019 /* Build configuration list for PBXNativeTarget "rootshell-helper" */;
+			buildPhases = (
+				47ABC1112FF50000AABB0011 /* Sources */,
+				47ABC1122FF50000AABB0012 /* Frameworks */,
+				47ABC1132FF50000AABB0013 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47ABC1032FF50000AABB0003 /* Sources */,
+			);
+			name = "rootshell-helper";
+			productName = "rootshell-helper";
+			productReference = 47AABB072FF40000AABB0007 /* rootshell-helper.app */;
+			productType = "com.apple.product-type.application";
+		};
+		47ABC1012FF50000AABB0001 /* rootshell-helperTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47ABC11A2FF50000AABB001A /* Build configuration list for PBXNativeTarget "rootshell-helperTests" */;
+			buildPhases = (
+				47ABC1142FF50000AABB0014 /* Sources */,
+				47ABC1152FF50000AABB0015 /* Frameworks */,
+				47ABC1162FF50000AABB0016 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47ABC1042FF50000AABB0004 /* Tests */,
+			);
+			name = "rootshell-helperTests";
+			productName = "rootshell-helperTests";
+			productReference = 47ABC1022FF50000AABB0002 /* rootshell-helperTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		47CD00000100000000000000 /* rootshell-china */ = {
 			isa = PBXNativeTarget;
@@ -1376,19 +1386,6 @@
 				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
-					47ABC1002FF50000AABB0000 = {
-						CreatedOnToolsVersion = 26.1.1;
-						ProvisioningStyle = Automatic;
-						SystemCapabilities = {
-							com.apple.ApplicationGroups.iOS = {
-								enabled = 1;
-							};
-						};
-					};
-					47ABC1012FF50000AABB0001 = {
-						CreatedOnToolsVersion = 26.1.1;
-						TestTargetID = 47ABC1002FF50000AABB0000;
-					};
 					473118BE2FFC2B1500FB3C83 = {
 						CreatedOnToolsVersion = 26.5;
 					};
@@ -1402,6 +1399,19 @@
 					};
 					473118FB2FFC2B4D00FB3C83 = {
 						CreatedOnToolsVersion = 26.5;
+					};
+					47ABC1002FF50000AABB0000 = {
+						CreatedOnToolsVersion = 26.1.1;
+						ProvisioningStyle = Automatic;
+						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {
+								enabled = 1;
+							};
+						};
+					};
+					47ABC1012FF50000AABB0001 = {
+						CreatedOnToolsVersion = 26.1.1;
+						TestTargetID = 47ABC1002FF50000AABB0000;
 					};
 					47CWP0102F560000DDEE0010 = {
 						CreatedOnToolsVersion = 26.1.1;
@@ -1502,20 +1512,6 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		47ABC1132FF50000AABB0013 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		47ABC1162FF50000AABB0016 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		473118BD2FFC2B1500FB3C83 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1539,6 +1535,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		473118FA2FFC2B4D00FB3C83 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47ABC1132FF50000AABB0013 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47ABC1162FF50000AABB0016 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1831,22 +1841,6 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		47ABC1112FF50000AABB0011 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		47ABC1142FF50000AABB0014 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				47ABC10F2FF50000AABB000F /* PTYManagerImpl.m in Sources */,
-				47ABC1102FF50000AABB0010 /* ProcessSpawner.m in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		473118BB2FFC2B1500FB3C83 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1872,6 +1866,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47ABC1112FF50000AABB0011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47ABC1142FF50000AABB0014 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47ABC10F2FF50000AABB000F /* rootshell-helper/Sources/PTYManagerImpl.m in Sources */,
+				47ABC1102FF50000AABB0010 /* rootshell-helper/Sources/ProcessSpawner.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2002,118 +2012,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		47ABC11B2FF50000AABB001B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = Debug;
-		};
-		47ABC11C2FF50000AABB001C /* DebugStandalone */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugStandalone;
-		};
-		47ABC11D2FF50000AABB001D /* DebugAppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugAppStore;
-		};
-		47ABC11E2FF50000AABB001E /* DebugChina */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugChina;
-		};
-		47ABC11F2FF50000AABB001F /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = Release;
-		};
-		47ABC1202FF50000AABB0020 /* ReleaseStandalone */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseStandalone;
-		};
-		47ABC1212FF50000AABB0021 /* ReleaseAppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseAppStore;
-		};
-		47ABC1222FF50000AABB0022 /* ReleaseChina */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseChina;
-		};
-		47ABC1232FF50000AABB0023 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = Debug;
-		};
-		47ABC1242FF50000AABB0024 /* DebugStandalone */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugStandalone;
-		};
-		47ABC1252FF50000AABB0025 /* DebugAppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugAppStore;
-		};
-		47ABC1262FF50000AABB0026 /* DebugChina */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugChina;
-		};
-		47ABC1272FF50000AABB0027 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = Release;
-		};
-		47ABC1282FF50000AABB0028 /* ReleaseStandalone */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseStandalone;
-		};
-		47ABC1292FF50000AABB0029 /* ReleaseAppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseAppStore;
-		};
-		47ABC12A2FF50000AABB002A /* ReleaseChina */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseChina;
-		};
 		1938A32A6E5F72DBB95BC086 /* DebugChina */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 47C100012F990000BBCC0001 /* Debug-China.xcconfig */;
@@ -2124,7 +2022,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
@@ -2180,7 +2078,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -2238,7 +2136,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -3336,7 +3234,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -3450,7 +3348,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -3572,7 +3470,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -3699,7 +3597,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -3749,6 +3647,118 @@
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = DebugStandalone;
+		};
+		47ABC11B2FF50000AABB001B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		47ABC11C2FF50000AABB001C /* DebugStandalone */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugStandalone;
+		};
+		47ABC11D2FF50000AABB001D /* DebugAppStore */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugAppStore;
+		};
+		47ABC11E2FF50000AABB001E /* DebugChina */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugChina;
+		};
+		47ABC11F2FF50000AABB001F /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		47ABC1202FF50000AABB0020 /* ReleaseStandalone */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseStandalone;
+		};
+		47ABC1212FF50000AABB0021 /* ReleaseAppStore */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseAppStore;
+		};
+		47ABC1222FF50000AABB0022 /* ReleaseChina */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1172FF50000AABB0017 /* Helper.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseChina;
+		};
+		47ABC1232FF50000AABB0023 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		47ABC1242FF50000AABB0024 /* DebugStandalone */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugStandalone;
+		};
+		47ABC1252FF50000AABB0025 /* DebugAppStore */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugAppStore;
+		};
+		47ABC1262FF50000AABB0026 /* DebugChina */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugChina;
+		};
+		47ABC1272FF50000AABB0027 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		47ABC1282FF50000AABB0028 /* ReleaseStandalone */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseStandalone;
+		};
+		47ABC1292FF50000AABB0029 /* ReleaseAppStore */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseAppStore;
+		};
+		47ABC12A2FF50000AABB002A /* ReleaseChina */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseChina;
 		};
 		47C100102F990000BBCC0010 /* DebugChina */ = {
 			isa = XCBuildConfiguration;
@@ -3884,7 +3894,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
@@ -3939,7 +3949,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
@@ -3988,7 +3998,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4013,7 +4023,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4038,7 +4048,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				EXCLUDED_SOURCE_FILE_NAMES = "VPN*.swift";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -4071,7 +4081,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				EXCLUDED_SOURCE_FILE_NAMES = "VPN*.swift";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -4104,7 +4114,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -4137,7 +4147,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -4173,7 +4183,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -4235,7 +4245,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -4296,7 +4306,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -4357,7 +4367,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
@@ -4411,7 +4421,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -4468,7 +4478,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -4524,7 +4534,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -4580,7 +4590,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
@@ -4629,7 +4639,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4654,7 +4664,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4679,7 +4689,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4704,7 +4714,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4729,7 +4739,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4754,7 +4764,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
@@ -4906,7 +4916,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -4970,7 +4980,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -5024,7 +5034,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -5055,7 +5065,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -5086,7 +5096,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -5117,7 +5127,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -5148,7 +5158,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -5179,7 +5189,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -5210,7 +5220,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -5244,7 +5254,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -5278,7 +5288,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -5312,7 +5322,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -5346,7 +5356,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -5380,7 +5390,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -5418,7 +5428,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -5480,7 +5490,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -5543,7 +5553,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -5604,7 +5614,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -5660,7 +5670,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 136;
+				CURRENT_PROJECT_VERSION = 137;
 				DEVELOPMENT_TEAM = D97ZME3ET2;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
@@ -5706,36 +5716,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		47ABC1192FF50000AABB0019 /* Build configuration list for PBXNativeTarget "rootshell-helper" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				47ABC11B2FF50000AABB001B /* Debug */,
-				47ABC11C2FF50000AABB001C /* DebugStandalone */,
-				47ABC11D2FF50000AABB001D /* DebugAppStore */,
-				47ABC11E2FF50000AABB001E /* DebugChina */,
-				47ABC11F2FF50000AABB001F /* Release */,
-				47ABC1202FF50000AABB0020 /* ReleaseStandalone */,
-				47ABC1212FF50000AABB0021 /* ReleaseAppStore */,
-				47ABC1222FF50000AABB0022 /* ReleaseChina */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		47ABC11A2FF50000AABB001A /* Build configuration list for PBXNativeTarget "rootshell-helperTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				47ABC1232FF50000AABB0023 /* Debug */,
-				47ABC1242FF50000AABB0024 /* DebugStandalone */,
-				47ABC1252FF50000AABB0025 /* DebugAppStore */,
-				47ABC1262FF50000AABB0026 /* DebugChina */,
-				47ABC1272FF50000AABB0027 /* Release */,
-				47ABC1282FF50000AABB0028 /* ReleaseStandalone */,
-				47ABC1292FF50000AABB0029 /* ReleaseAppStore */,
-				47ABC12A2FF50000AABB002A /* ReleaseChina */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		473118F52FFC2B1700FB3C83 /* Build configuration list for PBXNativeTarget "rootshellvpn" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -5792,6 +5772,36 @@
 				473119102FFC2B4D00FB3C83 /* ReleaseStandalone */,
 				473119112FFC2B4D00FB3C83 /* ReleaseAppStore */,
 				473119122FFC2B4D00FB3C83 /* ReleaseChina */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		47ABC1192FF50000AABB0019 /* Build configuration list for PBXNativeTarget "rootshell-helper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47ABC11B2FF50000AABB001B /* Debug */,
+				47ABC11C2FF50000AABB001C /* DebugStandalone */,
+				47ABC11D2FF50000AABB001D /* DebugAppStore */,
+				47ABC11E2FF50000AABB001E /* DebugChina */,
+				47ABC11F2FF50000AABB001F /* Release */,
+				47ABC1202FF50000AABB0020 /* ReleaseStandalone */,
+				47ABC1212FF50000AABB0021 /* ReleaseAppStore */,
+				47ABC1222FF50000AABB0022 /* ReleaseChina */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		47ABC11A2FF50000AABB001A /* Build configuration list for PBXNativeTarget "rootshell-helperTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47ABC1232FF50000AABB0023 /* Debug */,
+				47ABC1242FF50000AABB0024 /* DebugStandalone */,
+				47ABC1252FF50000AABB0025 /* DebugAppStore */,
+				47ABC1262FF50000AABB0026 /* DebugChina */,
+				47ABC1272FF50000AABB0027 /* Release */,
+				47ABC1282FF50000AABB0028 /* ReleaseStandalone */,
+				47ABC1292FF50000AABB0029 /* ReleaseAppStore */,
+				47ABC12A2FF50000AABB002A /* ReleaseChina */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

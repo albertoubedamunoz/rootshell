@@ -3,6 +3,23 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-137 - August 23, 2026
+
+### Mosh
+
+- **Overwrite Prediction:** Mosh now supports overwrite prediction (#314). Local predictions can replace the cell under the cursor instead of inserting and shifting the rest of the row, which keeps tmux, zellij and other bordered interfaces aligned on high-latency links. Enable it for new sessions in Settings -> Roam -> Overwrite Predictions, or use --predict-overwrite and --no-predict-overwrite on typed mosh and roam commands.
+- **More Reliable Typed Commands:** Typed mosh and roam commands preserve quoted SSH option values and the complete remote command. Flags intended for a command on the server are no longer mistaken for local Mosh options.
+
+### SSH
+
+- **Post-Quantum Key Exchange through ProxyJump:** ProxyJump connections now use post-quantum key exchange on the target connection when supported (#315). Previously the jump-host connection used the full algorithm policy, but the target connection used the older classically secure policy. The full policy now reaches the target across regular SSH, Mosh, tssh, AI Agent and other headless connection paths.
+
+### Standalone macOS
+
+- **No More Repeated Data-Access Prompt:** Fixed some Macs asking for permission to access data from other apps on every rootshell launch. rootshell-helper has moved from a command-line executable to a fully signed app companion bundle and communicates with rootshell through the shared App Group.
+- **New Local SSH Agent Socket:** The local SSH agent has a new socket path. New shells launched by rootshell receive it automatically. Existing long-running shells, including tmux sessions, retain the old SSH_AUTH_SOCK; restart those shells or update SSH_AUTH_SOCK to use the agent again.
+- **Safe Fallback for Invalid Local Shells:** A bad local-shell command no longer causes a new tab to close immediately. Settings now catch missing executables, relative paths, malformed quotes and control characters, explain the problem, and use a clean macOS zsh. If a valid shell disappears or fails while launching, the helper makes the same safe fallback.
+
 ## 1.0.11-136 - August 22, 2026
 
 ### Tabs

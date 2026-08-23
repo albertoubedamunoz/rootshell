@@ -98970,7 +98970,6 @@
       }
     },
     "Choose which VPN profile to control from the widget." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -99125,7 +99124,6 @@
       }
     },
     "Choose which VPN profile to toggle from Control Center." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -116417,7 +116415,6 @@
       }
     },
     "Connect or disconnect your VPN." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -123068,7 +123065,6 @@
       }
     },
     "Connects or disconnects the VPN." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -123532,7 +123528,6 @@
       }
     },
     "Connects VPN using the selected profile." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -128015,7 +128010,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -155347,7 +155342,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
+      "comment" : "Location Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -163999,7 +163994,6 @@
       }
     },
     "Disconnecting…" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164154,7 +164148,6 @@
       }
     },
     "Disconnects the active VPN." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -234256,7 +234249,6 @@
       }
     },
     "Hold to select profile" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -240424,7 +240416,7 @@
       }
     },
     "Identity" : {
-      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
+      "comment" : "OpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -334284,7 +334276,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -342634,7 +342626,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -343098,7 +343090,7 @@
       }
     },
     "On" : {
-      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -376131,7 +376123,6 @@
       }
     },
     "Profile ID" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -391567,7 +391558,6 @@
       }
     },
     "Reconnecting…" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -403600,6 +403590,9 @@
           }
         }
       }
+    },
+    "Replace existing cells when predicting input" : {
+      "comment" : "Mosh help: --predict-overwrite option"
     },
     "Replace predicted cells instead of shifting content, preserving multiplexer borders." : {
       "localizations" : {
@@ -436965,7 +436958,6 @@
       }
     },
     "Select VPN Profile" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -479302,7 +479294,6 @@
       }
     },
     "Start and stop your VPN connection." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -529934,7 +529925,6 @@
       }
     },
     "Toggle VPN" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -554495,6 +554485,9 @@
         }
       }
     },
+    "Use inserting predictions for this session" : {
+      "comment" : "Mosh help: --no-predict-overwrite option"
+    },
     "Use Jump Host" : {
       "localizations" : {
         "ar" : {
@@ -567779,7 +567772,6 @@
       }
     },
     "VPN Control" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -568859,7 +568851,6 @@
       }
     },
     "VPN On" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -570096,7 +570087,6 @@
       }
     },
     "VPN Toggle" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -575967,7 +575957,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
+      "comment" : "Agent usage window title: weekly quota",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
