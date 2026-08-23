@@ -10,9 +10,9 @@ ENABLE_HARDENED_RUNTIME = YES
 CODE_SIGN_ENTITLEMENTS = rootshell/Entitlements/AppStore.entitlements
 CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = rootshell/Entitlements/AppStore-MacCatalyst.entitlements
 
-// Exclude rootshell-helper for App Store (private API helper binary)
+// Exclude the bundled rootshell-helper app for App Store builds.
 // Also exclude UpdateManager.swift (Sparkle integration - Standalone only)
-EXCLUDED_SOURCE_FILE_NAMES = rootshell-helper UpdateManager.swift rootshellvpn.app
+EXCLUDED_SOURCE_FILE_NAMES = rootshell-helper.app UpdateManager.swift rootshellvpn.app
 
 // Swift conditional compilation flag
 // Keep aligned with the pinned YubiKit fork release. Restoring Lightning requires

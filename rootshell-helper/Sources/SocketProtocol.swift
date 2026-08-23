@@ -1,13 +1,13 @@
 import Foundation
 
-/// Protocol for communication between rootshell (Catalyst) and ghostty-helper
+/// Protocol for communication between rootshell (Catalyst) and rootshell-helper
 /// over Unix domain sockets in the shared App Group container.
 ///
 /// This replaces XPC communication which is not available on Mac Catalyst.
 
 // MARK: - Command Types
 
-enum SocketCommand: String, Codable, Sendable {
+enum SocketCommand: String, Codable {
     case createShell
     case resizeShell
     case killShell
@@ -17,7 +17,7 @@ enum SocketCommand: String, Codable, Sendable {
 
 // MARK: - Request/Response Messages
 
-struct SocketRequest: Codable, Sendable {
+struct SocketRequest: Codable {
     let command: SocketCommand
     let payload: Data?
 
@@ -27,7 +27,7 @@ struct SocketRequest: Codable, Sendable {
     }
 }
 
-struct SocketResponse: Codable, Sendable {
+struct SocketResponse: Codable {
     let success: Bool
     let payload: Data?
     let error: String?
@@ -43,7 +43,7 @@ struct SocketResponse: Codable, Sendable {
 
 // MARK: - Command Payloads
 
-struct CreateShellRequest: Codable, Sendable {
+struct CreateShellRequest: Codable {
     let rows: UInt16
     let cols: UInt16
     let cwd: String?
@@ -51,35 +51,34 @@ struct CreateShellRequest: Codable, Sendable {
     let resourcesDir: String?
     let enableShellIntegration: Bool
     let sshAuthSock: String?
-    /// Short version for TERM_PROGRAM_VERSION. Optional so an older helper
-    /// binary (or an older app) still decodes the request.
+    /// Short version for TERM_PROGRAM_VERSION. Optional so an older app
+    /// (or an older helper) still decodes the request.
     let appVersion: String?
     /// Short version plus build for LC_TERMINAL_VERSION.
     let appVersionWithBuild: String?
-    /// TERM for the spawned shell. Optional so an older helper binary (or an
-    /// older app) still decodes the request; the helper falls back to its own
-    /// default when absent.
+    /// TERM for the spawned shell, chosen in the app's settings. Optional so an
+    /// older app still decodes here; nil keeps the helper's own default.
     let termType: String?
 }
 
-struct CreateShellResponse: Codable, Sendable {
+struct CreateShellResponse: Codable {
     let sessionID: UUID
     let socketPath: String
 }
 
-struct ResizeShellRequest: Codable, Sendable {
+struct ResizeShellRequest: Codable {
     let sessionID: UUID
     let rows: UInt16
     let cols: UInt16
 }
 
-struct KillShellRequest: Codable, Sendable {
+struct KillShellRequest: Codable {
     let sessionID: UUID
 }
 
 // MARK: - Execute Command (Non-Interactive)
 
-struct ExecuteCommandRequest: Codable, Sendable {
+struct ExecuteCommandRequest: Codable {
     let command: String
     let workingDirectory: String?
     let timeout: TimeInterval?
@@ -87,24 +86,16 @@ struct ExecuteCommandRequest: Codable, Sendable {
 }
 
 /// Streaming output chunk sent during command execution
-struct ExecuteOutputChunk: Codable, Sendable {
+struct ExecuteOutputChunk: Codable {
     let data: Data      // UTF-8 encoded output chunk
     let isStderr: Bool  // true if from stderr, false for stdout
 }
 
 /// Final response after command completes
-struct ExecuteComplete: Codable, Sendable {
+struct ExecuteComplete: Codable {
     let exitCode: Int32
     let timedOut: Bool
     let duration: TimeInterval
-}
-
-/// Result of command execution (client-side wrapper)
-public struct ExecuteCommandResult: Sendable {
-    public let output: String
-    public let exitCode: Int32
-    public let timedOut: Bool
-    public let duration: TimeInterval
 }
 
 // MARK: - Wire Protocol
@@ -112,7 +103,7 @@ public struct ExecuteCommandResult: Sendable {
 /// Wire protocol for socket messages:
 /// 1. 4 bytes: message length (UInt32, network byte order)
 /// 2. N bytes: JSON-encoded SocketRequest or SocketResponse
-nonisolated struct SocketMessage {
+struct SocketMessage {
     static func encode<T: Encodable>(_ message: T) throws -> Data {
         let jsonData = try JSONEncoder().encode(message)
         var length = UInt32(jsonData.count).bigEndian
@@ -226,8 +217,6 @@ enum SocketProtocolError: Error, LocalizedError {
 // MARK: - App Group Helper
 
 nonisolated struct AppGroupHelper {
-    /// This is already provisioned for the sandboxed Catalyst application. The
-    /// full helper app carries the same entitlement and provisioning profile.
     static let groupIdentifier = "group.com.kk2.ghostty"
 
     /// Set from --app-group argv so the spawning app stays authoritative.

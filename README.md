@@ -258,7 +258,19 @@ xcodebuild -project rootshell.xcodeproj \
 
 ### macOS Local Shells
 
-Local shells on macOS require the Standalone build and the separate [`rootshell-helper`](https://github.com/kitknox/rootshell-helper). Build the helper and deploy its executable to `rootshell/Resources/rootshell-helper` before building the app so it is included in the app bundle. See the helper repository for its build, signing, and deployment instructions.
+Local shells on macOS use the `rootshell-helper` source included in this repository. The Standalone target builds the native background app and embeds it at `Contents/Helpers/rootshell-helper.app` with Code Sign on Copy; no prebuilt helper binary is stored in Git. Organizer distribution signs and notarizes the helper as nested code with the containing app. A sandboxed macOS build can connect to the same helper when it is launched separately because both products use the provisioned `group.com.kk2.ghostty` App Group container.
+
+Build the helper alone with:
+
+```bash
+xcodebuild -project rootshell.xcodeproj \
+  -scheme rootshell-helper \
+  -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+See [`rootshell-helper/README.md`](rootshell-helper/README.md) for its security model, tests, and independent release workflow.
 
 ## License
 

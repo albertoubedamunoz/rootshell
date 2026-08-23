@@ -6,7 +6,7 @@
 //  Only available on Mac Catalyst
 //
 //  Previously used XPC, but XPC's machServiceName: API is not available on Catalyst.
-//  Now uses Unix domain sockets in App Group container.
+//  Now uses Unix domain sockets in the shared App Group container.
 //
 
 import Foundation
@@ -39,17 +39,6 @@ private let responsibilityDisclaim: ResponsibilityDisclaimFn? = {
     guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2),
                           "responsibility_spawnattrs_setdisclaim") else { return nil }
     return unsafeBitCast(sym, to: ResponsibilityDisclaimFn.self)
-}()
-
-/// Public libproc symbol, but the Catalyst SDK doesn't expose <libproc.h>.
-/// C prototype: int proc_pidpath(int pid, void *buffer, uint32_t buffersize);
-private typealias ProcPidPathFn =
-    @convention(c) (Int32, UnsafeMutableRawPointer, UInt32) -> Int32
-
-private nonisolated let procPidPath: ProcPidPathFn? = {
-    guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2),
-                          "proc_pidpath") else { return nil }
-    return unsafeBitCast(sym, to: ProcPidPathFn.self)
 }()
 
 nonisolated private enum HelperProcessIDStore {
@@ -276,14 +265,6 @@ public class HelperConnection {
     /// Ensures helper is running, launching it if necessary (non-sandboxed mode only)
     /// Returns true if helper is available (either existing or newly launched)
     public func ensureHelperRunning() async -> Bool {
-        #if STANDALONE
-        // Replace any pre-update helper still bound in the legacy group
-        // container before touching the new one.
-        await Task.detached(priority: .userInitiated) {
-            Self.recoverLegacyHelper()
-        }.value
-        #endif
-
         // First, check if helper is already running and healthy (reuse orphans)
         do {
             try await socketConnection.ping()
@@ -337,11 +318,11 @@ public class HelperConnection {
             return false
         }
 
-        // Find helper binary in bundle
-        guard let helperURL = Bundle.main.resourceURL?.appendingPathComponent("rootshell-helper") else {
-            Ghostty.logger.error("Helper binary not found in bundle resources")
-            return false
-        }
+        // Nested code belongs in Contents/Helpers so Xcode can sign it inside-out
+        // with the containing app during archive/export.
+        let helperURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Helpers/rootshell-helper.app")
+            .appendingPathComponent("Contents/MacOS/rootshell-helper")
 
         let helperPath = helperURL.path
 
@@ -444,9 +425,7 @@ public class HelperConnection {
         }
     }
 
-    /// Cleans up stale socket files from previous runs. The Team-ID-prefixed
-    /// container is used exclusively for helper IPC, so every `.sock` in it
-    /// is ours to remove.
+    /// Cleans up stale socket files from previous helper runs.
     private func cleanupStaleSockets() {
         guard let containerURL = AppGroupHelper.containerURL else {
             return
@@ -460,94 +439,9 @@ public class HelperConnection {
                 try? FileManager.default.removeItem(atPath: socketPath)
             }
         } catch {
-            Ghostty.logger.warning("Failed to enumerate container directory for socket cleanup: \(error)")
+            Ghostty.logger.warning("Failed to enumerate App Group container: \(error)")
         }
     }
-
-    #if STANDALONE
-    /// Terminates a pre-update helper still bound in the legacy iOS-style group
-    /// container and sweeps its socket files. The disclaimed helper can never
-    /// be authorized for that container on macOS 15+, so every access it makes
-    /// there triggers the "access data from other apps" consent — the orphan is
-    /// unrecoverable and must be replaced, not adopted. The app itself is
-    /// profile-authorized for the legacy group, so this cleanup is silent.
-    private nonisolated static func recoverLegacyHelper() {
-        guard let legacyContainer = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: AppGroupHelper.legacyGroupIdentifier) else {
-            return
-        }
-
-        let commandSocket = legacyContainer.appendingPathComponent("commands.sock").path
-        if FileManager.default.fileExists(atPath: commandSocket) {
-            terminateHelper(boundTo: commandSocket)
-        }
-
-        // vpnControl.sock belongs to the VPN host agent and stays in the legacy
-        // container — deleting it leaves the host serving an unlinked inode.
-        let foreignSockets: Set<String> = ["vpnControl.sock"]
-        if let files = try? FileManager.default.contentsOfDirectory(atPath: legacyContainer.path) {
-            for file in files where file.hasSuffix(".sock") && !foreignSockets.contains(file) {
-                Ghostty.logger.debug("Removing legacy helper socket: \(file)")
-                try? FileManager.default.removeItem(
-                    atPath: legacyContainer.appendingPathComponent(file).path)
-            }
-        }
-    }
-
-    /// Connects to a helper command socket to learn the peer pid, verifies the
-    /// executable really is rootshell-helper (guards against pid reuse), then
-    /// kills it — SIGTERM first, SIGKILL if it hasn't exited after ~1s (it may
-    /// be wedged in a blocking TCC consent).
-    private nonisolated static func terminateHelper(boundTo socketPath: String) {
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { return }
-        defer { close(fd) }
-
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let pathLength = MemoryLayout.size(ofValue: addr.sun_path)
-        _ = socketPath.withCString { cstr in
-            withUnsafeMutableBytes(of: &addr.sun_path) { ptr in
-                strncpy(ptr.baseAddress!.assumingMemoryBound(to: CChar.self), cstr, pathLength)
-            }
-        }
-        let connectResult = withUnsafePointer(to: &addr) { ptr in
-            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                connect(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard connectResult == 0 else { return } // stale file, nothing listening
-
-        var pid: pid_t = 0
-        var pidLen = socklen_t(MemoryLayout<pid_t>.size)
-        guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &pidLen) == 0, pid > 0 else {
-            return
-        }
-
-        // Best-effort pid-reuse guard: only skip the kill when we can resolve
-        // the executable and it is NOT the helper. The peer is bound to our
-        // own container socket and shares our uid, so an unresolvable path
-        // still gets terminated.
-        if let procPidPath {
-            var pathBuffer = [CChar](repeating: 0, count: 4096)
-            let resolvedLen = pathBuffer.withUnsafeMutableBytes { ptr in
-                procPidPath(pid, ptr.baseAddress!, UInt32(ptr.count))
-            }
-            if resolvedLen > 0 {
-                let executablePath = String(cString: pathBuffer)
-                guard executablePath.hasSuffix("/rootshell-helper") else { return }
-            }
-        }
-
-        Ghostty.logger.info("Terminating legacy helper pid \(pid) bound to old group container")
-        kill(pid, SIGTERM)
-        for _ in 0..<10 {
-            usleep(100_000)
-            if kill(pid, 0) != 0 { return }
-        }
-        kill(pid, SIGKILL)
-    }
-    #endif
 }
 
 /// Session information (kept for compatibility)

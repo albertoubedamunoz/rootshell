@@ -123,9 +123,7 @@ final class LocalAgentPolicyStore {
         guard let data = UserDefaults.standard.data(forKey: "localAgent.config"),
               let config = try? JSONDecoder().decode(LocalAgentConfig.self, from: data),
               config.enabled,
-              let container = FileManager.default.containerURL(
-                forSecurityApplicationGroupIdentifier: "D97ZME3ET2.rootshell"
-              ) else {
+              let container = AppGroupHelper.containerURL else {
             return nil
         }
         return container.appendingPathComponent("agent.sock").path
