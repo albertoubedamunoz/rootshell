@@ -118891,7 +118891,7 @@
       }
     },
     "Connected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN tunnel status",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN event status: connected\nVPN status: active connection\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119361,7 +119361,7 @@
       }
     },
     "Connecting" : {
-      "comment" : "VPN tunnel status",
+      "comment" : "VPN status: establishing connection\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -124461,6 +124461,7 @@
     },
     "Contains a line break or control character, so the login shell will be used." : {
       "comment" : "Local shell warning: illegal characters",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -124610,6 +124611,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "包含換行字元或控制字元，因此將使用登入 Shell。"
+          }
+        }
+      }
+    },
+    "Contains an unbalanced quote. Clean macOS zsh will be used." : {
+      "comment" : "Local shell warning: malformed quoting uses fallback",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحتوي على علامة اقتباس غير متوازنة. سيتم استخدام zsh نظيفة من macOS."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conté una cometa desaparellada. S'utilitzarà la zsh neta de macOS."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obsahuje nespárovanou uvozovku. Použije se čistý macOS zsh."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indeholder et uparret citationstegn. Den rene macOS-zsh bruges."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enthält ein nicht geschlossenes Anführungszeichen. Es wird die unveränderte macOS-zsh verwendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contiene una comilla sin cerrar. Se usará la zsh limpia de macOS."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sisältää parittoman lainausmerkin. Käytetään puhdasta macOS:n zsh:ta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contient un guillemet non fermé. Le zsh macOS d'origine sera utilisé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מכיל מירכאה לא סגורה. תשמש zsh הנקייה של macOS."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lezáratlan idézőjelet tartalmaz. A tiszta macOS zsh lesz használva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contiene una virgoletta non chiusa. Verrà usata la zsh pulita di macOS."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引用符が閉じられていません。クリーンな macOS の zsh が使用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "따옴표가 짝이 맞지 않습니다. 기본 macOS zsh가 사용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inneholder et uparet anførselstegn. Det rene macOS-zsh brukes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bevat een niet-gesloten aanhalingsteken. De schone macOS-zsh wordt gebruikt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zawiera niedomknięty cudzysłów. Zostanie użyta czysta powłoka zsh z macOS."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contém uma aspa não fechada. O zsh limpo do macOS será usado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contém aspas não fechadas. Será usada a zsh limpa do macOS."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conține un ghilimel neînchis. Se va folosi zsh-ul curat din macOS."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vsebuje nezaprt narekovaj. Uporabljena bo čista lupina zsh iz macOS."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Innehåller ett oavslutat citattecken. Ren macOS-zsh används."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Містить незакриті лапки. Буде використано чисту zsh з macOS."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chứa dấu ngoặc kép không khớp. zsh gốc của macOS sẽ được dùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包含未配对的引号，因此将使用干净的 macOS zsh。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包含未配對的引號，因此將使用乾淨的 macOS zsh。"
           }
         }
       }
@@ -127396,6 +127552,160 @@
         }
       }
     },
+    "Controls when local echo predictions appear in new Mosh sessions." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتحكم في وقت ظهور تنبؤات الصدى المحلي في جلسات Mosh الجديدة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla quan apareixen les prediccions d'eco local a les sessions noves de Mosh."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Určuje, kdy se v nových relacích Mosh zobrazují predikce místní odezvy."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styrer, hvornår forudsigelser af lokalt ekko vises i nye Mosh-sessioner."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legt fest, wann Vorhersagen des lokalen Echos in neuen Mosh-Sitzungen erscheinen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla cuándo aparecen las predicciones de eco local en las nuevas sesiones de Mosh."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Määrittää, milloin paikallisen kaiun ennusteet näkyvät uusissa Mosh-istunnoissa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détermine quand les prédictions d'écho local apparaissent dans les nouvelles sessions Mosh."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קובע מתי חיזויי ההד המקומי מופיעים בהפעלות Mosh חדשות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meghatározza, mikor jelennek meg a helyi visszhang előrejelzései az új Mosh-munkamenetekben."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlla quando le predizioni dell'eco locale compaiono nelle nuove sessioni Mosh."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しい Mosh セッションでローカルエコーの予測を表示するタイミングを制御します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 Mosh 세션에서 로컬 에코 예측이 표시되는 시점을 제어합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styrer når prediksjoner for lokalt ekko vises i nye Mosh-økter."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bepaalt wanneer voorspellingen van lokale echo verschijnen in nieuwe Mosh-sessies."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Określa, kiedy w nowych sesjach Mosh pojawiają się predykcje lokalnego echa."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla quando as predições de eco local aparecem em novas sessões do Mosh."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla quando as previsões de eco local aparecem em novas sessões do Mosh."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlează când apar predicțiile de ecou local în sesiunile Mosh noi."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Določa, kdaj se v novih sejah Mosh prikažejo napovedi lokalnega odmeva."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styr när förutsägelser för lokalt eko visas i nya Mosh-sessioner."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Визначає, коли передбачення локального відлуння з'являються в нових сеансах Mosh."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm soát thời điểm hiển thị dự đoán tiếng vọng cục bộ trong các phiên Mosh mới."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制本地回显预测在新 Mosh 会话中出现的时机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制本機回顯預測在新 Mosh 工作階段中出現的時機。"
+          }
+        }
+      }
+    },
     "Controls whether the voice agent (Gemini Flash) delegates complex questions to Gemini 3.1 Pro for deeper analysis." : {
       "localizations" : {
         "ar" : {
@@ -127705,7 +128015,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -148871,7 +149181,7 @@
       }
     },
     "Default" : {
-      "comment" : "Profile transport mode: default",
+      "comment" : "Profile transport mode: default\nVPN DNS: using system default",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -155037,7 +155347,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -162917,7 +163227,7 @@
       }
     },
     "Disconnected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected\nVPN event status: disconnected\nVPN status: not connected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -189762,7 +190072,7 @@
       }
     },
     "Error" : {
-      "comment" : "Tunnel event status: error",
+      "comment" : "AI Agent error: generic error title\nCommand output type: error\nTunnel event status: error\nVPN event status: error",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -234410,6 +234720,7 @@
       }
     },
     "Hole-punch uses STUN discovery and UDP hole-punching to traverse firewalls. Prediction mode controls local echo for latency compensation. Alternate screen isolates mosh's rendering from the rest of the terminal; turn off to fall back to legacy primary-screen rendering." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -240113,7 +240424,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -252008,7 +252319,7 @@
       }
     },
     "Info" : {
-      "comment" : "Clipboard transform category\nTunnel event status: info",
+      "comment" : "Clipboard transform category\nTunnel event status: info\nVPN event status: info",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -259585,6 +259896,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "IPv6 含連接埠"
+          }
+        }
+      }
+    },
+    "Isolate Mosh rendering from the primary terminal screen." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عزل عرض Mosh عن شاشة الطرفية الأساسية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aïlla la representació de Mosh de la pantalla principal del terminal."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oddělí vykreslování Mosh od hlavní obrazovky terminálu."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isolerer Mosh-gengivelsen fra den primære terminalskærm."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isoliert die Mosh-Darstellung vom primären Terminalbildschirm."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aísla la representación de Mosh de la pantalla principal del terminal."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eristää Mosh-piirron päätteen ensisijaisesta näytöstä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isole le rendu de Mosh de l'écran principal du terminal."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מבודד את תצוגת Mosh ממסך המסוף הראשי."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elkülöníti a Mosh megjelenítését az elsődleges terminálképernyőtől."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isola il rendering di Mosh dallo schermo principale del terminale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mosh の描画をメインのターミナル画面から分離します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mosh 렌더링을 기본 터미널 화면과 분리합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isolerer Mosh-gjengivelsen fra den primære terminalskjermen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isoleert de Mosh-weergave van het primaire terminalscherm."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Izoluje renderowanie Mosh od głównego ekranu terminala."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isola a renderização do Mosh da tela principal do terminal."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isola a renderização do Mosh do ecrã principal do terminal."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Izolează randarea Mosh de ecranul principal al terminalului."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Izolira izris Mosh od glavnega zaslona terminala."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isolerar Mosh-renderingen från den primära terminalskärmen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ізолює відображення Mosh від основного екрана термінала."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tách phần hiển thị của Mosh khỏi màn hình terminal chính."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将 Mosh 的渲染与主终端屏幕隔离。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將 Mosh 的算繪與主要終端機螢幕隔離。"
           }
         }
       }
@@ -333819,7 +334284,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -334904,6 +335369,7 @@
     },
     "Not an absolute path. The shell is launched with a minimal PATH, so a bare name may not be found." : {
       "comment" : "Local shell warning: relative command",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -338767,6 +339233,7 @@
     },
     "Nothing executable at that path. Sessions will fail to start." : {
       "comment" : "Local shell warning: binary is missing",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -338916,6 +339383,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "該路徑下沒有可執行檔。工作階段將無法啟動。"
+          }
+        }
+      }
+    },
+    "Nothing executable exists at that path. Clean macOS zsh will be used." : {
+      "comment" : "Local shell warning: unavailable binary uses fallback",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا يوجد ملف قابل للتنفيذ في هذا المسار. سيتم استخدام zsh نظيفة من macOS."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hi ha cap executable en aquest camí. S'utilitzarà la zsh neta de macOS."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na této cestě není žádný spustitelný soubor. Použije se čistý macOS zsh."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der findes ingen eksekverbar fil på den sti. Den rene macOS-zsh bruges."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter diesem Pfad existiert keine ausführbare Datei. Es wird die unveränderte macOS-zsh verwendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay ningún ejecutable en esa ruta. Se usará la zsh limpia de macOS."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kyseisessä polussa ei ole suoritettavaa tiedostoa. Käytetään puhdasta macOS:n zsh:ta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun exécutable ne se trouve à ce chemin. Le zsh macOS d'origine sera utilisé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא קיים קובץ הפעלה בנתיב הזה. תשמש zsh הנקייה של macOS."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ezen az útvonalon nincs futtatható fájl. A tiszta macOS zsh lesz használva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun eseguibile esiste in quel percorso. Verrà usata la zsh pulita di macOS."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "そのパスに実行可能ファイルがありません。クリーンな macOS の zsh が使用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "해당 경로에 실행 파일이 없습니다. 기본 macOS zsh가 사용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det finnes ingen kjørbar fil på den banen. Det rene macOS-zsh brukes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op dat pad staat geen uitvoerbaar bestand. De schone macOS-zsh wordt gebruikt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W tej ścieżce nie ma pliku wykonywalnego. Zostanie użyta czysta powłoka zsh z macOS."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não existe nenhum executável nesse caminho. O zsh limpo do macOS será usado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não existe nenhum executável nesse caminho. Será usada a zsh limpa do macOS."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu există niciun fișier executabil la calea respectivă. Se va folosi zsh-ul curat din macOS."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na tej poti ni izvršljive datoteke. Uporabljena bo čista lupina zsh iz macOS."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det finns ingen körbar fil på den sökvägen. Ren macOS-zsh används."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За цим шляхом немає виконуваного файлу. Буде використано чисту zsh з macOS."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có tệp thực thi nào tại đường dẫn đó. zsh gốc của macOS sẽ được dùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该路径下没有可执行文件，因此将使用干净的 macOS zsh。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該路徑下沒有可執行檔，因此將使用乾淨的 macOS zsh。"
           }
         }
       }
@@ -342012,7 +342634,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -342476,7 +343098,7 @@
       }
     },
     "On" : {
-      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -354505,6 +355127,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "覆寫現有金鑰？"
+          }
+        }
+      }
+    },
+    "Overwrite Predictions" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الكتابة فوق التنبؤات"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobreescriu les prediccions"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přepisovat predikce"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overskriv forudsigelser"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorhersagen überschreiben"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobrescribir predicciones"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Korvaa ennusteet"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écraser les prédictions"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דריסת חיזויים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Előrejelzések felülírása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sovrascrivi le predizioni"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "予測を上書き"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "예측 덮어쓰기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overskriv prediksjoner"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voorspellingen overschrijven"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nadpisuj predykcje"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobrescrever predições"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substituir previsões"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suprascrie predicțiile"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepiši napovedi"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skriv över förutsägelser"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезаписувати передбачення"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghi đè dự đoán"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆盖预测"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆寫預測"
           }
         }
       }
@@ -389863,7 +390639,7 @@
       }
     },
     "Reconnected" : {
-      "comment" : "Tunnel event status: reconnected",
+      "comment" : "Tunnel event status: reconnected\nVPN event status: reconnected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -390018,7 +390794,7 @@
       }
     },
     "Reconnecting" : {
-      "comment" : "Tunnel event status: reconnecting",
+      "comment" : "Tunnel event status: reconnecting\nVPN event status: reconnecting\nVPN status: re-establishing connection",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -402821,6 +403597,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取代憑證…"
+          }
+        }
+      }
+    },
+    "Replace predicted cells instead of shifting content, preserving multiplexer borders." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استبدال الخلايا المتوقعة بدلاً من إزاحة المحتوى، مع الحفاظ على حدود مُعدِّد الجلسات."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitueix les cel·les predites en lloc de desplaçar el contingut, i conserva les vores del multiplexor."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nahradí predikované buňky místo posouvání obsahu a zachová okraje multiplexeru."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstatter forudsagte celler i stedet for at forskyde indholdet, så multiplexerens kanter bevares."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ersetzt vorhergesagte Zellen, statt Inhalt zu verschieben, und erhält so die Ränder des Multiplexers."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sustituye las celdas predichas en lugar de desplazar el contenido, conservando los bordes del multiplexor."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Korvaa ennustetut solut sisällön siirtämisen sijaan ja säilyttää multiplekserin reunat."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplace les cellules prédites au lieu de décaler le contenu, en préservant les bordures du multiplexeur."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מחליף תאים חזויים במקום להזיז את התוכן, ומשמר את גבולות המרבב."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A megjósolt cellákat lecseréli a tartalom eltolása helyett, így megőrzi a multiplexer szegélyeit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sostituisce le celle predette invece di spostare il contenuto, preservando i bordi del multiplexer."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容をずらす代わりに予測されたセルを置き換え、マルチプレクサの枠線を保持します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내용을 밀어내는 대신 예측된 셀을 덮어써서 멀티플렉서의 경계선을 유지합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstatter predikerte celler i stedet for å forskyve innholdet, slik at multiplekserens kanter bevares."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vervangt voorspelde cellen in plaats van inhoud te verschuiven, zodat de randen van de multiplexer behouden blijven."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zastępuje przewidywane komórki zamiast przesuwać treść, zachowując krawędzie multipleksera."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitui as células previstas em vez de deslocar o conteúdo, preservando as bordas do multiplexador."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitui as células previstas em vez de deslocar o conteúdo, preservando as margens do multiplexador."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Înlocuiește celulele prezise în loc să deplaseze conținutul, păstrând marginile multiplexorului."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Napovedane celice zamenja, namesto da premakne vsebino, in tako ohrani robove multiplekserja."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ersätter förutsagda celler i stället för att förskjuta innehållet, så att multiplexerns kanter bevaras."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Замінює передбачені комірки замість зсуву вмісту, зберігаючи межі мультиплексора."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thay thế các ô được dự đoán thay vì đẩy nội dung, giữ nguyên đường viền của trình ghép kênh."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接覆盖预测的字符单元而不是移动内容，从而保留复用器的边框。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接覆寫預測的字元格而非移動內容，以保留多工器的邊框。"
           }
         }
       }
@@ -438814,7 +439744,158 @@
       }
     },
     "Send Escape" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إرسال Escape"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar Escape"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odeslat Escape"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send Escape"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escape senden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar Escape"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lähetä Escape"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyer Échap"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שלח Escape"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escape küldése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invia Escape"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escape を送信"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escape 보내기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send Escape"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escape versturen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyślij Escape"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar Escape"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar Escape"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trimite Escape"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pošlji Escape"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skicka Escape"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Надіслати Escape"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gửi Escape"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送 Escape"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "傳送 Escape"
+          }
+        }
+      }
     },
     "Send Text" : {
       "comment" : "Keybind action: send text to terminal",
@@ -502601,6 +503682,161 @@
         }
       }
     },
+    "The executable path must be absolute. Clean macOS zsh will be used." : {
+      "comment" : "Local shell warning: relative command uses fallback",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يجب أن يكون مسار الملف التنفيذي مطلقًا. سيتم استخدام zsh نظيفة من macOS."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El camí de l'executable ha de ser absolut. S'utilitzarà la zsh neta de macOS."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cesta ke spustitelnému souboru musí být absolutní. Použije se čistý macOS zsh."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stien til den eksekverbare fil skal være absolut. Den rene macOS-zsh bruges."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Pfad zur ausführbaren Datei muss absolut sein. Es wird die unveränderte macOS-zsh verwendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La ruta del ejecutable debe ser absoluta. Se usará la zsh limpia de macOS."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suoritettavan tiedoston polun on oltava absoluuttinen. Käytetään puhdasta macOS:n zsh:ta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le chemin de l'exécutable doit être absolu. Le zsh macOS d'origine sera utilisé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נתיב קובץ ההפעלה חייב להיות מוחלט. תשמש zsh הנקייה של macOS."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A futtatható fájl útvonalának abszolútnak kell lennie. A tiszta macOS zsh lesz használva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il percorso dell'eseguibile deve essere assoluto. Verrà usata la zsh pulita di macOS."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "実行ファイルのパスは絶対パスである必要があります。クリーンな macOS の zsh が使用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "실행 파일 경로는 절대 경로여야 합니다. 기본 macOS zsh가 사용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Banen til den kjørbare filen må være absolutt. Det rene macOS-zsh brukes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het pad naar het uitvoerbare bestand moet absoluut zijn. De schone macOS-zsh wordt gebruikt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ścieżka pliku wykonywalnego musi być bezwzględna. Zostanie użyta czysta powłoka zsh z macOS."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O caminho do executável precisa ser absoluto. O zsh limpo do macOS será usado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O caminho do executável tem de ser absoluto. Será usada a zsh limpa do macOS."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calea executabilului trebuie să fie absolută. Se va folosi zsh-ul curat din macOS."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pot do izvršljive datoteke mora biti absolutna. Uporabljena bo čista lupina zsh iz macOS."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sökvägen till den körbara filen måste vara absolut. Ren macOS-zsh används."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Шлях до виконуваного файлу має бути абсолютним. Буде використано чисту zsh з macOS."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đường dẫn tệp thực thi phải là đường dẫn tuyệt đối. zsh gốc của macOS sẽ được dùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可执行文件路径必须是绝对路径，因此将使用干净的 macOS zsh。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可執行檔路徑必須是絕對路徑，因此將使用乾淨的 macOS zsh。"
+          }
+        }
+      }
+    },
     "The file couldn't be imported: %@" : {
       "comment" : "Error when copying a shared file fails",
       "localizations" : {
@@ -529161,6 +530397,161 @@
         }
       }
     },
+    "Too long or contains a control character. Clean macOS zsh will be used." : {
+      "comment" : "Local shell warning: illegal characters use fallback",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "طويل جدًا أو يحتوي على حرف تحكم. سيتم استخدام zsh نظيفة من macOS."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Massa llarg o conté un caràcter de control. S'utilitzarà la zsh neta de macOS."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Příliš dlouhé nebo obsahuje řídicí znak. Použije se čistý macOS zsh."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For langt eller indeholder et kontroltegn. Den rene macOS-zsh bruges."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu lang oder enthält ein Steuerzeichen. Es wird die unveränderte macOS-zsh verwendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demasiado largo o contiene un carácter de control. Se usará la zsh limpia de macOS."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liian pitkä tai sisältää ohjausmerkin. Käytetään puhdasta macOS:n zsh:ta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop long ou contient un caractère de contrôle. Le zsh macOS d'origine sera utilisé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ארוך מדי או מכיל תו בקרה. תשמש zsh הנקייה של macOS."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Túl hosszú, vagy vezérlőkaraktert tartalmaz. A tiszta macOS zsh lesz használva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppo lungo o contiene un carattere di controllo. Verrà usata la zsh pulita di macOS."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長すぎるか、制御文字が含まれています。クリーンな macOS の zsh が使用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "너무 길거나 제어 문자가 포함되어 있습니다. 기본 macOS zsh가 사용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For langt eller inneholder et kontrolltegn. Det rene macOS-zsh brukes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Te lang of bevat een stuurteken. De schone macOS-zsh wordt gebruikt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zbyt długie lub zawiera znak sterujący. Zostanie użyta czysta powłoka zsh z macOS."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longo demais ou contém um caractere de controle. O zsh limpo do macOS será usado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demasiado longo ou contém um carácter de controlo. Será usada a zsh limpa do macOS."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prea lung sau conține un caracter de control. Se va folosi zsh-ul curat din macOS."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predolgo ali vsebuje kontrolni znak. Uporabljena bo čista lupina zsh iz macOS."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "För långt eller innehåller ett kontrolltecken. Ren macOS-zsh används."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Занадто довге або містить керуючий символ. Буде використано чисту zsh з macOS."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quá dài hoặc chứa ký tự điều khiển. zsh gốc của macOS sẽ được dùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过长或包含控制字符，因此将使用干净的 macOS zsh。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過長或包含控制字元，因此將使用乾淨的 macOS zsh。"
+          }
+        }
+      }
+    },
     "Too many active console sessions" : {
       "comment" : "EC2 console error",
       "localizations" : {
@@ -541046,6 +542437,7 @@
     },
     "Unbalanced quote." : {
       "comment" : "Local shell warning: quote is never closed",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -542591,7 +543983,7 @@
       }
     },
     "Unknown" : {
-      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status",
+      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status\nVPN status: unknown state",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -554029,6 +555421,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用標準"
+          }
+        }
+      }
+    },
+    "Use STUN and UDP hole-punching to traverse restrictive firewalls." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدام STUN وثقب NAT عبر UDP لاجتياز الجدران النارية المقيّدة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilitza STUN i el hole-punching UDP per travessar tallafocs restrictius."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použije STUN a UDP hole-punching k průchodu restriktivními firewally."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brug STUN og UDP-hole-punching til at komme gennem restriktive firewalls."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "STUN und UDP-Hole-Punching verwenden, um restriktive Firewalls zu durchqueren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa STUN y hole-punching UDP para atravesar cortafuegos restrictivos."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytä STUNia ja UDP-hole-punchingia rajoittavien palomuurien läpäisyyn."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser STUN et le hole-punching UDP pour traverser les pare-feu restrictifs."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שימוש ב-STUN ובניקוב חורים ב-UDP כדי לעבור חומות אש מגבילות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "STUN és UDP hole-punching használata a korlátozó tűzfalak átjárásához."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa STUN e l'hole-punching UDP per attraversare firewall restrittivi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "STUN と UDP ホールパンチを使って制限の厳しいファイアウォールを通過します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "STUN과 UDP 홀 펀칭을 사용해 제한적인 방화벽을 통과합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruk STUN og UDP-hull-punching for å komme gjennom restriktive brannmurer."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik STUN en UDP-hole-punching om restrictieve firewalls te passeren."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj STUN i hole-punchingu UDP, aby przejść przez restrykcyjne zapory."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use STUN e hole-punching UDP para atravessar firewalls restritivos."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use STUN e hole-punching UDP para atravessar firewalls restritivas."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folosește STUN și hole-punching UDP pentru a trece prin firewall-uri restrictive."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uporabi STUN in UDP hole-punching za prehod skozi omejevalne požarne zidove."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd STUN och UDP-hole-punching för att ta sig genom restriktiva brandväggar."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовувати STUN і пробивання NAT через UDP для проходження крізь обмежувальні брандмауери."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng STUN và kỹ thuật hole-punching UDP để vượt qua tường lửa hạn chế."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 STUN 和 UDP 打洞穿透严格的防火墙。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 STUN 和 UDP 打洞穿透嚴格的防火牆。"
           }
         }
       }
@@ -574421,7 +575967,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
