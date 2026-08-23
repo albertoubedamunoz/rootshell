@@ -16,6 +16,9 @@ struct MoshConfig: Codable, Hashable, Sendable {
     /// UserDefaults key for default prediction mode setting
     static let defaultPredictionModeKey = "roamDefaultPredictionMode"
 
+    /// UserDefaults key for whether predictions overwrite existing cells instead of inserting.
+    static let defaultPredictOverwriteKey = "roamDefaultPredictOverwrite"
+
     /// UserDefaults key for whether the mosh renderer should enter the
     /// alternate screen on session open (defaults to true when unset).
     static let altScreenEnabledKey = "roamMoshAltScreenEnabled"
@@ -26,6 +29,11 @@ struct MoshConfig: Codable, Hashable, Sendable {
     /// mosh connection without any restart.
     static var altScreenEnabled: Bool {
         UserDefaults.standard.object(forKey: altScreenEnabledKey) as? Bool ?? true
+    }
+
+    /// Reads the default overwrite-prediction preference for newly created sessions.
+    static var defaultPredictOverwrite: Bool {
+        UserDefaults.standard.bool(forKey: defaultPredictOverwriteKey)
     }
 
     // MARK: - SSH Configuration
@@ -51,6 +59,9 @@ struct MoshConfig: Codable, Hashable, Sendable {
 
     /// Prediction mode for local echo
     var predictionMode: PredictionMode
+
+    /// Whether local predictions replace the current cell instead of shifting the row.
+    var predictOverwrite: Bool
 
     /// Prediction display mode
     nonisolated enum PredictionMode: String, Codable, Sendable, CaseIterable {
@@ -96,6 +107,7 @@ struct MoshConfig: Codable, Hashable, Sendable {
     ///   - udpPortMin: Minimum UDP port (default: 60000)
     ///   - udpPortMax: Maximum UDP port (default: 61000)
     ///   - predictionMode: Prediction mode (default: .adaptive)
+    ///   - predictOverwrite: Whether predictions overwrite existing cells (default: Roam setting)
     ///   - colors: Number of colors (default: 256)
     ///   - serverPath: Custom mosh-server path (default: nil)
     ///   - serverArgs: Additional server arguments (default: empty)
@@ -105,6 +117,7 @@ struct MoshConfig: Codable, Hashable, Sendable {
         udpPortMin: Int = 60000,
         udpPortMax: Int = 61000,
         predictionMode: PredictionMode = .adaptive,  // Adaptive: show predictions only when network is slow
+        predictOverwrite: Bool? = nil,
         colors: Int = 256,
         serverPath: String? = nil,
         serverArgs: [String] = [],
@@ -114,6 +127,7 @@ struct MoshConfig: Codable, Hashable, Sendable {
         self.udpPortMin = udpPortMin
         self.udpPortMax = udpPortMax
         self.predictionMode = predictionMode
+        self.predictOverwrite = predictOverwrite ?? Self.defaultPredictOverwrite
         self.colors = colors
         self.serverPath = serverPath
         self.serverArgs = serverArgs
@@ -125,6 +139,20 @@ struct MoshConfig: Codable, Hashable, Sendable {
             let roamEnabled = UserDefaults.standard.bool(forKey: HolePunchConfig.roamEnabledKey)
             self.holePunchConfig = HolePunchConfig(enabled: roamEnabled)
         }
+    }
+
+    /// Backward-compatible decoding for configs written before overwrite prediction existed.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sshConfig = try container.decode(SSHConfig.self, forKey: .sshConfig)
+        udpPortMin = try container.decode(Int.self, forKey: .udpPortMin)
+        udpPortMax = try container.decode(Int.self, forKey: .udpPortMax)
+        predictionMode = try container.decode(PredictionMode.self, forKey: .predictionMode)
+        predictOverwrite = try container.decodeIfPresent(Bool.self, forKey: .predictOverwrite) ?? false
+        colors = try container.decode(Int.self, forKey: .colors)
+        serverPath = try container.decodeIfPresent(String.self, forKey: .serverPath)
+        serverArgs = try container.decode([String].self, forKey: .serverArgs)
+        holePunchConfig = try container.decode(HolePunchConfig.self, forKey: .holePunchConfig)
     }
 
     // MARK: - Display

@@ -399,8 +399,8 @@ usage: sftp [-P port] [-i identity] [-J jump_host] [-o option] [user@]host
         let examplesHeader = String(localized: "Examples:", comment: "Command help: examples section header")
 
         let helpText = """
-usage: roam [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--predict mode] destination
-       mosh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--predict mode] destination
+usage: roam [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--predict mode] [--predict-overwrite] destination
+       mosh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--predict mode] [--predict-overwrite] destination
 
 \(optionsHeader)
   -p port         \(String(localized: "Connect to this port (default: 22)", comment: "Mosh help: -p option"))
@@ -412,6 +412,8 @@ usage: roam [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--h
   --tmux          \(String(localized: "Auto-start tmux on the remote host", comment: "Mosh help: --tmux option"))
   --herdr         \(String(localized: "Auto-start herdr on the remote host", comment: "Mosh help: --herdr option"))
   --predict mode  \(String(localized: "Prediction mode: always, adaptive, never (default: always)", comment: "Mosh help: --predict option"))
+  --predict-overwrite     \(String(localized: "Replace existing cells when predicting input", comment: "Mosh help: --predict-overwrite option"))
+  --no-predict-overwrite  \(String(localized: "Use inserting predictions for this session", comment: "Mosh help: --no-predict-overwrite option"))
   --server path   \(String(localized: "Path to mosh-server on remote (default: mosh-server)", comment: "Mosh help: --server option"))
 
 \(destHeader)

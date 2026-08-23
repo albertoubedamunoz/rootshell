@@ -25,11 +25,12 @@ struct FlagSpec {
     )
 
     static let mosh = FlagSpec(
-        flagsWithArg: ["-p", "-a"],
+        flagsWithArg: ["-p", "-a", "-o"],
         booleanFlags: ["-4", "-6", "-n"],
-        longFlagsWithArg: ["--ssh", "--predict", "--predict-overwrite", "--port",
+        longFlagsWithArg: ["--ssh", "--predict", "--port",
                            "--bind-server", "--server", "--family"],
-        longBooleanFlags: ["--no-init", "--local", "--experimental-remote-ip",
+        longBooleanFlags: ["--predict-overwrite", "--no-predict-overwrite",
+                           "--no-init", "--local", "--experimental-remote-ip",
                            "--help", "--version"]
     )
 

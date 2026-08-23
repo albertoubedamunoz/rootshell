@@ -9,7 +9,7 @@ import Foundation
 import os.log
 
 /// Parser for mosh/roam command-line arguments
-/// Accepts same flags as SSH plus Mosh-specific options: --predict, --server
+/// Accepts same flags as SSH plus Mosh-specific options: --predict, --predict-overwrite, --server
 @MainActor
 struct MoshCommandParser {
     private nonisolated static let logger = Logger(subsystem: "com.rootshell", category: "MoshCommandParser")
@@ -30,6 +30,7 @@ struct MoshCommandParser {
     struct PartialMoshConfig: Sendable {
         var sshPartialConfig: SSHCommandParser.PartialSSHConfig
         var predictionMode: MoshConfig.PredictionMode
+        var predictOverwrite: Bool
         var serverPath: String?
 
         /// Convert to full MoshConfig with password
@@ -38,6 +39,7 @@ struct MoshCommandParser {
             return MoshConfig(
                 sshConfig: sshConfig,
                 predictionMode: predictionMode,
+                predictOverwrite: predictOverwrite,
                 serverPath: serverPath
             )
         }
@@ -54,7 +56,7 @@ struct MoshCommandParser {
         }
 
         // First token should be "mosh" or "roam"
-        let commandName = tokens[0].lowercased()
+        let commandName = tokens[0].text.lowercased()
         guard commandName == "mosh" || commandName == "roam" else {
             return .error("Not a mosh/roam command")
         }
@@ -63,7 +65,7 @@ struct MoshCommandParser {
         if tokens.count == 1 {
             return .help
         }
-        if tokens.count == 2 && (tokens[1] == "-h" || tokens[1] == "--help") {
+        if tokens.count == 2 && (tokens[1].text == "-h" || tokens[1].text == "--help") {
             return .help
         }
 
@@ -73,14 +75,19 @@ struct MoshCommandParser {
             let rawValue = UserDefaults.standard.string(forKey: MoshConfig.defaultPredictionModeKey) ?? ""
             return MoshConfig.PredictionMode(rawValue: rawValue) ?? .adaptive
         }()
+        var predictOverwrite = MoshConfig.defaultPredictOverwrite
         var serverPath: String?
-        var filteredTokens: [String] = [tokens[0]]
+        var filteredParts: [String] = ["ssh"]
 
         var i = 1
         while i < tokens.count {
-            let token = tokens[i]
+            let token = tokens[i].text
 
-            if token.hasPrefix("--predict=") {
+            if token == "--predict-overwrite" {
+                predictOverwrite = true
+            } else if token == "--no-predict-overwrite" {
+                predictOverwrite = false
+            } else if token.hasPrefix("--predict=") {
                 // --predict=mode
                 let modeStr = String(token.dropFirst("--predict=".count)).lowercased()
                 if let mode = parsePredictionMode(modeStr) {
@@ -94,7 +101,7 @@ struct MoshCommandParser {
                 guard i < tokens.count else {
                     return .error("Missing argument after --predict")
                 }
-                let modeStr = tokens[i].lowercased()
+                let modeStr = tokens[i].text.lowercased()
                 if let mode = parsePredictionMode(modeStr) {
                     predictionMode = mode
                 } else {
@@ -109,18 +116,29 @@ struct MoshCommandParser {
                 guard i < tokens.count else {
                     return .error("Missing argument after --server")
                 }
-                serverPath = tokens[i]
+                serverPath = tokens[i].text
+            } else if Self.sshFlagsWithArgument.contains(token) {
+                // Preserve SSH options and their values while looking for the destination.
+                // SSHCommandParser remains responsible for validating a missing/invalid value.
+                filteredParts.append(String(command[tokens[i].range]))
+                i += 1
+                if i < tokens.count {
+                    filteredParts.append(String(command[tokens[i].range]))
+                }
+            } else if token.hasPrefix("-") {
+                // Boolean or unknown SSH option. SSHCommandParser applies its normal handling.
+                filteredParts.append(String(command[tokens[i].range]))
             } else {
-                // Pass through to SSH parser
-                filteredTokens.append(token)
+                // First positional token is the destination. Preserve it and the complete
+                // remote-command suffix verbatim, and never interpret nested Mosh flags.
+                filteredParts.append(String(command[tokens[i].range.lowerBound...]))
+                break
             }
 
             i += 1
         }
 
-        // Normalize command name to "ssh" for SSHCommandParser
-        filteredTokens[0] = "ssh"
-        let normalizedCommand = filteredTokens.joined(separator: " ")
+        let normalizedCommand = filteredParts.joined(separator: " ")
 
         // Delegate to SSH parser
         let sshResult = SSHCommandParser.parse(command: normalizedCommand)
@@ -131,6 +149,7 @@ struct MoshCommandParser {
             let moshConfig = MoshConfig(
                 sshConfig: sshConfig,
                 predictionMode: predictionMode,
+                predictOverwrite: predictOverwrite,
                 serverPath: serverPath
             )
             return .success(moshConfig)
@@ -140,6 +159,7 @@ struct MoshCommandParser {
             let partialMosh = PartialMoshConfig(
                 sshPartialConfig: partialSSHConfig,
                 predictionMode: predictionMode,
+                predictOverwrite: predictOverwrite,
                 serverPath: serverPath
             )
             return .needsPassword(partialMosh)
@@ -169,13 +189,25 @@ struct MoshCommandParser {
         }
     }
 
-    /// Tokenize command string, respecting quotes
-    private static func tokenize(_ command: String) -> [String] {
-        var tokens: [String] = []
+    /// SSH options that consume the next token before the destination.
+    /// Keep this aligned with SSHCommandParser's option switch.
+    private static let sshFlagsWithArgument: Set<String> = ["-L", "-R", "-p", "-l", "-J", "-i", "-o"]
+
+    private struct Token {
+        let text: String
+        let range: Range<String.Index>
+    }
+
+    /// Tokenize command string, respecting quotes and preserving source ranges.
+    private static func tokenize(_ command: String) -> [Token] {
+        var tokens: [Token] = []
         var current = ""
         var inQuote: Character?
+        var tokenStart: String.Index?
 
-        for char in command {
+        var index = command.startIndex
+        while index < command.endIndex {
+            let char = command[index]
             if let quote = inQuote {
                 if char == quote {
                     inQuote = nil
@@ -183,19 +215,28 @@ struct MoshCommandParser {
                     current.append(char)
                 }
             } else if char == "\"" || char == "'" {
+                if tokenStart == nil {
+                    tokenStart = index
+                }
                 inQuote = char
             } else if char.isWhitespace {
-                if !current.isEmpty {
-                    tokens.append(current)
+                if let start = tokenStart {
+                    tokens.append(Token(text: current, range: start..<index))
                     current = ""
+                    tokenStart = nil
                 }
             } else {
+                if tokenStart == nil {
+                    tokenStart = index
+                }
                 current.append(char)
             }
+
+            index = command.index(after: index)
         }
 
-        if !current.isEmpty {
-            tokens.append(current)
+        if let tokenStart {
+            tokens.append(Token(text: current, range: tokenStart..<command.endIndex))
         }
 
         return tokens

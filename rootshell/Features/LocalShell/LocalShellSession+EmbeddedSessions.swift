@@ -106,6 +106,7 @@ extension LocalShellSession {
         MoshCommandParser.PartialMoshConfig(
             sshPartialConfig: makePartialSSHConfig(from: config.sshConfig),
             predictionMode: config.predictionMode,
+            predictOverwrite: config.predictOverwrite,
             serverPath: config.serverPath
         )
     }
@@ -1621,6 +1622,7 @@ extension LocalShellSession {
                 let moshConfig = MoshConfig(
                     sshConfig: sshConfig,
                     predictionMode: partialConfig.predictionMode,
+                    predictOverwrite: partialConfig.predictOverwrite,
                     serverPath: partialConfig.serverPath
                 )
                 // Pass terminalId for credential persistence (enables session resume)
@@ -1660,6 +1662,7 @@ extension LocalShellSession {
                 let moshPartial = MoshCommandParser.PartialMoshConfig(
                     sshPartialConfig: partialConfig,
                     predictionMode: config.predictionMode,
+                    predictOverwrite: config.predictOverwrite,
                     serverPath: config.serverPath
                 )
                 return .moshPasswordPrompt(moshPartial)
@@ -1674,6 +1677,7 @@ extension LocalShellSession {
             udpPortMin: config.udpPortMin,
             udpPortMax: config.udpPortMax,
             predictionMode: config.predictionMode,
+            predictOverwrite: config.predictOverwrite,
             colors: config.colors,
             serverPath: config.serverPath,
             serverArgs: config.serverArgs,

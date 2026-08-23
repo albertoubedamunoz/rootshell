@@ -425,6 +425,11 @@ final class MoshStateSync {
         overlays.getPredictionEngine().setDisplayPreference(engineMode)
     }
 
+    /// Sets whether predictions replace existing cells instead of shifting the row.
+    func setPredictOverwrite(_ overwrite: Bool) {
+        overlays.getPredictionEngine().setPredictOverwrite(overwrite)
+    }
+
     /// Requests a full repaint of the terminal display
     /// Call this after resume to ensure the display is properly refreshed
     /// Note: This only sets the flag - the actual repaint happens when new data arrives

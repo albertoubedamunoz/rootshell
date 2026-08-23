@@ -42,6 +42,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         let udpPortMin: Int
         let udpPortMax: Int
         let predictionMode: MoshConfig.PredictionMode
+        let predictOverwrite: Bool
         let colors: Int
         let serverPath: String?
         let serverArgs: [String]
@@ -51,6 +52,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             self.udpPortMin = config.udpPortMin
             self.udpPortMax = config.udpPortMax
             self.predictionMode = config.predictionMode
+            self.predictOverwrite = config.predictOverwrite
             self.colors = config.colors
             self.serverPath = config.serverPath
             self.serverArgs = config.serverArgs
@@ -64,6 +66,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             config.udpPortMin = udpPortMin
             config.udpPortMax = udpPortMax
             config.predictionMode = predictionMode
+            config.predictOverwrite = predictOverwrite
             config.colors = colors
             config.serverPath = serverPath
             config.serverArgs = serverArgs
@@ -73,6 +76,29 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         /// Whether this config needs a password to be entered before connecting
         var needsPassword: Bool {
             sshConfig.needsPassword
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case sshConfig
+            case udpPortMin
+            case udpPortMax
+            case predictionMode
+            case predictOverwrite
+            case colors
+            case serverPath
+            case serverArgs
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            sshConfig = try container.decode(SSHConfigSafe.self, forKey: .sshConfig)
+            udpPortMin = try container.decode(Int.self, forKey: .udpPortMin)
+            udpPortMax = try container.decode(Int.self, forKey: .udpPortMax)
+            predictionMode = try container.decode(MoshConfig.PredictionMode.self, forKey: .predictionMode)
+            predictOverwrite = try container.decodeIfPresent(Bool.self, forKey: .predictOverwrite) ?? false
+            colors = try container.decode(Int.self, forKey: .colors)
+            serverPath = try container.decodeIfPresent(String.self, forKey: .serverPath)
+            serverArgs = try container.decode([String].self, forKey: .serverArgs)
         }
     }
 
