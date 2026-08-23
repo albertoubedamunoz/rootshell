@@ -3,6 +3,43 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-136 - August 22, 2026
+
+### Tabs
+
+- **New Tab Exposé:** Shows live previews for every tab in the current scope, including Screen Sharing sessions. Pull down on the top tab bar with one finger, use a two-finger trackpad pull there, or press Cmd-Shift-A. In group/project mode, a sideways swipe drags the neighboring live grid alongside the current one and springs to commit or cancel. Global Cmd-Option-[ and ] shortcuts switch groups/projects anywhere; in Exposé, they use the same slide and leave it open. Each scope remembers its last tab. Configure the pull gesture in Settings -> Terminal and captions in Settings -> Appearance -> Window.
+
+### Terminal
+
+- **Ghostty Engine Update:** Ghostty's terminal engine received a broad upstream refresh and moved to Zig 0.16. Kitty graphics adds animated images and relative placements, plus many sizing, scrolling, clipping and transfer fixes. Wide-character reflow and grapheme output are faster, with further fixes for page growth, base64, OSC/grapheme limits, tab stops, wraps and resets.
+- **Redesigned Text Selection Magnifier:** Text selection has a redesigned iPhone and iPad magnifier that tracks scrolling and layout, keeps the selected cell sharp, avoids screen edges and respects Reduce Motion. Prefer Apple's loupe? Enable it in Settings -> Appearance -> Window.
+- **Cleaner Local-Shell Prompt Spacing:** The plain local-shell prompt no longer adds an unwanted blank line, and returning from a full-screen command no longer adds a row. Styled prompts keep their intentional spacing.
+- **Reliable Cmd-. Cancel Shortcut:** Cmd-. now reliably acts as Cancel/Escape on iPadOS and macOS while honoring custom bindings and shortcut capture first. Overlapping UIKit deliveries are deduplicated, and special-key sentinels no longer leak into terminal text.
+
+### Profiles
+
+- **Per-Profile Multiplexer Session:** SSH profiles can now pin their own tmux, tmux -CC or herdr session name under Terminal Options. It wins over the last tmux session remembered for that host, syncs with the profile and yields to a custom auto-start command.
+
+### Screen Sharing
+
+- **Support for Delayed Desktop Sizing:** Screen Sharing now connects to servers that finish the RFB handshake before announcing a usable desktop size. KDE's KRFB is one example: its PipeWire capture backend can initially report a 0x0 framebuffer. rootshell waits for DesktopSize, Apple display-layout or media dimensions, preserves early updates in protocol order and builds the framebuffer off the main thread instead of stalling or failing the session.
+- **More Reliable Apple Login Recognition:** Apple login and lock-screen recognition is more reliable. Display metadata races no longer confuse the prompt, OCR work is bounded, multi-display layouts update atomically, and password-prompt debouncing resets between explicit connections.
+
+### Stability
+
+- **Software Keyboard Recovery after iPhone Mirroring:** If iPhone Mirroring leaves behind a phantom hardware-keyboard claim, rootshell now trusts the visible software keyboard. Keyboard-dependent layout and toolbar behavior recover without waiting for the stale system state to clear.
+- **Fixed Another Background-Termination Path:** Closed another background-termination path on iPhone and iPad: terminal and search fields, compose overlays and keyboard input views can no longer acquire focus or rebuild the keyboard while the device is locked.
+- **Safer SSH Teardown:** SSH connection failure and teardown is safer after an update to the SSH engine, particularly when remote port-forward channels are active.
+
+### AI Agents
+
+- **Improved Codex Activity Detection:** Codex activity detection now works with custom model names, dynamic working labels, the default reasoning-effort label and elapsed timers over an hour, keeping tab status and attention indicators accurate.
+- **Lower CPU Use for Active Agents:** Active coding-agent sessions use less CPU: their working indicator no longer drives SwiftUI's view graph. Rapid OSC/tmux title updates are coalesced, improving anything that rapidly changes terminal titles, a pattern common among coding agents.
+
+### Standalone macOS
+
+- **Configurable Local Shell:** Standalone macOS can choose its local shell in Settings -> Terminal -> Local Shell: the account login shell, a discovered installed shell or a custom command with arguments. Invalid entries warn and fall back safely; changes apply to new tabs.
+
 ## 1.0.10-135 - August 19, 2026
 
 ### SSH
