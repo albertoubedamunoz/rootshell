@@ -270,12 +270,12 @@ extension UIApplication {
 
         let linkAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 11),
-            .link: URL(string: "https://beta.rootshell.com")!,
+            .link: URL(string: "https://www.rootshell.com")!,
             .paragraphStyle: paragraphStyle
         ]
 
         credits.append(NSAttributedString(string: "By Kit Knox\n", attributes: normalAttributes))
-        credits.append(NSAttributedString(string: "beta.rootshell.com\n\n", attributes: linkAttributes))
+        credits.append(NSAttributedString(string: "www.rootshell.com\n\n", attributes: linkAttributes))
         credits.append(NSAttributedString(string: "Terminal emulator based on libghostty\nby Mitchell Hashimoto", attributes: normalAttributes))
 
         // Use dynamic Objective-C runtime to access NSApplication (not directly available in Catalyst)
@@ -1259,12 +1259,12 @@ class CatalystAppDelegate: AppDelegate {
 
         let linkAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 11),
-            .link: URL(string: "https://beta.rootshell.com")!,
+            .link: URL(string: "https://www.rootshell.com")!,
             .paragraphStyle: paragraphStyle
         ]
 
         credits.append(NSAttributedString(string: "By Kit Knox\n", attributes: normalAttributes))
-        credits.append(NSAttributedString(string: "beta.rootshell.com\n\n", attributes: linkAttributes))
+        credits.append(NSAttributedString(string: "www.rootshell.com\n\n", attributes: linkAttributes))
         credits.append(NSAttributedString(string: "Terminal emulator based on libghostty\nby Mitchell Hashimoto", attributes: normalAttributes))
 
         // Use dynamic Objective-C runtime to access NSApplication (not directly available in Catalyst)

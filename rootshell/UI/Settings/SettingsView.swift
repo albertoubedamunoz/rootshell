@@ -968,7 +968,7 @@ struct SettingsHomeList: View {
                 VStack(spacing: 12) {
                     AnimatedAboutIcon(
                         onTap: {
-                            if let url = URL(string: "https://beta.rootshell.com") {
+                            if let url = URL(string: "https://www.rootshell.com") {
                                 UIApplication.shared.open(url)
                             }
                         },
