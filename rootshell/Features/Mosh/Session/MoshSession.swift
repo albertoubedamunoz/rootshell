@@ -493,6 +493,7 @@ final class MoshSession: TerminalSession {
             let stateSync = MoshStateSync(transport: transport, resumeState: stateSyncResumeState)
             stateSync.delegate = self
             stateSync.setPredictionMode(config.predictionMode)
+            stateSync.setPredictOverwrite(config.predictOverwrite)
             self.stateSync = stateSync
             await stateSync.start()
 
@@ -905,6 +906,7 @@ final class MoshSession: TerminalSession {
             let stateSync = MoshStateSync(transport: transport)
             stateSync.delegate = self
             stateSync.setPredictionMode(config.predictionMode)
+            stateSync.setPredictOverwrite(config.predictOverwrite)
             self.stateSync = stateSync
             await stateSync.start()
 

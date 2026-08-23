@@ -11,6 +11,7 @@ struct RoamSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     @AppStorage(HolePunchConfig.roamEnabledKey) private var roamEnabled: Bool = false
     @AppStorage(MoshConfig.defaultPredictionModeKey) private var defaultPredictionMode: String = MoshConfig.PredictionMode.adaptive.rawValue
+    @AppStorage(MoshConfig.defaultPredictOverwriteKey) private var defaultPredictOverwrite: Bool = false
     @AppStorage(MoshConfig.altScreenEnabledKey) private var moshAltScreenEnabled: Bool = true
     @AppStorage(TrzszConfig.TransportMode.defaultTransportModeKey) private var defaultTransportMode: String = TrzszConfig.TransportMode.kcp.rawValue
     @AppStorage(TrzszConfig.keepPendingInputKey) private var keepPendingInput: Bool = false
@@ -38,18 +39,49 @@ struct RoamSettingsView: View {
 
             // MARK: - Mosh Settings
             Section {
-                Toggle("Enable Hole-Punch", isOn: $roamEnabled)
-                    .themedRow()
-
-                Picker("Default Prediction Mode", selection: $defaultPredictionMode) {
-                    ForEach(MoshConfig.PredictionMode.allCases, id: \.rawValue) { mode in
-                        Text(mode.displayName).tag(mode.rawValue)
+                Toggle(isOn: $roamEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable Hole-Punch")
+                        Text("Use STUN and UDP hole-punching to traverse restrictive firewalls.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
                 .themedRow()
 
-                Toggle("Use Alternate Screen", isOn: $moshAltScreenEnabled)
-                    .themedRow()
+                Picker(selection: $defaultPredictionMode) {
+                    ForEach(MoshConfig.PredictionMode.allCases, id: \.rawValue) { mode in
+                        Text(mode.displayName).tag(mode.rawValue)
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Default Prediction Mode")
+                        Text("Controls when local echo predictions appear in new Mosh sessions.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .themedRow()
+
+                Toggle(isOn: $defaultPredictOverwrite) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Overwrite Predictions")
+                        Text("Replace predicted cells instead of shifting content, preserving multiplexer borders.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .themedRow()
+
+                Toggle(isOn: $moshAltScreenEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Use Alternate Screen")
+                        Text("Isolate Mosh rendering from the primary terminal screen.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .themedRow()
 
                 NavigationLink {
                     MoshHolePunchGuideView()
@@ -59,8 +91,6 @@ struct RoamSettingsView: View {
                 .themedRow()
             } header: {
                 Text("Mosh Settings")
-            } footer: {
-                Text("Hole-punch uses STUN discovery and UDP hole-punching to traverse firewalls. Prediction mode controls local echo for latency compensation. Alternate screen isolates mosh's rendering from the rest of the terminal; turn off to fall back to legacy primary-screen rendering.")
             }
 
             // MARK: - tssh Settings
