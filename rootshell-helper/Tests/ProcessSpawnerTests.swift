@@ -9,6 +9,18 @@ import XCTest
 
 class ProcessSpawnerTests: XCTestCase {
 
+    private func shellConfig(_ shell: String? = nil) -> ShellSpawnConfig {
+        let config = ShellSpawnConfig()
+        config.size = PTYSize(rows: 24, cols: 80, xpixel: 0, ypixel: 0)
+        config.shell = shell
+        config.environment = [
+            "HOME": NSHomeDirectory(),
+            "TERM": "xterm-256color",
+            "PATH": "/usr/bin:/bin"
+        ]
+        return config
+    }
+
     func testDefaultShell() throws {
         let shell = try ProcessSpawner.defaultShellForUser()
 
@@ -25,12 +37,7 @@ class ProcessSpawnerTests: XCTestCase {
     // We test it indirectly through testBasicShellSpawn
 
     func testBasicShellSpawn() throws {
-        let config = ShellSpawnConfig()
-        config.size = PTYSize(rows: 24, cols: 80, xpixel: 0, ypixel: 0)
-        config.environment = [
-            "TERM": "xterm-256color",
-            "PATH": "/usr/bin:/bin"
-        ]
+        let config = shellConfig()
 
         let result = try ProcessSpawner.spawnShell(with: config)
 
@@ -50,12 +57,7 @@ class ProcessSpawnerTests: XCTestCase {
     }
 
     func testShellIO() throws {
-        let config = ShellSpawnConfig()
-        config.size = PTYSize(rows: 24, cols: 80, xpixel: 0, ypixel: 0)
-        config.environment = [
-            "TERM": "xterm-256color",
-            "PATH": "/usr/bin:/bin"
-        ]
+        let config = shellConfig()
 
         let result = try ProcessSpawner.spawnShell(with: config)
 
@@ -85,5 +87,72 @@ class ProcessSpawnerTests: XCTestCase {
         // Cleanup
         try ProcessSpawner.killProcess(result.pid, signal: SIGKILL)
         result.pty.close()
+    }
+
+    func testInvalidShellFallsBackToCleanZsh() throws {
+        let result = try ProcessSpawner.spawnShell(
+            with: shellConfig("/definitely/not/a/rootshell-shell")
+        )
+        defer { result.pty.close() }
+
+        usleep(200_000)
+        XCTAssertEqual(
+            ProcessSpawner.wait(forProcess: result.pid, blocking: false),
+            -1,
+            "The clean-zsh fallback should keep the PTY session alive"
+        )
+
+        try ProcessSpawner.killProcess(result.pid, signal: SIGKILL)
+    }
+
+    func testMalformedShellFallsBackToCleanZsh() throws {
+        let result = try ProcessSpawner.spawnShell(with: shellConfig("/bin/zsh '"))
+        defer { result.pty.close() }
+
+        usleep(200_000)
+        XCTAssertEqual(
+            ProcessSpawner.wait(forProcess: result.pid, blocking: false),
+            -1,
+            "Malformed quoting should be replaced before bash parses it"
+        )
+
+        try ProcessSpawner.killProcess(result.pid, signal: SIGKILL)
+    }
+
+    func testExecFailureFallsThroughToCleanZsh() throws {
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rootshell-bad-interpreter-\(UUID().uuidString)")
+        try "#!/definitely/missing/interpreter\n".write(to: scriptURL, atomically: true, encoding: .utf8)
+        XCTAssertEqual(chmod(scriptURL.path, 0o700), 0)
+        defer { try? FileManager.default.removeItem(at: scriptURL) }
+
+        let result = try ProcessSpawner.spawnShell(with: shellConfig(scriptURL.path))
+        defer { result.pty.close() }
+
+        usleep(200_000)
+        XCTAssertEqual(
+            ProcessSpawner.wait(forProcess: result.pid, blocking: false),
+            -1,
+            "execfail should reach clean zsh when the selected executable cannot start"
+        )
+
+        try ProcessSpawner.killProcess(result.pid, signal: SIGKILL)
+    }
+
+    func testSuccessfulShellExitDoesNotTriggerFallback() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = [
+            "--noprofile", "--norc", "-c",
+            "shopt -s execfail\nexec -l /usr/bin/false\nexec -l /bin/zsh -f\nexit 127"
+        ]
+
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertEqual(
+            process.terminationStatus,
+            1,
+            "A successful exec replaces the trampoline, so a later exit must not start zsh"
+        )
     }
 }

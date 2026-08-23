@@ -19,19 +19,20 @@ import Foundation
 enum LocalShellSettings: Sendable {
 
     nonisolated static let commandKey = "localShellCommand"
+    nonisolated static let fallbackCommand = "/bin/zsh -f"
 
     /// nil means "use the login shell".
     nonisolated static var command: String? {
         resolved(UserDefaults.standard.string(forKey: commandKey))
     }
 
-    /// What a stored value actually launches. Invalid resolves to nil, so a bad
-    /// entry falls back to the login shell instead of killing every new tab.
+    /// What a stored value actually launches. Empty means the account login
+    /// shell; invalid input uses a clean macOS zsh instead of killing the tab.
     nonisolated static func resolved(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, isValid(trimmed) else { return nil }
-        return trimmed
+        guard !trimmed.isEmpty else { return nil }
+        return isValid(trimmed) ? trimmed : fallbackCommand
     }
 
     /// Settings row summary: what will really be launched.
@@ -42,40 +43,92 @@ enum LocalShellSettings: Sendable {
 
     // MARK: - Validation
 
-    /// Control characters are the only hard rejection: a newline would split the
-    /// helper's `bash -c` string into a second command. Spaces, quotes, and flags
-    /// are the point of the setting.
+    private enum ValidationFailure {
+        case illegalCharacters
+        case unbalancedQuote
+        case relativeExecutable
+        case unavailableExecutable
+    }
+
+    /// A shell command must have safe shell syntax and begin with an absolute,
+    /// executable file. Arguments and quoting remain supported.
     nonisolated static func isValid(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= 1024 else { return false }
-        return !trimmed.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) }
+        return !trimmed.isEmpty && validationFailure(in: trimmed) == nil
     }
 
     /// Warning to surface under a custom value, or nil when it looks fine.
-    /// Everything here is advisory; only `isValid` rejects.
+    /// Invalid values remain visible for editing but launch clean macOS zsh.
     nonisolated static func warning(for value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             return String(localized: "Empty, so the login shell will be used.",
                           comment: "Local shell warning: no value entered")
         }
-        if !isValid(trimmed) {
-            return String(localized: "Contains a line break or control character, so the login shell will be used.",
-                          comment: "Local shell warning: illegal characters")
+        switch validationFailure(in: trimmed) {
+        case .illegalCharacters:
+            return String(localized: "Too long or contains a control character. Clean macOS zsh will be used.",
+                          comment: "Local shell warning: illegal characters use fallback")
+        case .unbalancedQuote:
+            return String(localized: "Contains an unbalanced quote. Clean macOS zsh will be used.",
+                          comment: "Local shell warning: malformed quoting uses fallback")
+        case .relativeExecutable:
+            return String(localized: "The executable path must be absolute. Clean macOS zsh will be used.",
+                          comment: "Local shell warning: relative command uses fallback")
+        case .unavailableExecutable:
+            return String(localized: "Nothing executable exists at that path. Clean macOS zsh will be used.",
+                          comment: "Local shell warning: unavailable binary uses fallback")
+        case nil:
+            return nil
         }
-        guard let executable = executablePath(in: trimmed) else {
-            return String(localized: "Unbalanced quote.",
-                          comment: "Local shell warning: quote is never closed")
-        }
-        if !executable.hasPrefix("/") {
-            return String(localized: "Not an absolute path. The shell is launched with a minimal PATH, so a bare name may not be found.",
-                          comment: "Local shell warning: relative command")
-        }
-        if !FileManager.default.isExecutableFile(atPath: executable) {
-            return String(localized: "Nothing executable at that path. Sessions will fail to start.",
-                          comment: "Local shell warning: binary is missing")
-        }
+    }
+
+    private nonisolated static func validationFailure(in command: String) -> ValidationFailure? {
+        guard command.count <= 1024,
+              !command.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+        else { return .illegalCharacters }
+
+        guard shellQuotesAreBalanced(command),
+              let executable = executablePath(in: command)
+        else { return .unbalancedQuote }
+
+        guard executable.hasPrefix("/") else { return .relativeExecutable }
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: executable, isDirectory: &isDirectory),
+              !isDirectory.boolValue,
+              FileManager.default.isExecutableFile(atPath: executable)
+        else { return .unavailableExecutable }
+
         return nil
+    }
+
+    /// Reject syntax that would prevent bash from reaching its zsh fallback.
+    private nonisolated static func shellQuotesAreBalanced(_ command: String) -> Bool {
+        var quote: Character?
+        var escaped = false
+
+        for character in command {
+            if escaped {
+                escaped = false
+                continue
+            }
+            if quote == "'" {
+                if character == "'" { quote = nil }
+                continue
+            }
+            if character == "\\" {
+                escaped = true
+                continue
+            }
+            if let currentQuote = quote {
+                if character == currentQuote { quote = nil }
+            } else if character == "'" || character == "\"" {
+                quote = character
+            }
+        }
+
+        return quote == nil && !escaped
     }
 
     /// The executable from a command line, honouring a leading quoted path.
@@ -139,11 +192,16 @@ enum LocalShellSettings: Sendable {
     /// A configured command is used verbatim: `-l` cannot be appended to a
     /// command line that already carries its own arguments.
     nonisolated static var ghosttyConfigCommand: String {
-        if let command { return command }
-        var shellPath = "/bin/zsh"
-        if let shellEnv = getenv("SHELL"), let path = String(validatingUTF8: shellEnv) {
-            shellPath = path
+        if let raw = UserDefaults.standard.string(forKey: commandKey) {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return isValid(trimmed) ? trimmed : "\(fallbackCommand) -l"
+            }
         }
-        return "\(shellPath) -l"
+
+        if let shellEnv = getenv("SHELL"), let path = String(validatingUTF8: shellEnv) {
+            if isValid(path) { return "\(path) -l" }
+        }
+        return "\(fallbackCommand) -l"
     }
 }

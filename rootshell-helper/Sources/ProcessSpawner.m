@@ -14,6 +14,15 @@
 #import <signal.h>
 #import <unistd.h>
 
+static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
+
+@interface ProcessSpawner ()
++ (NSString *)validatedShellOrFallback:(nullable NSString *)candidate;
++ (BOOL)isValidShellCommand:(nullable NSString *)command;
++ (nullable NSString *)executablePathInShellCommand:(NSString *)command;
++ (BOOL)shellQuotesAreBalanced:(NSString *)command;
+@end
+
 @implementation ShellSpawnConfig
 
 - (instancetype)init {
@@ -60,16 +69,13 @@
         return nil;
     }
 
-    // Get shell
+    // Get and validate the shell. The helper is the authoritative safety
+    // boundary because older clients can send unvalidated values.
     NSString *shell = config.shell;
     if (!shell) {
         shell = [self defaultShellForUser:&localError];
-        if (!shell) {
-            if (error) *error = localError;
-            [pty close];
-            return nil;
-        }
     }
+    shell = [self validatedShellOrFallback:shell];
 
     // Build command arguments
     NSArray<NSString *> *args;
@@ -255,8 +261,17 @@
     [args addObject:@"--norc"];
     [args addObject:@"-c"];
 
-    // exec -l replaces bash with the user's shell as a login shell
-    NSString *execCmd = [NSString stringWithFormat:@"exec -l %@", shell];
+    // exec -l replaces bash with the user's shell as a login shell. execfail
+    // keeps this non-interactive bash alive only when exec itself fails, so a
+    // launch-time race or bad interpreter can still fall through to clean zsh.
+    // Once the selected shell starts successfully it replaces bash, and a later
+    // normal exit closes the session without invoking the fallback.
+    NSString *execCmd = [NSString stringWithFormat:
+        @"shopt -s execfail\n"
+        @"exec -l %@\n"
+        @"exec -l %@\n"
+        @"exit 127",
+        shell, RootShellFallbackShell];
     [args addObject:execCmd];
 
     return args;
@@ -284,6 +299,93 @@
     }
 
     return [NSString stringWithUTF8String:pw->pw_shell];
+}
+
++ (NSString *)validatedShellOrFallback:(nullable NSString *)candidate {
+    NSString *trimmed = [candidate stringByTrimmingCharactersInSet:
+        [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+
+    if (![self isValidShellCommand:trimmed]) {
+        NSLog(@"Invalid shell command '%@'; falling back to %@",
+              candidate ?: @"(missing)", RootShellFallbackShell);
+        return RootShellFallbackShell;
+    }
+
+    return trimmed;
+}
+
++ (BOOL)isValidShellCommand:(nullable NSString *)command {
+    if (!command || command.length == 0 || command.length > 1024) return NO;
+    if ([command rangeOfCharacterFromSet:[NSCharacterSet controlCharacterSet]].location != NSNotFound) {
+        return NO;
+    }
+    if (![self shellQuotesAreBalanced:command]) return NO;
+
+    NSString *executable = [self executablePathInShellCommand:command];
+    if (!executable || ![executable hasPrefix:@"/"]) return NO;
+
+    struct stat executableStat;
+    if (stat(executable.fileSystemRepresentation, &executableStat) != 0) return NO;
+    if (!S_ISREG(executableStat.st_mode)) return NO;
+    return access(executable.fileSystemRepresentation, X_OK) == 0;
+}
+
++ (nullable NSString *)executablePathInShellCommand:(NSString *)command {
+    if (command.length == 0) return nil;
+
+    unichar first = [command characterAtIndex:0];
+    if (first == '\'' || first == '"') {
+        unichar quote = first;
+        BOOL escaped = NO;
+        for (NSUInteger index = 1; index < command.length; index++) {
+            unichar character = [command characterAtIndex:index];
+            if (escaped) {
+                escaped = NO;
+                continue;
+            }
+            if (quote == '"' && character == '\\') {
+                escaped = YES;
+                continue;
+            }
+            if (character == quote) {
+                return [command substringWithRange:NSMakeRange(1, index - 1)];
+            }
+        }
+        return nil;
+    }
+
+    NSRange separator = [command rangeOfCharacterFromSet:[NSCharacterSet whitespaceCharacterSet]];
+    return separator.location == NSNotFound
+        ? command
+        : [command substringToIndex:separator.location];
+}
+
++ (BOOL)shellQuotesAreBalanced:(NSString *)command {
+    unichar quote = 0;
+    BOOL escaped = NO;
+
+    for (NSUInteger index = 0; index < command.length; index++) {
+        unichar character = [command characterAtIndex:index];
+        if (escaped) {
+            escaped = NO;
+            continue;
+        }
+        if (quote == '\'') {
+            if (character == '\'') quote = 0;
+            continue;
+        }
+        if (character == '\\') {
+            escaped = YES;
+            continue;
+        }
+        if (quote != 0) {
+            if (character == quote) quote = 0;
+        } else if (character == '\'' || character == '"') {
+            quote = character;
+        }
+    }
+
+    return quote == 0 && !escaped;
 }
 
 + (nullable NSString *)currentUsername:(NSError **)error {
