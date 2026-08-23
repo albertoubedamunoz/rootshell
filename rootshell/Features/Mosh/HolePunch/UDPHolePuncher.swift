@@ -993,6 +993,7 @@ final class UDPHolePuncher {
                     onValidation: onHostKeyValidation
                 )
             )
+            targetSettings.algorithms = .all
             targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: sshConfig.host)
             return try await jumpClient.jump(to: targetSettings)

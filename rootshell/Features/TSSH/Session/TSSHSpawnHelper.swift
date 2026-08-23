@@ -258,6 +258,7 @@ enum TrzszSpawnHelper {
                 authenticationMethod: { authMethod },
                 hostKeyValidator: targetHostKeyValidator
             )
+            targetSettings.algorithms = .all
             targetSettings.loginTimeout = loginTimeout
             targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: sshConfig.host)
             if let authBannerBuffer {

@@ -346,6 +346,7 @@ final class MoshServerSpawner {
                     onValidation: onHostKeyValidation
                 )
             )
+            targetSettings.algorithms = .all
             targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: config.host)
             targetSettings.onUserAuthBanner = { [authBannerBuffer = self.authBannerBuffer] message, _ in
@@ -456,4 +457,3 @@ final class MoshServerSpawner {
         return patterns.contains { lowercased.contains($0) }
     }
 }
-

@@ -604,6 +604,7 @@ final class CitadelSSHSession: SSHTerminalSession {
                 authenticationMethod: { targetAuth },
                 hostKeyValidator: targetHostKeyValidator
             )
+            targetSettings.algorithms = .all
             // See jump branch: human-inclusive login budget, not the TCP cap.
             targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: config.host)
