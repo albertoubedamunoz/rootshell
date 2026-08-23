@@ -48,6 +48,10 @@ extension MainView {
         } else {
             appearance.backgroundColor = UIColor(theme.tabBarBackground)
         }
+        #if targetEnvironment(macCatalyst)
+        // Keep the window's transparency through the reveal.
+        appearance.backgroundOpacity = transparencyManager.backgroundOpacity
+        #endif
         appearance.textColor = UIColor(theme.tabText)
         if let accent = sheetAccentColor {
             appearance.accentColor = UIColor(accent)

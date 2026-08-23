@@ -116,7 +116,7 @@ final class TabExposeTrayView: UIScrollView {
         headerLabel.textColor = appearance.textColor.withAlphaComponent(0.85)
         headerIcon.tintColor = appearance.textColor.withAlphaComponent(0.7)
         for cell in cells {
-            cell.previewBackgroundColor = appearance.backgroundColor
+            cell.previewBackgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.backgroundOpacity)
             cell.accentColor = appearance.accentColor
             cell.currentRingColor = appearance.textColor.withAlphaComponent(0.3)
         }
