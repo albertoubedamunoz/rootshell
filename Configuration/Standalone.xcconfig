@@ -10,7 +10,7 @@ ENABLE_HARDENED_RUNTIME = YES
 CODE_SIGN_ENTITLEMENTS = rootshell/Entitlements/Standalone.entitlements
 CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = rootshell/Entitlements/Standalone-MacCatalyst.entitlements
 
-// Include rootshell-helper (no exclusions)
+// Include rootshell-helper.app (no exclusions)
 EXCLUDED_SOURCE_FILE_NAMES =
 
 // Swift conditional compilation flag

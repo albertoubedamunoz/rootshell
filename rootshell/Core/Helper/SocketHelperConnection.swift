@@ -9,7 +9,7 @@
 import Foundation
 
 /// Socket-based connection to ghostty-helper
-/// Communicates over Unix domain socket in App Group container
+/// Communicates over a Unix domain socket in the App Group container.
 @available(macCatalyst 14.0, *)
 class SocketHelperConnection {
 

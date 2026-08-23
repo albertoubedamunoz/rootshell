@@ -25,7 +25,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.cn
 
 // Source exclusions
 //
-//   - rootshell-helper: private API helper, AppStore-excluded
+//   - rootshell-helper.app: private helper app, AppStore-excluded
 //   - UpdateManager.swift: Sparkle integration, Standalone-only
 //   - AIAgent tree: every Swift file under rootshell/Features/AIAgent/ (including Voice/).
 //     Path glob plus a filename-pattern fallback. Individual AIAgent files also
@@ -37,7 +37,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.cn
 //     exclusions for these).
 //   - AIAgentSettingsView.swift: the one AI Agent settings view that lives under
 //     Settings/ rather than AIAgent/.
-EXCLUDED_SOURCE_FILE_NAMES = rootshell-helper UpdateManager.swift rootshell/Features/AIAgent/**/*.swift rootshell/Features/VPN/*.swift *VPN*.swift AIAgentSettingsView.swift
+EXCLUDED_SOURCE_FILE_NAMES = rootshell-helper.app UpdateManager.swift rootshell/Features/AIAgent/**/*.swift rootshell/Features/VPN/*.swift *VPN*.swift AIAgentSettingsView.swift
 
 // Swift conditional compilation flags
 //   - CHINA_BUILD: gates cross-reference sites in mixed files

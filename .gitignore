@@ -2,7 +2,6 @@ xcuserdata/
 .build/
 .local-packages/
 Frameworks/
-rootshell/Resources/rootshell-helper
 Configuration/Secrets.xcconfig
 releases
 /build/
