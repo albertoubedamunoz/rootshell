@@ -448,6 +448,7 @@ enum SSHConnectionHelper {
                 authenticationMethod: { targetAuth },
                 hostKeyValidator: targetHostKeyValidator
             )
+            targetSettings.algorithms = .all
             targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             targetSettings.protocolOptions = hostCertificateProtocolOptions(forHost: config.host)
 

@@ -410,6 +410,7 @@ enum HeadlessSSHExecutor {
                     onValidation: nil
                 )
             )
+            targetSettings.algorithms = .all
             targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: config.host)
 

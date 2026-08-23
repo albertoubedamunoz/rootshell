@@ -159,6 +159,7 @@ final class AIAgentExecutor {
                     authenticationMethod: { targetAuth },
                     hostKeyValidator: targetHostKeyValidator
                 )
+                targetSettings.algorithms = .all
                 targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
                 targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: resolvedConfig.host)
 
