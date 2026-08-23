@@ -35,6 +35,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
     struct Appearance {
         var backgroundColor: UIColor = .black
+        /// Window background opacity (macOS transparency); 1 = opaque.
+        var backgroundOpacity: CGFloat = 1
         var accentColor: UIColor = .systemBlue
         var textColor: UIColor = .white
         var showsCaptions: Bool = true
@@ -49,7 +51,13 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     }
 
     private let backdrop = UIView()
+    /// Punches the hero out of a translucent backdrop so the hero's own
+    /// translucent background isn't stacked on a second fill.
+    private let backdropMask = CAShapeLayer()
     private let hero = TabPreviewMirrorView()
+    /// The live terminal host hidden behind the hero while translucent, so
+    /// the backdrop sees the desktop rather than the terminal.
+    private weak var concealedHost: UIView?
     /// The active scope's page.
     private var primary = TabExposeTrayView()
     /// A neighbor scope's page while a swipe / ⌘⌥[ ] is in flight.
@@ -84,6 +92,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         clipsToBounds = true
 
         backdrop.isUserInteractionEnabled = false
+        backdropMask.fillRule = .evenOdd
         addSubview(backdrop)
         addSubview(primary)
 
@@ -142,6 +151,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             if isFirstResponder { resignFirstResponder() }
             isHidden = true
             hero.tab = nil
+            syncTerminalConcealment()
             resetPage()
             primary.removeAllCells()
         }
@@ -215,13 +225,30 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     }
 
     private func applyAppearance() {
-        backdrop.backgroundColor = appearance.backgroundColor
-        hero.backgroundColor = appearance.backgroundColor
+        backdrop.backgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.backgroundOpacity)
+        // Mirrored pixels already carry the terminal's translucent background.
+        hero.backgroundColor = isTranslucent ? .clear : appearance.backgroundColor
+        syncTerminalConcealment()
+        lastAppliedProgress = -1
+        applyProgress()
         primary.applyAppearance(appearance)
         companion?.applyAppearance(appearance)
     }
 
     // MARK: - Layout
+
+    private var isTranslucent: Bool { appearance.backgroundOpacity < 1 }
+
+    /// The hero mirror is pixel-for-pixel the terminal, so hiding the real
+    /// host under it is invisible; restores when inactive or opaque.
+    private func syncTerminalConcealment() {
+        let target: UIView? = (controller.isActive && isTranslucent)
+            ? hero.tab?.splitTree.first?.enclosingSplitHost : nil
+        guard target !== concealedHost else { return }
+        concealedHost?.alpha = 1
+        concealedHost = target
+        target?.alpha = 0
+    }
 
     private var isCompact: Bool {
         UIDevice.current.userInterfaceIdiom == .phone || bounds.width < 500
@@ -274,8 +301,9 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
         // Coverage belongs to the exposé host, not to the terminal host's
         // converted frame. The latter can transiently lag safe-area changes;
-        // using it for the opaque fill could expose terminal pixels around the
-        // home-indicator strip even though preview geometry was otherwise right.
+        // using it for the fill (opaque, or at the window opacity on macOS)
+        // could expose terminal pixels around the home-indicator strip even
+        // though preview geometry was otherwise right.
         backdrop.frame = bounds
         hero.transform = .identity
         hero.frame = heroRect
@@ -313,6 +341,15 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         primary.setChrome(captionAlpha: chromeAlpha, ringAlpha: ringAlpha)
         companion?.setChrome(captionAlpha: chromeAlpha, ringAlpha: ringAlpha)
         backdrop.isHidden = p <= 0
+        if isTranslucent, !hero.isHidden {
+            let path = UIBezierPath(rect: backdrop.bounds)
+            path.append(UIBezierPath(rect: heroRect.offsetBy(dx: 0, dy: clamped * H)))
+            backdropMask.frame = backdrop.bounds
+            backdropMask.path = path.cgPath
+            backdrop.layer.mask = backdropMask
+        } else {
+            backdrop.layer.mask = nil
+        }
         CATransaction.commit()
     }
 
@@ -349,6 +386,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         }
         stepPageSpring(now: link.timestamp)
         applyProgress()
+        // A just-selected tab's host may attach a frame or two later.
+        syncTerminalConcealment()
         if !hero.isHidden { hero.sync() }
         primary.syncVisibleMirrors()
         companion?.syncVisibleMirrors()
