@@ -5,8 +5,6 @@
 //  Centralized registration of custom NIOSSH key algorithms.
 //
 
-import Foundation
-import Crypto
 import Citadel
 import NIOSSH
 
@@ -19,15 +17,22 @@ import NIOSSH
 /// MainActor-isolated managers and parsers.
 enum SSHCustomAlgorithms {
     static func ensureRegistered() {
-        // RSA (Citadel custom key) — normally registered by SSHClient.connect.
-        NIOSSHAlgorithms.register(publicKey: Insecure.RSA.PublicKey.self, signature: Insecure.RSA.Signature.self)
-        // ML-DSA hybrid (has a cert form) + pure.
-        NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA44Ed25519SSH.PublicKey.self, signature: MLDSA44Ed25519SSH.Signature.self)
-        NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA44SSH.PublicKey.self, signature: MLDSA44SSH.Signature.self)
+        // Use Citadel's single default public-key/signature list so parsing
+        // before a connection and connection setup cannot drift apart.
+        SSHAlgorithms.all.registerPublicKeyAlgorithms()
+
+        NIOSSHAlgorithms.register(keyExchangeAlgorithm: Sntrup761X25519Sha512.self)
+        NIOSSHAlgorithms.register(keyExchangeAlgorithm: DiffieHellmanGroup14Sha256.self)
+        NIOSSHAlgorithms.register(keyExchangeAlgorithm: DiffieHellmanGroup14Sha1.self)
         if #available(iOS 26, macOS 26, macCatalyst 26, visionOS 26, *) {
-            NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA65SSH.PublicKey.self, signature: MLDSA65SSH.Signature.self)
-            NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA87SSH.PublicKey.self, signature: MLDSA87SSH.Signature.self)
+            NIOSSHAlgorithms.register(keyExchangeAlgorithm: MLKem768X25519Sha256.self)
         }
+
+        NIOSSHAlgorithms.register(transportProtectionScheme: AES256CTR_ETM.self)
+        NIOSSHAlgorithms.register(transportProtectionScheme: AES128CTR_ETM.self)
+        NIOSSHAlgorithms.register(transportProtectionScheme: AES256CTR.self)
+        NIOSSHAlgorithms.register(transportProtectionScheme: AES128CTR.self)
+
         // sk-ecdsa (Apple FIDO2 / security keys via AuthenticationServices).
         registerAppleFIDO2Algorithms()
     }

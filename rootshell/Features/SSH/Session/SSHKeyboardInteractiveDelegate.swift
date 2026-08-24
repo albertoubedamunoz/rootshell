@@ -142,6 +142,10 @@ nonisolated final class KeyboardInteractiveAuthDelegate: NIOSSHClientUserAuthent
         inner.nextAuthenticationType(availableMethods: availableMethods, nextChallengePromise: wrapper)
     }
 
+    func serverSignatureAlgorithmsReceived(_ algorithms: [String]) {
+        inner?.serverSignatureAlgorithmsReceived(algorithms)
+    }
+
     private func offerKeyboardInteractiveOrFinish(promise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>) {
         guard !triedKeyboardInteractive else {
             // Already attempted; nothing left to offer.

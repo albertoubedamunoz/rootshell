@@ -365,33 +365,9 @@ final class SSHSession: SSHTerminalSession {
                 }
             )
 
-            // Register Citadel's additional algorithms with NIOSSH BEFORE creating any config
-            // Post-quantum hybrid key exchange
-            NIOSSHAlgorithms.register(keyExchangeAlgorithm: Sntrup761X25519Sha512.self)
-            if #available(iOS 26, macOS 26, macCatalyst 26, visionOS 26, *) {
-                NIOSSHAlgorithms.register(keyExchangeAlgorithm: MLKem768X25519Sha256.self)
-                NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA65SSH.PublicKey.self, signature: MLDSA65SSH.Signature.self)
-                NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA87SSH.PublicKey.self, signature: MLDSA87SSH.Signature.self)
-            }
-            // Hybrid PQ user/host keys (OpenSSH 10.4+); BoringSSL-backed, no OS gate
-            NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA44Ed25519SSH.PublicKey.self, signature: MLDSA44Ed25519SSH.Signature.self)
-            // Pure ML-DSA-44 (OQS-style); BoringSSL-backed, no OS gate
-            NIOSSHAlgorithms.registerPreferred(publicKey: MLDSA44SSH.PublicKey.self, signature: MLDSA44SSH.Signature.self)
-            // AWS EC2 Serial Console requires diffie-hellman-group14-sha256 which NIOSSH doesn't include by default
-            NIOSSHAlgorithms.register(keyExchangeAlgorithm: DiffieHellmanGroup14Sha256.self)
-            NIOSSHAlgorithms.register(keyExchangeAlgorithm: DiffieHellmanGroup14Sha1.self)
-
-            // Register RSA public key support - AWS EC2 Serial Console uses RSA host keys with ssh-rsa signatures
-            // Use LegacyRSAPublicKey which handles both ssh-rsa (legacy) and rsa-sha2-256 (modern) signatures
-            NIOSSHAlgorithms.register(publicKey: LegacyRSAPublicKey.self, signature: LegacyRSASignature.self)
-
-            // Register CTR cipher support (from Citadel) for broader server compatibility
-            // ETM (Encrypt-Then-MAC) first — preferred for security and required by NixOS hardened sshd
-            NIOSSHAlgorithms.register(transportProtectionScheme: AES256CTR_ETM.self)
-            NIOSSHAlgorithms.register(transportProtectionScheme: AES128CTR_ETM.self)
-            // Non-ETM (Encrypt-and-MAC) fallback
-            NIOSSHAlgorithms.register(transportProtectionScheme: AES256CTR.self)
-            NIOSSHAlgorithms.register(transportProtectionScheme: AES128CTR.self)
+            // Register the app's global NIOSSH extensions once, before creating
+            // a configuration that snapshots their negotiation order.
+            SSHCustomAlgorithms.ensureRegistered()
 
             // Log SSH algorithm info for debugging
             if #available(iOS 26, macOS 26, macCatalyst 26, visionOS 26, *) {
@@ -1043,6 +1019,9 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
     private var publicKeyIndex = 0  // Track which key we're trying
     private var triedPassword = false
     private var didExhaustMethods = false
+    private var pendingLegacyRSAKey: Insecure.RSA.PrivateKey?
+    private var didReserveLegacyRSAFallback = false
+    private var serverSignatureAlgorithms: Set<String>?
 
     /// Creates an auth delegate with multiple private keys to try in order
     /// - Parameters:
@@ -1078,6 +1057,22 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
         let offered = SSHDebugLogger.describe(authMethods: availableMethods)
         SSHDebugLogger.shared.event("AUTH", "server offers: \(offered) user=\(username)")
 
+        if availableMethods.contains(.publicKey),
+           let legacyRSAKey = pendingLegacyRSAKey {
+            pendingLegacyRSAKey = nil
+            if SSHRSASignaturePolicy.shouldAttemptLegacySHA1(
+                serverSignatureAlgorithms: serverSignatureAlgorithms
+            ) {
+                Self.logger.info("Auth - Trying RSA ssh-rsa/SHA-1 compatibility fallback")
+                nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(
+                    username: username,
+                    serviceName: "",
+                    offer: .privateKey(.init(privateKey: legacyRSAKey.legacySHA1Key))
+                ))
+                return
+            }
+        }
+
         // Try "none" authentication first if explicitly requested (Tailscale/WireGuard)
         if useNoneAuth && !triedNone {
             triedNone = true
@@ -1109,6 +1104,13 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
                 Self.logger.info("Auth - Trying key \(self.publicKeyIndex)/\(self.privateKeys.count): RSA key")
                 key = NIOSSHPrivateKey(custom: rsaKey)
                 keyDescription = "rsa"
+                if !didReserveLegacyRSAFallback,
+                   SSHRSASignaturePolicy.shouldAttemptLegacySHA1(
+                    serverSignatureAlgorithms: serverSignatureAlgorithms
+                ) {
+                    pendingLegacyRSAKey = rsaKey
+                    didReserveLegacyRSAFallback = true
+                }
             case .yubiKey(let reference):
                 // Wrap YubiKey reference in algorithm-specific NIOSSH key
                 Self.logger.info("Auth - Trying key \(self.publicKeyIndex)/\(self.privateKeys.count): YubiKey (\(reference.algorithm.rawValue))")
@@ -1178,6 +1180,10 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
         // Fail the promise with authentication error instead of succeeding with nil
         // This causes NIOSSH to immediately propagate the error
         nextChallengePromise.fail(SSHError.authenticationFailed)
+    }
+
+    func serverSignatureAlgorithmsReceived(_ algorithms: [String]) {
+        serverSignatureAlgorithms = Set(algorithms)
     }
 }
 

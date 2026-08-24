@@ -1102,9 +1102,10 @@ final class UDPHolePuncher {
         }
 
         let candidate = SSHAuthKeyCandidate(variant: keyVariant, certifiedKey: certifiedKey)
-        return .custom(HolePunchKeyAuthDelegate(
+        return .custom(NIOKeyAuthDelegate(
             username: username,
             privateKey: candidate.nioPrivateKey,
+            legacyRSAKey: candidate.legacyRSAAuthenticationKey,
             certifiedKey: certifiedKey
         ))
     }
@@ -1195,53 +1196,6 @@ private final class HolePunchNoneAuthDelegate: NIOSSHClientUserAuthenticationDel
             username: username,
             serviceName: "",
             offer: .none
-        ))
-    }
-}
-
-/// Auth delegate for public key authentication (hole-punch specific).
-/// With a certificate, offers cert-then-plain (OpenSSH fallback order).
-private final class HolePunchKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
-    private let username: String
-    private let privateKey: NIOSSHPrivateKey
-    private let certifiedKey: NIOSSHCertifiedPublicKey?
-    private var attempt = 0
-
-    init(username: String, privateKey: NIOSSHPrivateKey, certifiedKey: NIOSSHCertifiedPublicKey? = nil) {
-        self.username = username
-        self.privateKey = privateKey
-        self.certifiedKey = certifiedKey
-    }
-
-    func nextAuthenticationType(
-        availableMethods: NIOSSHAvailableUserAuthenticationMethods,
-        nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>
-    ) {
-        guard availableMethods.contains(.publicKey) else {
-            nextChallengePromise.succeed(nil)
-            return
-        }
-
-        if attempt == 0, let certifiedKey {
-            attempt = 1
-            nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(
-                username: username,
-                serviceName: "",
-                offer: .privateKey(.init(privateKey: privateKey, certifiedKey: certifiedKey))
-            ))
-            return
-        }
-
-        guard attempt <= 1 else {
-            nextChallengePromise.succeed(nil)
-            return
-        }
-
-        attempt = 2
-        nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(
-            username: username,
-            serviceName: "",
-            offer: .privateKey(.init(privateKey: privateKey))
         ))
     }
 }
