@@ -617,10 +617,29 @@ extension MainView {
             guard !intersection.isNull, !intersection.isEmpty else { return 0 }
             return intersection.height
         }()
-        let hasSoftwareKeyboard =
+        // Every "is a system keyboard docked" signal below is a height
+        // threshold over the whole keyboard region — and that region is the
+        // input accessory itself when no keyboard is up. A tall accessory then
+        // reads as a keyboard: two stacked drawer rows alone reach 132pt, past
+        // the 120pt line and EffectManager's 100pt dock test. Discount the
+        // region the accessory accounts for first, testing the largest
+        // coverage signal: `visibleKeyboardFrameHeight` is gated on a
+        // near-screen-wide frame, so an iPad Split View window reports 0 while
+        // `keyboardHeight` still carries a real docked keyboard.
+        let keyboardRegionHeight = max(
+            visibleKeyboardFrameHeight,
+            max(keyboardHeight, keyboardFrame.isNull || keyboardFrame.isEmpty ? 0 : keyboardFrame.height)
+        )
+        // Tolerance is the bottom safe area: UIKit may contribute part of the
+        // home-indicator strip below the accessory itself. A real docked
+        // keyboard is hundreds of points tall and stays clear of this window.
+        let accessoryOwnsWholeKeyboardRegion = reservedBottomToolbarHeight > 0
+            && keyboardRegionHeight <= reservedBottomToolbarHeight + windowSafeAreaInsets.bottom + 2
+        let hasSoftwareKeyboard = !accessoryOwnsWholeKeyboardRegion && (
             KeyboardTracker.shared.isSoftwareKeyboardVisible ||
             keyboardHeight > 0 ||
             visibleKeyboardFrameHeight >= 120
+        )
         let dockedKeyboardCoverage = isPhone
             ? visibleKeyboardFrameHeight
             : max(keyboardHeight, visibleKeyboardFrameHeight, keyboardFrame.height)
@@ -663,24 +682,16 @@ extension MainView {
             }
         } else if reservesBottomToolbar {
             if isPhone {
-                if containerFrame.width > containerFrame.height {
-                    // In iPhone landscape UIKit exposes only the bottom
-                    // home-indicator strip as keyboard-region clearance here,
-                    // rather than the full accessory row. Reserve the remainder:
-                    // using 0 overlaps the toolbar, while using the full height
-                    // double-counts this strip and leaves an obvious gap.
-                    keyboardOffset = max(
-                        0,
-                        reservedBottomToolbarHeight - windowSafeAreaInsets.bottom
-                    )
-                } else {
-                    // In portrait the input-accessory toolbar already contributes
-                    // a keyboard-region safe-area inset for its base row. UIKit
-                    // does not grow that inset when drawer rows expand upward,
-                    // though, so reserve only the height beyond the base row.
-                    let baseToolbarHeight = KeyboardSizes.current().toolbar.height
-                    keyboardOffset = max(0, reservedBottomToolbarHeight - baseToolbarHeight)
-                }
+                // The terminal container already ends at the top of the
+                // bottom safe-area strip, and the toolbar stands on the
+                // screen's bottom edge (primary input view in toolbar-only
+                // mode, flush accessory next to a hardware keyboard), so
+                // reserve exactly the part of the accessory that rises above
+                // the strip.
+                keyboardOffset = max(
+                    0,
+                    reservedBottomToolbarHeight - windowSafeAreaInsets.bottom
+                )
             } else {
                 // The iPad container already keeps the terminal above the
                 // bottom safe-area strip. Reserve only the toolbar height that
@@ -705,7 +716,10 @@ extension MainView {
 
         if hasOcean {
             #if !os(visionOS) && !targetEnvironment(macCatalyst)
-            if reservesBottomToolbar && !isDocked {
+            // `hasDockedKeyboard`, not raw `isDocked`: EffectManager calls any
+            // full-width bottom-touching region over 100pt docked, which a drawer
+            // row plus the reserved strip satisfies on its own.
+            if reservesBottomToolbar && !hasDockedKeyboard {
                 // An accessory-only toolbar covers the ocean from the bottom
                 // up, but a single iPhone row can be shorter than the 8% ocean
                 // band. Keep the normal toolbar clearance, then reserve only

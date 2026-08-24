@@ -4444,6 +4444,11 @@ extension Ghostty.TerminalView: TerminalKeyboardAccessoryHost {
 
     func keyboardDidFinishAnimationLayout() {
         sizeDidChange(bounds.size)
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        // The accessory has settled at its final position, so the reserved
+        // home-indicator strip can finally be measured against real geometry.
+        keyboardAccessoryController.refreshBottomSafeAreaStrip()
+        #endif
         #if !os(visionOS)
         // Flush any input-view reload we deferred while the keyboard animated.
         flushPendingInputViewReloadIfNeeded()

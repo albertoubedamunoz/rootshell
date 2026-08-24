@@ -132,7 +132,27 @@ class KeyboardAccessoryView: UIInputView {
     /// Callback when accessory layout changes and input views should refresh
     var onLayoutInvalidated: (() -> Void)?
 
+    /// Fired when UIKit hosts or moves the accessory. The reserved bottom
+    /// strip is derived from the hosted frame, and `inputAccessoryView` is
+    /// queried while `window` is still nil, so this corrects the first pass.
+    var onHostedGeometryChanged: (() -> Void)?
+
     private var layoutChangeObserver: NSObjectProtocol?
+    private var toolbarBottomConstraint: NSLayoutConstraint?
+
+    /// Continuation of the toolbar's glass plate over the reserved
+    /// home-indicator strip. Without it the strip exposes the system keyboard
+    /// backdrop (UIKit draws one behind any input view), which reads as a
+    /// foreign gray band under the toolbar. Hidden while nothing is reserved.
+    private let bottomStripBlurView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+    private let bottomStripTintView = UIView()
+
+    /// Height held open below the toolbar row so the row clears the home
+    /// indicator. Owned by the accessory controller; 0 runs the row flush.
+    /// UIKit pins the accessory's bottom edge and grows it upward, so the
+    /// extra height lifts the row off the edge rather than pushing it under.
+    private(set) var reservedBottomSafeArea: CGFloat = 0
+
     #if !os(visionOS) && !targetEnvironment(macCatalyst)
     private var bottomEdgePanGesture: UIScreenEdgePanGestureRecognizer?
     #endif
@@ -179,12 +199,35 @@ class KeyboardAccessoryView: UIInputView {
         toolbarView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(toolbarView)
 
+        let toolbarBottom = toolbarView.bottomAnchor.constraint(equalTo: bottomAnchor)
         NSLayoutConstraint.activate([
             toolbarView.leadingAnchor.constraint(equalTo: leadingAnchor),
             toolbarView.trailingAnchor.constraint(equalTo: trailingAnchor),
             toolbarView.topAnchor.constraint(equalTo: topAnchor),
-            toolbarView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            toolbarBottom
         ])
+        toolbarBottomConstraint = toolbarBottom
+
+        bottomStripBlurView.translatesAutoresizingMaskIntoConstraints = false
+        bottomStripBlurView.isUserInteractionEnabled = false
+        bottomStripBlurView.isHidden = true
+        bottomStripTintView.translatesAutoresizingMaskIntoConstraints = false
+        bottomStripTintView.backgroundColor = toolbarView.glassTintColor(for: traitCollection)
+        insertSubview(bottomStripBlurView, belowSubview: toolbarView)
+        bottomStripBlurView.contentView.addSubview(bottomStripTintView)
+        NSLayoutConstraint.activate([
+            bottomStripBlurView.topAnchor.constraint(equalTo: toolbarView.bottomAnchor),
+            bottomStripBlurView.leadingAnchor.constraint(equalTo: toolbarView.plateLeadingAnchor),
+            bottomStripBlurView.trailingAnchor.constraint(equalTo: toolbarView.plateTrailingAnchor),
+            bottomStripBlurView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            bottomStripTintView.topAnchor.constraint(equalTo: bottomStripBlurView.contentView.topAnchor),
+            bottomStripTintView.leadingAnchor.constraint(equalTo: bottomStripBlurView.contentView.leadingAnchor),
+            bottomStripTintView.trailingAnchor.constraint(equalTo: bottomStripBlurView.contentView.trailingAnchor),
+            bottomStripTintView.bottomAnchor.constraint(equalTo: bottomStripBlurView.contentView.bottomAnchor),
+        ])
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: KeyboardAccessoryView, _: UITraitCollection) in
+            self.bottomStripTintView.backgroundColor = self.toolbarView.glassTintColor(for: self.traitCollection)
+        }
 
         // Propagate drawer state changes for height updates
         toolbarView.onDrawerStateChanged = { [weak self] in
@@ -239,12 +282,34 @@ class KeyboardAccessoryView: UIInputView {
 
     // MARK: - Layout
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        onHostedGeometryChanged?()
+    }
+
+    /// UIKit can reposition the accessory without resizing it (same size, new
+    /// origin), which calls neither `layoutSubviews` nor `didMoveToWindow`, so
+    /// the move is observed here. An in-flight animation frame yields at worst
+    /// a transient value; the equality guard in `setReservedBottomSafeArea`
+    /// drops the redundant work.
+    override var frame: CGRect {
+        didSet {
+            guard frame != oldValue else { return }
+            onHostedGeometryChanged?()
+        }
+    }
+
     override var intrinsicContentSize: CGSize {
-        return toolbarView.intrinsicContentSize
+        var size = toolbarView.intrinsicContentSize
+        size.height += reservedBottomSafeArea
+        return size
     }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
-        CGSize(width: size.width, height: toolbarView.intrinsicContentSize.height)
+        CGSize(
+            width: size.width,
+            height: toolbarView.intrinsicContentSize.height + reservedBottomSafeArea
+        )
     }
 
     // MARK: - Public Methods
@@ -253,6 +318,27 @@ class KeyboardAccessoryView: UIInputView {
         let newSizes = KeyboardSizes.current(traitCollection: traitCollection)
         toolbarView.updateSizes(newSizes)
         invalidateLayoutAndNotify()
+    }
+
+    /// Apply a new reserved strip height. Returns true when it changed, so the
+    /// caller can decide whether the responder needs a `reloadInputViews()`.
+    /// Deliberately does not fire `onLayoutInvalidated` — the controller applies
+    /// this from inside its `inputAccessoryView` getter, and reloading the input
+    /// views from there would reenter UIKit's accessory query.
+    @discardableResult
+    func setReservedBottomSafeArea(_ reserve: CGFloat) -> Bool {
+        let clamped = max(0, reserve)
+        guard abs(clamped - reservedBottomSafeArea) > 0.5 else { return false }
+        reservedBottomSafeArea = clamped
+        toolbarBottomConstraint?.constant = -clamped
+        // The strip is a visual continuation of the toolbar plate: show the
+        // skirt and square the plate's bottom corners so they meet seamlessly.
+        bottomStripBlurView.isHidden = clamped <= 0
+        toolbarView.setBottomEdgeSquared(clamped > 0)
+        toolbarView.setNeedsLayout()
+        setNeedsLayout()
+        invalidateIntrinsicContentSize()
+        return true
     }
 
     func setBottomEdgeHomeGestureProtectionEnabled(_ enabled: Bool) {
