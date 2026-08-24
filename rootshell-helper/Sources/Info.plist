@@ -22,6 +22,8 @@
 	<true/>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Programs you run in Rootshell may control other applications using Apple events.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Programs you run in the Rootshell shell may discover and connect to devices on your local network, such as for croc transfers, device discovery, and direct terminal connections.</string>
 	<key>NSBonjourServices</key>
