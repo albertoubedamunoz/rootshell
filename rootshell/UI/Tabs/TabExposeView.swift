@@ -42,6 +42,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         var showsCaptions: Bool = true
         /// Caption for a cell (title + badges); index is the navigation position.
         var captionProvider: ((TabModel, Int) -> AnyView)?
+        /// Caption for a multiplexer tab cell.
+        var muxCaptionProvider: ((MuxTab, Int) -> AnyView)?
     }
 
     let controller: TabExposeController
@@ -77,6 +79,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     private var scopeCommitDeadline: CFTimeInterval = 0
 
     private var heroRect: CGRect = .zero
+    /// Highlight the tray was last scrolled to; see `tabExposeDidChangeCells`.
+    private var lastScrolledHighlightID: UUID?
     private var displayLink: CADisplayLink?
     private var lastAppliedProgress: CGFloat = -1
     private var lastAppliedShift: CGFloat = 0
@@ -141,6 +145,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             rebuildPrimary()
             setNeedsLayout()
             layoutIfNeeded()
+            lastScrolledHighlightID = controller.highlightedTabID
             primary.scrollCellIntoView(id: controller.highlightedTabID, animated: false)
             startDisplayLink()
             if controller.wantsFirstResponderFallback {
@@ -197,7 +202,12 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             rebuildPrimary()
         }
         setNeedsLayout()
-        primary.scrollCellIntoView(id: controller.highlightedTabID, animated: true)
+        // Only a moved highlight scrolls: a multiplexer feed revising its
+        // topology announces cells too, and must not fight a scrolling finger.
+        if controller.highlightedTabID != lastScrolledHighlightID {
+            lastScrolledHighlightID = controller.highlightedTabID
+            primary.scrollCellIntoView(id: controller.highlightedTabID, animated: true)
+        }
     }
 
     // MARK: - Cells
@@ -209,7 +219,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             scopeTitle: controller.scopeTitle,
             scoped: controller.isScoped,
             tabsModel: tabsModel,
-            selectedID: tabsModel.selectedTabID,
+            muxFeed: controller.showsMultiplexer ? controller.muxFeed : nil,
+            selectedID: controller.currentCellID,
             highlightedID: controller.highlightedTabID,
             appearance: appearance
         )
@@ -389,7 +400,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         // A just-selected tab's host may attach a frame or two later.
         syncTerminalConcealment()
         if !hero.isHidden { hero.sync() }
-        primary.syncVisibleMirrors()
+        primary.syncVisibleMirrors(reportVisibility: true)
         companion?.syncVisibleMirrors()
     }
 
@@ -553,7 +564,8 @@ extension TabExposeView {
             scopeTitle: neighbor.title,
             scoped: true,
             tabsModel: tabsModel,
-            selectedID: tabsModel.preferredTabID(in: neighbor.tabIDs, scope: neighbor.key),
+            muxFeed: neighbor.isMultiplexer ? controller.muxFeed : nil,
+            selectedID: neighbor.currentID,
             highlightedID: nil,
             appearance: appearance
         )
@@ -699,9 +711,14 @@ extension TabExposeView {
 @MainActor
 final class TabExposeCellView: UIView {
     let tabID: UUID
+    /// Live picture of an app tab.
     let mirror = TabPreviewMirrorView()
+    /// Rendered picture of a multiplexer tab; only one of the two is showing.
+    let muxPreview = MuxTabPreviewView()
     /// Navigation index the current caption was built for; -1 = none yet.
     var captionIndex = -1
+    /// Multiplexer caption content the caption was built for.
+    var captionKey: String?
 
     private let preview = UIView()
     private let currentRing = UIView()
@@ -712,6 +729,7 @@ final class TabExposeCellView: UIView {
         didSet {
             preview.backgroundColor = previewBackgroundColor
             mirror.backgroundColor = previewBackgroundColor
+            muxPreview.backgroundColor = previewBackgroundColor
         }
     }
     var accentColor: UIColor = .systemBlue {
@@ -749,6 +767,8 @@ final class TabExposeCellView: UIView {
         preview.layer.borderColor = UIColor.white.withAlphaComponent(0.08).cgColor
         preview.isUserInteractionEnabled = false
         preview.addSubview(mirror)
+        preview.addSubview(muxPreview)
+        muxPreview.isHidden = true
         addSubview(currentRing)
         addSubview(highlightRing)
         addSubview(preview)
@@ -764,6 +784,26 @@ final class TabExposeCellView: UIView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func showMirror(of tab: TabModel) {
+        muxPreview.tab = nil
+        muxPreview.isHidden = true
+        mirror.isHidden = false
+        mirror.tab = tab
+    }
+
+    func showMultiplexerTab(_ tab: MuxTab, feed: MultiplexerExposeFeed?) {
+        mirror.tab = nil
+        mirror.isHidden = true
+        muxPreview.isHidden = false
+        muxPreview.feed = feed
+        muxPreview.tab = tab
+    }
+
+    /// Per display tick: refresh whichever picture is showing.
+    func syncPreview() {
+        if mirror.isHidden { muxPreview.sync() } else { mirror.sync() }
+    }
 
     func setCaption(_ view: AnyView?) {
         guard let view else {
@@ -787,6 +827,7 @@ final class TabExposeCellView: UIView {
         preview.frame = CGRect(origin: .zero, size: previewSize)
         preview.layer.cornerRadius = cornerRadius
         mirror.frame = preview.bounds
+        muxPreview.frame = preview.bounds
         let ringFrame = preview.frame.insetBy(dx: -3, dy: -3)
         for ring in [currentRing, highlightRing] {
             ring.frame = ringFrame

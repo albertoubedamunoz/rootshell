@@ -1650,6 +1650,14 @@ final class TabsModel {
     /// (hidden-only tmux groups) are skipped. nil in flat mode or when there
     /// is only one scope.
     func neighborScope(offset: Int) -> ScopeInfo? {
+        guard let list = scopeList(), list.scopes.count > 1 else { return nil }
+        let count = list.scopes.count
+        return list.scopes[((list.activeIndex + offset) % count + count) % count]
+    }
+
+    /// Every navigable scope in order with the active one's index; nil in
+    /// flat mode or when the active scope cannot be found.
+    func scopeList() -> (scopes: [ScopeInfo], activeIndex: Int)? {
         let projection = orderProjection
         let scopes: [ScopeInfo]
         let activeIndex: Int?
@@ -1669,9 +1677,8 @@ final class TabsModel {
                 .map { ScopeInfo(key: .project($0.id), title: $0.title, tabIDs: $0.tabIDs) }
             activeIndex = projection.activeProjectID.flatMap { id in scopes.firstIndex { $0.key == .project(id) } }
         }
-        guard scopes.count > 1, let activeIndex else { return nil }
-        let count = scopes.count
-        return scopes[((activeIndex + offset) % count + count) % count]
+        guard !scopes.isEmpty, let activeIndex else { return nil }
+        return (scopes, activeIndex)
     }
 
     /// Preferred tab of the neighbor scope (see `neighborScope(offset:)`).

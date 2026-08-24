@@ -96,32 +96,128 @@ extension Ghostty {
             ghosttyApp?.registerSurface(newSurface)
         }
 
+        /// Cell size in points once the surface has been sized; nil before.
+        var cellSize: CGSize? {
+            guard let surface, hasSized else { return nil }
+            let size = ghostty_surface_size(surface)
+            guard size.cell_width_px > 0, size.cell_height_px > 0 else { return nil }
+            let scale = max(contentScaleFactor, 1)
+            return CGSize(width: CGFloat(size.cell_width_px) / scale, height: CGFloat(size.cell_height_px) / scale)
+        }
+
+        /// The grid this surface actually renders into. Content wider than
+        /// `columns` wraps, so callers sizing a surface to hold a captured
+        /// screen must check this rather than trusting their own arithmetic
+        /// (padding and rounding both eat columns).
+        var gridSize: (columns: Int, rows: Int)? {
+            guard let surface, hasSized else { return nil }
+            let size = ghostty_surface_size(surface)
+            guard size.columns > 0, size.rows > 0 else { return nil }
+            return (Int(size.columns), Int(size.rows))
+        }
+
         /// Write ANSI text content to the surface for rendering.
         func writeContent(_ ansiText: String) {
-            guard slaveFd >= 0, surface != nil else { return }
             // Clear screen + home cursor so stale content from a previous session is erased
             let clearPrefix = "\u{1b}[2J\u{1b}[H"
             // Terminal expects \r\n for proper line positioning; tmux capture-pane outputs \n only
-            let normalized = (clearPrefix + ansiText).replacingOccurrences(of: "\n", with: "\r\n")
-            guard let data = normalized.data(using: .utf8) else { return }
+            writeToSurface((clearPrefix + ansiText).replacingOccurrences(of: "\n", with: "\r\n"))
+        }
 
-            // Write the ANSI content to the slave fd
-            data.withUnsafeBytes { buffer in
+        /// Replace the whole screen atomically (synchronized output), leaving
+        /// the cursor at `cursor` or hidden. For live previews that repaint
+        /// on every change: no intermediate blank frame is ever shown.
+        func writeFrame(_ ansiText: String, cursor: (x: Int, y: Int, visible: Bool)?) {
+            var text = "\u{1b}[?2026h\u{1b}[?25l\u{1b}[0m\u{1b}[H\u{1b}[2J"
+            text += ansiText.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\n", with: "\r\n")
+            text += "\u{1b}[0m"
+            if let cursor, cursor.visible {
+                text += "\u{1b}[\(cursor.y + 1);\(cursor.x + 1)H\u{1b}[?25h"
+            }
+            text += "\u{1b}[?2026l"
+            writeToSurface(text)
+        }
+
+        /// A frame is far larger than the pipe to the emulator: a coloured
+        /// full screen runs to tens of KB against a pipe buffer of 16-64 KB,
+        /// so `write` returns short and the rest MUST follow later. Dropping
+        /// the remainder used to cut a frame mid-sequence — inside the
+        /// synchronized-update wrapper that means the screen never repaints
+        /// again, which is a preview that flashes once and then stays blank.
+        private var pending = Data()
+        /// A frame was cut short: the next one must abort its leftovers.
+        private var pendingIsPartial = false
+        private var drawScheduled = false
+        private var flushScheduled = false
+
+        private func writeToSurface(_ normalized: String) {
+            guard slaveFd >= 0, surface != nil else { return }
+            var text = ""
+            if pendingIsPartial {
+                // CAN abandons any half-written control sequence, then leave
+                // synchronized output so this frame can paint.
+                text = "\u{18}\u{1b}[?2026l"
+            }
+            text += normalized
+            guard let data = text.data(using: .utf8), !data.isEmpty else { return }
+            // A newer frame supersedes whatever is still queued: the preview
+            // wants the latest screen, not every screen.
+            pending = data
+            pendingIsPartial = false
+            flushPendingWrites()
+        }
+
+        /// Push as much of the queued frame as the pipe accepts. Callers on a
+        /// display link call this every tick, so a frame too large for one
+        /// write completes over the next few. Returns true when nothing is left.
+        @discardableResult
+        func flushPendingWrites() -> Bool {
+            guard slaveFd >= 0, surface != nil else {
+                pending.removeAll()
+                pendingIsPartial = false
+                return true
+            }
+            guard !pending.isEmpty else { return true }
+            var written = 0
+            pending.withUnsafeBytes { buffer in
                 guard let ptr = buffer.baseAddress else { return }
-                var written = 0
-                let total = buffer.count
-                while written < total {
-                    let n = write(slaveFd, ptr.advanced(by: written), total - written)
+                while written < buffer.count {
+                    let n = write(slaveFd, ptr.advanced(by: written), buffer.count - written)
                     if n <= 0 { break }
                     written += n
                 }
             }
+            if written > 0 {
+                pending.removeFirst(written)
+                pendingIsPartial = !pending.isEmpty
+                // Tick the app to process the written data through the terminal
+                // emulator, then draw the surface to render it to the Metal layer.
+                ghosttyApp?.appTick()
+                scheduleDraw()
+            }
+            // Not every caller is on a display link, and the pipe drains on
+            // the emulator's own thread: come back for the rest either way.
+            if !pending.isEmpty { scheduleFlush() }
+            return pending.isEmpty
+        }
 
-            // Tick the app to process the written data through the terminal emulator,
-            // then draw the surface to render it to the Metal layer.
-            ghosttyApp?.appTick()
+        private func scheduleFlush() {
+            guard !flushScheduled else { return }
+            flushScheduled = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
+                guard let self else { return }
+                self.flushScheduled = false
+                self.flushPendingWrites()
+            }
+        }
+
+        private func scheduleDraw() {
+            guard !drawScheduled else { return }
+            drawScheduled = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                guard let self, let surface = self.surface,
+                guard let self else { return }
+                self.drawScheduled = false
+                guard let surface = self.surface,
                       self.ghosttyApp?.isInBackground != true,
                       !Ghostty.isSecureDrawProhibitedAtomic else { return }
                 self.ghosttyApp?.appTick()
@@ -130,6 +226,8 @@ extension Ghostty {
         }
 
         func cleanup() {
+            pending.removeAll()
+            pendingIsPartial = false
             guard let surface = self.surface else { return }
             ghosttyApp?.unregisterSurface(surface)
             self.surface = nil

@@ -248,6 +248,10 @@ public final class TerminalPTY {
         print("📎 Setting external PTY master FD: \(fd), setting ownsFds = false")
         self.masterFd = fd
         self.ownsFds = false
+        // The helper opened the pair, but the master fd names its slave here too.
+        if let name = ptsname(fd) {
+            slavePath = String(cString: name)
+        }
         print("📎 ownsFds is now: \(self.ownsFds)")
     }
 

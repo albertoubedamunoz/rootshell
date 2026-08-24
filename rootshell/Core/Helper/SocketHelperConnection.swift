@@ -83,6 +83,7 @@ class SocketHelperConnection {
         command: String,
         cwd: String?,
         timeout: TimeInterval?,
+        maxOutputBytes: Int? = nil,
         onOutput: @escaping (Data, Bool) -> Void
     ) async throws -> ExecuteCommandResult {
         guard let socketPath = AppGroupHelper.commandSocketPath else {
@@ -102,6 +103,7 @@ class SocketHelperConnection {
                     let result = try Self.executeCommandSync(
                         socketPath: socketPath,
                         request: request,
+                        maxOutputBytes: maxOutputBytes,
                         onOutput: onOutput
                     )
                     continuation.resume(returning: result)
@@ -116,6 +118,7 @@ class SocketHelperConnection {
     private static func executeCommandSync(
         socketPath: String,
         request: ExecuteCommandRequest,
+        maxOutputBytes: Int? = nil,
         onOutput: @escaping (Data, Bool) -> Void
     ) throws -> ExecuteCommandResult {
         // Create socket
@@ -190,6 +193,19 @@ class SocketHelperConnection {
             let chunk = try JSONDecoder().decode(ExecuteOutputChunk.self, from: payload)
             accumulatedOutput.append(chunk.data)
             onOutput(chunk.data, chunk.isStderr)
+
+            // A caller that set a cap gets a prefix and nothing more: returning
+            // here closes the socket (`defer`), so the helper stops streaming
+            // instead of filling memory on both sides of the IPC.
+            if let maxOutputBytes, accumulatedOutput.count >= maxOutputBytes {
+                return ExecuteCommandResult(
+                    output: String(decoding: accumulatedOutput.prefix(maxOutputBytes), as: UTF8.self),
+                    exitCode: 0,
+                    timedOut: false,
+                    duration: 0,
+                    truncated: true
+                )
+            }
         }
     }
 

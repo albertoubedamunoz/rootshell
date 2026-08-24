@@ -78,12 +78,32 @@ extension MainView {
                 .padding(.horizontal, 4)
             )
         }
+        appearance.muxCaptionProvider = { tab, index in
+            AnyView(
+                MuxTabCaption(
+                    tab: tab,
+                    keyboardShortcut: compact ? nil : keyboardShortcut(for: index),
+                    titleFont: .system(size: compact ? 12 : 13, weight: .semibold),
+                    shortcutFont: .system(size: compact ? 11 : 12, weight: .medium),
+                    textColor: textColor.opacity(0.85)
+                )
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 4)
+            )
+        }
         return appearance
     }
 
     /// One-time wiring; the closures read live state through the property wrappers.
     func installTabExposeHooks() {
         tabExpose.tabsModel = tabsModel
+        tabExpose.muxFeed = muxExposeFeed
+        let controller = tabExpose
+        muxExposeFeed.onChange = { controller.muxFeedDidChange() }
+        tabExpose.multiplexerTerminal = {
+            let tab = tabsModel.selectedTab
+            return tab?.focusedPane?.asTerminal ?? tab?.splitTree.terminalLeaves.first
+        }
         tabExpose.reduceMotion = {
             UserDefaults.standard.bool(forKey: "tabBarAnimationsDisabled") || UIAccessibility.isReduceMotionEnabled
         }
@@ -99,7 +119,7 @@ extension MainView {
             reconcileSurfaceOcclusion(reason: "tabExpose")
             reassertSelectedTabVisibility(reason: "tabExpose")
         }
-        tabExpose.onNavigateScope = { delta in navigateScope(by: delta) }
+        tabExpose.onNavigateScope = { delta in navigateAppScope(by: delta) }
         tabExpose.onScopePreviewChanged = { ids in
             // A group swipe drags the neighbor's live mirrors in: wake them;
             // the reconcile re-occludes a preview that was replaced or ended.
@@ -131,10 +151,20 @@ extension MainView {
 
     /// Switch the active group / project by `delta` (wraps). Lands on the
     /// scope's remembered (else first navigable) tab; no-op in flat mode or
-    /// with one scope. While the exposé is up it stays up and pages over.
+    /// with one scope. While the exposé is up it stays up and pages over,
+    /// the multiplexer page included.
     func navigateScope(by delta: Int) {
+        if tabExpose.isActive {
+            tabExpose.navigateScope(by: delta)
+            return
+        }
+        navigateAppScope(by: delta)
+    }
+
+    /// The app-scope half of `navigateScope`: select a tab in the neighbor
+    /// group / project.
+    private func navigateAppScope(by delta: Int) {
         guard let id = tabsModel.firstTabIDInNeighborScope(offset: delta) else { return }
-        if tabExpose.isActive { tabExpose.pendingScopeTransition = delta }
         if tabBarHidden && id != tabsModel.selectedTabID {
             tabIndicator.suppressNextHiddenIndicator = tabExpose.isActive
         }
@@ -188,6 +218,36 @@ extension MainView {
             if let focused = tabsModel.selectedTab?.focusedPane {
                 focused.setOverlayOwnsKeyboard(isAnySheetPresented)
                 _ = focused.focusDidChange(true)
+            }
+        }
+    }
+}
+
+/// Caption under a multiplexer tab cell: shortcut, title, and the tab's
+/// badge (tmux flags, herdr agent status).
+private struct MuxTabCaption: View {
+    let tab: MuxTab
+    let keyboardShortcut: String?
+    let titleFont: Font
+    let shortcutFont: Font
+    let textColor: Color
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let keyboardShortcut {
+                Text(keyboardShortcut)
+                    .font(shortcutFont)
+                    .foregroundStyle(textColor.opacity(0.6))
+            }
+            Text(tab.title)
+                .font(titleFont)
+                .foregroundStyle(textColor)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let badge = tab.badge, !badge.isEmpty {
+                Text(badge)
+                    .font(shortcutFont)
+                    .foregroundStyle(textColor.opacity(0.6))
             }
         }
     }
