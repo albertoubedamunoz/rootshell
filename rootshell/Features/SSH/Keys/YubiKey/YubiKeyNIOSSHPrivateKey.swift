@@ -95,6 +95,7 @@ private func writeECDSAKeyData(to buffer: inout ByteBuffer, keyData: Data, curve
 /// RSA public key wrapper for YubiKey PIV RSA keys
 struct YubiKeyRSAPublicKey: NIOSSHPublicKeyProtocol, Hashable, Sendable {
     static var publicKeyPrefix: String { "ssh-rsa" }
+    static var authAlgorithmName: String { "rsa-sha2-256" }
 
     let algorithm: YubiKeyAlgorithm
     private let keyData: Data
@@ -409,6 +410,7 @@ typealias YubiKeySignature = YubiKeyECDSAP256Signature
 /// RSA private key wrapper for YubiKey PIV RSA keys
 final class YubiKeyRSAPrivateKey: NIOSSHPrivateKeyProtocol, @unchecked Sendable {
     static var keyPrefix: String { "ssh-rsa" }
+    static var authAlgorithmName: String { "rsa-sha2-256" }
 
     private let reference: YubiKeyReference
     private let cachedPublicKey: YubiKeyRSAPublicKey
@@ -668,37 +670,4 @@ private func writeYubiKeySSHData(_ buffer: inout ByteBuffer, _ data: Data) -> In
     var written = buffer.writeInteger(UInt32(data.count))
     written += buffer.writeBytes(data)
     return written
-}
-
-// MARK: - Algorithm Registration
-
-/// Register all YubiKey algorithm types with NIOSSH
-/// Call this during app initialization before using YubiKey authentication
-func registerYubiKeyAlgorithms() {
-    // Register PIV RSA
-    NIOSSHAlgorithms.register(
-        publicKey: YubiKeyRSAPublicKey.self,
-        signature: YubiKeyRSASignature.self
-    )
-
-    // Register PIV ECDSA P-256
-    NIOSSHAlgorithms.register(
-        publicKey: YubiKeyECDSAP256PublicKey.self,
-        signature: YubiKeyECDSAP256Signature.self
-    )
-
-    // Register PIV ECDSA P-384
-    NIOSSHAlgorithms.register(
-        publicKey: YubiKeyECDSAP384PublicKey.self,
-        signature: YubiKeyECDSAP384Signature.self
-    )
-
-    // Register PIV Ed25519 (YubiKey 5.7+)
-    NIOSSHAlgorithms.register(
-        publicKey: YubiKeyEd25519PublicKey.self,
-        signature: YubiKeyEd25519Signature.self
-    )
-
-    // Register Apple FIDO2 SK algorithms (handled via AuthenticationServices)
-    registerAppleFIDO2Algorithms()
 }

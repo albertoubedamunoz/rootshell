@@ -134,6 +134,7 @@ enum SSHConnectionHelper {
             return .custom(NIOKeyAuthDelegate(
                 username: username,
                 privateKey: candidate.nioPrivateKey,
+                legacyRSAKey: candidate.legacyRSAAuthenticationKey,
                 certifiedKey: certifiedKey,
                 publicKeyAuthMode: publicKeyAuthMode
             ))
@@ -197,6 +198,7 @@ enum SSHConnectionHelper {
         return NIOKeyAuthDelegate(
             username: username,
             privateKey: candidate.nioPrivateKey,
+            legacyRSAKey: candidate.legacyRSAAuthenticationKey,
             certifiedKey: certifiedKey,
             publicKeyAuthMode: publicKeyAuthMode
         )

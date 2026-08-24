@@ -452,6 +452,8 @@ final class CitadelSSHSession: SSHTerminalSession {
     /// the generous fixed `SSHTimeoutConfig.citadelLoginTimeout` (5 min) — the
     /// same budget every other Citadel call site in the app uses.
     private func performInitialConnect(timeout: TimeAmount) async throws -> SSHClient {
+        SSHCustomAlgorithms.ensureRegistered()
+
         // Fresh per attempt: drop any auth banners a prior failed attempt
         // buffered so the `.running` flush and the auth-banner card reflect
         // only this connection (mirrors TrzszSpawnHelper.createSSHClient).
@@ -1552,6 +1554,26 @@ struct SSHAuthKeyCandidate {
         }
     }
 
+    var legacyRSAAuthenticationKey: NIOSSHPrivateKey? {
+        switch variant {
+        case .rsa(let rsaKey):
+            return rsaKey.legacySHA1Key
+        default:
+            return nil
+        }
+    }
+
+    /// Plain-key attempts in preference order. The caller decides whether the
+    /// server's RFC 8308 advertisement (or its absence for a legacy peer)
+    /// permits the SHA-1 form.
+    func plainAuthenticationKeys(allowLegacyRSA: Bool) -> [NIOSSHPrivateKey] {
+        var keys = [nioPrivateKey]
+        if allowLegacyRSA, let legacyRSAAuthenticationKey {
+            keys.append(legacyRSAAuthenticationKey)
+        }
+        return keys
+    }
+
     var debugLabel: String {
         switch variant {
         case .nioSSH: return "NIO SSH key"
@@ -1576,6 +1598,9 @@ final class MultiKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
     private let publicKeyAuthMode: NIOSSHUserAuthenticationOffer.Offer.PrivateKey.AuthenticationMode
     private var keyIndex = 0
     private var triedCertForCurrentKey = false
+    private var plainKeyAttempt = 0
+    private var legacyRSAFallbackKeyIndex: Int?
+    private var serverSignatureAlgorithms: Set<String>?
 
     init(
         username: String,
@@ -1621,13 +1646,43 @@ final class MultiKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
                 return
             }
 
-            keyIndex += 1
-            triedCertForCurrentKey = false
-            Self.logger.info("Trying key \(position): \(candidate.debugLabel)")
+            let policyAllowsLegacyRSA = SSHRSASignaturePolicy.shouldAttemptLegacySHA1(
+                serverSignatureAlgorithms: serverSignatureAlgorithms
+            )
+            if legacyRSAFallbackKeyIndex == nil,
+               candidate.legacyRSAAuthenticationKey != nil,
+               policyAllowsLegacyRSA {
+                // Bound the compatibility tax to one RSA candidate so legacy
+                // peers cannot consume two MaxAuthTries slots for every key.
+                legacyRSAFallbackKeyIndex = keyIndex
+            }
+            let plainKeys = candidate.plainAuthenticationKeys(
+                allowLegacyRSA: legacyRSAFallbackKeyIndex == keyIndex
+                    && policyAllowsLegacyRSA
+            )
+            guard plainKeyAttempt < plainKeys.count else {
+                // A second RFC 8308 EXT_INFO may refine the algorithm list
+                // after the modern attempt. Skip a now-disallowed fallback
+                // without indexing the recomputed array out of bounds.
+                keyIndex += 1
+                triedCertForCurrentKey = false
+                plainKeyAttempt = 0
+                continue
+            }
+            let privateKey = plainKeys[plainKeyAttempt]
+            let usesLegacyRSA = plainKeys.count > 1 && plainKeyAttempt == 1
+            plainKeyAttempt += 1
+            if plainKeyAttempt == plainKeys.count {
+                keyIndex += 1
+                triedCertForCurrentKey = false
+                plainKeyAttempt = 0
+            }
+            let suffix = usesLegacyRSA ? " using ssh-rsa/SHA-1 fallback" : ""
+            Self.logger.info("Trying key \(position): \(candidate.debugLabel)\(suffix)")
             nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(
                 username: username,
                 serviceName: "",
-                offer: .privateKey(.init(privateKey: candidate.nioPrivateKey, authenticationMode: publicKeyAuthMode))
+                offer: .privateKey(.init(privateKey: privateKey, authenticationMode: publicKeyAuthMode))
             ))
             return
         }
@@ -1635,6 +1690,10 @@ final class MultiKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
         // All keys exhausted
         Self.logger.info("All \(self.candidates.count) keys exhausted")
         nextChallengePromise.succeed(nil)
+    }
+
+    func serverSignatureAlgorithmsReceived(_ algorithms: [String]) {
+        serverSignatureAlgorithms = Set(algorithms)
     }
 }
 
@@ -1646,18 +1705,23 @@ final class MultiKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
 final class NIOKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
     private let username: String
     private let privateKey: NIOSSHPrivateKey
+    private let legacyRSAKey: NIOSSHPrivateKey?
     private let certifiedKey: NIOSSHCertifiedPublicKey?
     private let publicKeyAuthMode: NIOSSHUserAuthenticationOffer.Offer.PrivateKey.AuthenticationMode
-    private var attempt = 0
+    private var triedCertificate = false
+    private var plainKeyAttempt = 0
+    private var serverSignatureAlgorithms: Set<String>?
 
     init(
         username: String,
         privateKey: NIOSSHPrivateKey,
+        legacyRSAKey: NIOSSHPrivateKey? = nil,
         certifiedKey: NIOSSHCertifiedPublicKey? = nil,
         publicKeyAuthMode: NIOSSHUserAuthenticationOffer.Offer.PrivateKey.AuthenticationMode = .signedRequest
     ) {
         self.username = username
         self.privateKey = privateKey
+        self.legacyRSAKey = legacyRSAKey
         self.certifiedKey = certifiedKey
         self.publicKeyAuthMode = publicKeyAuthMode
     }
@@ -1671,8 +1735,8 @@ final class NIOKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
             return
         }
 
-        if attempt == 0, let certifiedKey {
-            attempt = 1
+        if !triedCertificate, let certifiedKey {
+            triedCertificate = true
             nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(
                 username: username,
                 serviceName: "",
@@ -1681,17 +1745,29 @@ final class NIOKeyAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
             return
         }
 
-        guard attempt <= 1 else {
+        var plainKeys = [privateKey]
+        if SSHRSASignaturePolicy.shouldAttemptLegacySHA1(
+            serverSignatureAlgorithms: serverSignatureAlgorithms
+        ),
+           let legacyRSAKey {
+            plainKeys.append(legacyRSAKey)
+        }
+        guard plainKeyAttempt < plainKeys.count else {
             nextChallengePromise.succeed(nil)
             return
         }
 
-        attempt = 2
+        let key = plainKeys[plainKeyAttempt]
+        plainKeyAttempt += 1
         nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(
             username: username,
             serviceName: "",
-            offer: .privateKey(.init(privateKey: privateKey, authenticationMode: publicKeyAuthMode))
+            offer: .privateKey(.init(privateKey: key, authenticationMode: publicKeyAuthMode))
         ))
+    }
+
+    func serverSignatureAlgorithmsReceived(_ algorithms: [String]) {
+        serverSignatureAlgorithms = Set(algorithms)
     }
 }
 
