@@ -400,8 +400,12 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         // A just-selected tab's host may attach a frame or two later.
         syncTerminalConcealment()
         if !hero.isHidden { hero.sync() }
-        primary.syncVisibleMirrors(reportVisibility: true)
-        companion?.syncVisibleMirrors()
+        // Both pages report: a swipe drags the multiplexer page in as the
+        // companion, and paging away from it leaves no mux cells at all —
+        // which the feed must hear, or it keeps refreshing panes nobody sees.
+        var visibleMuxPanes = primary.syncVisibleMirrors()
+        if let companion { visibleMuxPanes.formUnion(companion.syncVisibleMirrors()) }
+        controller.muxFeed?.setVisiblePanes(visibleMuxPanes)
     }
 
     private final class DisplayLinkProxy: NSObject {

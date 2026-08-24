@@ -185,17 +185,18 @@ final class TabExposeTrayView: UIScrollView {
 
     // MARK: - Per frame
 
-    /// Refresh the previews of on-screen cells only. The active page also
-    /// tells the feed which multiplexer panes are on screen so they are
-    /// fetched first.
-    func syncVisibleMirrors(reportVisibility: Bool = false) {
+    /// Refresh the previews of on-screen cells only, and report which
+    /// multiplexer panes those cells show. Empty for a page of app tabs, so
+    /// the caller can tell the feed that none of its panes are on screen.
+    @discardableResult
+    func syncVisibleMirrors() -> Set<String> {
         let visible = bounds
         var panes: Set<String> = []
         for cell in cells where cell.frame.intersects(visible) {
             cell.syncPreview()
-            if reportVisibility { panes.formUnion(cell.muxPreview.paneIDs) }
+            panes.formUnion(cell.muxPreview.paneIDs)
         }
-        if reportVisibility, let muxFeed { muxFeed.setVisiblePanes(panes) }
+        return panes
     }
 
     // MARK: - Hit testing / scrolling

@@ -188,6 +188,8 @@ final class MultiplexerExposeFeed {
         hints = [:]
         lastHints = [:]
         lastFetchAt = [:]
+        // Pane ids are the previous session's; the tray reports afresh.
+        visiblePanes = []
         tickCount = 0
         failures = 0
         fetchCap = Int.max
@@ -432,6 +434,12 @@ final class MultiplexerExposeFeed {
                 return nil
             }
             let binding: Ghostty.TerminalView.RawMultiplexerBinding
+            // A multiplexer's own server process carries the same binary
+            // name as its client and is a descendant of the client that
+            // spawned it, so it would otherwise pass every test below and
+            // double the candidates for a single session.
+            if words.contains("--server") || words.dropFirst().first == "server" { continue }
+
             switch command {
             case "tmux":
                 // Control mode is the app's own projection, not a raw attach.
@@ -468,13 +476,18 @@ final class MultiplexerExposeFeed {
             found.append((binding, pid, processTTY))
         }
         guard !found.isEmpty else { return nil }
-        if found.count == 1 || tty != nil { return found[0].binding }
-        // Several attached elsewhere on the host: keep the one sharing this
-        // connection's sshd. Never guess — a wrong session is worse than none.
+        // On the pane's own tty there is nothing to disambiguate, and a lone
+        // client on the host is the one this pane is attached to.
+        if tty != nil || found.count == 1 { return found[0].binding }
+        // Otherwise keep only what shares this connection's sshd, and give up
+        // unless exactly one does: showing another session's tabs, or focusing
+        // one, is worse than falling back to the app tabs.
         let related = found.filter { !(chains[$0.pid] ?? []).intersection(ownChain).isEmpty }
-        if related.count == 1 { return related[0].binding }
-        Self.logger.debug("detect: \(found.count) candidates, \(related.count) on this connection")
-        return related.first?.binding
+        guard related.count == 1 else {
+            Self.logger.debug("detect: \(found.count) candidates, \(related.count) on this connection; not guessing")
+            return nil
+        }
+        return related[0].binding
     }
 
     /// Lines grouped by the `::MX_PID:<pid>::` markers the script emits.
