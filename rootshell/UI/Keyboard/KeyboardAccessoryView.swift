@@ -287,11 +287,11 @@ class KeyboardAccessoryView: UIInputView {
         onHostedGeometryChanged?()
     }
 
-    /// UIKit can reposition the accessory without resizing it (same size, new
-    /// origin), which calls neither `layoutSubviews` nor `didMoveToWindow`, so
-    /// the move is observed here. An in-flight animation frame yields at worst
-    /// a transient value; the equality guard in `setReservedBottomSafeArea`
-    /// drops the redundant work.
+    /// UIKit can reposition the accessory without resizing it, which calls
+    /// neither `layoutSubviews` nor `didMoveToWindow`, so the move is observed
+    /// here. An in-flight animation frame yields at worst a transient value;
+    /// the equality guard in `setReservedBottomSafeArea` drops the redundant
+    /// work.
     override var frame: CGRect {
         didSet {
             guard frame != oldValue else { return }
@@ -331,8 +331,6 @@ class KeyboardAccessoryView: UIInputView {
         guard abs(clamped - reservedBottomSafeArea) > 0.5 else { return false }
         reservedBottomSafeArea = clamped
         toolbarBottomConstraint?.constant = -clamped
-        // The strip is a visual continuation of the toolbar plate: show the
-        // skirt and square the plate's bottom corners so they meet seamlessly.
         bottomStripBlurView.isHidden = clamped <= 0
         toolbarView.setBottomEdgeSquared(clamped > 0)
         toolbarView.setNeedsLayout()

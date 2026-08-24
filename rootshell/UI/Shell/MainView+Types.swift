@@ -48,10 +48,6 @@ extension MainView {
         /// responder. Kept through settling so the focus handoff cannot resize
         /// either tab in the middle of the animation.
         let reservedBottomToolbarHeight: CGFloat
-        /// Slot the snapshotted height was measured in. Both tabs must use it:
-        /// the target is not first responder, so its live flag reads false and
-        /// the two viewports would differ by the slot's ambient clearance.
-        let toolbarIsPrimaryInputView: Bool
         var translationX: CGFloat
         var width: CGFloat
         var isSettling: Bool = false
@@ -81,12 +77,6 @@ extension MainView {
         func reservedBottomToolbarHeight(for tabID: UUID) -> CGFloat? {
             guard tabID == sourceTabID || tabID == targetTabID else { return nil }
             return reservedBottomToolbarHeight
-        }
-
-        /// The slot classification matching `reservedBottomToolbarHeight(for:)`.
-        func toolbarIsPrimaryInputView(for tabID: UUID) -> Bool? {
-            guard tabID == sourceTabID || tabID == targetTabID else { return nil }
-            return toolbarIsPrimaryInputView
         }
     }
 

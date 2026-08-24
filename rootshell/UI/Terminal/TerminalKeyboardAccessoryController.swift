@@ -124,11 +124,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
     private static let minimumHomeIndicatorClearance: CGFloat = 8
 
     /// Height the accessory holds open below the toolbar row so the row clears
-    /// the home indicator. Zero when the user opted into edge-to-edge, on
-    /// home-button devices, while a system keyboard is presenting (the row
-    /// rides its top edge), and for hosts with their own spacer (VNC). Only
-    /// tops up what UIKit is not already leaving below the row, so spacing iOS
-    /// hands out itself is not paid twice.
+    /// the home indicator. Only tops up what UIKit is not already leaving
+    /// below the row, so spacing iOS hands out itself is not paid twice.
     private var bottomSafeAreaStripHeight: CGFloat {
         #if os(visionOS) || targetEnvironment(macCatalyst)
         return 0
@@ -190,8 +187,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         return changed
     }
 
-    /// Re-apply the strip after "Extend Under Home Indicator" changed. Unlike the
-    /// `inputAccessoryView` path this has no UIKit query to ride along with, so it
+    /// Re-apply the strip from outside UIKit's input-view queries. Unlike the
+    /// `inputAccessoryView` path there is no query to ride along with, so it
     /// drives the reload itself.
     func refreshBottomSafeAreaStrip() {
         guard applyBottomSafeAreaStrip() else { return }
@@ -239,6 +236,11 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // instead (see `inputView`); handing it out from both slots in one
         // reload would let the second container steal it from the first.
         guard !toolbarOnlyMode else { return nil }
+        // Clearing only when visible is deliberate: an invisible accessory is
+        // not hosted anywhere, and `gapBelowAccessory` already routes every
+        // unhosted case through its prediction branch. Both getters run on the
+        // same reload, but UIKit does not specify their order, so neither may
+        // depend on the other having run first.
         if isVisible { accessoryServesAsPrimaryInputView = false }
         return isVisible ? keyboardAccessory : nil
     }

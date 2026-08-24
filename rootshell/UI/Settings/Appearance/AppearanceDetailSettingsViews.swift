@@ -493,7 +493,7 @@ struct WindowSettingsView: View {
                 if deviceHasHomeIndicator {
                     DescribedToggle(
                         title: "Extend Under Home Indicator",
-                        description: "Run the terminal edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with text selection near the bottom.",
+                        description: "Run the terminal and its keyboard toolbar edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with taps and text selection near the bottom.",
                         isOn: $paddingManager.extendUnderHomeIndicator
                     )
                     .themedRow()

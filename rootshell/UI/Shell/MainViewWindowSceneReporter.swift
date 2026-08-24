@@ -73,7 +73,7 @@ final class WindowSceneReportingView: UIView {
         reportFrameIfChanged()
         // Rotation does not reliably deliver safeAreaInsetsDidChange to this
         // view (its own insets can be unchanged while the window's flip),
-        // which left MainView's windowSafeAreaInsets stuck on the previous
+        // which would leave MainView's windowSafeAreaInsets on the previous
         // orientation. Every rotation runs layout, and notifyScene's snapshot
         // guard drops the no-change calls.
         notifyScene()
