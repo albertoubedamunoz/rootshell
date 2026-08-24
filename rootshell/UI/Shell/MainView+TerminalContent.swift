@@ -594,6 +594,8 @@ extension MainView {
     ///   - keyboardFrame: The current keyboard frame (passed explicitly to ensure SwiftUI dependency tracking)
     ///   - keyboardHeight: The current keyboard height (passed explicitly to ensure SwiftUI dependency tracking)
     ///   - reservedBottomToolbarHeight: Actual toolbar/accessory height reserved by the selected focused terminal.
+    ///   - toolbarIsPrimaryInputView: Whether that toolbar is hosted as the primary
+    ///     input view (toolbar-only mode) rather than as an input accessory.
     ///   - containerBottomSafeAreaExpansion: Height the container safe-area escape actually gained
     ///     this layout pass, measured by the reader pair in `terminalTabsView`.
     func terminalBottomPadding(
@@ -601,6 +603,7 @@ extension MainView {
         keyboardFrame: CGRect,
         keyboardHeight: CGFloat,
         reservedBottomToolbarHeight: CGFloat,
+        toolbarIsPrimaryInputView: Bool,
         containerBottomSafeAreaExpansion: CGFloat
     ) -> CGFloat {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
@@ -682,16 +685,24 @@ extension MainView {
             }
         } else if reservesBottomToolbar {
             if isPhone {
-                // The terminal container already ends at the top of the
-                // bottom safe-area strip, and the toolbar stands on the
-                // screen's bottom edge (primary input view in toolbar-only
-                // mode, flush accessory next to a hardware keyboard), so
-                // reserve exactly the part of the accessory that rises above
-                // the strip.
-                keyboardOffset = max(
-                    0,
-                    reservedBottomToolbarHeight - windowSafeAreaInsets.bottom
-                )
+                if toolbarIsPrimaryInputView
+                    || containerFrame.width > containerFrame.height {
+                    // A primary input view gives the container no ambient
+                    // clearance (and in landscape the accessory slot exposes
+                    // only the home-indicator strip), so reserve everything
+                    // above the strip the container already ends at.
+                    keyboardOffset = max(
+                        0,
+                        reservedBottomToolbarHeight - windowSafeAreaInsets.bottom
+                    )
+                } else {
+                    // Accessory slot in portrait: UIKit already contributes a
+                    // keyboard-region inset for the base row (but does not
+                    // grow it when the accessory grows upward), so reserve
+                    // only the height beyond the base row.
+                    let baseToolbarHeight = KeyboardSizes.current().toolbar.height
+                    keyboardOffset = max(0, reservedBottomToolbarHeight - baseToolbarHeight)
+                }
             } else {
                 // The iPad container already keeps the terminal above the
                 // bottom safe-area strip. Reserve only the toolbar height that
@@ -841,6 +852,11 @@ extension MainView {
                         ?? ((index == selectedTabIndex || tab.id == tabsModel.displayedTabID)
                             ? liveBottomToolbarHeight
                             : 0)
+                    // Same snapshot rule as the height: the two must describe
+                    // the same slot or the padding math mixes them.
+                    let toolbarIsPrimaryInputView: Bool = appTabSwipeState?
+                        .toolbarIsPrimaryInputView(for: tab.id)
+                        ?? (tab.focusedPane?.keyboardToolbarServesAsPrimaryInputView ?? false)
                     TerminalSplitTreeView(
                         tree: tab.splitTree,
                         onResize: { node, ratio in
@@ -884,6 +900,7 @@ extension MainView {
                         keyboardFrame: keyboardFrame,
                         keyboardHeight: keyboardHeight,
                         reservedBottomToolbarHeight: reservedBottomToolbarHeight,
+                        toolbarIsPrimaryInputView: toolbarIsPrimaryInputView,
                         containerBottomSafeAreaExpansion: containerBottomSafeAreaExpansion
                     ))
                     // The safe-area escape moved up to the reader in

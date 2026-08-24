@@ -100,6 +100,12 @@ class SplitPaneView: UIView, Identifiable {
     /// Bottom inset the pane's keyboard toolbar reserves in toolbar-only mode.
     var reservedKeyboardToolbarHeightAtBottom: CGFloat { 0 }
 
+    /// True while the pane's toolbar is hosted as the primary input view
+    /// (toolbar-only mode) rather than as an input accessory. The two slots
+    /// give the app container different ambient clearance, so the bottom
+    /// padding math must know which one is in play.
+    var keyboardToolbarServesAsPrimaryInputView: Bool { false }
+
     /// Live interaction state for bottom-edge system-gesture arbitration.
     /// Unlike the reserved height, this must never remain latched after focus
     /// leaves the pane.

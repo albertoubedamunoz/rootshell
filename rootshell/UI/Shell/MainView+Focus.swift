@@ -263,9 +263,11 @@ extension MainView {
         // responder to the target. A non-selected tab reports no toolbar
         // reservation, so reading each sliding tab live would give source and
         // target different heights while a hardware-keyboard toolbar is shown.
-        let reservedBottomToolbarHeight = tabsModel.tab(withID: sourceID)?
-            .focusedPane?
+        let sourcePane = tabsModel.tab(withID: sourceID)?.focusedPane
+        let reservedBottomToolbarHeight = sourcePane?
             .reservedKeyboardToolbarHeightAtBottom ?? 0
+        let toolbarIsPrimaryInputView = sourcePane?
+            .keyboardToolbarServesAsPrimaryInputView ?? false
 
         tabIndicator.hideImmediately()
 
@@ -307,6 +309,7 @@ extension MainView {
             targetTabID: targetID,
             direction: direction,
             reservedBottomToolbarHeight: reservedBottomToolbarHeight,
+            toolbarIsPrimaryInputView: toolbarIsPrimaryInputView,
             translationX: 0,
             width: max(width, 1),
             lastEventAt: CACurrentMediaTime()

@@ -205,6 +205,11 @@ extension Ghostty {
         /// toolbar-only mode). Cleared when first responder returns or the
         /// post-overlay reconcile resolves without us.
         private var overlayLatchedToolbarReserve: CGFloat = 0
+        /// Slot classification captured with `overlayLatchedToolbarReserve`.
+        /// The latched height is meaningless to the padding math without it:
+        /// resigning first responder clears `toolbarOnlyMode`, so a latched
+        /// primary-slot height would be read as accessory-hosted.
+        private var overlayLatchedToolbarIsPrimaryInputView = false
 
         // MARK: Published State
 
@@ -497,6 +502,12 @@ extension Ghostty {
                 return overlayLatchedToolbarReserve
             }
             return keyboardAccessoryController?.reservedKeyboardToolbarHeightAtBottom ?? 0
+        }
+        override var keyboardToolbarServesAsPrimaryInputView: Bool {
+            if !isFirstResponder, overlayLatchedToolbarReserve > 0 {
+                return overlayLatchedToolbarIsPrimaryInputView
+            }
+            return keyboardAccessoryController?.toolbarOnlyMode ?? false
         }
         override var defersBottomSystemGestureForKeyboardToolbar: Bool {
             keyboardAccessoryController?.defersBottomSystemGesture ?? false
@@ -2204,6 +2215,8 @@ extension Ghostty {
                     // keep the existing latch instead of clobbering it with 0.
                     overlayLatchedToolbarReserve =
                         keyboardAccessoryController?.reservedKeyboardToolbarHeightAtBottom ?? 0
+                    overlayLatchedToolbarIsPrimaryInputView =
+                        keyboardAccessoryController?.toolbarOnlyMode ?? false
                     _ = resignFirstResponder()
                 }
             } else {
@@ -2300,6 +2313,7 @@ extension Ghostty {
         private func clearOverlayLatchedToolbarReserve() {
             guard overlayLatchedToolbarReserve > 0 else { return }
             overlayLatchedToolbarReserve = 0
+            overlayLatchedToolbarIsPrimaryInputView = false
             EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
         }
 
