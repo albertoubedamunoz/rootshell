@@ -1157,6 +1157,13 @@ extension Ghostty {
             let hostView = SSHAuthBannerCardHostView()
             hostView.translatesAutoresizingMaskIntoConstraints = false
 
+            // Resolved lazily: the pane's session is replaced on adoption and
+            // on reconnect, so capturing the provider here would go stale.
+            hostView.onDismissRequested = { [weak self] in
+                (self?.terminalView.session as? SSHAuthBannerCardProviding)?
+                    .dismissAuthBannerCard()
+            }
+
             if let parentVC = findViewController() {
                 hostView.setParentViewController(parentVC)
             }

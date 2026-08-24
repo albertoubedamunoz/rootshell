@@ -38,6 +38,10 @@ struct SSHAuthBannerCardState: Equatable, Sendable {
 
 /// Sessions that can surface live auth banners for the pane card.
 @MainActor protocol SSHAuthBannerCardProviding: AnyObject {
+    /// The session's accumulator. Every conformer stores one under this name,
+    /// which is what lets the defaults below cover all of them.
+    var authBannerCardModel: SSHAuthBannerCardModel { get }
+
     var authBannerCardState: SSHAuthBannerCardState? { get }
 
     /// A fresh stream of card-state updates. Each call registers an
@@ -46,11 +50,31 @@ struct SSHAuthBannerCardState: Equatable, Sendable {
     /// the keyboard-interactive sheet) still see pending banners. The stream
     /// ends when the consuming task is cancelled or the session deallocates.
     func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?>
+
+    /// Retires the card at the user's request. A requirement rather than an
+    /// extension-only member so LocalShellSession's forwarding override still
+    /// dispatches when called through the existential.
+    func dismissAuthBannerCard()
+}
+
+extension SSHAuthBannerCardProviding {
+    var authBannerCardState: SSHAuthBannerCardState? { authBannerCardModel.current }
+
+    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
+        authBannerCardModel.states()
+    }
+
+    func dismissAuthBannerCard() { authBannerCardModel.clear() }
 }
 
 /// Main-actor accumulator each session owns: bridges `AuthBannerBuffer`
 /// events (fired on the NIO event loop) to replaying per-subscriber streams.
 @MainActor final class SSHAuthBannerCardModel {
+    /// How long a banner outlives the end of the auth phase. Long enough to
+    /// read a rejection reason and tap Open/Copy on a URL it carries.
+    /// Nonisolated so it can serve as a default argument below.
+    nonisolated static let autoDismissSeconds: Double = 15
+
     private(set) var current: SSHAuthBannerCardState?
 
     private typealias BannerEvent = (hostLabel: String, event: AuthBannerBuffer.Event)
@@ -66,6 +90,21 @@ struct SSHAuthBannerCardState: Equatable, Sendable {
     private var subscribers: [UUID: AsyncStream<SSHAuthBannerCardState?>.Continuation] = [:]
     private var nextID = 0
 
+    /// Countdown that retires a banner left over from a finished auth phase.
+    private var autoDismissTask: Task<Void, Never>?
+
+    /// Latched once the auth phase ends with the card still up, and only
+    /// unlatched by `clear()`. Banner events reach this actor over an async
+    /// channel while the terminal-state transition that arms the countdown is
+    /// a direct main-actor call, so a banner sent immediately before the
+    /// disconnect — exactly the Tailscale rejection-reason case — routinely
+    /// lands *after* the arm. Without the latch that late broadcast would
+    /// cancel the countdown and never restart it, stranding the card forever.
+    private var autoDismissArmed = false
+
+    /// Interval the latch re-arms with, so a late banner gets a full read.
+    private var autoDismissInterval = SSHAuthBannerCardModel.autoDismissSeconds
+
     init() {
         (eventChannel, eventContinuation) = AsyncStream.makeStream(of: BannerEvent.self)
         pumpTask = Task { [weak self, eventChannel] in
@@ -78,6 +117,7 @@ struct SSHAuthBannerCardState: Equatable, Sendable {
 
     deinit {
         pumpTask?.cancel()
+        autoDismissTask?.cancel()
         eventContinuation.finish()
         for continuation in subscribers.values {
             continuation.finish()
@@ -110,9 +150,34 @@ struct SSHAuthBannerCardState: Equatable, Sendable {
         return stream
     }
 
-    /// Removes the card immediately (auth ended, session torn down/replaced).
+    /// Removes the card immediately (auth ended, session torn down/replaced,
+    /// or the user dismissed it).
     func clear() {
+        // Explicit unlatch for the case where there is no current state, so
+        // broadcast (which also unlatches on nil) never runs.
+        autoDismissArmed = false
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
         if current != nil { broadcast(nil) }
+    }
+
+    /// Arms the countdown that retires the current banner once the auth phase
+    /// has ended. Safe to call before the banner itself arrives: the latch
+    /// re-arms on every later broadcast until something clears the card.
+    func scheduleAutoDismiss(after seconds: Double = SSHAuthBannerCardModel.autoDismissSeconds) {
+        autoDismissArmed = true
+        autoDismissInterval = seconds
+        restartAutoDismissTimer()
+    }
+
+    private func restartAutoDismissTimer() {
+        let seconds = autoDismissInterval
+        autoDismissTask?.cancel()
+        autoDismissTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.clear()
+        }
     }
 
     /// Directly relays an already-built state. Used by forwarding wrappers
@@ -142,9 +207,20 @@ struct SSHAuthBannerCardState: Equatable, Sendable {
     }
 
     private func broadcast(_ state: SSHAuthBannerCardState?) {
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
+        // A cleared card ends the armed phase. Without this, a retry that
+        // replays nil (password fallback re-subscribing to a fresh session)
+        // would leave the latch set and put a live auth banner from the *next*
+        // attempt on a countdown.
+        if state == nil { autoDismissArmed = false }
         current = state
         for continuation in subscribers.values {
             continuation.yield(state)
         }
+        // New content restarts the clock rather than cancelling it: while
+        // authenticating nothing is armed, so this is a no-op; after the auth
+        // phase ended it gives a late-arriving banner a full read window.
+        if autoDismissArmed, state != nil { restartAutoDismissTimer() }
     }
 }

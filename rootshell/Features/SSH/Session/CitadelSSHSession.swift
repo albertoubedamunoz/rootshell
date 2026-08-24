@@ -211,13 +211,21 @@ final class CitadelSSHSession: SSHTerminalSession {
 
     /// Transitions to a new state and notifies the callback
     private func transition(to state: SSHSessionState) {
-        // Deliberately NO card clear on .failed/.disconnected: Tailscale SSH
-        // sends its rejection reason ("tailnet policy does not permit you to
-        // SSH as user …", "tailscale: access denied") as an auth banner
-        // immediately before disconnecting, so on auth failure the card is the
-        // only surface holding the explanation and must outlive the failure.
-        // Teardown still clears it: stop() clears the buffer (firing .reset),
-        // and a replacement session's observer replays nil on re-subscribe.
+        // Deliberately NO immediate card clear on .failed/.disconnected:
+        // Tailscale SSH sends its rejection reason ("tailnet policy does not
+        // permit you to SSH as user …", "tailscale: access denied") as an auth
+        // banner immediately before disconnecting, so on auth failure the card
+        // is the only surface holding the explanation and must outlive the
+        // failure. It outlives it on a countdown, not forever — a pane left
+        // open on a failed connect would otherwise keep the card indefinitely.
+        // Teardown still clears it sooner: stop() clears the buffer (firing
+        // .reset), and a replacement session's observer replays nil.
+        switch state {
+        case .failed, .disconnected:
+            authBannerCardModel.scheduleAutoDismiss()
+        default:
+            break
+        }
         onStateChange?(state)
     }
 
@@ -2126,12 +2134,4 @@ final class CitadelHostKeyValidatorDelegate: NIOSSHClientServerAuthenticationDel
 
 // MARK: - Auth banner card
 
-extension CitadelSSHSession: SSHAuthBannerCardProviding {
-    var authBannerCardState: SSHAuthBannerCardState? {
-        authBannerCardModel.current
-    }
-
-    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
-        authBannerCardModel.states()
-    }
-}
+extension CitadelSSHSession: SSHAuthBannerCardProviding {}

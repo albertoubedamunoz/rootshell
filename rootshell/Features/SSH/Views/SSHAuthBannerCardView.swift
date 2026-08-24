@@ -12,12 +12,13 @@ import SwiftUI
 import UIKit
 
 /// The auth-banner card shown over a terminal pane during SSH authentication.
-/// Collapsible to a pill; never permanently dismissible while auth is pending
-/// (the state going nil removes it).
+/// Collapsible to a pill and closable in either form; a banner arriving after
+/// a dismissal brings the card back, so nothing is lost permanently.
 struct SSHAuthBannerCardView: View {
     let state: SSHAuthBannerCardState
     let isCollapsed: Bool
     let onToggleCollapse: () -> Void
+    let onDismiss: () -> Void
     let onOpenURL: (URL) -> Void
     let onCopyURL: (URL) -> Void
 
@@ -40,36 +41,58 @@ struct SSHAuthBannerCardView: View {
 
     // MARK: - Collapsed pill
 
+    /// Two buttons rather than a row-wide one: a collapsed pill has to be
+    /// closable in a single tap, or dismissing means expanding first.
     private var collapsedPill: some View {
-        Button(action: onToggleCollapse) {
-            HStack(spacing: 6) {
-                Image(systemName: "text.bubble")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text("Server message", comment: "Collapsed SSH auth banner pill")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.primary)
-                if state.items.count > 1 {
-                    Text(verbatim: "\(state.items.count)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+        HStack(spacing: 6) {
+            Button(action: onToggleCollapse) {
+                HStack(spacing: 6) {
+                    Image(systemName: "text.bubble")
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(.secondary.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                    Text("Server message", comment: "Collapsed SSH auth banner pill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.primary)
+                    if state.items.count > 1 {
+                        Text(verbatim: "\(state.items.count)")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(.secondary.opacity(0.15))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(
+                "Server message during SSH authentication. Tap to expand.",
+                comment: "Accessibility label for collapsed SSH auth banner pill"
+            ))
+
+            dismissButton
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .bannerBackground()
+    }
+
+    private var dismissButton: some View {
+        Button(action: onDismiss) {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(4)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .bannerBackground()
         .accessibilityLabel(Text(
-            "Server message during SSH authentication. Tap to expand.",
-            comment: "Accessibility label for collapsed SSH auth banner pill"
+            "Dismiss server message",
+            comment: "Accessibility label for SSH auth banner dismiss button"
         ))
     }
 
@@ -102,6 +125,8 @@ struct SSHAuthBannerCardView: View {
                     "Collapse server message",
                     comment: "Accessibility label for SSH auth banner collapse button"
                 ))
+
+                dismissButton
             }
 
             SSHAuthBannerContentView(

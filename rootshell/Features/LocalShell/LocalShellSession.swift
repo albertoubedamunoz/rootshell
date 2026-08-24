@@ -138,13 +138,17 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
     let authBannerCardModel = SSHAuthBannerCardModel()
     private var authBannerCardForwardingTask: Task<Void, Never>?
 
+    /// The embedded session whose card state this one currently mirrors.
+    var currentAuthBannerProvider: SSHAuthBannerCardProviding? {
+        (embeddedSSHSession as? SSHAuthBannerCardProviding)
+            ?? (embeddedMoshSession as SSHAuthBannerCardProviding?)
+            ?? (embeddedTrzszSession as SSHAuthBannerCardProviding?)
+    }
+
     private func updateAuthBannerCardForwarding() {
         authBannerCardForwardingTask?.cancel()
         authBannerCardForwardingTask = nil
-        let provider = (embeddedSSHSession as? SSHAuthBannerCardProviding)
-            ?? (embeddedMoshSession as SSHAuthBannerCardProviding?)
-            ?? (embeddedTrzszSession as SSHAuthBannerCardProviding?)
-        guard let provider else {
+        guard let provider = currentAuthBannerProvider else {
             authBannerCardModel.clear()
             return
         }
@@ -1720,12 +1724,12 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
 // MARK: - Auth banner card
 
 extension LocalShellSession: SSHAuthBannerCardProviding {
-    var authBannerCardState: SSHAuthBannerCardState? {
-        authBannerCardModel.current
-    }
-
-    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
-        authBannerCardModel.states()
+    /// Overrides the default to also retire the embedded session's own copy —
+    /// otherwise a still-authenticating session would replay the dismissed
+    /// banner to the next subscriber.
+    func dismissAuthBannerCard() {
+        authBannerCardModel.clear()
+        currentAuthBannerProvider?.dismissAuthBannerCard()
     }
 }
 

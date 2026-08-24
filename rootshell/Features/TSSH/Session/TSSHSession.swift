@@ -152,10 +152,13 @@ final class TrzszSession: TerminalSession {
             // Tailscale SSH sends its rejection reason as an auth banner
             // immediately before disconnecting, so on bootstrap-auth failure
             // the card is the only surface holding the explanation and must
-            // outlive the failure.
+            // outlive the failure. It outlives it on a countdown, not forever,
+            // which is what a standalone (non-embedded) session relies on.
             switch state {
             case .disconnected, .serverShutdown:
                 authBannerCardModel.clear()
+            case .failed:
+                authBannerCardModel.scheduleAutoDismiss()
             default:
                 break
             }
@@ -2161,12 +2164,4 @@ extension TrzszSession {
 
 // MARK: - Auth banner card
 
-extension TrzszSession: SSHAuthBannerCardProviding {
-    var authBannerCardState: SSHAuthBannerCardState? {
-        authBannerCardModel.current
-    }
-
-    func authBannerCardStates() -> AsyncStream<SSHAuthBannerCardState?> {
-        authBannerCardModel.states()
-    }
-}
+extension TrzszSession: SSHAuthBannerCardProviding {}
