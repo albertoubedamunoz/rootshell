@@ -39,6 +39,11 @@ final class SSHAuthBannerCardHostView: UIView {
         ClipboardHistoryManager.shared.record(url.absoluteString, source: .copyLink)
     }
 
+    /// Retires the card in the owning session's model. The host hides itself
+    /// first for immediacy; this makes the dismissal stick across pane
+    /// switches and window transfers, which replay from that model.
+    var onDismissRequested: () -> Void = {}
+
     // MARK: - Initialization
 
     override init(frame: CGRect) {
@@ -98,6 +103,14 @@ final class SSHAuthBannerCardHostView: UIView {
                 if let current = self.currentState {
                     self.showCard(with: current)
                 }
+            },
+            onDismiss: { [weak self] in
+                guard let self else { return }
+                // Hide locally first so the animation is immediate; the model
+                // clear that follows re-broadcasts nil, which update(state:)
+                // no-ops on via its state == currentState early return.
+                self.update(state: nil)
+                self.onDismissRequested()
             },
             onOpenURL: { [weak self] url in self?.onOpenURL(url) },
             onCopyURL: { [weak self] url in self?.onCopyURL(url) }
