@@ -68,6 +68,14 @@ final class EffectManager {
         }
     }
 
+    /// Version counter that increments when a surface's cell size changes, so
+    /// SwiftUI re-evaluates layout that depends on grid metrics (the terminal's
+    /// top grid-alignment padding). Deliberately separate from
+    /// `keyboardStateVersion`: that one also feeds `keyboardStateDidChange`,
+    /// which reloads input views in every accessory controller — churn a
+    /// pinch-zoom's stream of cell-size changes must not drive.
+    private(set) var gridMetricsVersion: Int = 0
+
     /// Whether the effect has been toggled off (for toggle_background_effect action)
     private(set) var isEffectDisabled: Bool = false
 
@@ -159,6 +167,10 @@ final class EffectManager {
 
     func notifyKeyboardToolbarLayoutChanged() {
         keyboardStateVersion += 1
+    }
+
+    func notifyGridMetricsChanged() {
+        gridMetricsVersion += 1
     }
 
     func clearPreservedKeyboardLayout() {

@@ -589,6 +589,10 @@ extension MainView {
     }
 
     /// Calculates bottom padding for a terminal based on effects and keyboard.
+    /// Also reports whether that padding puts the terminal's bottom edge
+    /// directly against a resting toolbar row, i.e. whether
+    /// `terminalTopGridAlignmentPadding` may close the grid's whole-row
+    /// remainder against it.
     /// - Parameters:
     ///   - geometry: The geometry proxy for the terminal view
     ///   - keyboardFrame: The current keyboard frame (passed explicitly to ensure SwiftUI dependency tracking)
@@ -602,7 +606,7 @@ extension MainView {
         keyboardHeight: CGFloat,
         reservedBottomToolbarHeight: CGFloat,
         containerBottomSafeAreaExpansion: CGFloat
-    ) -> CGFloat {
+    ) -> (padding: CGFloat, gridAlignsToToolbar: Bool) {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         let isDocked = effectManager.isKeyboardDocked
         let containerFrame = geometry.frame(in: .global)
@@ -761,7 +765,75 @@ extension MainView {
         }
         #endif
 
-        return padding
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        // Only a resting toolbar row gives the grid a stable bottom edge to
+        // align against. A docked keyboard's coverage moves through its
+        // present/dismiss (and interactive-drag) frames, so re-quantizing the
+        // grid against it would make the content's top edge saw-tooth; the
+        // ocean inset owns the bottom outright.
+        let gridAlignsToToolbar = isPhone
+            && reservesBottomToolbar
+            && !hasDockedKeyboard
+            && !hasOcean
+        #else
+        let gridAlignsToToolbar = false
+        #endif
+
+        return (padding, gridAlignsToToolbar)
+    }
+
+    /// Top padding that moves the terminal grid's whole-row remainder from the
+    /// bottom edge to the top, so the last row ends flush against a resting
+    /// toolbar row instead of a font-dependent gap (up to one row) above it.
+    ///
+    /// Bottom padding alone cannot close that gap: rows are laid out from the
+    /// content box's top, so the last row's bottom only moves in whole-row
+    /// steps — lowering the box slides rows *under* the toolbar (clipping
+    /// their glyphs), never closer to its top edge.
+    ///
+    /// Returns 0 whenever exact alignment is not possible: a split tree (pane
+    /// heights derive from divider ratios, not this container), a pane without
+    /// a live grid, or a non-terminal pane.
+    /// - Parameters:
+    ///   - containerHeight: Height of the safe-area-escaped container the tab
+    ///     view fills (the `expanded` reader in `terminalTabsView`), which the
+    ///     paddings subtract from.
+    ///   - bottomPadding: The bottom padding computed by
+    ///     `terminalBottomPadding` for this same pass.
+    ///   - tab: The tab whose grid is being aligned.
+    func terminalTopGridAlignmentPadding(
+        containerHeight: CGFloat,
+        bottomPadding: CGFloat,
+        tab: TerminalTab
+    ) -> CGFloat {
+        guard let node = tab.splitTree.zoomed ?? tab.splitTree.root,
+              case .leaf(let pane) = node,
+              let terminal = pane as? Ghostty.TerminalView,
+              let size = terminal.surfaceSize,
+              size.cell_height_px > 0
+        else { return 0 }
+        // The pane's render scale, matching what `cell_height_px` was measured
+        // at (same rule as the tmux sizing math).
+        let scale = terminal.contentScaleFactor > 0
+            ? terminal.contentScaleFactor
+            : terminal.traitCollection.displayScale
+        guard scale > 0 else { return 0 }
+        let cellHeightPx = CGFloat(size.cell_height_px)
+        // The grid is pinned top-left inside the surface, inset by the window
+        // padding on each edge (balance stays disabled, see
+        // PaddingManager.configPadding). Mirror the core's padding math
+        // exactly, in framebuffer pixels: it scales the config value by the
+        // surface DPI, and font.face.default_dpi is 96 on iOS (72 is macOS
+        // only), so each side gets floor(config × scale × 96 / 72) pixels.
+        let configPaddingY = CGFloat(PaddingManager.shared.effectivePaddingY)
+        let paddingPx = (configPaddingY * scale * 96 / 72).rounded(.down)
+        let gridHeightPx = (containerHeight - bottomPadding) * scale - paddingPx * 2
+        guard cellHeightPx > 0, gridHeightPx > cellHeightPx else { return 0 }
+        let remainderPx = gridHeightPx.truncatingRemainder(dividingBy: cellHeightPx)
+        // Keep one pixel of the remainder: a grid height that is an EXACT
+        // whole-row multiple sits on the core's integer-floor boundary, and
+        // rounding must never cost a row. One spare pixel is invisible.
+        return max(0, remainderPx - 1) / scale
     }
 
     /// The terminal tabs ForEach view.
@@ -771,6 +843,7 @@ extension MainView {
         let keyboardFrame = effectManager.keyboardFrame
         let keyboardHeight = effectManager.keyboardHeight
         let _ = effectManager.keyboardStateVersion // Force re-render on keyboard state changes
+        let _ = effectManager.gridMetricsVersion // Re-render on cell-size changes (grid-alignment padding)
         let _ = checkUniquePaneOwnership()
         // `inner` sits outside the container safe-area escape and `expanded`
         // inside it, so their height difference is the expansion UIKit granted
@@ -784,6 +857,7 @@ extension MainView {
                 terminalTabsStack(
                     geometry: geometry,
                     width: width,
+                    containerHeight: expanded.size.height,
                     keyboardFrame: keyboardFrame,
                     keyboardHeight: keyboardHeight,
                     containerBottomSafeAreaExpansion: max(0, expanded.size.height - inner.size.height)
@@ -802,6 +876,7 @@ extension MainView {
             terminalTabsStack(
                 geometry: geometry,
                 width: width,
+                containerHeight: inner.size.height,
                 keyboardFrame: keyboardFrame,
                 keyboardHeight: keyboardHeight,
                 containerBottomSafeAreaExpansion: 0
@@ -823,6 +898,7 @@ extension MainView {
     private func terminalTabsStack(
         geometry: GeometryProxy,
         width: CGFloat,
+        containerHeight: CGFloat,
         keyboardFrame: CGRect,
         keyboardHeight: CGFloat,
         containerBottomSafeAreaExpansion: CGFloat
@@ -841,6 +917,20 @@ extension MainView {
                         ?? ((index == selectedTabIndex || tab.id == tabsModel.displayedTabID)
                             ? liveBottomToolbarHeight
                             : 0)
+                    let bottomPadding = terminalBottomPadding(
+                        geometry: geometry,
+                        keyboardFrame: keyboardFrame,
+                        keyboardHeight: keyboardHeight,
+                        reservedBottomToolbarHeight: reservedBottomToolbarHeight,
+                        containerBottomSafeAreaExpansion: containerBottomSafeAreaExpansion
+                    )
+                    let topPadding = bottomPadding.gridAlignsToToolbar
+                        ? terminalTopGridAlignmentPadding(
+                            containerHeight: containerHeight,
+                            bottomPadding: bottomPadding.padding,
+                            tab: tab
+                        )
+                        : 0
                     TerminalSplitTreeView(
                         tree: tab.splitTree,
                         onResize: { node, ratio in
@@ -879,13 +969,8 @@ extension MainView {
                     .offset(x: visualMetrics.offsetX)
                     .zIndex(visualMetrics.zIndex)
                     .allowsHitTesting(index == selectedTabIndex && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
-                    .padding(.bottom, terminalBottomPadding(
-                        geometry: geometry,
-                        keyboardFrame: keyboardFrame,
-                        keyboardHeight: keyboardHeight,
-                        reservedBottomToolbarHeight: reservedBottomToolbarHeight,
-                        containerBottomSafeAreaExpansion: containerBottomSafeAreaExpansion
-                    ))
+                    .padding(.top, topPadding)
+                    .padding(.bottom, bottomPadding.padding)
                     // The safe-area escape moved up to the reader in
                     // terminalTabsView that measures the expansion it grants.
                     .transaction {
