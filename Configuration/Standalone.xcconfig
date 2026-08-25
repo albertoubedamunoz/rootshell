@@ -13,6 +13,19 @@ CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = rootshell/Entitlements/Standalone-MacCatal
 // Shell commands may request permission to automate other macOS applications.
 INFOPLIST_KEY_NSAppleEventsUsageDescription[sdk=macosx*] = Programs you run in rootshell may control other applications using Apple events.
 
+// Allow programs launched from the standalone macOS terminal to request
+// user-controlled access to the same protected resources as other terminals.
+INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription[sdk=macosx*] = Programs you run in rootshell may use Bluetooth.
+INFOPLIST_KEY_NSCalendarsUsageDescription[sdk=macosx*] = Programs you run in rootshell may access your calendars.
+INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription[sdk=macosx*] = Programs you run in rootshell may read and modify your calendars.
+INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription[sdk=macosx*] = Programs you run in rootshell may add events to your calendars.
+INFOPLIST_KEY_NSContactsUsageDescription[sdk=macosx*] = Programs you run in rootshell may access your contacts.
+INFOPLIST_KEY_NSPhotoLibraryUsageDescription[sdk=macosx*] = Programs you run in rootshell may access your photo library.
+INFOPLIST_KEY_NSRemindersUsageDescription[sdk=macosx*] = Programs you run in rootshell may access your reminders.
+INFOPLIST_KEY_NSRemindersFullAccessUsageDescription[sdk=macosx*] = Programs you run in rootshell may read and modify your reminders.
+INFOPLIST_KEY_NSSpeechRecognitionUsageDescription[sdk=macosx*] = Programs you run in rootshell may use speech recognition.
+INFOPLIST_KEY_NSSystemAdministrationUsageDescription[sdk=macosx*] = Programs you run in rootshell may request permission to change system configuration.
+
 // Include rootshell-helper.app (no exclusions)
 EXCLUDED_SOURCE_FILE_NAMES =
 
