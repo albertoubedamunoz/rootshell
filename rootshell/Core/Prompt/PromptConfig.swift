@@ -14,6 +14,7 @@ import Foundation
 struct PromptConfig: Sendable {
     var format: String
     var rightFormat: String          // Right-aligned prompt format (empty = disabled)
+    var addNewline: Bool             // Blank row between prior output and the prompt
     var transientPrompt: TransientPromptConfig
     var activePalette: String?
     var palettes: [String: [String: String]]
@@ -36,6 +37,7 @@ struct PromptConfig: Sendable {
     static func parse(from dict: [String: Any]) throws -> PromptConfig {
         let format = dict["format"] as? String ?? "$username$directory$git_branch$time\n$character"
         let rightFormat = dict["right_format"] as? String ?? ""
+        let addNewline = dict["add_newline"] as? Bool ?? true
         let palette = dict["palette"] as? String
 
         // Parse palettes
@@ -57,6 +59,7 @@ struct PromptConfig: Sendable {
         return PromptConfig(
             format: format,
             rightFormat: rightFormat,
+            addNewline: addNewline,
             transientPrompt: TransientPromptConfig.parse(from: dict["transient_prompt"] as? [String: Any] ?? [:]),
             activePalette: palette,
             palettes: palettes,

@@ -31,6 +31,15 @@ extension LocalShellSession {
         return theme
     }
 
+    // Check setting with default=true
+    var promptAddNewline: Bool {
+        let key = "promptAddNewline"
+        if UserDefaults.standard.object(forKey: key) == nil {
+            return true  // Default to a blank row above the prompt
+        }
+        return UserDefaults.standard.bool(forKey: key)
+    }
+
     // Check transient prompt setting (default: false)
     var useTransientPrompt: Bool {
         let key = "useTransientPrompt"
@@ -290,6 +299,11 @@ extension LocalShellSession {
                 result.rightPromptText = rightPrompt.text
                 result.rightPromptWidth = rightPrompt.visibleWidth
             }
+
+            result.addsLeadingSeparator = promptAddNewline
+            // PromptCache stores its own copy before these edits — write back so
+            // redraw sites (Ctrl+L) see the same separator and right prompt.
+            promptCache.cachedPrompt = result
 
             return result
         }
