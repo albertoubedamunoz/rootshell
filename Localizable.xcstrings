@@ -81366,6 +81366,160 @@
         }
       }
     },
+    "Blank Line Before Prompt" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سطر فارغ قبل موجه الأوامر"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Línia en blanc abans de l'indicador"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prázdný řádek před promptem"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tom linje før prompt"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leerzeile vor dem Prompt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Línea en blanco antes del indicador"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tyhjä rivi ennen kehotetta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligne vide avant l'invite"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שורה ריקה לפני שורת הפקודה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Üres sor a prompt előtt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riga vuota prima del prompt"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロンプトの前に空行"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프롬프트 앞에 빈 줄"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tom linje før prompt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lege regel vóór prompt"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pusty wiersz przed promptem"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linha em branco antes do prompt"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linha em branco antes do prompt"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rând gol înainte de prompt"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prazna vrstica pred pozivom"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tom rad före prompten"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Порожній рядок перед запитом"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dòng trống trước dấu nhắc"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提示符前留空行"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提示符前留空行"
+          }
+        }
+      }
+    },
     "Blaze" : {
       "comment" : "Cursor effect: fiery blaze",
       "localizations" : {
@@ -156578,6 +156732,514 @@
         }
       }
     },
+    "Detach ^[%lld other client](inflect: true)" : {
+      "localizations" : {
+        "ar" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "فصل %lld عملاء آخرين"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "فصل %lld عميلًا آخر"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "فصل %lld عميل آخر"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "فصل %lld عميل آخر"
+                }
+              },
+              "two" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "فصل %lld عميلين آخرين"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "فصل %lld عميل آخر"
+                }
+              }
+            }
+          }
+        },
+        "ca" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Separa %lld altre client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Separa %lld altres clients"
+                }
+              }
+            }
+          }
+        },
+        "cs" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpojit %lld další klienty"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpojit %lld dalšího klienta"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpojit %lld dalšího klienta"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpojit %lld dalších klientů"
+                }
+              }
+            }
+          }
+        },
+        "da" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Frakobl %lld anden klient"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Frakobl %lld andre klienter"
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld anderen Client trennen"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld andere Clients trennen"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Desvincular %lld cliente más"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Desvincular %lld clientes más"
+                }
+              }
+            }
+          }
+        },
+        "fi" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Irrota %lld muu asiakas"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Irrota %lld muuta asiakasta"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Détacher %lld autre client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Détacher %lld autres clients"
+                }
+              }
+            }
+          }
+        },
+        "he" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "ניתוק %lld לקוח נוסף"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "ניתוק %lld לקוחות נוספים"
+                }
+              },
+              "two" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "ניתוק %lld לקוחות נוספים"
+                }
+              }
+            }
+          }
+        },
+        "hu" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld másik kliens leválasztása"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld másik kliens leválasztása"
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Scollega %lld altro client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Scollega %lld altri client"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "他の%lld個のクライアントをデタッチ"
+                }
+              }
+            }
+          }
+        },
+        "ko" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "다른 클라이언트 %lld개 연결 해제"
+                }
+              }
+            }
+          }
+        },
+        "nb" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Koble fra %lld annen klient"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Koble fra %lld andre klienter"
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld andere client loskoppelen"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld andere clients loskoppelen"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odłącz %lld innych klientów"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odłącz %lld innych klientów"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odłącz %lld innego klienta"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odłącz %lld innych klientów"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Desanexar %lld outro cliente"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Desanexar %lld outros clientes"
+                }
+              }
+            }
+          }
+        },
+        "pt-PT" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Desanexar %lld outro cliente"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Desanexar %lld outros clientes"
+                }
+              }
+            }
+          }
+        },
+        "ro" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Detașează %lld alți clienți"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Detașează %lld alt client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Detașează %lld de alți clienți"
+                }
+              }
+            }
+          }
+        },
+        "sl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpni %lld druge odjemalce"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpni %lld drugega odjemalca"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpni %lld drugih odjemalcev"
+                }
+              },
+              "two" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Odpni %lld druga odjemalca"
+                }
+              }
+            }
+          }
+        },
+        "sv" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Koppla från %lld annan klient"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Koppla från %lld andra klienter"
+                }
+              }
+            }
+          }
+        },
+        "uk" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Від’єднати %lld інших клієнтів"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Від’єднати %lld інших клієнтів"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Від’єднати %lld іншого клієнта"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Від’єднати %lld інших клієнтів"
+                }
+              }
+            }
+          }
+        },
+        "vi" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ngắt kết nối %lld client khác"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "分离其他 %lld 个客户端"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "卸離其他 %lld 個用戶端"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Detach %lld other client%@" : {
       "localizations" : {
         "ar" : {
@@ -165844,6 +166506,161 @@
         }
       }
     },
+    "Dismiss server message" : {
+      "comment" : "Accessibility label for SSH auth banner dismiss button",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إغلاق رسالة الخادم"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descartar el missatge del servidor"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zavřít zprávu serveru"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luk serverbesked"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servernachricht schließen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar el mensaje del servidor"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sulje palvelimen viesti"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer le message du serveur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סגירת הודעת השרת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szerverüzenet bezárása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiudi il messaggio del server"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サーバーメッセージを閉じる"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서버 메시지 닫기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avvis servermelding"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serverbericht sluiten"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zamknij komunikat serwera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispensar mensagem do servidor"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorar mensagem do servidor"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Închide mesajul serverului"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opusti sporočilo strežnika"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stäng servermeddelandet"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закрити повідомлення сервера"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đóng thông báo máy chủ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭服务器消息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉伺服器訊息"
+          }
+        }
+      }
+    },
     "Displaced" : {
       "localizations" : {
         "ar" : {
@@ -170929,6 +171746,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沿底部邊緣繪製"
+          }
+        }
+      }
+    },
+    "Draws the prompt directly under the previous command's output instead of leaving a blank row." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يرسم موجه الأوامر مباشرةً أسفل مخرجات الأمر السابق بدلاً من ترك سطر فارغ."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dibuixa l'indicador just a sota de la sortida de l'ordre anterior en lloc de deixar una fila en blanc."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vykreslí prompt přímo pod výstupem předchozího příkazu místo ponechání prázdného řádku."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tegner prompten direkte under den forrige kommandos output i stedet for at efterlade en tom linje."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeichnet den Prompt direkt unter die Ausgabe des vorherigen Befehls, statt eine Leerzeile zu lassen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dibuja el indicador justo debajo de la salida del comando anterior en lugar de dejar una fila en blanco."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Piirtää kehotteen suoraan edellisen komennon tulosteen alle sen sijaan, että jättäisi tyhjän rivin."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche l'invite directement sous la sortie de la commande précédente au lieu de laisser une ligne vide."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מצייר את שורת הפקודה ישירות מתחת לפלט הפקודה הקודמת במקום להשאיר שורה ריקה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A promptot közvetlenül az előző parancs kimenete alá rajzolja, ahelyett hogy üres sort hagyna."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disegna il prompt direttamente sotto l'output del comando precedente invece di lasciare una riga vuota."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空行を残さず、前のコマンドの出力のすぐ下にプロンプトを表示します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빈 줄을 남기지 않고 이전 명령의 출력 바로 아래에 프롬프트를 표시합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tegner prompten rett under utdataene fra forrige kommando i stedet for å la det stå en tom linje."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tekent de prompt direct onder de uitvoer van de vorige opdracht in plaats van een lege regel over te laten."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rysuje prompt bezpośrednio pod wynikiem poprzedniego polecenia zamiast zostawiać pusty wiersz."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenha o prompt logo abaixo da saída do comando anterior em vez de deixar uma linha em branco."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenha o prompt logo abaixo da saída do comando anterior em vez de deixar uma linha em branco."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenează promptul direct sub rezultatul comenzii anterioare, în loc să lase un rând gol."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poziv izriše neposredno pod izpisom prejšnjega ukaza, namesto da pusti prazno vrstico."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritar prompten direkt under föregående kommandos utdata i stället för att lämna en tom rad."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Малює запит одразу під виводом попередньої команди замість того, щоб залишати порожній рядок."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vẽ dấu nhắc ngay bên dưới kết quả của lệnh trước thay vì để lại một dòng trống."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将提示符直接绘制在上一条命令输出的下方，而不留空行。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將提示符直接繪製在上一道指令輸出的下方，而不留空行。"
           }
         }
       }
@@ -184981,7 +185952,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "‏المتوقع \"<type> <base64-data> [comment]\""
+            "value" : "يُنهي كل نافذة وجزء في هذه الجلسة."
           }
         },
         "ca" : {
@@ -185005,7 +185976,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erwartet „<type> <base64-data> [comment]“"
+            "value" : "Beendet jedes Fenster und jeden Bereich in dieser Sitzung."
           }
         },
         "es" : {
@@ -185023,13 +185994,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attendu « <type> <base64-data> [comment] »"
+            "value" : "Met fin à toutes les fenêtres et à tous les panneaux de cette session."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "מצופה \"<type> <base64-data> [comment]\""
+            "value" : "מסיים כל חלון וחלונית בהפעלה זו."
           }
         },
         "hu" : {
@@ -185077,7 +186048,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Expressão esperada: \"<type> <base64-data> [comment]\""
+            "value" : "Encerra todas as janelas e painéis desta sessão."
           }
         },
         "pt-PT" : {
@@ -185119,13 +186090,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需要“<type> <base64-data> [comment]”"
+            "value" : "结束此会话中的所有窗口和窗格。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "預期為「<type> <base64-data> [comment]」"
+            "value" : "結束此工作階段中的所有視窗與窗格。"
           }
         }
       }
@@ -286744,6 +287715,161 @@
         }
       }
     },
+    "Loading…" : {
+      "comment" : "Exposé header while the multiplexer session is being read",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ التحميل…"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregant…"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Načítání…"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indlæser…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird geladen …"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cargando…"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladataan…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement…"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "טוען…"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betöltés…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caricamento…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込み中…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로딩 중…"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laster …"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laden…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wczytywanie…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregando…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carregar…"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se încarcă…"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nalaganje…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laddar…"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Завантаження…"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang tải…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加载中…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "載入中…"
+          }
+        }
+      }
+    },
     "Local (-L)" : {
       "comment" : "Port forward direction: local",
       "localizations" : {
@@ -334276,7 +335402,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -343240,6 +344366,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開啟"
+          }
+        }
+      }
+    },
+    "On a tab attached to tmux, zellij, or herdr, Tab Exposé opens on that session's own tabs with live previews, and swiping sideways returns to your app tabs. Reads the session's layout and pane contents over the connection the tab already holds while the exposé is open." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "في علامة تبويب مرتبطة بـ tmux أو zellij أو herdr، يفتح Exposé علامات التبويب على علامات تبويب تلك الجلسة نفسها مع معاينات مباشرة، ويعيدك التمرير الجانبي إلى علامات تبويب التطبيق. يقرأ تخطيط الجلسة ومحتوى الأجزاء عبر الاتصال الذي تحتفظ به علامة التبويب بالفعل أثناء فتح Exposé."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En una pestanya connectada a tmux, zellij o herdr, l'Exposé de pestanyes s'obre amb les pestanyes de la mateixa sessió i previsualitzacions en directe, i lliscar de costat et torna a les pestanyes de l'app. Llegeix la disposició de la sessió i el contingut dels plafons a través de la connexió que la pestanya ja manté mentre l'Exposé és obert."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na kartě připojené k tmux, zellij nebo herdr se Exposé karet otevře na vlastních kartách dané relace se živými náhledy a přejetím do strany se vrátíte na karty aplikace. Čte rozvržení relace a obsah panelů přes připojení, které karta už má, po dobu, kdy je Exposé otevřené."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "På en fane, der er tilknyttet tmux, zellij eller herdr, åbner Fane-Exposé sessionens egne faner med live-forhåndsvisninger, og et sidelæns swipe fører dig tilbage til appens faner. Læser sessionens layout og rudernes indhold via den forbindelse, fanen allerede har, mens Exposé er åbent."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In einem Tab, der mit tmux, zellij oder herdr verbunden ist, öffnet das Tab-Exposé die eigenen Tabs dieser Sitzung mit Live-Vorschauen; seitliches Wischen führt zurück zu deinen App-Tabs. Liest Layout und Bereichsinhalte der Sitzung über die Verbindung, die der Tab bereits hält, solange das Exposé geöffnet ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En una pestaña conectada a tmux, zellij o herdr, el Exposé de pestañas se abre con las pestañas de esa misma sesión y vistas previas en directo, y deslizar de lado te devuelve a las pestañas de la app. Lee la disposición de la sesión y el contenido de los paneles a través de la conexión que la pestaña ya mantiene mientras el Exposé está abierto."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välilehdellä, joka on liitetty tmuxiin, zellijiin tai herdriin, Välilehti-Exposé avautuu kyseisen istunnon omiin välilehtiin reaaliaikaisine esikatseluineen, ja sivuttaispyyhkäisy palauttaa sovelluksen välilehtiin. Lukee istunnon asettelun ja ruutujen sisällön yhteyden kautta, joka välilehdellä jo on, niin kauan kuin Exposé on auki."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans un onglet attaché à tmux, zellij ou herdr, l'Exposé des onglets s'ouvre sur les onglets de cette session avec des aperçus en direct, et un balayage latéral vous ramène aux onglets de l'app. Lit la disposition de la session et le contenu des panneaux via la connexion que l'onglet possède déjà, tant que l'exposé est ouvert."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "בלשונית המחוברת ל-tmux, zellij או herdr, Exposé לשוניות נפתח על הלשוניות של אותה הפעלה עם תצוגות מקדימות חיות, והחלקה הצידה מחזירה אותך ללשוניות האפליקציה. קורא את פריסת ההפעלה ואת תוכן החלוניות דרך החיבור שהלשונית כבר מחזיקה, כל עוד ה-Exposé פתוח."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Egy tmuxhoz, zellijhez vagy herdrhöz csatlakoztatott lapon a Lap-Exposé az adott munkamenet saját lapjait nyitja meg élő előnézetekkel, oldalirányú húzással pedig visszatérsz az alkalmazás lapjaihoz. A munkamenet elrendezését és a panelek tartalmát azon a kapcsolaton olvassa be, amellyel a lap már rendelkezik, amíg az Exposé nyitva van."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In una scheda collegata a tmux, zellij o herdr, l'Exposé schede si apre sulle schede della sessione stessa con anteprime in tempo reale, e scorrendo lateralmente torni alle schede dell'app. Legge il layout della sessione e il contenuto dei riquadri tramite la connessione che la scheda già mantiene, finché l'Exposé è aperto."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tmux、zellij、herdr にアタッチしているタブでは、タブExposé がそのセッション自身のタブをライブプレビュー付きで開き、横にスワイプするとアプリのタブに戻ります。Exposé が開いている間、タブがすでに保持している接続を通じてセッションのレイアウトとペインの内容を読み取ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tmux, zellij 또는 herdr에 연결된 탭에서는 탭 Exposé가 해당 세션의 탭을 실시간 미리보기와 함께 열며, 옆으로 쓸어넘기면 앱 탭으로 돌아갑니다. Exposé가 열려 있는 동안 탭이 이미 유지하고 있는 연결을 통해 세션의 레이아웃과 분할 영역 내용을 읽습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "På en fane som er koblet til tmux, zellij eller herdr, åpner Fane-Exposé øktens egne faner med direkteforhåndsvisninger, og et sveip til siden tar deg tilbake til appens faner. Leser øktens oppsett og innholdet i rutene over forbindelsen fanen allerede har, så lenge Exposé er åpent."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op een tabblad dat is gekoppeld aan tmux, zellij of herdr opent Tab-Exposé de tabbladen van die sessie zelf met livevoorbeelden, en met een zijwaartse veeg ga je terug naar je app-tabbladen. Leest de indeling van de sessie en de inhoud van de deelvensters via de verbinding die het tabblad al heeft, zolang Exposé geopend is."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na karcie połączonej z tmux, zellij lub herdr Exposé kart otwiera własne karty tej sesji z podglądami na żywo, a przesunięcie w bok wraca do kart aplikacji. Odczytuje układ sesji i zawartość paneli przez połączenie, które karta już utrzymuje, dopóki Exposé jest otwarte."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em uma aba conectada ao tmux, zellij ou herdr, o Exposé de Abas abre nas abas da própria sessão com pré-visualizações ao vivo, e deslizar para o lado retorna às abas do app. Lê o layout da sessão e o conteúdo dos painéis pela conexão que a aba já mantém enquanto o Exposé está aberto."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Num separador ligado ao tmux, zellij ou herdr, o Exposé de Separadores abre nos separadores da própria sessão com pré-visualizações em direto, e deslizar para o lado regressa aos separadores da app. Lê a disposição da sessão e o conteúdo dos painéis pela ligação que o separador já mantém enquanto o Exposé está aberto."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Într-o filă atașată la tmux, zellij sau herdr, Exposé file se deschide pe filele proprii ale sesiunii, cu previzualizări live, iar glisarea laterală te readuce la filele aplicației. Citește dispunerea sesiunii și conținutul panourilor prin conexiunea pe care fila o menține deja, cât timp Exposé este deschis."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V zavihku, ki je povezan s tmux, zellij ali herdr, se Exposé zavihkov odpre z zavihki te seje in živimi predogledi, s potegom vstran pa se vrnete na zavihke aplikacije. Postavitev seje in vsebino podoken bere prek povezave, ki jo zavihek že ima, dokler je Exposé odprt."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "På en flik som är ansluten till tmux, zellij eller herdr öppnar Flik-Exposé sessionens egna flikar med direktförhandsvisningar, och en svepning i sidled tar dig tillbaka till appens flikar. Läser sessionens layout och rutornas innehåll via anslutningen som fliken redan har, så länge Exposé är öppet."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На вкладці, приєднаній до tmux, zellij або herdr, Exposé вкладок відкривається на власних вкладках цього сеансу з живими переглядами, а проведення вбік повертає до вкладок застосунку. Читає розкладку сеансу та вміст панелей через з'єднання, яке вкладка вже утримує, доки Exposé відкрито."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trên một thẻ đang gắn với tmux, zellij hoặc herdr, Exposé tab mở các thẻ của chính phiên đó kèm bản xem trước trực tiếp, và vuốt ngang sẽ đưa bạn về các thẻ của ứng dụng. Đọc bố cục của phiên và nội dung các ngăn qua kết nối mà thẻ đang giữ sẵn, trong khi Exposé còn mở."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在已附加到 tmux、zellij 或 herdr 的标签页上，标签页 Exposé 会打开该会话自身的标签页并显示实时预览，横向轻扫即可返回应用标签页。在 Exposé 打开期间，通过该标签页已有的连接读取会话的布局和窗格内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在已附加到 tmux、zellij 或 herdr 的分頁上，分頁 Exposé 會開啟該工作階段本身的分頁並顯示即時預覽，橫向滑動即可返回 App 分頁。在 Exposé 開啟期間，透過該分頁已有的連線讀取工作階段的配置與窗格內容。"
           }
         }
       }
@@ -403592,7 +404872,159 @@
       }
     },
     "Replace existing cells when predicting input" : {
-      "comment" : "Mosh help: --predict-overwrite option"
+      "comment" : "Mosh help: --predict-overwrite option",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استبدال الخلايا الموجودة عند توقع الإدخال"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitueix les cel·les existents en predir l'entrada"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nahradit stávající buňky při predikci vstupu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstat eksisterende celler ved forudsigelse af input"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorhandene Zellen bei der Eingabevorhersage ersetzen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sustituir las celdas existentes al predecir la entrada"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Korvaa olemassa olevat solut syötettä ennustettaessa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer les cellules existantes lors de la prédiction de saisie"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החלפת תאים קיימים בעת חיזוי קלט"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meglévő cellák lecserélése a bevitel előrejelzésekor"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sostituire le celle esistenti durante la predizione dell'input"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入力予測時に既存のセルを置き換える"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "입력 예측 시 기존 셀 덮어쓰기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstatt eksisterende celler ved inndataprediksjon"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestaande cellen vervangen bij invoervoorspelling"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zastępuj istniejące komórki podczas predykcji wejścia"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substituir as células existentes ao predizer a entrada"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substituir as células existentes ao prever a entrada"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Înlocuiește celulele existente la predicția intrării"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pri napovedovanju vnosa zamenjaj obstoječe celice"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ersätt befintliga celler vid inmatningsprediktion"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Замінювати наявні комірки під час передбачення введення"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thay thế các ô hiện có khi dự đoán đầu vào"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预测输入时覆盖已有的字符单元"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預測輸入時覆寫既有的字元格"
+          }
+        }
+      }
     },
     "Replace predicted cells instead of shifting content, preserving multiplexer borders." : {
       "localizations" : {
@@ -419065,7 +420497,162 @@
         }
       }
     },
+    "Run the terminal and its keyboard toolbar edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with taps and text selection near the bottom." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تشغيل الطرفية وشريط أدوات لوحة المفاتيح من الحافة إلى الحافة أسفل مؤشر الشاشة الرئيسية. عند الإيقاف، تبقى فجوة صغيرة حتى لا تتداخل إيماءة التمرير للعودة إلى الشاشة الرئيسية مع النقرات وتحديد النص بالقرب من الأسفل."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra el terminal i la seva barra d'eines del teclat de vora a vora sota l'indicador d'inici. Si està desactivat, es manté un petit espai perquè el gest de lliscament d'inici no interfereixi amb els tocs ni amb la selecció de text a prop de la part inferior."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazí terminál a jeho klávesovou lištu od kraje ke kraji pod indikátorem plochy. Když je vypnuto, ponechá se malá mezera, aby gesto přejetí pro přechod na plochu nepřekáželo klepnutím a výběru textu u dolního okraje."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis terminalen og dens tastaturværktøjslinje helt ud til kanten under Hjem-indikatoren. Når det er slået fra, bevares et lille mellemrum, så stryg-til-Hjem-bevægelsen ikke forstyrrer tryk og tekstmarkering nederst."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt das Terminal und seine Tastatur-Symbolleiste randlos unter dem Home-Indikator an. Ist die Option aus, bleibt ein kleiner Abstand, damit die Wischgeste zum Home-Bildschirm Tippen und Textauswahl am unteren Rand nicht stört."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra el terminal y su barra de herramientas del teclado de borde a borde bajo el indicador de inicio. Si está desactivado, se mantiene un pequeño espacio para que el gesto de deslizamiento de inicio no interfiera con los toques ni con la selección de texto cerca de la parte inferior."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näyttää terminaalin ja sen näppäimistötyökalurivin reunasta reunaan Koti-osoittimen alla. Kun asetus on pois päältä, jätetään pieni väli, jotta Koti-pyyhkäisyele ei häiritse napautuksia eikä tekstin valintaa alareunassa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche le terminal et sa barre d'outils clavier bord à bord sous l'indicateur d'accueil. Désactivé, un petit espace est conservé pour que le geste de balayage vers l'écran d'accueil ne gêne pas les touchers ni la sélection de texte près du bas."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מציג את הטרמינל ואת סרגל הכלים של המקלדת מקצה לקצה מתחת למחוון מסך הבית. כשהאפשרות כבויה, נשמר מרווח קטן כדי שמחוות ההחלקה למסך הבית לא תפריע להקשות ולבחירת טקסט בקרבת התחתית."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A terminál és a billentyűzet eszköztára szegélytől szegélyig jelenik meg a kezdőképernyő-jelző alatt. Kikapcsolva egy kis hely marad, hogy a kezdőképernyőre lépő pöccintő mozdulat ne zavarja a koppintásokat és a szövegkijelölést az alsó szélen."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra il terminale e la sua barra strumenti della tastiera da bordo a bordo sotto l'indicatore Home. Se disattivato, viene mantenuto un piccolo spazio in modo che il gesto di scorrimento verso Home non interferisca con i tocchi e la selezione del testo in basso."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ホームインジケータの下まで、ターミナルとそのキーボードツールバーを画面いっぱいに表示します。オフにすると、下部でのタップや文字選択をホームへのスワイプ操作が妨げないよう、わずかな余白が残ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "홈 막대 아래까지 터미널과 키보드 도구 막대를 가장자리까지 꽉 채워 표시합니다. 끄면 약간의 여백을 남겨, 홈으로 가는 스와이프 제스처가 하단 근처의 탭과 텍스트 선택을 방해하지 않도록 합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis terminalen og tastaturverktøylinjen helt ut til kanten under Hjem-indikatoren. Når dette er av, beholdes et lite mellomrom slik at sveipebevegelsen til Hjem ikke forstyrrer trykk og tekstmarkering nederst."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toont de terminal en de bijbehorende toetsenbordwerkbalk van rand tot rand onder de Home-aanduiding. Uitgeschakeld blijft er een kleine ruimte over, zodat het veeggebaar naar het beginscherm tikken en tekstselectie onderaan niet hindert."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyświetla terminal i jego pasek narzędzi klawiatury od krawędzi do krawędzi pod wskaźnikiem ekranu początkowego. Po wyłączeniu pozostaje niewielki odstęp, aby gest przesunięcia do ekranu początkowego nie kolidował z dotknięciami i zaznaczaniem tekstu przy dolnej krawędzi."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exibe o terminal e sua barra de ferramentas do teclado de borda a borda sob o indicador de início. Quando desativado, mantém um pequeno espaço para que o gesto de deslizar para a tela de Início não interfira nos toques nem na seleção de texto perto da parte inferior."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra o terminal e a respetiva barra de ferramentas do teclado de extremo a extremo sob o indicador do ecrã principal. Quando desativado, mantém um pequeno espaço para que o gesto de deslizar para o ecrã principal não interfira com os toques nem com a seleção de texto perto da parte inferior."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează terminalul și bara sa de instrumente a tastaturii de la margine la margine sub indicatorul ecranului principal. Dezactivat, se păstrează un mic spațiu, astfel încât gestul de glisare spre ecranul principal să nu interfereze cu atingerile și cu selectarea textului în partea de jos."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prikaže terminal in njegovo orodno vrstico tipkovnice od roba do roba pod indikatorjem začetnega zaslona. Ko je možnost izklopljena, ostane majhna vrzel, da poteg za vrnitev na začetni zaslon ne moti dotikov in izbire besedila pri dnu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visar terminalen och dess tangentbordsverktygsfält kant till kant under hemindikatorn. När det är avstängt behålls ett litet mellanrum så att svepgesten till hemskärmen inte stör tryckningar och textmarkering längst ned."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показує термінал і його панель інструментів клавіатури від краю до краю під індикатором основного екрана. Якщо вимкнено, залишається невеликий проміжок, щоб жест проведення для повернення на основний екран не заважав дотикам і виділенню тексту біля нижнього краю."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiển thị terminal và thanh công cụ bàn phím của nó tràn viền xuống dưới thanh chỉ báo màn hình chính. Khi tắt, một khoảng trống nhỏ được giữ lại để cử chỉ vuốt về màn hình chính không cản trở thao tác chạm và việc chọn văn bản ở gần phía dưới."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "让终端及其键盘工具栏全屏延伸至主屏幕指示器下方。关闭时会保留一小段间距，以免返回主屏幕的滑动手势干扰底部附近的点按和文本选择。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讓終端機及其鍵盤工具列全螢幕延伸至主畫面指示器下方。關閉時會保留一小段間距，以免返回主畫面的滑動手勢干擾底部附近的點按與文字選取。"
+          }
+        }
+      }
+    },
     "Run the terminal edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with text selection near the bottom." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -452257,6 +453844,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "顯示群組選單"
+          }
+        }
+      }
+    },
+    "Show Multiplexer Tabs" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار علامات تبويب مُعدِّد الطرفية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra les pestanyes del multiplexor"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazit karty multiplexeru"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis multiplexer-faner"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplexer-Tabs einblenden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar pestañas del multiplexor"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä multiplekserin välilehdet"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les onglets du multiplexeur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצגת לשוניות המרבב"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplexer lapjainak megjelenítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra schede del multiplexer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マルチプレクサのタブを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "멀티플렉서 탭 보기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis multiplekser-faner"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplexertabbladen tonen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż karty multipleksera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar Abas do Multiplexador"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar separadores do multiplexador"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează filele multiplexorului"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaži zavihke multiplekserja"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa multiplexer-flikar"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показати вкладки мультиплексора"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện thẻ bộ ghép kênh"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示复用器标签页"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示多工器分頁"
           }
         }
       }
@@ -494561,7 +496302,7 @@
       }
     },
     "Tabs" : {
-      "comment" : "Keybind category: tab management",
+      "comment" : "Exposé page title for all app tabs next to a multiplexer page\nKeybind category: tab management",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -542425,6 +544166,161 @@
         }
       }
     },
+    "Unavailable" : {
+      "comment" : "Exposé header when the multiplexer session stopped answering",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "غير متوفر"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No disponible"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nedostupné"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ikke tilgængelig"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht verfügbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No disponible"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei käytettävissä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indisponible"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא זמין"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nem érhető el"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non disponibile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "利用不可"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용 불가"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilgjengelig"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet beschikbaar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niedostępne"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indisponível"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indisponível"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indisponibil"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni na voljo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ej tillgänglig"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недоступно"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không khả dụng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不可用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法使用"
+          }
+        }
+      }
+    },
     "Unbalanced quote." : {
       "comment" : "Local shell warning: quote is never closed",
       "extractionState" : "stale",
@@ -554486,7 +556382,159 @@
       }
     },
     "Use inserting predictions for this session" : {
-      "comment" : "Mosh help: --no-predict-overwrite option"
+      "comment" : "Mosh help: --no-predict-overwrite option",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدام تنبؤات الإدراج لهذه الجلسة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fes servir prediccions d'inserció per a aquesta sessió"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použít pro tuto relaci vkládací predikce"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brug indsættende forudsigelser til denne session"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für diese Sitzung einfügende Vorhersagen verwenden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar predicciones de inserción para esta sesión"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytä lisääviä ennusteita tässä istunnossa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser des prédictions par insertion pour cette session"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שימוש בחיזויי הוספה עבור הפעלה זו"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beszúró előrejelzések használata ehhez a munkamenethez"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usare predizioni a inserimento per questa sessione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このセッションでは挿入方式の予測を使う"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 세션에서는 삽입 방식 예측 사용"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruk innsettende prediksjoner for denne økten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invoegende voorspellingen gebruiken voor deze sessie"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Używaj predykcji wstawiających w tej sesji"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar predições por inserção nesta sessão"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar previsões por inserção nesta sessão"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folosește predicții prin inserare pentru această sesiune"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za to sejo uporabi vstavljajoče napovedi"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd infogande prediktioner för den här sessionen"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовувати вставні передбачення для цього сеансу"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng dự đoán kiểu chèn cho phiên này"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本次会话使用插入式预测"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本次工作階段使用插入式預測"
+          }
+        }
+      }
     },
     "Use Jump Host" : {
       "localizations" : {

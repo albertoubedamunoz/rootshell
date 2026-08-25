@@ -458,7 +458,7 @@ struct TmuxSessionDashboardView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(controller.didEnd)
-                .accessibilityLabel("Detach \(otherAttachedClientCount) other client\(otherAttachedClientCount == 1 ? "" : "s")")
+                .accessibilityLabel("Detach ^[\(otherAttachedClientCount) other client](inflect: true)")
             }
         }
     }
