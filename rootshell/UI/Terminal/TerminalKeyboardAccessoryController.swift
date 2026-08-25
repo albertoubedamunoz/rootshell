@@ -116,22 +116,107 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #endif
     }
 
+    /// Minimum clearance kept between the toolbar row's bottom edge and the
+    /// screen's bottom edge while "Extend Under Home Indicator" is off. Much
+    /// smaller than the 34pt safe area on purpose: the row only needs enough
+    /// distance that a home swipe started at the edge does not intercept a
+    /// toolbar tap. Apple documents no size for the gesture's start region.
+    private static let minimumHomeIndicatorClearance: CGFloat = 8
+
+    /// Height the accessory holds open below the toolbar row so the row clears
+    /// the home indicator. Only tops up what UIKit is not already leaving
+    /// below the row, so spacing iOS hands out itself is not paid twice.
+    private var bottomSafeAreaStripHeight: CGFloat {
+        #if os(visionOS) || targetEnvironment(macCatalyst)
+        return 0
+        #else
+        guard let host, !host.keyboardAccessoryHasBottomSafeAreaSpacer else { return 0 }
+        guard !PaddingManager.shared.extendUnderHomeIndicator else { return 0 }
+        let safeBottom = host.keyboardHostView.window?.safeAreaInsets.bottom ?? 0
+        guard safeBottom > 0 else { return 0 }
+        let target = min(Self.minimumHomeIndicatorClearance, safeBottom)
+        return max(0, target - gapBelowAccessory)
+        #endif
+    }
+
+    /// Height UIKit already leaves between the accessory's bottom edge and the
+    /// bottom of its window: zero when the row is flush (the primary-input-view
+    /// slot in toolbar-only mode, or the accessory slot next to a hardware
+    /// keyboard), the keyboard's height while a system keyboard is presenting
+    /// under it. Reserving `target - gap` is self-correcting and stable, since
+    /// growing the accessory moves its top edge and never its bottom.
+    private var gapBelowAccessory: CGFloat {
+        #if os(visionOS) || targetEnvironment(macCatalyst)
+        return .greatestFiniteMagnitude
+        #else
+        // Toolbar-only mode: a primary input view is flush by construction.
+        // Answering from the destination keeps the transition single-pass;
+        // mid-transition the frame still describes the previous placement.
+        if toolbarOnlyMode { return 0 }
+        guard let accessory = keyboardAccessory, let window = accessory.window,
+              !accessoryServesAsPrimaryInputView else {
+            // No accessory-slot frame to measure (never presented, or still
+            // parked in the keyboard slot mid-exit): predict the destination.
+            // A software keyboard carries the row on its top edge; next to a
+            // hardware keyboard the accessory docks flush.
+            return KeyboardTracker.shared.isHardwareKeyboard ? 0 : .greatestFiniteMagnitude
+        }
+        let bottomInWindow = accessory.convert(accessory.bounds, to: nil).maxY
+        return max(0, window.bounds.maxY - bottomInWindow)
+        #endif
+    }
+
+    /// True while the strip is actually held open, so the toolbar row is not at
+    /// the screen edge. Reads the applied value rather than recomputing, so it
+    /// reports the geometry UIKit is currently laid out against.
+    var reservesBottomSafeAreaStrip: Bool {
+        (keyboardAccessory?.reservedBottomSafeArea ?? 0) > 0
+    }
+
+    /// Reconcile the reserved strip with the current setting, orientation, and
+    /// keyboard state. Returns true when it moved.
+    @discardableResult
+    private func applyBottomSafeAreaStrip() -> Bool {
+        let height = bottomSafeAreaStripHeight
+        let changed = keyboardAccessory?.setReservedBottomSafeArea(height) ?? false
+        if changed {
+            Ghostty.logger.debug(
+                "Reserved home-indicator strip: \(height, privacy: .public)pt (gap below accessory \(self.gapBelowAccessory, privacy: .public)pt)"
+            )
+        }
+        return changed
+    }
+
+    /// Re-apply the strip from outside UIKit's input-view queries. Unlike the
+    /// `inputAccessoryView` path there is no query to ride along with, so it
+    /// drives the reload itself.
+    func refreshBottomSafeAreaStrip() {
+        guard applyBottomSafeAreaStrip() else { return }
+        updateBottomEdgeHomeGestureProtection()
+        host?.keyboardReloadInputViews()
+        EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+    }
+
     var reservedKeyboardToolbarHeightAtBottom: CGFloat {
         #if os(visionOS) || targetEnvironment(macCatalyst)
         return 0
         #else
         guard reservesKeyboardToolbarAtBottom,
               let host else { return 0 }
+        // Prefer the intrinsic height (toolbar + reserved strip) over `bounds`:
+        // intrinsic moves in the same pass as the state that changes it, while
+        // bounds lag one layout pass in both directions.
         let fallbackHeight = KeyboardSizes.current(traitCollection: host.keyboardHostView.traitCollection).toolbar.height
-        if let accessoryHeight = keyboardAccessory?.bounds.height,
-           accessoryHeight > 0 {
-            return max(fallbackHeight, accessoryHeight)
+            + (keyboardAccessory?.reservedBottomSafeArea ?? 0)
+        if let intrinsicHeight = keyboardAccessory?.intrinsicContentSize.height,
+           intrinsicHeight > 0 {
+            return max(fallbackHeight, intrinsicHeight)
         }
         let toolbarHeight = activeToolbarView?.bounds.height ?? 0
         if toolbarHeight > 0 {
             return max(fallbackHeight, toolbarHeight)
         }
-        return max(fallbackHeight, keyboardAccessory?.intrinsicContentSize.height ?? fallbackHeight)
+        return fallbackHeight
         #endif
     }
 
@@ -142,15 +227,49 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     var inputAccessoryView: UIView? {
         guard let host else { return nil }
+        applyBottomSafeAreaStrip()
         let isVisible = shouldShowKeyboardToolbar
             && !host.keyboardAIAgentOverlayActive
             && !keyboardToolbarCollapsed
         updateBottomEdgeHomeGestureProtection(accessoryIsVisible: isVisible)
+        // In toolbar-only mode the accessory serves as the primary input view
+        // instead (see `inputView`); handing it out from both slots in one
+        // reload would let the second container steal it from the first.
+        guard !toolbarOnlyMode else { return nil }
+        // Clearing only when visible is deliberate: an invisible accessory is
+        // not hosted anywhere, and `gapBelowAccessory` already routes every
+        // unhosted case through its prediction branch. Both getters run on the
+        // same reload, but UIKit does not specify their order, so neither may
+        // depend on the other having run first.
+        if isVisible { accessoryServesAsPrimaryInputView = false }
         return isVisible ? keyboardAccessory : nil
     }
 
+    /// True while the accessory was last handed to UIKit as the primary input
+    /// view. Its window frame then describes the keyboard slot, so
+    /// `gapBelowAccessory` must not read it as an accessory-slot measurement.
+    private var accessoryServesAsPrimaryInputView = false
+
+    /// In toolbar-only mode the toolbar is the primary input view, not an
+    /// accessory above an empty one. UIKit lays a primary input view flush with
+    /// the screen's bottom edge, like the system keyboard. An accessory over an
+    /// empty input view is not flush: UIKit appends a version-dependent
+    /// `_UIRemoteKeyboardPlaceholderView` below it (17pt on iOS 26.3, 0 on
+    /// 26.5) and only grows the accessory upward, so no reservation can move
+    /// the row past that strip.
     var inputView: UIView? {
-        toolbarOnlyMode ? emptyInputView : nil
+        guard toolbarOnlyMode else { return nil }
+        guard let host,
+              let accessory = keyboardAccessory,
+              shouldShowKeyboardToolbar,
+              !host.keyboardAIAgentOverlayActive,
+              !keyboardToolbarCollapsed else {
+            // Toolbar hidden (collapsed to the floating button, or an overlay
+            // owns the screen) — keep suppressing the system keyboard.
+            return emptyInputView
+        }
+        accessoryServesAsPrimaryInputView = true
+        return accessory
     }
 
     /// Empty primary input view used when a host wants the accessory docked
@@ -267,6 +386,22 @@ final class TerminalKeyboardAccessoryController: NSObject {
             self?.refreshKeyboardLayoutAfterAccessoryChange()
         }
 
+        // Re-measure the reserved strip whenever UIKit hosts or repositions the
+        // accessory. Applying the constraint is safe here (it does not reload
+        // input views); the reload that publishes the new height is deferred a
+        // turn, because this fires from inside layout. Bounded: the apply returns
+        // false once the value settles, so the reload stops re-triggering.
+        keyboardAccessory?.onHostedGeometryChanged = { [weak self] in
+            guard let self, self.applyBottomSafeAreaStrip() else { return }
+            self.updateBottomEdgeHomeGestureProtection()
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self.host?.keyboardReloadInputViews()
+                    EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+                }
+            }
+        }
+
         let tabSwitcherObserver = NotificationCenter.default.addObserver(
             forName: .tabSwitcherVisibilityChanged,
             object: nil,
@@ -290,6 +425,15 @@ final class TerminalKeyboardAccessoryController: NSObject {
             }
         }
         cancellables.insert(AnyCancellable { NotificationCenter.default.removeObserver(hwToolbarObserver) })
+
+        let homeIndicatorObserver = NotificationCenter.default.addObserver(
+            forName: .terminalBottomInsetInvalidated,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshBottomSafeAreaStrip() }
+        }
+        cancellables.insert(AnyCancellable { NotificationCenter.default.removeObserver(homeIndicatorObserver) })
         #endif
 
         let tracker = KeyboardTracker.shared
@@ -639,6 +783,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
             EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
             host?.keyboardReloadInputViews()
         }
+        refreshBottomSafeAreaStrip()
         updateBottomEdgeHomeGestureProtection()
     }
 
@@ -658,10 +803,17 @@ final class TerminalKeyboardAccessoryController: NSObject {
         let safeAreaBottom = host?.keyboardHostView.window?.safeAreaInsets.bottom ?? 0
         let hardwareAccessoryOnly = tracker.isHardwareKeyboard
             && tracker.keyboardFrame.height <= accessoryHeight + safeAreaBottom + 2
-        let toolbarIsAtScreenEdge = hardwareAccessoryOnly || !EffectManager.shared.isKeyboardDocked
+        // toolbarOnlyMode counts as at-screen-edge on its own: the accessory
+        // is the whole keyboard region there, and with two drawer rows open it
+        // passes EffectManager's 100pt docked-keyboard heuristic, which would
+        // silently drop the protection while the row still sits on the edge.
+        let toolbarIsAtScreenEdge = toolbarOnlyMode
+            || hardwareAccessoryOnly
+            || !EffectManager.shared.isKeyboardDocked
         let enabled = (idiom == .phone || idiom == .pad)
             && isVisible
             && host?.keyboardAccessoryHasBottomSafeAreaSpacer != true
+            && !reservesBottomSafeAreaStrip
             && toolbarIsAtScreenEdge
         bottomEdgeHomeGestureProtectionEnabled = enabled
         keyboardAccessory?.setBottomEdgeHomeGestureProtectionEnabled(enabled)

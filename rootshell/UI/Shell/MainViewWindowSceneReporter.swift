@@ -71,6 +71,12 @@ final class WindowSceneReportingView: UIView {
         // Catalyst window resizes relayout the SwiftUI hierarchy, so this fires
         // on every size/position change — the continuous per-window frame source.
         reportFrameIfChanged()
+        // Rotation does not reliably deliver safeAreaInsetsDidChange to this
+        // view (its own insets can be unchanged while the window's flip),
+        // which would leave MainView's windowSafeAreaInsets on the previous
+        // orientation. Every rotation runs layout, and notifyScene's snapshot
+        // guard drops the no-change calls.
+        notifyScene()
     }
 
     /// Report the window's current Catalyst system frame when it changes. The

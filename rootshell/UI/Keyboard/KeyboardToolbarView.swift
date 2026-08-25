@@ -497,6 +497,18 @@ class KeyboardToolbarView: UIView {
         updateInsetsForCurrentTraits()
     }
 
+    /// Square off the plate's bottom corners while the accessory extends the
+    /// plate below this view (the reserved home-indicator strip), so the plate
+    /// and the skirt meet without a rounded seam.
+    func setBottomEdgeSquared(_ squared: Bool) {
+        let corners: CACornerMask = squared
+            ? [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+            : [.layerMinXMinYCorner, .layerMaxXMinYCorner,
+               .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        layer.maskedCorners = corners
+        backgroundBlurView.layer.maskedCorners = corners
+    }
+
     override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         updateInsetsForCurrentTraits()
@@ -1240,7 +1252,16 @@ class KeyboardToolbarView: UIView {
         }
     }
 
-    private func glassTintColor(for traitCollection: UITraitCollection) -> UIColor {
+    /// Horizontal edges of the glass plate, for the accessory's bottom skirt
+    /// to align with. The plate is inset from the toolbar's own edges in iPhone
+    /// landscape (side safe areas), so a full-width skirt would stick out as
+    /// tinted ears beneath it.
+    var plateLeadingAnchor: NSLayoutXAxisAnchor { backgroundBlurView.leadingAnchor }
+    var plateTrailingAnchor: NSLayoutXAxisAnchor { backgroundBlurView.trailingAnchor }
+
+    /// The glass tint the accessory's bottom skirt reuses so the reserved
+    /// home-indicator strip reads as part of this toolbar's plate.
+    func glassTintColor(for traitCollection: UITraitCollection) -> UIColor {
         let isLight = traitCollection.userInterfaceStyle != .dark
         return (isLight ? UIColor.white : UIColor.black).withAlphaComponent(0.16)
     }
