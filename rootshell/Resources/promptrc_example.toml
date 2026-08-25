@@ -29,6 +29,12 @@
 #   $connection_type → WiFi/Cellular/Wired icon
 
 # --- Layout ---
+
+# Leave a blank row between the previous command's output and the prompt.
+# Default is true. Set false for a condensed prompt.
+#
+# add_newline = true
+
 # Uncomment one format or write your own:
 
 # Default (Catppuccin-style powerline):

@@ -18,6 +18,7 @@ struct PromptSettingsView: View {
     @AppStorage("clockFormat") private var clockFormat: String = "system"
     @AppStorage("useTransientPrompt") private var useTransientPrompt: Bool = false
     @AppStorage("useRightPrompt") private var useRightPrompt: Bool = false
+    @AppStorage("promptAddNewline") private var promptAddNewline: Bool = true
 
     #if !targetEnvironment(macCatalyst)
     @State private var customConfigStatus: PromptConfigStatus = .none
@@ -177,19 +178,30 @@ struct PromptSettingsView: View {
                         .disabled(hasCustomConfig && customConfigIsActive)
                         .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                         #endif
+
+                    Toggle("Blank Line Before Prompt", isOn: $promptAddNewline)
+                        .themedRow()
+                        #if !targetEnvironment(macCatalyst)
+                        .disabled(hasCustomConfig && customConfigIsActive)
+                        .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
+                        #endif
                 } header: {
                     Text("Advanced")
                 } footer: {
-                    if useTransientPrompt && useRightPrompt {
-                        Text("Transient prompt replaces the full prompt with ❯ after running a command. Right prompt moves the clock to the right side of the info bar.")
-                            .font(.caption)
-                    } else if useTransientPrompt {
-                        Text("Replaces the full prompt with a minimal ❯ after running a command, reducing scrollback clutter.")
-                            .font(.caption)
-                    } else if useRightPrompt {
-                        Text("Moves the clock from the info bar to the right side, making the left prompt shorter.")
-                            .font(.caption)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if useTransientPrompt && useRightPrompt {
+                            Text("Transient prompt replaces the full prompt with ❯ after running a command. Right prompt moves the clock to the right side of the info bar.")
+                        } else if useTransientPrompt {
+                            Text("Replaces the full prompt with a minimal ❯ after running a command, reducing scrollback clutter.")
+                        } else if useRightPrompt {
+                            Text("Moves the clock from the info bar to the right side, making the left prompt shorter.")
+                        }
+
+                        if !promptAddNewline {
+                            Text("Draws the prompt directly under the previous command's output instead of leaving a blank row.")
+                        }
                     }
+                    .font(.caption)
                 }
             }
 
