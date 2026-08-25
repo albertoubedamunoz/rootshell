@@ -791,6 +791,8 @@ final class TmuxController {
             return
         }
 
+        let paneIDsBeforeApply = Set(paneViews.keys)
+
         lastReconcileAt = Date()
         reconcileCount += 1
         let dbg = TmuxDebugLogger.shared
@@ -840,6 +842,19 @@ final class TmuxController {
         // every retry, freezing the desync permanently. ROOTSHELL-TMUX
         // (id=tmux-reconcile-dedup, id=tmux-reconcile-dedup-failure)
         if isFullTopology, !batchFailed { lastAppliedTopologyOps = ops }
+        // Newly projected panes are created before SwiftUI observes the final
+        // tmux window selection. Reconcile once from the completed topology so
+        // every non-selected window is occluded immediately; otherwise all of
+        // its Metal surfaces retain swap chains until the first manual tab
+        // switch happens to run MainView's normal visibility sweep.
+        if !Set(paneViews.keys).subtracting(paneIDsBeforeApply).isEmpty {
+            let hostWindowIDs = Set(windowHostIds.values).union([baseWindowId])
+            for hostWindowID in hostWindowIDs {
+                TerminalWindowRegistry.refreshSelectionAfterMutation(
+                    in: hostWindowID,
+                    allowFocus: false)
+            }
+        }
         if isFullTopology || ops.contains(where: {
             if case .setTabTitle = $0 { return true }
             return false
@@ -1235,7 +1250,14 @@ final class TmuxController {
             paneId: paneId,
             viewerTerminal: viewerTerminal,
             viewerPane: viewerPane)
-        if let tab = windowTabs[windowId] { view.containingTabID = tab.id }
+        if let tab = windowTabs[windowId] {
+            view.containingTabID = tab.id
+            view.setOcclusion(hostModel.selectedTabID == tab.id)
+        } else {
+            // A malformed/out-of-order batch must not leave an unattached pane
+            // consuming a full visible surface's GPU resources.
+            view.setOcclusion(false)
+        }
         paneViews[paneId] = view
         return true
     }

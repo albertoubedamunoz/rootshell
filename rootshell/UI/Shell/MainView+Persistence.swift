@@ -265,6 +265,20 @@ extension MainView {
         // (a nil selection would keep every tab at opacity 0).
         tabsModel.repairSelectionIfNeeded()
 
+        // Restored pane views default to visible before their Ghostty surfaces
+        // exist. Seed the final tab visibility now so hidden tabs create their
+        // renderers occluded and immediately release their per-surface GPU
+        // resources. The selection observer is not guaranteed to run when the
+        // restored selection remains at its initial tab.
+        if let selectedID = tabsModel.selectedTabID {
+            for tab in terminals {
+                let isSelected = tab.id == selectedID
+                for pane in tab.splitTree {
+                    pane.setOcclusion(isSelected)
+                }
+            }
+        }
+
         // Explicitly mark the focused terminal so didMoveToWindow() will grant focus.
         // This is needed because onChange(of: selectedTabIndex) may not fire if the
         // restored index equals the initial value (0), and even when it does fire,
