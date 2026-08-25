@@ -13,9 +13,15 @@ nonisolated enum TabExposeSettings {
     static let gestureEnabledKey = "tabExposeGestureEnabled"
     /// Title + badges under each preview.
     static let showsCaptionsKey = "tabExposeShowsCaptions"
+    /// On a tab attached to herdr / tmux / zellij, open on that session's tabs.
+    static let multiplexerEnabledKey = "tabExposeMultiplexerEnabled"
 
     static func gestureEnabled(_ defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: gestureEnabledKey) as? Bool ?? true
+    }
+
+    static func multiplexerEnabled(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: multiplexerEnabledKey) as? Bool ?? true
     }
 
     static func showsCaptions(_ defaults: UserDefaults = .standard) -> Bool {

@@ -105,6 +105,9 @@ public struct ExecuteCommandResult: Sendable {
     public let exitCode: Int32
     public let timedOut: Bool
     public let duration: TimeInterval
+    /// The caller's `maxOutputBytes` was reached and the rest was dropped:
+    /// `output` is a prefix, and `exitCode`/`duration` are unknown.
+    public var truncated: Bool = false
 }
 
 // MARK: - Wire Protocol

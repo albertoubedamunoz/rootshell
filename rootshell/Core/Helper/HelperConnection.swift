@@ -242,15 +242,19 @@ public class HelperConnection {
     ///   - workingDirectory: Working directory (nil = use default)
     ///   - timeout: Maximum execution time (default 30s)
     /// - Returns: Final result with exit code and timing
+    ///   - maxOutputBytes: Stop after this many bytes; the result is a prefix
+    ///     marked `truncated`, and the helper stops streaming. Unbounded when nil.
     public func executeCommand(
         command: String,
         workingDirectory: String? = nil,
-        timeout: TimeInterval = 30
+        timeout: TimeInterval = 30,
+        maxOutputBytes: Int? = nil
     ) async throws -> ExecuteCommandResult {
         try await socketConnection.executeCommand(
             command: command,
             cwd: workingDirectory,
             timeout: timeout,
+            maxOutputBytes: maxOutputBytes,
             onOutput: { _, _ in }  // No-op output handler
         )
     }

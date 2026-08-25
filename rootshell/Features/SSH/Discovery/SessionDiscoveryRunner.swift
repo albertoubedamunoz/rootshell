@@ -195,7 +195,10 @@ extension SessionDiscoveryRunner {
         let result = try await HelperConnection.shared.executeCommand(
             command: command,
             workingDirectory: workingDirectory,
-            timeout: 7
+            timeout: 7,
+            // The same bound the SSH path applies; a local host's captures are
+            // no smaller, and the parser tolerates a truncated reply.
+            maxOutputBytes: Self.maxDiscoveryResponseBytes
         )
 
         if result.timedOut {

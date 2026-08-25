@@ -6,6 +6,7 @@ struct MultiplexerSettingsView: View {
     @AppStorage("herdrSessionDiscoveryEnabled") private var herdrDiscoveryEnabled = true
     @AppStorage("localSessionDiscoveryEnabled") private var localDiscoveryEnabled = true
     @AppStorage(SessionDiscoverySortOrder.storageKey) private var sortOrder = SessionDiscoverySortOrder.attachedFirst.rawValue
+    @AppStorage(TabExposeSettings.multiplexerEnabledKey) private var exposeMultiplexerEnabled = true
     @AppStorage("tmuxSessionName") private var sessionName = ""
     @AppStorage("tmuxCustomCommand") private var customCommand = ""
     @AppStorage("herdrSessionName") private var herdrSessionName = ""
@@ -98,6 +99,20 @@ struct MultiplexerSettingsView: View {
                 Text("Session Discovery")
             } footer: {
                 Text(discoveryFooterText)
+            }
+
+            Section {
+                Toggle(isOn: $exposeMultiplexerEnabled) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "rectangle.grid.2x2")
+                        Text("Show Multiplexer Tabs")
+                    }
+                }
+                .themedRow()
+            } header: {
+                Text("Tab Exposé")
+            } footer: {
+                Text("On a tab attached to tmux, zellij, or herdr, Tab Exposé opens on that session's own tabs with live previews, and swiping sideways returns to your app tabs. Reads the session's layout and pane contents over the connection the tab already holds while the exposé is open.")
             }
 
             Section {

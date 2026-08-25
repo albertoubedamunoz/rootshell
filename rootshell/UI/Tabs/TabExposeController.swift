@@ -37,6 +37,21 @@ final class TabExposeController {
         case dismiss
     }
 
+    /// One page of the exposé: the attached multiplexer session's tabs, or
+    /// an app-tab scope (a group / project, or every tab in flat mode).
+    struct Scope: Equatable {
+        enum Kind: Equatable {
+            case multiplexer
+            case app(TabsModel.ScopeKey?)
+        }
+        let kind: Kind
+        let title: String?
+        let tabIDs: [UUID]
+        /// Cell marked current and landed on when entering the page.
+        let currentID: UUID?
+        var isMultiplexer: Bool { kind == .multiplexer }
+    }
+
     // MARK: - State
 
     private(set) var phase: Phase = .hidden
@@ -45,6 +60,13 @@ final class TabExposeController {
     private(set) var scopeTitle: String?
     /// Shown in the scope header; nil in flat mode.
     private(set) var isScoped = false
+    /// The current page is the multiplexer session's tabs.
+    private(set) var showsMultiplexer = false
+    /// The multiplexer page exists for this presentation (the hero tab is
+    /// attached to herdr / tmux / zellij and the feed could start).
+    @ObservationIgnored private(set) var multiplexerAttached = false
+    /// The app tab whose terminal feeds the multiplexer page.
+    @ObservationIgnored private var multiplexerHostTabID: UUID?
     /// The tab whose full-size live picture slides in/out with the tray.
     private(set) var heroTabID: UUID?
     var highlightedTabID: UUID? {
@@ -58,9 +80,14 @@ final class TabExposeController {
     /// (the host keeps their renderers live; empty when no preview).
     @ObservationIgnored private(set) var previewTabIDs: [UUID] = []
     var isActive: Bool { phase != .hidden }
-    /// Grouped/project mode with more than one scope to move between.
+    /// More than one page to move between (groups / projects, or the
+    /// multiplexer page next to the app tabs).
     var canNavigateScope: Bool {
-        isScoped && tabsModel?.firstTabIDInNeighborScope(offset: 1) != nil
+        scopeList().scopes.count > 1
+    }
+    /// Cell marked as current on the active page.
+    var currentCellID: UUID? {
+        showsMultiplexer ? muxFeed?.activeTabUUID : tabsModel?.selectedTabID
     }
 
     /// 0 hidden … 1 presented (may overshoot slightly). Read per frame by the
@@ -73,6 +100,12 @@ final class TabExposeController {
 
     @ObservationIgnored weak var tabsModel: TabsModel?
     @ObservationIgnored weak var observer: TabExposeControllerObserver?
+    /// Serves the multiplexer page; started on activation when the hero
+    /// tab's terminal is bound to a raw multiplexer.
+    @ObservationIgnored weak var muxFeed: MultiplexerExposeFeed?
+    /// The terminal holding the selected tab's connection (focused pane,
+    /// else any terminal in the tab).
+    @ObservationIgnored var multiplexerTerminal: (() -> Ghostty.TerminalView?)?
     /// Un-occlude scope tabs (and anything else the host needs before showing).
     @ObservationIgnored var onWillPresent: (([UUID]) -> Void)?
     /// Restore occlusion after the overlay is gone.
@@ -112,6 +145,9 @@ final class TabExposeController {
     @ObservationIgnored private var scopeObservationArmed = false
     @ObservationIgnored private var isRefreshingScope = false
     @ObservationIgnored private var highlightChangedDuringRefresh = false
+    /// Inside `attachMultiplexer`: the feed's synchronous start notification
+    /// must not re-enter `refreshScope` from underneath one.
+    @ObservationIgnored private var isAttachingMultiplexer = false
 
     // MARK: - Interactive reveal / dismiss
 
@@ -195,9 +231,22 @@ final class TabExposeController {
     }
 
     /// Switch to `id`: it becomes the hero that slides back in while the
-    /// tray leaves; the real selection changes immediately.
+    /// tray leaves; the real selection changes immediately. On the
+    /// multiplexer page the hero is unchanged: the session switches tabs
+    /// underneath it and its own PTY repaints.
     func select(_ id: UUID) {
         guard isActive, tabIDs.contains(id) else { return }
+        if showsMultiplexer {
+            highlightedTabID = id
+            pendingSelectedTabID = nil
+            observer?.tabExposeDidChangeCells(self)
+            if let tab = muxFeed?.tab(uuid: id) {
+                onCommitHaptic?()
+                muxFeed?.focus(tabID: tab.id)
+            }
+            settle(to: 0, fast: false)
+            return
+        }
         heroTabID = id
         highlightedTabID = id
         pendingSelectedTabID = id
@@ -208,11 +257,42 @@ final class TabExposeController {
         settle(to: 0, fast: false)
     }
 
-    /// Previous / next group or project while presented (swipe, keys).
+    /// Previous / next page while presented (swipe, ⌘⌥[ ]): the multiplexer
+    /// page re-scopes in place; an app scope selects a tab in it and the
+    /// observation re-scopes.
     func navigateScope(by delta: Int) {
         guard isActive, delta != 0 else { return }
+        let list = scopeList()
+        guard list.scopes.count > 1 else { return }
+        let count = list.scopes.count
+        let targetIndex = ((list.activeIndex + delta) % count + count) % count
+        let target = list.scopes[targetIndex]
         pendingScopeTransition = delta
-        onNavigateScope?(delta)
+        // Re-scope on the next turn, like the observation-driven app-scope
+        // switch: the view's swipe commit must finish arming its settle
+        // before the pages swap roles.
+        let deferredRefresh = { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, self.isActive else { return }
+                self.refreshScope()
+            }
+        }
+        switch target.kind {
+        case .multiplexer:
+            showsMultiplexer = true
+            deferredRefresh()
+        case .app:
+            showsMultiplexer = false
+            let appOffset = targetIndex - list.appActiveIndex
+            if appOffset == 0 {
+                deferredRefresh()
+            } else {
+                onNavigateScope?(appOffset)
+                // The host's selection re-scopes asynchronously; keep the
+                // page direction the user asked for, not the app-scope offset.
+                pendingScopeTransition = delta
+            }
+        }
     }
 
     /// The view consumes the page direction of the scope switch this
@@ -222,9 +302,63 @@ final class TabExposeController {
         return scopeTransition
     }
 
-    /// The neighbor scope a swipe would land on (nil: flat mode / one scope).
-    func neighborScope(offset: Int) -> TabsModel.ScopeInfo? {
-        tabsModel?.neighborScope(offset: offset)
+    /// The page a swipe would land on (nil: a single page).
+    func neighborScope(offset: Int) -> Scope? {
+        let list = scopeList()
+        guard list.scopes.count > 1 else { return nil }
+        let count = list.scopes.count
+        return list.scopes[((list.activeIndex + offset) % count + count) % count]
+    }
+
+    /// Every page in order: the multiplexer session first when attached,
+    /// then the app scopes (a single "Tabs" page in flat mode).
+    private func scopeList() -> (scopes: [Scope], activeIndex: Int, appActiveIndex: Int) {
+        guard let tabsModel else { return ([], 0, 0) }
+        var scopes: [Scope] = []
+        if multiplexerAttached, let feed = muxFeed {
+            scopes.append(Scope(kind: .multiplexer, title: feed.title, tabIDs: feed.tabUUIDs, currentID: feed.activeTabUUID))
+        }
+        let appActive: Int
+        if let list = tabsModel.scopeList() {
+            appActive = scopes.count + list.activeIndex
+            scopes += list.scopes.map { info in
+                Scope(kind: .app(info.key), title: info.title, tabIDs: info.tabIDs,
+                      currentID: tabsModel.preferredTabID(in: info.tabIDs, scope: info.key))
+            }
+        } else {
+            appActive = scopes.count
+            scopes.append(Scope(
+                kind: .app(nil),
+                title: String(localized: "Tabs", comment: "Exposé page title for all app tabs next to a multiplexer page"),
+                tabIDs: tabsModel.orderProjection.navigationTabIDs,
+                currentID: tabsModel.selectedTabID
+            ))
+        }
+        let active = (showsMultiplexer && multiplexerAttached) ? 0 : appActive
+        return (scopes, active, appActive)
+    }
+
+    /// The feed's state or topology changed.
+    func muxFeedDidChange() {
+        // Starting the feed notifies synchronously; the attach path is
+        // already inside a refresh that will pick the new state up.
+        guard !isAttachingMultiplexer else { return }
+        guard let muxFeed, let host = multiplexerHostTabID else { return }
+        if !multiplexerAttached {
+            // Detection finished: adopt the page if we're still on the host tab.
+            guard isActive, muxFeed.isServing, tabsModel?.selectedTabID == host else { return }
+            multiplexerAttached = true
+            showsMultiplexer = true
+            refreshScope()
+            return
+        }
+        if muxFeed.state == .unsupported {
+            multiplexerAttached = false
+            showsMultiplexer = false
+        }
+        // Tab ids survive a topology change: force the rebuild that carries
+        // the new layouts, titles, current tab, and header state.
+        refreshScope(force: true)
     }
 
     /// The view is previewing `ids` (a neighbor scope dragged in); empty ends it.
@@ -239,6 +373,11 @@ final class TabExposeController {
         guard isActive else { return }
         progress = 0
         velocity = 0
+        // Detach first so the feed's stop notification doesn't re-scope.
+        multiplexerAttached = false
+        showsMultiplexer = false
+        multiplexerHostTabID = nil
+        muxFeed?.stopNow()
         finishHide()
     }
 
@@ -349,10 +488,17 @@ final class TabExposeController {
     /// Snapshot the scope and tell the host we're about to show. False if there is nothing to show.
     private func activate() -> Bool {
         guard let tabsModel else { return false }
+        attachMultiplexer()
         refreshScope(announce: false)
-        guard !tabIDs.isEmpty else { return false }
+        guard !tabIDs.isEmpty || showsMultiplexer else {
+            muxFeed?.stop(grace: 0)
+            multiplexerAttached = false
+            multiplexerHostTabID = nil
+            return false
+        }
         heroTabID = tabsModel.selectedTabID
-        highlightedTabID = tabsModel.selectedTabID.flatMap { tabIDs.contains($0) ? $0 : nil } ?? tabIDs.first
+        let landing = showsMultiplexer ? muxFeed?.activeTabUUID : tabsModel.selectedTabID
+        highlightedTabID = landing.flatMap { tabIDs.contains($0) ? $0 : nil } ?? tabIDs.first
         pendingSelectedTabID = nil
         hideDeadline = 0
         lastTick = 0
@@ -393,8 +539,49 @@ final class TabExposeController {
         pendingScopeTransition = nil
         scopeTransition = nil
         previewTabIDs = []
+        if multiplexerHostTabID != nil {
+            // Keep the session's picture warm briefly for a quick re-entry.
+            muxFeed?.stop(grace: 3)
+        }
+        multiplexerAttached = false
+        showsMultiplexer = false
+        multiplexerHostTabID = nil
         observer?.tabExposeDidChangeActivity(self)
         onDidDismiss?()
+    }
+
+    /// The multiplexer page always belongs to the SELECTED tab: after any
+    /// selection change (scope paging, ⌘N, the sidebar) the feed re-binds to
+    /// that tab's terminal, and the page disappears if it has no multiplexer.
+    /// Which page is showing is the user's choice and is preserved.
+    private func rebindMultiplexerIfNeeded() {
+        guard isActive, tabsModel?.selectedTabID != multiplexerHostTabID else { return }
+        let wasShowing = showsMultiplexer
+        attachMultiplexer()
+        showsMultiplexer = wasShowing && multiplexerAttached
+    }
+
+    /// Open on the multiplexer page when the selected tab's terminal is
+    /// attached to one and the feed can serve it.
+    private func attachMultiplexer() {
+        multiplexerAttached = false
+        showsMultiplexer = false
+        // Remember the tab that was evaluated even when it has no
+        // multiplexer, so the rebind check does not re-probe every refresh.
+        multiplexerHostTabID = tabsModel?.selectedTabID
+        isAttachingMultiplexer = true
+        defer { isAttachingMultiplexer = false }
+        guard TabExposeSettings.multiplexerEnabled() else { return }
+        guard let feed = muxFeed, let terminal = multiplexerTerminal?() else { return }
+        guard feed.start(terminal: terminal) else {
+            // Whatever the feed was serving belongs to another tab now.
+            feed.stop(grace: 1)
+            return
+        }
+        // Still detecting: the page is adopted when the feed reports in.
+        guard feed.isServing else { return }
+        multiplexerAttached = true
+        showsMultiplexer = true
     }
 
     private func rubberBanded(_ p: CGFloat) -> CGFloat {
@@ -405,16 +592,24 @@ final class TabExposeController {
 
     /// Re-read the scope from the model. Tabs that left are dropped (their
     /// cells vanish); a new selection made elsewhere becomes a select.
-    func refreshScope(announce: Bool = true) {
+    /// `force` rebuilds the cells even when the scope's membership is
+    /// unchanged: the multiplexer feed revises pane layouts, titles, badges,
+    /// the session's own current tab, and its header state under stable tab
+    /// ids, and cells hold those values until they are rebuilt.
+    func refreshScope(announce: Bool = true, force: Bool = false) {
         guard let tabsModel else { return }
-        let projection = tabsModel.orderProjection
-        let ids = projection.navigationTabIDs
-        let title = projection.activeScopeTitle
+        rebindMultiplexerIfNeeded()
+        let list = scopeList()
+        let scope = list.scopes.indices.contains(list.activeIndex) ? list.scopes[list.activeIndex] : nil
+        let ids = scope?.tabIDs ?? []
+        let title = scope?.title
         let scoped: Bool = {
-            if case .flat = projection.mode { return false }
+            if list.scopes.count > 1 { return true }
+            if case .flat = tabsModel.orderProjection.mode { return false }
             return true
         }()
-        let scopeChanged = ids != tabIDs
+        let multiplexerPage = scope?.isMultiplexer ?? false
+        let scopeChanged = ids != tabIDs || multiplexerPage != showsMultiplexer
         let changed = scopeChanged || title != scopeTitle || scoped != isScoped
         // Only a real scope change pages; a stale direction must not leak
         // into a later announce.
@@ -424,15 +619,35 @@ final class TabExposeController {
         tabIDs = ids
         scopeTitle = title
         isScoped = scoped
+        showsMultiplexer = multiplexerPage
         guard isActive else { return }
 
-        if ids.isEmpty {
+        if ids.isEmpty, !multiplexerPage {
             forceHide(reason: "scopeEmpty")
             return
         }
         isRefreshingScope = true
         highlightChangedDuringRefresh = false
         defer { isRefreshingScope = false }
+        if multiplexerPage {
+            // The hero is the attached app tab; the highlight follows the
+            // session's own current tab until the user moves it.
+            heroTabID = tabsModel.selectedTabID
+            if let h = highlightedTabID, !ids.contains(h) {
+                highlightedTabID = scope?.currentID ?? ids.first
+            } else if highlightedTabID == nil {
+                highlightedTabID = scope?.currentID ?? ids.first
+            }
+            scopeTransition = scopeChanged ? transition : nil
+            if scopeTransition != nil { previewTabIDs = previousIDs }
+            if announce, changed || highlightChangedDuringRefresh || force {
+                if changed { onScopeDidChange?(ids) }
+                observer?.tabExposeDidChangeCells(self)
+            } else {
+                scopeTransition = nil
+            }
+            return
+        }
         if let selected = tabsModel.selectedTabID, selected != heroTabID, ids.contains(selected) {
             if scopeChanged || phase == .settling(target: 0) {
                 // The selection moved to another scope (group swipe, ⌘⌥[ ],
@@ -451,7 +666,7 @@ final class TabExposeController {
             heroTabID = tabsModel.selectedTabID
         }
         if let h = highlightedTabID, !ids.contains(h) {
-            highlightedTabID = ids.first
+            highlightedTabID = scope?.currentID ?? ids.first
         }
         scopeTransition = scopeChanged ? transition : nil
         if scopeTransition != nil {
@@ -459,7 +674,7 @@ final class TabExposeController {
             // the host's reconcile until the view drops it (`setScopePreview([])`).
             previewTabIDs = previousIDs
         }
-        if announce, changed || highlightChangedDuringRefresh {
+        if announce, changed || highlightChangedDuringRefresh || force {
             if changed { onScopeDidChange?(ids) }
             observer?.tabExposeDidChangeCells(self)
         } else {

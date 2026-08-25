@@ -145,7 +145,11 @@ enum RemoteExecProbe {
             }
             let result = try await HelperConnection.shared.executeCommand(
                 command: command,
-                timeout: timeout
+                timeout: timeout,
+                // Same bound as the remote transports: a local command can
+                // stream just as much, and the caller's framing detects the
+                // truncation exactly as it does for a capped SSH channel.
+                maxOutputBytes: maxResponseBytes
             )
             guard !result.timedOut else { throw ProbeError.timedOut }
             return result.output

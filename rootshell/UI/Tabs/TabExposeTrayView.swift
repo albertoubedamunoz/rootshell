@@ -20,6 +20,8 @@ final class TabExposeTrayView: UIScrollView {
     private let headerIcon = UIImageView()
     private let headerLabel = UILabel()
     private var appearance = TabExposeView.Appearance()
+    /// Set while this page shows a multiplexer session's tabs.
+    private weak var muxFeed: MultiplexerExposeFeed?
 
     init() {
         super.init(frame: .zero)
@@ -60,16 +62,20 @@ final class TabExposeTrayView: UIScrollView {
         scopeTitle: String?,
         scoped: Bool,
         tabsModel: TabsModel,
+        muxFeed: MultiplexerExposeFeed? = nil,
         selectedID: UUID?,
         highlightedID: UUID?,
         appearance: TabExposeView.Appearance
     ) -> [TabExposeCellView] {
         self.appearance = appearance
+        self.muxFeed = muxFeed
         var byID = Dictionary(uniqueKeysWithValues: cells.map { ($0.tabID, $0) })
         var ordered: [TabExposeCellView] = []
         var entering: [TabExposeCellView] = []
         for (index, id) in ids.enumerated() {
-            guard let tab = tabsModel.tab(withID: id) else { continue }
+            let tab = tabsModel.tab(withID: id)
+            let muxTab = tab == nil ? muxFeed?.tab(uuid: id) : nil
+            guard tab != nil || muxTab != nil else { continue }
             let cell: TabExposeCellView
             if let existing = byID.removeValue(forKey: id) {
                 cell = existing
@@ -78,14 +84,25 @@ final class TabExposeTrayView: UIScrollView {
                 addSubview(cell)
                 entering.append(cell)
             }
-            cell.mirror.tab = tab
+            if let tab {
+                cell.showMirror(of: tab)
+            } else if let muxTab {
+                cell.showMultiplexerTab(muxTab, feed: muxFeed)
+            }
             cell.isCurrent = id == selectedID
             cell.isHighlighted = id == highlightedID
             // Captions only re-host when the cell's position changes (hover
-            // highlight churn must not rebuild SwiftUI per cell).
-            if cell.captionIndex != index {
+            // highlight churn must not rebuild SwiftUI per cell). A
+            // multiplexer caption also follows the tab's title.
+            let captionKey = muxTab.map { "\($0.title)|\($0.badge ?? "")" }
+            if cell.captionIndex != index || cell.captionKey != captionKey {
                 cell.captionIndex = index
-                cell.setCaption(appearance.showsCaptions ? appearance.captionProvider?(tab, index) : nil)
+                cell.captionKey = captionKey
+                if let tab {
+                    cell.setCaption(appearance.showsCaptions ? appearance.captionProvider?(tab, index) : nil)
+                } else if let muxTab {
+                    cell.setCaption(appearance.showsCaptions ? appearance.muxCaptionProvider?(muxTab, index) : nil)
+                }
             }
             ordered.append(cell)
         }
@@ -95,10 +112,19 @@ final class TabExposeTrayView: UIScrollView {
 
         header.isHidden = !scoped
         if scoped {
-            headerLabel.text = [scopeTitle, "\(ids.count)"]
-                .compactMap { $0 }
-                .joined(separator: " · ")
-            let symbol = tabsModel.isProjectGroupingActive ? "folder" : "square.grid.2x2"
+            var parts = [scopeTitle, "\(ids.count)"].compactMap { $0 }
+            if let muxFeed {
+                switch muxFeed.state {
+                case .loading:
+                    parts = [scopeTitle, String(localized: "Loading…", comment: "Exposé header while the multiplexer session is being read")].compactMap { $0 }
+                case .failed:
+                    parts.append(String(localized: "Unavailable", comment: "Exposé header when the multiplexer session stopped answering"))
+                default:
+                    break
+                }
+            }
+            headerLabel.text = parts.joined(separator: " · ")
+            let symbol = muxFeed != nil ? "rectangle.split.2x1" : (tabsModel.isProjectGroupingActive ? "folder" : "square.grid.2x2")
             headerIcon.image = UIImage(systemName: symbol)
         }
         applyAppearance(appearance)
@@ -159,12 +185,18 @@ final class TabExposeTrayView: UIScrollView {
 
     // MARK: - Per frame
 
-    /// Refresh the mirrors of on-screen cells only.
-    func syncVisibleMirrors() {
+    /// Refresh the previews of on-screen cells only, and report which
+    /// multiplexer panes those cells show. Empty for a page of app tabs, so
+    /// the caller can tell the feed that none of its panes are on screen.
+    @discardableResult
+    func syncVisibleMirrors() -> Set<String> {
         let visible = bounds
+        var panes: Set<String> = []
         for cell in cells where cell.frame.intersects(visible) {
-            cell.mirror.sync()
+            cell.syncPreview()
+            panes.formUnion(cell.muxPreview.paneIDs)
         }
+        return panes
     }
 
     // MARK: - Hit testing / scrolling

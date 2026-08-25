@@ -197,6 +197,8 @@ struct MainView: View {
 
     // Tab exposé (live previews of the current scope; see TabExposeController).
     @State var tabExpose = TabExposeController()
+    /// Serves the exposé's multiplexer page (herdr / tmux / zellij tabs).
+    @State var muxExposeFeed = MultiplexerExposeFeed()
     
     
     // Unified main-alert queue: host-key validation, SSH/GPG agent
