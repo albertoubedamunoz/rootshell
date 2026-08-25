@@ -55,7 +55,8 @@ final class PingCommand {
     private var resolvedHostname: String = ""
     private var expectedSourceAddress: sockaddr_storage?
 
-    // Reverse DNS cache (ip → hostname) to avoid repeated blocking lookups
+    // Reverse DNS cache (ip → hostname, or ip → ip after failure) to
+    // avoid repeated blocking lookups.
     private var dnsCache: [String: String] = [:]
 
     // Socket-reset machinery: invalidation can come from kernel-reported
@@ -219,6 +220,8 @@ final class PingCommand {
             }
 
             let replies = await receivePings(waitTime: receiveWait)
+            if Task.isCancelled { break }
+
             var shouldExit = false
 
             for reply in replies {
@@ -933,8 +936,15 @@ final class PingCommand {
                 if config.verbose && !config.quiet && !config.quieter {
                     let icmpCode = recvBuf[icmpOffset + 1]
                     let errAddr = extractSourceAddress(&srcAddr)
+                    let errHostname: String?
+                    if config.numeric {
+                        errHostname = nil
+                    } else {
+                        errHostname = await cachedReverseLookup(ip: errAddr, storage: srcAddr)
+                        guard !Task.isCancelled else { return replies }
+                    }
                     let errFrom: String
-                    if !config.numeric, let hostname = await cachedReverseLookup(ip: errAddr, storage: srcAddr), hostname != errAddr {
+                    if let hostname = errHostname, hostname != errAddr {
                         errFrom = "\(hostname) (\(errAddr))"
                     } else {
                         errFrom = errAddr
@@ -980,9 +990,14 @@ final class PingCommand {
 
             // Reverse DNS lookup (unless -n, or output suppressed)
             let fromHostname: String?
-            if !config.numeric && !config.quiet && !config.quieter,
-               let hostname = await cachedReverseLookup(ip: fromAddr, storage: srcAddr), hostname != fromAddr {
-                fromHostname = hostname
+            if !config.numeric && !config.quiet && !config.quieter {
+                let hostname = await cachedReverseLookup(ip: fromAddr, storage: srcAddr)
+                guard !Task.isCancelled else { return replies }
+                if let hostname, hostname != fromAddr {
+                    fromHostname = hostname
+                } else {
+                    fromHostname = nil
+                }
             } else {
                 fromHostname = nil
             }
@@ -1337,32 +1352,41 @@ final class PingCommand {
     // MARK: - Reverse DNS (-n suppresses)
 
     /// Cached reverse DNS with async off-main-actor resolution.
-    /// Cache hits are instant; misses run getnameinfo() on the cooperative
-    /// thread pool so the main actor stays responsive.
+    /// Cache hits are instant; misses run getnameinfo() on a utility queue so
+    /// the main actor stays responsive. Failures cache the numeric address to
+    /// avoid retrying the same blocking lookup for every reply.
     private func cachedReverseLookup(ip: String, storage: sockaddr_storage) async -> String? {
         if let cached = dnsCache[ip] { return cached }
-        guard let hostname = await Self.reverseResolve(storage) else { return nil }
-        dnsCache[ip] = hostname
-        return hostname
+        let resolved = await Self.reverseResolve(storage) ?? ip
+        guard !Task.isCancelled else { return nil }
+        dnsCache[ip] = resolved
+        return resolved
     }
 
     /// Runs blocking getnameinfo() off the main actor.
     private nonisolated static func reverseResolve(_ storage: sockaddr_storage) async -> String? {
-        var storageCopy = storage
-        var hostBuf = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-        let len: socklen_t
-        if storageCopy.ss_family == sa_family_t(AF_INET6) {
-            len = socklen_t(MemoryLayout<sockaddr_in6>.size)
-        } else {
-            len = socklen_t(MemoryLayout<sockaddr_in>.size)
-        }
-        let rc = withUnsafePointer(to: &storageCopy) { ptr in
-            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                getnameinfo(sockPtr, len, &hostBuf, socklen_t(NI_MAXHOST), nil, 0, 0)
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                var storageCopy = storage
+                var hostBuf = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                let len: socklen_t
+                if storageCopy.ss_family == sa_family_t(AF_INET6) {
+                    len = socklen_t(MemoryLayout<sockaddr_in6>.size)
+                } else {
+                    len = socklen_t(MemoryLayout<sockaddr_in>.size)
+                }
+                let rc = withUnsafePointer(to: &storageCopy) { ptr in
+                    ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
+                        getnameinfo(sockPtr, len, &hostBuf, socklen_t(NI_MAXHOST), nil, 0, 0)
+                    }
+                }
+                guard rc == 0 else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: String(cString: hostBuf))
             }
         }
-        guard rc == 0 else { return nil }
-        return String(cString: hostBuf)
     }
 
     // MARK: - ICMP Error Descriptions (-v)
