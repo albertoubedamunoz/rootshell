@@ -55,6 +55,10 @@ extension Ghostty {
                     if sublayer.frame != bounds {
                         sublayer.frame = bounds
                     }
+                    // Previews composite at ~0.25x; bilinear crawls on glyph stems.
+                    if sublayer.minificationFilter != .trilinear {
+                        sublayer.minificationFilter = .trilinear
+                    }
                 }
             }
 
