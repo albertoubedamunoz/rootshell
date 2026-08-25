@@ -84,7 +84,7 @@ struct SSHConfig: Codable, Hashable {
     /// Common PATH entries that should be available for non-interactive SSH exec
     /// requests. This covers Homebrew on macOS, Linuxbrew, Go-installed tools,
     /// and common system locations without depending on shell startup files.
-    static let remoteExecPathEntries = [
+    nonisolated static let remoteExecPathEntries = [
         "/opt/homebrew/bin",
         "/usr/local/bin",
         "$HOME/go/bin",
@@ -99,7 +99,7 @@ struct SSHConfig: Codable, Hashable {
 
     /// Shell snippet that prepends common tool locations while preserving the
     /// remote host's existing PATH.
-    static let remoteExecPathPrefix = "export PATH=\"\(remoteExecPathEntries.joined(separator: ":")):$PATH\"; "
+    nonisolated static let remoteExecPathPrefix = "export PATH=\"\(remoteExecPathEntries.joined(separator: ":")):$PATH\"; "
 
     /// The hostname or IP address to connect to
     var host: String

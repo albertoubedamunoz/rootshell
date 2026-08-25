@@ -43,7 +43,7 @@ enum LocalShellSettings: Sendable {
 
     // MARK: - Validation
 
-    private enum ValidationFailure {
+    private nonisolated enum ValidationFailure {
         case illegalCharacters
         case unbalancedQuote
         case relativeExecutable

@@ -272,7 +272,7 @@ final class TabExposeController {
         // switch: the view's swipe commit must finish arming its settle
         // before the pages swap roles.
         let deferredRefresh = { [weak self] in
-            Task { @MainActor [weak self] in
+            _ = Task { @MainActor [weak self] in
                 guard let self, self.isActive else { return }
                 self.refreshScope()
             }
