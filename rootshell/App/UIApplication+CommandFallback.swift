@@ -53,6 +53,10 @@ extension UIApplication {
 
     @MainActor
     private func ghostty_postNotification(_ name: Notification.Name, userInfo: [String: Any] = [:]) {
+        // App-wide chords arrive here when TerminalView is out of the responder
+        // chain, so its `pressesBegan` hook never sees them.
+        noteAlwaysOnDisplayInteraction()
+
         var info = userInfo
         if let sceneID = ghostty_activeWindowSceneSessionID() {
             info[GhosttyCommandRouting.windowSceneSessionIDKey] = sceneID

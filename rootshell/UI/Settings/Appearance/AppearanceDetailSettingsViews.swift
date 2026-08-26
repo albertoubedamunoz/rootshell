@@ -276,7 +276,8 @@ struct WindowSettingsView: View {
 
     /// Whether the "Display" Section has anything to show. On Catalyst the
     /// brightness controls are its only rows, so the whole Section is hidden
-    /// pre-26; on iOS the Full Screen / Always On Display toggles keep it alive.
+    /// pre-26; on iOS the Full Screen toggle and Always On Display slider keep it
+    /// alive.
     private var showDisplaySection: Bool {
         #if targetEnvironment(macCatalyst)
         return brightnessBoostAvailable
@@ -469,8 +470,8 @@ struct WindowSettingsView: View {
             }
 
             // EDR is meaningless on visionOS, so the Display section (and its HDR
-            // brightness boost) is excluded there. The Full Screen / Always On
-            // Display / home-indicator toggles are iOS-only concepts, so they stay
+            // brightness boost) is excluded there. The Full Screen / home-indicator
+            // toggles and the Always On Display slider are iOS-only concepts, so they stay
             // gated to non-Catalyst; the brightness boost shows on both iOS and
             // Catalyst (HDR-capable built-in and external displays) — but only on
             // OS 26+, where the EDR APIs exist. On Catalyst the boost is the
@@ -487,8 +488,34 @@ struct WindowSettingsView: View {
                 )
                 .themedRow()
 
-                Toggle("Always On Display", isOn: $alwaysOnDisplayManager.isEnabled)
-                    .themedRow()
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Always On Display")
+                        Spacer()
+                        Text(alwaysOnDisplayManager.duration.displayValue)
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
+                            .frame(width: 68, alignment: .trailing)
+                    }
+                    HStack(spacing: 12) {
+                        Image(systemName: "moon.zzz")
+                            .foregroundStyle(.secondary)
+                        Slider(
+                            value: $alwaysOnDisplayManager.sliderValue,
+                            in: AlwaysOnDisplayDuration.sliderRange,
+                            step: 1
+                        )
+                        .accessibilityValue(alwaysOnDisplayManager.duration.displayValue)
+                        Image(systemName: "infinity")
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(alwaysOnDisplayManager.duration.explanation)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 4)
+                .themedRow()
 
                 if deviceHasHomeIndicator {
                     DescribedToggle(
