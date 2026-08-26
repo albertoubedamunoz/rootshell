@@ -484,6 +484,12 @@ extension Ghostty.TerminalView {
             return (true, true)
         }
 
+        // The discovery picker is the visible terminal overlay, so Escape must
+        // dismiss it before reaching other Escape actions such as AI or tmux.
+        if key.keyCode == .keyboardEscape, dismissSessionDiscoveryIfPresented() {
+            return (true, true)
+        }
+
         // Handle Escape overlays early so key is marked handled when routed via pressesBegan
         // (not UIKeyCommand), such as on Mac Catalyst with mod-tap source-key support.
         if key.keyCode == .keyboardEscape && aiAgentOverlayActive {
@@ -503,10 +509,6 @@ extension Ghostty.TerminalView {
 
         // Intercept keys when session discovery overlay is visible.
         if discoveredSessions != nil {
-            if key.keyCode == .keyboardEscape {
-                dismissSessionDiscovery()
-                return (true, true)
-            }
             if key.keyCode == .keyboardReturnOrEnter {
                 selectHighlightedSession()
                 return (true, true)
@@ -1805,9 +1807,8 @@ extension Ghostty.TerminalView {
         commitKoreanCompositionIfNeeded(external: true)
         if overlayConsumedKeyCommand(command) { return }
         if keysConsumedByOverlayAction.contains(.keyboardEscape) { return }
-        if discoveredSessions != nil {
+        if dismissSessionDiscoveryIfPresented() {
             keysConsumedByOverlayAction.insert(.keyboardEscape)
-            dismissSessionDiscovery()
             return
         }
         if aiAgentOverlayActive {
@@ -1878,10 +1879,7 @@ extension Ghostty.TerminalView {
             characters: UIKeyCommand.inputEscape
         )
         if presentedOverlayKeyHandler?(cancelEvent) == true { return }
-        if discoveredSessions != nil {
-            dismissSessionDiscovery()
-            return
-        }
+        if dismissSessionDiscoveryIfPresented() { return }
         if aiAgentOverlayActive {
             NotificationCenter.default.post(name: .toggleAIAgent, object: self)
             return

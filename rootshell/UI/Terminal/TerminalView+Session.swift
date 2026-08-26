@@ -736,6 +736,15 @@ extension Ghostty.TerminalView {
         NotificationCenter.default.post(name: .ghosttySessionDiscoveryChanged, object: self)
     }
 
+    /// Dismisses the session discovery overlay when it is currently presented.
+    /// Returns true when the caller should consume the Escape that triggered it.
+    @discardableResult
+    func dismissSessionDiscoveryIfPresented() -> Bool {
+        guard discoveredSessions != nil else { return false }
+        dismissSessionDiscovery()
+        return true
+    }
+
     /// Whether this terminal can start a tmux control-mode client from discovery.
     var allowsTmuxControlDiscoveryAttach: Bool {
         switch connectionConfig {

@@ -1035,6 +1035,13 @@ extension Ghostty.TerminalView {
 
     /// Sends user input to the appropriate destination based on platform
     func sendUserInput(_ data: Data) {
+        // Raw/synthesized Escape sources do not all pass through UIKit's key
+        // handlers. Keep this final input boundary as the cross-platform safety
+        // net, before typing state, tmux detach, or terminal forwarding.
+        if data.count == 1, data.first == 0x1B, dismissSessionDiscoveryIfPresented() {
+            return
+        }
+
         // tmux -CC gateway: a lone ESC delivered to the gateway view means the
         // user is on the gateway and wants out of control mode. Detach instead of
         // forwarding the raw ESC to tmux. This is the convergence point for every
