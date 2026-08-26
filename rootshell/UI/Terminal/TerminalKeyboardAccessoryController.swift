@@ -51,6 +51,13 @@ final class TerminalKeyboardAccessoryController: NSObject {
     var activeKeyboardModifiers: KeyModifiers = []
     var onActiveKeyboardModifiersChanged: ((KeyModifiers) -> Void)?
     var keyboardManuallyDismissed = false
+    /// Hosting choice captured when toolbar-only mode begins. A detached iPad
+    /// keyboard must keep the toolbar in the accessory slot: replacing the
+    /// floating keyboard with the accessory as its primary input view preserves
+    /// the keyboard's large frame and leaves a cropped, immovable empty panel.
+    /// Docked keyboards use the primary slot so the toolbar can sit flush with
+    /// the screen edge without UIKit's accessory placeholder below it.
+    private var toolbarOnlyUsesPrimaryInputView = true
     var toolbarOnlyMode = false {
         didSet {
             EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
@@ -181,8 +188,10 @@ final class TerminalKeyboardAccessoryController: NSObject {
         let hasVisibleReportedKeyboardFrame = visibleReportedKeyboardFrame != nil
         let accessoryRestsAtScreenEdge: Bool
         if toolbarOnlyMode {
-            // The toolbar is the primary input view, flush with the edge.
-            accessoryRestsAtScreenEdge = true
+            // A primary toolbar is flush with the edge. The detached-iPad
+            // compatibility path stays in the accessory slot and retains the
+            // clearance UIKit supplies below that slot.
+            accessoryRestsAtScreenEdge = toolbarOnlyUsesPrimaryInputView
         } else if hardwareAccessoryOwnsKeyboardRegion {
             // A tall accessory-only region can otherwise look like a docked
             // software keyboard when drawer rows are open.
@@ -277,10 +286,13 @@ final class TerminalKeyboardAccessoryController: NSObject {
             && !host.keyboardAIAgentOverlayActive
             && !keyboardToolbarCollapsed
         updateBottomEdgeHomeGestureProtection(accessoryIsVisible: isVisible)
-        // In toolbar-only mode the accessory serves as the primary input view
-        // instead (see `inputView`); handing it out from both slots in one
-        // reload would let the second container steal it from the first.
-        guard !toolbarOnlyMode else { return nil }
+        // In the normal toolbar-only path the accessory serves as the primary
+        // input view instead (see `inputView`); handing it out from both slots
+        // in one reload would let the second container steal it from the first.
+        // A detached iPad keyboard deliberately keeps the pre-merge
+        // accessory-over-empty-input arrangement to avoid inheriting the
+        // floating keyboard's oversized frame.
+        guard !toolbarOnlyMode || !toolbarOnlyUsesPrimaryInputView else { return nil }
         return isVisible ? keyboardAccessory : nil
     }
 
@@ -297,6 +309,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // height from both paths so toolbar-only entry is correct in one pass.
         applyBottomSafeAreaStrip()
         guard toolbarOnlyMode else { return nil }
+        guard toolbarOnlyUsesPrimaryInputView else { return emptyInputView }
         guard let host,
               let accessory = keyboardAccessory,
               shouldShowKeyboardToolbar,
@@ -422,19 +435,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
         keyboardAccessory?.onLayoutInvalidated = { [weak self] in
             self?.refreshKeyboardLayoutAfterAccessoryChange()
         }
-
-        let tabSwitcherObserver = NotificationCenter.default.addObserver(
-            forName: .tabSwitcherVisibilityChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            let visible = notification.userInfo?["visible"] as? Bool
-            Task { @MainActor [weak self] in
-                guard let visible else { return }
-                self?.keyboardAccessory?.setTabSwitcherActive(visible)
-            }
-        }
-        cancellables.insert(AnyCancellable { NotificationCenter.default.removeObserver(tabSwitcherObserver) })
 
         let hwToolbarObserver = NotificationCenter.default.addObserver(
             forName: .keyboardToolbarHardwareSettingChanged,
@@ -576,6 +576,18 @@ final class TerminalKeyboardAccessoryController: NSObject {
     func enterToolbarOnlyMode() {
         _ = emptyInputView
         emptyInputViewHeightConstraint?.constant = 0
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        // Snapshot before changing the input set. Once the software keyboard
+        // starts hiding, its placement frame is no longer reliable enough to
+        // tell whether UIKit is tearing down a detached keyboard.
+        let hasDetachedKeyboardPlacement = UIDevice.current.userInterfaceIdiom == .pad
+            && visibleReportedKeyboardFrame != nil
+            && !EffectManager.shared.isKeyboardDocked
+            && !hardwareAccessoryOwnsKeyboardRegion
+        toolbarOnlyUsesPrimaryInputView = !hasDetachedKeyboardPlacement
+        #else
+        toolbarOnlyUsesPrimaryInputView = true
+        #endif
         toolbarOnlyMode = true
         host?.keyboardSetSoftwareKeyboardRequested(false)
         host?.keyboardSetShaderDismissSuppressed(true)
@@ -592,6 +604,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         host?.keyboardSetShaderDismissSuppressed(false)
         keyboardAccessory?.setDismissButtonShowsRestore(false)
         host?.keyboardReloadInputViews()
+        toolbarOnlyUsesPrimaryInputView = true
     }
 
     func resetFocusLossState() {
@@ -821,9 +834,13 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // is the whole keyboard region there, and with two drawer rows open it
         // passes EffectManager's 100pt docked-keyboard heuristic, which would
         // silently drop the protection while the row still sits on the edge.
-        let toolbarIsAtScreenEdge = toolbarOnlyMode
-            || hardwareAccessoryOnly
-            || !EffectManager.shared.isKeyboardDocked
+        let toolbarIsAtScreenEdge: Bool
+        if toolbarOnlyMode {
+            toolbarIsAtScreenEdge = toolbarOnlyUsesPrimaryInputView
+        } else {
+            toolbarIsAtScreenEdge = hardwareAccessoryOnly
+                || !EffectManager.shared.isKeyboardDocked
+        }
         let enabled = (idiom == .phone || idiom == .pad)
             && isVisible
             && host?.keyboardAccessoryHasBottomSafeAreaSpacer != true

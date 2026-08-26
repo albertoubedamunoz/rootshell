@@ -332,10 +332,6 @@ class KeyboardAccessoryView: UIInputView {
         toolbarView.setDismissButtonShowsRestore(showsRestore)
     }
 
-    func setTabSwitcherActive(_ active: Bool) {
-        toolbarView.setTabSwitcherActive(active)
-    }
-
     func setMouseCaptureOverrideActive(_ active: Bool) {
         toolbarView.setMouseCaptureOverrideActive(active)
     }
