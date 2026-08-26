@@ -201,6 +201,12 @@ struct SidebarMetrics: Equatable {
     var agentCardRowHeight: CGFloat {
         tabRowHeight + 2 * (ceil(UIFont.systemFont(ofSize: subtitleSize).lineHeight) + 2)
     }
+
+    /// One shared trailing rail for every row/header accessory. Header
+    /// controls are four points larger than row controls at both densities,
+    /// so using their target as the slot keeps button glyphs, counts, and
+    /// agent marks on one vertical center line without shrinking hit targets.
+    var trailingAccessoryWidth: CGFloat { headerButtonTarget }
 }
 
 // MARK: - Vertical Tab Sidebar
@@ -917,7 +923,10 @@ struct VerticalTabSidebar: View {
 
             headerButton("xmark", action: onDismiss)
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 16)
+        // Match the list's 8pt outer inset plus each row's 8pt trailing
+        // inset, so the header actions land on the same global rail.
+        .padding(.trailing, 16)
         .padding(.top, 12)
         .padding(.bottom, 4)
     }
@@ -1048,11 +1057,15 @@ struct VerticalTabSidebar: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
             .help("Group tabs")
         }
         // Inset the icon/text off the pill's curved ends (matches the
-        // Settings search field's horizontal padding).
-        .padding(.horizontal, 14)
+        // Settings search field's leading padding). The smaller trailing
+        // inset compensates for the capsule's own 12pt outer padding so the
+        // final accessory slot shares the tab/header rail.
+        .padding(.leading, 14)
+        .padding(.trailing, 4)
         // Fixed container height (not vertical padding around a variable
         // field): the search bar must never change size on focus.
         .frame(height: metrics.searchBarHeight)
@@ -1798,8 +1811,10 @@ struct VerticalTabSidebar: View {
             Text("\(count)")
                 .font(.system(size: metrics.hintSize, weight: .medium, design: .monospaced))
                 .foregroundColor(.secondary.opacity(0.75))
+                .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 10)
+        .padding(.trailing, 8)
         .frame(height: max(34, metrics.rowHeight - 10))
         .contentShape(Rectangle())
         .background(
@@ -2008,6 +2023,7 @@ struct VerticalTabSidebar: View {
             Text("\(count)")
                 .font(.system(size: metrics.subtitleSize, design: .monospaced))
                 .foregroundColor(.secondary.opacity(0.7))
+                .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
         }
         .padding(.horizontal, 8)
         .frame(height: max(32, metrics.rowHeight - 12))
@@ -3180,34 +3196,41 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
 
             Spacer(minLength: 4)
 
-            Button(action: onNewWindow) {
-                Image(systemName: "plus.square.on.square")
-                    .font(.system(size: metrics.rowIconSize, weight: .medium))
-                    .foregroundColor(accentTint)
-                    .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("New tmux window")
+            // Match the header toolbar's right-anchored columns: every action
+            // gets the same outer slot and the same inter-slot spacing.
+            HStack(spacing: 4) {
+                Button(action: onNewWindow) {
+                    Image(systemName: "plus.square.on.square")
+                        .font(.system(size: metrics.rowIconSize, weight: .medium))
+                        .foregroundColor(accentTint)
+                        .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
+                .help("New tmux window")
 
-            Button(action: onShowDashboard) {
-                Image(systemName: "rectangle.stack")
-                    .font(.system(size: metrics.rowIconSize, weight: .medium))
-                    .foregroundColor(accentTint)
-                    .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("tmux sessions")
+                Button(action: onShowDashboard) {
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: metrics.rowIconSize, weight: .medium))
+                        .foregroundColor(accentTint)
+                        .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
+                .help("tmux sessions")
 
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: metrics.closeIconSize, weight: .bold))
-                    .foregroundColor(.secondary.opacity(0.7))
-                    .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
-                    .contentShape(Rectangle())
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: metrics.closeIconSize, weight: .bold))
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
             }
-            .buttonStyle(.plain)
         }
         .opacity(isHidden ? 0.55 : 1)
         .padding(.horizontal, 8)
@@ -3284,7 +3307,8 @@ private struct SidebarTabRow: View {
                 mainLine
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 10)
+        .padding(.trailing, 8)
         .padding(.leading, CGFloat(indentLevel) * 20)
         .frame(height: agentRow != nil ? metrics.agentCardRowHeight : metrics.tabRowHeight)
         .contentShape(Rectangle())
@@ -3339,6 +3363,7 @@ private struct SidebarTabRow: View {
             Spacer(minLength: 4)
             // A logo needs a little more room than a glyph to stay legible.
             AgentBrandMark(agentID: row.agentID, size: metrics.subtitleSize + 1)
+                .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
         }
     }
 
@@ -3392,8 +3417,20 @@ private struct SidebarTabRow: View {
                 }
                 .buttonStyle(.plain)
                 .opacity(recedingOpacity)
+                .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
+            } else {
+                trailingAccessoryPlaceholder
             }
         }
+    }
+
+    /// Keeps rows without a visible final control on the same accessory rail
+    /// as close buttons and agent marks. Color.clear preserves layout while
+    /// remaining non-interactive and absent from accessibility.
+    private var trailingAccessoryPlaceholder: some View {
+        Color.clear
+            .frame(width: metrics.trailingAccessoryWidth, height: 1)
+            .accessibilityHidden(true)
     }
 
     /// Unread work reads bolder even when unselected (t3code).
