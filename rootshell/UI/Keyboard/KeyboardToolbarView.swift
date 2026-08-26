@@ -298,7 +298,6 @@ class KeyboardToolbarView: UIView {
 
     private var modifierButtons: [KeyboardModifierButton] = []
     private var dismissButton: KeyboardSymbolButton?
-    private var tabSwitcherButton: KeyboardSymbolButton?
     private var mouseCaptureToggleButton: KeyboardSymbolButton?
     #if os(visionOS)
     private var arrowToggleButton: KeyboardSymbolButton?
@@ -566,7 +565,6 @@ class KeyboardToolbarView: UIView {
 
         // Reset tracked references
         dismissButton = nil
-        tabSwitcherButton = nil
         mouseCaptureToggleButton = nil
         arrowToggleButton = nil
         extraKeysToggleButton = nil
@@ -782,7 +780,6 @@ class KeyboardToolbarView: UIView {
             sizes: sizes
         )
         button.delegate = self
-        tabSwitcherButton = button
         return button
     }
 
@@ -1206,10 +1203,6 @@ class KeyboardToolbarView: UIView {
             return "chevron.up"
         }
         return dismissButtonShowsRestore ? "chevron.up" : "chevron.down"
-    }
-
-    func setTabSwitcherActive(_ active: Bool) {
-        tabSwitcherButton?.isActive = active
     }
 
     func setMouseCaptureOverrideActive(_ active: Bool) {
