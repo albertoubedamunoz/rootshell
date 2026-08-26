@@ -101,17 +101,14 @@ enum SessionDiscoveryCommand {
                         + " _zmaj=${_zv%%.*}; _zmin=${_zv#*.};"
                         + " if [ \"${_zmaj:-0}\" -gt 0 ] 2>/dev/null || [ \"${_zmin:-0}\" -ge 44 ] 2>/dev/null; then"
                         + " echo \"::CAPTURES::\";"
-                        + " for s in $(zellij list-sessions --short 2>/dev/null); do"
-                        + " printf \"::CAPTURE:%s::\\n\" \"$s\";"
-                        + " zellij -s \"$s\" action dump-screen --ansi 2>/dev/null || true;"
-                        + " done;"
+                        + " \(ZellijDiscoveryCommand.captureLoop)"
                         + " fi;"
                 }
                 zellijParts.append(section)
             }
 
-            // Session listing works on any zellij version.
-            // ANSI screen dumps require >= 0.44.0 for reliable stdout output.
+            // Session listing works on any zellij version. Previews need
+            // >= 0.44.0 (stdout dumps, --ansi, --pane-id, list-panes --json).
             parts.append(
                 "echo \"::ZELLIJ_START_\(nonce)::\";"
                 + " if command -v zellij >/dev/null 2>&1; then"

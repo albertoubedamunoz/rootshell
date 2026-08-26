@@ -48,10 +48,30 @@ enum ZellijDiscoveryError: LocalizedError {
 // MARK: - Discovery Command
 
 enum ZellijDiscoveryCommand {
+    /// Per-session preview loop, zellij >= 0.44 only. `dump-screen` without
+    /// `--pane-id` resolves the focused pane through a connected client, so it
+    /// is empty for detached sessions; fall back to the focused (else first)
+    /// terminal pane from `list-panes --json`. The awk splits the pretty
+    /// printed JSON on `}`; every key it needs precedes the nested
+    /// `index_in_pane_group: {}`. EXITED sessions cannot be dumped.
+    static let captureLoop: String =
+        "for s in $(zellij list-sessions --no-formatting 2>/dev/null | grep -v EXITED | cut -d \" \" -f1); do"
+        + " printf \"::CAPTURE:%s::\\n\" \"$s\";"
+        + " _zd=$(zellij -s \"$s\" action dump-screen --ansi 2>/dev/null);"
+        + " if [ -z \"$_zd\" ]; then"
+        + " _zp=$(zellij -s \"$s\" action list-panes --json 2>/dev/null | awk \"BEGIN{RS=\\\"}\\\"}"
+        + " /\\\"is_plugin\\\": *false/ && /\\\"is_selectable\\\": *true/ && !/\\\"is_suppressed\\\": *true/ && match(\\$0,/\\\"id\\\": *[0-9]+/){"
+        + " s=substr(\\$0,RSTART,RLENGTH); sub(/.*: */,\\\"\\\",s); if(/\\\"is_focused\\\": *true/){f=s; exit} if(f==\\\"\\\"){f=s} }"
+        + " END{if(f!=\\\"\\\")print f}\");"
+        + " [ -n \"$_zp\" ] && _zd=$(zellij -s \"$s\" action dump-screen --pane-id \"terminal_$_zp\" --ansi 2>/dev/null);"
+        + " fi;"
+        + " printf \"%s\\n\" \"$_zd\";"
+        + " done;"
+
     /// Uses login shell (-l) so PATH and env vars are set correctly.
-    /// Session listing works on any version. ANSI screen dumps require >= 0.44.0.
+    /// Session listing works on any version; previews require >= 0.44.0.
     static let command: String = {
-        return "sh -lc '\(SSHConfig.remoteExecPathPrefix)command -v zellij >/dev/null 2>&1 || exit 1; echo \"::SESSIONS::\"; zellij list-sessions --no-formatting 2>/dev/null; _zv=$(zellij --version 2>/dev/null | grep -oE \"[0-9]+\\.[0-9]+\" | head -1); _zmaj=${_zv%%.*}; _zmin=${_zv#*.}; if [ \"${_zmaj:-0}\" -gt 0 ] 2>/dev/null || [ \"${_zmin:-0}\" -ge 44 ] 2>/dev/null; then echo \"::CAPTURES::\"; for s in $(zellij list-sessions --short 2>/dev/null); do printf \"::CAPTURE:%s::\\n\" \"$s\"; zellij --session \"$s\" action dump-screen --ansi 2>/dev/null || true; done; fi'"
+        return "sh -lc '\(SSHConfig.remoteExecPathPrefix)command -v zellij >/dev/null 2>&1 || exit 1; echo \"::SESSIONS::\"; zellij list-sessions --no-formatting 2>/dev/null; _zv=$(zellij --version 2>/dev/null | grep -oE \"[0-9]+\\.[0-9]+\" | head -1); _zmaj=${_zv%%.*}; _zmin=${_zv#*.}; if [ \"${_zmaj:-0}\" -gt 0 ] 2>/dev/null || [ \"${_zmin:-0}\" -ge 44 ] 2>/dev/null; then echo \"::CAPTURES::\"; \(captureLoop) fi'"
     }()
 }
 
