@@ -2093,10 +2093,7 @@ extension Ghostty {
                 guard let data = action.data else { return }
 
                 if data == Data([0x1B]) {
-                    if self.discoveredSessions != nil {
-                        self.dismissSessionDiscovery()
-                        return
-                    }
+                    if self.dismissSessionDiscoveryIfPresented() { return }
                     if self.aiAgentOverlayActive {
                         NotificationCenter.default.post(name: .toggleAIAgent, object: self)
                         return
@@ -3712,7 +3709,20 @@ extension Ghostty {
         
         func insertText(_ text: String) {
             // Sentinel key names are not text. Drop before any flag is consumed.
-            if KeyCode.isUIKeyInputSentinel(text) { return }
+            if let sentinel = KeyCode.sentinelKey(for: text) {
+                if sentinel == .escape {
+                    _ = dismissSessionDiscoveryIfPresented()
+                }
+                return
+            }
+
+            // Some software and remote keyboards deliver Escape as text rather
+            // than a press or UIKeyCommand. Consume that standalone byte while
+            // the discovery picker is visible instead of dismissing then leaking
+            // it to the terminal through the generic text path below.
+            if text == TerminalSequence.escape, dismissSessionDiscoveryIfPresented() {
+                return
+            }
 
             // Skip if we already handled this key in pressesBegan (OPTION+key on Catalyst)
             // The text input system sends composed characters (e.g., 'å' for Option+a) separately
@@ -5310,6 +5320,13 @@ extension Ghostty.TerminalView: KeyboardButtonDelegate {
 
         commitKoreanCompositionIfNeeded(external: true)
 
+        // The on-screen keyboard toolbar and visionOS ornament bypass UIKit's
+        // hardware-key paths. Treat their semantic Escape key like hardware
+        // Escape regardless of any sticky toolbar modifiers.
+        if key == TerminalSequence.escape, dismissSessionDiscoveryIfPresented() {
+            return
+        }
+
         // Notify that input was received (for scroll-to-bottom behavior)
         NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
 
@@ -5419,6 +5436,9 @@ extension Ghostty.TerminalView: KeyboardButtonDelegate {
 
     func sendRawData(_ data: Data) {
         commitKoreanCompositionIfNeeded(external: true)
+        if data.count == 1, data.first == 0x1B, dismissSessionDiscoveryIfPresented() {
+            return
+        }
         NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
         Ghostty.logger.debug("TerminalView: Sending raw data (\(data.count) bytes)")
         sendUserInput(data)
