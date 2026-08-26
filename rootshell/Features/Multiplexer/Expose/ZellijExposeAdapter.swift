@@ -17,7 +17,7 @@ nonisolated struct ZellijExposeAdapter: MultiplexerExposeAdapter {
         session.map { "zellij -s \(MuxScript.dq($0)) action" } ?? "zellij action"
     }
 
-    /// Same gate as ZellijSessionDiscovery: major > 0 or minor ≥ 45.
+    /// Stricter than session discovery (0.44): `list-tabs --json` needs 0.45.
     private let versionGate =
         "command -v zellij >/dev/null 2>&1 || echo \(MuxScript.dq(MuxScript.unsupportedMarker))"
         + "; _zv=$(zellij --version 2>/dev/null | grep -oE \"[0-9]+\\.[0-9]+\" | head -1); _zmaj=${_zv%%.*}; _zmin=${_zv#*.}"
