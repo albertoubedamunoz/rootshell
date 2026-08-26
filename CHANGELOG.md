@@ -3,6 +3,38 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-138 - August 25, 2026
+
+### Memory
+
+- **Lower Memory Use with Many Tabs:** Build 138 dramatically reduces memory use in tab-heavy sessions. Hidden tabs now release their Metal swap-chain resources and restore them when shown again, while restored tabs and tmux control-mode panes start with the correct visibility. This matters more than ever during the global RAM crunch, when every byte counts.
+
+### Tabs
+
+- **Multiplexer Sessions in Tab Exposé:** Tab Exposé now understands multiplexers attached through the local shell on macOS, SSH or tssh. Open it from a tmux, herdr or zellij session to see that session's own tabs, including live color previews of split-pane layouts. Swipe sideways to reach the app's regular tabs, and select a preview to switch the session. Open Tab Exposé by swiping down on the top tab bar with one finger, using a two-finger trackpad swipe down over the top tab bar, pressing Cmd-Shift-A or using its button in the vertical tab menu. Mosh is not supported because the feature uses connection channels. Enable this in Settings -> Connections -> Multiplexers -> Show Multiplexer Tabs.
+- **Cleaner Transparent Tab Exposé on macOS:** Transparent windows now stay transparent throughout Tab Exposé without flashing or showing the live terminal behind the selected preview. Scaled-down multiplexer previews also render more cleanly.
+
+### SSH
+
+- **Fixed RSA Connections to exe.dev:** Fixed RSA connection failures with exe.dev and other SSH servers (#320). RSA key blobs and signature algorithms are now handled separately, the negotiated host-key algorithm is used when signing, and user authentication follows the server's advertised signature support. Legacy RSA/SHA-1 is attempted only when needed.
+- **Authentication Banners Retire Cleanly:** Authentication banner cards now have a close button and automatically retire 15 seconds after authentication ends. A failed ssh, mosh or tssh command can no longer leave a banner stranded over the local-shell prompt.
+
+### Terminal
+
+- **Optional Compact Styled Prompts:** Built-in styled prompts can now omit the blank line before each prompt. Toggle Blank Line Before Prompt in prompt settings. Custom .promptrc.toml files can set add_newline; the plain "$ " prompt is unchanged.
+- **New AMOLED Theme:** Added the rootshell AMOLED theme, with a true-black background for OLED displays.
+- **Fixed Watchdog Crash in ping:** Fixed a system watchdog crash when ping performed a slow reverse DNS lookup. Blocking lookups now run on a dedicated utility queue, failed lookups are cached instead of repeated for every reply, and cancellation is honored once an in-flight lookup returns.
+
+### Keyboard and Layout
+
+- **Home-Indicator Setting Covers the Keyboard Toolbar:** Extend Under Home Indicator now also controls the keyboard toolbar on iPhone and iPad. Turn it on to run both the terminal and toolbar edge-to-edge under the indicator, or leave it off to keep a small touch-safe gap for Home gestures.
+- **Keyboard Stays Open after Removing Clicks:** The software keyboard no longer closes after removing a Clicks Power Keyboard from MagSafe while its Bluetooth connection remains active.
+
+### Standalone macOS
+
+- **Permission Prompts for Protected Resources:** Local-shell programs can now request normal macOS permission for protected resources such as the camera, microphone, photos, contacts, calendars, location and Bluetooth.
+- **Apple Events Permission Prompts:** Commands that automate another app, including tools that open files in editors such as BBEdit, can now trigger the standard Apple Events permission prompt instead of failing with an authorization error.
+
 ## 1.0.11-137 - August 23, 2026
 
 ### Mosh

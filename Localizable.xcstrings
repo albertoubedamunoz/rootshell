@@ -99124,6 +99124,7 @@
       }
     },
     "Choose which VPN profile to control from the widget." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -99278,6 +99279,7 @@
       }
     },
     "Choose which VPN profile to toggle from Control Center." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -116569,6 +116571,7 @@
       }
     },
     "Connect or disconnect your VPN." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119042,7 +119045,7 @@
       }
     },
     "Connected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN event status: connected\nVPN status: active connection\nVPN tunnel status",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119512,7 +119515,7 @@
       }
     },
     "Connecting" : {
-      "comment" : "VPN status: establishing connection\nVPN tunnel status",
+      "comment" : "VPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -123219,6 +123222,7 @@
       }
     },
     "Connects or disconnects the VPN." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -123682,6 +123686,7 @@
       }
     },
     "Connects VPN using the selected profile." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -149330,7 +149335,7 @@
       }
     },
     "Default" : {
-      "comment" : "Profile transport mode: default\nVPN DNS: using system default",
+      "comment" : "Profile transport mode: default",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -156732,6 +156737,167 @@
         }
       }
     },
+    "Detach %lld other client%@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فصل %1$lld من العملاء الآخرين"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Separa %1$lld altres clients"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpojit %1$lld dalších klientů"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frakobl %1$lld andre klienter"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld andere Clients trennen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detach %1$lld other client%2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desvincular otros %1$lld clientes"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Irrota %1$lld muuta asiakasta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détacher %1$lld autres clients"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ניתוק %1$lld לקוחות נוספים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld másik kliens leválasztása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scollega %1$lld altri client"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "他の%1$lld個のクライアントをデタッチ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 클라이언트 %1$lld개 연결 해제"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koble fra %1$lld andre klienter"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld andere clients loskoppelen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odłącz %1$lld innych klientów"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desanexar %1$lld outros clientes"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desanexar %1$lld outros clientes"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detașează %1$lld alți clienți"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpni %1$lld drugih odjemalcev"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppla från %1$lld andra klienter"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Від’єднати %1$lld інших клієнтів"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ngắt kết nối %1$lld client khác"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分离其他 %1$lld 个客户端"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卸離其他 %1$lld 個用戶端"
+          }
+        }
+      }
+    },
     "Detach ^[%lld other client](inflect: true)" : {
       "localizations" : {
         "ar" : {
@@ -157236,166 +157402,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "Detach %lld other client%@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "فصل %1$lld من العملاء الآخرين"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Separa %1$lld altres clients"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odpojit %1$lld dalších klientů"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Frakobl %1$lld andre klienter"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld andere Clients trennen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detach %1$lld other client%2$@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desvincular otros %1$lld clientes"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Irrota %1$lld muuta asiakasta"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Détacher %1$lld autres clients"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ניתוק %1$lld לקוחות נוספים"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld másik kliens leválasztása"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scollega %1$lld altri client"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "他の%1$lld個のクライアントをデタッチ"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "다른 클라이언트 %1$lld개 연결 해제"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Koble fra %1$lld andre klienter"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld andere clients loskoppelen"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odłącz %1$lld innych klientów"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desanexar %1$lld outros clientes"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desanexar %1$lld outros clientes"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detașează %1$lld alți clienți"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odpni %1$lld drugih odjemalcev"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Koppla från %1$lld andra klienter"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Від’єднати %1$lld інших клієнтів"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ngắt kết nối %1$lld client khác"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分离其他 %1$lld 个客户端"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "卸離其他 %1$lld 個用戶端"
           }
         }
       }
@@ -163884,7 +163890,7 @@
       }
     },
     "Disconnected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected\nVPN event status: disconnected\nVPN status: not connected",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164656,6 +164662,7 @@
       }
     },
     "Disconnecting…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164810,6 +164817,7 @@
       }
     },
     "Disconnects the active VPN." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -191036,7 +191044,7 @@
       }
     },
     "Error" : {
-      "comment" : "AI Agent error: generic error title\nCommand output type: error\nTunnel event status: error\nVPN event status: error",
+      "comment" : "Tunnel event status: error",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -235220,6 +235228,7 @@
       }
     },
     "Hold to select profile" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -253282,7 +253291,7 @@
       }
     },
     "Info" : {
-      "comment" : "Clipboard transform category\nTunnel event status: info\nVPN event status: info",
+      "comment" : "Clipboard transform category\nTunnel event status: info",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -335402,7 +335411,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -377403,6 +377412,7 @@
       }
     },
     "Profile ID" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -391910,7 +391920,7 @@
       }
     },
     "Reconnected" : {
-      "comment" : "Tunnel event status: reconnected\nVPN event status: reconnected",
+      "comment" : "Tunnel event status: reconnected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -392065,7 +392075,7 @@
       }
     },
     "Reconnecting" : {
-      "comment" : "Tunnel event status: reconnecting\nVPN event status: reconnecting\nVPN status: re-establishing connection",
+      "comment" : "Tunnel event status: reconnecting",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -392838,6 +392848,7 @@
       }
     },
     "Reconnecting…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -438545,6 +438556,7 @@
       }
     },
     "Select VPN Profile" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -481035,6 +481047,7 @@
       }
     },
     "Start and stop your VPN connection." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -531666,6 +531679,7 @@
       }
     },
     "Toggle VPN" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -545869,7 +545883,7 @@
       }
     },
     "Unknown" : {
-      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status\nVPN status: unknown state",
+      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -569820,6 +569834,7 @@
       }
     },
     "VPN Control" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -570899,6 +570914,7 @@
       }
     },
     "VPN On" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -572135,6 +572151,7 @@
       }
     },
     "VPN Toggle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
