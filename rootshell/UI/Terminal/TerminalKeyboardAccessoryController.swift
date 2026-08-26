@@ -123,9 +123,51 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// toolbar tap. Apple documents no size for the gesture's start region.
     private static let minimumHomeIndicatorClearance: CGFloat = 8
 
+    /// The current reported keyboard frame only when some part of it is visible
+    /// in this host window. UIKit can leave a nonempty final frame parked below
+    /// the screen after a hide; that is not an active placement.
+    private var visibleReportedKeyboardFrame: CGRect? {
+        #if os(visionOS) || targetEnvironment(macCatalyst)
+        return nil
+        #else
+        let keyboardFrame = EffectManager.shared.keyboardFrame
+        guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return nil }
+        let hostFrame: CGRect
+        if let window = host?.keyboardHostView.window {
+            hostFrame = window.convert(window.bounds, to: nil)
+        } else {
+            hostFrame = UIScreen.main.bounds
+        }
+        let intersection = hostFrame.intersection(keyboardFrame)
+        guard !intersection.isNull, !intersection.isEmpty else { return nil }
+        return keyboardFrame
+        #endif
+    }
+
+    /// True when a connected hardware keyboard's reported keyboard region is
+    /// fully accounted for by this accessory. Drawer rows can make that region
+    /// tall enough to pass EffectManager's docked-software-keyboard heuristic,
+    /// even though the accessory still rests at the screen edge.
+    private var hardwareAccessoryOwnsKeyboardRegion: Bool {
+        #if os(visionOS) || targetEnvironment(macCatalyst)
+        return false
+        #else
+        guard KeyboardTracker.shared.isHardwareKeyboard else { return false }
+        guard let keyboardFrame = visibleReportedKeyboardFrame else { return true }
+        let accessoryHeight = max(
+            keyboardAccessory?.bounds.height ?? 0,
+            keyboardAccessory?.intrinsicContentSize.height ?? 0
+        )
+        let safeAreaBottom = host?.keyboardHostView.window?.safeAreaInsets.bottom ?? 0
+        return keyboardFrame.height <= accessoryHeight + safeAreaBottom + 2
+        #endif
+    }
+
     /// Height the accessory holds open below the toolbar row so the row clears
-    /// the home indicator. Only tops up what UIKit is not already leaving
-    /// below the row, so spacing iOS hands out itself is not paid twice.
+    /// the home indicator. Derive this from the destination input mode, not the
+    /// accessory's hosted frame: UIKit repositions that frame through transient
+    /// values while restoring the software keyboard after an overlay, and using
+    /// those values here briefly grew then shrank the accessory.
     private var bottomSafeAreaStripHeight: CGFloat {
         #if os(visionOS) || targetEnvironment(macCatalyst)
         return 0
@@ -134,35 +176,36 @@ final class TerminalKeyboardAccessoryController: NSObject {
         guard !PaddingManager.shared.extendUnderHomeIndicator else { return 0 }
         let safeBottom = host.keyboardHostView.window?.safeAreaInsets.bottom ?? 0
         guard safeBottom > 0 else { return 0 }
-        let target = min(Self.minimumHomeIndicatorClearance, safeBottom)
-        return max(0, target - gapBelowAccessory)
-        #endif
-    }
-
-    /// Height UIKit already leaves between the accessory's bottom edge and the
-    /// bottom of its window: zero when the row is flush (the primary-input-view
-    /// slot in toolbar-only mode, or the accessory slot next to a hardware
-    /// keyboard), the keyboard's height while a system keyboard is presenting
-    /// under it. Reserving `target - gap` is self-correcting and stable, since
-    /// growing the accessory moves its top edge and never its bottom.
-    private var gapBelowAccessory: CGFloat {
-        #if os(visionOS) || targetEnvironment(macCatalyst)
-        return .greatestFiniteMagnitude
-        #else
-        // Toolbar-only mode: a primary input view is flush by construction.
-        // Answering from the destination keeps the transition single-pass;
-        // mid-transition the frame still describes the previous placement.
-        if toolbarOnlyMode { return 0 }
-        guard let accessory = keyboardAccessory, let window = accessory.window,
-              !accessoryServesAsPrimaryInputView else {
-            // No accessory-slot frame to measure (never presented, or still
-            // parked in the keyboard slot mid-exit): predict the destination.
-            // A software keyboard carries the row on its top edge; next to a
-            // hardware keyboard the accessory docks flush.
-            return KeyboardTracker.shared.isHardwareKeyboard ? 0 : .greatestFiniteMagnitude
+        let tracker = KeyboardTracker.shared
+        let effectManager = EffectManager.shared
+        let hasVisibleReportedKeyboardFrame = visibleReportedKeyboardFrame != nil
+        let accessoryRestsAtScreenEdge: Bool
+        if toolbarOnlyMode {
+            // The toolbar is the primary input view, flush with the edge.
+            accessoryRestsAtScreenEdge = true
+        } else if hardwareAccessoryOwnsKeyboardRegion {
+            // A tall accessory-only region can otherwise look like a docked
+            // software keyboard when drawer rows are open.
+            accessoryRestsAtScreenEdge = true
+        } else if tracker.isSoftwareKeyboardVisible || hasVisibleReportedKeyboardFrame {
+            // A docked software keyboard carries the accessory above itself.
+            // With an undocked/floating keyboard UIKit leaves the accessory at
+            // the screen edge instead. The visibly-intersecting-frame check
+            // includes compact and minimized keyboards below the tracker's
+            // 120pt visibility threshold, while a true initial query and a
+            // stale off-screen hide frame both stay out of this branch.
+            // Reported placement takes precedence over a simultaneous hardware
+            // keyboard attachment.
+            accessoryRestsAtScreenEdge = !effectManager.isKeyboardDocked
+        } else {
+            // With neither keyboard nor a placement reported yet, this is the
+            // initial full-software-keyboard query. Stay unreserved until its
+            // placement arrives. Hardware-only zero-frame state was handled by
+            // hardwareAccessoryOwnsKeyboardRegion above.
+            accessoryRestsAtScreenEdge = false
         }
-        let bottomInWindow = accessory.convert(accessory.bounds, to: nil).maxY
-        return max(0, window.bounds.maxY - bottomInWindow)
+        guard accessoryRestsAtScreenEdge else { return 0 }
+        return min(Self.minimumHomeIndicatorClearance, safeBottom)
         #endif
     }
 
@@ -180,8 +223,10 @@ final class TerminalKeyboardAccessoryController: NSObject {
         let height = bottomSafeAreaStripHeight
         let changed = keyboardAccessory?.setReservedBottomSafeArea(height) ?? false
         if changed {
+            let tracker = KeyboardTracker.shared
+            let isDocked = EffectManager.shared.isKeyboardDocked
             Ghostty.logger.debug(
-                "Reserved home-indicator strip: \(height, privacy: .public)pt (gap below accessory \(self.gapBelowAccessory, privacy: .public)pt)"
+                "Reserved home-indicator strip: \(height, privacy: .public)pt (toolbarOnly=\(self.toolbarOnlyMode, privacy: .public), software=\(tracker.isSoftwareKeyboardVisible, privacy: .public), hardware=\(tracker.isHardwareKeyboard, privacy: .public), docked=\(isDocked, privacy: .public))"
             )
         }
         return changed
@@ -236,19 +281,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // instead (see `inputView`); handing it out from both slots in one
         // reload would let the second container steal it from the first.
         guard !toolbarOnlyMode else { return nil }
-        // Clearing only when visible is deliberate: an invisible accessory is
-        // not hosted anywhere, and `gapBelowAccessory` already routes every
-        // unhosted case through its prediction branch. Both getters run on the
-        // same reload, but UIKit does not specify their order, so neither may
-        // depend on the other having run first.
-        if isVisible { accessoryServesAsPrimaryInputView = false }
         return isVisible ? keyboardAccessory : nil
     }
-
-    /// True while the accessory was last handed to UIKit as the primary input
-    /// view. Its window frame then describes the keyboard slot, so
-    /// `gapBelowAccessory` must not read it as an accessory-slot measurement.
-    private var accessoryServesAsPrimaryInputView = false
 
     /// In toolbar-only mode the toolbar is the primary input view, not an
     /// accessory above an empty one. UIKit lays a primary input view flush with
@@ -258,6 +292,10 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// 26.5) and only grows the accessory upward, so no reservation can move
     /// the row past that strip.
     var inputView: UIView? {
+        // UIKit does not specify whether it asks for inputView or
+        // inputAccessoryView first. Publish the destination-mode intrinsic
+        // height from both paths so toolbar-only entry is correct in one pass.
+        applyBottomSafeAreaStrip()
         guard toolbarOnlyMode else { return nil }
         guard let host,
               let accessory = keyboardAccessory,
@@ -268,7 +306,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
             // owns the screen) — keep suppressing the system keyboard.
             return emptyInputView
         }
-        accessoryServesAsPrimaryInputView = true
         return accessory
     }
 
@@ -384,22 +421,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
         keyboardAccessory?.onLayoutInvalidated = { [weak self] in
             self?.refreshKeyboardLayoutAfterAccessoryChange()
-        }
-
-        // Re-measure the reserved strip whenever UIKit hosts or repositions the
-        // accessory. Applying the constraint is safe here (it does not reload
-        // input views); the reload that publishes the new height is deferred a
-        // turn, because this fires from inside layout. Bounded: the apply returns
-        // false once the value settles, so the reload stops re-triggering.
-        keyboardAccessory?.onHostedGeometryChanged = { [weak self] in
-            guard let self, self.applyBottomSafeAreaStrip() else { return }
-            self.updateBottomEdgeHomeGestureProtection()
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    self.host?.keyboardReloadInputViews()
-                    EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
-                }
-            }
         }
 
         let tabSwitcherObserver = NotificationCenter.default.addObserver(
@@ -795,14 +816,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
                 && host?.keyboardAIAgentOverlayActive != true
                 && !keyboardToolbarCollapsed
         )
-        let tracker = KeyboardTracker.shared
-        let accessoryHeight = max(
-            keyboardAccessory?.bounds.height ?? 0,
-            keyboardAccessory?.intrinsicContentSize.height ?? 0
-        )
-        let safeAreaBottom = host?.keyboardHostView.window?.safeAreaInsets.bottom ?? 0
-        let hardwareAccessoryOnly = tracker.isHardwareKeyboard
-            && tracker.keyboardFrame.height <= accessoryHeight + safeAreaBottom + 2
+        let hardwareAccessoryOnly = hardwareAccessoryOwnsKeyboardRegion
         // toolbarOnlyMode counts as at-screen-edge on its own: the accessory
         // is the whole keyboard region there, and with two drawer rows open it
         // passes EffectManager's 100pt docked-keyboard heuristic, which would

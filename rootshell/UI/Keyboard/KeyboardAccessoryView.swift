@@ -132,11 +132,6 @@ class KeyboardAccessoryView: UIInputView {
     /// Callback when accessory layout changes and input views should refresh
     var onLayoutInvalidated: (() -> Void)?
 
-    /// Fired when UIKit hosts or moves the accessory. The reserved bottom
-    /// strip is derived from the hosted frame, and `inputAccessoryView` is
-    /// queried while `window` is still nil, so this corrects the first pass.
-    var onHostedGeometryChanged: (() -> Void)?
-
     private var layoutChangeObserver: NSObjectProtocol?
     private var toolbarBottomConstraint: NSLayoutConstraint?
 
@@ -281,23 +276,6 @@ class KeyboardAccessoryView: UIInputView {
     }
 
     // MARK: - Layout
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        onHostedGeometryChanged?()
-    }
-
-    /// UIKit can reposition the accessory without resizing it, which calls
-    /// neither `layoutSubviews` nor `didMoveToWindow`, so the move is observed
-    /// here. An in-flight animation frame yields at worst a transient value;
-    /// the equality guard in `setReservedBottomSafeArea` drops the redundant
-    /// work.
-    override var frame: CGRect {
-        didSet {
-            guard frame != oldValue else { return }
-            onHostedGeometryChanged?()
-        }
-    }
 
     override var intrinsicContentSize: CGSize {
         var size = toolbarView.intrinsicContentSize
