@@ -1724,7 +1724,6 @@ extension Ghostty.TerminalView {
                 dismissTapStartPoint = nil
                 if distance < 20 {
                     keyboardManuallyDismissed = false
-                    keyboardDismissedShadersSuppressed = false
                     _ = becomeFirstResponder()
                 }
             }

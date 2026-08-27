@@ -261,8 +261,6 @@ extension VNCKeyboardAccessoryCoordinator: TerminalKeyboardAccessoryHost {
         }
     }
 
-    func keyboardStopShaderAnimationForDismiss() {}
-    func keyboardSetShaderDismissSuppressed(_ suppressed: Bool) {}
     func keyboardInvalidateKeyCommands() {}
     func keyboardDidFinishAnimationLayout() {}
 

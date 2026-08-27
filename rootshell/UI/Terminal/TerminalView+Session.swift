@@ -358,8 +358,6 @@ extension Ghostty.TerminalView {
     /// Ensures the restore replay's final cursor positioning is rendered after
     /// the saved bytes and any gated live output have reached Ghostty.
     func didQueueScrollbackRestoreReplay() {
-        notifyTerminalActivity()
-
         outputPipeline.notifyWhenOutputDrained { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -374,7 +372,6 @@ extension Ghostty.TerminalView {
     private func flushPostScrollbackRestoreRender() {
         guard !Ghostty.isAppBackgroundedAtomic,
               !Ghostty.isSecureDrawProhibitedAtomic else { return }
-        notifyTerminalActivity()
         ghosttyApp?.appTick()
         if let surface {
             ghostty_surface_draw(surface)

@@ -23,8 +23,6 @@ protocol TerminalKeyboardAccessoryHost: AnyObject {
     func keyboardResignFirstResponder() -> Bool
     func keyboardSetSoftwareKeyboardRequested(_ requested: Bool)
     func keyboardReloadInputViews()
-    func keyboardStopShaderAnimationForDismiss()
-    func keyboardSetShaderDismissSuppressed(_ suppressed: Bool)
     func keyboardInvalidateKeyCommands()
     func keyboardDidFinishAnimationLayout()
     func keyboardUpdateAccessoryForTraitCollection()
@@ -354,8 +352,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
                     self.enterToolbarOnlyMode()
                 } else {
                     self.keyboardManuallyDismissed = true
-                    self.host?.keyboardSetShaderDismissSuppressed(true)
-                    self.host?.keyboardStopShaderAnimationForDismiss()
                     _ = self.host?.keyboardResignFirstResponder()
                 }
             }
@@ -590,8 +586,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #endif
         toolbarOnlyMode = true
         host?.keyboardSetSoftwareKeyboardRequested(false)
-        host?.keyboardSetShaderDismissSuppressed(true)
-        host?.keyboardStopShaderAnimationForDismiss()
         keyboardAccessory?.setDismissButtonShowsRestore(true)
         host?.keyboardReloadInputViews()
     }
@@ -601,7 +595,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
         keyboardAccessory?.setDismissButtonPinned(false)
         toolbarOnlyMode = false
         host?.keyboardSetSoftwareKeyboardRequested(true)
-        host?.keyboardSetShaderDismissSuppressed(false)
         keyboardAccessory?.setDismissButtonShowsRestore(false)
         host?.keyboardReloadInputViews()
         toolbarOnlyUsesPrimaryInputView = true

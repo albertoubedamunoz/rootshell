@@ -176,13 +176,12 @@ final class TerminalOutputPipeline {
     func makeSessionOutputSink(
         useOutputCoalescer: Bool,
         terminalUUID: UUID,
-        noteGatewayInboundBytes: @escaping @Sendable (Int) -> Void,
-        notifyTerminalActivity: @escaping @MainActor @Sendable () -> Void
+        noteGatewayInboundBytes: @escaping @Sendable (Int) -> Void
     ) -> @Sendable (Data) -> Void {
         let outputCoalescer: TerminalOutputCoalescer? = useOutputCoalescer ? self.outputCoalescer : nil
         let bufferedWriter = self.bufferedWriter
         let scrollbackRestoreOutputGate = self.scrollbackRestoreOutputGate
-        let activityNotifyPending = OSAllocatedUnfairLock<Bool>(initialState: false)
+        let persistenceNotifyPending = OSAllocatedUnfairLock<Bool>(initialState: false)
 
         let writeDirect: @Sendable (Data) -> Void = { data in
             scrollbackRestoreOutputGate.writeOrBuffer(data, to: bufferedWriter)
@@ -199,7 +198,7 @@ final class TerminalOutputPipeline {
 
             guard !Ghostty.isAppBackgroundedAtomic else { return }
 
-            let shouldSpawn = activityNotifyPending.withLock { pending -> Bool in
+            let shouldSpawn = persistenceNotifyPending.withLock { pending -> Bool in
                 guard !pending else { return false }
                 pending = true
                 return true
@@ -207,9 +206,8 @@ final class TerminalOutputPipeline {
             guard shouldSpawn else { return }
 
             Task { @MainActor in
-                activityNotifyPending.withLock { $0 = false }
+                persistenceNotifyPending.withLock { $0 = false }
                 guard !Ghostty.isAppBackgroundedAtomic else { return }
-                notifyTerminalActivity()
                 ScrollbackPersistenceManager.shared.notifyOutputReceived(terminalUUID: terminalUUID)
             }
         }

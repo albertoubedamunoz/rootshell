@@ -27,7 +27,6 @@ extension Ghostty {
         private var hasSized = false
 
         // Animation
-        private var displayLink: CADisplayLink?
         private var moveTimer: Timer?
         private var currentWaypointIndex: Int = 0
         private var shaderObserver: NSObjectProtocol?
@@ -60,9 +59,17 @@ extension Ghostty {
 
         override func didMoveToWindow() {
             super.didMoveToWindow()
-            if window != nil && surface == nil {
-                createSurface()
-            } else if window == nil {
+            if window != nil {
+                if surface == nil {
+                    createSurface()
+                } else if let surface {
+                    ghostty_surface_set_occlusion(surface, true)
+                    if hasSized { startAnimation() }
+                }
+            } else {
+                if let surface {
+                    ghostty_surface_set_occlusion(surface, false)
+                }
                 stopAnimation()
             }
         }
@@ -121,6 +128,7 @@ extension Ghostty {
             self.surface = newSurface
             self.slaveFd = ghostty_surface_get_slave_fd(newSurface)
             ghosttyApp?.registerSurface(newSurface)
+            ghostty_surface_set_focus(newSurface, true)
 
             // Observe shader config changes to restart animation with new effect
             shaderObserver = NotificationCenter.default.addObserver(
@@ -184,19 +192,10 @@ extension Ghostty {
         // MARK: - Animation
 
         func startAnimation() {
-            guard displayLink == nil, surface != nil else { return }
+            guard moveTimer == nil, surface != nil else { return }
 
-            // CADisplayLink for rendering shader frames
-            let link = CADisplayLink(target: self, selector: #selector(animationTick))
-            if #available(iOS 15.0, visionOS 1.0, macCatalyst 15.0, *) {
-                link.preferredFrameRateRange = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
-            } else {
-                link.preferredFramesPerSecond = 30
-            }
-            link.add(to: .main, forMode: .common)
-            displayLink = link
-
-            // Timer to trigger cursor movement at waypoints
+            // Ghostty owns frame cadence and parks its display link after the
+            // finite cursor effect. This timer only supplies demo movement.
             moveTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
                 self?.moveCursorToNextWaypoint()
             }
@@ -206,8 +205,6 @@ extension Ghostty {
         }
 
         func stopAnimation() {
-            displayLink?.invalidate()
-            displayLink = nil
             moveTimer?.invalidate()
             moveTimer = nil
         }
@@ -220,19 +217,6 @@ extension Ghostty {
                 guard let self, self.surface != nil, self.window != nil else { return }
                 self.startAnimation()
             }
-        }
-
-        @objc private func animationTick(_ link: CADisplayLink) {
-            // This link keeps ticking through the inactive lock edge; the
-            // secure-draw latch keeps its un-occluded draw out of the
-            // secure snapshot window.
-            guard let surface, ghosttyApp?.isInBackground != true,
-                  !Ghostty.isSecureDrawProhibitedAtomic else {
-                if surface == nil { stopAnimation() }
-                return
-            }
-            ghosttyApp?.appTick()
-            ghostty_surface_draw(surface)
         }
 
         private func moveCursorToNextWaypoint() {

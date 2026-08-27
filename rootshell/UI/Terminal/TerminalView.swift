@@ -442,7 +442,6 @@ extension Ghostty {
         private(set) var sessionController: TerminalSessionController!
         private(set) var surfaceController: TerminalSurfaceController!
         private(set) var inputController: TerminalInputController!
-        private(set) var shaderAnimationController: TerminalShaderAnimationController!
         private(set) var keyboardAccessoryController: TerminalKeyboardAccessoryController!
         var pty: TerminalPTY? {
             get { sessionController.pty }
@@ -556,10 +555,6 @@ extension Ghostty {
         private var mouseCaptureOverlayHost: UIHostingController<InputModeOverlayView>?
         private var mouseCaptureOverlayDismissTask: Task<Void, Never>?
         #endif
-
-        /// Whether shader animation is suppressed because the keyboard was manually dismissed.
-        /// Prevents cursor shader artifacts during keyboard transitions and while keyboard is hidden.
-        var keyboardDismissedShadersSuppressed: Bool = false
 
         /// Timestamp of last space insertion for double-space-for-period detection
         private var lastSpaceInsertTime: Date?
@@ -1289,7 +1284,6 @@ extension Ghostty {
             self.surfaceController = TerminalSurfaceController(host: self)
             self.sessionController = TerminalSessionController(host: self)
             self.inputController = TerminalInputController()
-            self.shaderAnimationController = TerminalShaderAnimationController(host: self)
             self.keyboardAccessoryController = TerminalKeyboardAccessoryController(host: self)
             self.connectionProgress = ConnectionProgressPresenter(host: self)
 
@@ -1492,9 +1486,6 @@ extension Ghostty {
             // 3.25. Stop any scroll or pointer display links
             cancelMomentumScrolling()
             stopRightClickMonitoring()
-
-            // 3.5. Stop shader animation
-            shaderAnimationController.tearDown()
 
             // 4. Unregister/free surface and re-arm first-frame tracking for a
             // possible surface recreation.
@@ -1781,8 +1772,6 @@ extension Ghostty {
             setupScrollIndicator()
             setupCollapsedKeyboardToolbarButton()
 
-            // Setup shader animation observer (for CADisplayLink vsync on iOS)
-            setupShaderAnimationObserver()
         }
         
         #if !targetEnvironment(macCatalyst)
@@ -2524,8 +2513,6 @@ extension Ghostty {
             // Refresh can stay on main thread - it just schedules a redraw
             ghostty_surface_refresh(surface)
 
-            // Update shader animation based on focus state
-            updateShaderAnimation(focused: focused)
         }
 
         #if !targetEnvironment(macCatalyst)
@@ -2629,10 +2616,7 @@ extension Ghostty {
         override func setOcclusion(_ visible: Bool) {
             Ghostty.logger.info("setOcclusion(\(visible)): terminal=\(self.uuid.uuidString.prefix(8))")
             isTabVisible = visible
-            if visible {
-                updateShaderAnimation(focused: isLogicallyFocused)
-            } else {
-                stopShaderAnimation()
+            if !visible {
                 cancelMomentumScrolling()
                 stopRightClickMonitoring()
             }
@@ -2729,7 +2713,6 @@ extension Ghostty {
         @discardableResult
         override func pauseRendererForBackground(timeoutNanoseconds: UInt64 = 200_000_000) -> Bool {
             isTabVisible = false
-            stopShaderAnimation()
             cancelMomentumScrolling()
             stopRightClickMonitoring()
 
@@ -2808,7 +2791,6 @@ extension Ghostty {
             // Re-arm session-level periodic work paused in pauseReconnectionUI.
             session?.resumeForForeground()
 
-            updateShaderAnimation(focused: isLogicallyFocused)
         }
 
         /// Clears the size suppression flag. Called immediately when scene becomes active
@@ -2857,24 +2839,6 @@ extension Ghostty {
                 selectionWasTouchInitiated = false
             }
             #endif
-        }
-
-        // MARK: - Shader Animation (CADisplayLink)
-
-        private func setupShaderAnimationObserver() {
-            shaderAnimationController.setupActivationObserver()
-        }
-
-        private func updateShaderAnimation(focused: Bool) {
-            shaderAnimationController.update(focused: focused)
-        }
-
-        private func stopShaderAnimation(graceful: Bool = false) {
-            shaderAnimationController.stop(graceful: graceful)
-        }
-
-        func notifyTerminalActivity() {
-            shaderAnimationController.notifyTerminalActivity()
         }
 
         /// Check if a modal/sheet is presented over the root view controller
@@ -4404,21 +4368,6 @@ extension Ghostty {
     }
 }
 
-// MARK: - TerminalShaderAnimationHost
-
-extension Ghostty.TerminalView: TerminalShaderAnimationHost {
-    var shaderSurface: ghostty_surface_t? { surface }
-    var shaderGhosttyApp: Ghostty.App? { ghosttyApp }
-    var shaderIsLogicallyFocused: Bool { isLogicallyFocused }
-    var shaderKeyboardDismissedSuppressed: Bool { keyboardDismissedShadersSuppressed }
-
-    func shaderSyncSelectionAfterAppTick() {
-        #if !targetEnvironment(macCatalyst)
-        scheduleSelectionHandleSync(afterGhosttyAppTick: true)
-        #endif
-    }
-}
-
 // MARK: - TerminalKeyboardAccessoryHost
 
 extension Ghostty.TerminalView: TerminalKeyboardAccessoryHost {
@@ -4445,14 +4394,6 @@ extension Ghostty.TerminalView: TerminalKeyboardAccessoryHost {
 
     func keyboardReloadInputViews() {
         reloadInputViews()
-    }
-
-    func keyboardStopShaderAnimationForDismiss() {
-        stopShaderAnimation(graceful: false)
-    }
-
-    func keyboardSetShaderDismissSuppressed(_ suppressed: Bool) {
-        keyboardDismissedShadersSuppressed = suppressed
     }
 
     func keyboardInvalidateKeyCommands() {

@@ -5,15 +5,13 @@
 //  Central battery/power policy: combines the user's manual refresh-rate
 //  cap with automatic throttling on iOS Low Power Mode and thermal
 //  pressure, and derives the frame-rate targets that the terminal display
-//  link, shader animation link, background effects, and animated cursor
-//  modes consume.
+//  link, background effects, and animated cursor modes consume.
 //
 //  The Adaptive refresh setting additionally follows the power source:
 //  full rate on wall power, a user-chosen cap on battery.
 //
 
 import Foundation
-import QuartzCore
 import Observation
 import UIKit
 import os
@@ -25,7 +23,7 @@ import IOKit.ps
 extension Notification.Name {
     /// Posted when the effective power tier changes. `GhosttyApp` observes
     /// this and pushes the new frame-rate range to every live surface;
-    /// animation drivers re-read their targets from `PowerManager`.
+    /// other animation drivers re-read their targets from `PowerManager`.
     static let powerTierChanged = Notification.Name("com.rootshell.powerTierChanged")
 }
 
@@ -168,15 +166,6 @@ final class PowerManager {
         case .full: return (0, 0, 0)
         case .reduced: return (30, 60, 60)
         case .saver: return (15, 30, 30)
-        }
-    }
-
-    /// Frame-rate range for the app-side shader animation display link.
-    var shaderFrameRange: CAFrameRateRange {
-        switch tier {
-        case .full: return CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
-        case .reduced: return CAFrameRateRange(minimum: 15, maximum: 30, preferred: 30)
-        case .saver: return CAFrameRateRange(minimum: 8, maximum: 15, preferred: 15)
         }
     }
 

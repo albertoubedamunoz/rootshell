@@ -21,7 +21,7 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
 
     /// Builds the off-main output sink the controller installs on a freshly
     /// adopted session. Captures the view-owned I/O plumbing (coalescer / gate /
-    /// buffered writer) and the activity-notify coalescer, exactly as the old
+    /// buffered writer) and the persistence-notify coalescer, exactly as the old
     /// `outputHandler` did. Runs on the session's background queue — no main
     /// actor hop on the hot output path.
     func makeSessionOutputSink() -> @Sendable (Data) -> Void {
@@ -34,9 +34,6 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
                 if ownerKey != 0 {
                     TmuxDebugLogger.shared.noteGatewayInbound(owner: ownerKey, bytes: byteCount)
                 }
-            },
-            notifyTerminalActivity: { [weak self] in
-                self?.notifyTerminalActivity()
             }
         )
     }

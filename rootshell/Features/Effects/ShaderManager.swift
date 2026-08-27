@@ -46,18 +46,6 @@ class ShaderManager {
         }
     }
 
-    /// Classification of shader animation behavior
-    enum ShaderAnimationType {
-        case cursorOnly      // Uses cursor uniforms - animation has finite duration
-        case continuous      // Full-screen/time-based - needs continuous animation
-    }
-
-    /// Analysis result for a shader's animation characteristics
-    struct ShaderAnalysis {
-        let animationType: ShaderAnimationType
-        let maxDuration: TimeInterval  // For cursor-only shaders, the animation duration
-    }
-
     // MARK: - UserDefaults Keys
 
     private static let enabledCustomKey = "enabledCustomShaders"
@@ -86,40 +74,12 @@ class ShaderManager {
         }
     }
 
-    // MARK: - Shader Animation Analysis
-
-    /// Cached shader analysis result (invalidated when shaders change)
-    private var cachedShaderAnalysis: ShaderAnalysis?
-
-    /// Returns the animation analysis for the currently active shader(s)
-    var activeShaderAnalysis: ShaderAnalysis {
-        if let cached = cachedShaderAnalysis {
-            return cached
-        }
-
-        let analysis = computeActiveShaderAnalysis()
-        cachedShaderAnalysis = analysis
-        return analysis
-    }
-
-    /// Whether the active shader(s) are cursor-only (can pause when idle)
-    var isCursorOnlyShader: Bool {
-        activeShaderAnalysis.animationType == .cursorOnly
-    }
-
-    /// Maximum cursor animation duration for pause timing
-    var maxCursorAnimationDuration: TimeInterval {
-        activeShaderAnalysis.maxDuration
-    }
-
     // MARK: - Initialization
 
     private init() {
         loadEnabledCustomShaders()
         loadCustomShaders()
         loadAnimationMode()
-        // Initialize wasActive after loading persisted state
-        wasActive = hasActiveShaders
     }
 
     // MARK: - Path Resolution
@@ -223,14 +183,10 @@ class ShaderManager {
             }
         }
 
-        // Add animation mode
-        // Always set to "false" to disable Ghostty's internal 8ms timer on all Apple platforms.
-        // - iOS/visionOS: CADisplayLink in TerminalView drives animation at vsync rate
-        // - Mac Catalyst: CVDisplayLink in Ghostty core drives animation via displayCallback
-        // The user's animation mode preference is still respected by the CADisplayLink logic.
-        // Disabling the 8ms timer prevents double-rendering and GPU pegging.
-        lines.append("custom-shader-animation = false")
-        Self.logger.info("Disabled Ghostty internal timer, using platform display link for shader animation")
+        // Ghostty owns shader cadence. Its renderer uses the platform display
+        // link while available and a finite timer fallback otherwise.
+        lines.append("custom-shader-animation = \(animationMode.rawValue)")
+        Self.logger.info("Configured Ghostty shader animation mode: \(self.animationMode.rawValue)")
 
         Self.logger.info("Generated \(lines.count) shader config lines")
         return lines
@@ -249,93 +205,6 @@ class ShaderManager {
     /// Returns true if any shaders (cursor effects or custom) are active
     var hasAnyShadersActive: Bool {
         CursorManager.shared.hasActiveEffect || hasActiveShaders
-    }
-
-    // MARK: - Shader Analysis
-
-    /// Default max animation duration for cursor shaders (Cursor Blaze has the longest at 0.5s)
-    private static let defaultCursorAnimationDuration: TimeInterval = 0.5
-
-    /// Computes the shader analysis for currently active shaders
-    private func computeActiveShaderAnalysis() -> ShaderAnalysis {
-        // If no shaders are active, return a default
-        guard hasAnyShadersActive else {
-            return ShaderAnalysis(animationType: .cursorOnly, maxDuration: Self.defaultCursorAnimationDuration)
-        }
-
-        var maxDuration: TimeInterval = 0
-        var allAreCursorOnly = true
-
-        // Analyze cursor effect if enabled
-        let cursorEffect = CursorManager.shared.cursorEffect
-        if cursorEffect != .none,
-           let path = CursorManager.shared.bundlePathForEffect(cursorEffect) {
-            let analysis = analyzeShaderFile(at: path)
-            if analysis.animationType == .continuous {
-                allAreCursorOnly = false
-            }
-            maxDuration = max(maxDuration, analysis.maxDuration)
-        }
-
-        // Analyze custom shaders if enabled
-        for shader in customShaders where enabledCustomShaderIDs.contains(shader.id) {
-            let path = documentsPathForCustomShader(shader.filename)
-            let analysis = analyzeShaderFile(at: path)
-            if analysis.animationType == .continuous {
-                allAreCursorOnly = false
-            }
-            maxDuration = max(maxDuration, analysis.maxDuration)
-        }
-
-        // If no duration was found, use default
-        if maxDuration == 0 {
-            maxDuration = Self.defaultCursorAnimationDuration
-        }
-
-        return ShaderAnalysis(
-            animationType: allAreCursorOnly ? .cursorOnly : .continuous,
-            maxDuration: maxDuration
-        )
-    }
-
-    /// Analyzes a shader file to determine its animation type and duration
-    private func analyzeShaderFile(at url: URL) -> ShaderAnalysis {
-        guard let source = try? String(contentsOf: url, encoding: .utf8) else {
-            Self.logger.warning("Could not read shader source at: \(url.path)")
-            return ShaderAnalysis(animationType: .continuous, maxDuration: Self.defaultCursorAnimationDuration)
-        }
-
-        return analyzeShaderSource(source)
-    }
-
-    /// Analyzes shader source code to determine animation type and duration
-    /// - Cursor-only shaders use iCurrentCursor/iPreviousCursor uniforms
-    /// - Duration is parsed from "const float DURATION = X.X" pattern
-    private func analyzeShaderSource(_ source: String) -> ShaderAnalysis {
-        let usesCursorUniforms = source.contains("iCurrentCursor") || source.contains("iPreviousCursor")
-
-        // Parse DURATION constant using regex
-        // Pattern: const float DURATION = 0.5;
-        var duration: TimeInterval = Self.defaultCursorAnimationDuration
-
-        let durationPattern = #"const\s+float\s+DURATION\s*=\s*([0-9.]+)"#
-        if let regex = try? NSRegularExpression(pattern: durationPattern, options: []),
-           let match = regex.firstMatch(in: source, options: [], range: NSRange(source.startIndex..., in: source)),
-           let range = Range(match.range(at: 1), in: source),
-           let parsedDuration = TimeInterval(source[range]) {
-            duration = parsedDuration
-            Self.logger.debug("Parsed shader DURATION: \(parsedDuration)s")
-        }
-
-        // Classify as cursor-only if it uses cursor uniforms and has a reasonable duration
-        // (< 10 seconds, to exclude potential full-screen time-based shaders)
-        if usesCursorUniforms && duration > 0 && duration < 10 {
-            Self.logger.debug("Shader classified as cursor-only (uses cursor uniforms, duration: \(duration)s)")
-            return ShaderAnalysis(animationType: .cursorOnly, maxDuration: duration)
-        }
-
-        Self.logger.debug("Shader classified as continuous (no cursor uniforms or long duration)")
-        return ShaderAnalysis(animationType: .continuous, maxDuration: 0)
     }
 
     // MARK: - Persistence
@@ -377,25 +246,7 @@ class ShaderManager {
 
     // MARK: - Config Change Notification
 
-    /// Tracks whether shaders were active before the last change
-    private var wasActive: Bool = false
-
     private func notifyConfigChanged() {
-        // Invalidate shader analysis cache when config changes
-        cachedShaderAnalysis = nil
-
-        // Check if shader activation state changed
-        let isNowActive = hasActiveShaders
-        if isNowActive != wasActive {
-            wasActive = isNowActive
-            NotificationCenter.default.post(
-                name: .shaderActivationChanged,
-                object: nil,
-                userInfo: ["isActive": isNowActive]
-            )
-            Self.logger.info("Shader activation changed: \(isNowActive)")
-        }
-
         // Post notification for config reload
         NotificationCenter.default.post(name: .shaderConfigChanged, object: nil)
     }
@@ -421,7 +272,4 @@ enum ShaderImportError: LocalizedError {
 
 extension Notification.Name {
     static let shaderConfigChanged = Notification.Name("shaderConfigChanged")
-    /// Posted when shaders go from active→inactive or inactive→active
-    /// userInfo contains "isActive": Bool
-    static let shaderActivationChanged = Notification.Name("shaderActivationChanged")
 }

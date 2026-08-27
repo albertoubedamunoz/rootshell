@@ -242,9 +242,6 @@ class CursorManager {
         cursorEffect != .none
     }
 
-    /// Tracks whether effect was active before the last change (for activation notifications)
-    private var wasEffectActive: Bool = false
-
     // MARK: - Initialization
 
     private init() {
@@ -299,8 +296,6 @@ class CursorManager {
         // Load cursor height
         self.cursorHeight = UserDefaults.standard.integer(forKey: Self.cursorHeightKey)
 
-        // Initialize wasEffectActive after loading persisted state
-        wasEffectActive = hasActiveEffect
     }
 
     // MARK: - Migration
@@ -531,18 +526,6 @@ class CursorManager {
     // MARK: - Notifications
 
     private func notifyEffectChanged() {
-        // Check if effect activation state changed
-        let isNowActive = hasActiveEffect
-        if isNowActive != wasEffectActive {
-            wasEffectActive = isNowActive
-            NotificationCenter.default.post(
-                name: .shaderActivationChanged,
-                object: nil,
-                userInfo: ["isActive": isNowActive]
-            )
-            Self.logger.info("Cursor effect activation changed: \(isNowActive)")
-        }
-
         // Post shader config changed for config reload
         NotificationCenter.default.post(name: .shaderConfigChanged, object: nil)
     }
