@@ -11,6 +11,11 @@
 //  interval — every touch or key press restarts the window, so the screen stays
 //  awake while you work and hands control back to the system once you stop.
 //
+//  Only a timed hold has a window to restart, so the observers and window
+//  gesture recognizers that watch for interaction are installed with one and
+//  torn down with it. Off and Always install none of them, and the input paths
+//  that report interaction return on a stored Bool.
+//
 //  iOS/iPadOS only:
 //  - `UIApplication.isIdleTimerDisabled` is the correct API on native iOS/iPad.
 //  - Mac Catalyst exposes the property but it is a no-op for Mac display sleep
@@ -127,10 +132,23 @@ final class AlwaysOnDisplayManager {
         set { duration = AlwaysOnDisplayDuration(rawValue: Int(newValue.rounded())) }
     }
 
-    private var isInstalled = false
-    private var holdTimer: Timer?
+    // None of the state below is UI state, and `isTrackingInteraction` and
+    // `lastArmed` are read on every touch and key press, so keep all of it out
+    // of the observation registrar.
+    @ObservationIgnored private var isInstalled = false
+    @ObservationIgnored private var holdTimer: Timer?
     /// Coalesces the per-touch rearm; see `noteUserInteraction()`.
-    private var lastArmed: ContinuousClock.Instant?
+    @ObservationIgnored private var lastArmed: ContinuousClock.Instant?
+    /// True only while a timed hold is selected, i.e. while interaction has to
+    /// be watched at all. Stored rather than derived from `duration`, so the
+    /// check on the input paths costs nothing beyond the branch.
+    @ObservationIgnored private var isTrackingInteraction = false
+    /// Notification observers and window gesture recognizers owned by the
+    /// interaction tracking; both come off when it is torn down. The gestures
+    /// are held weakly — the window they are attached to owns them.
+    @ObservationIgnored private var interactionObservers: [NSObjectProtocol] = []
+    @ObservationIgnored private let interactionGestures =
+        NSHashTable<InteractionObserverGesture>.weakObjects()
 
     private init() {
         // didSet does NOT fire during init, so this does not apply early.
@@ -161,7 +179,7 @@ final class AlwaysOnDisplayManager {
             object: nil,
             queue: .main
         ) { _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 AlwaysOnDisplayManager.shared.reloadAndApply()
             }
         }
@@ -174,45 +192,26 @@ final class AlwaysOnDisplayManager {
             object: nil,
             queue: .main
         ) { _ in
-            Task { @MainActor in
+            // Synchronous: a `Task` hop could still be pending when the process
+            // is suspended, leaving the assertion set with nobody watching.
+            MainActor.assumeIsolated {
                 AlwaysOnDisplayManager.shared.suspendHold()
             }
         }
-        // New scenes/windows (iPadOS multi-window, Stage Manager) need their own
-        // touch observer; the app's first window is usually already up here.
-        // This also catches the keyboard-hosting windows that never appear in
-        // `UIWindowScene.windows`, so taps on the software keyboard count too.
-        NotificationCenter.default.addObserver(
-            forName: UIWindow.didBecomeVisibleNotification,
-            object: nil,
-            queue: .main
-        ) { notification in
-            let window = notification.object as? UIWindow
-            Task { @MainActor in
-                guard let window else { return }
-                AlwaysOnDisplayManager.shared.attachInteractionObserver(to: window)
-            }
-        }
-        // Typing is not a touch. Hardware keys go to the responder chain, so
-        // text edited anywhere in the app — Quick Connect, search fields,
-        // dialogs — counts as interaction. (The terminal is not a UITextField;
-        // it calls `noteAlwaysOnDisplayInteraction()` from `pressesBegan`.)
-        for name in [UITextField.textDidChangeNotification, UITextView.textDidChangeNotification] {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
-                Task { @MainActor in
-                    AlwaysOnDisplayManager.shared.noteUserInteraction()
-                }
-            }
-        }
-        attachInteractionObservers()
+        // Interaction tracking is deliberately NOT installed here: it belongs
+        // to a timed hold, so `armHold()` installs and removes it with one.
+        // The two lifecycle observers above stay unconditional — they fire a
+        // handful of times per session and are what makes the persisted setting
+        // take effect after a launch or a background/unlock cycle.
     }
 
     /// Restarts the awake window. Called for every touch-down, hardware key
-    /// press and text edit, so it stays cheap: Off and Always have no window to
-    /// restart, and rapid input is coalesced to at most one rearm per second
+    /// press and text edit, so it stays cheap: without a timed hold it returns
+    /// on a stored Bool (and nothing is installed to call it in the first
+    /// place), and rapid input is coalesced to at most one rearm per second
     /// (a window is a minute or more, so the lost fraction is irrelevant).
     func noteUserInteraction() {
-        guard duration.holdInterval != nil else { return }
+        guard isTrackingInteraction else { return }
         if let lastArmed, ContinuousClock.now - lastArmed < .seconds(1) { return }
         armHold() // owns `lastArmed`
     }
@@ -235,6 +234,13 @@ final class AlwaysOnDisplayManager {
         holdTimer?.invalidate()
         holdTimer = nil
         lastArmed = nil
+
+        // The one place where interaction tracking follows the setting:
+        // `armHold()` already runs on every change to `duration`, on the reload
+        // once protected data is available, and on every activation. It follows
+        // the setting only, not the lifecycle — a backgrounded app receives no
+        // touches, so tearing tracking down there would be pure churn.
+        setInteractionTracking(duration.holdInterval != nil)
 
         // A background launch or unlock reaches here through `whenAvailable`;
         // arming then would hold an assertion for a screen nobody is looking at.
@@ -309,6 +315,67 @@ final class AlwaysOnDisplayManager {
 
     // MARK: - Interaction observation
 
+    /// Install or remove the whole interaction-watching apparatus. Idempotent.
+    private func setInteractionTracking(_ enabled: Bool) {
+        guard enabled != isTrackingInteraction else { return }
+        isTrackingInteraction = enabled
+        if enabled {
+            startInteractionTracking()
+        } else {
+            stopInteractionTracking()
+        }
+    }
+
+    private func startInteractionTracking() {
+        // New scenes/windows (iPadOS multi-window, Stage Manager) need their own
+        // touch observer; the app's windows are usually already up here. This
+        // also catches the keyboard-hosting windows that never appear in
+        // `UIWindowScene.windows`, so taps on the software keyboard count too.
+        interactionObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: UIWindow.didBecomeVisibleNotification,
+                object: nil,
+                queue: .main
+            ) { notification in
+                // Delivered on the main queue, so the actor hop a `Task` would
+                // add is pure overhead — and the text observers below run per
+                // keystroke.
+                MainActor.assumeIsolated {
+                    guard let window = notification.object as? UIWindow else { return }
+                    AlwaysOnDisplayManager.shared.attachInteractionObserver(to: window)
+                }
+            }
+        )
+        // Typing is not a touch. Hardware keys go to the responder chain, so
+        // text edited anywhere in the app — Quick Connect, search fields,
+        // dialogs — counts as interaction. (The terminal is not a UITextField;
+        // it calls `noteAlwaysOnDisplayInteraction()` from `pressesBegan`.)
+        for name in [UITextField.textDidChangeNotification, UITextView.textDidChangeNotification] {
+            interactionObservers.append(
+                NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                    MainActor.assumeIsolated {
+                        AlwaysOnDisplayManager.shared.noteUserInteraction()
+                    }
+                }
+            )
+        }
+        attachInteractionObservers()
+    }
+
+    private func stopInteractionTracking() {
+        for observer in interactionObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        interactionObservers.removeAll()
+        // Windows outlive a change to the setting, so their observer gesture
+        // has to come off explicitly. The table holds gestures weakly, so
+        // windows that are already gone are simply no longer in it.
+        for gesture in interactionGestures.allObjects {
+            gesture.view?.removeGestureRecognizer(gesture)
+        }
+        interactionGestures.removeAllObjects()
+    }
+
     private func attachInteractionObservers() {
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
@@ -319,9 +386,12 @@ final class AlwaysOnDisplayManager {
     }
 
     fileprivate func attachInteractionObserver(to window: UIWindow) {
+        guard isTrackingInteraction else { return }
         let alreadyAttached = window.gestureRecognizers?.contains { $0 is InteractionObserverGesture } ?? false
         guard !alreadyAttached else { return }
-        window.addGestureRecognizer(InteractionObserverGesture())
+        let gesture = InteractionObserverGesture()
+        window.addGestureRecognizer(gesture)
+        interactionGestures.add(gesture)
     }
 }
 
