@@ -182,7 +182,11 @@ extension MainView {
     func tabBarLeadingSpacer(geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
         #if targetEnvironment(macCatalyst)
         let dragWidth = topTabBarAttachedToWindow ? Self.catalystWindowDragWidth : 0
+        // This fill sits above the row's background, so without the inset it
+        // clips the integrated edge across the traffic-light clearance. Outer
+        // frame is unchanged, leaving drag-region geometry alone.
         tabBarChromeBackground(theme)
+            .padding(.bottom, topTabStyle == .integrated ? IntegratedTabEdgeMetrics.reservedThickness : 0)
             .frame(width: tabBarLeadingPadding, height: 44)
             .overlay(alignment: .trailing) {
                 if dragWidth > 0 {

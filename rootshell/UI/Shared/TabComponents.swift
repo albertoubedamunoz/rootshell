@@ -491,8 +491,8 @@ struct TabButton: View {
                 // The selected silhouette consumes its first 10pt with the
                 // lower shoulder. Start content inside the vertical body,
                 // rather than at the outer shoulder edge.
-                .padding(.leading, TabMetrics.horizontalPadding + 8)
-                .padding(.trailing, 6)
+                .padding(.leading, TabMetrics.horizontalPadding + 11)
+                .padding(.trailing, 9)
                 .frame(maxWidth: .infinity, maxHeight: TabMetrics.tabBarHeight)
                 .background {
                     IntegratedTabBackground(
@@ -500,6 +500,7 @@ struct TabButton: View {
                         isHovered: isHovered,
                         selectedColor: selectedBackgroundColor,
                         hoverColor: unselectedBackgroundColor,
+                        isLightTheme: isLightTheme,
                         namespace: namespace,
                         reduceMotion: reduceMotion
                     )
@@ -598,68 +599,10 @@ struct TabButton: View {
 /// shoulders that widen into the terminal edge. The bottom remains open and
 /// flush, so matching the terminal background reads as one connected surface.
 private struct BrowserTabShape: Shape {
+    // Metrics live in `IntegratedTabGeometry` so this and the outline drawn
+    // over it trace the same curve.
     func path(in rect: CGRect) -> Path {
-        // Leave a narrow strip of the frame visible above the active tab, then
-        // use roughly equal upper radii and lower shoulder curves.
-        // Keeping the shoulders inside the tab's allocation avoids overlap
-        // with neighboring close buttons while preserving the same silhouette.
-        let topInset = min(5, rect.height * 0.12)
-        let tabRect = CGRect(
-            x: rect.minX,
-            y: rect.minY + topInset,
-            width: rect.width,
-            height: max(0, rect.height - topInset)
-        )
-        // The lower shoulder is wider than it is tall. That shallow ellipse
-        // makes the active surface appear to flow into the content; a 1:1
-        // corner reads as a sharp hook at Retina pixel scale.
-        let shoulderWidth = min(16, tabRect.width * 0.12)
-        let shoulderHeight = min(10, tabRect.height * 0.28)
-        let radius = min(10, tabRect.height * 0.28)
-        let bezierKappa: CGFloat = 0.552_284_8
-        var path = Path()
-        path.move(to: CGPoint(x: tabRect.minX, y: tabRect.maxY))
-        path.addCurve(
-            to: CGPoint(
-                x: tabRect.minX + shoulderWidth,
-                y: tabRect.maxY - shoulderHeight
-            ),
-            control1: CGPoint(
-                x: tabRect.minX + shoulderWidth * bezierKappa,
-                y: tabRect.maxY
-            ),
-            control2: CGPoint(
-                x: tabRect.minX + shoulderWidth,
-                y: tabRect.maxY - shoulderHeight * (1 - bezierKappa)
-            )
-        )
-        path.addLine(to: CGPoint(x: tabRect.minX + shoulderWidth, y: tabRect.minY + radius))
-        path.addQuadCurve(
-            to: CGPoint(x: tabRect.minX + shoulderWidth + radius, y: tabRect.minY),
-            control: CGPoint(x: tabRect.minX + shoulderWidth, y: tabRect.minY)
-        )
-        path.addLine(to: CGPoint(x: tabRect.maxX - shoulderWidth - radius, y: tabRect.minY))
-        path.addQuadCurve(
-            to: CGPoint(x: tabRect.maxX - shoulderWidth, y: tabRect.minY + radius),
-            control: CGPoint(x: tabRect.maxX - shoulderWidth, y: tabRect.minY)
-        )
-        path.addLine(to: CGPoint(
-            x: tabRect.maxX - shoulderWidth,
-            y: tabRect.maxY - shoulderHeight
-        ))
-        path.addCurve(
-            to: CGPoint(x: tabRect.maxX, y: tabRect.maxY),
-            control1: CGPoint(
-                x: tabRect.maxX - shoulderWidth,
-                y: tabRect.maxY - shoulderHeight * (1 - bezierKappa)
-            ),
-            control2: CGPoint(
-                x: tabRect.maxX - shoulderWidth * bezierKappa,
-                y: tabRect.maxY
-            )
-        )
-        path.closeSubpath()
-        return path
+        IntegratedTabGeometry(in: rect).silhouettePath
     }
 }
 
@@ -668,6 +611,7 @@ private struct IntegratedTabBackground: View {
     let isHovered: Bool
     let selectedColor: Color
     let hoverColor: Color
+    let isLightTheme: Bool
     let namespace: Namespace.ID?
     let reduceMotion: Bool
 
@@ -685,9 +629,20 @@ private struct IntegratedTabBackground: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
     }
 
+    /// Opaque silhouette plus the edge arching over it. Open at the bottom so
+    /// the tab still merges into the terminal; the run it joins is in `MainView`.
     @ViewBuilder
     private var selectedBackground: some View {
-        let background = BrowserTabShape().fill(selectedColor)
+        let background = ZStack {
+            BrowserTabShape()
+                .fill(selectedColor)
+
+            // Between fill and outline: clears the strip's rule out of the
+            // outline's shoulder band.
+            IntegratedTabEdgeOccluder(color: selectedColor)
+
+            IntegratedTabOutlineView(isLightTheme: isLightTheme)
+        }
 
         if let namespace {
             background

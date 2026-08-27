@@ -197,8 +197,9 @@ enum TabBarSizingPolicy {
 
     /// Fixed integrated-tab layout outside the title itself: leading inset,
     /// title/close spacing, the 44pt close target, and trailing inset.
+    /// Mirrors the insets applied in `TabButton.body`'s integrated branch.
     private static var integratedChromeWidth: CGFloat {
-        (TabMetrics.horizontalPadding + 8) + 4 + 44 + 4
+        (TabMetrics.horizontalPadding + 11) + 4 + 44 + 9
     }
 
     private static var chromeWidth: CGFloat {

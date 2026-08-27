@@ -442,8 +442,19 @@ struct MainView: View {
                         .frame(height: TabMetrics.tabBarHeight)
                         .frame(maxWidth: .infinity)
                         .background {
-                            tabBarChromeBackground(resolvedTheme)
-                                .tabStyleSwitchContextMenu(selection: $topTabStyleRawValue)
+                            ZStack {
+                                tabBarChromeBackground(resolvedTheme)
+                                    .tabStyleSwitchContextMenu(selection: $topTabStyleRawValue)
+
+                                // Background layer on purpose: the active tab
+                                // occludes the run beneath it, so the line
+                                // reads as rising around that tab.
+                                if topTabStyle == .integrated {
+                                    IntegratedTabEdgeRuleView(
+                                        isLightTheme: resolvedTheme.isLight
+                                    )
+                                }
+                            }
                         }
                         .modifier(ContainerCornerModifier())
 #if targetEnvironment(macCatalyst)
