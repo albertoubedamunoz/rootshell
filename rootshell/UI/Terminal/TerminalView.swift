@@ -3708,6 +3708,13 @@ extension Ghostty {
         #endif
         
         func insertText(_ text: String) {
+            // Software-keyboard and input-method text arrives here, not through
+            // `pressesBegan`, and the terminal is not a UITextField, so this is
+            // the only path that sees it. It has to restart the always-on-display
+            // window before any of the early returns below: a suppressed
+            // duplicate or a sentinel key is still the user typing.
+            noteAlwaysOnDisplayInteraction()
+
             // Sentinel key names are not text. Drop before any flag is consumed.
             if let sentinel = KeyCode.sentinelKey(for: text) {
                 if sentinel == .escape {

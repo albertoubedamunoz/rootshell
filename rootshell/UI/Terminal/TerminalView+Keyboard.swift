@@ -335,6 +335,10 @@ extension Ghostty.TerminalView {
 extension Ghostty.TerminalView {
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        // Hardware keys reach the responder chain, not the window-level touch
+        // observer, so typing has to restart the always-on-display window here.
+        noteAlwaysOnDisplayInteraction()
+
         var handled = false
         var shouldSkipSuper = false
 
