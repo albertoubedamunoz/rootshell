@@ -331,9 +331,14 @@ struct TabButton: View {
     var tmuxBadge: TmuxTabBadge? = nil  // tmux control-mode gateway/window badge
     var tmuxBadgePalette: TmuxTabBadgePalette = .fallback
     var attentionBadge: AgentAttentionStatus? = nil  // agent attention dot (id=agent-attention)
+    var style: TopTabStyle = .pills
+    var tabWidth: CGFloat = 240
+    var usesTitlebarTabs: Bool = false
 
     @State private var isHovered: Bool = false
+    @State private var isCloseHovered: Bool = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// iOS 27 / macOS 27 desaturate saturated content drawn on Liquid Glass (the
     /// colored tab badges) ONLY when the effective appearance is Light. In Dark
@@ -361,10 +366,21 @@ struct TabButton: View {
     /// - Mac Catalyst: hover only
     /// - iPad: hover OR selected tab (touch fallback)
     private var shouldShowCloseButton: Bool {
+        if style == .integrated {
+            return isSelected || isHovered || tabWidth >= integratedInactiveCloseThreshold
+        }
         #if targetEnvironment(macCatalyst)
         return isHovered
         #else
         return isHovered || isSelected
+        #endif
+    }
+
+    private var integratedInactiveCloseThreshold: CGFloat {
+        #if os(visionOS)
+        return 220
+        #else
+        return 160
         #endif
     }
 
@@ -425,17 +441,108 @@ struct TabButton: View {
 
     private var closeButton: some View {
         Button(action: onClose) {
-            Image(systemName: "xmark")
-                .font(.system(size: TabMetrics.closeIconSize, weight: .medium))
-                .foregroundColor(isSelected ? textColor : secondaryTextColor)
-                .frame(width: TabMetrics.closeButtonSize, height: TabMetrics.closeButtonSize)
+            ZStack {
+                if style == .integrated {
+                    Circle()
+                        .fill((isSelected ? textColor : secondaryTextColor).opacity(isLightTheme ? 0.10 : 0.14))
+                        .frame(width: 20, height: 20)
+                        .opacity(isCloseHovered ? 1 : 0)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: isCloseHovered)
+                }
+
+                Image(systemName: "xmark")
+                    .font(.system(size: TabMetrics.closeIconSize, weight: .medium))
+                    .foregroundColor(isSelected ? textColor : secondaryTextColor)
+            }
+            .frame(
+                width: style == .integrated ? 44 : TabMetrics.closeButtonSize,
+                height: style == .integrated ? TabMetrics.tabBarHeight : TabMetrics.closeButtonSize
+            )
+            .offset(y: style == .integrated ? 2 : 0)
+        }
+        .onHover { hovering in
+            if style == .integrated {
+                isCloseHovered = hovering
+            }
         }
         .opacity(shouldShowCloseButton ? 1 : 0)
+        .allowsHitTesting(shouldShowCloseButton)
+        .accessibilityHidden(!shouldShowCloseButton)
         .animation(.easeInOut(duration: 0.15), value: shouldShowCloseButton)
         .fixedSize()
+        .accessibilityLabel("Close \(title)")
     }
 
     var body: some View {
+        Group {
+            if style == .integrated {
+                HStack(spacing: 4) {
+                    titleContent
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .offset(y: 2)
+                    // Hidden controls must not continue consuming their 44pt
+                    // target in compact tabs; that space belongs to the title
+                    // until the close affordance is actually visible.
+                    if shouldShowCloseButton {
+                        closeButton
+                    }
+                }
+                .transaction { $0.animation = nil }
+                // The selected silhouette consumes its first 10pt with the
+                // lower shoulder. Start content inside the vertical body,
+                // rather than at the outer shoulder edge.
+                .padding(.leading, TabMetrics.horizontalPadding + 8)
+                .padding(.trailing, 6)
+                .frame(maxWidth: .infinity, maxHeight: TabMetrics.tabBarHeight)
+                .background {
+                    IntegratedTabBackground(
+                        isSelected: isSelected,
+                        isHovered: isHovered,
+                        selectedColor: selectedBackgroundColor,
+                        hoverColor: unselectedBackgroundColor,
+                        namespace: namespace,
+                        reduceMotion: reduceMotion
+                    )
+                }
+                .contentShape(Rectangle())
+            } else {
+                pillContent
+            }
+        }
+        .background(
+            Group {
+                if trackFrame {
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: TabFramePreferenceKey.self,
+                            value: [id: geo.frame(in: .global)]
+                        )
+                    }
+                }
+            }
+        )
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .onTapGesture(perform: onTap)
+        .onHover { hovering in
+            // Keep the hover state change itself immediate. The inactive-tab
+            // background owns its small opacity animation so entering a tab
+            // does not animate or rebuild the entire button subtree.
+            isHovered = hovering
+            if !hovering {
+                isCloseHovered = false
+            }
+            onHoverChange?(hovering)
+        }
+        .offset(x: isWiggling ? 3 : 0)
+        .animation(
+            isWiggling
+                ? .spring(response: 0.06, dampingFraction: 0.15).repeatCount(6, autoreverses: true)
+                : .default,
+            value: isWiggling
+        )
+    }
+
+    private var pillContent: some View {
         Group {
             #if os(visionOS)
             // visionOS: HStack layout so close button takes explicit space and never overlaps title
@@ -484,33 +591,110 @@ struct TabButton: View {
         .contentShape(.hoverEffect, Capsule())
         .hoverEffect(.highlight)
         #endif
-        .background(
-            Group {
-                if trackFrame {
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: TabFramePreferenceKey.self,
-                            value: [id: geo.frame(in: .global)]
-                        )
-                    }
-                }
+    }
+}
+
+/// Integrated selected-tab silhouette: rounded at the top, with lower
+/// shoulders that widen into the terminal edge. The bottom remains open and
+/// flush, so matching the terminal background reads as one connected surface.
+private struct BrowserTabShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        // Leave a narrow strip of the frame visible above the active tab, then
+        // use roughly equal upper radii and lower shoulder curves.
+        // Keeping the shoulders inside the tab's allocation avoids overlap
+        // with neighboring close buttons while preserving the same silhouette.
+        let topInset = min(5, rect.height * 0.12)
+        let tabRect = CGRect(
+            x: rect.minX,
+            y: rect.minY + topInset,
+            width: rect.width,
+            height: max(0, rect.height - topInset)
+        )
+        // The lower shoulder is wider than it is tall. That shallow ellipse
+        // makes the active surface appear to flow into the content; a 1:1
+        // corner reads as a sharp hook at Retina pixel scale.
+        let shoulderWidth = min(16, tabRect.width * 0.12)
+        let shoulderHeight = min(10, tabRect.height * 0.28)
+        let radius = min(10, tabRect.height * 0.28)
+        let bezierKappa: CGFloat = 0.552_284_8
+        var path = Path()
+        path.move(to: CGPoint(x: tabRect.minX, y: tabRect.maxY))
+        path.addCurve(
+            to: CGPoint(
+                x: tabRect.minX + shoulderWidth,
+                y: tabRect.maxY - shoulderHeight
+            ),
+            control1: CGPoint(
+                x: tabRect.minX + shoulderWidth * bezierKappa,
+                y: tabRect.maxY
+            ),
+            control2: CGPoint(
+                x: tabRect.minX + shoulderWidth,
+                y: tabRect.maxY - shoulderHeight * (1 - bezierKappa)
+            )
+        )
+        path.addLine(to: CGPoint(x: tabRect.minX + shoulderWidth, y: tabRect.minY + radius))
+        path.addQuadCurve(
+            to: CGPoint(x: tabRect.minX + shoulderWidth + radius, y: tabRect.minY),
+            control: CGPoint(x: tabRect.minX + shoulderWidth, y: tabRect.minY)
+        )
+        path.addLine(to: CGPoint(x: tabRect.maxX - shoulderWidth - radius, y: tabRect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: tabRect.maxX - shoulderWidth, y: tabRect.minY + radius),
+            control: CGPoint(x: tabRect.maxX - shoulderWidth, y: tabRect.minY)
+        )
+        path.addLine(to: CGPoint(
+            x: tabRect.maxX - shoulderWidth,
+            y: tabRect.maxY - shoulderHeight
+        ))
+        path.addCurve(
+            to: CGPoint(x: tabRect.maxX, y: tabRect.maxY),
+            control1: CGPoint(
+                x: tabRect.maxX - shoulderWidth,
+                y: tabRect.maxY - shoulderHeight * (1 - bezierKappa)
+            ),
+            control2: CGPoint(
+                x: tabRect.maxX - shoulderWidth * bezierKappa,
+                y: tabRect.maxY
+            )
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct IntegratedTabBackground: View {
+    let isSelected: Bool
+    let isHovered: Bool
+    let selectedColor: Color
+    let hoverColor: Color
+    let namespace: Namespace.ID?
+    let reduceMotion: Bool
+
+    var body: some View {
+        ZStack {
+            if isSelected {
+                selectedBackground
+            } else {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(hoverColor.opacity(0.75))
+                    .padding(.vertical, 4)
+                    .opacity(isHovered ? 1 : 0)
             }
-        )
-        .onTapGesture(perform: onTap)
-        .onHover { hovering in
-            // Keep the hover state change itself immediate. The inactive-tab
-            // background owns its small opacity animation so entering a tab
-            // does not animate or rebuild the entire button subtree.
-            isHovered = hovering
-            onHoverChange?(hovering)
         }
-        .offset(x: isWiggling ? 3 : 0)
-        .animation(
-            isWiggling
-                ? .spring(response: 0.06, dampingFraction: 0.15).repeatCount(6, autoreverses: true)
-                : .default,
-            value: isWiggling
-        )
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+    }
+
+    @ViewBuilder
+    private var selectedBackground: some View {
+        let background = BrowserTabShape().fill(selectedColor)
+
+        if let namespace {
+            background
+                .matchedGeometryEffect(id: "integratedSelectedTab", in: namespace)
+        } else {
+            background
+        }
     }
 }
 
@@ -602,7 +786,7 @@ struct GlassTabBackgroundModifier: ViewModifier {
     private var inactiveHoverBackground: some View {
         Capsule()
             .fill(unselectedBackgroundColor)
-            .opacity(isHovered ? (avoidsMaterials ? 1 : 0.5) : 0)
+            .opacity(isHovered ? (avoidsMaterials ? 1 : 0.75) : 0)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: isHovered
@@ -747,6 +931,54 @@ extension View {
             self
         }
         #endif
+    }
+}
+
+// MARK: - Tab Layout Context Menu
+
+/// Adds the lightweight Pills/Compact Pills/Integrated switcher to otherwise
+/// non-tab chrome.
+/// The nearest per-tab context menu still owns secondary clicks on real tabs.
+struct TabStyleSwitchContextMenuModifier: ViewModifier {
+    @Binding var selectedStyleRawValue: String
+    @AppStorage(UserPreferences.compactPillTabSpacingKey) private var compactPillTabSpacing: Bool = false
+
+    private var selectedStyle: TopTabStyle {
+        TopTabStyle.resolve(selectedStyleRawValue)
+    }
+
+    private var selectedLayout: TopTabLayout {
+        TopTabLayout.resolve(style: selectedStyle, compactPills: compactPillTabSpacing)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .contextMenu {
+                layoutButton(.pills, systemImage: "capsule")
+                layoutButton(.compactPills, systemImage: "capsule.fill")
+                layoutButton(.integrated, systemImage: "rectangle.topthird.inset.filled")
+            }
+    }
+
+    private func layoutButton(_ layout: TopTabLayout, systemImage: String) -> some View {
+        Button {
+            selectedStyleRawValue = layout.style.rawValue
+            if layout.style == .pills {
+                compactPillTabSpacing = layout.usesCompactPillSpacing
+            }
+        } label: {
+            Label(
+                layout.displayName,
+                systemImage: selectedLayout == layout ? "checkmark" : systemImage
+            )
+        }
+    }
+}
+
+extension View {
+    func tabStyleSwitchContextMenu(selection: Binding<String>) -> some View {
+        modifier(TabStyleSwitchContextMenuModifier(selectedStyleRawValue: selection))
     }
 }
 

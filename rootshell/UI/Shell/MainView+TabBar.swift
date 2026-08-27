@@ -9,6 +9,10 @@
 import SwiftUI
 import os
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 // MARK: - Tab Bar Display Mode
 
 extension MainView {
@@ -23,12 +27,55 @@ extension MainView {
     /// Width reserved for action buttons (plus + settings)
     static let actionButtonsWidth: CGFloat = TabMetrics.tabBarHeight * 2
 
+    static let integratedMaximumTabWidth: CGFloat = 240
+    static let catalystWindowDragWidth: CGFloat = 42
+
     /// Usable width for tab items after fixed leading chrome and trailing
     /// action buttons are reserved. Per-tab display mode decisions live in
     /// `TabBar`, where reading title/badge/health metadata does not invalidate
     /// `MainView.body`.
     func availableTabBarWidth(in geometry: GeometryProxy) -> CGFloat {
         max(0, geometry.size.width - Self.actionButtonsWidth - tabBarLeadingPadding)
+    }
+
+    /// Width of the compact tab viewport. Capped tabs leave real flexible
+    /// space after the new-tab button instead of stretching across the window.
+    func integratedTabTrackWidth(in geometry: GeometryProxy) -> CGFloat {
+        let tabCount = tabsModel.navigationTabs.count
+        guard tabCount > 0 else { return 0 }
+
+        let scopeWidth = integratedScopeMenuWidth
+        let preferred = CGFloat(tabCount) * Self.integratedMaximumTabWidth + scopeWidth
+        let capacity = max(
+            0,
+            geometry.size.width
+                - tabBarLeadingPadding
+                - Self.actionButtonsWidth
+                - integratedMinimumDragWidth
+        )
+        return min(preferred, capacity)
+    }
+
+    private var integratedScopeMenuWidth: CGFloat {
+        guard showTabScopeMenu,
+              tabsModel.orderProjection.mode != .flat,
+              let title = tabsModel.orderProjection.activeScopeTitle else { return 0 }
+        #if canImport(UIKit)
+        let font = UIFont.systemFont(ofSize: 11, weight: .semibold)
+        return min(170, max(66, ceil((title as NSString).size(withAttributes: [.font: font]).width) + 46))
+        #else
+        return min(170, max(66, CGFloat(title.count * 7) + 46))
+        #endif
+    }
+
+    var integratedMinimumDragWidth: CGFloat {
+        #if targetEnvironment(macCatalyst)
+        return (usesTitlebarTabs || hideWindowTitleBar)
+            ? Self.catalystWindowDragWidth
+            : 0
+        #else
+        return 0
+        #endif
     }
 }
 
@@ -65,11 +112,43 @@ extension MainView {
     /// (varying frames; common root: scene-update transactions blow the
     /// 10s/30s FrontBoard budget when MainView re-evaluates) hinges on
     /// this decoupling.
+    /// The compact track uses a preferred width already clamped to the space
+    /// left after fixed controls. Giving that width to the GeometryReader
+    /// directly prevents SwiftUI from needlessly compressing a lone pill while
+    /// the adjacent titlebar drag region expands into otherwise unused space.
     @ViewBuilder
-    func tabBarContent(in geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
+    func tabBarTrack(in geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
+        if usesCompactTabSpacing {
+            let preferredWidth = integratedTabTrackWidth(in: geometry)
+            GeometryReader { trackGeometry in
+                tabBarContent(
+                    availableWidth: trackGeometry.size.width,
+                    theme: theme
+                )
+            }
+            .frame(
+                width: preferredWidth,
+                height: TabMetrics.tabBarHeight,
+                alignment: .leading
+            )
+        } else {
+            tabBarContent(
+                availableWidth: availableTabBarWidth(in: geometry),
+                theme: theme
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func tabBarContent(
+        availableWidth: CGFloat,
+        theme: ResolvedTabBarTheme
+    ) -> some View {
         TabBar(
             theme: theme,
-            availableWidth: availableTabBarWidth(in: geometry),
+            availableWidth: availableWidth,
+            style: topTabStyle,
+            usesCompactSpacing: usesCompactTabSpacing,
             tabsModel: tabsModel,
             selectedTabIndex: Binding(
                 get: { selectedTabIndex },
@@ -78,7 +157,7 @@ extension MainView {
                 }
             ),
             windowId: windowId,
-            usesTitlebarTabs: usesTitlebarTabs,
+            usesTitlebarTabs: topTabBarAttachedToWindow,
             sshHealthMonitoringEnabled: sshHealthMonitoringEnabled,
             tabNamespace: tabNamespace,
             canAcceptWindowTransferDrop: tabTransferDropOverlayVisible,
@@ -89,7 +168,7 @@ extension MainView {
             onMoveTab: { from, to in moveTab(from: from, to: to) },
             onSelectTab: { index in
                 guard index != selectedTabIndex else { return }
-                if tabBarAnimationsDisabled {
+                if tabBarAnimationsDisabled || UIAccessibility.isReduceMotionEnabled {
                     selectedTabIndex = index
                 } else {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {

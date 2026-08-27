@@ -46,9 +46,56 @@ enum TabBarSizingPolicy {
         let scrollingTabWidth: CGFloat
     }
 
-    static func decision(availableWidth: CGFloat, items: [Item]) -> Decision {
+    static func decision(
+        availableWidth: CGFloat,
+        items: [Item],
+        style: TopTabStyle = .pills,
+        usesCompactSpacing: Bool = false
+    ) -> Decision {
         guard let first = items.first else {
             return Decision(mode: .singleTab, equalTabWidth: 0, singleTabWidth: 0, scrollingTabWidth: 0)
+        }
+
+        if style == .integrated || usesCompactSpacing {
+            let tabCount = CGFloat(items.count)
+            let equalWidth = availableWidth / max(tabCount, 1)
+            let resolvedWidth = min(integratedMaximumWidth, equalWidth)
+            let requiredWidth = min(
+                integratedMaximumWidth,
+                max(
+                    integratedMinimumFloorWidth,
+                    items.map(integratedReadableMinimumWidth(for:)).max()
+                        ?? integratedMinimumFloorWidth
+                )
+            )
+
+            if items.count == 1 {
+                return Decision(
+                    mode: .singleTab,
+                    equalTabWidth: resolvedWidth,
+                    singleTabWidth: resolvedWidth,
+                    scrollingTabWidth: min(
+                        integratedMaximumWidth,
+                        max(requiredWidth, resolvedWidth)
+                    )
+                )
+            }
+
+            if equalWidth >= requiredWidth {
+                return Decision(
+                    mode: .equalWidth,
+                    equalTabWidth: resolvedWidth,
+                    singleTabWidth: 0,
+                    scrollingTabWidth: resolvedWidth
+                )
+            }
+
+            return Decision(
+                mode: .scrolling,
+                equalTabWidth: 0,
+                singleTabWidth: 0,
+                scrollingTabWidth: requiredWidth
+            )
         }
 
         if items.count == 1 {
@@ -108,6 +155,18 @@ enum TabBarSizingPolicy {
         #endif
     }
 
+    private static var integratedMinimumFloorWidth: CGFloat {
+        #if os(visionOS)
+        return 180
+        #elseif targetEnvironment(macCatalyst)
+        return 120
+        #else
+        return 160
+        #endif
+    }
+
+    private static let integratedMaximumWidth: CGFloat = 240
+
     private static var readableTitleBudget: CGFloat {
         #if os(visionOS)
         return 96
@@ -130,6 +189,16 @@ enum TabBarSizingPolicy {
 
     private static func readableMinimumWidth(for item: Item) -> CGFloat {
         ceil(chromeWidth + metadataWidth(for: item) + readableTitleBudget)
+    }
+
+    private static func integratedReadableMinimumWidth(for item: Item) -> CGFloat {
+        ceil(integratedChromeWidth + metadataWidth(for: item) + readableTitleBudget)
+    }
+
+    /// Fixed integrated-tab layout outside the title itself: leading inset,
+    /// title/close spacing, the 44pt close target, and trailing inset.
+    private static var integratedChromeWidth: CGFloat {
+        (TabMetrics.horizontalPadding + 8) + 4 + 44 + 4
     }
 
     private static var chromeWidth: CGFloat {
@@ -210,6 +279,8 @@ struct TabBar: View {
 
     let theme: ResolvedTabBarTheme
     let availableWidth: CGFloat
+    let style: TopTabStyle
+    let usesCompactSpacing: Bool
 
     // MARK: - Structural / references
 
@@ -265,6 +336,7 @@ struct TabBar: View {
 
     @AppStorage("tabBarAnimationsDisabled") private var tabBarAnimationsDisabled: Bool = false
     @AppStorage(UserPreferences.showTabScopeMenuKey) private var showTabScopeMenu: Bool = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Dialog state
 
@@ -290,7 +362,10 @@ struct TabBar: View {
                 scrollingView(tabWidth: decision.scrollingTabWidth)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // GeometryReader places an intrinsic-height child at its top edge.
+        // Fill the 44pt track and use `.leading` (vertically centered) so a
+        // 32pt pill aligns with the full-height add/settings controls.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .tmuxTabDialogs(coordinator: tmuxDialogs, controller: tmuxController)
         .overlay {
             if canAcceptWindowTransferDrop {
@@ -338,7 +413,9 @@ struct TabBar: View {
         }
         return TabBarSizingPolicy.decision(
             availableWidth: max(0, availableWidth - activeScopeMenuWidth),
-            items: items
+            items: items,
+            style: style,
+            usesCompactSpacing: usesCompactSpacing
         )
     }
 
@@ -377,7 +454,8 @@ struct TabBar: View {
         for tab: TabModel,
         index: Int,
         isOnly: Bool,
-        gatewayOwnerIDs: [UUID]
+        gatewayOwnerIDs: [UUID],
+        tabWidth: CGFloat
     ) -> TabBarItem {
         let tmuxBadge = TmuxTabBadgeResolver.badge(for: tab, gatewayOwnerIDs: gatewayOwnerIDs)
         return TabBarItem(
@@ -406,6 +484,8 @@ struct TabBar: View {
             // Cmd+N to the active group, and hidden tmux windows are skipped.
             keyboardShortcut: keyboardShortcut(tabsModel.navigationIndex(of: tab.id) ?? index),
             usesTitlebarTabs: usesTitlebarTabs,
+            style: style,
+            tabWidth: tabWidth,
             hasThemeOverride: tabHasThemeOverride(tab.id),
             onTap: {
                 if !isOnly { onSelectTab(index) }
@@ -696,7 +776,7 @@ struct TabBar: View {
         if let tab = tabsModel.navigationTabs.first {
             let rawIndex = tabsModel.index(of: tab.id) ?? 0
             let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabsModel.tabs)
-            let tabWidth = TabBarSizingPolicy.singleTabWidth(
+            let tabWidth = usesCompactSpacing ? fallbackWidth : TabBarSizingPolicy.singleTabWidth(
                 availableWidth: max(0, availableWidth - activeScopeMenuWidth),
                 item: sizingItem(for: tab, index: rawIndex, gatewayOwnerIDs: gatewayOwnerIDs),
                 title: tab.title,
@@ -704,24 +784,68 @@ struct TabBar: View {
                 healthRTTMilliseconds: tab.connectionHealth?.rttMilliseconds
             )
             let resolvedWidth = tabWidth > 0 ? tabWidth : fallbackWidth
-            HStack(spacing: 4) {
-                activeScopeMenu
-                tabItem(for: tab, index: rawIndex, isOnly: true, gatewayOwnerIDs: gatewayOwnerIDs)
-                    .frame(width: resolvedWidth)
-                    .contextMenu {
-                        // Full shared menu — a lone visible tab can still be a
-                        // tmux gateway/window. No move targets with one tab.
-                        tabContextMenu(
-                            for: tab,
-                            index: rawIndex,
-                            moveLeftTarget: nil,
-                            moveRightTarget: nil,
-                            includeThemeOverrideClear: true
-                        )
-                    }
+            HStack(spacing: 0) {
+                if !usesCompactSpacing {
+                    singleTabFlexibleMargin()
+                }
+
+                HStack(spacing: usesCompactSpacing ? 0 : 4) {
+                    activeScopeMenu
+                    compactScopeMenuSpacer
+                    tabItem(
+                        for: tab,
+                        index: rawIndex,
+                        isOnly: true,
+                        gatewayOwnerIDs: gatewayOwnerIDs,
+                        tabWidth: resolvedWidth
+                    )
+                        .frame(width: resolvedWidth)
+                        .contextMenu {
+                            // Full shared menu — a lone visible tab can still be a
+                            // tmux gateway/window. No move targets with one tab.
+                            tabContextMenu(
+                                for: tab,
+                                index: rawIndex,
+                                moveLeftTarget: nil,
+                                moveRightTarget: nil,
+                                includeThemeOverrideClear: true
+                            )
+                        }
+                }
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
+
+                if !usesCompactSpacing {
+                    singleTabFlexibleMargin()
+                }
             }
-            .frame(maxWidth: .infinity)
+            .frame(
+                maxWidth: .infinity,
+                alignment: usesCompactSpacing ? .leading : .center
+            )
         }
+    }
+
+    /// A single Pills tab is intentionally narrower than the available row
+    /// and centered. On Catalyst those otherwise-empty centering margins are
+    /// useful titlebar real estate, so make them native drag targets instead
+    /// of inert SwiftUI space.
+    @ViewBuilder
+    private func singleTabFlexibleMargin() -> some View {
+        #if targetEnvironment(macCatalyst)
+        if usesTitlebarTabs {
+            CatalystWindowDragRegion()
+                .frame(minWidth: 0, maxWidth: .infinity)
+                .frame(height: TabMetrics.tabBarHeight)
+                .layoutPriority(-1)
+                .catalystCursorRegion(.openHand, priority: .titlebar)
+                .accessibilityHidden(true)
+        } else {
+            Spacer(minLength: 0)
+        }
+        #else
+        Spacer(minLength: 0)
+        #endif
     }
 
     // MARK: - Equal-width tabs
@@ -739,14 +863,21 @@ struct TabBar: View {
         // reused for every tab (O(n)), and baked into each item so equality can
         // compare the resolved badge.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabs)
-        HStack(spacing: 4) {
+        HStack(spacing: usesCompactSpacing ? 0 : 4) {
             activeScopeMenu
+            compactScopeMenuSpacer
             ForEach(navigationTabs) { tab in
                 let index = tabsModel.index(of: tab.id) ?? 0
                 let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
                 let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
                 equalWidthTabFrame(width: tabWidth) {
-                    tabItem(for: tab, index: index, isOnly: false, gatewayOwnerIDs: gatewayOwnerIDs)
+                    tabItem(
+                        for: tab,
+                        index: index,
+                        isOnly: false,
+                        gatewayOwnerIDs: gatewayOwnerIDs,
+                        tabWidth: tabWidth
+                    )
                         .equatable()
                 }
                     .contentShape(Rectangle())
@@ -772,7 +903,9 @@ struct TabBar: View {
         // not leak into the terminal-content `ForEach`'s opacity flip in
         // `MainViewTerminalContent`, which must be instant.
         .animation(
-            tabBarAnimationsDisabled || suppressSelectionAnimation ? nil : .spring(response: 0.3, dampingFraction: 0.7),
+            tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
+                ? nil
+                : .spring(response: 0.3, dampingFraction: 0.7),
             value: tabsModel.selectedTabID
         )
     }
@@ -808,13 +941,20 @@ struct TabBar: View {
         // equalWidthView.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabs)
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: usesCompactSpacing ? 0 : 8) {
                 activeScopeMenu
+                compactScopeMenuSpacer
                 ForEach(navigationTabs) { tab in
                     let index = tabsModel.index(of: tab.id) ?? 0
                     let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
                     let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                    tabItem(for: tab, index: index, isOnly: false, gatewayOwnerIDs: gatewayOwnerIDs)
+                    tabItem(
+                        for: tab,
+                        index: index,
+                        isOnly: false,
+                        gatewayOwnerIDs: gatewayOwnerIDs,
+                        tabWidth: tabWidth
+                    )
                         .equatable()
                         .frame(width: tabWidth)
                         .contentShape(Rectangle())
@@ -831,16 +971,30 @@ struct TabBar: View {
                         }
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, usesCompactSpacing ? 0 : 8)
             .contentShape(Rectangle())
             .modifier(GlassEffectContainerModifier())
             // Scoped animation for the selection slide. See equalWidthView.
             .animation(
-                tabBarAnimationsDisabled || suppressSelectionAnimation ? nil : .spring(response: 0.3, dampingFraction: 0.7),
+                tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
+                    ? nil
+                    : .spring(response: 0.3, dampingFraction: 0.7),
                 value: tabsModel.selectedTabID
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Compact pills intentionally abut one another, but the scope menu is a
+    /// separate control and should retain the small visual break used by the
+    /// regular pill layout.
+    @ViewBuilder
+    private var compactScopeMenuSpacer: some View {
+        if usesCompactSpacing,
+           style == .pills,
+           activeScopeMenuWidth > 0 {
+            Color.clear.frame(width: 4)
+        }
     }
 
     private var shouldPinEqualWidthTabs: Bool {
@@ -856,7 +1010,7 @@ struct TabBar: View {
         width: CGFloat,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        if shouldPinEqualWidthTabs {
+        if usesCompactSpacing || shouldPinEqualWidthTabs {
             content()
                 .frame(width: width)
                 .frame(maxHeight: .infinity)
@@ -888,6 +1042,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
     /// would still scroll back to the original pending tab because the
     /// captured `selectedTabID` was stale.
     let tabsModel: TabsModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
@@ -901,7 +1056,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
             .onChange(of: selectedTabIndex) { _, newValue in
                 guard tabs.indices.contains(newValue),
                       renderedTabIDs.contains(tabs[newValue].id) else { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
                     proxy.scrollTo(tabs[newValue].id, anchor: .center)
                 }
             }
@@ -940,7 +1095,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
                 return
             }
 
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
                 proxy.scrollTo(targetID, anchor: .center)
             }
         }
@@ -971,7 +1126,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
                 return
             }
             if attempt == 5 {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
                     proxy.scrollTo(targetID, anchor: .center)
                 }
             } else {
@@ -1025,6 +1180,8 @@ struct TabBarItem: View, Equatable {
     let sshHealthMonitoringEnabled: Bool
     let keyboardShortcut: String?
     let usesTitlebarTabs: Bool
+    let style: TopTabStyle
+    let tabWidth: CGFloat
     let hasThemeOverride: Bool
     let onTap: () -> Void
     let onClose: () -> Void
@@ -1055,7 +1212,13 @@ struct TabBarItem: View, Equatable {
             && lhs.keyboardShortcut == rhs.keyboardShortcut
             && lhs.sshHealthMonitoringEnabled == rhs.sshHealthMonitoringEnabled
             && lhs.usesTitlebarTabs == rhs.usesTitlebarTabs
+            && lhs.style == rhs.style
+            && lhs.tabWidth == rhs.tabWidth
             && lhs.theme.isLight == rhs.theme.isLight
+            && lhs.theme.baseColor == rhs.theme.baseColor
+            && lhs.theme.terminalSurfaceBackground == rhs.theme.terminalSurfaceBackground
+            && lhs.theme.terminalSurfaceIsTransparent == rhs.theme.terminalSurfaceIsTransparent
+            && lhs.theme.tabBarBackground == rhs.theme.tabBarBackground
             && lhs.theme.selectedBackground == rhs.theme.selectedBackground
             && lhs.theme.unselectedBackground == rhs.theme.unselectedBackground
             && lhs.theme.tabText == rhs.theme.tabText
@@ -1067,8 +1230,10 @@ struct TabBarItem: View, Equatable {
             id: tab.id,
             title: tab.title,
             isSelected: isOnly || isSelected,
-            selectedBackgroundColor: theme.selectedBackground,
-            unselectedBackgroundColor: theme.unselectedBackground,
+            selectedBackgroundColor: style == .integrated
+                ? (theme.terminalSurfaceBackground ?? theme.selectedBackground)
+                : theme.selectedBackground,
+            unselectedBackgroundColor: theme.inactiveHoverBackground(for: style),
             textColor: theme.tabText,
             secondaryTextColor: theme.tabSecondaryText,
             isLightTheme: theme.isLight,
@@ -1086,7 +1251,10 @@ struct TabBarItem: View, Equatable {
             roamProtocol: tab.activeRoamProtocol,
             tmuxBadge: tmuxBadge,
             tmuxBadgePalette: TmuxTabBadgePalette(theme: theme),
-            attentionBadge: attentionBadge
+            attentionBadge: attentionBadge,
+            style: style,
+            tabWidth: tabWidth,
+            usesTitlebarTabs: usesTitlebarTabs
         )
     }
 }

@@ -7,12 +7,71 @@
 
 import Foundation
 
+/// Visual treatment for the horizontal tab bar. Pills preserves the existing
+/// Rootshell appearance; Integrated connects the selected tab to the terminal
+/// and uses browser-style sizing and controls.
+enum TopTabStyle: String, CaseIterable, Identifiable {
+    case pills
+    case integrated
+
+    static let storageKey = "topTabStyle"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .pills: return String(localized: "Pills")
+        case .integrated: return String(localized: "Integrated")
+        }
+    }
+
+    static func resolve(_ rawValue: String) -> TopTabStyle {
+        TopTabStyle(rawValue: rawValue) ?? .pills
+    }
+}
+
+/// User-facing combinations of top-tab appearance and spacing. Persistence
+/// remains split between `TopTabStyle` and the compact-pills boolean so the
+/// rendering code can vary layout without changing the pill appearance.
+enum TopTabLayout: String, CaseIterable, Identifiable {
+    case pills
+    case compactPills
+    case integrated
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .pills: return String(localized: "Pills")
+        case .compactPills: return String(localized: "Compact Pills")
+        case .integrated: return String(localized: "Integrated")
+        }
+    }
+
+    var style: TopTabStyle {
+        switch self {
+        case .pills, .compactPills: return .pills
+        case .integrated: return .integrated
+        }
+    }
+
+    var usesCompactPillSpacing: Bool { self == .compactPills }
+
+    static func resolve(style: TopTabStyle, compactPills: Bool) -> TopTabLayout {
+        switch style {
+        case .integrated: return .integrated
+        case .pills: return compactPills ? .compactPills : .pills
+        }
+    }
+}
+
 /// Namespace for user preferences that affect prompts and SSH defaults
 nonisolated enum UserPreferences {
 
     // MARK: - Tab Bar
 
     static let showTabScopeMenuKey = "showTabScopeMenu"
+    static let compactPillTabSpacingKey = "compactPillTabSpacing"
 
     // MARK: - Text Selection
 
