@@ -495,19 +495,27 @@ struct WindowSettingsView: View {
                         Text(alwaysOnDisplayManager.duration.displayValue)
                             .foregroundColor(.secondary)
                             .monospacedDigit()
-                            .frame(width: 68, alignment: .trailing)
+                            // A floor, not a fixed width: it keeps the slider from
+                            // shifting as the value changes without clipping
+                            // "Always" at large Dynamic Type sizes.
+                            .frame(minWidth: 68, alignment: .trailing)
                     }
                     HStack(spacing: 12) {
                         Image(systemName: "moon.zzz")
                             .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
                         Slider(
                             value: $alwaysOnDisplayManager.sliderValue,
                             in: AlwaysOnDisplayDuration.sliderRange,
                             step: 1
                         )
+                        // The row title is a sibling in the HStack above, so the
+                        // slider needs its own name for VoiceOver.
+                        .accessibilityLabel(Text("Always On Display"))
                         .accessibilityValue(alwaysOnDisplayManager.duration.displayValue)
                         Image(systemName: "infinity")
                             .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
                     }
                     Text(alwaysOnDisplayManager.duration.explanation)
                         .font(.caption)
