@@ -51,12 +51,32 @@ extension MainView {
             return
         }
 
-        for request in AppIntentCoordinator.shared.consumeAll() {
+        dispatchClaimedIntentRequests(AppIntentCoordinator.shared.consumeAll())
+    }
+
+    /// Routes already-claimed requests (AppleScript `create window` hands a
+    /// fresh window its staged requests this way). Same Ghostty-init retry
+    /// as the buffered path.
+    func dispatchClaimedIntentRequests(_ requests: [AppIntentCoordinator.IntentRequest], retriesRemaining: Int = 20) {
+        guard !requests.isEmpty else { return }
+        guard ghosttyApp.app != nil else {
+            guard retriesRemaining > 0 else {
+                Ghostty.logger.error("Giving up on intent request: Ghostty never initialized")
+                return
+            }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                dispatchClaimedIntentRequests(requests, retriesRemaining: retriesRemaining - 1)
+            }
+            return
+        }
+
+        for request in requests {
             switch request {
             case .openProfile(let profileRequest):
                 handleProfileIntent(profileRequest)
-            case .openLocalShell(let directory):
-                createLocalShellTab(intentDirectory: directory)
+            case .openLocalShell(let directory, let command):
+                createLocalShellTab(intentDirectory: directory, startupCommand: command)
             case .openSSH(let components):
                 handleSSHURL(components)
             case .openMosh(let components):

@@ -18,7 +18,7 @@ struct OpenLocalShellIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        AppIntentCoordinator.shared.deposit(.openLocalShell(directory: directory))
+        AppIntentCoordinator.shared.deposit(.openLocalShell(directory: directory, command: nil))
         return .result()
     }
 }

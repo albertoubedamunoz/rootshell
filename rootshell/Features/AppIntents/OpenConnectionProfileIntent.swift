@@ -58,15 +58,20 @@ struct OpenConnectionProfileIntent: AppIntent {
         switch (hasDir, hasCmd) {
         case (true, true):
             let prefix = executeInShell ? "" : "exec "
-            return "cd '\(dir!)' && \(prefix)\(cmd!)"
+            return "cd \(shellQuoted(dir!)) && \(prefix)\(cmd!)"
         case (true, false):
-            return "cd '\(dir!)'"
+            return "cd \(shellQuoted(dir!))"
         case (false, true):
             let prefix = executeInShell ? "" : "exec "
             return "\(prefix)\(cmd!)"
         case (false, false):
             return nil
         }
+    }
+
+    /// POSIX single-quoting; an embedded `'` becomes `'\''`.
+    static func shellQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     enum IntentError: Swift.Error, CustomLocalizedStringResourceConvertible {

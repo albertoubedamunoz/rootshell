@@ -40,6 +40,10 @@ extension MainView {
             .handlesExternalEvents(preferring: ["file://"], allowing: ["*"])
             .onOpenURL { url in
                 guard url.isFileURL else { return }
+                #if targetEnvironment(macCatalyst)
+                // Folders become a shell tab via CatalystSceneDelegate.
+                if url.isExistingDirectory { return }
+                #endif
                 FileOpenCoordinator.shared.handleIncomingFileURL(
                     url,
                     targetWindowID: windowId
