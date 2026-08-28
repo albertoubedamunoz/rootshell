@@ -13473,6 +13473,161 @@
         }
       }
     },
+    "%lld min" : {
+      "comment" : "Always On Display duration in minutes",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld دقيقة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Min."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld דק'"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld perc"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld분"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld хв"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld phút"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分钟"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分鐘"
+          }
+        }
+      }
+    },
     "%lld model%@" : {
       "localizations" : {
         "ar" : {
@@ -99124,7 +99279,6 @@
       }
     },
     "Choose which VPN profile to control from the widget." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -99279,7 +99433,6 @@
       }
     },
     "Choose which VPN profile to toggle from Control Center." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -106537,6 +106690,160 @@
         }
       }
     },
+    "Close %@" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إغلاق %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tanca %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zavřít %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luk %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ schließen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sulje %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סגור את %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bezárása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiudi %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@を閉じる"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 닫기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lukk %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ sluiten"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zamknij %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fechar %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fechar %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Închide %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapri %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stäng %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закрити %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đóng %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉 %@"
+          }
+        }
+      }
+    },
     "Close other console sessions to this instance or wait for them to expire" : {
       "comment" : "EC2 console recovery suggestion",
       "localizations" : {
@@ -113334,7 +113641,158 @@
       }
     },
     "Compact Pills" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "كبسولات مدمجة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Càpsules compactes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompaktní kapsle"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompakte kapsler"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompakte Kapseln"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cápsulas compactas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompaktit kapselit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pastilles compactes"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קפסולות קומפקטיות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompakt kapszulák"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capsule compatte"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンパクトなピル型"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "좁은 알약형"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompakte kapsler"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compacte capsules"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompaktowe kapsułki"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cápsulas compactas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cápsulas compactas"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capsule compacte"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strnjene kapsule"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kompakta kapslar"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Компактні капсули"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dạng viên thu gọn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紧凑胶囊"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "緊湊膠囊"
+          }
+        }
+      }
     },
     "Complete the remaining details" : {
       "localizations" : {
@@ -116574,7 +117032,6 @@
       }
     },
     "Connect or disconnect your VPN." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119048,7 +119505,7 @@
       }
     },
     "Connected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN tunnel status",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN event status: connected\nVPN status: active connection\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119518,7 +119975,7 @@
       }
     },
     "Connecting" : {
-      "comment" : "VPN tunnel status",
+      "comment" : "VPN status: establishing connection\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -123225,7 +123682,6 @@
       }
     },
     "Connects or disconnects the VPN." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -123689,7 +124145,6 @@
       }
     },
     "Connects VPN using the selected profile." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -128172,7 +128627,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -149338,7 +149793,7 @@
       }
     },
     "Default" : {
-      "comment" : "Profile transport mode: default",
+      "comment" : "Profile transport mode: default\nVPN DNS: using system default",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -155504,7 +155959,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -163893,7 +164348,7 @@
       }
     },
     "Disconnected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected\nVPN event status: disconnected\nVPN status: not connected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164665,7 +165120,6 @@
       }
     },
     "Disconnecting…" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164820,7 +165274,6 @@
       }
     },
     "Disconnects the active VPN." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -191047,7 +191500,7 @@
       }
     },
     "Error" : {
-      "comment" : "Tunnel event status: error",
+      "comment" : "AI Agent error: generic error title\nCommand output type: error\nTunnel event status: error\nVPN event status: error",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -235231,7 +235684,6 @@
       }
     },
     "Hold to select profile" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -241399,7 +241851,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -253294,7 +253746,7 @@
       }
     },
     "Info" : {
-      "comment" : "Clipboard transform category\nTunnel event status: info",
+      "comment" : "Clipboard transform category\nTunnel event status: info\nVPN event status: info",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -257159,6 +257611,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "權限不足：%@"
+          }
+        }
+      }
+    },
+    "Integrated" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مدمج"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrat"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrované"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integreret"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integriert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrado"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integroitu"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intégré"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "משולב"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrált"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "統合"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "통합형"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrert"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geïntegreerd"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zintegrowane"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrado"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrado"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrat"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vgrajeno"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrerad"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Інтегровані"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tích hợp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "融合"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "整合"
           }
         }
       }
@@ -267046,6 +267652,322 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "讓活動一直保持開啟,無須終端機工作階段即可追蹤 WiFi 與網路資訊"
+          }
+        }
+      }
+    },
+    "Keeps the screen awake the whole time rootshell is in the foreground. It never auto-locks or dims." : {
+      "comment" : "Always On Display footer: never auto-lock",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُبقي الشاشة مضاءة طوال وجود rootshell في المقدمة. لا تُقفل تلقائيًا ولا يخفت ضوءها أبدًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manté la pantalla encesa tot el temps que rootshell està en primer pla. No es bloqueja ni s'atenua mai automàticament."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Udržuje obrazovku rozsvícenou po celou dobu, kdy je rootshell v popředí. Nikdy se automaticky nezamkne ani neztlumí."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Holder skærmen tændt, så længe rootshell er i forgrunden. Den låses eller dæmpes aldrig automatisk."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hält den Bildschirm aktiv, solange rootshell im Vordergrund ist. Er wird nie automatisch gesperrt oder abgedunkelt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantiene la pantalla encendida todo el tiempo que rootshell está en primer plano. Nunca se bloquea ni se atenúa automáticamente."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pitää näytön päällä koko sen ajan, kun rootshell on etualalla. Näyttö ei lukitu eikä himmene automaattisesti."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garde l'écran allumé tant que rootshell est au premier plan. Il ne se verrouille et ne s'assombrit jamais automatiquement."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שומר על המסך דולק כל עוד rootshell נמצא בחזית. המסך לעולם לא ננעל ולא מתעמעם אוטומטית."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ébren tartja a kijelzőt mindaddig, amíg a rootshell az előtérben van. Soha nem zárol és nem halványul el automatikusan."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantiene lo schermo acceso per tutto il tempo in cui rootshell è in primo piano. Non si blocca né si attenua mai automaticamente."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rootshell がフォアグラウンドにある間、画面を点灯したままにします。自動ロックや画面の減光は行われません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rootshell이 화면 앞에 있는 동안 화면을 계속 켜둡니다. 자동으로 잠기거나 어두워지지 않습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Holder skjermen på så lenge rootshell er i forgrunnen. Den låses eller dempes aldri automatisk."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houdt het scherm aan zolang rootshell op de voorgrond staat. Het wordt nooit automatisch vergrendeld of gedimd."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utrzymuje ekran włączony przez cały czas, gdy rootshell jest na pierwszym planie. Ekran nigdy nie blokuje się ani nie przygasa automatycznie."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantém a tela ligada durante todo o tempo em que o rootshell estiver em primeiro plano. Ela nunca bloqueia nem escurece automaticamente."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantém o ecrã ligado durante todo o tempo em que o rootshell estiver em primeiro plano. Nunca bloqueia nem escurece automaticamente."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menține ecranul aprins cât timp rootshell este în prim-plan. Nu se blochează și nu se estompează niciodată automat."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaslon ostane vklopljen ves čas, ko je rootshell v ospredju. Nikoli se samodejno ne zaklene ali zatemni."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Håller skärmen tänd så länge rootshell är i förgrunden. Den låses eller dimmas aldrig automatiskt."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тримає екран увімкненим увесь час, поки rootshell перебуває на передньому плані. Він ніколи не блокується та не тьмяніє автоматично."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giữ màn hình luôn sáng trong suốt thời gian rootshell ở nền trước. Màn hình sẽ không bao giờ tự khóa hoặc mờ đi."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只要 rootshell 处于前台，屏幕就会保持常亮，不会自动锁定或变暗。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只要 rootshell 位於前景，螢幕就會保持恆亮，不會自動鎖定或變暗。"
+          }
+        }
+      }
+    },
+    "Keeps the screen awake while you work. It locks %lld minute%@ after your last touch or key press." : {
+      "comment" : "Always On Display footer: timed hold",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُبقي الشاشة مضاءة أثناء عملك. تُقفل بعد %1$lld دقيقة من آخر لمسة أو ضغطة مفتاح."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manté la pantalla encesa mentre treballes. Es bloqueja %1$lld minut%2$@ després de l'últim toc o pulsació de tecla."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Udržuje obrazovku rozsvícenou při práci. Uzamkne se %1$lld min po posledním dotyku nebo stisku klávesy."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Holder skærmen tændt, mens du arbejder. Den låses %1$lld min efter din sidste berøring eller dit sidste tastetryk."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hält den Bildschirm aktiv, während Sie arbeiten. Er wird %1$lld Min. nach der letzten Berührung oder Tasteneingabe gesperrt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keeps the screen awake while you work. It locks %1$lld minute%2$@ after your last touch or key press."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantiene la pantalla encendida mientras trabaja. Se bloquea %1$lld minuto%2$@ después del último toque o pulsación de tecla."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pitää näytön päällä työskentelyn ajan. Näyttö lukittuu %1$lld minuutin kuluttua viimeisestä kosketuksesta tai näppäinpainalluksesta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garde l'écran allumé pendant que vous travaillez. Il se verrouille %1$lld minute%2$@ après votre dernier contact avec l'écran ou le clavier."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שומר על המסך דולק בזמן העבודה. המסך ננעל %1$lld דק' אחרי הנגיעה או ההקשה האחרונה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Munka közben ébren tartja a kijelzőt. A kijelző az utolsó érintés vagy billentyűleütés után %1$lld perc múlva zárol."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantiene lo schermo acceso mentre si lavora. Si blocca %1$lld min dopo l'ultimo tocco o la pressione di un tasto."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作業中は画面を点灯したままにします。最後のタッチまたはキー入力から %1$lld 分後にロックされます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "작업하는 동안 화면을 켜둡니다. 마지막 터치나 키 입력 후 %1$lld분이 지나면 잠깁니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Holder skjermen på mens du jobber. Den låses %1$lld min etter siste berøring eller tastetrykk."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houdt het scherm aan terwijl u werkt. Het wordt %1$lld min na uw laatste aanraking of toetsaanslag vergrendeld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utrzymuje ekran włączony podczas pracy. Ekran blokuje się %1$lld min po ostatnim dotknięciu lub naciśnięciu klawisza."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantém a tela ligada enquanto você trabalha. Ela bloqueia %1$lld minuto%2$@ após o último toque ou tecla pressionada."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantém o ecrã ligado enquanto trabalha. Bloqueia %1$lld minuto%2$@ após o último toque ou tecla premida."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menține ecranul aprins cât timp lucrați. Se blochează după %1$lld min de la ultima atingere sau apăsare de tastă."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaslon ostane vklopljen med delom. Zaklene se %1$lld min po zadnjem dotiku ali pritisku tipke."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Håller skärmen tänd medan du arbetar. Den låses %1$lld min efter din senaste beröring eller tangenttryckning."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тримає екран увімкненим під час роботи. Він блокується через %1$lld хв після останнього дотику чи натискання клавіші."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giữ màn hình luôn sáng khi bạn làm việc. Màn hình sẽ khóa sau %1$lld phút kể từ lần chạm hoặc nhấn phím cuối cùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作时保持屏幕常亮。在最后一次触摸或按键 %1$lld 分钟后锁定。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作時保持螢幕恆亮。在最後一次觸控或按鍵 %1$lld 分鐘後鎖定。"
           }
         }
       }
@@ -335414,7 +336336,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -343764,7 +344686,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -344228,7 +345150,7 @@
       }
     },
     "On" : {
-      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -366152,6 +367074,160 @@
         }
       }
     },
+    "Pills" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "كبسولات"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Càpsules"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapsle"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapsler"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapseln"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cápsulas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapselit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pastilles"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קפסולות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapszulák"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capsule"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ピル型"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알약형"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapsler"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capsules"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapsułki"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cápsulas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cápsulas"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capsule"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapsule"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapslar"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Капсули"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dạng viên"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶囊"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "膠囊"
+          }
+        }
+      }
+    },
     "Pin" : {
       "localizations" : {
         "ar" : {
@@ -377415,7 +378491,6 @@
       }
     },
     "Profile ID" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -391923,7 +392998,7 @@
       }
     },
     "Reconnected" : {
-      "comment" : "Tunnel event status: reconnected",
+      "comment" : "Tunnel event status: reconnected\nVPN event status: reconnected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -392078,7 +393153,7 @@
       }
     },
     "Reconnecting" : {
-      "comment" : "Tunnel event status: reconnecting",
+      "comment" : "Tunnel event status: reconnecting\nVPN event status: reconnecting\nVPN status: re-establishing connection",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -392851,7 +393926,6 @@
       }
     },
     "Reconnecting…" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -438559,7 +439633,6 @@
       }
     },
     "Select VPN Profile" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -481050,7 +482123,6 @@
       }
     },
     "Start and stop your VPN connection." : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -495855,6 +496927,160 @@
         }
       }
     },
+    "Tab Style" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نمط علامات التبويب"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estil de pestanyes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styl karet"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fanestil"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab-Stil"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estilo de pestañas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välilehtien tyyli"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style d'onglets"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סגנון לשוניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lapstílus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stile delle schede"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブのスタイル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 스타일"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fanestil"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabstijl"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styl kart"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estilo das Abas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estilo dos Separadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stilul filelor"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slog zavihkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flikstil"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стиль вкладок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểu tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签页样式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分頁樣式"
+          }
+        }
+      }
+    },
     "Tab Switcher" : {
       "localizations" : {
         "ar" : {
@@ -509903,6 +511129,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已儲存的登入資訊已過期。下次執行代理時會自行更新，屆時用量便會再次顯示。"
+          }
+        }
+      }
+    },
+    "The screen dims and locks on the system's normal auto-lock schedule." : {
+      "comment" : "Always On Display footer: disabled",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يخفت ضوء الشاشة وتُقفل وفق جدول القفل التلقائي المعتاد للنظام."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pantalla s'atenua i es bloqueja segons la programació de bloqueig automàtic normal del sistema."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrazovka ztlumí jas a uzamkne se podle běžného nastavení automatického zámku systému."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skærmen dæmpes og låses efter systemets normale tidsplan for automatisk lås."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Bildschirm wird gemäß dem normalen Zeitplan für die automatische Sperre des Systems abgedunkelt und gesperrt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pantalla se atenúa y se bloquea según la programación de bloqueo automático normal del sistema."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näyttö himmenee ja lukittuu järjestelmän tavallisen automaattilukituksen mukaan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'écran s'assombrit et se verrouille selon le délai de verrouillage automatique habituel du système."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המסך מתעמעם וננעל לפי לוח הזמנים הרגיל של הנעילה האוטומטית במערכת."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A kijelző a rendszer szokásos automatikus zárolási ütemezése szerint elhalványul és lezár."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo schermo si attenua e si blocca secondo la normale pianificazione del blocco automatico del sistema."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "システムの通常の自動ロックのスケジュールに従って画面が暗くなり、ロックされます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템의 일반 자동 잠금 일정에 따라 화면이 어두워지고 잠깁니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skjermen dempes og låses etter systemets vanlige tidsplan for automatisk lås."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het scherm dimt en vergrendelt volgens het normale schema voor automatische vergrendeling van het systeem."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran przygasa i blokuje się zgodnie ze zwykłym harmonogramem automatycznej blokady systemu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tela escurece e bloqueia conforme o cronograma normal de bloqueio automático do sistema."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O ecrã escurece e bloqueia de acordo com o horário normal de bloqueio automático do sistema."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ecranul se estompează și se blochează conform programului obișnuit de blocare automată al sistemului."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaslon se zatemni in zaklene po običajnem urniku samodejnega zaklepanja sistema."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skärmen dimmas och låses enligt systemets vanliga schema för automatiskt lås."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Екран тьмяніє та блокується за звичайним розкладом автоматичного блокування системи."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Màn hình sẽ mờ đi và khóa theo lịch tự động khóa thông thường của hệ thống."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "屏幕会按系统的正常自动锁定计划变暗并锁定。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "螢幕會依系統一般的自動鎖定排程變暗並鎖定。"
           }
         }
       }
@@ -531682,7 +533063,6 @@
       }
     },
     "Toggle VPN" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -545886,7 +547266,7 @@
       }
     },
     "Unknown" : {
-      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status",
+      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status\nVPN status: unknown state",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -569837,7 +571217,6 @@
       }
     },
     "VPN Control" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -570917,7 +572296,6 @@
       }
     },
     "VPN On" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -572154,7 +573532,6 @@
       }
     },
     "VPN Toggle" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -578025,7 +579402,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
