@@ -161,8 +161,20 @@ struct TransparencySettingsView: View {
                 .padding(.vertical, 4)
                 .themedRow()
 
-                // Show different blur controls based on sandbox mode
-                if TransparencyManager.useSandboxBlur {
+                if TransparencyManager.isGlassAvailable {
+                    Picker("Blur Style", selection: $transparencyManager.blurStyle) {
+                        ForEach(TransparencyManager.BlurStyle.allCases) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .themedRow()
+                }
+
+                // Glass styles blur on their own; radius/toggle only apply to Standard.
+                if transparencyManager.usesGlass {
+                    EmptyView()
+                } else if TransparencyManager.useSandboxBlur {
                     // Sandbox mode: simple toggle (NSVisualEffectView doesn't support custom radius)
                     Toggle("Background Blur", isOn: $transparencyManager.blurEnabled)
                         .padding(.vertical, 4)
@@ -193,7 +205,10 @@ struct TransparencySettingsView: View {
             } header: {
                 Text("Window Transparency")
             } footer: {
-                if TransparencyManager.useSandboxBlur {
+                if transparencyManager.usesGlass {
+                    Text("Controls window transparency. Liquid Glass renders the desktop behind the window through a glass material tinted with the theme background.")
+                        .font(.caption)
+                } else if TransparencyManager.useSandboxBlur {
                     Text("Controls window transparency and blur. Blur uses system vibrancy effect.")
                         .font(.caption)
                 } else {

@@ -70,6 +70,7 @@ extension WindowAccessor {
 private struct WindowConfigSignature: Equatable {
     var shouldApplyTransparency: Bool
     var opacity: CGFloat
+    var usesGlass: Bool
     var themeBackgroundHex: String
     var tabCount: Int
     var tabsInTitlebar: Bool
@@ -433,6 +434,7 @@ private class TransparentWindowView: UIView {
         return WindowConfigSignature(
             shouldApplyTransparency: hasActiveSurfaces && opacity < 1.0,
             opacity: opacity,
+            usesGlass: TransparencyManager.shared.usesGlass,
             themeBackgroundHex: ThemeManager.shared.currentThemeInfo?.colors.background ?? "",
             tabCount: SessionTracker.shared.tabCount(forSceneSessionId: sceneSessionId),
             tabsInTitlebar: tabsInTitlebar,
@@ -1362,34 +1364,11 @@ private class TransparentWindowView: UIView {
         )
 
         // Get the theme background color for the title bar
-        if let themeColors = ThemeManager.shared.currentThemeInfo?.colors,
-           let nsColorClass = NSClassFromString("NSColor") as? NSObject.Type {
-            // Parse the hex color and create NSColor
-            let hexColor = themeColors.background.trimmingCharacters(in: .whitespaces)
-                .replacingOccurrences(of: "#", with: "")
-
-            var rgb: UInt64 = 0
-            if Scanner(string: hexColor).scanHexInt64(&rgb) {
-                let r = CGFloat((rgb & 0xFF0000) >> 16) / 255.0
-                let g = CGFloat((rgb & 0x00FF00) >> 8) / 255.0
-                let b = CGFloat(rgb & 0x0000FF) / 255.0
-                let opacity = TransparencyManager.shared.backgroundOpacity
-
-                // Create NSColor with colorWithRed:green:blue:alpha:
-                let colorSelector = NSSelectorFromString("colorWithRed:green:blue:alpha:")
-                if nsColorClass.responds(to: colorSelector) {
-                    let colorMethod = nsColorClass.method(for: colorSelector)
-                    typealias ColorFunction = @convention(c) (AnyClass, Selector, CGFloat, CGFloat, CGFloat, CGFloat) -> NSObject
-                    let colorFunc = unsafeBitCast(colorMethod, to: ColorFunction.self)
-                    let titlebarColor = colorFunc(nsColorClass, colorSelector, r, g, b, opacity)
-
-                    // Try to set the titlebar background color
-                    // This works on some macOS versions
-                    if window.responds(to: NSSelectorFromString("setTitlebarColor:")) {
-                        window.perform(NSSelectorFromString("setTitlebarColor:"), with: titlebarColor)
-                    }
-                }
-            }
+        if let titlebarColor = Ghostty.App.themeBackgroundNSColor(
+            alpha: TransparencyManager.shared.backgroundOpacity
+        ), window.responds(to: NSSelectorFromString("setTitlebarColor:")) {
+            // Works on some macOS versions only
+            window.perform(NSSelectorFromString("setTitlebarColor:"), with: titlebarColor)
         }
     }
 

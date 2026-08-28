@@ -85,6 +85,8 @@ enum RecognizedPayload: Hashable {
     case backgroundOpacity(Double)
     /// `nil` = blur off, `Double` = radius (Catalyst-only).
     case backgroundBlur(radius: Double?)
+    /// `TransparencyManager.BlurStyle` raw value for `macos-glass-*` (Catalyst-only).
+    case backgroundBlurStyle(String)
 
     case copyOnSelect(Bool)
     /// Stored verbatim in UserDefaults; rootshell expects `on`/`off`/`left`/`right`.

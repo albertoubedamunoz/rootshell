@@ -755,7 +755,7 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 subtitle: String(localized: "Appearance"),
                 systemImage: "slider.horizontal.below.rectangle",
                 action: .destination(.transparency),
-                keywords: ["opacity", "blur"],
+                keywords: ["opacity", "blur", "glass"],
                 isSuggested: false
             ),
             .init(

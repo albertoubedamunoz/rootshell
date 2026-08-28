@@ -524,7 +524,15 @@ final class GhosttyConfigImporter {
 
         case "background-blur":
             #if targetEnvironment(macCatalyst)
-            if let d = parseBlurValue(value) {
+            if let style = parseGlassStyle(value) {
+                plan.recognized.append(
+                    RecognizedChange(
+                        category: .transparency, key: key,
+                        summary: String(localized: "Background blur → \(style.title)", comment: "Migration preview"),
+                        payload: .backgroundBlurStyle(style.rawValue)
+                    )
+                )
+            } else if let d = parseBlurValue(value) {
                 let label: String = (d > 0)
                     ? String(localized: "Background blur → \(Int(d))", comment: "Migration preview")
                     : String(localized: "Background blur → off", comment: "Migration preview")
@@ -808,6 +816,7 @@ final class GhosttyConfigImporter {
 
         case .backgroundBlur(let radius):
             #if targetEnvironment(macCatalyst)
+            TransparencyManager.shared.blurStyle = .standard
             if let r = radius {
                 TransparencyManager.shared.blurEnabled = true
                 TransparencyManager.shared.backgroundBlurRadius = r
@@ -816,6 +825,15 @@ final class GhosttyConfigImporter {
             }
             #else
             _ = radius
+            #endif
+
+        case .backgroundBlurStyle(let raw):
+            #if targetEnvironment(macCatalyst)
+            if let style = TransparencyManager.BlurStyle(rawValue: raw) {
+                TransparencyManager.shared.blurStyle = style
+            }
+            #else
+            _ = raw
             #endif
 
         case .copyOnSelect(let on):
@@ -908,6 +926,13 @@ final class GhosttyConfigImporter {
         case "true", "yes", "on", "1": return true
         case "false", "no", "off", "0": return false
         default: return nil
+        }
+    }
+
+    /// `background-blur = macos-glass-regular|macos-glass-clear`.
+    private static func parseGlassStyle(_ raw: String) -> TransparencyManager.BlurStyle? {
+        TransparencyManager.BlurStyle.allCases.first {
+            $0.ghosttyConfigValue == raw.trimmingCharacters(in: .whitespaces)
         }
     }
 

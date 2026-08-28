@@ -20,13 +20,49 @@ final class TransparencyManager {
     static let useSandboxBlur = false
     #endif
 
+    /// How the window background behind the terminal is blurred.
+    enum BlurStyle: String, CaseIterable, Identifiable {
+        /// CGS radius blur (Standalone) or NSVisualEffectView (App Store).
+        case standard
+        /// macOS 26 Liquid Glass (NSGlassEffectView).
+        case glassRegular
+        case glassClear
+
+        var id: String { rawValue }
+
+        /// Value emitted for ghostty's `background-blur`; nil means numeric radius.
+        var ghosttyConfigValue: String? {
+            switch self {
+            case .standard: return nil
+            case .glassRegular: return "macos-glass-regular"
+            case .glassClear: return "macos-glass-clear"
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .standard: return String(localized: "Standard")
+            case .glassRegular: return String(localized: "Glass")
+            case .glassClear: return String(localized: "Clear Glass")
+            }
+        }
+    }
+
+    /// Liquid Glass needs macOS 26; Catalyst's version tracks macOS 26 exactly.
+    static var isGlassAvailable: Bool {
+        if #available(macCatalyst 26.0, *) { return true }
+        return false
+    }
+
     private static let backgroundOpacityKey = "backgroundOpacity"
     private static let backgroundBlurRadiusKey = "backgroundBlurRadius"
     private static let blurEnabledKey = "blurEnabled"
+    private static let blurStyleKey = "blurStyle"
     private static let pinnedSidebarTransparencyEnabledKey = "pinnedSidebarTransparencyEnabled"
     private static let defaultBackgroundOpacity: Double = 0.92
     private static let defaultBackgroundBlurRadius: Double = 30.0
     private static let defaultBlurEnabled: Bool = true
+    private static let defaultBlurStyle: BlurStyle = .standard
     private static let defaultPinnedSidebarTransparencyEnabled: Bool = false
 
     /// Current background opacity (0.0 = fully transparent, 1.0 = opaque)
@@ -56,6 +92,22 @@ final class TransparencyManager {
             transparencyDidChange.send()
         }
     }
+
+    /// Stored blur style preference. Consumers should read `effectiveBlurStyle`.
+    var blurStyle: BlurStyle {
+        didSet {
+            guard blurStyle != oldValue else { return }
+            UserDefaults.standard.set(blurStyle.rawValue, forKey: Self.blurStyleKey)
+            transparencyDidChange.send()
+        }
+    }
+
+    /// `blurStyle` downgraded to `.standard` where glass isn't available.
+    var effectiveBlurStyle: BlurStyle {
+        Self.isGlassAvailable ? blurStyle : .standard
+    }
+
+    var usesGlass: Bool { effectiveBlurStyle != .standard }
 
     /// Whether the pinned vertical tab sidebar uses the window's background
     /// opacity instead of its normal opaque fill.
@@ -103,6 +155,9 @@ final class TransparencyManager {
             self.blurEnabled = Self.defaultBlurEnabled
         }
 
+        self.blurStyle = UserDefaults.standard.string(forKey: Self.blurStyleKey)
+            .flatMap(BlurStyle.init(rawValue:)) ?? Self.defaultBlurStyle
+
         if UserDefaults.standard.object(forKey: Self.pinnedSidebarTransparencyEnabledKey) != nil {
             self.pinnedSidebarTransparencyEnabled = UserDefaults.standard.bool(
                 forKey: Self.pinnedSidebarTransparencyEnabledKey
@@ -132,6 +187,7 @@ final class TransparencyManager {
         backgroundOpacity = Self.defaultBackgroundOpacity
         backgroundBlurRadius = Self.defaultBackgroundBlurRadius
         blurEnabled = Self.defaultBlurEnabled
+        blurStyle = Self.defaultBlurStyle
         pinnedSidebarTransparencyEnabled = Self.defaultPinnedSidebarTransparencyEnabled
     }
 
