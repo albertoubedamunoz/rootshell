@@ -3,6 +3,32 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-139 - August 27, 2026
+
+### Tabs
+
+- **Three Top Tab Bar Styles:** The top tab bar now offers Pills, Compact Pills and Integrated styles. Integrated tabs use a browser-style design that visually joins the active tab to the terminal, while Compact Pills fit more of the familiar rounded tabs on screen. Choose a style in Settings -> Appearance -> Window or from the tab bar's context menu. All three retain tab groups, badges, drag-and-drop and window dragging, adapt to narrow iPhone, iPad and macOS windows, and respect Reduce Motion.
+- **Clearer Inactive-Tab Hover:** Inactive top tabs now have stronger hover contrast, making the tab under the pointer easier to identify.
+- **Dedicated macOS Window-Drag Area:** On macOS, enabling Tabs in Title Bar now reserves 42 points to the left of the top tabs as a dedicated window-drag area, making the window easier to move even when the tab bar is full.
+- **Consistent Sidebar Alignment:** Buttons, badges and counts in the vertical tab sidebar now share a consistent trailing alignment.
+
+### Multiplexers
+
+- **Live Zellij Session Previews:** Zellij session discovery now shows live previews for detached sessions by capturing their focused terminal pane, and no longer offers exited sessions.
+- **Reliable Escape in the Session Picker:** Pressing Escape to close the multiplexer session picker is now reliable across hardware keyboards, the software keyboard and toolbar keys, without leaking Escape into the terminal.
+
+### Display
+
+- **Timed Always On Display:** Always On Display is now a duration control instead of a simple switch on iPhone and iPad. Choose Off, 1-30 minutes or Always. A timed hold restarts after every touch, software or hardware key press, then returns to the normal system auto-lock behavior after you stop working. It pauses while rootshell is in the background, and the previous enabled setting migrates to Always.
+
+### Keyboard and Layout
+
+- **Fixed Extend Under Home Indicator Regression:** Fixed a build 138 regression in Extend Under Home Indicator. Returning from Settings, Tab Exposé, the connection sheet or another overlay could make the keyboard toolbar jump and resize the terminal twice.
+
+### Terminal
+
+- **Restored Cursor Effects:** Fixed cursor effects such as Neon and Cursor Blaze after upstream Ghostty changes became incompatible with rootshell's local GPU optimizations. The optimizations now work with the updated renderer: effects animate at the configured terminal refresh rate, and finite animations stop rendering when complete, continuing to use less GPU than upstream Ghostty's cursor shaders.
+
 ## 1.0.11-138 - August 25, 2026
 
 ### Memory

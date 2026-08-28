@@ -52948,7 +52948,7 @@
       }
     },
     "Always" : {
-      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
+      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -99279,6 +99279,7 @@
       }
     },
     "Choose which VPN profile to control from the widget." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -99433,6 +99434,7 @@
       }
     },
     "Choose which VPN profile to toggle from Control Center." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -117032,6 +117034,7 @@
       }
     },
     "Connect or disconnect your VPN." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119505,7 +119508,7 @@
       }
     },
     "Connected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN event status: connected\nVPN status: active connection\nVPN tunnel status",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119975,7 +119978,7 @@
       }
     },
     "Connecting" : {
-      "comment" : "VPN status: establishing connection\nVPN tunnel status",
+      "comment" : "VPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -123682,6 +123685,7 @@
       }
     },
     "Connects or disconnects the VPN." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -124145,6 +124149,7 @@
       }
     },
     "Connects VPN using the selected profile." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -128627,7 +128632,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -149793,7 +149798,7 @@
       }
     },
     "Default" : {
-      "comment" : "Profile transport mode: default\nVPN DNS: using system default",
+      "comment" : "Profile transport mode: default",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -155959,7 +155964,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
+      "comment" : "Location Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164348,7 +164353,7 @@
       }
     },
     "Disconnected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected\nVPN event status: disconnected\nVPN status: not connected",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -165120,6 +165125,7 @@
       }
     },
     "Disconnecting…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -165274,6 +165280,7 @@
       }
     },
     "Disconnects the active VPN." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -191500,7 +191507,7 @@
       }
     },
     "Error" : {
-      "comment" : "AI Agent error: generic error title\nCommand output type: error\nTunnel event status: error\nVPN event status: error",
+      "comment" : "Tunnel event status: error",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -235684,6 +235691,7 @@
       }
     },
     "Hold to select profile" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -241851,7 +241859,7 @@
       }
     },
     "Identity" : {
-      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
+      "comment" : "OpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -253746,7 +253754,7 @@
       }
     },
     "Info" : {
-      "comment" : "Clipboard transform category\nTunnel event status: info\nVPN event status: info",
+      "comment" : "Clipboard transform category\nTunnel event status: info",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -336336,7 +336344,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -344686,7 +344694,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -345150,7 +345158,7 @@
       }
     },
     "On" : {
-      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -378491,6 +378499,7 @@
       }
     },
     "Profile ID" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -392998,7 +393007,7 @@
       }
     },
     "Reconnected" : {
-      "comment" : "Tunnel event status: reconnected\nVPN event status: reconnected",
+      "comment" : "Tunnel event status: reconnected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -393153,7 +393162,7 @@
       }
     },
     "Reconnecting" : {
-      "comment" : "Tunnel event status: reconnecting\nVPN event status: reconnecting\nVPN status: re-establishing connection",
+      "comment" : "Tunnel event status: reconnecting",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -393926,6 +393935,7 @@
       }
     },
     "Reconnecting…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -439633,6 +439643,7 @@
       }
     },
     "Select VPN Profile" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -482123,6 +482134,7 @@
       }
     },
     "Start and stop your VPN connection." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -533063,6 +533075,7 @@
       }
     },
     "Toggle VPN" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -547266,7 +547279,7 @@
       }
     },
     "Unknown" : {
-      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status\nVPN status: unknown state",
+      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -571217,6 +571230,7 @@
       }
     },
     "VPN Control" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -572296,6 +572310,7 @@
       }
     },
     "VPN On" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -573532,6 +573547,7 @@
       }
     },
     "VPN Toggle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -579402,7 +579418,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
+      "comment" : "Agent usage window title: weekly quota",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
