@@ -667,8 +667,11 @@ extension MainView {
         // previous version gated the reported inset on a "preserved keyboard is
         // physically hidden" flag, and on iOS 27 the flag and the safe-area
         // change stopped landing together, wobbling the terminal both ways.
+        // A toolbar-only / accessory input view subsumes the inset the same
+        // way (expansion is 0 while it is up), so a reserved toolbar gets the
+        // same compensation when an overlay or app switch hides it.
         let preservedKeyboardSafeAreaCompensation: CGFloat =
-            hasDockedKeyboard ? containerBottomSafeAreaExpansion : 0
+            (hasDockedKeyboard || reservesBottomToolbar) ? containerBottomSafeAreaExpansion : 0
 
         // Calculate adjusted offset for terminal positioning (reduced to avoid excess gap)
         let keyboardOffset: CGFloat
@@ -695,7 +698,7 @@ extension MainView {
                 keyboardOffset = max(
                     0,
                     reservedBottomToolbarHeight - windowSafeAreaInsets.bottom
-                )
+                ) + preservedKeyboardSafeAreaCompensation
             } else {
                 // The iPad container already keeps the terminal above the
                 // bottom safe-area strip. Reserve only the toolbar height that
@@ -704,7 +707,7 @@ extension MainView {
                 keyboardOffset = max(
                     0,
                     reservedBottomToolbarHeight - windowSafeAreaInsets.bottom
-                )
+                ) + preservedKeyboardSafeAreaCompensation
             }
         } else {
             keyboardOffset = 0

@@ -357,6 +357,14 @@ final class EffectManager {
         applyKeyboardFrame(KeyboardTracker.shared.keyboardFrame)
     }
 
+    /// Re-adopt the tracker's frame once a preservation latch drops. While
+    /// latched, sub-threshold frames are rejected here but a toolbar-only
+    /// latch accepts them in the tracker, so the two can diverge when an
+    /// overlay's own field showed a full keyboard mid-trip.
+    func resyncKeyboardFrameAfterPreservation() {
+        updateKeyboardHeightFromTracker()
+    }
+
     /// Apply a keyboard frame update, deduping each `@Published` set against
     /// the current value. `@Published` fires `objectWillChange` on every
     /// assignment, equal-or-not, so unconditional writes during keyboard

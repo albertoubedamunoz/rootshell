@@ -513,10 +513,6 @@ extension Ghostty {
         }
         var composeText: String = ""
         weak var activeComposeTextView: UITextView?
-        var keyboardManuallyDismissed: Bool {
-            get { keyboardAccessoryController?.keyboardManuallyDismissed ?? false }
-            set { keyboardAccessoryController?.keyboardManuallyDismissed = newValue }
-        }
         var toolbarOnlyMode: Bool {
             get { keyboardAccessoryController?.toolbarOnlyMode ?? false }
             set { keyboardAccessoryController?.toolbarOnlyMode = newValue }
@@ -524,8 +520,7 @@ extension Ghostty {
         // Set by long-pressing the dismiss chevron: keyboard stays hidden across
         // terminal taps and focus changes until the chevron is tapped again.
         var keyboardPinnedHidden: Bool {
-            get { keyboardAccessoryController?.keyboardPinnedHidden ?? false }
-            set { keyboardAccessoryController?.keyboardPinnedHidden = newValue }
+            keyboardAccessoryController?.keyboardPinnedHidden ?? false
         }
         var keyboardToolbarCollapsed: Bool {
             get { keyboardAccessoryController?.keyboardToolbarCollapsed ?? false }
@@ -2041,15 +2036,8 @@ extension Ghostty {
             keyboardAccessoryController.hitTestCollapsedKeyboardToolbarButton(point, with: event)
         }
 
-        /// Suppress the keyboard while keeping the toolbar visible above the
-        /// home indicator. Used by the persistent-toolbar dismiss, the
-        /// pinned-hidden long-press, and re-arming the pin on focus regain.
-        func enterToolbarOnlyMode() {
-            keyboardAccessoryController.enterToolbarOnlyMode()
-        }
-
         /// Restore the full keyboard from toolbar-only mode, clearing the
-        /// pinned-hidden state if set.
+        /// window's hide intent (and pinned state) so other tabs follow.
         func exitToolbarOnlyMode() {
             keyboardAccessoryController.exitToolbarOnlyMode()
         }
@@ -2983,9 +2971,13 @@ extension Ghostty {
                 return false
             }
 
+            // Toolbar-only mode counts too: its input view is below the
+            // tracker's software-keyboard threshold, but losing first
+            // responder drops the toolbar reserve and resizes the terminal.
             let keyboardWasVisibleOrPreserving =
                 tracker.isSoftwareKeyboardVisible ||
-                tracker.isPreservingSoftwareKeyboardForAppTransition
+                tracker.isPreservingSoftwareKeyboardForAppTransition ||
+                (toolbarOnlyMode && isFirstResponder)
             guard keyboardWasVisibleOrPreserving else { return false }
 
             let appOrSceneIsLeaving =
@@ -3409,13 +3401,10 @@ extension Ghostty {
                 return false
             }
 
-            // Re-arm pinned-hidden mode before acquiring first responder so
-            // inputView already returns emptyInputView and the keyboard
-            // never flashes on focus regain.
-            if keyboardPinnedHidden && !toolbarOnlyMode {
-                enterToolbarOnlyMode()
-                keyboardAccessory?.setDismissButtonPinned(true)
-            }
+            // Apply the window's hide intent before acquiring first responder
+            // so inputView already returns the toolbar/empty view and the
+            // keyboard never flashes on tab switch or overlay dismissal.
+            keyboardAccessoryController?.reconcileWithHideIntent()
 
             let result = super.becomeFirstResponder()
 
@@ -3462,10 +3451,9 @@ extension Ghostty {
             }
             #endif
 
-            if toolbarOnlyMode {
-                toolbarOnlyMode = false
-                keyboardAccessory?.setDismissButtonShowsRestore(false)
-            }
+            // toolbarOnlyMode is derived from the window hide intent and
+            // re-applied in becomeFirstResponder(); leaving it set here avoids
+            // a layout invalidation on every overlay open and tab switch.
             if keyboardToolbarCollapsed {
                 keyboardToolbarCollapsed = false
             }
@@ -4348,10 +4336,6 @@ extension Ghostty {
                 return false
             } else {
                 Ghostty.logger.info("focusDidChange(false): Unfocusing terminal")
-                if toolbarOnlyMode {
-                    toolbarOnlyMode = false
-                    keyboardAccessory?.setDismissButtonShowsRestore(false)
-                }
                 if keyboardToolbarCollapsed {
                     keyboardToolbarCollapsed = false
                 }
@@ -4389,6 +4373,8 @@ extension Ghostty.TerminalView: TerminalKeyboardAccessoryHost {
     func keyboardResignFirstResponder() -> Bool {
         resignFirstResponder()
     }
+
+    var keyboardHideIntentWindow: UIWindow? { window }
 
     func keyboardSetSoftwareKeyboardRequested(_ requested: Bool) {
         // TerminalView switches between the system keyboard and its empty
