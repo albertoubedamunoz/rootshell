@@ -1310,9 +1310,27 @@ extension Ghostty {
         /// set on a valid window, so WindowAccessor can call this the moment
         /// it claims a freshly created NSWindow.
         func applyWindowBlur(to nsWindow: NSObject) {
-            let opacity = TransparencyManager.shared.backgroundOpacity
+            // The NSApplication.windows sweep includes our own glass backdrops.
+            guard !isGlassBackdropWindow(nsWindow) else { return }
+            let manager = TransparencyManager.shared
+            let opacity = manager.backgroundOpacity
+            let style = manager.effectiveBlurStyle
+
+            if style != .standard, opacity < 1.0 {
+                removeVisualEffectBlurFromWindow(nsWindow)
+                if addGlassEffectViewToWindow(nsWindow, style: style) {
+                    // Standalone: libghostty clears the CGS radius for glass styles.
+                    if !TransparencyManager.useSandboxBlur, let app = self.app {
+                        ghostty_set_window_background_blur(app, Unmanaged.passUnretained(nsWindow).toOpaque())
+                    }
+                    return
+                }
+                // NSGlassEffectView unavailable: fall through to standard.
+            }
+
+            removeGlassEffectViewFromWindow(nsWindow)
             if TransparencyManager.useSandboxBlur {
-                if opacity < 1.0 && TransparencyManager.shared.blurEnabled {
+                if opacity < 1.0 && manager.blurEnabled {
                     addVisualEffectBlurToWindow(nsWindow)
                 } else {
                     removeVisualEffectBlurFromWindow(nsWindow)
@@ -1323,20 +1341,192 @@ extension Ghostty {
             }
         }
 
+        // MARK: - Liquid Glass (macOS 26+, public API)
+
+        /// Glass lives in a borderless child NSWindow ordered directly behind
+        /// the terminal window, replacing the CGS blur. Catalyst's hosted UIKit
+        /// tree gets treated as foreground by an in-window glass pass (it
+        /// refracts the terminal), whereas a lower window can only sample the
+        /// desktop. The terminal keeps drawing its theme background at the
+        /// configured opacity, so the window's alpha (and shadow) is unchanged.
+        private final class GlassBackdrop {
+            let window: NSObject
+            let glassView: NSObject
+            var observers: [NSObjectProtocol] = []
+            init(window: NSObject, glassView: NSObject) {
+                self.window = window
+                self.glassView = glassView
+            }
+        }
+
+        private var glassBackdrops: [ObjectIdentifier: GlassBackdrop] = [:]
+
+        private func isGlassBackdropWindow(_ window: NSObject) -> Bool {
+            glassBackdrops.values.contains { $0.window === window }
+        }
+
+        /// Attach (or update) the glass backdrop behind `window`.
+        /// Returns false when NSGlassEffectView is unavailable (pre-macOS 26).
+        @discardableResult
+        private func addGlassEffectViewToWindow(_ window: NSObject, style: TransparencyManager.BlurStyle) -> Bool {
+            guard let glassClass = NSClassFromString("NSGlassEffectView") as? NSObject.Type,
+                  let windowClass = NSClassFromString("NSWindow") as? NSObject.Type else {
+                return false
+            }
+            // A child ordered in before the parent is on screen would show alone;
+            // WindowAccessor re-asserts blur once the window becomes visible.
+            guard (window.value(forKey: "isVisible") as? Bool) == true else { return true }
+
+            let key = ObjectIdentifier(window)
+            let backdrop: GlassBackdrop
+            if let existing = glassBackdrops[key] {
+                backdrop = existing
+            } else {
+                guard let frame = window.value(forKey: "frame") as? CGRect,
+                      let child = Self.makeBorderlessWindow(windowClass, frame: frame),
+                      let glassView = Self.makeView(glassClass, frame: CGRect(origin: .zero, size: frame.size)) else {
+                    logger.warning("Failed to create glass backdrop window")
+                    return false
+                }
+                glassView.setValue(18, forKey: "autoresizingMask") // width | height sizable
+                child.setValue(glassView, forKey: "contentView")
+                // Dark-appearance "regular" glass is a dark smoky material that
+                // hides the desktop; light appearance renders bright frosted
+                // glass that passes the desktop through like the CGS blur.
+                if let appearanceClass = NSClassFromString("NSAppearance") as? NSObject.Type,
+                   let aqua = appearanceClass.perform(
+                       NSSelectorFromString("appearanceNamed:"), with: "NSAppearanceNameAqua"
+                   )?.takeUnretainedValue() {
+                    child.setValue(aqua, forKey: "appearance")
+                }
+
+                let addSelector = NSSelectorFromString("addChildWindow:ordered:")
+                typealias AddChildFunction = @convention(c) (NSObject, Selector, NSObject, Int) -> Void
+                let addChild = unsafeBitCast(window.method(for: addSelector), to: AddChildFunction.self)
+                addChild(window, addSelector, child, -1) // NSWindowBelow
+
+                backdrop = GlassBackdrop(window: child, glassView: glassView)
+                let center = NotificationCenter.default
+                for name in ["NSWindowDidResizeNotification", "NSWindowDidMoveNotification",
+                             "NSWindowDidEnterFullScreenNotification", "NSWindowDidExitFullScreenNotification"] {
+                    backdrop.observers.append(center.addObserver(
+                        forName: Notification.Name(name), object: window, queue: .main
+                    ) { [weak self, weak window] _ in
+                        guard let window else { return }
+                        Task { @MainActor in self?.syncGlassBackdrop(to: window) }
+                    })
+                }
+                backdrop.observers.append(center.addObserver(
+                    forName: Notification.Name("NSWindowWillCloseNotification"), object: window, queue: .main
+                ) { [weak self, weak window] _ in
+                    guard let window else { return }
+                    Task { @MainActor in self?.removeGlassEffectViewFromWindow(window) }
+                })
+                glassBackdrops[key] = backdrop
+            }
+
+            // NSGlassEffectView.Style: regular = 0, clear = 1
+            backdrop.glassView.setValue(style == .glassClear ? 1 : 0, forKey: "style")
+            syncGlassBackdrop(to: window)
+            return true
+        }
+
+        /// Match the backdrop's frame and corner radius to its parent.
+        private func syncGlassBackdrop(to window: NSObject) {
+            guard let backdrop = glassBackdrops[ObjectIdentifier(window)],
+                  let frame = window.value(forKey: "frame") as? CGRect else { return }
+
+            let setFrameSelector = NSSelectorFromString("setFrame:display:")
+            typealias SetFrameFunction = @convention(c) (NSObject, Selector, CGRect, Bool) -> Void
+            let setFrame = unsafeBitCast(backdrop.window.method(for: setFrameSelector), to: SetFrameFunction.self)
+            setFrame(backdrop.window, setFrameSelector, frame, true)
+
+            // Rounded corners are the parent's; full screen has none. Same
+            // private `_cornerRadius` read ghostty uses for its glass shape.
+            let styleMask = (window.value(forKey: "styleMask") as? UInt) ?? 0
+            let isFullScreen = styleMask & (1 << 14) != 0
+            var radius: CGFloat = 0
+            if !isFullScreen, window.responds(to: NSSelectorFromString("_cornerRadius")),
+               let r = window.value(forKey: "_cornerRadius") as? CGFloat {
+                radius = r
+            }
+            backdrop.glassView.setValue(radius, forKey: "cornerRadius")
+        }
+
+        private func removeGlassEffectViewFromWindow(_ window: NSObject) {
+            let key = ObjectIdentifier(window)
+            guard let backdrop = glassBackdrops.removeValue(forKey: key) else { return }
+            backdrop.observers.forEach { NotificationCenter.default.removeObserver($0) }
+            if window.responds(to: NSSelectorFromString("removeChildWindow:")) {
+                window.perform(NSSelectorFromString("removeChildWindow:"), with: backdrop.window)
+            }
+            backdrop.window.perform(NSSelectorFromString("orderOut:"), with: nil)
+        }
+
+        /// Borderless, transparent, click-through NSWindow via the ObjC runtime.
+        private static func makeBorderlessWindow(_ windowClass: NSObject.Type, frame: CGRect) -> NSObject? {
+            guard let allocated = windowClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject else {
+                return nil
+            }
+            let initSelector = NSSelectorFromString("initWithContentRect:styleMask:backing:defer:")
+            typealias WindowInitFunction = @convention(c) (NSObject, Selector, CGRect, UInt, UInt, Bool) -> NSObject
+            let initFunc = unsafeBitCast(allocated.method(for: initSelector), to: WindowInitFunction.self)
+            // styleMask 0 = borderless, backing 2 = buffered
+            let window = initFunc(allocated, initSelector, frame, 0, 2, false)
+            window.setValue(false, forKey: "opaque")
+            window.setValue(false, forKey: "hasShadow")
+            window.setValue(true, forKey: "ignoresMouseEvents")
+            window.setValue(false, forKey: "releasedWhenClosed")
+            if let nsColorClass = NSClassFromString("NSColor") as? NSObject.Type,
+               let clear = nsColorClass.value(forKey: "clearColor") {
+                window.setValue(clear, forKey: "backgroundColor")
+            }
+            return window
+        }
+
+        private static func makeView(_ viewClass: NSObject.Type, frame: CGRect) -> NSObject? {
+            guard let allocated = viewClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject else {
+                return nil
+            }
+            let initSelector = NSSelectorFromString("initWithFrame:")
+            typealias InitFunction = @convention(c) (NSObject, Selector, CGRect) -> NSObject
+            return unsafeBitCast(allocated.method(for: initSelector), to: InitFunction.self)(allocated, initSelector, frame)
+        }
+
+        /// Current theme background parsed from its hex string.
+        private static func themeBackgroundRGB() -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
+            guard let hex = ThemeManager.shared.currentThemeInfo?.colors.background else { return nil }
+            let cleaned = hex.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "#", with: "")
+            var rgb: UInt64 = 0
+            guard Scanner(string: cleaned).scanHexInt64(&rgb) else { return nil }
+            return (
+                CGFloat((rgb & 0xFF0000) >> 16) / 255.0,
+                CGFloat((rgb & 0x00FF00) >> 8) / 255.0,
+                CGFloat(rgb & 0x0000FF) / 255.0
+            )
+        }
+
+        /// Current theme background as an NSColor built via the ObjC runtime.
+        static func themeBackgroundNSColor(alpha: CGFloat) -> NSObject? {
+            guard let (r, g, b) = Self.themeBackgroundRGB(),
+                  let nsColorClass = NSClassFromString("NSColor") as? NSObject.Type else { return nil }
+            let colorSelector = NSSelectorFromString("colorWithRed:green:blue:alpha:")
+            guard nsColorClass.responds(to: colorSelector) else { return nil }
+            typealias ColorFunction = @convention(c) (AnyClass, Selector, CGFloat, CGFloat, CGFloat, CGFloat) -> NSObject
+            let colorFunc = unsafeBitCast(nsColorClass.method(for: colorSelector), to: ColorFunction.self)
+            return colorFunc(nsColorClass, colorSelector, r, g, b, alpha)
+        }
+
         // MARK: - Private API Implementation (non-sandbox)
 
         /// Apply blur using private CGS API (non-sandbox builds only)
         private func applyWindowBlurPrivateAPI() {
             guard self.app != nil else { return }
 
-            let opacity = TransparencyManager.shared.backgroundOpacity
             let blurRadius = TransparencyManager.shared.backgroundBlurRadius
 
-            // Only apply blur if opacity < 1.0 (matching macOS behavior)
-            guard opacity < 1.0 else {
-                logger.info("Skipping blur application: opacity is 1.0 (fully opaque)")
-                return
-            }
+            // No opacity gate: applyWindowBlur(to:) must still run when opaque
+            // so glass views get removed.
 
             // Get NSApplication.sharedApplication
             guard let nsAppClass = NSClassFromString("NSApplication") as? NSObject.Type,

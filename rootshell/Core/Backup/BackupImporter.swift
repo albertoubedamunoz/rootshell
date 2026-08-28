@@ -693,6 +693,10 @@ enum BackupImporter {
         if UserDefaults.standard.object(forKey: "blurEnabled") != nil {
             transparency.blurEnabled = UserDefaults.standard.bool(forKey: "blurEnabled")
         }
+        if let styleRaw = UserDefaults.standard.string(forKey: "blurStyle"),
+           let style = TransparencyManager.BlurStyle(rawValue: styleRaw) {
+            transparency.blurStyle = style
+        }
         if UserDefaults.standard.object(forKey: "pinnedSidebarTransparencyEnabled") != nil {
             transparency.pinnedSidebarTransparencyEnabled = UserDefaults.standard.bool(
                 forKey: "pinnedSidebarTransparencyEnabled"

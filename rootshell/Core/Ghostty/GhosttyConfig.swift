@@ -242,9 +242,12 @@ extension Ghostty {
         private static func effectiveTransparencySettings() -> (opacity: Double, blur: Int) {
 #if targetEnvironment(macCatalyst)
             let transparencyManager = TransparencyManager.shared
+            // Glass styles blur via an NSGlassEffectView window behind the
+            // terminal, so the CGS radius must be 0. The renderer still draws
+            // the theme background at `opacity`; the glass shows through it.
             return (
                 opacity: transparencyManager.backgroundOpacity,
-                blur: Int(transparencyManager.backgroundBlurRadius)
+                blur: transparencyManager.usesGlass ? 0 : Int(transparencyManager.backgroundBlurRadius)
             )
 #else
             return (opacity: 1.0, blur: 0)
