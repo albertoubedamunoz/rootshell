@@ -417,6 +417,10 @@ class CatalystAppDelegate: AppDelegate {
         // Call super to register for remote notifications (CloudKit push)
         _ = super.application(application, didFinishLaunchingWithOptions: launchOptions)
 
+        // Load Rootshell.sdef so AppleScript commands dispatch from the
+        // first AppleEvent (see Features/Automation/AppleScriptCommands).
+        _ = NSScriptSuiteRegistry.shared()
+
         #if STANDALONE
         // Force Sparkle scheduler to start at launch (UpdateManager.shared is lazy)
         _ = UpdateManager.shared
@@ -661,7 +665,14 @@ class CatalystAppDelegate: AppDelegate {
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         logger.info("AppDelegate received URL: \(url.absoluteString)")
+        return Self.routeAutomationURL(url)
+    }
 
+    /// Shared by the app- and scene-level URL entry points. Handles
+    /// ssh://, mosh://, and folders (`odoc` from Finder/BBEdit → local
+    /// shell at that folder). Returns false for anything else.
+    @discardableResult
+    static func routeAutomationURL(_ url: URL) -> Bool {
         if let components = SSHURLParser.parse(url) {
             logger.info("Parsed SSH URL: \(components.displayString)")
             AppIntentCoordinator.shared.deposit(.openSSH(components))
@@ -671,6 +682,12 @@ class CatalystAppDelegate: AppDelegate {
         if let components = MoshURLParser.parse(url) {
             logger.info("Parsed Mosh URL: \(components.displayString)")
             AppIntentCoordinator.shared.deposit(.openMosh(components))
+            return true
+        }
+
+        if url.isFileURL, url.isExistingDirectory {
+            logger.info("Opening local shell at folder: \(url.path, privacy: .private)")
+            AppIntentCoordinator.shared.deposit(.openLocalShell(directory: url.path, command: nil))
             return true
         }
 
@@ -1597,14 +1614,8 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     private func handleURLContexts(_ urlContexts: Set<UIOpenURLContext>) {
         for context in urlContexts {
-            let url = context.url
-            logger.info("Received URL: \(url.absoluteString)")
-
-            // Handle SSH URLs
-            if let components = SSHURLParser.parse(url) {
-                logger.info("Parsed SSH URL: \(components.displayString)")
-                AppIntentCoordinator.shared.deposit(.openSSH(components))
-            }
+            logger.info("Received URL: \(context.url.absoluteString)")
+            CatalystAppDelegate.routeAutomationURL(context.url)
         }
     }
 

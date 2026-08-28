@@ -496,6 +496,9 @@ final class TerminalSessionController {
                 self.adopt(session, pty: session.pty)
                 session.startMonitoring()
                 self.responsePipeline.start(for: session)
+                // Taken now so a later restore/reconnect never re-runs it.
+                let startupCommand = host.terminalPendingStartupCommand
+                host.terminalPendingStartupCommand = nil
 
                 Task {
                     do {
@@ -503,6 +506,9 @@ final class TerminalSessionController {
                         Ghostty.logger.info("Catalyst session started")
                         await MainActor.run {
                             self.host?.terminalUpdatePTYSize()
+                        }
+                        if let startupCommand, !startupCommand.isEmpty {
+                            _ = session.pty.write(startupCommand + "\n")
                         }
                     } catch {
                         Ghostty.logger.error("Failed to start Catalyst session: \(error)")

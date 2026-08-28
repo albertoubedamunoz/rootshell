@@ -142,7 +142,8 @@ extension MainView {
         title: String,
         sourceProfileID: UUID? = nil,
         suppressesTabBarAnimation: Bool = false,
-        pendingFileToOpen: String? = nil
+        pendingFileToOpen: String? = nil,
+        startupCommand: String? = nil
     ) {
         guard let app = ghosttyApp.app else {
             Ghostty.logger.error("Cannot create tab: Ghostty app not initialized")
@@ -155,6 +156,7 @@ extension MainView {
             sourceProfileID: sourceProfileID
         )
         terminalView.pendingFileToOpen = pendingFileToOpen
+        terminalView.pendingStartupCommand = startupCommand
 
         insertPaneAsTab(
             terminalView,
@@ -442,14 +444,16 @@ extension MainView {
     /// cwd. Accepts `~`-relative, relative, or absolute paths; anything
     /// non-absolute resolves against Documents (the shell's HOME). A path
     /// that doesn't exist falls back to HOME inside the session.
-    func createLocalShellTab(intentDirectory: String?) {
+    /// `startupCommand` (AppleScript) is typed into the shell once it starts.
+    func createLocalShellTab(intentDirectory: String?, startupCommand: String? = nil) {
         performLocalShellAction(description: "open a local shell tab") {
             let resolved = intentDirectory
                 .flatMap { Self.resolveIntentDirectory($0) }
             self.openTerminalTab(
                 config: .local(workingDirectory: resolved),
                 title: "Local Shell",
-                suppressesTabBarAnimation: true
+                suppressesTabBarAnimation: true,
+                startupCommand: startupCommand
             )
         }
     }
