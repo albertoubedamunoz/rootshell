@@ -53,12 +53,13 @@ final class AppIntentCoordinator {
 
     // MARK: - New-window requests
 
-    private var pendingForNewWindow: [IntentRequest] = []
-    private var newWindowExpiry: Task<Void, Never>?
+    /// FIFO: one entry per requested scene, claimed one per new window.
+    private var pendingForNewWindow: [(request: IntentRequest, stagedAt: Date)] = []
+    private static let newWindowRequestTTL: TimeInterval = 5
 
-    /// Stage `request` for a window that is created right here (the same
-    /// nil-session activation Cmd-N uses). Expires after a few seconds so a
-    /// stale entry can never hijack a later, unrelated new window.
+    /// Stage `request` and request one scene for it (the same nil-session
+    /// activation Cmd-N uses). Entries expire so a stale one can never
+    /// hijack a later, unrelated new window.
     func depositForNewWindow(_ request: IntentRequest) {
         // Cold launch: the first window is already on its way, so let it
         // claim the request rather than opening a second window.
@@ -67,23 +68,16 @@ final class AppIntentCoordinator {
             deposit(request)
             return
         }
-        pendingForNewWindow.append(request)
-        newWindowExpiry?.cancel()
-        newWindowExpiry = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            guard !Task.isCancelled else { return }
-            self?.pendingForNewWindow.removeAll()
-        }
+        pendingForNewWindow.append((request, Date()))
         UIApplication.shared.requestSceneSessionActivation(nil, userActivity: nil, options: nil, errorHandler: nil)
     }
 
-    /// Consume-once: the first empty window to appear takes them all.
-    func claimNewWindowRequests() -> [IntentRequest] {
-        defer {
-            pendingForNewWindow.removeAll()
-            newWindowExpiry?.cancel()
-            newWindowExpiry = nil
-        }
-        return pendingForNewWindow
+    /// Each new empty window takes the oldest live entry, so N calls map to
+    /// N windows in order.
+    func claimNewWindowRequest() -> IntentRequest? {
+        let cutoff = Date().addingTimeInterval(-Self.newWindowRequestTTL)
+        pendingForNewWindow.removeAll { $0.stagedAt < cutoff }
+        guard !pendingForNewWindow.isEmpty else { return nil }
+        return pendingForNewWindow.removeFirst().request
     }
 }

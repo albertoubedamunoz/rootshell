@@ -205,12 +205,12 @@ extension MainView {
             // Covers both restore (savedFrame from state) and a new Cmd-N window
             // (nil → nudge-only if another window is open).
             stashPendingGeometryRestore(savedFrame: pendingState.flatMap { Self.savedFrame(from: $0) })
-            let newWindowRequests = pendingState == nil
-                ? AppIntentCoordinator.shared.claimNewWindowRequests() : []
-            if !newWindowRequests.isEmpty {
-                // AppleScript `create window`: the staged requests are this
+            let newWindowRequest = pendingState == nil
+                ? AppIntentCoordinator.shared.claimNewWindowRequest() : nil
+            if let newWindowRequest {
+                // AppleScript `create window`: the staged request is this
                 // window's content, so skip the default local shell.
-                dispatchClaimedIntentRequests(newWindowRequests)
+                dispatchClaimedIntentRequests([newWindowRequest])
             } else if pendingState == nil, HelperConnection.shared.isKnownRunning {
                 // createLocalShellTab() runs synchronously now: performLocalShellAction()
                 // takes its fast path when the helper is already confirmed up.

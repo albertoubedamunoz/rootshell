@@ -507,8 +507,10 @@ final class TerminalSessionController {
                         await MainActor.run {
                             self.host?.terminalUpdatePTYSize()
                         }
-                        if let startupCommand, !startupCommand.isEmpty {
-                            _ = session.pty.write(startupCommand + "\n")
+                        // sendInput serializes and retries partial/EAGAIN writes.
+                        if let startupCommand, !startupCommand.isEmpty,
+                           let data = (startupCommand + "\n").data(using: .utf8) {
+                            session.sendInput(data)
                         }
                     } catch {
                         Ghostty.logger.error("Failed to start Catalyst session: \(error)")
