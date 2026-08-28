@@ -24,6 +24,23 @@ final class MenuShortcutState: ObservableObject {
 
     @Published var shortcuts: [KeybindAction: KeyboardShortcut] = [:]
 
+    /// Whether a menu bar exists to carry app shortcuts. Both menu rails dispatch
+    /// through UIApplication notifications rather than the responder chain, so a
+    /// menu item still fires while an overlay owns first responder — and a second
+    /// SwiftUI `.keyboardShortcut` for the same chord blanks the item's glyph.
+    /// Overlay shortcut catchers are installed only where this is false; before
+    /// iPadOS 26 the ⌘-hold HUD is the surface and there is no menu to break.
+    nonisolated static var menuRailOwnsShortcuts: Bool {
+        #if targetEnvironment(macCatalyst)
+        return true
+        #elseif os(visionOS)
+        return false
+        #else
+        if #available(iOS 26.0, *) { return true }
+        return false
+        #endif
+    }
+
     private var cancellables = Set<AnyCancellable>()
 
     private init() {
@@ -76,19 +93,14 @@ struct AppCommands: Commands {
     @ObservedObject var shortcutState = MenuShortcutState.shared
 
     var body: some Commands {
-        // FileCommands and EditCommands use CommandGroup to modify existing system menus
-        // These work reliably on all macOS versions
-        FileCommands(shortcutState: shortcutState)
-        EditCommands(shortcutState: shortcutState)
-
-        // AppViewCommands uses CommandGroup to inject into the system View menu
-        // This works reliably on all macOS versions (like File/Edit)
-        AppViewCommands(shortcutState: shortcutState)
-
-        // Terminal, Shell, and Tabs menus use CommandMenu to create NEW top-level menus
-        // CommandMenu only works reliably on macOS 26+ / iOS 26+
-        // On older versions, CatalystAppDelegate.buildMenu(with:) handles these via UIMenuBuilder
+        // All of these are 26+ only. Before that CatalystAppDelegate.buildMenu(with:)
+        // builds every menu via UIMenuBuilder, and running both sources put duplicate
+        // commands in File/Edit/View — UIKit then refuses to display a menu that
+        // repeats an action, so the legacy insertions were silently dropped.
         if #available(macCatalyst 26.0, iOS 26.0, *) {
+            FileCommands(shortcutState: shortcutState)
+            EditCommands(shortcutState: shortcutState)
+            AppViewCommands(shortcutState: shortcutState)
             TerminalCommands(shortcutState: shortcutState)
             ShellCommands(shortcutState: shortcutState)
             WindowCommands(shortcutState: shortcutState)
@@ -584,15 +596,18 @@ struct WindowCommands: Commands {
             }
             .modifier(DynamicShortcut(action: .next_tab, shortcuts: shortcutState.shortcuts))
 
-            // No DynamicShortcut: ⌘⌥[ / ⌘⌥] are owned by a prioritized
-            // UIKeyCommand (see KeybindAction.needsSystemPriority), not the menu.
+            // ⌘⌥[ / ⌘⌥]: Option composes a different character, so before 26 a
+            // prioritized UIKeyCommand owns these (KeybindAction.needsSystemPriority).
+            // From 26 the menu owns them, which is what shows the glyph.
             Button("Previous Group") {
                 UIApplication.shared.menuPreviousGroup(nil)
             }
+            .modifier(DynamicShortcut(action: .previous_group, shortcuts: shortcutState.shortcuts))
 
             Button("Next Group") {
                 UIApplication.shared.menuNextGroup(nil)
             }
+            .modifier(DynamicShortcut(action: .next_group, shortcuts: shortcutState.shortcuts))
 
             Button("tmux Sessions") {
                 UIApplication.shared.sendAction(
