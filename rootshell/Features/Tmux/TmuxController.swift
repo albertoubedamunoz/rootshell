@@ -855,11 +855,19 @@ final class TmuxController {
                     allowFocus: false)
             }
         }
-        if isFullTopology || ops.contains(where: {
+        // A live #T subscription emits one setTabTitle op for every OSC title
+        // frame. Pane identity still has to follow metadata-only changes such
+        // as `select-pane -T`, but querying every 150 ms rewrites observable
+        // PanePresentationState titles throughout the split/sidebar UI. Keep
+        // topology refresh prompt and put title-driven refreshes through the
+        // same low-rate path used for terminal content.
+        if isFullTopology {
+            schedulePaneIdentityRefresh(after: .milliseconds(150))
+        } else if ops.contains(where: {
             if case .setTabTitle = $0 { return true }
             return false
         }) {
-            schedulePaneIdentityRefresh(after: .milliseconds(150))
+            schedulePaneIdentityRefresh(after: .seconds(2))
         }
     }
 
@@ -1634,7 +1642,13 @@ final class TmuxController {
         guard let gatewayTab = tabsModel.tabs.first(where: { tab in
             tab.splitTree.contains { $0 === ownerView }
         }) else { return }
-        gatewayTab.isTmuxGateway = true
+        // This method is intentionally safe to call more than once, but an
+        // unconditional write still notifies Observation even when the value
+        // remains true. Keep repeated topology/focus applies from needlessly
+        // invalidating every tab consumer.
+        if !gatewayTab.isTmuxGateway {
+            gatewayTab.isTmuxGateway = true
+        }
         gatewayTabID = gatewayTab.id
         // The attached-session identity can land before the gateway tab is
         // marked (SESSION_CHANGED is stashed on the view and flushed at
@@ -3796,6 +3810,18 @@ extension Ghostty.TerminalView {
             controller.startHeartbeat()
             createdController = true
         }
+
+        // The live tmux #T subscription produces a single title op for every
+        // OSC title frame. Classify it here so, after the mandatory transport
+        // rebinding below, it can skip unrelated gateway-tab and teardown work.
+        let isTitleOnly = !ops.isEmpty && ops.allSatisfy { op in
+            switch op {
+            case .setTabTitle, .setWindowTitle:
+                return true
+            default:
+                return false
+            }
+        }
         // A reconcile with windows arrived and we accepted it: control mode is
         // live. If this gateway was being RESUMED after restore, cancel the
         // resume watchdog so it doesn't abort the now-successful resume.
@@ -3850,6 +3876,17 @@ extension Ghostty.TerminalView {
                 trzsz.enableControlModeKeepPendingInput()
             }
         }
+
+        // A metadata-only title batch has now completed all transport rebinding
+        // required on every reconcile. It does not need the remaining gateway
+        // tab marking or control-mode teardown checks; title ops cannot end the
+        // controller. This is deliberately after onOutputDiscarded wiring and
+        // keep-pending-input reassertion so replacement tssh sessions remain
+        // recoverable even when their first subsequent batch is title-only.
+        if !createdController, isTitleOnly {
+            return
+        }
+
         // Don't re-mark the gateway tab once control mode has ended: prune() (on
         // %exit) already cleared isTmuxGateway, and re-setting it would leave the
         // ex-gateway tab flagged with a nil controller, which misleads the
