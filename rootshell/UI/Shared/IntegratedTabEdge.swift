@@ -24,17 +24,29 @@ enum IntegratedTabEdgeMetrics {
     static let reservedThickness: CGFloat = 1
 }
 
-/// Achromatic so both pieces resolve to the identical value where they meet.
-enum IntegratedTabEdgeTint {
-    /// Shared by the rule and the entire active-tab outline.
-    static func base(isLightTheme: Bool, increasedContrast: Bool) -> Color {
-        let opacity: Double
-        if increasedContrast {
-            opacity = isLightTheme ? 0.45 : 0.55
-        } else {
-            opacity = isLightTheme ? 0.16 : 0.30
+/// Theme-derived optical colors for the integrated edge.
+///
+/// The old white/black alpha stroke inherited some color from its backdrop,
+/// but blending toward an achromatic endpoint washed chromatic themes toward
+/// gray. These colors are resolved from the terminal surface itself, so a
+/// blue-purple surface such as Catppuccin Mocha keeps that hue in its rim.
+struct IntegratedTabEdgePalette: Equatable {
+    let surfaceColor: Color?
+    let isLightTheme: Bool
+
+    static let fallback = IntegratedTabEdgePalette(
+        surfaceColor: nil,
+        isLightTheme: false
+    )
+
+    func keyline(increasedContrast: Bool) -> Color {
+        guard let surfaceColor else {
+            return Color(uiColor: .separator)
         }
-        return (isLightTheme ? Color.black : Color.white).opacity(opacity)
+        if isLightTheme {
+            return surfaceColor.darkenedPreservingHue(increasedContrast ? 0.36 : 0.26)
+        }
+        return surfaceColor.lightenedPreservingHue(increasedContrast ? 0.42 : 0.32)
     }
 }
 
@@ -141,7 +153,7 @@ struct IntegratedTabOutlineShape: Shape {
     }
 }
 
-/// The horizontal run along the strip/terminal boundary. Centred on the same
+/// The horizontal run along the strip/terminal boundary. Centered on the same
 /// band as `IntegratedTabOutlineShape`'s open ends so the two abut without a step.
 struct IntegratedTabEdgeRule: Shape {
     var lineWidth: CGFloat
@@ -158,26 +170,25 @@ struct IntegratedTabEdgeRule: Shape {
 
 // MARK: - Views
 
-/// The flat separator across the strip. Plain by design: a gradient packed into
-/// one pixel only reads as a blur.
+/// The separator across the strip. Keeping this to exactly one physical pixel
+/// prevents the shallow active-tab shoulders from appearing to dip below it.
 struct IntegratedTabEdgeRuleView: View {
-    let isLightTheme: Bool
+    let palette: IntegratedTabEdgePalette
 
     @Environment(\.displayScale) private var displayScale
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
-        IntegratedTabEdgeRule(lineWidth: IntegratedTabEdgeMetrics.lineWidth(for: displayScale))
-            .fill(IntegratedTabEdgeTint.base(
-                isLightTheme: isLightTheme,
-                increasedContrast: colorSchemeContrast == .increased
-            ))
+        let lineWidth = IntegratedTabEdgeMetrics.lineWidth(for: displayScale)
+        let increasedContrast = colorSchemeContrast == .increased
+        IntegratedTabEdgeRule(lineWidth: lineWidth)
+            .fill(palette.keyline(increasedContrast: increasedContrast))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
 }
 
-/// Paints the rule's band out across the tab, in the tab's own colour. At the
+/// Paints the rule's band out across the tab, in the tab's own color. At the
 /// shoulder tips the silhouette has not yet climbed clear of that band, so rule
 /// and outline would overlap there and composite to double density.
 struct IntegratedTabEdgeOccluder: View {
@@ -195,27 +206,30 @@ struct IntegratedTabEdgeOccluder: View {
     }
 }
 
-/// The tab's raised edge, using the same hairline colour as the horizontal rule.
+/// The tab's raised edge. A single physical-pixel chromatic stroke keeps its
+/// shoulder endpoints flush with the rule without a simulated crest artifact.
 struct IntegratedTabOutlineView: View {
-    let isLightTheme: Bool
+    let palette: IntegratedTabEdgePalette
 
     @Environment(\.displayScale) private var displayScale
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
-    private var edgeColor: Color {
-        IntegratedTabEdgeTint.base(
-            isLightTheme: isLightTheme,
-            increasedContrast: colorSchemeContrast == .increased
-        )
-    }
-
     var body: some View {
         let lineWidth = IntegratedTabEdgeMetrics.lineWidth(for: displayScale)
+        let increasedContrast = colorSchemeContrast == .increased
+        let keyline = palette.keyline(increasedContrast: increasedContrast)
         IntegratedTabOutlineShape(bottomInset: lineWidth / 2)
             .stroke(
-                edgeColor,
-                style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
+                keyline,
+                style: StrokeStyle(
+                    lineWidth: lineWidth,
+                    lineCap: .butt,
+                    lineJoin: .round
+                )
             )
+            // The path already ends one half-line-width above the boundary;
+            // clipping makes that containment explicit to the renderer.
+            .clipped()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }

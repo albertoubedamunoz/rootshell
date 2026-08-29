@@ -98,6 +98,16 @@ struct ResolvedTabBarTheme {
         return terminalColor.blendedWithWhite(0.12)
     }
 
+    /// Optical edge colors come from the selected terminal surface rather
+    /// than a theme accent. This keeps the rim native-looking while preserving
+    /// chromatic backgrounds instead of washing them toward gray.
+    var integratedEdgePalette: IntegratedTabEdgePalette {
+        IntegratedTabEdgePalette(
+            surfaceColor: terminalSurfaceBackground ?? baseColor,
+            isLightTheme: isLight
+        )
+    }
+
     var selectedBackground: Color {
         if let override = overrideSelectedBackground { return override }
         guard let baseColor else { return Color(uiColor: .secondarySystemBackground) }

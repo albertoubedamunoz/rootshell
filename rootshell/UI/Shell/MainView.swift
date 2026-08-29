@@ -451,7 +451,7 @@ struct MainView: View {
                                 // reads as rising around that tab.
                                 if topTabStyle == .integrated {
                                     IntegratedTabEdgeRuleView(
-                                        isLightTheme: resolvedTheme.isLight
+                                        palette: resolvedTheme.integratedEdgePalette
                                     )
                                 }
                             }

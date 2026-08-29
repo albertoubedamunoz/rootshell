@@ -1224,6 +1224,7 @@ struct TabBarItem: View, Equatable {
             && lhs.theme.baseColor == rhs.theme.baseColor
             && lhs.theme.terminalSurfaceBackground == rhs.theme.terminalSurfaceBackground
             && lhs.theme.terminalSurfaceIsTransparent == rhs.theme.terminalSurfaceIsTransparent
+            && lhs.theme.integratedEdgePalette == rhs.theme.integratedEdgePalette
             && lhs.theme.tabBarBackground == rhs.theme.tabBarBackground
             && lhs.theme.selectedBackground == rhs.theme.selectedBackground
             && lhs.theme.unselectedBackground == rhs.theme.unselectedBackground
@@ -1243,6 +1244,7 @@ struct TabBarItem: View, Equatable {
             textColor: theme.tabText,
             secondaryTextColor: theme.tabSecondaryText,
             isLightTheme: theme.isLight,
+            integratedEdgePalette: theme.integratedEdgePalette,
             namespace: tabNamespace,
             onTap: onTap,
             onClose: onClose,

@@ -317,6 +317,7 @@ struct TabButton: View {
     var textColor: Color = .primary
     var secondaryTextColor: Color = .secondary
     var isLightTheme: Bool = false
+    var integratedEdgePalette: IntegratedTabEdgePalette = .fallback
     let namespace: Namespace.ID?
     let onTap: () -> Void
     let onClose: () -> Void
@@ -500,7 +501,7 @@ struct TabButton: View {
                         isHovered: isHovered,
                         selectedColor: selectedBackgroundColor,
                         hoverColor: unselectedBackgroundColor,
-                        isLightTheme: isLightTheme,
+                        edgePalette: integratedEdgePalette,
                         namespace: namespace,
                         reduceMotion: reduceMotion
                     )
@@ -611,7 +612,7 @@ private struct IntegratedTabBackground: View {
     let isHovered: Bool
     let selectedColor: Color
     let hoverColor: Color
-    let isLightTheme: Bool
+    let edgePalette: IntegratedTabEdgePalette
     let namespace: Namespace.ID?
     let reduceMotion: Bool
 
@@ -641,7 +642,7 @@ private struct IntegratedTabBackground: View {
             // outline's shoulder band.
             IntegratedTabEdgeOccluder(color: selectedColor)
 
-            IntegratedTabOutlineView(isLightTheme: isLightTheme)
+            IntegratedTabOutlineView(palette: edgePalette)
         }
 
         if let namespace {
