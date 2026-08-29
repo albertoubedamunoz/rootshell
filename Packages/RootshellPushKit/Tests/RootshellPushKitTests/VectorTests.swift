@@ -71,6 +71,36 @@ final class VectorTests: XCTestCase {
         XCTAssertTrue(PushAcceptancePolicy(deviceID: nil).accepts(env))
         XCTAssertFalse(PushAcceptancePolicy(deviceID: "dev_2").accepts(env))
         XCTAssertFalse(PushAcceptancePolicy(deviceID: "dev_1", revokedSenderIDs: ["snd_1"]).accepts(env))
+        XCTAssertFalse(PushAcceptancePolicy(enabled: false, deviceID: "dev_1").accepts(env))
+        let blockedOnly = PushAcceptancePolicy(deviceID: "dev_1", agentPolicy: "blockedOnly")
+        XCTAssertTrue(blockedOnly.allowsAgentStatus("blocked"))
+        XCTAssertFalse(blockedOnly.allowsAgentStatus("done"))
+        XCTAssertTrue(PushAcceptancePolicy(deviceID: "dev_1", agentPolicy: "blockedAndDone").allowsAgentStatus("done"))
+        XCTAssertFalse(PushAcceptancePolicy(deviceID: "dev_1", agentPolicy: "off").allowsAgentStatus("blocked"))
+    }
+
+    func testClaimRejectsDuplicateEventIDs() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let state = PushSharedState(container: dir)
+        let record = PushEventRecord(eid: "e1", status: nil, agent: nil, thread: nil, route: nil)
+        XCTAssertTrue(state.claim(record))
+        XCTAssertFalse(state.claim(record))
+        XCTAssertTrue(state.claim(PushEventRecord(eid: "e2", status: nil, agent: nil, thread: nil, route: nil)))
+        XCTAssertEqual(state.load().map(\.eid), ["e1", "e2"])
+        state.release(eid: "e1")
+        XCTAssertTrue(state.claim(record))
+        // No container at all: never suppresses.
+        XCTAssertTrue(PushSharedState(container: nil).claim(record))
+    }
+
+    func testPolicyDecodesOlderFiles() throws {
+        let old = Data(#"{"deviceID":"dev_1","revokedSenderIDs":["snd_9"]}"#.utf8)
+        let policy = try JSONDecoder().decode(PushAcceptancePolicy.self, from: old)
+        XCTAssertTrue(policy.enabled)
+        XCTAssertEqual(policy.deviceID, "dev_1")
+        XCTAssertEqual(policy.revokedSenderIDs, ["snd_9"])
+        XCTAssertEqual(policy.agentPolicy, "blockedOnly")
     }
 
     func testSwiftSealRoundTrip() throws {

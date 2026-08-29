@@ -67,13 +67,18 @@ final class NotificationService: UNNotificationServiceExtension {
 
     private func decorate(_ content: UNMutableNotificationContent, envelope: PushEnvelope) throws {
         let shared = PushSharedState()
-        guard shared.loadPolicy().accepts(envelope) else {
+        let policy = shared.loadPolicy()
+        guard policy.accepts(envelope) else {
             finish(silence(content))
             return
         }
         let keychain = PushConfiguration.keychain
         guard let key = try keychain.loadPrivateKey() else { throw PushCryptoError.badKeySize }
         let header = try envelope.open(with: key)
+        if header.kind == "agent", !policy.allowsAgentStatus(header.status) {
+            finish(silence(content))
+            return
+        }
 
         content.title = header.title
         content.body = header.body ?? ""
@@ -87,6 +92,10 @@ final class NotificationService: UNNotificationServiceExtension {
         info[PushConfiguration.headerUserInfoKey] = try header.userInfoDictionary()
         content.userInfo = info
 
-        shared.append(PushEventRecord(header: header, eid: envelope.eid))
+        // Relay retries and replays carry the same eid; only the first copy is shown.
+        guard shared.claim(PushEventRecord(header: header, eid: envelope.eid)) else {
+            finish(silence(content))
+            return
+        }
     }
 }

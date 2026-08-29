@@ -190,10 +190,10 @@ enum AgentAttentionNotificationRouter {
     /// nothing for the overwhelming majority of panes that never had one.
     private static var delivered: Set<DeliveryKey> = []
 
-    /// Cross-source arbitration with hook pushes. Whichever source delivers a
-    /// (pane, status) first wins for `crossSourceWindow`; a pane that has
-    /// received a hook push for a status is hook-authoritative for that
-    /// status for `hookAuthorityWindow`.
+    /// Cross-source arbitration with hook pushes: the same (pane, status)
+    /// arriving from both sources within `crossSourceWindow` is one event, so
+    /// whichever source delivers first wins. Nothing longer-lived, so later
+    /// distinct transitions are never hidden by a cooldown.
     private struct SourceKey: Hashable {
         let pane: UUID
         let status: AgentAttentionStatus
@@ -201,7 +201,6 @@ enum AgentAttentionNotificationRouter {
     private static var externalDelivered: [SourceKey: Date] = [:]
     private static var localDelivered: [SourceKey: Date] = [:]
     static let crossSourceWindow: TimeInterval = 90
-    static let hookAuthorityWindow: TimeInterval = 24 * 3600
 
     static func externalEventDelivered(pane: UUID, status: AgentAttentionStatus, at date: Date = Date()) {
         externalDelivered[SourceKey(pane: pane, status: status)] = date
@@ -214,7 +213,7 @@ enum AgentAttentionNotificationRouter {
 
     private static func hookCovers(pane: UUID, status: AgentAttentionStatus, now: Date = Date()) -> Bool {
         guard let at = externalDelivered[SourceKey(pane: pane, status: status)] else { return false }
-        return now.timeIntervalSince(at) < hookAuthorityWindow
+        return now.timeIntervalSince(at) < crossSourceWindow
     }
 
     // MARK: - Transitions

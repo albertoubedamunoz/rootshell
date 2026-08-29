@@ -64,6 +64,13 @@ enum PushNotificationRouter {
 
     /// Re-posts a raw push as a local notification carrying the decrypted content.
     private static func presentLocally(_ header: PushHeader, eid: String, sound: UNNotificationSound?) async {
+        let shared = PushSharedState()
+        // Same policy the extension applies; background re-posts never reach willPresent.
+        if header.kind == "agent", !shared.loadPolicy().allowsAgentStatus(header.status) {
+            logger.info("suppressed: policy (background)")
+            await removeRawDelivered(eid: eid)
+            return
+        }
         let content = UNMutableNotificationContent()
         content.title = header.title
         content.body = header.body ?? ""
@@ -76,12 +83,19 @@ enum PushNotificationRouter {
         if let dict = try? header.userInfoDictionary() {
             content.userInfo = [PushConfiguration.headerUserInfoKey: dict]
         }
-        PushSharedState().append(PushEventRecord(header: header, eid: eid))
+        // Relay retries and replays carry the same eid; only the first copy is shown.
+        guard shared.claim(PushEventRecord(header: header, eid: eid)) else {
+            logger.info("dropped duplicate eid=\(eid, privacy: .public)")
+            await removeRawDelivered(eid: eid)
+            return
+        }
         let request = UNNotificationRequest(identifier: "push-\(eid)", content: content, trigger: nil)
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
             logger.error("local re-post failed: \(String(describing: error), privacy: .public)")
+            shared.release(eid: eid)
+            return
         }
         // A suppressed remote push still lands in Notification Center history on
         // macOS; drop the raw copy. syncDelivered repeats this on activation.
@@ -242,7 +256,7 @@ enum PushNotificationRouter {
             }
             // Only bring a different window forward; re-activating the key window
             // resets first responder under the terminal's feet.
-            if let scene = MainView.windowScene(forWindowId: resolved.windowId),
+            if let scene = windowScene(forWindowId: resolved.windowId),
                scene.activationState != .foregroundActive || scene.keyWindow == nil {
                 UIApplication.shared.requestSceneSessionActivation(scene.session, userActivity: nil, options: nil) { error in
                     Self.logger.error("scene activation failed: \(error.localizedDescription)")
@@ -252,6 +266,14 @@ enum PushNotificationRouter {
             NotificationCenter.default.post(name: .navigateToTerminal, object: nil,
                                             userInfo: ["tabID": resolved.tabID, "surfaceID": resolved.surfaceID])
         }
+    }
+
+    /// MainView's Catalyst-only helper, without the platform guard.
+    private static func windowScene(forWindowId windowId: String) -> UIWindowScene? {
+        guard let sessionId = TerminalWindowRegistry.sceneSessionId(for: windowId) else { return nil }
+        return UIApplication.shared.connectedScenes.first {
+            ($0 as? UIWindowScene)?.session.persistentIdentifier == sessionId
+        } as? UIWindowScene
     }
 
     /// Suspends until `name` is posted (optionally by `object`).

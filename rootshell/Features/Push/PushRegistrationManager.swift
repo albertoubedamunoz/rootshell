@@ -48,6 +48,8 @@ final class PushRegistrationManager {
     @ObservationIgnored private var apnsToken: Data?
     @ObservationIgnored private var registrationTask: Task<Void, Never>?
     @ObservationIgnored private var revoked: Set<String>
+    @ObservationIgnored private var policyObserver: Task<Void, Never>?
+    @ObservationIgnored private var publishedAgentPolicy = AgentNotificationPolicy.current.rawValue
 
     private init() {
         let defaults = UserDefaults.standard
@@ -56,6 +58,7 @@ final class PushRegistrationManager {
         revoked = Set(defaults.stringArray(forKey: Self.revokedKey) ?? [])
         if isEnabled { state = credentials == nil ? .waitingForToken : .registered }
         publishPolicy()
+        observePolicyChanges()
     }
 
     var credentials: PushCredentials? { try? keychain.loadCredentials() }
@@ -117,6 +120,9 @@ final class PushRegistrationManager {
         senders = []
         revoked = []
         persistSenders()
+        // Pushes for the old registration may still arrive; both the extension
+        // and the router silence them until push is enabled again.
+        PushSharedState().save(PushAcceptancePolicy(enabled: false, deviceID: nil))
         state = .disabled
     }
 
@@ -133,8 +139,23 @@ final class PushRegistrationManager {
     }
 
     /// Shares the acceptance policy with the notification extension.
-    private func publishPolicy() {
-        PushSharedState().save(PushAcceptancePolicy(deviceID: credentials?.deviceID, revokedSenderIDs: revoked))
+    func publishPolicy() {
+        PushSharedState().save(PushAcceptancePolicy(enabled: isEnabled, deviceID: credentials?.deviceID, revokedSenderIDs: revoked,
+                                                    agentPolicy: AgentNotificationPolicy.current.rawValue))
+    }
+
+    /// Keeps the extension's copy of the Agent Notifications policy current.
+    private func observePolicyChanges() {
+        policyObserver = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: UserDefaults.didChangeNotification) {
+                guard let self, isEnabled else { continue }
+                let current = AgentNotificationPolicy.current.rawValue
+                if current != publishedAgentPolicy {
+                    publishedAgentPolicy = current
+                    publishPolicy()
+                }
+            }
+        }
     }
 
     // MARK: - APNs token
