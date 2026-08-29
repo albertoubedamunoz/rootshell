@@ -26,24 +26,13 @@ enum IntegratedTabEdgeMetrics {
 
 /// Achromatic so both pieces resolve to the identical value where they meet.
 enum IntegratedTabEdgeTint {
-    /// Shared by the rule end to end and the outline from the shoulders down.
+    /// Shared by the rule and the entire active-tab outline.
     static func base(isLightTheme: Bool, increasedContrast: Bool) -> Color {
         let opacity: Double
         if increasedContrast {
             opacity = isLightTheme ? 0.45 : 0.55
         } else {
             opacity = isLightTheme ? 0.16 : 0.30
-        }
-        return (isLightTheme ? Color.black : Color.white).opacity(opacity)
-    }
-
-    /// The lit value at the top of the tab's arch, where a rim faces the light.
-    static func crest(isLightTheme: Bool, increasedContrast: Bool) -> Color {
-        let opacity: Double
-        if increasedContrast {
-            opacity = isLightTheme ? 0.55 : 0.80
-        } else {
-            opacity = isLightTheme ? 0.28 : 0.62
         }
         return (isLightTheme ? Color.black : Color.white).opacity(opacity)
     }
@@ -206,39 +195,17 @@ struct IntegratedTabEdgeOccluder: View {
     }
 }
 
-/// The tab's raised edge: the rule's hairline plus a lit-from-above crest.
+/// The tab's raised edge, using the same hairline colour as the horizontal rule.
 struct IntegratedTabOutlineView: View {
     let isLightTheme: Bool
 
     @Environment(\.displayScale) private var displayScale
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    /// Crest and base in one gradient so the outline is a single stroke; two
-    /// stacked passes would roughen the curves. Decays to `base` by 62% —
-    /// above the shoulders — so the junction with the rule matches exactly.
-    private var rimGradient: LinearGradient {
-        let increased = colorSchemeContrast == .increased
-        let base = IntegratedTabEdgeTint.base(
+    private var edgeColor: Color {
+        IntegratedTabEdgeTint.base(
             isLightTheme: isLightTheme,
-            increasedContrast: increased
-        )
-        // Reduce Transparency wants flat, unlit chrome.
-        guard !reduceTransparency else {
-            return LinearGradient(colors: [base], startPoint: .top, endPoint: .bottom)
-        }
-        let crest = IntegratedTabEdgeTint.crest(
-            isLightTheme: isLightTheme,
-            increasedContrast: increased
-        )
-        return LinearGradient(
-            stops: [
-                .init(color: crest, location: 0),
-                .init(color: base, location: 0.62),
-                .init(color: base, location: 1)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
+            increasedContrast: colorSchemeContrast == .increased
         )
     }
 
@@ -246,7 +213,7 @@ struct IntegratedTabOutlineView: View {
         let lineWidth = IntegratedTabEdgeMetrics.lineWidth(for: displayScale)
         IntegratedTabOutlineShape(bottomInset: lineWidth / 2)
             .stroke(
-                rimGradient,
+                edgeColor,
                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
             )
             .allowsHitTesting(false)
