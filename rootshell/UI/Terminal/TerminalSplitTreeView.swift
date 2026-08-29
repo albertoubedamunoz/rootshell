@@ -17,6 +17,9 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     /// client size.
     var isActive: Bool = true
     let focusedPane: SplitPaneView?
+    /// True when the visible focused terminal presents OSC 9;4 progress on the
+    /// integrated tab edge instead of as a duplicate straight pane-local bar.
+    var routesFocusedProgressToIntegratedEdge: Bool = false
 
     func makeUIView(context: Context) -> SplitTreeHostingView {
         SplitTreeHostingView()
@@ -27,6 +30,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.highlightColor = uiView.tintColor ?? UIColor.systemBlue
         uiView.onResize = onResize
         uiView.isActiveTab = isActive
+        uiView.routesFocusedProgressToIntegratedEdge = routesFocusedProgressToIntegratedEdge
         uiView.update(tree: tree, focusedPane: focusedPane)
     }
 
@@ -56,7 +60,17 @@ final class SplitTreeHostingView: UIView {
     /// active tab drives the tmux client size (background tabs share the same
     /// gateway and bounds, so letting them push too would be redundant churn).
     var isActiveTab: Bool = false {
-        didSet { if isActiveTab != oldValue { setNeedsLayout() } }
+        didSet {
+            guard isActiveTab != oldValue else { return }
+            setNeedsLayout()
+            refreshProgressBarRouting()
+        }
+    }
+    var routesFocusedProgressToIntegratedEdge: Bool = false {
+        didSet {
+            guard routesFocusedProgressToIntegratedEdge != oldValue else { return }
+            refreshProgressBarRouting()
+        }
     }
     /// Visible divider thickness in points. Static so the tmux reconcile
     /// (TmuxController) can use the same value when deriving split ratios.
@@ -147,6 +161,7 @@ final class SplitTreeHostingView: UIView {
         self.tree = tree
         self.focusedPane = focusedPane
         recomputeBorderEligibility()
+        refreshProgressBarRouting()
         setNeedsLayout()
         updateFocusAppearance()
     }
@@ -159,6 +174,10 @@ final class SplitTreeHostingView: UIView {
     /// dismantle runs before the new host adopts them, and a pane checked out for
     /// full screen lives under the takeover container.
     func detachAllPanes() {
+        for (_, container) in attachedContainers where container.superview === self {
+            (container as? Ghostty.TerminalScrollView)?
+                .setProgressBarPresentationSuppressed(false)
+        }
         for (_, container) in attachedContainers where container.superview === self {
             container.removeFromSuperview()
         }
@@ -597,6 +616,7 @@ final class SplitTreeHostingView: UIView {
 
         container.frame = frame
         container.setNeedsLayout()
+        updateProgressBarRouting(for: identifier, container: container)
 
         // Mark a tmux pane as container-laid-out now that it has its real frame.
         // sizeDidChange ignores a tmux pane's size until this is set, so the
@@ -620,6 +640,21 @@ final class SplitTreeHostingView: UIView {
             responder = current.next
         }
         return window?.rootViewController
+    }
+
+    private func refreshProgressBarRouting() {
+        for (identifier, container) in attachedContainers {
+            updateProgressBarRouting(for: identifier, container: container)
+        }
+    }
+
+    private func updateProgressBarRouting(for identifier: ObjectIdentifier, container: UIView) {
+        guard let scrollView = container as? Ghostty.TerminalScrollView else { return }
+        let focusedID = focusedPane.map(ObjectIdentifier.init)
+        let suppressesLocalBar = routesFocusedProgressToIntegratedEdge
+            && isActiveTab
+            && focusedID == identifier
+        scrollView.setProgressBarPresentationSuppressed(suppressesLocalBar)
     }
 
     private func frames(
@@ -751,6 +786,8 @@ final class SplitTreeHostingView: UIView {
                     continue
                 }
                 Ghostty.logger.debug("SplitTreeHostingView: Removing container for unused pane")
+                (container as? Ghostty.TerminalScrollView)?
+                    .setProgressBarPresentationSuppressed(false)
                 container.removeFromSuperview()
                 borderEligibility.removeValue(forKey: identifier)
                 containersToRemove.append(identifier)
