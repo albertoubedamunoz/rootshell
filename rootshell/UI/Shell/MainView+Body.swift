@@ -147,11 +147,18 @@ extension MainView {
 
     @ViewBuilder
     func tabBarAddButton(theme: ResolvedTabBarTheme) -> some View {
-        Button(action: addNewTab) {
+        ZStack {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(theme.tabText)
                 .frame(width: TabMetrics.tabBarHeight, height: TabMetrics.tabBarHeight)
+                .accessibilityHidden(true)
+
+            TabStyleContextMenuRegion(
+                selectedStyleRawValue: $topTabStyleRawValue,
+                primaryAction: addNewTab,
+                accessibilityLabel: String(localized: "New Tab")
+            )
         }
         .overlay(alignment: .leading) {
             if topTabStyle == .integrated {
@@ -164,43 +171,47 @@ extension MainView {
         }
         .frame(width: TabMetrics.tabBarHeight, height: TabMetrics.tabBarHeight)
         .fixedSize()
-        .tabStyleSwitchContextMenu(selection: $topTabStyleRawValue)
         .layoutPriority(1)
-        .accessibilityLabel("New Tab")
     }
 
     @ViewBuilder
     func tabBarSettingsButton(theme: ResolvedTabBarTheme) -> some View {
-        Button(action: {
-            requestSettingsPresentation()
-        }) {
+        ZStack {
             Image(systemName: "gearshape")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(theme.tabText)
                 .frame(width: TabMetrics.tabBarHeight, height: TabMetrics.tabBarHeight)
+                .accessibilityHidden(true)
+
+            TabStyleContextMenuRegion(
+                selectedStyleRawValue: $topTabStyleRawValue,
+                primaryAction: { requestSettingsPresentation() },
+                accessibilityLabel: String(localized: "Settings")
+            )
         }
         .frame(width: TabMetrics.tabBarHeight, height: TabMetrics.tabBarHeight)
         .fixedSize()
-        .tabStyleSwitchContextMenu(selection: $topTabStyleRawValue)
         .layoutPriority(1)
-        .accessibilityLabel("Settings")
     }
 
     @ViewBuilder
     func integratedTabBarDragRegion() -> some View {
         #if targetEnvironment(macCatalyst)
         if usesTitlebarTabs || hideWindowTitleBar {
-            CatalystWindowDragRegion()
+            CatalystWindowDragRegion(tabStyleSelection: $topTabStyleRawValue)
                 .frame(minWidth: Self.catalystWindowDragWidth, maxWidth: .infinity)
                 .frame(height: TabMetrics.tabBarHeight)
-                .tabStyleSwitchContextMenu(selection: $topTabStyleRawValue)
                 .catalystCursorRegion(.openHand, priority: .titlebar)
                 .accessibilityHidden(true)
         } else {
-            Spacer(minLength: 0)
+            TabStyleContextMenuRegion(selectedStyleRawValue: $topTabStyleRawValue)
+                .frame(minWidth: 0, maxWidth: .infinity)
+                .frame(height: TabMetrics.tabBarHeight)
         }
         #else
-        Spacer(minLength: 0)
+        TabStyleContextMenuRegion(selectedStyleRawValue: $topTabStyleRawValue)
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .frame(height: TabMetrics.tabBarHeight)
         #endif
     }
 
@@ -217,15 +228,17 @@ extension MainView {
         tabBarChromeBackground(theme)
             .padding(.bottom, topTabStyle == .integrated ? IntegratedTabEdgeMetrics.reservedThickness : 0)
             .frame(width: tabBarLeadingPadding, height: 44)
+            .overlay {
+                TabStyleContextMenuRegion(selectedStyleRawValue: $topTabStyleRawValue)
+            }
             .overlay(alignment: .trailing) {
                 if dragWidth > 0 {
-                    CatalystWindowDragRegion()
+                    CatalystWindowDragRegion(tabStyleSelection: $topTabStyleRawValue)
                         .frame(width: dragWidth, height: TabMetrics.tabBarHeight)
                         .catalystCursorRegion(.openHand, priority: .titlebar)
                         .accessibilityHidden(true)
                 }
             }
-            .tabStyleSwitchContextMenu(selection: $topTabStyleRawValue)
         #endif
     }
 }

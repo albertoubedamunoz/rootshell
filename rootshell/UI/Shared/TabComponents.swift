@@ -898,49 +898,144 @@ extension View {
 
 // MARK: - Tab Layout Context Menu
 
-/// Adds the lightweight Pills/Compact Pills/Integrated switcher to otherwise
-/// non-tab chrome.
-/// The nearest per-tab context menu still owns secondary clicks on real tabs.
-struct TabStyleSwitchContextMenuModifier: ViewModifier {
+/// A native context-menu source for otherwise SwiftUI-owned tab chrome.
+///
+/// In this tab bar, SwiftUI's `.contextMenu` presentation reaches the root
+/// UIHostingController. Runtime diagnostics show that path intermittently
+/// installing private gravity-well views directly under the controller's root
+/// view. Keeping the interaction and its UIActions on this local UIView avoids
+/// that bridge.
+struct TabStyleContextMenuRegion: UIViewRepresentable {
     @Binding var selectedStyleRawValue: String
-    @AppStorage(UserPreferences.compactPillTabSpacingKey) private var compactPillTabSpacing: Bool = false
+    var primaryAction: (() -> Void)?
+    var accessibilityLabel: String?
 
-    private var selectedStyle: TopTabStyle {
-        TopTabStyle.resolve(selectedStyleRawValue)
+    init(
+        selectedStyleRawValue: Binding<String>,
+        primaryAction: (() -> Void)? = nil,
+        accessibilityLabel: String? = nil
+    ) {
+        _selectedStyleRawValue = selectedStyleRawValue
+        self.primaryAction = primaryAction
+        self.accessibilityLabel = accessibilityLabel
     }
 
-    private var selectedLayout: TopTabLayout {
-        TopTabLayout.resolve(style: selectedStyle, compactPills: compactPillTabSpacing)
+    func makeCoordinator() -> TabStyleContextMenuCoordinator {
+        TabStyleContextMenuCoordinator()
     }
 
-    func body(content: Content) -> some View {
-        content
-            .contentShape(Rectangle())
-            .contextMenu {
-                layoutButton(.pills, systemImage: "capsule")
-                layoutButton(.compactPills, systemImage: "capsule.fill")
-                layoutButton(.integrated, systemImage: "rectangle.topthird.inset.filled")
-            }
+    func makeUIView(context: Context) -> UIControl {
+        let control = UIControl()
+        control.backgroundColor = .clear
+        control.addTarget(
+            context.coordinator,
+            action: #selector(TabStyleContextMenuCoordinator.performPrimaryAction),
+            for: .primaryActionTriggered
+        )
+        context.coordinator.install(on: control)
+        update(control, coordinator: context.coordinator)
+        return control
     }
 
-    private func layoutButton(_ layout: TopTabLayout, systemImage: String) -> some View {
-        Button {
-            selectedStyleRawValue = layout.style.rawValue
-            if layout.style == .pills {
-                compactPillTabSpacing = layout.usesCompactPillSpacing
-            }
-        } label: {
-            Label(
-                layout.displayName,
-                systemImage: selectedLayout == layout ? "checkmark" : systemImage
-            )
-        }
+    func updateUIView(_ uiView: UIControl, context: Context) {
+        update(uiView, coordinator: context.coordinator)
+    }
+
+    private func update(_ control: UIControl, coordinator: TabStyleContextMenuCoordinator) {
+        coordinator.update(
+            selectedStyleRawValue: $selectedStyleRawValue,
+            primaryAction: primaryAction
+        )
+        control.isAccessibilityElement = accessibilityLabel != nil
+        control.accessibilityLabel = accessibilityLabel
+        control.accessibilityTraits = accessibilityLabel == nil ? [] : .button
+        control.accessibilityElementsHidden = accessibilityLabel == nil
     }
 }
 
-extension View {
-    func tabStyleSwitchContextMenu(selection: Binding<String>) -> some View {
-        modifier(TabStyleSwitchContextMenuModifier(selectedStyleRawValue: selection))
+@MainActor
+final class TabStyleContextMenuCoordinator: NSObject, UIContextMenuInteractionDelegate {
+    private var selectedStyleRawValue: Binding<String>?
+    private var primaryAction: (() -> Void)?
+
+    func update(
+        selectedStyleRawValue: Binding<String>,
+        primaryAction: (() -> Void)?
+    ) {
+        self.selectedStyleRawValue = selectedStyleRawValue
+        self.primaryAction = primaryAction
+    }
+
+    func install(on view: UIView) {
+        view.addInteraction(UIContextMenuInteraction(delegate: self))
+    }
+
+    @objc func performPrimaryAction() {
+        primaryAction?()
+    }
+
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation location: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard selectedStyleRawValue != nil else { return nil }
+
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            guard let self else { return nil }
+            let selectedLayout = self.selectedLayout
+            let actions = [
+                self.action(for: .pills, systemImage: "capsule", selectedLayout: selectedLayout),
+                self.action(for: .compactPills, systemImage: "capsule.fill", selectedLayout: selectedLayout),
+                self.action(
+                    for: .integrated,
+                    systemImage: "rectangle.topthird.inset.filled",
+                    selectedLayout: selectedLayout
+                ),
+            ]
+            return UIMenu(children: actions)
+        }
+    }
+
+    private var selectedLayout: TopTabLayout {
+        TopTabLayout.resolve(
+            style: TopTabStyle.resolve(selectedStyleRawValue?.wrappedValue ?? TopTabStyle.pills.rawValue),
+            compactPills: UserDefaults.standard.bool(forKey: UserPreferences.compactPillTabSpacingKey)
+        )
+    }
+
+    private func action(
+        for layout: TopTabLayout,
+        systemImage: String,
+        selectedLayout: TopTabLayout
+    ) -> UIAction {
+        UIAction(
+            title: layout.displayName,
+            image: UIImage(systemName: systemImage),
+            state: selectedLayout == layout ? .on : .off
+        ) { [weak self] _ in
+            self?.apply(layout)
+        }
+    }
+
+    private func apply(_ layout: TopTabLayout) {
+        guard selectedLayout != layout else { return }
+
+        // Leave the UIContextMenuInteraction callback before changing the tab
+        // hierarchy that contains its source view.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let selectedStyleRawValue else { return }
+            withTransaction(Transaction(animation: nil)) {
+                if layout.style == .pills {
+                    UserDefaults.standard.set(
+                        layout.usesCompactPillSpacing,
+                        forKey: UserPreferences.compactPillTabSpacingKey
+                    )
+                }
+                if selectedStyleRawValue.wrappedValue != layout.style.rawValue {
+                    selectedStyleRawValue.wrappedValue = layout.style.rawValue
+                }
+            }
+        }
     }
 }
 

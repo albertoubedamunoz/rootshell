@@ -23,15 +23,39 @@ extension View {
 /// SwiftUI shape does not reliably win hit testing over a UIViewRepresentable
 /// terminal beneath it on Catalyst.
 struct CatalystWindowDragRegion: UIViewRepresentable {
+    var tabStyleSelection: Binding<String>?
+
+    init(tabStyleSelection: Binding<String>? = nil) {
+        self.tabStyleSelection = tabStyleSelection
+    }
+
+    func makeCoordinator() -> TabStyleContextMenuCoordinator {
+        TabStyleContextMenuCoordinator()
+    }
+
     func makeUIView(context: Context) -> UIView {
         let view = CatalystWindowDragView()
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = true
         view.accessibilityElementsHidden = true
+        if let tabStyleSelection {
+            context.coordinator.update(
+                selectedStyleRawValue: tabStyleSelection,
+                primaryAction: nil
+            )
+            context.coordinator.install(on: view)
+        }
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {
+        if let tabStyleSelection {
+            context.coordinator.update(
+                selectedStyleRawValue: tabStyleSelection,
+                primaryAction: nil
+            )
+        }
+    }
 }
 
 private final class CatalystWindowDragView: UIView {

@@ -145,6 +145,7 @@ extension MainView {
             availableWidth: availableWidth,
             style: topTabStyle,
             usesCompactSpacing: usesCompactTabSpacing,
+            selectedStyleRawValue: $topTabStyleRawValue,
             tabsModel: tabsModel,
             selectedTabIndex: Binding(
                 get: { selectedTabIndex },

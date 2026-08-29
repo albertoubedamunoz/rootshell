@@ -282,6 +282,7 @@ struct TabBar: View {
     let availableWidth: CGFloat
     let style: TopTabStyle
     let usesCompactSpacing: Bool
+    @Binding var selectedStyleRawValue: String
 
     // MARK: - Structural / references
 
@@ -824,6 +825,8 @@ struct TabBar: View {
                 maxWidth: .infinity,
                 alignment: usesCompactSpacing ? .leading : .center
             )
+        } else {
+            emptyTabStyleContextMenuRegion()
         }
     }
 
@@ -835,18 +838,25 @@ struct TabBar: View {
     private func singleTabFlexibleMargin() -> some View {
         #if targetEnvironment(macCatalyst)
         if usesTitlebarTabs {
-            CatalystWindowDragRegion()
+            CatalystWindowDragRegion(tabStyleSelection: $selectedStyleRawValue)
                 .frame(minWidth: 0, maxWidth: .infinity)
                 .frame(height: TabMetrics.tabBarHeight)
                 .layoutPriority(-1)
                 .catalystCursorRegion(.openHand, priority: .titlebar)
                 .accessibilityHidden(true)
         } else {
-            Spacer(minLength: 0)
+            emptyTabStyleContextMenuRegion()
         }
         #else
-        Spacer(minLength: 0)
+        emptyTabStyleContextMenuRegion()
         #endif
+    }
+
+    private func emptyTabStyleContextMenuRegion() -> some View {
+        TabStyleContextMenuRegion(selectedStyleRawValue: $selectedStyleRawValue)
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .frame(maxHeight: .infinity)
+            .layoutPriority(-1)
     }
 
     // MARK: - Equal-width tabs
