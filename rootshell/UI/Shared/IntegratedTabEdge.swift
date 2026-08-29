@@ -5,12 +5,15 @@
 //  The Integrated style's border: a hairline running the window's full width
 //  along the strip/terminal boundary and up around the active tab.
 //
-//  Two pieces, not one path, so no tab frame has to reach the strip. They join
-//  because both are the same hairline and the shoulder curves are tangent to
-//  horizontal exactly where the rule lives.
+//  The ordinary keyline uses two pieces so no tab frame has to reach the strip.
+//  They join because both are the same hairline and the shoulder curves are
+//  tangent to horizontal exactly where the rule lives. OSC progress adds a
+//  transient compound foreground path over those same segments.
 //
 
 import SwiftUI
+import UIKit
+import GhosttyKit
 
 // MARK: - Metrics
 
@@ -81,9 +84,18 @@ struct IntegratedTabGeometry {
     /// lifts the ends so a stroked copy lands on the rule's band, inside the row.
     func outlinePath(bottomInset: CGFloat = 0) -> Path {
         let bottom = tabRect.maxY - bottomInset
-        let kappa = Self.bezierKappa
         var path = Path()
         path.move(to: CGPoint(x: tabRect.minX, y: bottom))
+        appendOutline(to: &path, bottomInset: bottomInset)
+        return path
+    }
+
+    /// Appends the outline after its starting point. Keeping the segment writer
+    /// separate lets the OSC progress renderer splice the same tab curve into a
+    /// single window-wide path without duplicating or approximating geometry.
+    private func appendOutline(to path: inout Path, bottomInset: CGFloat) {
+        let bottom = tabRect.maxY - bottomInset
+        let kappa = Self.bezierKappa
         path.addCurve(
             to: CGPoint(
                 x: tabRect.minX + shoulderWidth,
@@ -129,6 +141,24 @@ struct IntegratedTabGeometry {
                 y: bottom
             )
         )
+    }
+
+    /// Continuous strip edge used by OSC progress: horizontal rule, active-tab
+    /// outline, then horizontal rule. The ordinary edge remains split into its
+    /// existing rule/outline views; this path is only the colored foreground.
+    static func progressEdgePath(
+        in rowRect: CGRect,
+        activeTabRect: CGRect,
+        bottomInset: CGFloat
+    ) -> Path {
+        let geometry = IntegratedTabGeometry(in: activeTabRect)
+        let baseline = rowRect.maxY - bottomInset
+        let tabBottom = geometry.tabRect.maxY - bottomInset
+        var path = Path()
+        path.move(to: CGPoint(x: rowRect.minX, y: baseline))
+        path.addLine(to: CGPoint(x: geometry.tabRect.minX, y: tabBottom))
+        geometry.appendOutline(to: &path, bottomInset: bottomInset)
+        path.addLine(to: CGPoint(x: rowRect.maxX, y: baseline))
         return path
     }
 
@@ -138,6 +168,19 @@ struct IntegratedTabGeometry {
         var path = outlinePath()
         path.closeSubpath()
         return path
+    }
+}
+
+// MARK: - Active-tab geometry
+
+/// The selected integrated tab contributes its bounds to the row so the OSC
+/// foreground can trace one continuous path without publishing frames into
+/// `MainView` state on every scrolling-tab layout pass.
+struct IntegratedActiveTabBoundsPreferenceKey: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? = nil
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
     }
 }
 
@@ -232,5 +275,185 @@ struct IntegratedTabOutlineView: View {
             .clipped()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+    }
+}
+
+// MARK: - OSC progress foreground
+
+/// Isolates observation of the focused terminal's high-rate OSC progress state
+/// from `MainView`. Core Animation owns the bouncing segment, so no display-link
+/// updates enter SwiftUI's view graph.
+struct IntegratedOSCProgressEdgeHost: View {
+    @ObservedObject var terminalView: Ghostty.TerminalView
+    let activeTabRect: CGRect
+    let rowSize: CGSize
+    let selectedTabID: UUID
+    let animateSelectionChanges: Bool
+
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        if let report = terminalView.progressReport, report.state != .remove {
+            let lineWidth = IntegratedTabEdgeMetrics.lineWidth(for: displayScale)
+            let path = IntegratedTabGeometry.progressEdgePath(
+                in: CGRect(origin: .zero, size: rowSize),
+                activeTabRect: activeTabRect,
+                bottomInset: lineWidth / 2
+            )
+            IntegratedOSCProgressLayerView(
+                path: path.cgPath,
+                lineWidth: lineWidth,
+                report: report,
+                selectedTabID: selectedTabID,
+                animateSelectionChanges: animateSelectionChanges
+            )
+        }
+    }
+}
+
+private struct IntegratedOSCProgressLayerView: UIViewRepresentable {
+    let path: CGPath
+    let lineWidth: CGFloat
+    let report: Ghostty.Action.ProgressReport
+    let selectedTabID: UUID
+    let animateSelectionChanges: Bool
+
+    func makeUIView(context: Context) -> IntegratedOSCProgressLayerUIView {
+        IntegratedOSCProgressLayerUIView()
+    }
+
+    func updateUIView(_ view: IntegratedOSCProgressLayerUIView, context: Context) {
+        view.configure(
+            path: path,
+            lineWidth: lineWidth,
+            report: report,
+            selectedTabID: selectedTabID,
+            animateSelectionChanges: animateSelectionChanges
+        )
+    }
+
+    static func dismantleUIView(_ view: IntegratedOSCProgressLayerUIView, coordinator: ()) {
+        view.stopAnimation()
+    }
+}
+
+/// A single stroked layer means `strokeStart` / `strokeEnd` naturally measure
+/// progress across the rule and the longer curved detour around the active tab.
+private final class IntegratedOSCProgressLayerUIView: UIView {
+    private let progressLayer = CAShapeLayer()
+    private var selectedTabID: UUID?
+    private var lastPath: CGPath?
+    private var isBouncing = false
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        isAccessibilityElement = false
+        backgroundColor = .clear
+        clipsToBounds = true
+
+        progressLayer.fillColor = nil
+        progressLayer.lineCap = .butt
+        progressLayer.lineJoin = .round
+        layer.addSublayer(progressLayer)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        progressLayer.frame = bounds
+    }
+
+    func configure(
+        path: CGPath,
+        lineWidth: CGFloat,
+        report: Ghostty.Action.ProgressReport,
+        selectedTabID newSelectedTabID: UUID,
+        animateSelectionChanges: Bool
+    ) {
+        let selectionChanged = selectedTabID != nil && selectedTabID != newSelectedTabID
+        selectedTabID = newSelectedTabID
+
+        let oldPath = (progressLayer.presentation() as? CAShapeLayer)?.path
+            ?? progressLayer.path
+            ?? lastPath
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        progressLayer.lineWidth = lineWidth
+        progressLayer.strokeColor = Self.color(for: report.state).cgColor
+        progressLayer.path = path
+        lastPath = path
+
+        switch report.state {
+        case .set:
+            stopAnimation()
+            progressLayer.strokeStart = 0
+            progressLayer.strokeEnd = CGFloat(report.progress ?? 0) / 100
+        case .indeterminate, .error, .pause:
+            progressLayer.strokeStart = 0
+            progressLayer.strokeEnd = 0.25
+            startAnimationIfNeeded()
+        case .remove:
+            stopAnimation()
+            progressLayer.strokeStart = 0
+            progressLayer.strokeEnd = 0
+        }
+        CATransaction.commit()
+
+        if selectionChanged, animateSelectionChanges, let oldPath {
+            let animation = CABasicAnimation(keyPath: "path")
+            animation.fromValue = oldPath
+            animation.toValue = path
+            animation.duration = 0.3
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            progressLayer.add(animation, forKey: "integrated-tab-selection-path")
+        }
+    }
+
+    private static func color(for state: Ghostty.Action.ProgressReport.State) -> UIColor {
+        switch state {
+        case .error:
+            return .systemRed
+        case .pause:
+            return .systemOrange
+        default:
+            return .systemBlue
+        }
+    }
+
+    private func startAnimationIfNeeded() {
+        guard !isBouncing else { return }
+        isBouncing = true
+
+        let starts = CAKeyframeAnimation(keyPath: "strokeStart")
+        starts.values = [0, 0.75, 0]
+        starts.keyTimes = [0, 0.5, 1]
+        starts.timingFunctions = [
+            CAMediaTimingFunction(name: .easeInEaseOut),
+            CAMediaTimingFunction(name: .easeInEaseOut)
+        ]
+
+        let ends = CAKeyframeAnimation(keyPath: "strokeEnd")
+        ends.values = [0.25, 1, 0.25]
+        ends.keyTimes = [0, 0.5, 1]
+        ends.timingFunctions = [
+            CAMediaTimingFunction(name: .easeInEaseOut),
+            CAMediaTimingFunction(name: .easeInEaseOut)
+        ]
+
+        let group = CAAnimationGroup()
+        group.animations = [starts, ends]
+        group.duration = 2.4
+        group.repeatCount = .infinity
+        progressLayer.add(group, forKey: "osc-progress-bounce")
+    }
+
+    fileprivate func stopAnimation() {
+        progressLayer.removeAnimation(forKey: "osc-progress-bounce")
+        isBouncing = false
     }
 }

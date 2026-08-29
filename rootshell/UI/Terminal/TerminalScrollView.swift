@@ -144,6 +144,11 @@ extension Ghostty {
     /// Progress bar view (for OSC 9;4 progress indicators)
     private var progressBarView: ProgressBarView?
 
+    /// The active focused pane routes its OSC progress into the integrated tab
+    /// edge. Observation stays alive while presentation is suppressed so the
+    /// current report can be restored immediately when routing ends.
+    private var isProgressBarPresentationSuppressed = false
+
     /// Cancellable for observing progress report changes
     private var progressReportCancellable: AnyCancellable?
 
@@ -1225,12 +1230,25 @@ extension Ghostty {
 
     // MARK: - Progress Bar Handling
 
+    func setProgressBarPresentationSuppressed(_ suppressed: Bool) {
+        guard isProgressBarPresentationSuppressed != suppressed else { return }
+        isProgressBarPresentationSuppressed = suppressed
+        if suppressed {
+            removeProgressBarView()
+        } else {
+            updateProgressBar(report: terminalView.progressReport)
+        }
+    }
+
     private func updateProgressBar(report: Ghostty.Action.ProgressReport?) {
+        guard !isProgressBarPresentationSuppressed else {
+            removeProgressBarView()
+            return
+        }
+
         // Remove existing progress bar if report is nil or state is .remove
         if report == nil || report?.state == .remove {
-            progressBarView?.stopAnimation()
-            progressBarView?.removeFromSuperview()
-            progressBarView = nil
+            removeProgressBarView()
             return
         }
 
@@ -1254,6 +1272,12 @@ extension Ghostty {
         if let report = report {
             progressBarView?.update(with: report)
         }
+    }
+
+    private func removeProgressBarView() {
+        progressBarView?.stopAnimation()
+        progressBarView?.removeFromSuperview()
+        progressBarView = nil
     }
 
     // MARK: - Scrollbar Update Handling

@@ -940,7 +940,9 @@ extension MainView {
                             handleSplitResize(tabIndex: index, node: node, ratio: ratio)
                         },
                         isActive: index == selectedTabIndex,
-                        focusedPane: tab.focusedPane
+                        focusedPane: tab.focusedPane,
+                        routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
+                            && !tabBarHidden
                     )
                     // NOTE: the tmux control-mode client size is NOT driven from here.
                     // A tmux pane is a real ghostty surface, so its grid is recomputed

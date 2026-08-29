@@ -523,6 +523,12 @@ struct TabButton: View {
                 }
             }
         )
+        .anchorPreference(
+            key: IntegratedActiveTabBoundsPreferenceKey.self,
+            value: .bounds
+        ) { bounds in
+            style == .integrated && isSelected ? bounds : nil
+        }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .onTapGesture(perform: onTap)
         .onHover { hovering in

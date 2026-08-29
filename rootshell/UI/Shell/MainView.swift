@@ -456,6 +456,9 @@ struct MainView: View {
                                 }
                             }
                         }
+                        .overlayPreferenceValue(IntegratedActiveTabBoundsPreferenceKey.self) { bounds in
+                            integratedOSCProgressEdge(activeTabBounds: bounds)
+                        }
                         .modifier(ContainerCornerModifier())
 #if targetEnvironment(macCatalyst)
                         .catalystCursorRegion()

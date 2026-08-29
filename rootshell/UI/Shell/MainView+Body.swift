@@ -12,6 +12,35 @@ import GhosttyKit
 
 extension MainView {
 
+    // MARK: - Integrated OSC Progress Edge
+
+    /// Renders the selected focused terminal's OSC 9;4 foreground over the
+    /// palette-aware integrated keyline. The host view owns observation of the
+    /// terminal publisher so progress updates do not invalidate `MainView`.
+    @ViewBuilder
+    func integratedOSCProgressEdge(activeTabBounds: Anchor<CGRect>?) -> some View {
+        if topTabStyle == .integrated,
+           let activeTabBounds,
+           terminals.indices.contains(selectedTabIndex),
+           let focusedTerminal = terminals[selectedTabIndex].focusedTerminal {
+            let selectedTabID = terminals[selectedTabIndex].id
+            GeometryReader { proxy in
+                IntegratedOSCProgressEdgeHost(
+                    terminalView: focusedTerminal,
+                    activeTabRect: proxy[activeTabBounds],
+                    rowSize: proxy.size,
+                    selectedTabID: selectedTabID,
+                    animateSelectionChanges: !tabBarAnimationsDisabled
+                        && !tabIndicator.suppressNextSelectionAnimation
+                        && !UIAccessibility.isReduceMotionEnabled
+                )
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
+    }
+
     // MARK: - Full-Bleed Backgrounds
 
     /// The full-bleed background layer.
