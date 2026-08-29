@@ -38,6 +38,28 @@ class KeyboardTracker {
     @MainActor
     private(set) var keyboardFrame: CGRect = .zero
 
+    /// True while UIKit has any input view on screen, including a toolbar-only
+    /// or accessory-only layout below the software-keyboard threshold. Those
+    /// layouts hide and re-show through the same keyboard notifications and
+    /// safe-area shuffle as a full keyboard, so the preservation latches must
+    /// cover them too.
+    @MainActor
+    var isAnyInputViewPresented: Bool {
+        isSoftwareKeyboardVisible || visibleKeyboardHeight(for: keyboardFrame) > 0
+    }
+
+    /// Set when a latch armed for a sub-threshold layout. Any visible frame
+    /// then counts as the layout returning, so the re-shown toolbar is not
+    /// mistaken for a still-hidden keyboard and committed away on release.
+    @MainActor private var overlayPreservationCoversInputViewOnly = false
+    @MainActor private var appTransitionPreservationCoversInputViewOnly = false
+
+    @MainActor
+    private func isPreservedLayoutFrameVisible(_ frame: CGRect, inputViewOnly: Bool) -> Bool {
+        if inputViewOnly { return visibleKeyboardHeight(for: frame) > 0 }
+        return isSoftwareKeyboardFrameVisible(frame)
+    }
+
     /// True while the keyboard show/hide animation is in progress
     @MainActor
     private(set) var isKeyboardAnimating: Bool = false
@@ -377,9 +399,10 @@ class KeyboardTracker {
 
     @MainActor
     private func beginAppTransitionKeyboardPreservationIfNeeded(autoClearIfAppStaysActive: Bool) {
-        guard isSoftwareKeyboardVisible else { return }
+        guard isAnyInputViewPresented else { return }
         appTransitionKeyboardPreservationTask?.cancel()
         appTransitionKeyboardPreservationTask = nil
+        appTransitionPreservationCoversInputViewOnly = !isSoftwareKeyboardVisible
         isPreservingSoftwareKeyboardForAppTransition = true
         ignoredHiddenKeyboardFrameDuringPreservation = false
         setKeyboardAnimating(false)
@@ -431,9 +454,13 @@ class KeyboardTracker {
             }
         }
         isPreservingSoftwareKeyboardForAppTransition = false
+        appTransitionPreservationCoversInputViewOnly = false
         ignoredHiddenKeyboardFrameDuringPreservation = false
         appTransitionKeyboardPreservationTask?.cancel()
         appTransitionKeyboardPreservationTask = nil
+        if !isPreservingSoftwareKeyboardForOverlay {
+            EffectManager.shared.resyncKeyboardFrameAfterPreservation()
+        }
     }
 
     // MARK: - Overlay Keyboard Preservation
@@ -459,9 +486,10 @@ class KeyboardTracker {
 
     /// Arm the overlay preservation latch before an overlay-driven first
     /// responder resign hides the software keyboard. Idempotent; no-op when
-    /// no software keyboard is up (nothing to preserve — hardware keyboard
-    /// and pinned-hidden layouts are covered by the terminal's
-    /// toolbar-reserve latch instead). A begin from a second window while
+    /// no input view is up (nothing to preserve). Toolbar-only and
+    /// accessory-only layouts arm it too: the terminal's toolbar-reserve latch
+    /// keeps the padding, but only this latch drops the size and bottom-inset
+    /// pushes from the safe-area shuffle. A begin from a second window while
     /// armed transfers ownership to it (latest wins). The caller passes its
     /// own window — never derived from isKeyWindow scans, which are
     /// unreliable on iPadOS multi-window (see WindowSceneReporter).
@@ -477,7 +505,8 @@ class KeyboardTracker {
             overlayOwnerWindowWasCaptured = window != nil
             return
         }
-        guard isSoftwareKeyboardVisible else { return }
+        guard isAnyInputViewPresented else { return }
+        overlayPreservationCoversInputViewOnly = !isSoftwareKeyboardVisible
         isPreservingSoftwareKeyboardForOverlay = true
         ignoredHiddenKeyboardFrameDuringOverlayPreservation = false
         overlayKeyboardPreservationOwner = owner
@@ -536,12 +565,14 @@ class KeyboardTracker {
     @MainActor
     private func releaseOverlayKeyboardPreservationNow() {
         isPreservingSoftwareKeyboardForOverlay = false
+        overlayPreservationCoversInputViewOnly = false
         ignoredHiddenKeyboardFrameDuringOverlayPreservation = false
         overlayKeyboardPreservationOwner = nil
         overlayKeyboardPreservationOwnerWindow = nil
         overlayOwnerWindowWasCaptured = false
         overlayKeyboardPreservationReleaseTask?.cancel()
         overlayKeyboardPreservationReleaseTask = nil
+        EffectManager.shared.resyncKeyboardFrameAfterPreservation()
         // Terminals drop size pushes while the latch is armed (the container
         // safe-area shuffle when the keyboard physically hides/reshows wobbles
         // their bounds by the home-indicator inset). UIKit never re-fires a
@@ -1095,7 +1126,7 @@ class KeyboardTracker {
             releaseOverlayKeyboardPreservationNow()
             return
         }
-        if isSoftwareKeyboardFrameVisible(keyboardFrameEnd) {
+        if isPreservedLayoutFrameVisible(keyboardFrameEnd, inputViewOnly: overlayPreservationCoversInputViewOnly) {
             // Mirrors updateKeyboardFrame's visible-frame branch: refresh the
             // latched geometry without ending the latch. Release stays with the
             // other handlers so this one has no release path of its own.
@@ -1119,7 +1150,7 @@ class KeyboardTracker {
 
         if overlayKeyboardPreservationIsActive() {
             if overlayKeyboardPreservationOwnerWindowIsActive {
-                guard isSoftwareKeyboardFrameVisible(keyboardFrameEnd) else {
+                guard isPreservedLayoutFrameVisible(keyboardFrameEnd, inputViewOnly: overlayPreservationCoversInputViewOnly) else {
                     ignoredHiddenKeyboardFrameDuringOverlayPreservation = true
                     return
                 }
@@ -1135,7 +1166,7 @@ class KeyboardTracker {
         }
 
         if isPreservingSoftwareKeyboardForAppTransition {
-            guard isSoftwareKeyboardFrameVisible(keyboardFrameEnd) else {
+            guard isPreservedLayoutFrameVisible(keyboardFrameEnd, inputViewOnly: appTransitionPreservationCoversInputViewOnly) else {
                 ignoredHiddenKeyboardFrameDuringPreservation = true
                 Ghostty.logger.debug("KeyboardTracker: Ignored transient app-transition keyboard frame")
                 return
@@ -1197,7 +1228,7 @@ class KeyboardTracker {
             ignoredHiddenKeyboardFrameDuringOverlayPreservation = true
             return true
         }
-        let shouldPreserve = !isSoftwareKeyboardFrameVisible(keyboardFrameEnd)
+        let shouldPreserve = !isPreservedLayoutFrameVisible(keyboardFrameEnd, inputViewOnly: overlayPreservationCoversInputViewOnly)
         if shouldPreserve {
             ignoredHiddenKeyboardFrameDuringOverlayPreservation = true
         }
@@ -1207,7 +1238,7 @@ class KeyboardTracker {
     @MainActor
     private func shouldPreserveKeyboardStateForAppTransition(_ notification: Notification) -> Bool {
         if !isPreservingSoftwareKeyboardForAppTransition {
-            guard isSoftwareKeyboardVisible,
+            guard isAnyInputViewPresented,
                   isAppOrSceneTransitioningAway else {
                 return false
             }
@@ -1219,7 +1250,7 @@ class KeyboardTracker {
             ignoredHiddenKeyboardFrameDuringPreservation = true
             return true
         }
-        let shouldPreserve = !isSoftwareKeyboardFrameVisible(keyboardFrameEnd)
+        let shouldPreserve = !isPreservedLayoutFrameVisible(keyboardFrameEnd, inputViewOnly: appTransitionPreservationCoversInputViewOnly)
         if shouldPreserve {
             ignoredHiddenKeyboardFrameDuringPreservation = true
         }

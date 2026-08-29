@@ -16,6 +16,9 @@ protocol TerminalKeyboardAccessoryHost: AnyObject {
     var keyboardAIAgentOverlayActive: Bool { get }
     var keyboardToolbarOnlyMode: Bool { get }
     var keyboardAccessoryHasBottomSafeAreaSpacer: Bool { get }
+    /// Window whose `SoftwareKeyboardHideIntentStore` entry governs this host.
+    /// nil opts out: the chevron falls back to resigning first responder.
+    var keyboardHideIntentWindow: UIWindow? { get }
 
     @discardableResult
     func keyboardBecomeFirstResponder() -> Bool
@@ -34,6 +37,7 @@ protocol TerminalKeyboardAccessoryHost: AnyObject {
 
 extension TerminalKeyboardAccessoryHost {
     var keyboardAccessoryHasBottomSafeAreaSpacer: Bool { false }
+    var keyboardHideIntentWindow: UIWindow? { nil }
 }
 
 @MainActor
@@ -48,7 +52,20 @@ final class TerminalKeyboardAccessoryController: NSObject {
     var shouldShowKeyboardToolbar = false
     var activeKeyboardModifiers: KeyModifiers = []
     var onActiveKeyboardModifiersChanged: ((KeyModifiers) -> Void)?
-    var keyboardManuallyDismissed = false
+    /// Window-scoped hide intent; hosts without a window (VNC) keep it local.
+    var hideIntent: SoftwareKeyboardHideIntent {
+        guard let window = host?.keyboardHideIntentWindow else { return localHideIntent }
+        return SoftwareKeyboardHideIntentStore.shared.intent(for: window)
+    }
+    private var localHideIntent: SoftwareKeyboardHideIntent = .none
+    private var usesHideIntent: Bool { host?.keyboardHideIntentWindow != nil }
+    private func setHideIntent(_ intent: SoftwareKeyboardHideIntent) {
+        guard let window = host?.keyboardHideIntentWindow else {
+            localHideIntent = intent
+            return
+        }
+        SoftwareKeyboardHideIntentStore.shared.set(intent, for: window)
+    }
     /// Hosting choice captured when toolbar-only mode begins. A detached iPad
     /// keyboard must keep the toolbar in the accessory slot: replacing the
     /// floating keyboard with the accessory as its primary input view preserves
@@ -58,10 +75,21 @@ final class TerminalKeyboardAccessoryController: NSObject {
     private var toolbarOnlyUsesPrimaryInputView = true
     var toolbarOnlyMode = false {
         didSet {
+            guard oldValue != toolbarOnlyMode else { return }
             EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
         }
     }
-    var keyboardPinnedHidden = false
+    /// Toolbar-only mode with the row hidden too (persistentToolbar off):
+    /// first responder is kept so hardware keys still work, but nothing is
+    /// presented at the bottom edge. Never while pinned: terminal taps do not
+    /// restore a pinned keyboard, so the chevron must stay reachable.
+    private(set) var toolbarOnlyHidesToolbar = false {
+        didSet {
+            guard oldValue != toolbarOnlyHidesToolbar else { return }
+            EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+        }
+    }
+    var keyboardPinnedHidden: Bool { hideIntent.isPinned }
     private(set) var bottomEdgeHomeGestureProtectionEnabled = false {
         didSet {
             guard oldValue != bottomEdgeHomeGestureProtectionEnabled else { return }
@@ -117,6 +145,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         return host.keyboardIsFirstResponder
             && !host.keyboardAIAgentOverlayActive
             && !keyboardToolbarCollapsed
+            && !(toolbarOnlyMode && toolbarOnlyHidesToolbar)
             && (shouldShowKeyboardToolbar || toolbarOnlyMode)
         #endif
     }
@@ -188,7 +217,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         if toolbarOnlyMode {
             // A primary toolbar is flush with the edge. The detached-iPad
             // compatibility path stays in the accessory slot and retains the
-            // clearance UIKit supplies below that slot.
+            // clearance UIKit supplies below that slot. No row, no strip.
+            guard !toolbarOnlyHidesToolbar else { return 0 }
             accessoryRestsAtScreenEdge = toolbarOnlyUsesPrimaryInputView
         } else if hardwareAccessoryOwnsKeyboardRegion {
             // A tall accessory-only region can otherwise look like a docked
@@ -283,6 +313,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         let isVisible = shouldShowKeyboardToolbar
             && !host.keyboardAIAgentOverlayActive
             && !keyboardToolbarCollapsed
+            && !(toolbarOnlyMode && toolbarOnlyHidesToolbar)
         updateBottomEdgeHomeGestureProtection(accessoryIsVisible: isVisible)
         // In the normal toolbar-only path the accessory serves as the primary
         // input view instead (see `inputView`); handing it out from both slots
@@ -311,6 +342,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         guard let host,
               let accessory = keyboardAccessory,
               shouldShowKeyboardToolbar,
+              !toolbarOnlyHidesToolbar,
               !host.keyboardAIAgentOverlayActive,
               !keyboardToolbarCollapsed else {
             // Toolbar hidden (collapsed to the floating button, or an overlay
@@ -346,14 +378,13 @@ final class TerminalKeyboardAccessoryController: NSObject {
             guard let self else { return }
             if self.toolbarOnlyMode {
                 self.exitToolbarOnlyMode()
+            } else if self.usesHideIntent || UserDefaults.standard.bool(forKey: "persistentToolbar") {
+                self.setHideIntent(.hidden(pinned: false))
+                self.enterToolbarOnlyMode(pinned: false)
             } else {
-                let persistentToolbar = UserDefaults.standard.bool(forKey: "persistentToolbar")
-                if persistentToolbar {
-                    self.enterToolbarOnlyMode()
-                } else {
-                    self.keyboardManuallyDismissed = true
-                    _ = self.host?.keyboardResignFirstResponder()
-                }
+                // Hosts without a hide-intent window (VNC) keep the legacy
+                // resign path.
+                _ = self.host?.keyboardResignFirstResponder()
             }
         }
 
@@ -366,9 +397,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
             if self.keyboardPinnedHidden {
                 self.exitToolbarOnlyMode()
             } else {
-                self.keyboardPinnedHidden = true
-                self.enterToolbarOnlyMode()
-                self.keyboardAccessory?.setDismissButtonPinned(true)
+                self.setHideIntent(.hidden(pinned: true))
+                self.enterToolbarOnlyMode(pinned: true)
             }
         }
 
@@ -569,9 +599,12 @@ final class TerminalKeyboardAccessoryController: NSObject {
         host?.keyboardReloadInputViews()
     }
 
-    func enterToolbarOnlyMode() {
+    func enterToolbarOnlyMode(pinned: Bool = false) {
         _ = emptyInputView
         emptyInputViewHeightConstraint?.constant = 0
+        toolbarOnlyHidesToolbar = usesHideIntent
+            && !pinned
+            && !UserDefaults.standard.bool(forKey: "persistentToolbar")
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         // Snapshot before changing the input set. Once the software keyboard
         // starts hiding, its placement frame is no longer reliable enough to
@@ -587,17 +620,49 @@ final class TerminalKeyboardAccessoryController: NSObject {
         toolbarOnlyMode = true
         host?.keyboardSetSoftwareKeyboardRequested(false)
         keyboardAccessory?.setDismissButtonShowsRestore(true)
+        keyboardAccessory?.setDismissButtonPinned(pinned)
         host?.keyboardReloadInputViews()
     }
 
     func exitToolbarOnlyMode() {
-        keyboardPinnedHidden = false
+        setHideIntent(.none)
         keyboardAccessory?.setDismissButtonPinned(false)
         toolbarOnlyMode = false
+        toolbarOnlyHidesToolbar = false
         host?.keyboardSetSoftwareKeyboardRequested(true)
         keyboardAccessory?.setDismissButtonShowsRestore(false)
         host?.keyboardReloadInputViews()
         toolbarOnlyUsesPrimaryInputView = true
+    }
+
+    /// Bring this host's applied mode in line with the window's hide intent.
+    /// Idempotent; called before every first-responder acquisition so the
+    /// input view UIKit queries already reflects the intent. Returns true when
+    /// something changed.
+    @discardableResult
+    func reconcileWithHideIntent() -> Bool {
+        guard usesHideIntent else { return false }
+        let intent = hideIntent
+        if !intent.isHidden {
+            guard toolbarOnlyMode else { return false }
+            exitToolbarOnlyMode()
+            return true
+        }
+        let pinned = intent.isPinned
+        guard toolbarOnlyMode else {
+            enterToolbarOnlyMode(pinned: pinned)
+            return true
+        }
+        let hidesToolbar = !pinned && !UserDefaults.standard.bool(forKey: "persistentToolbar")
+        var changed = false
+        if toolbarOnlyHidesToolbar != hidesToolbar {
+            toolbarOnlyHidesToolbar = hidesToolbar
+            changed = true
+        }
+        keyboardAccessory?.setDismissButtonPinned(pinned)
+        keyboardAccessory?.setDismissButtonShowsRestore(true)
+        if changed { host?.keyboardReloadInputViews() }
+        return changed
     }
 
     func resetFocusLossState() {
@@ -607,13 +672,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
         }
         if keyboardToolbarCollapsed {
             keyboardToolbarCollapsed = false
-        }
-    }
-
-    func rearmPinnedHiddenIfNeeded() {
-        if keyboardPinnedHidden && !toolbarOnlyMode {
-            enterToolbarOnlyMode()
-            keyboardAccessory?.setDismissButtonPinned(true)
         }
     }
 
@@ -791,12 +849,10 @@ final class TerminalKeyboardAccessoryController: NSObject {
         let tracker = KeyboardTracker.shared
         let showWithHardware = UserDefaults.standard.bool(forKey: "showToolbarWithHardwareKeyboard")
         let newShouldShow = !tracker.isHardwareKeyboard || tracker.isSoftwareKeyboardVisible || showWithHardware
-        if !newShouldShow && toolbarOnlyMode {
+        if !newShouldShow && toolbarOnlyMode && !usesHideIntent {
             toolbarOnlyMode = false
+            localHideIntent = .none
             keyboardAccessory?.setDismissButtonShowsRestore(false)
-        }
-        if !newShouldShow && keyboardPinnedHidden {
-            keyboardPinnedHidden = false
             keyboardAccessory?.setDismissButtonPinned(false)
         }
         if !newShouldShow && keyboardToolbarCollapsed {
@@ -821,6 +877,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
             shouldShowKeyboardToolbar
                 && host?.keyboardAIAgentOverlayActive != true
                 && !keyboardToolbarCollapsed
+                && !(toolbarOnlyMode && toolbarOnlyHidesToolbar)
         )
         let hardwareAccessoryOnly = hardwareAccessoryOwnsKeyboardRegion
         // toolbarOnlyMode counts as at-screen-edge on its own: the accessory

@@ -1465,10 +1465,10 @@ extension Ghostty.TerminalView {
     #endif
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        // Safety net: if we're logically focused but not first responder, restore it
-        // Skip if user manually dismissed keyboard — they want to scroll freely.
-        // Keyboard will be restored on a deliberate single tap via touchesEnded.
-        if isLogicallyFocused && !isFirstResponder && !keyboardManuallyDismissed {
+        // Safety net: if we're logically focused but not first responder,
+        // restore it. A hidden keyboard stays hidden: becomeFirstResponder()
+        // re-applies the window's hide intent.
+        if isLogicallyFocused && !isFirstResponder {
             Ghostty.logger.debug("touchesBegan: Restoring focus via tap")
             _ = becomeFirstResponder()
         }
@@ -1476,7 +1476,7 @@ extension Ghostty.TerminalView {
         // Track touch start for keyboard restore tap detection. Finger only:
         // iPadOS answers pencil focus with the minimized-keyboard pill instead
         // of a real keyboard, so a pencil tap must not re-arm keyboard state.
-        if (keyboardManuallyDismissed || toolbarOnlyMode) && !keyboardToolbarCollapsed,
+        if toolbarOnlyMode && !keyboardToolbarCollapsed,
            let touch = touches.first,
            touch.type == .direct {
             dismissTapStartPoint = touch.location(in: self)
@@ -1709,22 +1709,6 @@ extension Ghostty.TerminalView {
                 dismissTapStartPoint = nil
                 if distance < 20 {
                     exitToolbarOnlyMode()
-                }
-            }
-        }
-
-        // Restore keyboard on deliberate single tap after manual dismiss.
-        // Only restore if the finger didn't travel far (tap, not scroll).
-        if keyboardManuallyDismissed && !keyboardPinnedHidden && isLogicallyFocused && !isFirstResponder && touch.type == .direct {
-            let allEndTouches = event?.allTouches ?? touches
-            let remaining = allEndTouches.filter { $0.phase != .ended && $0.phase != .cancelled }
-            if remaining.isEmpty, let startPoint = dismissTapStartPoint {
-                let endPoint = touch.location(in: self)
-                let distance = hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y)
-                dismissTapStartPoint = nil
-                if distance < 20 {
-                    keyboardManuallyDismissed = false
-                    _ = becomeFirstResponder()
                 }
             }
         }
