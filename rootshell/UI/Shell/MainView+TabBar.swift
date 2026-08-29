@@ -112,10 +112,9 @@ extension MainView {
     /// (varying frames; common root: scene-update transactions blow the
     /// 10s/30s FrontBoard budget when MainView re-evaluates) hinges on
     /// this decoupling.
-    /// The compact track uses a preferred width already clamped to the space
-    /// left after fixed controls. Giving that width to the GeometryReader
-    /// directly prevents SwiftUI from needlessly compressing a lone pill while
-    /// the adjacent titlebar drag region expands into otherwise unused space.
+    /// The compact track caps at the space left after fixed controls. A cap,
+    /// not a fixed width: outer modifiers inset the row below what the proxy
+    /// reports, and a rigid frame pushed the buttons off-window.
     @ViewBuilder
     func tabBarTrack(in geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
         if usesCompactTabSpacing {
@@ -126,11 +125,8 @@ extension MainView {
                     theme: theme
                 )
             }
-            .frame(
-                width: preferredWidth,
-                height: TabMetrics.tabBarHeight,
-                alignment: .leading
-            )
+            .frame(maxWidth: preferredWidth, alignment: .leading)
+            .frame(height: TabMetrics.tabBarHeight)
         } else {
             tabBarContent(
                 availableWidth: availableTabBarWidth(in: geometry),

@@ -913,6 +913,10 @@ struct TabBar: View {
 
     // MARK: - Scrolling tabs
 
+    /// Keeps the selection spring's overshoot (~4.6% of a travel capped at the
+    /// 240pt tab width) off the ScrollView's clip edge.
+    private static let compactOvershootHeadroom: CGFloat = 12
+
     @ViewBuilder
     private func scrollingView(tabWidth: CGFloat) -> some View {
         let tabs = tabsModel.tabs
@@ -972,7 +976,8 @@ struct TabBar: View {
                         }
                 }
             }
-            .padding(.horizontal, usesCompactSpacing ? 0 : 8)
+            .padding(.leading, usesCompactSpacing ? 0 : 8)
+            .padding(.trailing, usesCompactSpacing ? Self.compactOvershootHeadroom : 8)
             .contentShape(Rectangle())
             .modifier(GlassEffectContainerModifier())
             // Scoped animation for the selection slide. See equalWidthView.
