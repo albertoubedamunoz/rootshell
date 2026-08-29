@@ -85,6 +85,12 @@
 	<string>$(ROOTSHELL_IPINFO_TOKEN_KEY)</string>
 	<key>RootshellIPInfoTokenXOR</key>
 	<string>$(ROOTSHELL_IPINFO_TOKEN_XOR)</string>
+	<key>RootshellAppGroup</key>
+	<string>$(ROOTSHELL_APP_GROUP)</string>
+	<key>RootshellKeychainAccessGroup</key>
+	<string>$(ROOTSHELL_KEYCHAIN_ACCESS_GROUP)</string>
+	<key>RootshellPushServer</key>
+	<string>$(ROOTSHELL_PUSH_SERVER)</string>
 	<key>RootshellLinodeOAuthClientID</key>
 	<string>$(ROOTSHELL_LINODE_OAUTH_CLIENT_ID)</string>
 	<key>RootshellLinodeOAuthClientSecret</key>

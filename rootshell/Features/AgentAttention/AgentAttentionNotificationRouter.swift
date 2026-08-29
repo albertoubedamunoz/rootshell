@@ -190,6 +190,33 @@ enum AgentAttentionNotificationRouter {
     /// nothing for the overwhelming majority of panes that never had one.
     private static var delivered: Set<DeliveryKey> = []
 
+    /// Cross-source arbitration with hook pushes. Whichever source delivers a
+    /// (pane, status) first wins for `crossSourceWindow`; a pane that has
+    /// received a hook push for a status is hook-authoritative for that
+    /// status for `hookAuthorityWindow`.
+    private struct SourceKey: Hashable {
+        let pane: UUID
+        let status: AgentAttentionStatus
+    }
+    private static var externalDelivered: [SourceKey: Date] = [:]
+    private static var localDelivered: [SourceKey: Date] = [:]
+    static let crossSourceWindow: TimeInterval = 90
+    static let hookAuthorityWindow: TimeInterval = 24 * 3600
+
+    static func externalEventDelivered(pane: UUID, status: AgentAttentionStatus, at date: Date = Date()) {
+        externalDelivered[SourceKey(pane: pane, status: status)] = date
+    }
+
+    static func shouldSuppressExternal(pane: UUID, status: AgentAttentionStatus, now: Date = Date()) -> Bool {
+        guard let at = localDelivered[SourceKey(pane: pane, status: status)] else { return false }
+        return now.timeIntervalSince(at) < crossSourceWindow
+    }
+
+    private static func hookCovers(pane: UUID, status: AgentAttentionStatus, now: Date = Date()) -> Bool {
+        guard let at = externalDelivered[SourceKey(pane: pane, status: status)] else { return false }
+        return now.timeIntervalSince(at) < hookAuthorityWindow
+    }
+
     // MARK: - Transitions
 
     static func paneTransitioned(
@@ -220,6 +247,7 @@ enum AgentAttentionNotificationRouter {
         var history = handledEvents[key] ?? AgentAttentionEventHistory()
         guard history.insertIfNew(new.id) else { return }
         handledEvents[key] = history
+        if new.category == .agent, hookCovers(pane: monitor.paneUUID, status: new.status) { return }
         deliver(event: new, monitor: monitor)
     }
 
@@ -242,6 +270,7 @@ enum AgentAttentionNotificationRouter {
     static func paneViewed(_ paneUUID: UUID) {
         withdraw(DeliveryKey(pane: paneUUID, category: .agent))
         withdraw(DeliveryKey(pane: paneUUID, category: .task))
+        PushNotificationRouter.paneViewed(paneUUID)
     }
 
     static func removeAll() {
@@ -343,7 +372,10 @@ enum AgentAttentionNotificationRouter {
             threadIdentifier: threadIdentifier(for: key.pane),
             relevanceScore: relevance(status)
         )
-        if identifier != nil { delivered.insert(key) }
+        if identifier != nil {
+            delivered.insert(key)
+            localDelivered[SourceKey(pane: key.pane, status: status)] = Date()
+        }
     }
 
     /// Everything the composer needs, read off the live monitor. All of it

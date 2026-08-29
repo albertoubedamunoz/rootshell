@@ -1387,6 +1387,7 @@ struct SettingsPrivacySection: View {
 struct SettingsNotificationsSection: View {
     @ObservedObject var notificationManager = NotificationManager.shared
     @ObservedObject var soundManager = SoundManager.shared
+    private let pushManager = PushRegistrationManager.shared
     @AppStorage(AgentAttentionSettings.detectionEnabledKey) private var agentDetectionEnabled: Bool = true
     @AppStorage(AgentNotificationPolicy.storageKey)
     private var agentNotificationPolicy = AgentNotificationPolicy.blockedOnly.rawValue
@@ -1455,6 +1456,20 @@ struct SettingsNotificationsSection: View {
                     .foregroundColor(.secondary)
                     .themedRow()
 #endif
+
+                NavigationLink {
+                    PushNotificationSettingsView()
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "lock.shield")
+                        Text("Push Notifications")
+                        Spacer()
+                        Text(pushManager.isEnabled ? "On" : "Off")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
+                }
+                .themedRow()
 
                 // Same @AppStorage key as the Coding Agents screen, so both
                 // entry points always show the same policy.

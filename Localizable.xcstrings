@@ -31964,6 +31964,9 @@
         }
       }
     },
+    "A name to recognise this computer by, e.g. the hostname." : {
+
+    },
     "A single key combo sent when you tap the button." : {
       "localizations" : {
         "ar" : {
@@ -52947,8 +52950,11 @@
         }
       }
     },
+    "Already installed?" : {
+
+    },
     "Always" : {
-      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -75026,6 +75032,9 @@
         }
       }
     },
+    "Background blur → %@" : {
+      "comment" : "Migration preview"
+    },
     "Background blur → %lld" : {
       "comment" : "Migration preview",
       "localizations" : {
@@ -83220,6 +83229,9 @@
           }
         }
       }
+    },
+    "Blur Style" : {
+
     },
     "Bold" : {
       "comment" : "Split border style: bold border",
@@ -103450,6 +103462,9 @@
         }
       }
     },
+    "Clear Glass" : {
+
+    },
     "Clear History Now" : {
       "localizations" : {
         "ar" : {
@@ -109777,6 +109792,9 @@
         }
       }
     },
+    "Coding agents on your computers notify this device when they finish or need input, even while rootshell is in the background. Agent events follow the Agent Notifications policy and are not shown while you are viewing the pane. Messages are end-to-end encrypted with post-quantum cryptography; the relay stores nothing and never sees their contents." : {
+
+    },
     "Collapse" : {
       "comment" : "Toggle: collapse output",
       "localizations" : {
@@ -114258,6 +114276,9 @@
           }
         }
       }
+    },
+    "Computer name" : {
+
     },
     "Conditions" : {
       "localizations" : {
@@ -119508,7 +119529,7 @@
       }
     },
     "Connected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN tunnel status",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: connected\nVPN event status: connected\nVPN status: active connection\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -119978,7 +119999,7 @@
       }
     },
     "Connecting" : {
-      "comment" : "VPN tunnel status",
+      "comment" : "VPN status: establishing connection\nVPN tunnel status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -128631,8 +128652,11 @@
         }
       }
     },
+    "Controls window transparency. Liquid Glass renders the desktop behind the window through a glass material tinted with the theme background." : {
+
+    },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -135589,6 +135613,9 @@
           }
         }
       }
+    },
+    "Create Pairing" : {
+
     },
     "Create Profile" : {
       "localizations" : {
@@ -149798,7 +149825,7 @@
       }
     },
     "Default" : {
-      "comment" : "Profile transport mode: default",
+      "comment" : "Profile transport mode: default\nVPN DNS: using system default",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -155964,7 +155991,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164353,7 +164380,7 @@
       }
     },
     "Disconnected" : {
-      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected",
+      "comment" : "Cloud console status\nEC2 console status\nKubernetes node shell status\nTunnel event status: disconnected\nVPN event status: disconnected\nVPN status: not connected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -174688,6 +174715,9 @@
         }
       }
     },
+    "Each computer holds its own credential. Revoking one makes this device ignore its notifications immediately; pairing a computer again under the same name replaces its credential." : {
+
+    },
     "Each press of the ••• button reveals one more drawer row; when all are open, the next press closes them. \"Open Drawer by Default\" opens the first row when the keyboard appears." : {
       "localizations" : {
         "ar" : {
@@ -184877,6 +184907,9 @@
         }
       }
     },
+    "Encrypted notification. Open rootshell to view." : {
+
+    },
     "Encrypted on this device, never synced" : {
       "localizations" : {
         "ar" : {
@@ -191507,7 +191540,7 @@
       }
     },
     "Error" : {
-      "comment" : "Tunnel event status: error",
+      "comment" : "AI Agent error: generic error title\nCommand output type: error\nTunnel event status: error\nVPN event status: error",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -225039,6 +225072,9 @@
         }
       }
     },
+    "Glass" : {
+
+    },
     "Glass Tap" : {
       "comment" : "Bell sound: glass clink",
       "localizations" : {
@@ -241859,7 +241895,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -253754,7 +253790,7 @@
       }
     },
     "Info" : {
-      "comment" : "Clipboard transform category\nTunnel event status: info",
+      "comment" : "Clipboard transform category\nTunnel event status: info\nVPN event status: info",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -256539,6 +256575,9 @@
         }
       }
     },
+    "Install or Upgrade the Hook Client" : {
+
+    },
     "Install specific key" : {
       "comment" : "ssh-copy-id help: specific key example",
       "localizations" : {
@@ -257002,6 +257041,9 @@
           }
         }
       }
+    },
+    "Installs rootshell-notify if needed, pairs it with this device, and adds the hook for Claude Code and Codex if they are set up there. Typing pastes the command into the focused pane without running it; review and press Return." : {
+
     },
     "Instance '%@' is offline" : {
       "comment" : "Cloud console error",
@@ -336344,7 +336386,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -344694,7 +344736,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -345158,7 +345200,7 @@
       }
     },
     "On" : {
-      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -357963,6 +358005,18 @@
           }
         }
       }
+    },
+    "Pair a Computer" : {
+
+    },
+    "Pair a Computer…" : {
+
+    },
+    "Paired %@" : {
+
+    },
+    "Paired Computers" : {
+
     },
     "Palette" : {
       "comment" : "Migration category",
@@ -383589,6 +383643,9 @@
         }
       }
     },
+    "Push Notifications" : {
+
+    },
     "Pushes terminal content above standard brightness using your display's HDR (EDR) headroom. Also available as a floating slider via a keybind or the keyboard toolbar." : {
       "localizations" : {
         "ar" : {
@@ -388222,6 +388279,9 @@
           }
         }
       }
+    },
+    "Re-pair required: this device was re-registered" : {
+
     },
     "Re-select File" : {
       "localizations" : {
@@ -393007,7 +393067,7 @@
       }
     },
     "Reconnected" : {
-      "comment" : "Tunnel event status: reconnected",
+      "comment" : "Tunnel event status: reconnected\nVPN event status: reconnected",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -393162,7 +393222,7 @@
       }
     },
     "Reconnecting" : {
-      "comment" : "Tunnel event status: reconnecting",
+      "comment" : "Tunnel event status: reconnecting\nVPN event status: reconnecting\nVPN status: re-establishing connection",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -397022,6 +397082,9 @@
         }
       }
     },
+    "Registered" : {
+
+    },
     "Registered custom theme" : {
       "localizations" : {
         "ar" : {
@@ -397329,6 +397392,12 @@
           }
         }
       }
+    },
+    "Registering with push.rootshell.com…" : {
+
+    },
+    "Registration failed: %@" : {
+
     },
     "Reject" : {
       "localizations" : {
@@ -416345,6 +416414,12 @@
         }
       }
     },
+    "Revoke" : {
+
+    },
+    "Revoke this computer?" : {
+
+    },
     "Right" : {
       "localizations" : {
         "ar" : {
@@ -421594,6 +421669,12 @@
           }
         }
       }
+    },
+    "Run on an already-paired computer to update rootshell-notify and refresh its agent hooks. Existing pairings are kept. Where it is already installed, `rootshell-notify upgrade` does the same." : {
+
+    },
+    "Run on the computer" : {
+
     },
     "Run the terminal and its keyboard toolbar edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with taps and text selection near the bottom." : {
       "localizations" : {
@@ -509603,6 +509684,9 @@
         }
       }
     },
+    "The pairing code contains this device's public key and a credential for that computer only; it can be revoked from the previous screen." : {
+
+    },
     "The passkey and its per-use verification are managed by your passkey provider (iCloud Keychain or a third-party manager like 1Password). Its private key cannot be viewed, exported, or reconfigured by rootshell." : {
       "localizations" : {
         "ar" : {
@@ -544030,6 +544114,9 @@
         }
       }
     },
+    "Type into Current Terminal" : {
+
+    },
     "Typed input is queued while tssh is offline and delivered after reconnect." : {
       "comment" : "tssh keep pending input enabled footer",
       "localizations" : {
@@ -547279,7 +547366,7 @@
       }
     },
     "Unknown" : {
-      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status",
+      "comment" : "Cluster status: unknown state\nConnection quality: no data\nKubernetes cluster health status\nLocation Diary authorization status\nVPN status: unknown state",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -579418,7 +579505,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

@@ -86,6 +86,7 @@ enum SettingsSearchDestination: Hashable {
     case multiplexers
     case codingAgents
     case taskDetection
+    case pushNotifications
     case aiConfiguration
     case aiTextSize
     case mcpServer
@@ -587,6 +588,15 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 systemImage: "bell.and.waves.left.and.right",
                 action: .destination(.codingAgents),
                 keywords: ["agent", "notify", "banner", "blocked", "needs input", "done"],
+                isSuggested: false
+            ),
+            .init(
+                id: "push-notifications",
+                title: String(localized: "Push Notifications"),
+                subtitle: String(localized: "Notifications"),
+                systemImage: "lock.shield",
+                action: .destination(.pushNotifications),
+                keywords: ["push", "apns", "hook", "claude code", "codex", "remote", "encrypted", "pair", "background"],
                 isSuggested: false
             ),
             .init(
@@ -1401,6 +1411,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         CodingAgentSettingsView()
     case .taskDetection:
         TaskDetectionSettingsView()
+    case .pushNotifications:
+        PushNotificationSettingsView()
     case .aiConfiguration:
         #if !CHINA_BUILD
         AIAgentSettingsView()
