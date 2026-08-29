@@ -435,7 +435,11 @@ struct MainView: View {
                                     .layoutPriority(-1)
                                 tabBarSettingsButton(theme: resolvedTheme)
                             } else {
-                                Spacer(minLength: 0)
+                                TabStyleContextMenuRegion(
+                                    selectedStyleRawValue: $topTabStyleRawValue
+                                )
+                                .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+                                .layoutPriority(-1)
                                 tabBarActionButtons(theme: resolvedTheme)
                             }
                         }
@@ -444,7 +448,6 @@ struct MainView: View {
                         .background {
                             ZStack {
                                 tabBarChromeBackground(resolvedTheme)
-                                    .tabStyleSwitchContextMenu(selection: $topTabStyleRawValue)
 
                                 // Background layer on purpose: the active tab
                                 // occludes the run beneath it, so the line
@@ -455,6 +458,9 @@ struct MainView: View {
                                     )
                                 }
                             }
+                            // Visual chrome must not own an interaction behind
+                            // every foreground tab, button, and empty-space menu.
+                            .allowsHitTesting(false)
                         }
                         .overlayPreferenceValue(IntegratedActiveTabBoundsPreferenceKey.self) { bounds in
                             integratedOSCProgressEdge(activeTabBounds: bounds)
