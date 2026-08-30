@@ -12,6 +12,15 @@ import os
 
 final class NotificationService: UNNotificationServiceExtension {
     private static let logger = Logger(subsystem: "com.rootshell", category: "PushNSE")
+    private static let containingAppBundle: Bundle? = {
+        var candidate = Bundle.main.bundleURL.deletingLastPathComponent()
+        while candidate.pathExtension != "app" {
+            let parent = candidate.deletingLastPathComponent()
+            guard parent != candidate else { return nil }
+            candidate = parent
+        }
+        return Bundle(url: candidate)
+    }()
 
     private var contentHandler: ((UNNotificationContent) -> Void)?
     private var content: UNMutableNotificationContent?
@@ -87,6 +96,14 @@ final class NotificationService: UNNotificationServiceExtension {
         content.categoryIdentifier = PushConfiguration.categoryIdentifier
         content.relevanceScore = header.status == "blocked" ? 1 : 0.5
         if header.status == "blocked" { content.interruptionLevel = .timeSensitive }
+        if header.kind == "agent",
+           let appBundle = Self.containingAppBundle,
+           let logo = PushAgentLogoAttachment.attachment(
+               for: header.agent,
+               assetBundle: appBundle
+           ) {
+            content.attachments = [logo]
+        }
 
         var info = content.userInfo
         info[PushConfiguration.headerUserInfoKey] = try header.userInfoDictionary()

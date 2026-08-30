@@ -99,6 +99,13 @@ enum PushNotificationRouter {
         content.relevanceScore = header.status == "blocked" ? 1 : 0.5
         if header.status == "blocked" { content.interruptionLevel = .timeSensitive }
         content.sound = sound
+        if header.kind == "agent",
+           let logo = PushAgentLogoAttachment.attachment(
+               for: header.agent,
+               assetBundle: .main
+           ) {
+            content.attachments = [logo]
+        }
         if let dict = try? header.userInfoDictionary() {
             content.userInfo = [PushConfiguration.headerUserInfoKey: dict]
         }
