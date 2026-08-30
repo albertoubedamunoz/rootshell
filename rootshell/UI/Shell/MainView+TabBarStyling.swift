@@ -77,25 +77,25 @@ struct ResolvedTabBarTheme {
         return baseColor ?? Color(uiColor: .systemBackground)
     }
 
-    /// Integrated tabs need a distinct frame behind transparent inactive tabs.
-    /// Honor an explicit tab-bar override. Translucent Catalyst keeps the
-    /// theme-derived frame that already contrasts with the composited terminal;
-    /// opaque Catalyst and iOS use a stronger separation because both surfaces
+    /// Integrated tabs need a restrained frame behind transparent inactive
+    /// tabs. Honor an explicit tab-bar override. Translucent Catalyst already
+    /// gets some separation from the composited terminal, while opaque
+    /// Catalyst and iOS need a slightly larger shift because both surfaces
     /// otherwise resolve to nearly the same color.
     var integratedStripBackground: Color {
         if let override = overrideTabBarBackground { return override }
         guard let baseColor else { return Color(uiColor: .systemBackground) }
         if terminalSurfaceIsTransparent {
             return isLight
-                ? baseColor.blendedWithBlack(0.08)
-                : baseColor.darkenedPreservingHue(0.12)
+                ? baseColor.blendedWithBlack(0.04)
+                : baseColor.darkenedPreservingHue(0.06)
         }
 
         let terminalColor = terminalSurfaceBackground ?? baseColor
         if isLight {
-            return terminalColor.blendedWithBlack(0.12)
+            return terminalColor.blendedWithBlack(0.06)
         }
-        return terminalColor.blendedWithWhite(0.12)
+        return terminalColor.blendedWithWhite(0.06)
     }
 
     /// Optical edge colors come from the selected terminal surface rather
