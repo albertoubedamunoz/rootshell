@@ -930,7 +930,7 @@ struct TabStyleContextMenuRegion: UIViewRepresentable {
         control.addTarget(
             context.coordinator,
             action: #selector(TabStyleContextMenuCoordinator.performPrimaryAction),
-            for: .primaryActionTriggered
+            for: .touchUpInside
         )
         context.coordinator.install(on: control)
         update(control, coordinator: context.coordinator)
