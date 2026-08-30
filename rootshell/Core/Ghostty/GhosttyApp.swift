@@ -1276,10 +1276,14 @@ extension Ghostty {
                 // transparency settings from TransparencyManager.
                 logger.info("Updating \(self.activeSurfaces.count) active surfaces with new transparency")
 
-                pushConfig(app: app, globalConfig: newCfg)
-
-                // Apply window blur to all NSWindows
-                applyWindowBlur()
+                // Blur has to wait for the push to land: libghostty reads
+                // `background-blur` / `background-opacity` off the app config when
+                // it sets the CGS radius, so running the sweep inline would apply
+                // the *previous* style — a Standard radius on top of a glass
+                // backdrop when switching into a glass style.
+                pushConfig(app: app, globalConfig: newCfg) { [weak self] in
+                    self?.applyWindowBlur()
+                }
 
                 logger.info("Transparency applied successfully")
             } else {
@@ -1377,6 +1381,15 @@ extension Ghostty {
             // WindowAccessor re-asserts blur once the window becomes visible.
             guard (window.value(forKey: "isVisible") as? Bool) == true else { return true }
 
+            // A backdrop ordered in under an opaque parent is born fully occluded
+            // and its glass never starts rendering. Drop any existing one and wait
+            // for the pass that clears `opaque` (WindowAccessor re-asserts blur in
+            // that same pass) so the glass is always built on screen.
+            guard (window.value(forKey: "opaque") as? Bool) == false else {
+                removeGlassEffectViewFromWindow(window)
+                return true
+            }
+
             let key = ObjectIdentifier(window)
             let backdrop: GlassBackdrop
             if let existing = glassBackdrops[key] {
@@ -1461,6 +1474,10 @@ extension Ghostty {
                 window.perform(NSSelectorFromString("removeChildWindow:"), with: backdrop.window)
             }
             backdrop.window.perform(NSSelectorFromString("orderOut:"), with: nil)
+            // `releasedWhenClosed` is false, so this only takes the window out of
+            // NSApp.windows — without it every teardown leaks a hidden window that
+            // the blur sweep then rescans forever.
+            backdrop.window.perform(NSSelectorFromString("close"))
         }
 
         /// Borderless, transparent, click-through NSWindow via the ObjC runtime.
