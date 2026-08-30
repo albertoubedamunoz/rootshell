@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {"type": "command", "command": "notify-send codex", "async": true}
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 import Combine
+import RootshellPushKit
 import os.log
 
 // MARK: - Notification Names
@@ -15,6 +16,9 @@ extension Notification.Name {
     /// Posted when a terminal's restoration state changes
     /// Used to trigger SwiftUI updates since TerminalView is a class and @State doesn't observe its properties
     static let terminalRestorationStateChanged = Notification.Name("com.rootshell.terminalRestorationStateChanged")
+
+    /// Posted after a tmux -CC pane is bound to a local surface, so pending push routes can retry.
+    static let tmuxPaneBindingsChanged = Notification.Name("com.rootshell.tmuxPaneBindingsChanged")
 }
 
 @MainActor
@@ -224,8 +228,15 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             options: [.customDismissAction]
         )
 
+        let pushCategory = UNNotificationCategory(
+            identifier: PushConfiguration.categoryIdentifier,
+            actions: [showAction],
+            intentIdentifiers: [],
+            options: [.customDismissAction]
+        )
+
         // Register all categories
-        notificationCenter.setNotificationCategories([sshReminderCategory, terminalCategory, mcpApprovalCategory])
+        notificationCenter.setNotificationCategories([sshReminderCategory, terminalCategory, mcpApprovalCategory, pushCategory])
         logger.debug("Registered notification categories")
     }
 
@@ -380,6 +391,15 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // Raw pushes carry no category until decrypted; detect them by the envelope.
+        if notification.request.content.categoryIdentifier == PushConfiguration.categoryIdentifier
+            || notification.request.content.userInfo["rs"] != nil {
+            Task { @MainActor in
+                completionHandler(PushNotificationRouter.presentationOptions(for: notification))
+            }
+            return
+        }
+
         // For terminal notifications, we handle presentation logic via the caller
         // (TerminalView checks focus before scheduling)
         // So we always show if it gets this far.
@@ -398,6 +418,13 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     ) {
         let userInfo = response.notification.request.content.userInfo
         let categoryId = response.notification.request.content.categoryIdentifier
+
+        if categoryId == PushConfiguration.categoryIdentifier || userInfo["rs"] != nil,
+           response.actionIdentifier != UNNotificationDismissActionIdentifier {
+            Task { @MainActor in
+                PushNotificationRouter.handleTap(userInfo: userInfo)
+            }
+        }
 
         // Handle terminal notification taps
         if categoryId == Self.terminalNotificationCategory {

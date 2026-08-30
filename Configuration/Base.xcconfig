@@ -37,6 +37,11 @@ FRAMEWORK_SEARCH_PATHS = $(inherited) $(PROJECT_DIR)/Frameworks
 PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell
 INFOPLIST_FILE = rootshell/Info.plist
 
+// Shared with the notification service extension (push decryption).
+ROOTSHELL_APP_GROUP = group.com.kk2.ghostty
+ROOTSHELL_KEYCHAIN_ACCESS_GROUP = D97ZME3ET2.com.kk2.ghostty-ios
+ROOTSHELL_PUSH_SERVER = https:/$()/push.rootshell.com
+
 // Swift Bridging Header
 SWIFT_OBJC_BRIDGING_HEADER = $(SRCROOT)/rootshell/rootshell-Bridging-Header.h
 

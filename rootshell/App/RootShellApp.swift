@@ -209,6 +209,7 @@ struct RootShellApp: App {
                 // root app scene graph to foreground environment updates.
                 // Mac Catalyst uses NSWorkspace notifications instead - see CatalystAppDelegate.
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    PushNotificationRouter.syncDelivered()
                     WedgeBreadcrumbLogger.shared.critical("App.didBecomeActive")
                     ForegroundWedgeWatchdog.shared.noteMainActorServiced("App.didBecomeActive")
                     LifecycleDebugLogger.shared.checkpoint("App.didBecomeActive")

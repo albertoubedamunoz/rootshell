@@ -156,6 +156,14 @@
 		47LA00092F360000AABB0009 /* SessionActivityWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47LA00182F360000AABB0018 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
 		47LG20012F680000AABB0001 /* libgit2 in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47B617122FF30000AABB0001 /* libgit2 */; };
+		47PKG0112F900000AABB0011 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0012F900000AABB0001 /* RootshellPushKit */; };
+		47PKG0122F900000AABB0012 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0022F900000AABB0002 /* RootshellPushKit */; };
+		47PKG0132F900000AABB0013 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0032F900000AABB0003 /* RootshellPushKit */; };
+		47PKG0142F900000AABB0014 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0042F900000AABB0004 /* RootshellPushKit */; };
+		47PSH0092F900000AABB0009 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		47PSH0182F900000AABB0018 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
+		47PSH0192F900000AABB0019 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		47PSH0292F900000AABB0029 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47RG00012F680000AABB0001 /* ripgrep_ios in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47RGP0012F680000AABB0001 /* ripgrep_ios */; };
 		47SHADER22F01AAA0009B57F8 /* shaders in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47SHADER12F01AAA0009B57F8 /* shaders */; };
 		47TINFO022F0000AABB000002 /* terminfo in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47TINFO012F0000AABB000001 /* terminfo */; };
@@ -291,6 +299,27 @@
 			remoteGlobalIDString = 47LA00012F360000AABB0001;
 			remoteInfo = SessionActivityWidgetExtension;
 		};
+		47PSH00A2F900000AABB000A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47D8B23A2ECAAE7F00CA99EC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47PSH0012F900000AABB0001;
+			remoteInfo = PushNotificationService;
+		};
+		47PSH01A2F900000AABB001A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47D8B23A2ECAAE7F00CA99EC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47PSH0012F900000AABB0001;
+			remoteInfo = PushNotificationService;
+		};
+		47PSH02A2F900000AABB002A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47D8B23A2ECAAE7F00CA99EC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47PSH0012F900000AABB0001;
+			remoteInfo = PushNotificationService;
+		};
 		47VPN0022F460000BBCC0002 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 47D8B23A2ECAAE7F00CA99EC /* Project object */;
@@ -315,6 +344,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				634E1E48B09AF882843F1E3D /* SessionActivityWidgetExtension.appex in Embed Foundation Extensions */,
+				47PSH0192F900000AABB0019 /* PushNotificationService.appex in Embed Foundation Extensions */,
 				C08E8B37551F26BCF9EC3178 /* VPNTunnelExtension.appex in Embed Foundation Extensions */,
 				0F905F2A06A49BEFBD5F1479 /* CoreWLANPlugin.bundle in Embed Foundation Extensions */,
 			);
@@ -402,6 +432,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				47CD00005100000000000000 /* SessionActivityWidgetExtension.appex in Embed Foundation Extensions */,
+				47PSH0292F900000AABB0029 /* PushNotificationService.appex in Embed Foundation Extensions */,
 				47CD00005200000000000000 /* CoreWLANPlugin.bundle in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -414,6 +445,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				47LA00092F360000AABB0009 /* SessionActivityWidgetExtension.appex in Embed Foundation Extensions */,
+				47PSH0092F900000AABB0009 /* PushNotificationService.appex in Embed Foundation Extensions */,
 				47VPN0012F460000BBCC0001 /* VPNTunnelExtension.appex in Embed Foundation Extensions */,
 				47CWP0012F560000DDEE0001 /* CoreWLANPlugin.bundle in Embed Foundation Extensions */,
 			);
@@ -509,6 +541,7 @@
 		47D8B2A02ECB90D100CA99EC /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		47FONT012ED92ABC009B57F8 /* fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fonts; path = Resources/fonts; sourceTree = "<group>"; };
 		47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SessionActivityWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		47PSH0022F900000AABB0002 /* PushNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PushNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		47SHADER12F01AAA0009B57F8 /* shaders */ = {isa = PBXFileReference; lastKnownFileType = folder; name = shaders; path = Resources/shaders; sourceTree = "<group>"; };
 		47TINFO012F0000AABB000001 /* terminfo */ = {isa = PBXFileReference; lastKnownFileType = folder; name = terminfo; path = Resources/terminfo; sourceTree = "<group>"; };
 		47VPN0032F460000BBCC0003 /* VPNTunnelExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VPNTunnelExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -571,6 +604,13 @@
 				Info.plist,
 			);
 			target = 47LA00012F360000AABB0001 /* SessionActivityWidgetExtension */;
+		};
+		47PSH0172F900000AABB0017 /* Exceptions for "PushNotificationService" folder in "PushNotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 47PSH0012F900000AABB0001 /* PushNotificationService */;
 		};
 		47VPN0042F460000BBCC0004 /* Exceptions for "rootshell" folder in "VPNTunnelExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -717,6 +757,14 @@
 			path = SessionActivityWidget;
 			sourceTree = "<group>";
 		};
+		47PSH0072F900000AABB0007 /* PushNotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				47PSH0172F900000AABB0017 /* Exceptions for "PushNotificationService" folder in "PushNotificationService" target */,
+			);
+			path = PushNotificationService;
+			sourceTree = "<group>";
+		};
 		47VPN0062F460000BBCC0006 /* VPNTunnelExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -733,6 +781,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				47PKG0122F900000AABB0012 /* RootshellPushKit in Frameworks */,
 				A9BBF874025632A0FE5F4495 /* SwiftkubeClient in Frameworks */,
 				206884FA83075DDFB6893CD2 /* jq_ios in Frameworks */,
 				9D2889305CBF0BECCF672E98 /* libc++.tbd in Frameworks */,
@@ -809,6 +858,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				47PKG0132F900000AABB0013 /* RootshellPushKit in Frameworks */,
 				47CD00000E00000000000000 /* SwiftkubeClient in Frameworks */,
 				47CD00000F00000000000000 /* jq_ios in Frameworks */,
 				47CD00001000000000000000 /* libc++.tbd in Frameworks */,
@@ -847,6 +897,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				47PKG0112F900000AABB0011 /* RootshellPushKit in Frameworks */,
 				477408A52ED5F6B60035CE92 /* SwiftkubeClient in Frameworks */,
 				47A85EE92EE639FB005A0B9C /* jq_ios in Frameworks */,
 				47D8B28B2ECAC24B00CA99EC /* libc++.tbd in Frameworks */,
@@ -878,6 +929,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47PSH0062F900000AABB0006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47PKG0142F900000AABB0014 /* RootshellPushKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -970,6 +1029,7 @@
 				4771ED462ECBE635009B57F8 /* themes */,
 				47D8B2442ECAAE7F00CA99EC /* rootshell */,
 				47LA00072F360000AABB0007 /* SessionActivityWidget */,
+				47PSH0072F900000AABB0007 /* PushNotificationService */,
 				47VPN0062F460000BBCC0006 /* VPNTunnelExtension */,
 				47CWP0062F560000DDEE0006 /* CoreWLANPlugin */,
 				473118C02FFC2B1500FB3C83 /* rootshellvpn */,
@@ -992,6 +1052,7 @@
 				47ABC1022FF50000AABB0002 /* rootshell-helperTests.xctest */,
 				47D8B2422ECAAE7F00CA99EC /* rootshell.app */,
 				47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */,
+				47PSH0022F900000AABB0002 /* PushNotificationService.appex */,
 				47VPN0032F460000BBCC0003 /* VPNTunnelExtension.appex */,
 				47CWP0032F560000DDEE0003 /* CoreWLANPlugin.bundle */,
 				47CD00000200000000000000 /* rootshell.app */,
@@ -1171,6 +1232,7 @@
 			);
 			dependencies = (
 				47CD00005300000000000000 /* PBXTargetDependency */,
+				47PSH02B2F900000AABB002B /* PBXTargetDependency */,
 				47CD00005500000000000000 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -1178,6 +1240,7 @@
 			);
 			name = "rootshell-china";
 			packageProductDependencies = (
+				47PKG0032F900000AABB0003 /* RootshellPushKit */,
 				4739D0592ED3A4F4000EE57A /* Citadel */,
 				477408922ED51B9F0035CE92 /* Yams */,
 				477408A42ED5F6B60035CE92 /* SwiftkubeClient */,
@@ -1243,6 +1306,7 @@
 			);
 			dependencies = (
 				47LA000B2F360000AABB000B /* PBXTargetDependency */,
+				47PSH00B2F900000AABB000B /* PBXTargetDependency */,
 				47VPN0112F460000BBCC0011 /* PBXTargetDependency */,
 				47CWP0052F560000DDEE0005 /* PBXTargetDependency */,
 			);
@@ -1251,6 +1315,7 @@
 			);
 			name = rootshell;
 			packageProductDependencies = (
+				47PKG0012F900000AABB0001 /* RootshellPushKit */,
 				4739D0592ED3A4F4000EE57A /* Citadel */,
 				477408922ED51B9F0035CE92 /* Yams */,
 				477408A42ED5F6B60035CE92 /* SwiftkubeClient */,
@@ -1298,6 +1363,29 @@
 			productReference = 47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		47PSH0012F900000AABB0001 /* PushNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47PSH0032F900000AABB0003 /* Build configuration list for PBXNativeTarget "PushNotificationService" */;
+			buildPhases = (
+				47PSH0042F900000AABB0004 /* Sources */,
+				47PSH0062F900000AABB0006 /* Frameworks */,
+				47PSH0052F900000AABB0005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47PSH0072F900000AABB0007 /* PushNotificationService */,
+			);
+			name = PushNotificationService;
+			packageProductDependencies = (
+				47PKG0042F900000AABB0004 /* RootshellPushKit */,
+			);
+			productName = PushNotificationService;
+			productReference = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		47VPN0102F460000BBCC0010 /* VPNTunnelExtension */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 47VPN0302F460000BBCC0030 /* Build configuration list for PBXNativeTarget "VPNTunnelExtension" */;
@@ -1341,6 +1429,7 @@
 			dependencies = (
 				47AABB082FF40000AABB0008 /* PBXTargetDependency */,
 				07A4DB38C97B6F3C08294890 /* PBXTargetDependency */,
+				47PSH01B2F900000AABB001B /* PBXTargetDependency */,
 				B9B1F082475DD7289A043F3B /* PBXTargetDependency */,
 				3292BCB45A34AE2F549BA0F0 /* PBXTargetDependency */,
 			);
@@ -1349,6 +1438,7 @@
 			);
 			name = "rootshell-standalone";
 			packageProductDependencies = (
+				47PKG0022F900000AABB0002 /* RootshellPushKit */,
 				4739D0592ED3A4F4000EE57A /* Citadel */,
 				477408922ED51B9F0035CE92 /* Yams */,
 				477408A42ED5F6B60035CE92 /* SwiftkubeClient */,
@@ -1423,6 +1513,9 @@
 					47LA00012F360000AABB0001 = {
 						CreatedOnToolsVersion = 26.1.1;
 					};
+					47PSH0012F900000AABB0001 = {
+						CreatedOnToolsVersion = 26.1.1;
+					};
 					47VPN0102F460000BBCC0010 = {
 						CreatedOnToolsVersion = 26.1.1;
 					};
@@ -1489,6 +1582,7 @@
 				47NWPKG02FF10000AABB0000 /* XCRemoteSwiftPackageReference "network_ios-rootshell" */,
 				47B617022FF30000AABB0000 /* XCRemoteSwiftPackageReference "libgit2-rootshell" */,
 				47A810B02EE40000005A0B9C /* XCRemoteSwiftPackageReference "Sparkle-rootshell" */,
+				47PKG0002F900000AABB0000 /* XCLocalSwiftPackageReference "Packages/RootshellPushKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 47D8B2432ECAAE7F00CA99EC /* Products */;
@@ -1499,6 +1593,7 @@
 				47ABC1012FF50000AABB0001 /* rootshell-helperTests */,
 				47D8B2412ECAAE7F00CA99EC /* rootshell */,
 				47LA00012F360000AABB0001 /* SessionActivityWidgetExtension */,
+				47PSH0012F900000AABB0001 /* PushNotificationService */,
 				47VPN0102F460000BBCC0010 /* VPNTunnelExtension */,
 				47CWP0102F560000DDEE0010 /* CoreWLANPlugin */,
 				47CD00000100000000000000 /* rootshell-china */,
@@ -1647,6 +1742,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				47LA00182F360000AABB0018 /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47PSH0052F900000AABB0005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47PSH0182F900000AABB0018 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1913,6 +2016,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47PSH0042F900000AABB0004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		47VPN0072F460000BBCC0007 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1989,6 +2099,36 @@
 			platformFilter = ios;
 			target = 47LA00012F360000AABB0001 /* SessionActivityWidgetExtension */;
 			targetProxy = 47LA000A2F360000AABB000A /* PBXContainerItemProxy */;
+		};
+		47PSH00B2F900000AABB000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+				maccatalyst,
+				xros,
+			);
+			target = 47PSH0012F900000AABB0001 /* PushNotificationService */;
+			targetProxy = 47PSH00A2F900000AABB000A /* PBXContainerItemProxy */;
+		};
+		47PSH01B2F900000AABB001B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+				maccatalyst,
+				xros,
+			);
+			target = 47PSH0012F900000AABB0001 /* PushNotificationService */;
+			targetProxy = 47PSH01A2F900000AABB001A /* PBXContainerItemProxy */;
+		};
+		47PSH02B2F900000AABB002B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+				maccatalyst,
+				xros,
+			);
+			target = 47PSH0012F900000AABB0001 /* PushNotificationService */;
+			targetProxy = 47PSH02A2F900000AABB002A /* PBXContainerItemProxy */;
 		};
 		47VPN0112F460000BBCC0011 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -5214,6 +5354,292 @@
 			};
 			name = ReleaseStandalone;
 		};
+		47PSH0102F900000AABB0010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushNotificationService/PushNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		47PSH0112F900000AABB0011 /* DebugAppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushNotificationService/PushNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = DebugAppStore;
+		};
+		47PSH0122F900000AABB0012 /* DebugStandalone */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushNotificationService/PushNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = DebugStandalone;
+		};
+		47PSH0132F900000AABB0013 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushNotificationService/PushNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		47PSH0142F900000AABB0014 /* ReleaseAppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushNotificationService/PushNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = ReleaseAppStore;
+		};
+		47PSH0152F900000AABB0015 /* ReleaseStandalone */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PushNotificationService/PushNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = ReleaseStandalone;
+		};
+		47PSH0402F900000AABB0040 /* DebugChina */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "PushNotificationService/PushNotificationService-China.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.cn.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty.cn;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "CHINA_BUILD $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = DebugChina;
+		};
+		47PSH0412F900000AABB0041 /* ReleaseChina */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "PushNotificationService/PushNotificationService-China.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 139;
+				DEVELOPMENT_TEAM = D97ZME3ET2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PushNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kk2.rootshell.cn.PushNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				ROOTSHELL_APP_GROUP = group.com.kk2.ghostty.cn;
+				ROOTSHELL_KEYCHAIN_ACCESS_GROUP = "D97ZME3ET2.com.kk2.ghostty-ios";
+				ROOTSHELL_PUSH_SERVER = "https://push.rootshell.com";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "CHINA_BUILD $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = ReleaseChina;
+		};
 		47VPN0202F460000BBCC0020 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -5881,6 +6307,21 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		47PSH0032F900000AABB0003 /* Build configuration list for PBXNativeTarget "PushNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47PSH0102F900000AABB0010 /* Debug */,
+				47PSH0122F900000AABB0012 /* DebugStandalone */,
+				47PSH0112F900000AABB0011 /* DebugAppStore */,
+				47PSH0402F900000AABB0040 /* DebugChina */,
+				47PSH0132F900000AABB0013 /* Release */,
+				47PSH0152F900000AABB0015 /* ReleaseStandalone */,
+				47PSH0142F900000AABB0014 /* ReleaseAppStore */,
+				47PSH0412F900000AABB0041 /* ReleaseChina */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		47VPN0302F460000BBCC0030 /* Build configuration list for PBXNativeTarget "VPNTunnelExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -5912,6 +6353,13 @@
 			defaultConfigurationName = ReleaseStandalone;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		47PKG0002F900000AABB0000 /* XCLocalSwiftPackageReference "Packages/RootshellPushKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/RootshellPushKit;
+		};
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		4722536F2F2BB891000B8D2E /* XCRemoteSwiftPackageReference "CryptoSwift" */ = {
@@ -6197,6 +6645,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 47NWPKG02FF10000AABB0000 /* XCRemoteSwiftPackageReference "network_ios-rootshell" */;
 			productName = network_ios;
+		};
+		47PKG0012F900000AABB0001 /* RootshellPushKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47PKG0002F900000AABB0000 /* XCLocalSwiftPackageReference "Packages/RootshellPushKit" */;
+			productName = RootshellPushKit;
+		};
+		47PKG0022F900000AABB0002 /* RootshellPushKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47PKG0002F900000AABB0000 /* XCLocalSwiftPackageReference "Packages/RootshellPushKit" */;
+			productName = RootshellPushKit;
+		};
+		47PKG0032F900000AABB0003 /* RootshellPushKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47PKG0002F900000AABB0000 /* XCLocalSwiftPackageReference "Packages/RootshellPushKit" */;
+			productName = RootshellPushKit;
+		};
+		47PKG0042F900000AABB0004 /* RootshellPushKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47PKG0002F900000AABB0000 /* XCLocalSwiftPackageReference "Packages/RootshellPushKit" */;
+			productName = RootshellPushKit;
 		};
 		47RGP0012F680000AABB0001 /* ripgrep_ios */ = {
 			isa = XCSwiftPackageProductDependency;

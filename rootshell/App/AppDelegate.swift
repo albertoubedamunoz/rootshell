@@ -123,6 +123,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
+        // Encrypted hook push. On macOS a hidden Catalyst app gets the raw alert
+        // shown directly (no willPresent, no extension); decrypt and re-post here.
+        if userInfo["rs"] != nil {
+            Task { @MainActor in
+                await PushNotificationRouter.handleRemote(userInfo: userInfo)
+                completionHandler(.noData)
+            }
+            return
+        }
+
         // Best-effort deferral: if the process survives until unlock, the observer
         // fires and we sync immediately. If iOS kills the process first, the observer
         // is lost — but RootShellApp.onChange(scenePhase: .active) calls syncNow()
@@ -149,6 +159,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Self.logger.info("Registered for remote notifications")
+        PushRegistrationManager.shared.didReceiveAPNsToken(deviceToken)
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

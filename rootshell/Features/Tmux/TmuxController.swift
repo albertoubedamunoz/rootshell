@@ -1266,6 +1266,7 @@ final class TmuxController {
             // consuming a full visible surface's GPU resources.
             view.setOcclusion(false)
         }
+        NotificationCenter.default.post(name: .tmuxPaneBindingsChanged, object: nil)
         paneViews[paneId] = view
         return true
     }
@@ -3622,6 +3623,10 @@ enum TmuxWindowRegistry {
     /// monitors against this on topology events).
     static func allTabsModels() -> [TabsModel] {
         liveModels().map(\.model)
+    }
+
+    static func allWindows() -> [(windowId: String, model: TabsModel)] {
+        liveModels()
     }
 
     private static func liveModels() -> [(windowId: String, model: TabsModel)] {

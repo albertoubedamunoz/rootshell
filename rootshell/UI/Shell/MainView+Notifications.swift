@@ -474,6 +474,11 @@ extension MainView {
             self.navigateToTerminal(tabID: tabID, surfaceID: surfaceID)
         }
 
+        observerBag.observeOnMainActor(.tmuxPaneBindingsChanged) { _ in
+            PushNotificationRouter.retryPending()
+        }
+        PushNotificationRouter.retryPending()
+
         observerBag.observeOnMainActor(.showTabSwitcher) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
             if self.routeReservedVNCKeyboardShortcut(from: notification) { return }
