@@ -28,6 +28,25 @@ const (
 // ErrIgnore means the payload is valid but should not produce a notification.
 var ErrIgnore = errors.New("hook: event ignored")
 
+// Agent identifies the producer of a hook payload. It is supplied by the
+// installed hook command; payload fields are never used to infer it.
+type Agent string
+
+const (
+	ClaudeCode Agent = "claude-code"
+	Codex      Agent = "codex"
+)
+
+// ParseAgent validates an agent identifier from the command line.
+func ParseAgent(s string) (Agent, error) {
+	switch Agent(s) {
+	case ClaudeCode, Codex:
+		return Agent(s), nil
+	default:
+		return "", fmt.Errorf("hook: unknown agent %q", s)
+	}
+}
+
 type Event struct {
 	Agent     string // claude-code | codex
 	AgentName string // Claude Code | Codex
@@ -66,27 +85,24 @@ type payload struct {
 	LegacyLastAssistant string `json:"last-assistant-message"`
 }
 
-// Parse decodes a hook payload. Returns ErrIgnore for events that should not notify.
-func Parse(data []byte) (*Event, error) {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("hook: bad json: %w", err)
-	}
+// Parse decodes a payload from agent. Returns ErrIgnore for events that should
+// not notify. The caller, rather than the payload shape, determines the agent.
+func Parse(agent Agent, data []byte) (*Event, error) {
 	var p payload
 	if err := json.Unmarshal(data, &p); err != nil {
 		return nil, fmt.Errorf("hook: bad payload: %w", err)
 	}
-	_, hasTranscript := raw["transcript_path"]
-	_, hasTurn := raw["turn_id"]
-	switch {
-	case hasTranscript:
+	switch agent {
+	case ClaudeCode:
 		return parseClaude(&p)
-	case hasTurn:
+	case Codex:
+		if p.Type == "agent-turn-complete" {
+			return parseCodexLegacy(&p)
+		}
 		return parseCodex(&p)
-	case p.Type == "agent-turn-complete":
-		return parseCodexLegacy(&p)
+	default:
+		return nil, fmt.Errorf("hook: unknown agent %q", agent)
 	}
-	return nil, errors.New("hook: unrecognized payload")
 }
 
 func parseClaude(p *payload) (*Event, error) {

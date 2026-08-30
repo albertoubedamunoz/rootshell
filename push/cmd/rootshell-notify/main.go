@@ -50,7 +50,7 @@ Commands:
   unpair <label>           Remove a paired device
   test [label]             Send a test notification to one or all devices
   send --title T [opts]    Send a custom notification
-  hook                     Agent hook entry point (reads JSON on stdin)
+  hook --agent TOOL        Agent hook entry point (reads JSON on stdin)
   install <tool>           Install the hook (claude-code | codex) [--project]
   uninstall <tool>         Remove the hook [--project] [--purge] [--yes]
   status                   Show hook and pairing status
@@ -94,7 +94,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	cmd, rest := args[0], args[1:]
 	switch cmd {
 	case "hook":
-		return cmdHook(stdin)
+		return cmdHook(rest, stdin)
 	case "setup":
 		return cmdSetup(rest, stdin, stdout, stderr)
 	case "pair":
@@ -410,7 +410,7 @@ func cmdSend(args []string, stdout, stderr io.Writer) int {
 	return sendTo(ctx, newClient(), devs, newEID(), h, client.Options{Priority: priority}, stdout, stderr)
 }
 
-func cmdHook(stdin io.Reader) int {
+func cmdHook(args []string, stdin io.Reader) int {
 	// Fail-open: never block the agent, never write to stdout.
 	logger := log.New(io.Discard, "", log.LstdFlags)
 	if f, err := config.OpenLog(); err == nil {
@@ -428,6 +428,16 @@ func cmdHook(stdin io.Reader) int {
 			logger.Printf("panic: %v", r)
 		}
 	}()
+	f, err := parseFlags(args)
+	if err != nil || len(f.args) != 0 || !f.has("agent") {
+		logger.Printf("usage: rootshell-notify hook --agent claude-code|codex")
+		return exitOK
+	}
+	agent, err := hook.ParseAgent(f.vals["agent"])
+	if err != nil {
+		logger.Printf("agent: %v", err)
+		return exitOK
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -445,7 +455,7 @@ func cmdHook(stdin io.Reader) int {
 		logger.Printf("stdin: %v", err)
 		return exitOK
 	}
-	ev, err := hook.Parse(data)
+	ev, err := hook.Parse(agent, data)
 	if errors.Is(err, hook.ErrIgnore) {
 		return exitOK
 	}

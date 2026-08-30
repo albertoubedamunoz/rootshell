@@ -54,6 +54,10 @@ func (t Tool) events() []string {
 	return []string{"Stop", "Notification", "PreToolUse"}
 }
 
+func (t Tool) command() string {
+	return Command + " --agent " + string(t)
+}
+
 // matchers restricts an event to specific tools; PreToolUse only fires for questions.
 var matchers = map[string]string{"PreToolUse": "AskUserQuestion"}
 
@@ -85,7 +89,7 @@ type Status struct {
 }
 
 func Install(t Tool, project bool) (Result, error) {
-	return apply(t, project, func(doc map[string]any) bool { return install(doc, t.events()) })
+	return apply(t, project, func(doc map[string]any) bool { return install(doc, t) })
 }
 
 func Uninstall(t Tool, project bool) (Result, error) {
@@ -103,7 +107,7 @@ func GetStatus(t Tool, project bool) (Status, error) {
 		return st, err
 	}
 	st.Exists = exists
-	st.Installed = installed(doc, t.events())
+	st.Installed = installed(doc, t)
 	return st, nil
 }
 
@@ -170,10 +174,10 @@ func load(path string) (map[string]any, bool, error) {
 	return doc, true, nil
 }
 
-func ourEntry(event string) map[string]any {
+func ourEntry(event string, t Tool) map[string]any {
 	g := map[string]any{
 		"hooks": []any{map[string]any{
-			"type": "command", "command": Command, "async": true, "timeout": HookTimeout, TagKey: Tag,
+			"type": "command", "command": t.command(), "async": true, "timeout": HookTimeout, TagKey: Tag,
 		}},
 	}
 	if m := matchers[event]; m != "" {
@@ -201,20 +205,52 @@ func groupHasOurs(g any) bool {
 	return false
 }
 
+func hookIsCurrent(h any, t Tool) bool {
+	m, ok := h.(map[string]any)
+	return ok && isOurs(m) && m["type"] == "command" && m["command"] == t.command() && m["async"] == true && timeoutIsCurrent(m["timeout"])
+}
+
+func timeoutIsCurrent(v any) bool {
+	switch n := v.(type) {
+	case int:
+		return n == HookTimeout
+	case float64:
+		return n == HookTimeout
+	case json.Number:
+		i, err := n.Int64()
+		return err == nil && i == HookTimeout
+	default:
+		return false
+	}
+}
+
+func groupHasCurrent(g any, t Tool) bool {
+	m, ok := g.(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, h := range asList(m["hooks"]) {
+		if hookIsCurrent(h, t) {
+			return true
+		}
+	}
+	return false
+}
+
 func hooksMap(doc map[string]any) map[string]any {
 	m, _ := doc["hooks"].(map[string]any)
 	return m
 }
 
-func installed(doc map[string]any, events []string) bool {
+func installed(doc map[string]any, t Tool) bool {
 	hooks := hooksMap(doc)
 	if hooks == nil {
 		return false
 	}
-	for _, ev := range events {
+	for _, ev := range t.events() {
 		found := false
 		for _, g := range asList(hooks[ev]) {
-			if groupHasOurs(g) {
+			if groupHasCurrent(g, t) {
 				found = true
 			}
 		}
@@ -230,24 +266,39 @@ func asList(v any) []any {
 	return l
 }
 
-func install(doc map[string]any, events []string) bool {
+func install(doc map[string]any, t Tool) bool {
 	hooks := hooksMap(doc)
 	if hooks == nil {
 		hooks = map[string]any{}
 	}
 	changed := false
-	for _, ev := range events {
+	for _, ev := range t.events() {
 		groups := asList(hooks[ev])
 		has := false
 		for _, g := range groups {
-			if groupHasOurs(g) {
+			m, ok := g.(map[string]any)
+			if !ok {
+				continue
+			}
+			for _, h := range asList(m["hooks"]) {
+				hm, ok := h.(map[string]any)
+				if !ok || !isOurs(hm) {
+					continue
+				}
 				has = true
+				if !hookIsCurrent(hm, t) {
+					hm["type"] = "command"
+					hm["command"] = t.command()
+					hm["async"] = true
+					hm["timeout"] = HookTimeout
+					changed = true
+				}
 			}
 		}
 		if has {
 			continue
 		}
-		hooks[ev] = append(groups, ourEntry(ev))
+		hooks[ev] = append(groups, ourEntry(ev, t))
 		changed = true
 	}
 	if changed {

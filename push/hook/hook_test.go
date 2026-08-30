@@ -20,32 +20,33 @@ func fixture(t *testing.T, name string) []byte {
 
 func TestParse(t *testing.T) {
 	cases := []struct {
-		file   string
-		agent  string
-		status string
-		title  string
-		body   string
-		ignore bool
+		file      string
+		agent     Agent
+		wantAgent string
+		status    string
+		title     string
+		body      string
+		ignore    bool
 	}{
-		{"claude_stop.json", "claude-code", "done", "Claude Code · rootshell", "I refactored the parser and all tests pass. See the PR for details. Next I would suggest reviewing parser.go.", false},
-		{"claude_stop_active.json", "", "", "", "", true},
-		{"claude_permission.json", "claude-code", "blocked", "Claude Code · rootshell", "Claude needs your permission to use Bash", false},
-		{"claude_idle.json", "claude-code", "done", "Claude Code · rootshell", "Claude is waiting for your input", false},
-		{"claude_notification_other.json", "", "", "", "", true},
-		{"claude_subagent_stop.json", "", "", "", "", true},
-		{"claude_ask.json", "claude-code", "blocked", "Claude Code · rootshell", "Which framework should I use?", false},
-		{"claude_ask_empty.json", "claude-code", "blocked", "Claude Code · rootshell", "Claude Code is asking you a question", false},
-		{"claude_pretooluse_other.json", "", "", "", "", true},
-		{"codex_permission_command.json", "codex", "blocked", "Codex · app", "Codex wants to run: git push origin main", false},
-		{"codex_permission_tool.json", "codex", "blocked", "Codex · app", "Codex needs your approval to use apply_patch", false},
-		{"codex_permission_bare.json", "codex", "blocked", "Codex · app", "Codex needs your approval", false},
-		{"codex_other_event.json", "", "", "", "", true},
-		{"codex_stop.json", "codex", "done", "Codex · app", "Deployed the fix. Token=[redacted] was rotated.", false},
-		{"codex_legacy.json", "codex", "done", "Codex · app", "完成了所有的修改。请检查结果！然后继续。", false},
-		{"codex_nocwd.json", "codex", "done", "Codex", "", false},
+		{"claude_stop.json", ClaudeCode, "claude-code", "done", "Claude Code · rootshell", "I refactored the parser and all tests pass. See the PR for details. Next I would suggest reviewing parser.go.", false},
+		{"claude_stop_active.json", ClaudeCode, "", "", "", "", true},
+		{"claude_permission.json", ClaudeCode, "claude-code", "blocked", "Claude Code · rootshell", "Claude needs your permission to use Bash", false},
+		{"claude_idle.json", ClaudeCode, "claude-code", "done", "Claude Code · rootshell", "Claude is waiting for your input", false},
+		{"claude_notification_other.json", ClaudeCode, "", "", "", "", true},
+		{"claude_subagent_stop.json", ClaudeCode, "", "", "", "", true},
+		{"claude_ask.json", ClaudeCode, "claude-code", "blocked", "Claude Code · rootshell", "Which framework should I use?", false},
+		{"claude_ask_empty.json", ClaudeCode, "claude-code", "blocked", "Claude Code · rootshell", "Claude Code is asking you a question", false},
+		{"claude_pretooluse_other.json", ClaudeCode, "", "", "", "", true},
+		{"codex_permission_command.json", Codex, "codex", "blocked", "Codex · app", "Codex wants to run: git push origin main", false},
+		{"codex_permission_tool.json", Codex, "codex", "blocked", "Codex · app", "Codex needs your approval to use apply_patch", false},
+		{"codex_permission_bare.json", Codex, "codex", "blocked", "Codex · app", "Codex needs your approval", false},
+		{"codex_other_event.json", Codex, "", "", "", "", true},
+		{"codex_stop.json", Codex, "codex", "done", "Codex · app", "Deployed the fix. Token=[redacted] was rotated.", false},
+		{"codex_legacy.json", Codex, "codex", "done", "Codex · app", "完成了所有的修改。请检查结果！然后继续。", false},
+		{"codex_nocwd.json", Codex, "codex", "done", "Codex", "", false},
 	}
 	for _, tc := range cases {
-		e, err := Parse(fixture(t, tc.file))
+		e, err := Parse(tc.agent, fixture(t, tc.file))
 		if tc.ignore {
 			if !errors.Is(err, ErrIgnore) {
 				t.Errorf("%s: want ErrIgnore, got %v %+v", tc.file, err, e)
@@ -56,25 +57,25 @@ func TestParse(t *testing.T) {
 			t.Errorf("%s: %v", tc.file, err)
 			continue
 		}
-		if e.Agent != tc.agent || e.Status != tc.status || e.Title != tc.title || e.Body != tc.body {
+		if e.Agent != tc.wantAgent || e.Status != tc.status || e.Title != tc.title || e.Body != tc.body {
 			t.Errorf("%s: got %+v", tc.file, e)
 		}
 		if len(e.Thread) != 16 || len(e.EID) != 24 {
 			t.Errorf("%s: ids %q %q", tc.file, e.Thread, e.EID)
 		}
 	}
-	if _, err := Parse([]byte(`{"foo":1}`)); err == nil || errors.Is(err, ErrIgnore) {
-		t.Errorf("unknown payload: %v", err)
+	if _, err := Parse(Agent("unknown"), []byte(`{"foo":1}`)); err == nil || errors.Is(err, ErrIgnore) {
+		t.Errorf("unknown agent: %v", err)
 	}
-	if _, err := Parse([]byte(`nope`)); err == nil {
+	if _, err := Parse(ClaudeCode, []byte(`nope`)); err == nil {
 		t.Error("bad json accepted")
 	}
 }
 
 func TestIDsStableAndDistinct(t *testing.T) {
-	a, _ := Parse(fixture(t, "claude_stop.json"))
-	b, _ := Parse(fixture(t, "claude_stop.json"))
-	c, _ := Parse(fixture(t, "claude_permission.json"))
+	a, _ := Parse(ClaudeCode, fixture(t, "claude_stop.json"))
+	b, _ := Parse(ClaudeCode, fixture(t, "claude_stop.json"))
+	c, _ := Parse(ClaudeCode, fixture(t, "claude_permission.json"))
 	if a.EID != b.EID || a.Thread != b.Thread {
 		t.Fatal("not deterministic")
 	}
@@ -84,18 +85,18 @@ func TestIDsStableAndDistinct(t *testing.T) {
 	if a.EID == c.EID {
 		t.Fatal("different events must differ")
 	}
-	d, _ := Parse(fixture(t, "codex_stop.json"))
+	d, _ := Parse(Codex, fixture(t, "codex_stop.json"))
 	if d.Thread == a.Thread {
 		t.Fatal("agents must not collide")
 	}
 	// Question ids follow the tool_input, not just the session.
-	q1, _ := Parse(fixture(t, "claude_ask.json"))
-	q2, _ := Parse([]byte(strings.Replace(string(fixture(t, "claude_ask.json")), "Which framework", "Which database", 1)))
+	q1, _ := Parse(ClaudeCode, fixture(t, "claude_ask.json"))
+	q2, _ := Parse(ClaudeCode, []byte(strings.Replace(string(fixture(t, "claude_ask.json")), "Which framework", "Which database", 1)))
 	if q1.EID == q2.EID || q1.Thread != q2.Thread || q1.EID == c.EID {
 		t.Fatalf("question ids %q %q", q1.EID, q2.EID)
 	}
-	p1, _ := Parse(fixture(t, "codex_permission_command.json"))
-	p2, _ := Parse(fixture(t, "codex_permission_tool.json"))
+	p1, _ := Parse(Codex, fixture(t, "codex_permission_command.json"))
+	p2, _ := Parse(Codex, fixture(t, "codex_permission_tool.json"))
 	if p1.EID == p2.EID || p1.EID == d.EID || p1.Thread != d.Thread {
 		t.Fatalf("permission ids %q %q", p1.EID, p2.EID)
 	}
@@ -105,11 +106,11 @@ func TestTranscriptMtimeSalt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "t.jsonl")
 	os.WriteFile(path, []byte("x"), 0o600)
 	payload := strings.Replace(string(fixture(t, "claude_stop.json")), "/nonexistent/transcript.jsonl", path, 1)
-	a, err := Parse([]byte(payload))
+	a, err := Parse(ClaudeCode, []byte(payload))
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _ := Parse(fixture(t, "claude_stop.json"))
+	b, _ := Parse(ClaudeCode, fixture(t, "claude_stop.json"))
 	if a.EID == b.EID {
 		t.Fatal("mtime salt not used")
 	}

@@ -100,7 +100,9 @@ rootshell-notify install codex           # merges into ~/.codex/hooks.json
 Add `--project` to install into `./.claude` or `./.codex` instead. The
 installer only appends its own tagged entries, keeps everything else in the
 file intact, writes a `.bak` of the original the first time it changes a
-file, and is idempotent.
+file, and is idempotent. Installed commands identify their agent explicitly;
+hook payload fields are never used to guess whether an event came from Claude
+Code or Codex.
 
 Codex requires you to trust new hooks: run `codex` then `/hooks`, review the
 rootshell entry and mark it trusted. The installer never writes
@@ -195,8 +197,9 @@ screen; the device then ignores pushes from that sender.
   devices, and whether each agent hook is installed.
 - The hook never writes to stdout or fails the agent; errors go to
   `~/.config/rootshell-push/hook.log` (rotated at 1 MiB).
-- `ROOTSHELL_PUSH_DEBUG=1 rootshell-notify hook < payload.json` also prints
-  errors to stderr.
+- `ROOTSHELL_PUSH_DEBUG=1 rootshell-notify hook --agent codex < payload.json`
+  also prints errors to stderr. Use `--agent claude-code` for Claude Code
+  payloads.
 - `rootshell-notify test` sends a test notification to every device.
 - Hooks require `rootshell-notify` on the PATH seen by the agent. If you
   installed to `~/.local/bin`, make sure your login shell exports it.

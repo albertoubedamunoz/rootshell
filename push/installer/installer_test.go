@@ -73,7 +73,7 @@ func TestInstallUninstallRoundTrip(t *testing.T) {
 				groups := after["hooks"].(map[string]any)[ev].([]any)
 				group := groups[len(groups)-1].(map[string]any)
 				last := group["hooks"].([]any)[0].(map[string]any)
-				if last["command"] != Command || last["async"] != true || last["timeout"] != float64(10) || last[TagKey] != Tag {
+				if last["command"] != tc.tool.command() || last["async"] != true || last["timeout"] != float64(10) || last[TagKey] != Tag {
 					t.Fatalf("%s: %+v", ev, last)
 				}
 				if m, _ := group["matcher"].(string); m != matchers[ev] {
@@ -134,12 +134,12 @@ func TestUninstallLeavesSharedGroup(t *testing.T) {
 	doc := map[string]any{"hooks": map[string]any{
 		"Stop": []any{map[string]any{"hooks": []any{
 			map[string]any{"type": "command", "command": "other"},
-			map[string]any{"type": "command", "command": Command, TagKey: Tag},
+			map[string]any{"type": "command", "command": ClaudeCode.command(), TagKey: Tag},
 		}}},
-		"Notification": []any{map[string]any{"hooks": []any{map[string]any{"type": "command", "command": Command, TagKey: Tag}}}},
+		"Notification": []any{map[string]any{"hooks": []any{map[string]any{"type": "command", "command": ClaudeCode.command(), TagKey: Tag}}}},
 		"PreToolUse": []any{
 			map[string]any{"matcher": "Bash", "hooks": []any{map[string]any{"type": "command", "command": "./lint.sh"}}},
-			ourEntry("PreToolUse"),
+			ourEntry("PreToolUse", ClaudeCode),
 		},
 	}}
 	if !uninstall(doc) {

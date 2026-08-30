@@ -19,7 +19,7 @@ func TestHookIsSilentWithoutDevices(t *testing.T) {
 	t.Setenv(config.EnvPath, filepath.Join(t.TempDir(), "config.json"))
 	var out, errb bytes.Buffer
 	for _, in := range []string{"", "garbage", `{"transcript_path":"x","hook_event_name":"Stop"}`} {
-		if code := run([]string{"hook"}, strings.NewReader(in), &out, &errb); code != 0 {
+		if code := run([]string{"hook", "--agent", "claude-code"}, strings.NewReader(in), &out, &errb); code != 0 {
 			t.Fatalf("hook exit %d", code)
 		}
 	}
