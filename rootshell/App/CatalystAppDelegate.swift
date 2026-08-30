@@ -587,6 +587,10 @@ class CatalystAppDelegate: AppDelegate {
             return
         }
 
+        // Ahead of the debounce: pushes the extension decrypted while the app
+        // was not running must reach the arbitration ledger on every activation.
+        Task { @MainActor in PushNotificationRouter.syncDelivered() }
+
         // Debounce: only sync once every 3 minutes on activation
         if let lastSync = lastActivationSyncDate,
            Date().timeIntervalSince(lastSync) < activationSyncInterval {

@@ -123,8 +123,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
-        // Encrypted hook push. On macOS a hidden Catalyst app gets the raw alert
-        // shown directly (no willPresent, no extension); decrypt and re-post here.
+        // Encrypted hook push. The extension normally decrypts before display;
+        // this is the fallback for a raw payload reaching the app undecorated.
         if userInfo["rs"] != nil {
             Task { @MainActor in
                 await PushNotificationRouter.handleRemote(userInfo: userInfo)

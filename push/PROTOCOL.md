@@ -64,9 +64,19 @@ The relay forwards the envelope under the `rs` key and adds the identity it
 recovered from the sender credential:
 
 ```json
-{"aps":{"mutable-content":1,"alert":{"title":"rootshell"}},
+{"aps":{"alert":{"title":"rootshell","body":"Encrypted notification. Open rootshell to view."},
+        "mutable-content":1,"sound":"default","category":"com.rootshell.push"},
  "rs":{"v":1,"enc":"...","ct":"...","eid":"...","sid":"<sender id>","did":"<device id>"}}
 ```
+
+Sent as `apns-push-type: alert`. The alert text is a placeholder the
+notification service extension replaces after decryption; it is only ever
+seen if the extension fails to run, and the extension writes the same string
+itself in that case.
+
+The payload deliberately carries no `content-available`. Waking the app to
+decrypt a push the extension is already decrypting makes both race on the
+dedupe claim, and whichever loses blanks the notification.
 
 `sid` lets the device attribute (and revoke) a sender; `did` lets it drop
 pushes addressed to a previous registration. `eid` is also used as the
