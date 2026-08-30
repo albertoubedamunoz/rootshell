@@ -32,6 +32,7 @@ final class PushRegistrationManager {
     static let sendersKey = "pushPairedSenders"
     static let revokedKey = "pushRevokedSenders"
     static let backgroundOnlyKey = "pushAgentBackgroundOnly"
+    static let agentLogosKey = "pushAgentLogosEnabled"
 
     enum State: Equatable {
         case disabled
@@ -48,6 +49,13 @@ final class PushRegistrationManager {
     var agentBackgroundOnly: Bool {
         didSet { UserDefaults.standard.set(agentBackgroundOnly, forKey: Self.backgroundOnlyKey) }
     }
+    /// Adds bundled Claude/Codex artwork to agent pushes when supported.
+    var agentLogosEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(agentLogosEnabled, forKey: Self.agentLogosKey)
+            publishPolicy()
+        }
+    }
 
     @ObservationIgnored private let keychain = PushConfiguration.keychain
     @ObservationIgnored private var apnsToken: Data?
@@ -58,6 +66,7 @@ final class PushRegistrationManager {
         let defaults = UserDefaults.standard
         isEnabled = defaults.bool(forKey: Self.enabledKey)
         agentBackgroundOnly = defaults.bool(forKey: Self.backgroundOnlyKey)
+        agentLogosEnabled = defaults.object(forKey: Self.agentLogosKey) as? Bool ?? true
         senders = (defaults.data(forKey: Self.sendersKey)).flatMap { try? JSONDecoder().decode([PushPairedSender].self, from: $0) } ?? []
         revoked = Set(defaults.stringArray(forKey: Self.revokedKey) ?? [])
         if isEnabled { state = credentials == nil ? .waitingForToken : .registered }
@@ -126,7 +135,9 @@ final class PushRegistrationManager {
         persistSenders()
         // Pushes for the old registration may still arrive; both the extension
         // and the router silence them until push is enabled again.
-        PushSharedState().save(PushAcceptancePolicy(enabled: false, deviceID: nil))
+        PushSharedState().save(PushAcceptancePolicy(enabled: false,
+                                                    deviceID: nil,
+                                                    showsAgentLogos: agentLogosEnabled))
         state = .disabled
     }
 
@@ -144,7 +155,10 @@ final class PushRegistrationManager {
 
     /// Shares the acceptance policy with the notification extension.
     func publishPolicy() {
-        PushSharedState().save(PushAcceptancePolicy(enabled: isEnabled, deviceID: credentials?.deviceID, revokedSenderIDs: revoked))
+        PushSharedState().save(PushAcceptancePolicy(enabled: isEnabled,
+                                                    deviceID: credentials?.deviceID,
+                                                    revokedSenderIDs: revoked,
+                                                    showsAgentLogos: agentLogosEnabled))
     }
 
     // MARK: - APNs token

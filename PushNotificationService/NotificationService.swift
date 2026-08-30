@@ -113,7 +113,7 @@ nonisolated final class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        if header.kind == "agent" {
+        if header.kind == "agent", policy.showsAgentLogos {
             if let logo = PushAgentLogoAttachment.attachment(for: header.agent) {
                 content.attachments = [logo]
             } else if header.agent != nil {

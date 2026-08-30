@@ -98,6 +98,14 @@ final class VectorTests: XCTestCase {
         XCTAssertTrue(policy.enabled)
         XCTAssertEqual(policy.deviceID, "dev_1")
         XCTAssertEqual(policy.revokedSenderIDs, ["snd_9"])
+        XCTAssertTrue(policy.showsAgentLogos)
+    }
+
+    func testPolicyPersistsDisabledAgentLogos() throws {
+        let original = PushAcceptancePolicy(deviceID: "dev_1", showsAgentLogos: false)
+        let decoded = try JSONDecoder().decode(PushAcceptancePolicy.self, from: JSONEncoder().encode(original))
+        XCTAssertEqual(decoded, original)
+        XCTAssertFalse(decoded.showsAgentLogos)
     }
 
     func testSwiftSealRoundTrip() throws {

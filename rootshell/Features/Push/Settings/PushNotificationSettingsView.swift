@@ -54,8 +54,19 @@ struct PushNotificationSettingsView: View {
                         }
                     }
                     .themedRow()
+
+                    Toggle(isOn: Binding(
+                        get: { manager.agentLogosEnabled },
+                        set: { manager.agentLogosEnabled = $0 }
+                    )) {
+                        HStack(spacing: 12) {
+                            SettingsIcon(systemName: "photo")
+                            Text("Show Agent Logos")
+                        }
+                    }
+                    .themedRow()
                 } footer: {
-                    Text("Agent notifications are shown only while rootshell is in the background on this device. Explicit `rootshell-notify send` messages always show.")
+                    Text("Agent notifications can be limited to when rootshell is in the background. The logo setting adds Claude or Codex artwork to supported agent notifications. Explicit `rootshell-notify send` messages always show and do not include agent artwork.")
                 }
 
                 Section {
