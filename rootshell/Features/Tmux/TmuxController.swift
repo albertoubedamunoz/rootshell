@@ -346,6 +346,14 @@ final class TmuxController {
     /// The dashboard shows this so multiple tmux gateways can be distinguished.
     private(set) var gatewaySourceDisplayName = String(localized: "Gateway")
     private(set) var gatewaySourceSystemImage = "terminal"
+    /// Opaque `(host, socket, server pid, server start time)` identity shared
+    /// by every control client connected to this exact tmux server lifetime.
+    /// Combined with the server-global pane ID for device-independent push
+    /// notification routing.
+    var pushRouteServerIdentity: String?
+    /// Prevents reconcile and foreground retry triggers from launching
+    /// overlapping server-identity queries.
+    var pushRouteServerIdentityTask: Task<Void, Never>?
     /// Correlation tags for in-flight `sendCommandWithReply` requests
     /// (ghostty_surface_tmux_command_with_reply). Tag 0 is never used.
     var nextReplyTag: UInt32 = 1
@@ -649,6 +657,7 @@ final class TmuxController {
         // access and resuming a Sendable continuation are both legal from a
         // nonisolated deinit.
         for task in replyTimeouts.values { task.cancel() }
+        pushRouteServerIdentityTask?.cancel()
         for continuation in pendingReplies.values {
             continuation.resume(throwing: TmuxCommandError.gatewayEnded)
         }
@@ -923,6 +932,7 @@ final class TmuxController {
                 controller.paneIdentityRefreshTask = nil
             } else {
                 controller.schedulePaneIdentityRefresh(after: .milliseconds(150))
+                controller.refreshPushRouteServerIdentity()
             }
         }
         for key in staleKeys {
@@ -3857,6 +3867,9 @@ extension Ghostty.TerminalView {
 
         controller.updateGatewaySource(from: connectionConfig)
         controller.apply(ops)
+        if !controller.didEnd {
+            controller.refreshPushRouteServerIdentity()
+        }
 
         // Keep-pending-input follows control mode, decided AFTER apply() so the
         // batch that ENDS control mode takes exactly one branch. Deciding before

@@ -28,6 +28,25 @@ enum PushNotificationRouter {
         let expires: Date
     }
 
+    @MainActor
+    private final class NotificationWaiter {
+        var observer: NSObjectProtocol?
+        var timeoutTask: Task<Void, Never>?
+        var continuation: CheckedContinuation<Void, Never>?
+
+        func finish() {
+            guard let continuation else { return }
+            self.continuation = nil
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+                self.observer = nil
+            }
+            timeoutTask?.cancel()
+            timeoutTask = nil
+            continuation.resume()
+        }
+    }
+
     private static var pending: PendingRoute?
     private static var lastSyncedEvent: Date = .distantPast
     private static var deliveredIdentifiers: [UUID: Set<String>] = [:]
@@ -113,47 +132,72 @@ enum PushNotificationRouter {
 
     // MARK: - Resolution
 
-    /// Order: tmux pane bound to the gateway named in the route, any tmux
-    /// pane with that id, the pane token itself, then any pane on the host.
+    /// Resolve only stable identities. A regular pane is identified by its
+    /// TerminalView UUID. A control-mode pane is identified independently of
+    /// any rootshell client by its canonical tmux server lifetime plus the
+    /// server-global tmux pane ID. Hostname and working directory are
+    /// descriptive metadata, never routing keys.
     static func resolve(_ route: PushRoute?) -> Resolved? {
         guard let route else { return nil }
         let paneUUID = route.pane.flatMap(UUID.init(uuidString:))
-        let tmuxPaneId = route.tmuxPane.flatMap { $0.hasPrefix("%") ? Int($0.dropFirst()) : nil }
-        var candidates: [(Resolved, Ghostty.TerminalView, Int)] = []
+        let tmuxPaneId = route.tmuxPane.flatMap {
+            $0.hasPrefix("%") ? Int($0.dropFirst()) : nil
+        }
+        var canonicalTmuxMatches: [Resolved] = []
+        var legacyBoundMatches: [Resolved] = []
+        var unboundUUIDMatches: [Resolved] = []
 
         for (windowId, model) in TmuxWindowRegistry.allWindows() {
             for tab in model.tabs {
                 for pane in tab.splitTree {
                     guard let view = pane as? Ghostty.TerminalView else { continue }
-                    var score = 0
-                    if let tmuxPaneId, let binding = view.tmuxPaneBinding, binding.paneId == tmuxPaneId {
-                        score = binding.parentUUID == paneUUID ? 4 : 3
-                    } else if let paneUUID, view.uuid == paneUUID, view.tmuxPaneBinding == nil {
-                        score = 2
-                    } else if let host = route.host, matchesHost(view, host) {
-                        score = 1
+                    let resolved = Resolved(
+                        windowId: windowId,
+                        tabID: tab.id,
+                        surfaceID: view.uuid
+                    )
+                    if let tmuxPaneId, let binding = view.tmuxPaneBinding,
+                       binding.paneId == tmuxPaneId,
+                       let tmuxServer = route.tmuxServer,
+                       let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
+                       controller.ownerTerminalUUIDForNotifications == binding.parentUUID,
+                       controller.pushRouteServerIdentity == tmuxServer {
+                        canonicalTmuxMatches.append(resolved)
+                    } else if route.tmuxServer == nil,
+                              let paneUUID, let tmuxPaneId,
+                              let binding = view.tmuxPaneBinding,
+                              binding.parentUUID == paneUUID,
+                              binding.paneId == tmuxPaneId {
+                        // Exact compatibility path for notifications sent by a
+                        // pre-canonical rootshell-notify build.
+                        legacyBoundMatches.append(resolved)
+                    } else if let paneUUID,
+                              view.tmuxPaneBinding == nil,
+                              view.tmuxController?.isActive != true,
+                              view.uuid == paneUUID {
+                        // Ordinary (non-control-mode) tmux sets TMUX_PANE but
+                        // remains a regular terminal view. Its UUID is still
+                        // an exact identity, not a heuristic fallback. Never
+                        // select a control-mode gateway while its canonical
+                        // server query or projected panes are still pending.
+                        unboundUUIDMatches.append(resolved)
                     }
-                    guard score > 0 else { continue }
-                    if let cwd = route.cwd, score < 4, view.pwd == cwd { score += 1 }
-                    candidates.append((Resolved(windowId: windowId, tabID: tab.id, surfaceID: view.uuid), view, score))
                 }
             }
         }
-        if candidates.isEmpty {
-            let panes = TmuxWindowRegistry.allWindows().flatMap { $0.model.tabs }.flatMap { tab in
-                tab.splitTree.compactMap { ($0 as? Ghostty.TerminalView).map { "\($0.uuid.uuidString.prefix(8)) tmux=\($0.tmuxPaneBinding?.paneId ?? -1) host=\($0.connectionConfig.underlyingSSHConfig?.host ?? "local")" } }
-            }
-            logger.info("resolve: no candidates; panes=\(panes.joined(separator: ", "), privacy: .public)")
+        let matches: [Resolved]
+        if !canonicalTmuxMatches.isEmpty {
+            matches = canonicalTmuxMatches
+        } else if !legacyBoundMatches.isEmpty {
+            matches = legacyBoundMatches
+        } else {
+            matches = unboundUUIDMatches
         }
-        return candidates.max { $0.2 < $1.2 }?.0
-    }
-
-    private static func matchesHost(_ view: Ghostty.TerminalView, _ host: String) -> Bool {
-        guard let ssh = view.connectionConfig.underlyingSSHConfig else { return false }
-        let user = host.split(separator: "@").first.map(String.init)
-        let name = host.split(separator: "@").last.map(String.init) ?? host
-        let short = ssh.host.split(separator: ".").first.map(String.init) ?? ssh.host
-        return (short == name || ssh.host == name) && (user == nil || user == ssh.username)
+        guard matches.count == 1 else {
+            logger.info("resolve: exact route produced canonical=\(canonicalTmuxMatches.count, privacy: .public) legacy=\(legacyBoundMatches.count, privacy: .public) unbound=\(unboundUUIDMatches.count, privacy: .public) matches")
+            return nil
+        }
+        return matches[0]
     }
 
     static func isViewed(_ resolved: Resolved) -> Bool {
@@ -231,11 +275,21 @@ enum PushNotificationRouter {
             return
         }
         let r = header.route
-        logger.info("tap route pane=\(r?.pane ?? "-", privacy: .public) tmux=\(r?.tmuxPane ?? "-", privacy: .public) host=\(r?.host ?? "-", privacy: .public) cwd=\(r?.cwd ?? "-", privacy: .public) resolved=\(String(describing: resolve(r)), privacy: .public)")
-        if let route = header.route {
-            pending = PendingRoute(route: route, expires: Date().addingTimeInterval(60))
+        logger.info("tap route pane=\(r?.pane ?? "-", privacy: .public) tmux=\(r?.tmuxPane ?? "-", privacy: .public) server=\(r?.tmuxServer ?? "-", privacy: .public) host=\(r?.host ?? "-", privacy: .public) cwd=\(r?.cwd ?? "-", privacy: .public) resolved=\(String(describing: resolve(r)), privacy: .public)")
+        pending = header.route.map {
+            PendingRoute(route: $0, expires: Date().addingTimeInterval(60))
         }
-        retryPending()
+        if let resolved = resolve(header.route) {
+            pending = nil
+            navigate(to: resolved)
+        } else {
+            // A notification response has already activated the process, but
+            // Catalyst can leave every window hidden (or only its visor scene
+            // connected). An unresolved route must still visibly open the app.
+            #if targetEnvironment(macCatalyst)
+            CatalystSceneDelegate.activateMainWindowForExternalEvent()
+            #endif
+        }
     }
 
     /// Retried when tabs restore, tmux panes project, or a scene activates.
@@ -252,17 +306,23 @@ enum PushNotificationRouter {
             // A tap from a hidden/background app: wait for the system to finish
             // activating before touching focus, or the responder chain detaches.
             if UIApplication.shared.applicationState != .active {
-                await Self.next(UIApplication.didBecomeActiveNotification)
+                await Self.waitForApplicationActivation()
             }
             // Only bring a different window forward; re-activating the key window
             // resets first responder under the terminal's feet.
-            if let scene = windowScene(forWindowId: resolved.windowId),
-               scene.activationState != .foregroundActive || scene.keyWindow == nil {
-                UIApplication.shared.requestSceneSessionActivation(scene.session, userActivity: nil, options: nil) { error in
-                    Self.logger.error("scene activation failed: \(error.localizedDescription)")
-                }
-                await Self.next(UIScene.didActivateNotification, from: scene)
+            let targetScene = windowScene(forWindowId: resolved.windowId)
+            var requestedUIKitActivation = false
+            if let targetScene,
+               targetScene.activationState != .foregroundActive {
+                requestedUIKitActivation = true
+                await Self.requestSceneActivationAndWait(targetScene)
             }
+            #if targetEnvironment(macCatalyst)
+            CatalystSceneDelegate.activateMainWindowForExternalEvent(
+                scene: targetScene,
+                uiKitActivationAlreadyRequested: requestedUIKitActivation
+            )
+            #endif
             NotificationCenter.default.post(name: .navigateToTerminal, object: nil,
                                             userInfo: ["tabID": resolved.tabID, "surfaceID": resolved.surfaceID])
         }
@@ -276,10 +336,61 @@ enum PushNotificationRouter {
         } as? UIWindowScene
     }
 
-    /// Suspends until `name` is posted (optionally by `object`).
-    private static func next(_ name: Notification.Name, from object: AnyObject? = nil) async {
-        let stream = NotificationCenter.default.notifications(named: name, object: object)
-        for await _ in stream { return }
+    /// Installs the activation observer before making the request, then bounds
+    /// the wait so a failed or notification-less Catalyst transition cannot
+    /// strand notification navigation forever.
+    private static func requestSceneActivationAndWait(_ scene: UIWindowScene) async {
+        let waiter = NotificationWaiter()
+        await withCheckedContinuation { continuation in
+            waiter.continuation = continuation
+            waiter.observer = NotificationCenter.default.addObserver(
+                forName: UIScene.didActivateNotification,
+                object: scene,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in waiter.finish() }
+            }
+            waiter.timeoutTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                waiter.finish()
+            }
+            UIApplication.shared.requestSceneSessionActivation(
+                scene.session,
+                userActivity: nil,
+                options: nil
+            ) { error in
+                Self.logger.error("scene activation failed: \(error.localizedDescription)")
+                Task { @MainActor in waiter.finish() }
+            }
+        }
+    }
+
+    /// Covers the same notification-before-observer race for process-level
+    /// activation and bounds the wait if Catalyst never posts didBecomeActive.
+    private static func waitForApplicationActivation() async {
+        guard UIApplication.shared.applicationState != .active else { return }
+        let waiter = NotificationWaiter()
+        await withCheckedContinuation { continuation in
+            waiter.continuation = continuation
+            waiter.observer = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in waiter.finish() }
+            }
+            waiter.timeoutTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                waiter.finish()
+            }
+            // Activation may have completed between the initial guard and
+            // observer installation. Recheck only after the observer exists.
+            if UIApplication.shared.applicationState == .active {
+                waiter.finish()
+            }
+        }
     }
 
     /// Remote push delivered to the app process (macOS, app hidden or in the

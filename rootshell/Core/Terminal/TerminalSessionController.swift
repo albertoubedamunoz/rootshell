@@ -483,7 +483,8 @@ final class TerminalSessionController {
             cols: surfaceSize.cols,
             workingDirectory: workingDirectory,
             shell: shell,
-            enableShellIntegration: true
+            enableShellIntegration: true,
+            paneToken: host.terminalUUID.uuidString
         ) { [weak self] result in
             guard let self, let host = self.host else { return }
 

@@ -65,6 +65,7 @@ public class CatalystLocalShellSession: TerminalSession {
         workingDirectory: String? = nil,
         shell: String? = nil,
         enableShellIntegration: Bool = true,
+        paneToken: String? = nil,
         completion: @escaping (Result<CatalystLocalShellSession, Error>) -> Void
     ) {
         Ghostty.logger.info("Creating Catalyst shell session: \(rows)x\(cols), cwd=\(workingDirectory ?? "nil")")
@@ -74,6 +75,7 @@ public class CatalystLocalShellSession: TerminalSession {
             workingDirectory: workingDirectory,
             shell: shell,
             enableShellIntegration: enableShellIntegration,
+            paneToken: paneToken,
             retriesRemaining: 1,
             completion: completion
         )
@@ -85,6 +87,7 @@ public class CatalystLocalShellSession: TerminalSession {
         workingDirectory: String?,
         shell: String?,
         enableShellIntegration: Bool,
+        paneToken: String?,
         retriesRemaining: Int,
         completion: @escaping (Result<CatalystLocalShellSession, Error>) -> Void
     ) {
@@ -96,7 +99,8 @@ public class CatalystLocalShellSession: TerminalSession {
             cols: cols,
             workingDirectory: workingDirectory,
             shell: shell,
-            enableShellIntegration: enableShellIntegration
+            enableShellIntegration: enableShellIntegration,
+            paneToken: paneToken
         ) { result in
             switch result {
             case .success(let createResult):
@@ -119,6 +123,7 @@ public class CatalystLocalShellSession: TerminalSession {
                                     workingDirectory: workingDirectory,
                                     shell: shell,
                                     enableShellIntegration: enableShellIntegration,
+                                    paneToken: paneToken,
                                     retriesRemaining: retriesRemaining - 1,
                                     completion: completion
                                 )

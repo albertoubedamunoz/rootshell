@@ -1458,6 +1458,64 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
         UIApplication.shared.requestSceneSessionActivation(nil, userActivity: nil, options: nil, errorHandler: nil)
     }
 
+    /// Makes a notification or other external event visibly open rootshell.
+    /// UIKit activates the process for a notification response, but Catalyst
+    /// does not reliably surface a hidden/minimized window. If no regular scene
+    /// exists (for example, only the hidden visor survived), create one.
+    static func activateMainWindowForExternalEvent(
+        scene targetScene: UIWindowScene? = nil,
+        uiKitActivationAlreadyRequested: Bool = false
+    ) {
+        let regularScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { !isVisorScene($0) }
+
+        guard let scene = targetScene.flatMap({ isVisorScene($0) ? nil : $0 })
+                ?? regularScenes.first(where: { $0.keyWindow != nil })
+                ?? regularScenes.first(where: { $0.activationState == .foregroundActive })
+                ?? regularScenes.first else {
+            logger.info("External activation has no regular scene; opening a main window")
+            UIApplication.shared.requestSceneSessionActivation(
+                nil,
+                userActivity: nil,
+                options: nil,
+                errorHandler: { error in
+                    logger.error("External activation failed to open a main window: \(error.localizedDescription)")
+                }
+            )
+            return
+        }
+
+        logger.info("External activation surfacing regular scene")
+        if !uiKitActivationAlreadyRequested
+            && scene.activationState != .foregroundActive {
+            UIApplication.shared.requestSceneSessionActivation(
+                scene.session,
+                userActivity: nil,
+                options: nil,
+                errorHandler: { error in
+                    logger.error("External activation failed to activate scene: \(error.localizedDescription)")
+                }
+            )
+        }
+
+        // requestSceneSessionActivation alone can leave an AppKit window
+        // miniaturized or hidden under Catalyst. Unhide the app and order the
+        // NSWindow associated with this scene to the front as a backstop.
+        guard let nsApplicationClass = NSClassFromString("NSApplication") as? NSObject.Type,
+              let application = nsApplicationClass.value(forKey: "sharedApplication") as? NSObject,
+              let windows = application.value(forKey: "windows") as? [NSObject],
+              let window = windows.first(where: {
+                  WindowAccessor.sceneSessionId(for: $0) == scene.session.persistentIdentifier
+              }) else { return }
+
+        _ = application.perform(NSSelectorFromString("unhide:"), with: nil)
+        if (window.value(forKey: "miniaturized") as? Bool) == true {
+            _ = window.perform(NSSelectorFromString("deminiaturize:"), with: nil)
+        }
+        _ = window.perform(NSSelectorFromString("makeKeyAndOrderFront:"), with: nil)
+    }
+
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
 

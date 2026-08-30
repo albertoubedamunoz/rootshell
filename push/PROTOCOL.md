@@ -87,6 +87,7 @@ showing twice.
   "route": {
     "pane": "6F9619FF-8B86-D011-B42D-00C04FC964FF",
     "tmux_pane": "%3",
+    "tmux_server": "dev:/tmp/tmux-1000/default,42410,1788022920",
     "tmux_session": "main",
     "host": "kit@dev",
     "cwd": "/home/kit/rootshell"
@@ -104,6 +105,13 @@ showing twice.
 | `body`   | no       | at most 600 characters (senders use 200 for summaries)   |
 | `thread` | no       | opaque per-session id for grouping                       |
 | `route`  | no       | all fields optional                                      |
+
+For control-mode routing, `tmux_server` is the opaque tmux server-lifetime
+identity `(host, socket_path, server pid, server start time)`. tmux pane IDs
+are allocated server-wide, so the pair `(tmux_server, tmux_pane)` identifies
+the same underlying pane through every `tmux -CC` client and on every paired
+rootshell device. `pane` remains the rootshell surface UUID for ordinary
+local and SSH panes.
 
 The serialized header must be at most 1600 bytes. Unknown fields are
 ignored by receivers. There are no attachments.

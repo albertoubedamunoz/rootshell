@@ -22,7 +22,7 @@ import (
 const (
 	MaxBody = 200
 
-	tmuxTimeout = 300 * time.Millisecond
+	tmuxTimeout = time.Second
 )
 
 // ErrIgnore means the payload is valid but should not produce a notification.
@@ -240,10 +240,29 @@ func hashOf(s string) string {
 func Route(ctx context.Context, cwd string) *envelope.Route {
 	r := &envelope.Route{Pane: os.Getenv("LC_ROOTSHELL_PANE"), TmuxPane: os.Getenv("TMUX_PANE"), Cwd: cwd}
 	if os.Getenv("TMUX") != "" {
+		r.TmuxServer = tmuxServer(ctx, r.TmuxPane)
 		r.TmuxSession = tmuxSession(ctx)
 	}
 	r.Host = hostLabel()
 	return r
+}
+
+// tmuxServer returns an opaque identity for this exact tmux server lifetime.
+// Pane IDs are allocated from one server-global counter, so tmuxServer plus
+// TMUX_PANE identifies the same underlying pane through every attached client.
+func tmuxServer(ctx context.Context, pane string) string {
+	ctx, cancel := context.WithTimeout(ctx, tmuxTimeout)
+	defer cancel()
+	args := []string{"display-message", "-p"}
+	if pane != "" {
+		args = append(args, "-t", pane)
+	}
+	args = append(args, "#{host}:#{socket_path},#{pid},#{start_time}")
+	out, err := exec.CommandContext(ctx, "tmux", args...).Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func tmuxSession(ctx context.Context) string {

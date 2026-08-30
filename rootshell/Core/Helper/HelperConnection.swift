@@ -107,6 +107,7 @@ public class HelperConnection {
         workingDirectory: String? = nil,
         shell: String? = nil,
         enableShellIntegration: Bool = true,
+        paneToken: String? = nil,
         completion: @escaping (Result<ShellCreateResult, Error>) -> Void
     ) {
         Task {
@@ -127,7 +128,8 @@ public class HelperConnection {
                     shell: shell,
                     resourcesDir: resourcesDir,
                     enableShellIntegration: enableShellIntegration,
-                    sshAuthSock: sshAuthSock
+                    sshAuthSock: sshAuthSock,
+                    paneToken: paneToken
                 )
 
                 let result = ShellCreateResult(sessionID: sessionID, socketPath: socketPath)

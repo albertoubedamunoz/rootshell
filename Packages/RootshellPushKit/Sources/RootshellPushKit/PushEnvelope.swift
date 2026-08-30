@@ -23,6 +23,7 @@ public enum PushProtocol {
 public struct PushRoute: Codable, Sendable, Equatable {
     public var pane: String?
     public var tmuxPane: String?
+    public var tmuxServer: String?
     public var tmuxSession: String?
     public var host: String?
     public var cwd: String?
@@ -30,11 +31,14 @@ public struct PushRoute: Codable, Sendable, Equatable {
     enum CodingKeys: String, CodingKey {
         case pane, host, cwd
         case tmuxPane = "tmux_pane"
+        case tmuxServer = "tmux_server"
         case tmuxSession = "tmux_session"
     }
 
-    public init(pane: String? = nil, tmuxPane: String? = nil, tmuxSession: String? = nil, host: String? = nil, cwd: String? = nil) {
-        self.pane = pane; self.tmuxPane = tmuxPane; self.tmuxSession = tmuxSession; self.host = host; self.cwd = cwd
+    public init(pane: String? = nil, tmuxPane: String? = nil, tmuxServer: String? = nil,
+                tmuxSession: String? = nil, host: String? = nil, cwd: String? = nil) {
+        self.pane = pane; self.tmuxPane = tmuxPane; self.tmuxServer = tmuxServer
+        self.tmuxSession = tmuxSession; self.host = host; self.cwd = cwd
     }
 }
 

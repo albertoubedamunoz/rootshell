@@ -106,7 +106,8 @@ final class VectorTests: XCTestCase {
     func testSwiftSealRoundTrip() throws {
         let sk = try XWing.PrivateKey()
         let header = PushHeader(kind: "agent", agent: "codex", status: "blocked", title: "Codex · app", body: "Needs approval",
-                                route: PushRoute(pane: UUID().uuidString, tmuxPane: "%4"))
+                                route: PushRoute(pane: UUID().uuidString, tmuxPane: "%4",
+                                                 tmuxServer: "dev:/tmp/tmux-1000/default,42,1700000000"))
         let env = try PushEnvelope.seal(header, eid: "evt-swift-1", to: sk.publicKey)
         try env.validate()
         XCTAssertEqual(try env.open(with: sk), header)

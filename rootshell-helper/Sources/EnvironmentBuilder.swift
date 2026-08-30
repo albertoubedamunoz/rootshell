@@ -40,6 +40,10 @@ class EnvironmentBuilder {
 
         /// TERM chosen in the app's settings. nil keeps the default below.
         var termType: String?
+
+        /// Stable pane identity supplied by the app for deterministic push
+        /// notification routing.
+        var paneToken: String?
     }
 
     private let config: Config
@@ -190,6 +194,9 @@ class EnvironmentBuilder {
         // TERM_PROGRAM, which stays "ghostty" for capability sniffing.
         env["LC_TERMINAL"] = "rootshell"
         env["LC_TERMINAL_VERSION"] = config.versionWithBuild ?? config.version
+        if let paneToken = config.paneToken, !paneToken.isEmpty {
+            env["LC_ROOTSHELL_PANE"] = paneToken
+        }
 
         // Remove VTE_VERSION (we're not VTE-based)
         env.removeValue(forKey: "VTE_VERSION")

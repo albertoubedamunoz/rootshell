@@ -180,3 +180,30 @@ func TestRoute(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 }
+
+func TestRouteUsesCanonicalTmuxServerIdentity(t *testing.T) {
+	dir := t.TempDir()
+	tmux := filepath.Join(dir, "tmux")
+	script := `#!/bin/sh
+case "$*" in
+  *socket_path*) printf 'dev:/tmp/tmux-1000/default,42410,1788022920\n' ;;
+  *'#S'*) printf 'work\n' ;;
+  *) exit 1 ;;
+esac
+`
+	if err := os.WriteFile(tmux, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	t.Setenv("LC_ROOTSHELL_PANE", "")
+	t.Setenv("TMUX", "/tmp/tmux-1000/default,42410,0")
+	t.Setenv("TMUX_PANE", "%14")
+	t.Setenv("USER", "kit")
+
+	r := Route(t.Context(), "/work")
+	if r.Pane != "" || r.TmuxPane != "%14" ||
+		r.TmuxServer != "dev:/tmp/tmux-1000/default,42410,1788022920" ||
+		r.TmuxSession != "work" {
+		t.Fatalf("%+v", r)
+	}
+}

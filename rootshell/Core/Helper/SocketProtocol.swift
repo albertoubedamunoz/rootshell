@@ -60,6 +60,9 @@ struct CreateShellRequest: Codable, Sendable {
     /// older app) still decodes the request; the helper falls back to its own
     /// default when absent.
     let termType: String?
+    /// Stable TerminalView UUID exported as LC_ROOTSHELL_PANE. Optional for
+    /// wire compatibility with helpers from before pane-aware push routing.
+    let paneToken: String?
 }
 
 struct CreateShellResponse: Codable, Sendable {

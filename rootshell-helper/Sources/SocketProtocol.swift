@@ -59,6 +59,9 @@ struct CreateShellRequest: Codable {
     /// TERM for the spawned shell, chosen in the app's settings. Optional so an
     /// older app still decodes here; nil keeps the helper's own default.
     let termType: String?
+    /// Stable TerminalView UUID exported as LC_ROOTSHELL_PANE. Optional for
+    /// compatibility with older app builds.
+    let paneToken: String?
 }
 
 struct CreateShellResponse: Codable {

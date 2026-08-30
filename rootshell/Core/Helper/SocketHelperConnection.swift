@@ -25,7 +25,8 @@ class SocketHelperConnection {
         shell: String?,
         resourcesDir: String? = nil,
         enableShellIntegration: Bool = true,
-        sshAuthSock: String? = nil
+        sshAuthSock: String? = nil,
+        paneToken: String? = nil
     ) async throws -> (sessionID: UUID, socketPath: String) {
         let request = CreateShellRequest(
             rows: rows,
@@ -37,7 +38,8 @@ class SocketHelperConnection {
             sshAuthSock: sshAuthSock,
             appVersion: TerminalIdentity.shortVersion,
             appVersionWithBuild: TerminalIdentity.version,
-            termType: TerminalTypeSettings.local
+            termType: TerminalTypeSettings.local,
+            paneToken: paneToken
         )
         let payload = try JSONEncoder().encode(request)
 
