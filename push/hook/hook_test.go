@@ -37,9 +37,9 @@ func TestParse(t *testing.T) {
 		{"claude_ask.json", ClaudeCode, "claude-code", "blocked", "Claude Code · rootshell", "Which framework should I use?", false},
 		{"claude_ask_empty.json", ClaudeCode, "claude-code", "blocked", "Claude Code · rootshell", "Claude Code is asking you a question", false},
 		{"claude_pretooluse_other.json", ClaudeCode, "", "", "", "", true},
-		{"codex_permission_command.json", Codex, "codex", "blocked", "Codex · app", "Codex wants to run: git push origin main", false},
-		{"codex_permission_tool.json", Codex, "codex", "blocked", "Codex · app", "Codex needs your approval to use apply_patch", false},
-		{"codex_permission_bare.json", Codex, "codex", "blocked", "Codex · app", "Codex needs your approval", false},
+		{"codex_permission_command.json", Codex, "", "", "", "", true},
+		{"codex_permission_tool.json", Codex, "", "", "", "", true},
+		{"codex_permission_bare.json", Codex, "", "", "", "", true},
 		{"codex_other_event.json", Codex, "", "", "", "", true},
 		{"codex_stop.json", Codex, "codex", "done", "Codex · app", "Deployed the fix. Token=[redacted] was rotated.", false},
 		{"codex_legacy.json", Codex, "codex", "done", "Codex · app", "完成了所有的修改。请检查结果！然后继续。", false},
@@ -94,11 +94,6 @@ func TestIDsStableAndDistinct(t *testing.T) {
 	q2, _ := Parse(ClaudeCode, []byte(strings.Replace(string(fixture(t, "claude_ask.json")), "Which framework", "Which database", 1)))
 	if q1.EID == q2.EID || q1.Thread != q2.Thread || q1.EID == c.EID {
 		t.Fatalf("question ids %q %q", q1.EID, q2.EID)
-	}
-	p1, _ := Parse(Codex, fixture(t, "codex_permission_command.json"))
-	p2, _ := Parse(Codex, fixture(t, "codex_permission_tool.json"))
-	if p1.EID == p2.EID || p1.EID == d.EID || p1.Thread != d.Thread {
-		t.Fatalf("permission ids %q %q", p1.EID, p2.EID)
 	}
 }
 

@@ -155,9 +155,10 @@ func parseCodex(p *payload) (*Event, error) {
 		e.Body = Summarize(p.LastAssistantMessage, MaxBody)
 		finish(e, "Stop", p.TurnID)
 	case "PermissionRequest":
-		e.Status = "blocked"
-		e.Body = Summarize(codexApproval(p), MaxBody)
-		finish(e, "PermissionRequest", p.TurnID+"|"+hashOf(p.ToolName+"|"+string(p.ToolInput)))
+		// PermissionRequest fires before Codex's reviewer decides whether the
+		// user must act. Auto-reviewed requests are not real blockers, so the
+		// terminal's visible-state detector owns Codex blocker notifications.
+		return nil, ErrIgnore
 	default:
 		return nil, ErrIgnore
 	}
@@ -175,30 +176,6 @@ func firstQuestion(raw json.RawMessage) string {
 		return ""
 	}
 	return strings.TrimSpace(in.Questions[0].Question)
-}
-
-// codexApproval describes a Codex PermissionRequest from tool_input.command
-// (string or argv array) or tool_name.
-func codexApproval(p *payload) string {
-	var in struct {
-		Command json.RawMessage `json:"command"`
-	}
-	if json.Unmarshal(p.ToolInput, &in) == nil && len(in.Command) > 0 {
-		var s string
-		var argv []string
-		switch {
-		case json.Unmarshal(in.Command, &s) == nil:
-		case json.Unmarshal(in.Command, &argv) == nil:
-			s = strings.Join(argv, " ")
-		}
-		if s = strings.TrimSpace(s); s != "" {
-			return "Codex wants to run: " + s
-		}
-	}
-	if p.ToolName != "" {
-		return "Codex needs your approval to use " + p.ToolName
-	}
-	return "Codex needs your approval"
 }
 
 func parseCodexLegacy(p *payload) (*Event, error) {

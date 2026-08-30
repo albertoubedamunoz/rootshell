@@ -130,6 +130,12 @@ func TestInstallUninstallRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCodexInstallsOnlyStopHook(t *testing.T) {
+	if got, want := Codex.events(), []string{"Stop"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Codex events = %v, want %v", got, want)
+	}
+}
+
 func TestUninstallLeavesSharedGroup(t *testing.T) {
 	doc := map[string]any{"hooks": map[string]any{
 		"Stop": []any{map[string]any{"hooks": []any{

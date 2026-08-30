@@ -11,18 +11,6 @@
           }
         ]
       }
-    ],
-    "PermissionRequest": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rootshell-notify hook --agent codex",
-            "async": true,
-            "timeout": 10
-          }
-        ]
-      }
     ]
   }
 }

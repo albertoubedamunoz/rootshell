@@ -2,8 +2,9 @@
 
 End-to-end encrypted push notifications from your computers to the rootshell
 app. `rootshell-notify` is a small, dependency-free Go binary that AI coding
-agents (Claude Code, Codex) call from their hooks when a turn finishes or
-they are waiting on you. It also works as a plain `send` command from scripts.
+agents (Claude Code, Codex) call from their hooks when a turn finishes, and
+Claude Code also calls when it is waiting on you. It works as a plain `send`
+command from scripts too.
 
 The relay at `push.rootshell.com` is stateless and only ever sees
 ciphertext. Titles, summaries and routing hints are sealed with a
@@ -119,11 +120,15 @@ Plugin bundles for both tools live in [plugins/](plugins/).
 | Claude Code | Notification: idle, agent completed               | done    |
 | Claude Code | PreToolUse: AskUserQuestion (first question text)| blocked |
 | Codex       | Stop (hooks) or legacy `notify` turn complete     | done    |
-| Codex       | PermissionRequest (command or tool name)          | blocked |
 
 Subagent stops, re-entrant stop hooks, other PreToolUse tools and other
 notification types are ignored. The hooks never answer or approve anything;
 they only report.
+
+Codex's `PermissionRequest` event occurs before automatic or user review has
+resolved the request, so rootshell does not treat it as a blocker. For Codex
+running in a rootshell terminal, the app's on-device screen detector sends the
+blocked notification only while an approval prompt is visibly waiting.
 
 ## What is sent
 

@@ -1,11 +1,14 @@
 # rootshell-push for Codex
 
 Sends an end-to-end encrypted push notification to your paired rootshell
-devices when a Codex turn completes or Codex is waiting for your approval.
+devices when a Codex turn completes.
 
-Hooks installed: `Stop` and `PermissionRequest`. The approval notification
-carries the command (or tool name) Codex wants to run; the hook never
-approves anything on your behalf.
+Hook installed: `Stop`.
+
+Codex's `PermissionRequest` hook fires before its reviewer decides whether the
+user must act, so it is not a reliable blocker signal. When Codex is running in
+a rootshell terminal, rootshell's on-device screen detector handles blocker
+notifications while an approval prompt is actually visible.
 
 ## Requirements
 

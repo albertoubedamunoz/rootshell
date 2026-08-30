@@ -49,7 +49,7 @@ func (t Tool) Name() string {
 
 func (t Tool) events() []string {
 	if t == Codex {
-		return []string{"Stop", "PermissionRequest"}
+		return []string{"Stop"}
 	}
 	return []string{"Stop", "Notification", "PreToolUse"}
 }
