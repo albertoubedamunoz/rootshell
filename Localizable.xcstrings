@@ -47387,6 +47387,160 @@
         }
       }
     },
+    "Agent notifications can be limited to when rootshell is in the background. The logo setting adds Claude or Codex artwork to supported agent notifications. Explicit `rootshell-notify send` messages always show and do not include agent artwork." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يمكن قصر إشعارات الوكلاء على الأوقات التي يكون فيها rootshell في الخلفية. ويضيف إعداد الشعار صورة Claude أو Codex إلى إشعارات الوكلاء المدعومة. أما رسائل `rootshell-notify send` الصريحة فتظهر دائمًا ولا تتضمّن صور الوكلاء."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les notificacions dels agents es poden limitar als moments en què el rootshell està en segon pla. L'opció de logotip afegeix l'element gràfic de Claude o Codex a les notificacions d'agent compatibles. Els missatges explícits de `rootshell-notify send` es mostren sempre i no inclouen cap element gràfic d'agent."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznámení agentů se dají omezit jen na dobu, kdy je rootshell na pozadí. Nastavení loga přidá do podporovaných oznámení agentů grafiku Claude nebo Codex. Výslovné zprávy `rootshell-notify send` se zobrazují vždy a grafiku agenta neobsahují."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agentnotifikationer kan begrænses til, når rootshell er i baggrunden. Logoindstillingen føjer grafik fra Claude eller Codex til understøttede agentnotifikationer. Udtrykkelige `rootshell-notify send`-beskeder vises altid og indeholder ikke agentgrafik."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent-Benachrichtigungen lassen sich darauf beschränken, dass rootshell im Hintergrund läuft. Die Logo-Einstellung fügt unterstützten Agent-Benachrichtigungen Grafiken von Claude oder Codex hinzu. Ausdrückliche `rootshell-notify send`-Nachrichten werden immer angezeigt und enthalten keine Agent-Grafik."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las notificaciones de agentes pueden limitarse a cuando rootshell está en segundo plano. La opción de logotipo añade la imagen de Claude o Codex a las notificaciones de agente compatibles. Los mensajes explícitos de `rootshell-notify send` se muestran siempre y no incluyen imágenes de agente."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agenttien ilmoitukset voi rajata vain niihin hetkiin, jolloin rootshell on taustalla. Logoasetus lisää tuettuihin agenttien ilmoituksiin Clauden tai Codexin kuvan. Nimenomaiset `rootshell-notify send` -viestit näytetään aina, eivätkä ne sisällä agentin kuvaa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les notifications des agents peuvent être limitées aux moments où rootshell est en arrière-plan. L'option de logo ajoute le visuel de Claude ou de Codex aux notifications d'agent prises en charge. Les messages `rootshell-notify send` explicites s'affichent toujours et ne comportent pas de visuel d'agent."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אפשר להגביל התראות של סוכנים לזמנים שבהם rootshell פועלת ברקע. הגדרת הלוגו מוסיפה את הגרפיקה של Claude או Codex להתראות סוכן נתמכות. הודעות `rootshell-notify send` מפורשות מוצגות תמיד ואינן כוללות גרפיקה של סוכן."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az ügynökértesítések korlátozhatók arra az esetre, amikor a rootshell a háttérben fut. A logóbeállítás a Claude vagy a Codex grafikáját adja a támogatott ügynökértesítésekhez. A kifejezett `rootshell-notify send` üzenetek mindig megjelennek, és nem tartalmaznak ügynökgrafikát."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le notifiche degli agenti si possono limitare ai momenti in cui rootshell è in background. L'impostazione del logo aggiunge la grafica di Claude o Codex alle notifiche degli agenti supportati. I messaggi espliciti di `rootshell-notify send` vengono mostrati sempre e non includono la grafica dell'agente."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エージェント通知は、rootshell がバックグラウンドにあるときだけに限定できます。ロゴの設定を有効にすると、対応するエージェント通知に Claude または Codex の画像が追加されます。明示的な `rootshell-notify send` のメッセージは常に表示され、エージェントの画像は含まれません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "에이전트 알림은 rootshell이 백그라운드에 있을 때로만 제한할 수 있습니다. 로고 설정을 켜면 지원되는 에이전트 알림에 Claude 또는 Codex 이미지가 추가됩니다. 명시적인 `rootshell-notify send` 메시지는 항상 표시되며 에이전트 이미지는 포함하지 않습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agentvarslinger kan begrenses til når rootshell er i bakgrunnen. Logoinnstillingen legger til grafikk fra Claude eller Codex i støttede agentvarslinger. Uttrykkelige `rootshell-notify send`-meldinger vises alltid og inneholder ikke agentgrafikk."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agentmeldingen kunnen worden beperkt tot momenten waarop rootshell op de achtergrond draait. De logo-instelling voegt beeldmateriaal van Claude of Codex toe aan ondersteunde agentmeldingen. Expliciete `rootshell-notify send`-berichten worden altijd getoond en bevatten geen agentbeeld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadomienia agentów można ograniczyć do sytuacji, gdy rootshell działa w tle. Ustawienie logo dodaje grafikę Claude lub Codex do obsługiwanych powiadomień agentów. Jawne wiadomości `rootshell-notify send` są pokazywane zawsze i nie zawierają grafiki agenta."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As notificações de agentes podem ficar limitadas a quando o rootshell está em segundo plano. A opção de logotipo adiciona a arte do Claude ou do Codex às notificações de agentes compatíveis. As mensagens explícitas de `rootshell-notify send` sempre aparecem e não incluem arte de agente."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As notificações dos agentes podem ser limitadas aos momentos em que o rootshell está em segundo plano. A opção de logótipo adiciona a imagem do Claude ou do Codex às notificações de agentes compatíveis. As mensagens explícitas de `rootshell-notify send` são sempre apresentadas e não incluem imagens de agente."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificările agenților pot fi limitate la momentele în care rootshell rulează în fundal. Opțiunea pentru siglă adaugă grafica Claude sau Codex la notificările agenților compatibili. Mesajele explicite `rootshell-notify send` sunt afișate întotdeauna și nu includ grafică de agent."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obvestila agentov lahko omejite na čas, ko je rootshell v ozadju. Nastavitev logotipa doda grafiko Claude ali Codex podprtim obvestilom agentov. Izrecna sporočila `rootshell-notify send` so vedno prikazana in ne vsebujejo grafike agenta."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agentaviseringar kan begränsas till när rootshell körs i bakgrunden. Logotypinställningen lägger till grafik från Claude eller Codex i aviseringar från agenter som stöds. Uttryckliga `rootshell-notify send`-meddelanden visas alltid och innehåller ingen agentgrafik."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сповіщення агентів можна обмежити лише тим часом, коли rootshell працює у фоні. Параметр логотипа додає зображення Claude або Codex до підтримуваних сповіщень агентів. Явні повідомлення `rootshell-notify send` показуються завжди й не містять зображень агента."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thông báo của tác nhân có thể được giới hạn cho lúc rootshell đang chạy nền. Tùy chọn logo sẽ thêm hình ảnh của Claude hoặc Codex vào các thông báo tác nhân được hỗ trợ. Tin nhắn `rootshell-notify send` tường minh luôn hiển thị và không kèm hình ảnh tác nhân."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "代理通知可以限制为仅在 rootshell 处于后台时显示。徽标设置会为受支持的代理通知添加 Claude 或 Codex 的图像。显式的 `rootshell-notify send` 消息始终显示，且不包含代理图像。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "代理通知可限制為僅在 rootshell 位於背景時顯示。標誌設定會為支援的代理通知加上 Claude 或 Codex 的圖像。明確的 `rootshell-notify send` 訊息一律顯示，且不會包含代理圖像。"
+          }
+        }
+      }
+    },
     "Agents" : {
       "comment" : "External SSH agents configured section header",
       "localizations" : {
@@ -78579,7 +78733,162 @@
         }
       }
     },
+    "Badges control sidebar dots and cards for detected work and terminal-reported progress, even when coding-agent detection is off. Notifications follow their own policy; push notifications from paired computers always show. \"Done\" markers clear when you view the tab." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تتحكّم الشارات في نقاط الشريط الجانبي والبطاقات الخاصة بالعمل المُكتشف والتقدّم الذي تُبلّغ عنه الطرفية، حتى عندما يكون اكتشاف وكلاء البرمجة مُعطّلًا. أما الإشعارات فتتبع سياستها الخاصة؛ وتظهر دائمًا الإشعارات الفورية الواردة من أجهزة الكمبيوتر المقترنة. وتُمسح علامات \"تم\" عند عرض علامة التبويب."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Els distintius controlen els punts i les targetes de la barra lateral per a la feina detectada i el progrés informat pel terminal, fins i tot quan la detecció d'agents de codi està desactivada. Les notificacions segueixen la seva pròpia política; les notificacions push dels ordinadors aparellats es mostren sempre. Els marcadors de «Fet» s'esborren quan mires la pestanya."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odznaky ovládají tečky a karty v bočním panelu pro zjištěnou práci a pro průběh hlášený terminálem, i když je detekce agentů pro kódování vypnutá. Oznámení se řídí vlastním pravidlem; push oznámení ze spárovaných počítačů se zobrazují vždy. Značky „Hotovo“ zmizí, jakmile si kartu zobrazíte."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mærker styrer prikker og kort i sidepanelet for registreret arbejde og for fremdrift, som terminalen rapporterer, også når registrering af kodeagenter er slået fra. Notifikationer følger deres egen politik; push-notifikationer fra parrede computere vises altid. \"Færdig\"-markeringer forsvinder, når du åbner fanen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Badges steuern die Punkte und Karten in der Seitenleiste für erkannte Arbeit und vom Terminal gemeldeten Fortschritt, auch wenn die Coding-Agent-Erkennung deaktiviert ist. Benachrichtigungen folgen ihren eigenen Regeln; Push-Benachrichtigungen von gekoppelten Computern werden immer angezeigt. „Fertig“-Markierungen verschwinden, sobald Sie den Tab ansehen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los distintivos controlan los puntos y las tarjetas de la barra lateral para el trabajo detectado y el progreso que informa el terminal, incluso con la detección de agentes de código desactivada. Las notificaciones siguen su propia política; las notificaciones push de los ordenadores emparejados se muestran siempre. Los marcadores \"Listo\" se borran al ver la pestaña."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merkit ohjaavat sivupalkin pisteitä ja kortteja, jotka koskevat havaittua työtä ja terminaalin ilmoittamaa edistymistä, vaikka koodiagenttien tunnistus olisi pois käytöstä. Ilmoituksilla on oma käytäntönsä; paritetuista tietokoneista tulevat push-ilmoitukset näytetään aina. \"Valmis\"-merkinnät poistuvat, kun avaat välilehden."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les pastilles contrôlent les points et les cartes de la barre latérale pour le travail détecté et la progression signalée par le terminal, même lorsque la détection des agents de code est désactivée. Les notifications suivent leur propre règle ; les notifications push des ordinateurs associés s'affichent toujours. Les marqueurs « Terminé » disparaissent lorsque vous consultez l'onglet."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התגים שולטים בנקודות ובכרטיסים שבסרגל הצד עבור עבודה שזוהתה והתקדמות שהמסוף מדווח עליה, גם כאשר זיהוי סוכני הקוד כבוי. ההתראות פועלות לפי מדיניות משלהן; התראות דחיפה ממחשבים מותאמים מוצגות תמיד. סימוני \"סיום\" נמחקים כשמציגים את הלשונית."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A jelvények az oldalsáv pontjait és kártyáit vezérlik az észlelt munka és a terminál által jelentett folyamat esetén, akkor is, ha a kódügynökök felismerése ki van kapcsolva. Az értesítésekre saját szabály vonatkozik; a párosított számítógépekről érkező push értesítések mindig megjelennek. A „Kész” jelölések eltűnnek, amint megnyitja a lapot."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I badge controllano i puntini e le card nella barra laterale relativi al lavoro rilevato e all'avanzamento segnalato dal terminale, anche quando il rilevamento degli agenti di codice è disattivato. Le notifiche seguono un criterio proprio; le notifiche push dai computer abbinati vengono mostrate sempre. I contrassegni \"Completato\" scompaiono quando visualizzi la scheda."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "バッジは、コーディングエージェントの検出がオフのときも含めて、検出された作業とターミナルが報告する進捗についてサイドバーのドットとカードを制御します。通知は独自のポリシーに従い、ペアリング済みのコンピュータからのプッシュ通知は常に表示されます。「完了」マークはタブを表示すると消えます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "배지는 코딩 에이전트 감지가 꺼져 있어도 감지된 작업과 터미널이 보고한 진행 상황에 대한 사이드바 점과 카드를 제어합니다. 알림은 별도의 정책을 따르며, 페어링된 컴퓨터에서 오는 푸시 알림은 항상 표시됩니다. \"완료\" 표시는 해당 탭을 열어 보면 사라집니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merker styrer prikker og kort i sidepanelet for oppdaget arbeid og fremdrift rapportert av terminalen, også når gjenkjenning av kodeagenter er slått av. Varslinger følger sine egne regler; push-varslinger fra sammenkoblede datamaskiner vises alltid. \"Ferdig\"-markeringer fjernes når du viser fanen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Badges bepalen de stippen en kaarten in de zijbalk voor gedetecteerd werk en voor voortgang die de terminal meldt, ook als detectie van codeeragents uit staat. Meldingen volgen hun eigen beleid; pushmeldingen van gekoppelde computers worden altijd getoond. \"Klaar\"-markeringen verdwijnen zodra je het tabblad bekijkt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plakietki sterują kropkami i kafelkami na pasku bocznym dla wykrytej pracy oraz postępu zgłaszanego przez terminal, nawet gdy wykrywanie agentów kodowania jest wyłączone. Powiadomienia mają własne zasady; powiadomienia push ze sparowanych komputerów są pokazywane zawsze. Oznaczenia „Gotowe” znikają, gdy wyświetlisz kartę."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os selos controlam os pontos e os cartões da barra lateral para o trabalho detectado e o progresso informado pelo terminal, mesmo quando a detecção de agentes de código está desativada. As notificações seguem a própria política; as notificações push dos computadores pareados sempre aparecem. As marcas de “Concluído” são apagadas quando você vê a aba."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os sinais controlam os pontos e os cartões da barra lateral para o trabalho detetado e para o progresso comunicado pelo terminal, mesmo com a deteção de agentes de código desativada. As notificações seguem a sua própria política; as notificações push dos computadores emparelhados são sempre apresentadas. Os marcadores \"Concluído\" desaparecem quando abre o separador."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insignele controlează punctele și cardurile din bara laterală pentru activitatea detectată și progresul raportat de terminal, chiar și când detectarea agenților de cod este dezactivată. Notificările urmează propria politică; notificările push de la computerele asociate sunt afișate întotdeauna. Marcajele „Gata” dispar când vizualizezi fila."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznake upravljajo pike in kartice v stranski vrstici za zaznano delo in napredek, ki ga sporoča terminal, tudi kadar je zaznavanje kodirnih agentov izklopljeno. Obvestila sledijo svojemu pravilniku; potisna obvestila iz seznanjenih računalnikov so vedno prikazana. Oznake »Končano« se počistijo, ko odprete zavihek."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brickor styr punkter och kort i sidofältet för identifierat arbete och för förlopp som terminalen rapporterar, även när identifiering av kodagenter är avstängd. Aviseringar följer sin egen policy; push-aviseringar från parkopplade datorer visas alltid. Markeringar för \"Klar\" rensas när du visar fliken."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Значки керують крапками та картками на бічній панелі для виявленої роботи та прогресу, про який повідомляє термінал, навіть коли виявлення агентів кодування вимкнено. Сповіщення мають власну політику; push-сповіщення зі спарених компʼютерів показуються завжди. Позначки «Готово» зникають, коли ви переглядаєте вкладку."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huy hiệu điều khiển các chấm và thẻ trên thanh bên cho công việc được phát hiện và tiến trình do terminal báo cáo, ngay cả khi tính năng phát hiện tác nhân lập trình đang tắt. Thông báo tuân theo chính sách riêng; thông báo đẩy từ các máy tính đã ghép nối luôn hiển thị. Dấu “Xong” sẽ biến mất khi bạn xem tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标记用于控制侧边栏中显示已检测工作和终端报告进度的圆点与卡片，即使编程代理检测已关闭也同样生效。通知则遵循各自的策略；来自已配对电脑的推送通知始终会显示。“完成”标记会在你查看该标签页时清除。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標記控制側邊欄中代表偵測到的工作與終端機回報進度的圓點和卡片，即使關閉程式設計代理偵測也一樣。通知則依照其本身的原則；來自已配對電腦的推播通知一律會顯示。檢視分頁後，「完成」標示便會清除。"
+          }
+        }
+      }
+    },
     "Badges control sidebar dots and cards for detected work and terminal-reported progress, even when coding-agent detection is off. Notifications follow their own policy. \"Done\" markers clear when you view the tab." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -349466,6 +349775,160 @@
         }
       }
     },
+    "Only When in Background" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فقط عند العمل في الخلفية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Només en segon pla"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jen na pozadí"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kun i baggrunden"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur im Hintergrund"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo en segundo plano"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vain taustalla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uniquement en arrière-plan"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רק ברקע"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Csak a háttérben"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo in background"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "バックグラウンドのときのみ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "백그라운드일 때만"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bare i bakgrunnen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alleen op de achtergrond"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko w tle"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas em segundo plano"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas em segundo plano"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doar în fundal"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Samo v ozadju"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endast i bakgrunden"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лише у фоні"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chỉ khi chạy nền"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅在后台运行时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅在背景執行時"
+          }
+        }
+      }
+    },
     "Opacity" : {
       "localizations" : {
         "ar" : {
@@ -458164,6 +458627,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "應回傳：net.mptcp.enabled = 1"
+          }
+        }
+      }
+    },
+    "Show Agent Logos" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار شعارات الوكلاء"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra els logotips dels agents"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazovat loga agentů"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis agentlogoer"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent-Logos anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar logotipos de agentes"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä agenttien logot"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les logos des agents"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצגת לוגו של סוכנים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ügynöklogók megjelenítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra i loghi degli agenti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エージェントのロゴを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "에이전트 로고 표시"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis agentlogoer"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agentlogo's tonen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuj logo agentów"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar logotipos dos agentes"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar logótipos dos agentes"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează siglele agenților"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaži logotipe agentov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa agentlogotyper"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показувати логотипи агентів"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiển thị logo tác nhân"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示代理徽标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示代理標誌"
           }
         }
       }
