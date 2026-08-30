@@ -60,8 +60,8 @@ enum PushNotificationRouter {
         return try? JSONDecoder().decode(PushHeader.self, from: data)
     }
 
-    /// Header from the extension, or decrypted here when the extension did
-    /// not run (macOS delivers pushes straight to a running Catalyst app).
+    /// Header from the extension, or decrypted here as a fallback when the
+    /// extension did not decorate the push (it failed, or never ran).
     static func decryptedHeader(from userInfo: [AnyHashable: Any]) -> (header: PushHeader, decryptedLocally: Bool)? {
         if let h = header(from: userInfo) { return (h, false) }
         guard let env = PushEnvelope(userInfo: userInfo), isAccepted(env),
@@ -106,6 +106,10 @@ enum PushNotificationRouter {
             await removeRawDelivered(eid: eid)
             return
         }
+        // A suppressed remote push still lands in Notification Center history on
+        // macOS. Drop the raw copy before posting the decrypted one so the two
+        // are never on screen together; syncDelivered catches stragglers.
+        await removeRawDelivered(eid: eid)
         let request = UNNotificationRequest(identifier: "push-\(eid)", content: content, trigger: nil)
         do {
             try await UNUserNotificationCenter.current().add(request)
@@ -114,9 +118,6 @@ enum PushNotificationRouter {
             shared.release(eid: eid)
             return
         }
-        // A suppressed remote push still lands in Notification Center history on
-        // macOS; drop the raw copy. syncDelivered repeats this on activation.
-        await removeRawDelivered(eid: eid)
     }
 
     static func attentionStatus(_ status: String?) -> AgentAttentionStatus? {
@@ -392,8 +393,8 @@ enum PushNotificationRouter {
         }
     }
 
-    /// Remote push delivered to the app process (macOS, app hidden or in the
-    /// background). Replaces the raw alert with the decrypted one.
+    /// Fallback for a raw push delivered to the app process: replaces the raw
+    /// alert with the decrypted one. No-ops once the extension has decorated it.
     static func handleRemote(userInfo: [AnyHashable: Any]) async {
         guard let env = PushEnvelope(userInfo: userInfo) else { return }
         logger.info("remote delivery eid=\(env.eid, privacy: .public) state=\(UIApplication.shared.applicationState.rawValue)")
