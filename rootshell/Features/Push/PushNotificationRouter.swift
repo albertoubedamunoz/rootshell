@@ -218,6 +218,11 @@ enum PushNotificationRouter {
             return []
         }
         guard let (header, decryptedLocally) = decryptedHeader(from: content.userInfo) else { return [.banner, .list] }
+        // willPresent only runs while the app is foreground, so this is the "device can already alert" case.
+        if header.kind == "agent", UserDefaults.standard.bool(forKey: PushRegistrationManager.backgroundOnlyKey) {
+            logger.info("suppressed: background-only and app is foreground")
+            return []
+        }
         if decryptedLocally {
             let eid = PushEnvelope(userInfo: content.userInfo)?.eid ?? UUID().uuidString
             Task { await presentLocally(header, eid: eid, sound: content.sound) }
@@ -229,8 +234,8 @@ enum PushNotificationRouter {
         if let resolved {
             // Explicit `send`/`test` notifications always show; agent events are
             // suppressed only when the pane is on screen or screen detection
-            // already fired. The Agent Notifications policy governs screen
-            // detection, not pushes.
+            // already fired (or always, with "Only When in Background" on).
+            // The Agent Notifications policy governs screen detection, not pushes.
             if header.kind == "agent" {
                 if isViewed(resolved) {
                     logger.info("suppressed: pane is being viewed")
