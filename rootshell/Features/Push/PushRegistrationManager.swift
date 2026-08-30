@@ -31,6 +31,7 @@ final class PushRegistrationManager {
     static let enabledKey = "pushNotificationsEnabled"
     static let sendersKey = "pushPairedSenders"
     static let revokedKey = "pushRevokedSenders"
+    static let backgroundOnlyKey = "pushAgentBackgroundOnly"
 
     enum State: Equatable {
         case disabled
@@ -43,6 +44,10 @@ final class PushRegistrationManager {
     private(set) var state: State = .disabled
     private(set) var senders: [PushPairedSender] = []
     private(set) var isBusy = false
+    /// Agent pushes are dropped while the app is foreground; explicit sends still show.
+    var agentBackgroundOnly: Bool {
+        didSet { UserDefaults.standard.set(agentBackgroundOnly, forKey: Self.backgroundOnlyKey) }
+    }
 
     @ObservationIgnored private let keychain = PushConfiguration.keychain
     @ObservationIgnored private var apnsToken: Data?
@@ -52,6 +57,7 @@ final class PushRegistrationManager {
     private init() {
         let defaults = UserDefaults.standard
         isEnabled = defaults.bool(forKey: Self.enabledKey)
+        agentBackgroundOnly = defaults.bool(forKey: Self.backgroundOnlyKey)
         senders = (defaults.data(forKey: Self.sendersKey)).flatMap { try? JSONDecoder().decode([PushPairedSender].self, from: $0) } ?? []
         revoked = Set(defaults.stringArray(forKey: Self.revokedKey) ?? [])
         if isEnabled { state = credentials == nil ? .waitingForToken : .registered }

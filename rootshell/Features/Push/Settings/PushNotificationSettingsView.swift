@@ -44,6 +44,21 @@ struct PushNotificationSettingsView: View {
 
             if manager.state == .registered {
                 Section {
+                    Toggle(isOn: Binding(
+                        get: { manager.agentBackgroundOnly },
+                        set: { manager.agentBackgroundOnly = $0 }
+                    )) {
+                        HStack(spacing: 12) {
+                            SettingsIcon(systemName: "moon.zzz")
+                            Text("Only When in Background")
+                        }
+                    }
+                    .themedRow()
+                } footer: {
+                    Text("Agent notifications are shown only while rootshell is in the background on this device. Explicit `rootshell-notify send` messages always show.")
+                }
+
+                Section {
                     ForEach(manager.senders) { sender in
                         HStack(spacing: 12) {
                             SettingsIcon(systemName: sender.stale ? "exclamationmark.triangle" : "desktopcomputer")
