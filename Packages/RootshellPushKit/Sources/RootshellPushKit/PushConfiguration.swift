@@ -12,6 +12,8 @@ public enum PushConfiguration {
     public static let categoryIdentifier = "com.rootshell.push"
     public static let headerUserInfoKey = "rs_header"
     public static let rejectedUserInfoKey = "rs_rejected"
+    /// Set by the extension when it could not decrypt; the app re-posts these.
+    public static let fallbackUserInfoKey = "rs_fallback"
 
     public static var server: URL {
         URL(string: plist("RootshellPushServer") ?? "https://push.rootshell.com")!

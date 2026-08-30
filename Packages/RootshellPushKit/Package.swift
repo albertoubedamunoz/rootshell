@@ -19,7 +19,8 @@ let package = Package(
             dependencies: [
                 "CXWing",
                 .product(name: "_CryptoExtras", package: "swift-crypto"),
-            ]
+            ],
+            resources: [.copy("Resources")]
         ),
         .testTarget(
             name: "RootshellPushKitTests",

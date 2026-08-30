@@ -72,7 +72,7 @@ struct CodingAgentSettingsView: View {
             } header: {
                 Text("Attention & Notifications")
             } footer: {
-                Text("Badges control sidebar dots and cards for detected work and terminal-reported progress, even when coding-agent detection is off. Notifications follow their own policy. \"Done\" markers clear when you view the tab.")
+                Text("Badges control sidebar dots and cards for detected work and terminal-reported progress, even when coding-agent detection is off. Notifications follow their own policy; push notifications from paired computers always show. \"Done\" markers clear when you view the tab.")
             }
 
             Section {
