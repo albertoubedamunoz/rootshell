@@ -22,11 +22,12 @@ const (
 var ErrNotFound = errors.New("config: device not found")
 
 type Device struct {
-	Label      string    `json:"label"`
-	Server     string    `json:"server"`
-	SenderCred string    `json:"sender_cred"`
-	PublicKey  []byte    `json:"public_key"` // base64 std via encoding/json
-	AddedAt    time.Time `json:"added_at"`
+	Label        string    `json:"label"`
+	Server       string    `json:"server"`
+	SenderCred   string    `json:"sender_cred"`
+	PublicKey    []byte    `json:"public_key"` // base64 std via encoding/json
+	AddedAt      time.Time `json:"added_at"`
+	HooksEnabled bool      `json:"hooks_enabled"`
 }
 
 // Key parses the device's X-Wing public key.
@@ -39,7 +40,14 @@ func DeviceFromPairing(p *envelope.Pairing) Device {
 	if label == "" {
 		label = "device"
 	}
-	return Device{Label: label, Server: p.Server, SenderCred: p.SenderCred, PublicKey: p.PublicKey, AddedAt: time.Now().UTC().Truncate(time.Second)}
+	return Device{
+		Label:        label,
+		Server:       p.Server,
+		SenderCred:   p.SenderCred,
+		PublicKey:    p.PublicKey,
+		AddedAt:      time.Now().UTC().Truncate(time.Second),
+		HooksEnabled: true,
+	}
 }
 
 type Config struct {
@@ -158,6 +166,7 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 func (c *Config) Add(d Device) bool {
 	for i := range c.Devices {
 		if c.Devices[i].SenderCred == d.SenderCred || c.Devices[i].Label == d.Label {
+			d.HooksEnabled = c.Devices[i].HooksEnabled
 			c.Devices[i] = d
 			return true
 		}
@@ -193,6 +202,41 @@ func (c *Config) Remove(label string) (Device, error) {
 }
 
 func (c *Config) List() []Device { return c.Devices }
+
+// HookDevices returns the devices currently selected for automatic agent hooks.
+func (c *Config) HookDevices() []Device {
+	devices := make([]Device, 0, len(c.Devices))
+	for _, d := range c.Devices {
+		if d.HooksEnabled {
+			devices = append(devices, d)
+		}
+	}
+	return devices
+}
+
+// SetHooksEnabled changes whether automatic agent hooks notify a device.
+// The returned boolean reports whether the setting changed.
+func (c *Config) SetHooksEnabled(label string, enabled bool) (Device, bool, error) {
+	d, ok := c.Find(label)
+	if !ok {
+		return Device{}, false, ErrNotFound
+	}
+	if d.HooksEnabled == enabled {
+		return *d, false, nil
+	}
+	d.HooksEnabled = enabled
+	return *d, true, nil
+}
+
+// ToggleHooks toggles whether automatic agent hooks notify a device.
+func (c *Config) ToggleHooks(label string) (Device, error) {
+	d, ok := c.Find(label)
+	if !ok {
+		return Device{}, ErrNotFound
+	}
+	d.HooksEnabled = !d.HooksEnabled
+	return *d, nil
+}
 
 // OpenLog opens hook.log for append, rotating to hook.log.1 past 1 MiB.
 func OpenLog() (*os.File, error) {

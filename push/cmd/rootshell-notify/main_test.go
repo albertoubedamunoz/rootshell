@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/kitknox/rootshell/push/client"
@@ -61,6 +62,167 @@ func TestParseFlags(t *testing.T) {
 	}
 }
 
+func testDevice(t *testing.T, label, cred, server string, hooksEnabled bool) config.Device {
+	t.Helper()
+	sk, err := envelope.GeneratePrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return config.Device{
+		Label:        label,
+		Server:       server,
+		SenderCred:   cred,
+		PublicKey:    sk.PublicKey().Bytes(),
+		HooksEnabled: hooksEnabled,
+	}
+}
+
+func TestDevicesCommandsAndPicker(t *testing.T) {
+	t.Setenv(config.EnvPath, filepath.Join(t.TempDir(), "config.json"))
+	cfg := &config.Config{Devices: []config.Device{
+		testDevice(t, "phone", "rsc1.phone", "https://push.example", true),
+		testDevice(t, "tablet", "rsc1.tablet", "https://push.example", false),
+	}}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	var out, errb bytes.Buffer
+	if code := run([]string{"devices"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatal(code, errb.String())
+	}
+	if got := out.String(); !strings.Contains(got, "[1] on") || !strings.Contains(got, "phone") || !strings.Contains(got, "[2] off") || !strings.Contains(got, "tablet") {
+		t.Fatal(got)
+	}
+
+	out.Reset()
+	if code := run([]string{"devices", "off", "phone"}, strings.NewReader(""), &out, &errb); code != exitOK || !strings.Contains(out.String(), "phone: agent hooks off") {
+		t.Fatalf("off: %d %q %q", code, out.String(), errb.String())
+	}
+	out.Reset()
+	if code := run([]string{"devices", "off", "phone"}, strings.NewReader(""), &out, &errb); code != exitOK || !strings.Contains(out.String(), "already off") {
+		t.Fatalf("idempotent off: %d %q %q", code, out.String(), errb.String())
+	}
+	out.Reset()
+	if code := run([]string{"devices", "toggle", "tablet"}, strings.NewReader(""), &out, &errb); code != exitOK || !strings.Contains(out.String(), "tablet: agent hooks on") {
+		t.Fatalf("toggle: %d %q %q", code, out.String(), errb.String())
+	}
+
+	out.Reset()
+	errb.Reset()
+	if code := cmdDevices(nil, strings.NewReader("nope\n3\n1\n2\n\n"), &out, &errb, true); code != exitOK {
+		t.Fatalf("picker: %d %q", code, errb.String())
+	}
+	if strings.Count(errb.String(), "Enter a number from 1 to 2") != 2 || !strings.Contains(out.String(), "phone: agent hooks on") || !strings.Contains(out.String(), "tablet: agent hooks off") {
+		t.Fatalf("picker output: %q %q", out.String(), errb.String())
+	}
+	cfg, err := config.Load()
+	if err != nil || !cfg.Devices[0].HooksEnabled || cfg.Devices[1].HooksEnabled {
+		t.Fatalf("picker state: %v %+v", err, cfg)
+	}
+	out.Reset()
+	errb.Reset()
+	if code := run([]string{"devices", "on", "tablet"}, strings.NewReader(""), &out, &errb); code != exitOK || !strings.Contains(out.String(), "tablet: agent hooks on") {
+		t.Fatalf("on: %d %q %q", code, out.String(), errb.String())
+	}
+	out.Reset()
+	if code := cmdDevices(nil, strings.NewReader(""), &out, &errb, true); code != exitOK {
+		t.Fatalf("picker EOF: %d %q", code, errb.String())
+	}
+
+	for _, args := range [][]string{{"devices", "bad", "phone"}, {"devices", "on"}, {"devices", "on", "missing"}} {
+		out.Reset()
+		errb.Reset()
+		code := run(args, strings.NewReader(""), &out, &errb)
+		if code == exitOK {
+			t.Fatalf("accepted %v: %q", args, out.String())
+		}
+	}
+}
+
+func TestHookDeviceSelectionDoesNotLimitManualDelivery(t *testing.T) {
+	t.Setenv(config.EnvPath, filepath.Join(t.TempDir(), "config.json"))
+	var mu sync.Mutex
+	var credentials []string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/push" {
+			http.NotFound(w, r)
+			return
+		}
+		mu.Lock()
+		credentials = append(credentials, r.Header.Get("Authorization"))
+		mu.Unlock()
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+	old := newClient
+	newClient = func() *client.Client {
+		c := client.New("test")
+		c.HTTP = srv.Client()
+		return c
+	}
+	t.Cleanup(func() { newClient = old })
+
+	cfg := &config.Config{Devices: []config.Device{
+		testDevice(t, "phone", "rsc1.phone", srv.URL, true),
+		testDevice(t, "tablet", "rsc1.tablet", srv.URL, false),
+	}}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	reset := func() {
+		mu.Lock()
+		credentials = nil
+		mu.Unlock()
+	}
+	gotCredentials := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), credentials...)
+	}
+	runOK := func(args []string, input string) {
+		t.Helper()
+		var out, errb bytes.Buffer
+		if code := run(args, strings.NewReader(input), &out, &errb); code != exitOK {
+			t.Fatalf("%v: exit %d: %s %s", args, code, out.String(), errb.String())
+		}
+	}
+
+	payload := `{"session_id":"sess-9","cwd":"/srv/app","turn_id":"turn-42","hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"Done."}`
+	runOK([]string{"hook", "--agent", "codex"}, payload)
+	if got := gotCredentials(); len(got) != 1 || got[0] != "Bearer rsc1.phone" {
+		t.Fatalf("hook recipients: %v", got)
+	}
+
+	reset()
+	runOK([]string{"test", "tablet"}, "")
+	if got := gotCredentials(); len(got) != 1 || got[0] != "Bearer rsc1.tablet" {
+		t.Fatalf("explicit test recipients: %v", got)
+	}
+
+	reset()
+	runOK([]string{"send", "--title", "Manual"}, "")
+	if got := gotCredentials(); len(got) != 2 {
+		t.Fatalf("broadcast recipients: %v", got)
+	}
+
+	reset()
+	runOK([]string{"send", "--title", "Manual", "--device", "tablet"}, "")
+	if got := gotCredentials(); len(got) != 1 || got[0] != "Bearer rsc1.tablet" {
+		t.Fatalf("explicit send recipients: %v", got)
+	}
+
+	cfg.Devices[0].HooksEnabled = false
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	reset()
+	runOK([]string{"hook", "--agent", "codex"}, "not even parsed")
+	if got := gotCredentials(); len(got) != 0 {
+		t.Fatalf("all-disabled hook recipients: %v", got)
+	}
+}
+
 // setupEnv points HOME and the config at temp dirs and stands up a TLS relay.
 func setupEnv(t *testing.T) (home, bundle string) {
 	t.Helper()
@@ -99,7 +261,7 @@ func TestSetupNoHooks(t *testing.T) {
 		t.Fatal(out.String())
 	}
 	cfg, err := config.Load()
-	if err != nil || len(cfg.Devices) != 1 {
+	if err != nil || len(cfg.Devices) != 1 || !cfg.Devices[0].HooksEnabled {
 		t.Fatalf("%v %+v", err, cfg)
 	}
 	if _, err := os.Stat(filepath.Join(home, ".claude", "settings.json")); err == nil {

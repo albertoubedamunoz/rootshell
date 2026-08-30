@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ Usage:
 Commands:
   setup --pair <bundle>    Pair and install agent hooks in one step
   pair [bundle]            Pair with a device (bundle from arg, stdin, or prompt)
-  devices                  List paired devices
+  devices [action label]   List devices or toggle agent hooks (toggle | on | off)
   unpair <label>           Remove a paired device
   test [label]             Send a test notification to one or all devices
   send --title T [opts]    Send a custom notification
@@ -57,6 +58,11 @@ Commands:
   upgrade                  Download and install the latest release
   version                  Print version
   help                     Show this help
+
+devices actions:
+  devices                  List devices; toggle by number in a terminal
+  devices toggle LABEL     Toggle agent hooks for a device
+  devices on|off LABEL     Enable or disable agent hooks for a device
 
 setup options:
   --pair BUNDLE            Pairing bundle (or pipe it on stdin)
@@ -100,7 +106,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "pair":
 		return cmdPair(rest, stdin, stdout, stderr)
 	case "devices":
-		return cmdDevices(stdout, stderr)
+		return cmdDevices(rest, stdin, stdout, stderr, isTerminal(stdin) && isTerminal(stdout))
 	case "unpair":
 		return cmdUnpair(rest, stdout, stderr)
 	case "test":
@@ -245,8 +251,8 @@ func pushOne(ctx context.Context, c *client.Client, d *config.Device, eid string
 	return c.Push(ctx, d, env, opts)
 }
 
-func isTerminal(r io.Reader) bool {
-	f, ok := r.(*os.File)
+func isTerminal(v any) bool {
+	f, ok := v.(*os.File)
 	if !ok {
 		return false
 	}
@@ -294,17 +300,99 @@ func cmdPair(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return sendTo(ctx, c, []config.Device{dev}, newEID(), testHeader(), client.Options{}, stdout, stderr)
 }
 
-func cmdDevices(stdout, stderr io.Writer) int {
+func hookState(d config.Device) string {
+	if d.HooksEnabled {
+		return "on"
+	}
+	return "off"
+}
+
+func printDevices(cfg *config.Config, stdout io.Writer) {
+	fmt.Fprintf(stdout, "    %-5s %-24s %-36s %s\n", "Hooks", "Device", "Relay", "Paired")
+	for i, d := range cfg.Devices {
+		fmt.Fprintf(stdout, "[%d] %-5s %-24s %-36s %s\n", i+1, hookState(d), d.Label, d.Server, d.AddedAt.Local().Format("2006-01-02 15:04"))
+	}
+}
+
+func saveHookSetting(cfg *config.Config, d config.Device, changed bool, stdout, stderr io.Writer) int {
+	if changed {
+		if err := cfg.Save(); err != nil {
+			return fail(stderr, err)
+		}
+		fmt.Fprintf(stdout, "%s: agent hooks %s.\n", d.Label, hookState(d))
+	} else {
+		fmt.Fprintf(stdout, "%s: agent hooks already %s.\n", d.Label, hookState(d))
+	}
+	return exitOK
+}
+
+func pickDevices(cfg *config.Config, stdin io.Reader, stdout, stderr io.Writer) int {
+	scanner := bufio.NewScanner(stdin)
+	for {
+		fmt.Fprint(stdout, "Toggle device number (Enter to finish): ")
+		if !scanner.Scan() {
+			fmt.Fprintln(stdout)
+			return exitOK
+		}
+		choice := strings.TrimSpace(scanner.Text())
+		if choice == "" {
+			return exitOK
+		}
+		n, err := strconv.Atoi(choice)
+		if err != nil || n < 1 || n > len(cfg.Devices) {
+			fmt.Fprintf(stderr, "Enter a number from 1 to %d.\n", len(cfg.Devices))
+			continue
+		}
+		d := &cfg.Devices[n-1]
+		d.HooksEnabled = !d.HooksEnabled
+		if err := cfg.Save(); err != nil {
+			return fail(stderr, err)
+		}
+		fmt.Fprintf(stdout, "%s: agent hooks %s.\n", d.Label, hookState(*d))
+	}
+}
+
+func cmdDevices(args []string, stdin io.Reader, stdout, stderr io.Writer, interactive bool) int {
+	if len(args) != 0 && len(args) != 2 {
+		fmt.Fprintln(stderr, "usage: rootshell-notify devices [toggle|on|off <label>]")
+		return exitUsage
+	}
+	if len(args) == 2 && args[0] != "toggle" && args[0] != "on" && args[0] != "off" {
+		fmt.Fprintln(stderr, "usage: rootshell-notify devices [toggle|on|off <label>]")
+		return exitUsage
+	}
 	cfg, code := loadConfig(stderr)
 	if code != exitOK {
 		return code
+	}
+	if len(args) == 2 {
+		var d config.Device
+		var changed bool
+		var err error
+		switch args[0] {
+		case "toggle":
+			d, err = cfg.ToggleHooks(args[1])
+			changed = err == nil
+		case "on":
+			d, changed, err = cfg.SetHooksEnabled(args[1], true)
+		case "off":
+			d, changed, err = cfg.SetHooksEnabled(args[1], false)
+		}
+		if errors.Is(err, config.ErrNotFound) {
+			return fail(stderr, fmt.Errorf("no device %q", args[1]))
+		}
+		if err != nil {
+			return fail(stderr, err)
+		}
+		return saveHookSetting(cfg, d, changed, stdout, stderr)
 	}
 	if len(cfg.Devices) == 0 {
 		fmt.Fprintln(stdout, "No paired devices. Run: rootshell-notify pair")
 		return exitOK
 	}
-	for _, d := range cfg.Devices {
-		fmt.Fprintf(stdout, "%-24s %-36s %s\n", d.Label, d.Server, d.AddedAt.Local().Format("2006-01-02 15:04"))
+	printDevices(cfg, stdout)
+	if interactive {
+		return pickDevices(cfg, stdin, stdout, stderr)
 	}
 	return exitOK
 }
@@ -447,7 +535,8 @@ func cmdHook(args []string, stdin io.Reader) int {
 	if len(cfg.Skipped) > 0 {
 		logger.Printf("ignoring old pairing(s) %s; pair again with the current app", strings.Join(cfg.Skipped, ", "))
 	}
-	if len(cfg.Devices) == 0 {
+	devices := cfg.HookDevices()
+	if len(devices) == 0 {
 		return exitOK
 	}
 	data, err := io.ReadAll(io.LimitReader(stdin, maxHookInput))
@@ -467,8 +556,8 @@ func cmdHook(args []string, stdin io.Reader) int {
 	defer cancel()
 	h := ev.Header(hook.Route(ctx, ev.Cwd))
 	c := newClient()
-	for i := range cfg.Devices {
-		d := &cfg.Devices[i]
+	for i := range devices {
+		d := &devices[i]
 		if err := pushOne(ctx, c, d, ev.EID, h, client.Options{}); err != nil {
 			logger.Printf("%s %s: push to %s: %v", ev.Agent, ev.Status, d.Label, pushErr(d, err))
 		}
@@ -751,7 +840,7 @@ func cmdStatus(stdout, stderr io.Writer) int {
 	default:
 		fmt.Fprintf(stdout, "config:      %s (%d device(s))\n", config.Path(), len(cfg.Devices))
 		for _, d := range cfg.Devices {
-			fmt.Fprintf(stdout, "  - %s  %s\n", d.Label, d.Server)
+			fmt.Fprintf(stdout, "  - hooks=%-3s %s  %s\n", hookState(d), d.Label, d.Server)
 		}
 	}
 	fmt.Fprintf(stdout, "log:         %s\n", config.LogPath())

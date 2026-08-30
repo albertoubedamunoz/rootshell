@@ -21,12 +21,21 @@ func TestRoundTrip(t *testing.T) {
 	if c.Add(DeviceFromPairing(p)) {
 		t.Fatal("first add reported replace")
 	}
+	if !c.Devices[0].HooksEnabled || len(c.HookDevices()) != 1 {
+		t.Fatal("new pairing did not enable hooks")
+	}
 	if !c.Add(DeviceFromPairing(p)) || len(c.Devices) != 1 {
 		t.Fatal("dedupe by sender cred failed")
 	}
+	if d, changed, err := c.SetHooksEnabled("Phone", false); err != nil || !changed || d.HooksEnabled || len(c.HookDevices()) != 0 {
+		t.Fatalf("disable hooks: %+v %v %v", d, changed, err)
+	}
+	if _, changed, err := c.SetHooksEnabled("Phone", false); err != nil || changed {
+		t.Fatalf("idempotent disable: %v %v", changed, err)
+	}
 	p2 := *p
 	p2.SenderCred = "rsc1.y"
-	if !c.Add(DeviceFromPairing(&p2)) || len(c.Devices) != 1 || c.Devices[0].SenderCred != "rsc1.y" {
+	if !c.Add(DeviceFromPairing(&p2)) || len(c.Devices) != 1 || c.Devices[0].SenderCred != "rsc1.y" || c.Devices[0].HooksEnabled {
 		t.Fatal("re-pair by label did not replace")
 	}
 	if err := c.Save(); err != nil {
@@ -44,8 +53,14 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	d, ok := again.Find("Phone")
-	if !ok || d.SenderCred != "rsc1.y" {
+	if !ok || d.SenderCred != "rsc1.y" || d.HooksEnabled {
 		t.Fatalf("find: %+v", d)
+	}
+	if d, err := again.ToggleHooks("rsc1.y"); err != nil || !d.HooksEnabled || len(again.HookDevices()) != 1 {
+		t.Fatalf("toggle hooks: %+v %v", d, err)
+	}
+	if _, _, err := again.SetHooksEnabled("missing", true); err != ErrNotFound {
+		t.Fatalf("missing device: %v", err)
 	}
 	if _, err := d.Key(); err != nil {
 		t.Fatal(err)

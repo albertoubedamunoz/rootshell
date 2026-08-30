@@ -80,7 +80,20 @@ steps.
    ```
 
 3. A test notification arrives on the device. `rootshell-notify devices`
-   lists pairings; `unpair <label>` removes one.
+   lists pairings and, in a terminal, lets you toggle agent notifications by
+   entering a device number. `unpair <label>` removes a pairing.
+
+To change agent-hook recipients directly or from a script:
+
+```sh
+rootshell-notify devices off "Desk iPad"
+rootshell-notify devices toggle "Kit's iPhone"
+rootshell-notify devices on "Desk iPad"
+```
+
+Turning a device off only suppresses automatic notifications from Claude Code
+and Codex hooks. It stays paired, and `test`, `send`, and `send --device` can
+still reach it.
 
 Pairings are stored in `~/.config/rootshell-push/config.json` (mode 0600).
 Override the path with `ROOTSHELL_PUSH_CONFIG`.
@@ -199,7 +212,8 @@ screen; the device then ignores pushes from that sender.
 ## Troubleshooting
 
 - `rootshell-notify status` shows the binary location, config, paired
-  devices, and whether each agent hook is installed.
+  devices, each device's notification setting, and whether each agent hook is
+  installed.
 - The hook never writes to stdout or fails the agent; errors go to
   `~/.config/rootshell-push/hook.log` (rotated at 1 MiB).
 - `ROOTSHELL_PUSH_DEBUG=1 rootshell-notify hook --agent codex < payload.json`
