@@ -3,6 +3,38 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-140 - August 30, 2026
+
+### Push Notifications
+
+- **General-Purpose Push Notifications:** Run `rootshell-notify send` from scripts, cron jobs, CI, builds, deploys or anything else that can execute a command, with a title and optional body, status, priority and target device. Messages arrive even while rootshell is in the background. Pair under Settings -> Notifications -> Push Notifications; rootshell provides the install command.
+- **Claude Code and Codex Integrations:** The installer adds hooks for agents it finds. Both report completed turns, Claude Code reports when it needs input, and rootshell's on-device detector handles visible Codex approval prompts. Tapping an agent notification returns to its window, tab and pane, including tmux control mode. Agent pushes follow the existing policy, deduplicate screen detection and can be controlled per device.
+- **Post-Quantum End-to-End Encryption:** Every message is encrypted on the sender with the X-Wing post-quantum hybrid (ML-KEM-768 + X25519), so the stateless relay sees only ciphertext. Agent hooks send a short, secret-scrubbed summary and routing hints, never prompts, terminal output, transcripts, files or environment variables. Each paired computer has its own revocable credential.
+
+### macOS Automation
+
+- **New AppleScript Commands:** AppleScript can now create a tab or window, optionally choosing a working directory, startup command and connection profile. Folders opened with rootshell now start a local shell at that path, so Finder, `open -a rootshell <folder>` and other apps can hand a directory straight to the terminal (#344).
+- **Reliable Scripted Windows and Commands:** Multiple scripted new-window requests now open in order instead of being consumed by the first window. Startup commands retry partial PTY writes, and directories containing apostrophes are quoted correctly.
+
+### Appearance and Tabs
+
+- **Liquid Glass Window Transparency:** Transparent windows on macOS 26 gain Glass and Clear Glass blur styles alongside Standard. Liquid Glass renders the desktop through a system glass material tinted by the terminal theme; choose it under Settings -> Appearance -> Window Transparency.
+- **Progress in Integrated Tabs:** Integrated tabs now carry terminal OSC progress along the continuous edge and around the active tab, including determinate, animated indeterminate, paused and error states. Their edge keeps the terminal theme's hue, inactive contrast is gentler, and the outline remains a clean physical pixel.
+- **Tab-Style Fixes:** Fixed a TestFlight-reported crash when opening the tab-style context menu. Compact Pills now keep the new-tab and settings controls on-screen in narrow or resized windows, and their selection animation is no longer clipped (#351).
+
+### Keyboard
+
+- **Keyboard Layout Choices Persist:** Hiding the software keyboard with its chevron now remains your choice while swiping between tabs, opening and closing overlays, or switching apps. Toolbar-only and hardware-keyboard layouts also keep their size and bottom spacing stable through those transitions.
+
+### Terminal
+
+- **Lower CPU Use for tmux Title Updates:** Fast OSC title changes in tmux control mode no longer repeatedly invalidate every tab, split and sidebar. Title-only updates use a lower-rate refresh path, reducing stutter and CPU use without delaying real topology changes.
+- **Fixed CJK tmux Notifications:** Fixed tmux control-mode notifications containing certain CJK text. A UTF-8 continuation byte could be mistaken for the end of a passthrough sequence, truncating an OSC 9 notification and printing its remaining text into the pane. Notifications now arrive complete and leave the terminal grid untouched.
+
+### macOS Menus
+
+- **Restored Menus and Shortcuts on macOS 15:** Restored missing Terminal and Tabs menus and View toggles on macOS 15, where duplicate system shortcuts could silently remove an entire menu. Shortcut glyphs display again, Command-1 through Command-9 select their tabs reliably, and Toggle Compose now uses its configured Command-Shift-K shortcut (#346).
+
 ## 1.0.11-139 - August 27, 2026
 
 ### Tabs
