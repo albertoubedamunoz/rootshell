@@ -133,6 +133,7 @@ struct PushPairingView: View {
     @Environment(\.dismiss) private var dismiss
     private let manager = PushRegistrationManager.shared
     @State private var label = ""
+    @State private var hasSeededLabel = false
     @State private var bundle: String?
     @State private var error: String?
     private static let installCommand = PushCommandSection.installCommand
@@ -143,10 +144,22 @@ struct PushPairingView: View {
                 pairedContent(bundle)
             } else {
                 Section {
-                    TextField("Computer name", text: $label)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .themedRow()
+                    HStack {
+                        TextField("Computer name", text: $label)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        if !label.isEmpty {
+                            Button {
+                                label = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Clear computer name")
+                        }
+                    }
+                    .themedRow()
                     if let error {
                         Text(error).font(.caption).foregroundColor(.red).themedRow()
                     }
@@ -167,6 +180,9 @@ struct PushPairingView: View {
         }
         .themedList()
         .navigationTitle("Pair a Computer")
+        .onAppear {
+            seedLabelFromFocusedConnection()
+        }
     }
 
     @ViewBuilder
@@ -189,6 +205,24 @@ struct PushPairingView: View {
 
     private func setupCommand(_ bundle: String) -> String {
         "\(Self.installCommand) -s -- --pair '\(bundle)'"
+    }
+
+    private func seedLabelFromFocusedConnection() {
+        guard !hasSeededLabel else { return }
+        hasSeededLabel = true
+        label = Self.focusedRemoteHost ?? ""
+    }
+
+    private static var focusedRemoteHost: String? {
+        guard let connectionInfo = PushCommandSection.focusedConnectionInfo else { return nil }
+        switch connectionInfo {
+        case .ssh(let info), .mosh(let info):
+            return info.host
+        case .trzsz(let info, _, _):
+            return info.host
+        case .local, .kubernetes, .console, .vnc:
+            return nil
+        }
     }
 
     private func create() async {
@@ -250,7 +284,24 @@ struct PushCommandSection: View {
         }
     }
 
+    private static var focusedTabsModel: TabsModel? {
+        let windows = TmuxWindowRegistry.allWindows()
+        if let activeSceneID = WindowFocusRegistry.shared.activeSceneSessionId(),
+           let activeWindow = windows.first(where: {
+               TerminalWindowRegistry.sceneSessionId(for: $0.windowId) == activeSceneID
+           }) {
+            return activeWindow.model
+        }
+        return windows.lazy.map(\.model).first(where: {
+            $0.selectedTab?.focusedTerminal != nil
+        }) ?? windows.first?.model
+    }
+
     static var focusedTerminal: Ghostty.TerminalView? {
-        TmuxWindowRegistry.allTabsModels().lazy.compactMap { $0.selectedTab?.focusedTerminal }.first
+        focusedTabsModel?.selectedTab?.focusedTerminal
+    }
+
+    static var focusedConnectionInfo: ConnectionInfo? {
+        focusedTabsModel?.selectedTab?.connectionInfo
     }
 }
