@@ -72,11 +72,6 @@ final class VectorTests: XCTestCase {
         XCTAssertFalse(PushAcceptancePolicy(deviceID: "dev_2").accepts(env))
         XCTAssertFalse(PushAcceptancePolicy(deviceID: "dev_1", revokedSenderIDs: ["snd_1"]).accepts(env))
         XCTAssertFalse(PushAcceptancePolicy(enabled: false, deviceID: "dev_1").accepts(env))
-        let blockedOnly = PushAcceptancePolicy(deviceID: "dev_1", agentPolicy: "blockedOnly")
-        XCTAssertTrue(blockedOnly.allowsAgentStatus("blocked"))
-        XCTAssertFalse(blockedOnly.allowsAgentStatus("done"))
-        XCTAssertTrue(PushAcceptancePolicy(deviceID: "dev_1", agentPolicy: "blockedAndDone").allowsAgentStatus("done"))
-        XCTAssertFalse(PushAcceptancePolicy(deviceID: "dev_1", agentPolicy: "off").allowsAgentStatus("blocked"))
     }
 
     func testClaimRejectsDuplicateEventIDs() {
@@ -90,6 +85,9 @@ final class VectorTests: XCTestCase {
         XCTAssertEqual(state.load().map(\.eid), ["e1", "e2"])
         state.release(eid: "e1")
         XCTAssertTrue(state.claim(record))
+        // A marker left by another process counts even without an events record.
+        FileManager.default.createFile(atPath: dir.appendingPathComponent("push-claims/e3").path, contents: nil)
+        XCTAssertFalse(state.claim(PushEventRecord(eid: "e3", status: nil, agent: nil, thread: nil, route: nil)))
         // No container at all: never suppresses.
         XCTAssertTrue(PushSharedState(container: nil).claim(record))
     }
@@ -100,7 +98,6 @@ final class VectorTests: XCTestCase {
         XCTAssertTrue(policy.enabled)
         XCTAssertEqual(policy.deviceID, "dev_1")
         XCTAssertEqual(policy.revokedSenderIDs, ["snd_9"])
-        XCTAssertEqual(policy.agentPolicy, "blockedOnly")
     }
 
     func testSwiftSealRoundTrip() throws {

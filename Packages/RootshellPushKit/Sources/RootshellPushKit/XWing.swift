@@ -81,6 +81,7 @@ public enum XWing {
 
 public enum PushCryptoError: Error, Equatable {
     case badKeySize
+    case noPrivateKey
     case badEncapsulation
     case kemFailure
     case randomFailure

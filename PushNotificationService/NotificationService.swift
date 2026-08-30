@@ -2,28 +2,25 @@
 //  NotificationService.swift
 //  PushNotificationService
 //
-//  Decrypts rootshell push envelopes before display. Falls back to a generic
-//  notification if anything fails within the extension's time budget.
+//  Decrypts rootshell push envelopes before display. Decryption happens
+//  before any best-effort work (dedupe, logo) so a time-budget expiry still
+//  delivers the real content; only a failed decrypt shows the generic
+//  fallback.
 //
 
 import RootshellPushKit
 import UserNotifications
 import os
 
-final class NotificationService: UNNotificationServiceExtension {
+// Callbacks arrive on a system queue, never the main thread.
+nonisolated final class NotificationService: UNNotificationServiceExtension {
     private static let logger = Logger(subsystem: "com.rootshell", category: "PushNSE")
-    private static let containingAppBundle: Bundle? = {
-        var candidate = Bundle.main.bundleURL.deletingLastPathComponent()
-        while candidate.pathExtension != "app" {
-            let parent = candidate.deletingLastPathComponent()
-            guard parent != candidate else { return nil }
-            candidate = parent
-        }
-        return Bundle(url: candidate)
-    }()
 
     private var contentHandler: ((UNNotificationContent) -> Void)?
     private var content: UNMutableNotificationContent?
+    /// Set once the decrypted header has been applied to `content`.
+    private var decrypted: UNMutableNotificationContent?
+    private var eid = "-"
 
     override func didReceive(_ request: UNNotificationRequest,
                              withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
@@ -32,20 +29,29 @@ final class NotificationService: UNNotificationServiceExtension {
         self.content = content
 
         guard let envelope = PushEnvelope(userInfo: request.content.userInfo) else {
+            Self.logger.error("envelope parse failed: no usable rs payload")
             finish(fallback(content))
             return
         }
+        eid = envelope.eid
         do {
             try decorate(content, envelope: envelope)
             finish(content)
         } catch {
-            Self.logger.error("push decrypt failed: \(String(describing: error), privacy: .public)")
+            Self.logger.error("push decrypt failed eid=\(self.eid, privacy: .public): \(String(describing: error), privacy: .public)")
             finish(fallback(content))
         }
     }
 
     override func serviceExtensionTimeWillExpire() {
-        if let content { finish(fallback(content)) }
+        if let decrypted {
+            Self.logger.error("expired eid=\(self.eid, privacy: .public): delivering decrypted content without attachments")
+            decrypted.attachments = []
+            finish(decrypted)
+        } else if let content {
+            Self.logger.error("expired eid=\(self.eid, privacy: .public): delivering fallback")
+            finish(fallback(content))
+        }
     }
 
     private func finish(_ content: UNNotificationContent) {
@@ -58,12 +64,16 @@ final class NotificationService: UNNotificationServiceExtension {
         content.title = "rootshell"
         content.body = String(localized: "Encrypted notification. Open rootshell to view.")
         content.categoryIdentifier = PushConfiguration.categoryIdentifier
+        var info = content.userInfo
+        info[PushConfiguration.fallbackUserInfoKey] = true
+        content.userInfo = info
         return content
     }
 
     /// The relay keeps no state, so revoked senders and stale registrations
     /// are filtered here. A rejected push is blanked; the app removes it.
-    private func silence(_ content: UNMutableNotificationContent) -> UNNotificationContent {
+    private func silence(_ content: UNMutableNotificationContent, reason: String) -> UNNotificationContent {
+        Self.logger.info("silenced eid=\(self.eid, privacy: .public): \(reason, privacy: .public)")
         content.title = ""
         content.subtitle = ""
         content.body = ""
@@ -78,16 +88,11 @@ final class NotificationService: UNNotificationServiceExtension {
         let shared = PushSharedState()
         let policy = shared.loadPolicy()
         guard policy.accepts(envelope) else {
-            finish(silence(content))
+            finish(silence(content, reason: "policy"))
             return
         }
-        let keychain = PushConfiguration.keychain
-        guard let key = try keychain.loadPrivateKey() else { throw PushCryptoError.badKeySize }
+        guard let key = try PushConfiguration.keychain.loadPrivateKey() else { throw PushCryptoError.noPrivateKey }
         let header = try envelope.open(with: key)
-        if header.kind == "agent", !policy.allowsAgentStatus(header.status) {
-            finish(silence(content))
-            return
-        }
 
         content.title = header.title
         content.body = header.body ?? ""
@@ -96,23 +101,24 @@ final class NotificationService: UNNotificationServiceExtension {
         content.categoryIdentifier = PushConfiguration.categoryIdentifier
         content.relevanceScore = header.status == "blocked" ? 1 : 0.5
         if header.status == "blocked" { content.interruptionLevel = .timeSensitive }
-        if header.kind == "agent",
-           let appBundle = Self.containingAppBundle,
-           let logo = PushAgentLogoAttachment.attachment(
-               for: header.agent,
-               assetBundle: appBundle
-           ) {
-            content.attachments = [logo]
-        }
-
         var info = content.userInfo
         info[PushConfiguration.headerUserInfoKey] = try header.userInfoDictionary()
         content.userInfo = info
+        decrypted = content
 
         // Relay retries and replays carry the same eid; only the first copy is shown.
         guard shared.claim(PushEventRecord(header: header, eid: envelope.eid)) else {
-            finish(silence(content))
+            decrypted = nil
+            finish(silence(content, reason: "duplicate"))
             return
+        }
+
+        if header.kind == "agent" {
+            if let logo = PushAgentLogoAttachment.attachment(for: header.agent) {
+                content.attachments = [logo]
+            } else if header.agent != nil {
+                Self.logger.info("logo skipped eid=\(self.eid, privacy: .public): agent \(header.agent ?? "-", privacy: .public)")
+            }
         }
     }
 }

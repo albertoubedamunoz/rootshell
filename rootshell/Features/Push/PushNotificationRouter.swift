@@ -84,12 +84,6 @@ enum PushNotificationRouter {
     /// Re-posts a raw push as a local notification carrying the decrypted content.
     private static func presentLocally(_ header: PushHeader, eid: String, sound: UNNotificationSound?) async {
         let shared = PushSharedState()
-        // Same policy the extension applies; background re-posts never reach willPresent.
-        if header.kind == "agent", !shared.loadPolicy().allowsAgentStatus(header.status) {
-            logger.info("suppressed: policy (background)")
-            await removeRawDelivered(eid: eid)
-            return
-        }
         let content = UNMutableNotificationContent()
         content.title = header.title
         content.body = header.body ?? ""
@@ -99,11 +93,7 @@ enum PushNotificationRouter {
         content.relevanceScore = header.status == "blocked" ? 1 : 0.5
         if header.status == "blocked" { content.interruptionLevel = .timeSensitive }
         content.sound = sound
-        if header.kind == "agent",
-           let logo = PushAgentLogoAttachment.attachment(
-               for: header.agent,
-               assetBundle: .main
-           ) {
+        if header.kind == "agent", let logo = PushAgentLogoAttachment.attachment(for: header.agent) {
             content.attachments = [logo]
         }
         if let dict = try? header.userInfoDictionary() {
@@ -237,22 +227,18 @@ enum PushNotificationRouter {
         let status = attentionStatus(header.status)
 
         if let resolved {
-            // Explicit `send`/`test` notifications always show; agent events follow the
-            // same viewed-pane and policy rules as screen-detected ones.
+            // Explicit `send`/`test` notifications always show; agent events are
+            // suppressed only when the pane is on screen or screen detection
+            // already fired. The Agent Notifications policy governs screen
+            // detection, not pushes.
             if header.kind == "agent" {
                 if isViewed(resolved) {
                     logger.info("suppressed: pane is being viewed")
                     return []
                 }
-                if let status {
-                    if AgentAttentionNotificationRouter.shouldSuppressExternal(pane: resolved.surfaceID, status: status) {
-                        logger.info("suppressed: screen detection already notified")
-                        return []
-                    }
-                    if !AgentNotificationPolicy.current.allows(status) {
-                        logger.info("suppressed: policy")
-                        return []
-                    }
+                if let status, AgentAttentionNotificationRouter.shouldSuppressExternal(pane: resolved.surfaceID, status: status) {
+                    logger.info("suppressed: screen detection already notified")
+                    return []
                 }
             }
             noteDelivered(identifier: notification.request.identifier, pane: resolved.surfaceID, status: status)
@@ -445,6 +431,8 @@ enum PushNotificationRouter {
 
         Task {
             let delivered = await UNUserNotificationCenter.current().deliveredNotifications()
+            let fallbacks = delivered.filter { $0.request.content.userInfo[PushConfiguration.fallbackUserInfoKey] != nil }.count
+            if fallbacks > 0 { logger.warning("extension fallbacks awaiting re-post: \(fallbacks, privacy: .public)") }
             for n in delivered where n.request.content.categoryIdentifier == PushConfiguration.categoryIdentifier {
                 if isRejected(n.request.content.userInfo) {
                     UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [n.request.identifier])

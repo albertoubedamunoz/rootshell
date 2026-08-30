@@ -81,7 +81,8 @@ public struct PushKeychain: Sendable {
         attrs[kSecAttrSynchronizable as String] = false
         let status = SecItemAdd(attrs as CFDictionary, nil)
         if status == errSecDuplicateItem {
-            let update: [String: Any] = [kSecValueData as String: data]
+            let update: [String: Any] = [kSecValueData as String: data,
+                                         kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
             let s = SecItemUpdate(query(item) as CFDictionary, update as CFDictionary)
             guard s == errSecSuccess else { throw KeychainError(s) }
             return
