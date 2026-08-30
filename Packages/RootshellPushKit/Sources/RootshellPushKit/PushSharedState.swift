@@ -32,9 +32,14 @@ public struct PushAcceptancePolicy: Codable, Sendable, Equatable {
     public var enabled: Bool
     public var deviceID: String?
     public var revokedSenderIDs: Set<String>
+    /// Whether hook notifications may include the bundled Claude/Codex artwork.
+    public var showsAgentLogos: Bool
 
-    public init(enabled: Bool = true, deviceID: String?, revokedSenderIDs: Set<String> = []) {
-        self.enabled = enabled; self.deviceID = deviceID; self.revokedSenderIDs = revokedSenderIDs
+    public init(enabled: Bool = true, deviceID: String?, revokedSenderIDs: Set<String> = [], showsAgentLogos: Bool = true) {
+        self.enabled = enabled
+        self.deviceID = deviceID
+        self.revokedSenderIDs = revokedSenderIDs
+        self.showsAgentLogos = showsAgentLogos
     }
 
     // Older policy files lack the newer keys; missing fields must not turn
@@ -44,6 +49,7 @@ public struct PushAcceptancePolicy: Codable, Sendable, Equatable {
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         deviceID = try c.decodeIfPresent(String.self, forKey: .deviceID)
         revokedSenderIDs = try c.decodeIfPresent(Set<String>.self, forKey: .revokedSenderIDs) ?? []
+        showsAgentLogos = try c.decodeIfPresent(Bool.self, forKey: .showsAgentLogos) ?? true
     }
 
     /// The extension cannot drop a notification, only blank it, so this is
