@@ -31965,7 +31965,158 @@
       }
     },
     "A name to recognise this computer by, e.g. the hostname." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اسم يميّز هذا الكمبيوتر، مثل اسم المضيف."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nom per reconèixer aquest ordinador, per exemple el nom de l'amfitrió."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Název, podle kterého tento počítač poznáte, například název hostitele."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Et navn, du kan genkende computeren på, f.eks. værtsnavnet."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Name, an dem du diesen Computer erkennst, z. B. der Hostname."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nombre para reconocer este ordenador, por ejemplo su nombre de host."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nimi, josta tunnistat tämän tietokoneen, esimerkiksi isäntänimi."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nom pour reconnaître cet ordinateur, par exemple son nom d'hôte."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שם שיעזור לזהות את המחשב הזה, למשל שם המארח."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Név, amelyről felismeri ezt a számítógépet, például a gazdagépnév."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nome per riconoscere questo computer, ad esempio l'hostname."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このコンピュータを識別するための名前です。ホスト名などを入力します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 컴퓨터를 알아볼 수 있는 이름입니다. 예를 들어 호스트명을 사용하십시오."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Et navn du kjenner igjen denne datamaskinen på, for eksempel vertsnavnet."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een naam waaraan je deze computer herkent, bijvoorbeeld de hostnaam."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nazwa pozwalająca rozpoznać ten komputer, np. nazwa hosta."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um nome para identificar este computador, como o nome do host."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um nome para reconhecer este computador, por exemplo o nome do anfitrião."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nume după care să recunoști acest computer, de exemplu numele gazdei."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ime, po katerem boste prepoznali ta računalnik, na primer ime gostitelja."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ett namn som du känner igen datorn på, till exempel värdnamnet."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назва, за якою ви впізнаєте цей компʼютер, наприклад імʼя хоста."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tên để nhận ra máy tính này, ví dụ như tên máy chủ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于识别这台电脑的名称，例如主机名。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用來辨識這部電腦的名稱，例如主機名稱。"
+          }
+        }
+      }
     },
     "A single key combo sent when you tap the button." : {
       "localizations" : {
@@ -52951,10 +53102,161 @@
       }
     },
     "Already installed?" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مثبّت بالفعل؟"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ja està instal·lat?"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Už je nainstalováno?"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allerede installeret?"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereits installiert?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Ya está instalado?"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onko jo asennettu?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déjà installé ?"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כבר מותקן?"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Már telepítve van?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Già installato?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インストール済みの場合"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이미 설치되어 있나요?"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allerede installert?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al geïnstalleerd?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Już zainstalowane?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Já está instalado?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Já está instalado?"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deja instalat?"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Že nameščeno?"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redan installerat?"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уже встановлено?"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã cài đặt rồi?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经安装过了？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已經安裝過了嗎？"
+          }
+        }
+      }
     },
     "Always" : {
-      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -75033,7 +75335,159 @@
       }
     },
     "Background blur → %@" : {
-      "comment" : "Migration preview"
+      "comment" : "Migration preview",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ضبابية الخلفية → %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenfocament de fons → %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozostření pozadí → %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baggrundssløring → %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hintergrundunschärfe → %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenfoque de fondo → %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taustan sumennus → %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flou d'arrière-plan → %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "טשטוש רקע → %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Háttér elmosás → %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sfocatura sfondo → %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景ぼかし → %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "배경 블러 → %@"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bakgrunnsuskarphet → %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Achtergrondvervaging → %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozmycie tła → %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desfoque de fundo → %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desfoque de fundo → %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estompare fundal → %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zameglitev ozadja → %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bakgrundsoskärpa → %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Розмиття тла → %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Làm mờ nền → %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景模糊 → %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景模糊 → %@"
+          }
+        }
+      }
     },
     "Background blur → %lld" : {
       "comment" : "Migration preview",
@@ -83231,7 +83685,158 @@
       }
     },
     "Blur Style" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نمط الضبابية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estil de desenfocament"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styl rozostření"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sløringsstil"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unschärfestil"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estilo de desenfoque"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sumennuksen tyyli"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style de flou"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סגנון טשטוש"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elmosás stílusa"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stile sfocatura"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ぼかしスタイル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "블러 스타일"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uskarphetsstil"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vervagingsstijl"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styl rozmycia"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estilo de Desfoque"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estilo de desfoque"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stil de estompare"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slog zameglitve"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oskärpestil"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стиль розмиття"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểu Làm Mờ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模糊样式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模糊樣式"
+          }
+        }
+      }
     },
     "Bold" : {
       "comment" : "Split border style: bold border",
@@ -102690,6 +103295,160 @@
         }
       }
     },
+    "Clear computer name" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مسح اسم الكمبيوتر"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esborra el nom de l'ordinador"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vymazat název počítače"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ryd computernavn"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computernamen löschen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar el nombre del ordenador"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tyhjennä tietokoneen nimi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer le nom de l'ordinateur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נקה את שם המחשב"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Számítógép nevének törlése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella il nome del computer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンピュータ名を消去"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컴퓨터 이름 지우기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tøm datamaskinnavn"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computernaam wissen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyczyść nazwę komputera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limpar nome do computador"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limpar nome do computador"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Șterge numele computerului"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Počisti ime računalnika"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radera datornamnet"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистити назву компʼютера"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xóa tên máy tính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除电脑名称"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除電腦名稱"
+          }
+        }
+      }
+    },
     "Clear Config" : {
       "localizations" : {
         "ar" : {
@@ -103461,7 +104220,158 @@
       }
     },
     "Clear Glass" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "زجاج شفاف"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidre transparent"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Čiré sklo"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klart glas"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klares Glas"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cristal transparente"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kirkas lasi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verre transparent"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "זכוכית שקופה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Átlátszó üveg"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vetro trasparente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリアガラス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클리어 글래스"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klart glass"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helder glas"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przezroczyste szkło"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidro Transparente"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidro transparente"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sticlă transparentă"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prozorno steklo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klarglas"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прозоре скло"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kính Trong Suốt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清透玻璃"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明玻璃"
+          }
+        }
+      }
     },
     "Clear History Now" : {
       "localizations" : {
@@ -109791,7 +110701,158 @@
       }
     },
     "Coding agents on your computers notify this device when they finish or need input, even while rootshell is in the background. Agent events follow the Agent Notifications policy and are not shown while you are viewing the pane. Messages are end-to-end encrypted with post-quantum cryptography; the relay stores nothing and never sees their contents." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ترسل وكلاء البرمجة الموجودة على أجهزة الكمبيوتر لديك إشعارًا إلى هذا الجهاز عند انتهائها من العمل أو عند حاجتها إلى مدخلات، حتى عندما يكون rootshell في الخلفية. تتبع أحداث الوكلاء سياسة إشعارات الوكلاء ولا تظهر أثناء عرضك للجزء. الرسائل مشفّرة تشفيرًا تامًا بين الطرفين باستخدام تشفير ما بعد الكم؛ ولا يخزّن خادم الترحيل أي شيء ولا يطّلع على محتواها أبدًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Els agents de programació dels teus ordinadors avisen aquest dispositiu quan acaben o necessiten una resposta, fins i tot amb el rootshell en segon pla. Els esdeveniments dels agents segueixen la política de Notificacions d'agents i no es mostren mentre estàs veient el plafó. Els missatges es xifren d'extrem a extrem amb criptografia postquàntica; el servidor de retransmissió no desa res i mai no en veu el contingut."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Programovací agenti na vašich počítačích upozorní toto zařízení, když dokončí práci nebo budou potřebovat váš vstup, a to i když je rootshell na pozadí. Události agentů se řídí nastavením Oznámení agentů a nezobrazují se ve chvíli, kdy se na daný panel právě díváte. Zprávy jsou end-to-end šifrované postkvantovou kryptografií; přenosový server nic neukládá a jejich obsah nikdy nevidí."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kodeagenter på dine computere giver denne enhed besked, når de er færdige eller har brug for input, også mens rootshell er i baggrunden. Agenthændelser følger politikken for Agentnotifikationer og vises ikke, mens du kigger på ruden. Beskeder er end-to-end-krypteret med postkvantekryptografi; relæet gemmer intet og ser aldrig deres indhold."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coding-Agents auf deinen Computern benachrichtigen dieses Gerät, wenn sie fertig sind oder eine Eingabe brauchen, auch wenn rootshell im Hintergrund läuft. Agent-Ereignisse folgen der Richtlinie „Agent-Benachrichtigungen“ und werden nicht angezeigt, während du den Bereich ansiehst. Nachrichten sind mit Post-Quanten-Kryptografie Ende-zu-Ende-verschlüsselt; das Relay speichert nichts und sieht ihre Inhalte nie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los agentes de programación de tus ordenadores avisan a este dispositivo cuando terminan o necesitan una respuesta, incluso mientras rootshell está en segundo plano. Los eventos de agente siguen la política «Notificaciones de agentes» y no se muestran mientras estás viendo el panel. Los mensajes se cifran de extremo a extremo con criptografía poscuántica; el relé no almacena nada ni ve nunca su contenido."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tietokoneillasi toimivat koodausagentit ilmoittavat tälle laitteelle, kun ne ovat valmiita tai tarvitsevat syötettä, myös silloin kun rootshell on taustalla. Agenttitapahtumat noudattavat Agenttien ilmoitukset -asetusta, eikä niitä näytetä, kun katselet kyseistä ruutua. Viestit salataan päästä päähän postkvanttisalauksella; välityspalvelin ei tallenna mitään eikä koskaan näe niiden sisältöä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les agents de codage sur vos ordinateurs préviennent cet appareil lorsqu'ils ont terminé ou attendent une réponse, même quand rootshell est en arrière-plan. Les événements d'agent suivent la règle « Notifications des agents » et ne s'affichent pas pendant que vous consultez le volet. Les messages sont chiffrés de bout en bout avec de la cryptographie post-quantique ; le relais ne conserve rien et ne voit jamais leur contenu."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סוכני קוד במחשבים שלך שולחים התראה למכשיר הזה כשהם מסיימים או זקוקים לקלט, גם כשהאפליקציה rootshell פועלת ברקע. אירועי סוכן פועלים לפי המדיניות של התראות סוכנים ואינם מוצגים בזמן שאתה צופה בחלונית. ההודעות מוצפנות מקצה לקצה בהצפנה פוסט-קוונטית; שרת התיווך אינו שומר דבר ולעולם אינו רואה את תוכנן."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A számítógépein futó kódolóügynökök értesítik ezt az eszközt, amikor végeznek vagy bevitelre várnak, akkor is, ha a rootshell a háttérben fut. Az ügynökesemények az Ügynökértesítések beállítást követik, és nem jelennek meg, amíg az adott panel látható. Az üzenetek végponttól végpontig titkosítva vannak poszt-kvantum kriptográfiával; a továbbítószerver semmit nem tárol, és soha nem látja a tartalmukat."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli agenti di programmazione sui tuoi computer avvisano questo dispositivo quando finiscono o attendono una risposta, anche mentre rootshell è in background. Gli eventi degli agenti seguono la regola «Notifiche agenti» e non vengono mostrati mentre stai guardando il riquadro. I messaggi sono cifrati end-to-end con crittografia post-quantistica; il relay non memorizza nulla e non vede mai il loro contenuto."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "お使いのコンピュータ上のコーディングエージェントが、処理を完了したときや入力が必要になったときに、rootshell がバックグラウンドにある場合でもこのデバイスに通知します。エージェントのイベントは「エージェント通知」の設定に従い、該当のペインを表示している間は通知されません。メッセージは耐量子暗号によりエンドツーエンドで暗号化され、リレーは内容を一切保存せず、閲覧することもありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컴퓨터에서 실행 중인 코딩 에이전트가 작업을 마치거나 입력이 필요할 때, rootshell이 백그라운드에 있어도 이 기기로 알려줍니다. 에이전트 이벤트는 에이전트 알림 정책을 따르며, 해당 패널을 보고 있는 동안에는 표시되지 않습니다. 메시지는 양자내성 암호로 종단 간 암호화되며, 릴레이는 아무것도 저장하지 않고 그 내용을 볼 수도 없습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kodeagenter på datamaskinene dine varsler denne enheten når de er ferdige eller trenger inndata, også mens rootshell kjører i bakgrunnen. Agenthendelser følger innstillingen Agentvarslinger og vises ikke mens du ser på ruten. Meldinger er ende-til-ende-kryptert med postkvantekryptografi, og reléet lagrer ingenting og ser aldri innholdet i dem."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Programmeeragents op je computers waarschuwen dit apparaat wanneer ze klaar zijn of invoer nodig hebben, ook als rootshell op de achtergrond draait. Agentgebeurtenissen volgen het beleid 'Agentmeldingen' en worden niet getoond terwijl je het deelvenster bekijkt. Berichten zijn end-to-end versleuteld met post-quantumcryptografie; de relay bewaart niets en ziet de inhoud nooit."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agenci programistyczni na Twoich komputerach powiadamiają to urządzenie, gdy zakończą pracę lub będą potrzebować danych wejściowych, nawet gdy rootshell działa w tle. Zdarzenia agentów podlegają zasadom ustawienia Powiadomienia agentów i nie są pokazywane, gdy patrzysz na dany panel. Wiadomości są szyfrowane od końca do końca z użyciem kryptografii postkwantowej; przekaźnik niczego nie przechowuje i nigdy nie widzi ich treści."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os agentes de programação nos seus computadores avisam este dispositivo quando terminam ou precisam de uma resposta, mesmo com o rootshell em segundo plano. Os eventos de agentes seguem a política de Notificações de Agentes e não aparecem enquanto você está com o painel à vista. As mensagens são criptografadas de ponta a ponta com criptografia pós-quântica; o servidor de retransmissão não armazena nada e nunca vê o conteúdo delas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os agentes de programação nos seus computadores avisam este dispositivo quando terminam ou precisam de resposta, mesmo com o rootshell em segundo plano. Os eventos dos agentes seguem a política de Notificações de Agentes e não são apresentados enquanto estiver a ver o painel. As mensagens são encriptadas ponto a ponto com criptografia pós-quântica; o servidor de retransmissão não guarda nada e nunca vê o respetivo conteúdo."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agenții de programare de pe computerele tale anunță acest dispozitiv când termină sau au nevoie de un răspuns, chiar și când rootshell rulează în fundal. Evenimentele agenților respectă politica Notificări agenți și nu sunt afișate cât timp vizualizezi panoul. Mesajele sunt criptate end-to-end cu criptografie post-cuantică; releul nu stochează nimic și nu vede niciodată conținutul lor."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agenti za programiranje v vaših računalnikih obvestijo to napravo, ko končajo ali potrebujejo vnos, tudi kadar je rootshell v ozadju. Dogodki agentov upoštevajo pravilo Obvestila agentov in niso prikazani, dokler gledate podokno. Sporočila so šifrirana od konca do konca s post-kvantno kriptografijo; posredovalni strežnik ne shranjuje ničesar in nikoli ne vidi njihove vsebine."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kodagenter på dina datorer aviserar den här enheten när de blir klara eller behöver svar, även när rootshell körs i bakgrunden. Agenthändelser följer inställningen Agentaviseringar och visas inte medan du tittar på panelen. Meddelanden är totalsträckskrypterade med postkvantkryptografi. Reläservern lagrar ingenting och ser aldrig innehållet."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Агенти для програмування на ваших компʼютерах сповіщають цей пристрій, коли завершують роботу або потребують відповіді, навіть коли rootshell працює у фоні. Події агентів підпорядковуються правилу «Сповіщення агентів» і не показуються, поки ви переглядаєте панель. Повідомлення шифруються наскрізно з постквантовою криптографією; ретрансляційний сервер нічого не зберігає й ніколи не бачить їхнього вмісту."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Các tác nhân lập trình trên máy tính của bạn sẽ thông báo cho thiết bị này khi chúng hoàn tất hoặc cần bạn nhập liệu, ngay cả khi rootshell đang chạy nền. Sự kiện của tác nhân tuân theo chính sách Thông báo tác nhân và không hiển thị khi bạn đang xem khung đó. Tin nhắn được mã hóa đầu cuối bằng mật mã hậu lượng tử; máy chủ chuyển tiếp không lưu trữ gì và không bao giờ thấy nội dung của chúng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即使 rootshell 在后台运行，你电脑上的编码代理也会在完成任务或需要输入时通知此设备。代理事件遵循“代理通知”的设置，在你正查看该窗格时不会显示。消息通过后量子密码技术进行端到端加密；中继不存储任何内容，也无法看到消息内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即使 rootshell 在背景執行，你電腦上的程式編寫代理也會在完成工作或需要輸入時通知這部裝置。代理事件會依照「代理通知」的設定，在你正在檢視該窗格時不會顯示。訊息會以後量子密碼學進行端對端加密；中繼不會儲存任何內容，也無法看到訊息內容。"
+          }
+        }
+      }
     },
     "Collapse" : {
       "comment" : "Toggle: collapse output",
@@ -114276,7 +115337,158 @@
       }
     },
     "Computer name" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اسم الكمبيوتر"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom de l'ordinador"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Název počítače"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computernavn"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computername"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre del ordenador"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tietokoneen nimi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom de l'ordinateur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שם המחשב"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Számítógép neve"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome del computer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンピュータ名"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컴퓨터 이름"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datamaskinnavn"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computernaam"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nazwa komputera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome do computador"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome do computador"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nume computer"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ime računalnika"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datornamn"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назва компʼютера"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tên máy tính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电脑名称"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電腦名稱"
+          }
+        }
+      }
     },
     "Conditions" : {
       "localizations" : {
@@ -128648,10 +129860,161 @@
       }
     },
     "Controls window transparency. Liquid Glass renders the desktop behind the window through a glass material tinted with the theme background." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتحكم في شفافية النافذة. تُظهر مادة Liquid Glass سطح المكتب خلف النافذة من خلال زجاج مُلوَّن بلون خلفية السمة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla la transparència de la finestra. El Liquid Glass mostra l'escriptori que hi ha darrere de la finestra a través d'un material de vidre tenyit amb el fons del tema."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Řídí průhlednost okna. Liquid Glass zobrazuje plochu za oknem přes skleněný materiál zabarvený pozadím motivu."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styrer vinduets gennemsigtighed. Liquid Glass viser skrivebordet bag vinduet gennem et glasmateriale, der er tonet med temaets baggrundsfarve."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steuert die Fenstertransparenz. Liquid Glass zeigt den Schreibtisch hinter dem Fenster durch ein Glasmaterial, das in der Hintergrundfarbe des Themes eingefärbt ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla la transparencia de la ventana. Liquid Glass muestra el escritorio que hay detrás de la ventana a través de un material de cristal teñido con el color de fondo del tema."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Määrittää ikkunan läpinäkyvyyden. Liquid Glass näyttää työpöydän ikkunan takana lasimateriaalin läpi, joka on sävytetty teeman taustavärillä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contrôle la transparence de la fenêtre. Liquid Glass affiche le bureau situé derrière la fenêtre à travers un matériau de verre teinté avec la couleur de fond du thème."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קובע את שקיפות החלון. החומר Liquid Glass מציג את שולחן העבודה שמאחורי החלון דרך זכוכית הצבועה בגוון של רקע ערכת הנושא."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az ablak átlátszóságát szabályozza. A Liquid Glass az ablak mögötti asztalt a téma háttérszínével árnyalt üveganyagon keresztül jeleníti meg."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlla la trasparenza della finestra. Liquid Glass mostra la scrivania dietro la finestra attraverso un materiale in vetro colorato con lo sfondo del tema."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ウィンドウの透過を制御します。リキッドグラスは、テーマの背景色で色付けされたガラス素材を通してウィンドウの背後のデスクトップを描画します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "윈도우 투명도를 조절합니다. 리퀴드 글래스는 테마 배경색이 입혀진 글래스 재질을 통해 윈도우 뒤의 데스크탑을 렌더링합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styrer gjennomsiktigheten til vinduet. Liquid Glass viser skrivebordet bak vinduet gjennom et glassmateriale som er tonet med bakgrunnen fra temaet."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bepaalt de transparantie van het venster. Liquid Glass toont het bureaublad achter het venster door een glasmateriaal met de achtergrondkleur van het thema."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steruje przezroczystością okna. Liquid Glass pokazuje biurko za oknem przez szklany materiał zabarwiony kolorem tła motywu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla a transparência da janela. O Liquid Glass exibe a mesa atrás da janela através de um material de vidro tingido com o fundo do tema."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla a transparência da janela. O Liquid Glass mostra a secretária por trás da janela através de um material de vidro tingido com o fundo do tema."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlează transparența ferestrei. Liquid Glass afișează biroul din spatele ferestrei printr-un material de sticlă colorat cu fundalul temei."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nadzoruje prosojnost okna. Material Liquid Glass upodobi namizje za oknom skozi steklo, obarvano z barvo ozadja teme."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styr fönstrets genomskinlighet. Liquid Glass visar skrivbordet bakom fönstret genom ett glasmaterial som tonas med temats bakgrund."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Керує прозорістю вікна. Liquid Glass показує робочий стіл за вікном крізь скляний матеріал, тонований кольором тла теми."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm soát độ trong suốt của cửa sổ. Liquid Glass hiển thị màn hình nền phía sau cửa sổ qua một lớp kính được nhuộm màu nền của giao diện."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制窗口的透明度。液态玻璃会透过以主题背景色着色的玻璃材质，渲染窗口后方的桌面。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制視窗的透明度。液態玻璃會透過以主題背景色染色的玻璃材質，算繪視窗後方的桌面。"
+          }
+        }
+      }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -135610,7 +136973,158 @@
       }
     },
     "Create Pairing" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إنشاء الاقتران"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea la vinculació"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vytvořit spárování"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opret parring"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopplung erstellen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear emparejamiento"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luo pariliitos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Créer le jumelage"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "צור התאמה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Párosítás létrehozása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea abbinamento"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペアリングを作成"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "페어링 생성"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opprett sammenkobling"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppeling aanmaken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utwórz parowanie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Criar Pareamento"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Criar emparelhamento"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creează asocierea"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustvari seznanitev"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skapa ihopparning"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Створити пару"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo Ghép Đôi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建配对"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建立配對"
+          }
+        }
+      }
     },
     "Create Profile" : {
       "localizations" : {
@@ -155986,7 +157500,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -174709,7 +176223,158 @@
       }
     },
     "Each computer holds its own credential. Revoking one makes this device ignore its notifications immediately; pairing a computer again under the same name replaces its credential." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لكل جهاز كمبيوتر بيانات اعتماد خاصة به. إبطالها يجعل هذا الجهاز يتجاهل إشعاراته فورًا؛ وإقران جهاز الكمبيوتر مرة أخرى بالاسم نفسه يستبدل بيانات اعتماده."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada ordinador té la seva pròpia credencial. Si en revoques una, aquest dispositiu ignorarà immediatament les notificacions d'aquell ordinador; tornar a vincular un ordinador amb el mateix nom en substitueix la credencial."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Každý počítač má vlastní přihlašovací údaje. Když je u některého počítače odvoláte, toto zařízení začne jeho oznámení okamžitě ignorovat. Opětovné spárování počítače pod stejným názvem jeho údaje nahradí."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hver computer har sine egne legitimationsoplysninger. Tilbagekalder du dem for én computer, ignorerer denne enhed straks dens notifikationer. Parrer du en computer igen under samme navn, erstattes dens legitimationsoplysninger."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder Computer hat seine eigenen Anmeldedaten. Wird ein Computer widerrufen, ignoriert dieses Gerät seine Benachrichtigungen sofort. Wird ein Computer erneut unter demselben Namen gekoppelt, werden seine Anmeldedaten ersetzt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada ordenador tiene sus propias credenciales. Al revocar uno, este dispositivo ignora sus notificaciones de inmediato; si vuelves a emparejar un ordenador con el mismo nombre, sus credenciales se sustituyen."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jokaisella tietokoneella on omat tunnistetietonsa. Kun mitätöit ne yhdeltä tietokoneelta, tämä laite ohittaa sen ilmoitukset välittömästi. Jos muodostat tietokoneeseen pariliitoksen uudelleen samalla nimellä, sen tunnistetiedot korvataan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaque ordinateur possède ses propres identifiants. Si vous en révoquez un, cet appareil ignore immédiatement ses notifications ; si vous jumelez à nouveau un ordinateur sous le même nom, ses identifiants sont remplacés."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לכל מחשב יש אישור משלו. ביטול אישור גורם למכשיר הזה להתעלם מיד מההתראות שלו; התאמה מחדש של מחשב באותו שם מחליפה את האישור שלו."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minden számítógép saját hitelesítő adatot tárol. Ha visszavon egyet, ez az eszköz azonnal figyelmen kívül hagyja az adott gép értesítéseit; ha ugyanazzal a névvel újra párosít egy számítógépet, annak hitelesítő adata lecserélődik."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ogni computer ha le proprie credenziali. Se ne revochi uno, questo dispositivo ignora subito le sue notifiche; se abbini di nuovo un computer con lo stesso nome, le sue credenziali vengono sostituite."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンピュータごとに個別の認証情報が保持されます。取り消すと、このデバイスはそのコンピュータからの通知を直ちに無視します。同じ名前で再度ペアリングすると、そのコンピュータの認証情報は置き換えられます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컴퓨터마다 고유한 자격 증명을 가집니다. 하나를 폐기하면 이 기기는 해당 컴퓨터의 알림을 즉시 무시합니다. 같은 이름으로 컴퓨터를 다시 페어링하면 기존 자격 증명이 대체됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hver datamaskin har sin egen påloggingsinformasjon. Når du opphever den for én datamaskin, ignorerer denne enheten varslingene dens umiddelbart. Kobler du sammen en datamaskin på nytt med samme navn, erstattes påloggingsinformasjonen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elke computer heeft zijn eigen inloggegevens. Als je er een intrekt, negeert dit apparaat de meldingen ervan direct; koppel je een computer opnieuw onder dezelfde naam, dan worden de inloggegevens vervangen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Każdy komputer ma własne poświadczenie. Unieważnienie go sprawia, że to urządzenie natychmiast ignoruje powiadomienia z danego komputera; ponowne sparowanie komputera pod tą samą nazwą zastępuje jego poświadczenie."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada computador tem sua própria credencial. Ao revogar uma, este dispositivo passa a ignorar imediatamente as notificações desse computador; parear um computador novamente com o mesmo nome substitui a credencial dele."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada computador tem a sua própria credencial. Ao revogar uma, este dispositivo ignora de imediato as notificações desse computador; voltar a emparelhar um computador com o mesmo nome substitui a respetiva credencial."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fiecare computer are propria credențială. Dacă revoci una, acest dispozitiv ignoră imediat notificările computerului respectiv; asocierea din nou a unui computer cu același nume îi înlocuiește credențiala."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vsak računalnik ima svoje poverilnice. Če jih odvzamete, bo ta naprava takoj prezrla njegova obvestila; če računalnik znova seznanite pod istim imenom, se njegove poverilnice zamenjajo."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Varje dator har egna inloggningsuppgifter. Om du återkallar dem ignorerar den här enheten datorns aviseringar omedelbart. Om du parar ihop en dator igen med samma namn ersätts dess uppgifter."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кожен компʼютер має власні облікові дані. Якщо відкликати їх, цей пристрій одразу ігноруватиме його сповіщення; повторне створення пари з компʼютером під тією ж назвою замінює його облікові дані."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mỗi máy tính giữ thông tin xác thực riêng. Khi bạn thu hồi một máy, thiết bị này sẽ bỏ qua thông báo của máy đó ngay lập tức; ghép đôi lại một máy tính với cùng tên sẽ thay thế thông tin xác thực của máy đó."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每台电脑各自持有一份凭据。撤销后，此设备会立即忽略该电脑的通知；以相同名称再次配对某台电脑，会替换其凭据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每部電腦各自持有一份憑證。撤銷後，這部裝置會立即忽略該電腦的通知；以相同名稱再次配對某部電腦時，會取代其憑證。"
+          }
+        }
+      }
     },
     "Each press of the ••• button reveals one more drawer row; when all are open, the next press closes them. \"Open Drawer by Default\" opens the first row when the keyboard appears." : {
       "localizations" : {
@@ -184901,7 +186566,158 @@
       }
     },
     "Encrypted notification. Open rootshell to view." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إشعار مشفّر. افتح rootshell لعرضه."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificació xifrada. Obre el rootshell per veure-la."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Šifrované oznámení. Zobrazte ho otevřením aplikace rootshell."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krypteret notifikation. Åbn rootshell for at se den."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verschlüsselte Benachrichtigung. Zum Ansehen rootshell öffnen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificación cifrada. Abre rootshell para verla."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salattu ilmoitus. Katso se avaamalla rootshell."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notification chiffrée. Ouvrez rootshell pour la consulter."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התראה מוצפנת. פתח את rootshell כדי לצפות בה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titkosított értesítés. A megtekintéshez nyissa meg a rootshell alkalmazást."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifica cifrata. Apri rootshell per leggerla."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暗号化された通知です。表示するには rootshell を開いてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "암호화된 알림입니다. 확인하려면 rootshell을 여십시오."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kryptert varsling. Åpne rootshell for å se den."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versleutelde melding. Open rootshell om te lezen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaszyfrowane powiadomienie. Otwórz rootshell, aby je wyświetlić."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificação criptografada. Abra o rootshell para ver."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificação encriptada. Abra o rootshell para a ver."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificare criptată. Deschide rootshell pentru a o vedea."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Šifrirano obvestilo. Odprite rootshell za ogled."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krypterad avisering. Öppna rootshell för att visa den."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зашифроване сповіщення. Відкрийте rootshell, щоб переглянути."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thông báo đã mã hóa. Mở rootshell để xem."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加密通知。请打开 rootshell 查看。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加密的通知。請打開 rootshell 來檢視。"
+          }
+        }
+      }
     },
     "Encrypted on this device, never synced" : {
       "localizations" : {
@@ -225066,7 +226882,158 @@
       }
     },
     "Glass" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "زجاج"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidre"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sklo"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glas"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glas"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cristal"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lasi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verre"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "זכוכית"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Üveg"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vetro"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ガラス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글래스"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glass"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glas"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szkło"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidro"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidro"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sticlă"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steklo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glas"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скло"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "玻璃"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "玻璃"
+          }
+        }
+      }
     },
     "Glass Tap" : {
       "comment" : "Bell sound: glass clink",
@@ -241887,7 +243854,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -256568,7 +258535,158 @@
       }
     },
     "Install or Upgrade the Hook Client" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تثبيت عميل الخطاف أو ترقيته"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instal·lar o actualitzar el client del hook"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalace nebo aktualizace klienta hooků"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer eller opgrader hook-klienten"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hook-Client installieren oder aktualisieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalar o actualizar el cliente de hooks"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asenna tai päivitä hook-asiakasohjelma"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer ou mettre à jour le client de hook"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התקנה או שדרוג של לקוח ה-hook"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A hookkliens telepítése vagy frissítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installa o aggiorna il client hook"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フッククライアントをインストール/アップグレード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "훅 클라이언트 설치 또는 업그레이드"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer eller oppgrader hook-klienten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hookclient installeren of bijwerken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zainstaluj lub zaktualizuj klienta hooków"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalar ou Atualizar o Cliente do Hook"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalar ou atualizar o cliente do hook"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalează sau actualizează clientul hook"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Namestitev ali nadgradnja odjemalca hookov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installera eller uppdatera hook-klienten"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Встановлення або оновлення клієнта хуків"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cài Đặt hoặc Nâng Cấp Ứng Dụng Hook"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安装或升级钩子客户端"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安裝或升級掛鉤用戶端"
+          }
+        }
+      }
     },
     "Install specific key" : {
       "comment" : "ssh-copy-id help: specific key example",
@@ -257035,7 +259153,158 @@
       }
     },
     "Installs rootshell-notify if needed, pairs it with this device, and adds the hook for Claude Code and Codex if they are set up there. Typing pastes the command into the focused pane without running it; review and press Return." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يثبّت rootshell-notify عند الحاجة، ويقرنه بهذا الجهاز، ويضيف خطاف Claude Code و Codex إذا كانا مُعدَّين هناك. تعمل الكتابة على لصق الأمر في الجزء النشط دون تشغيله؛ راجعه ثم اضغط على Return."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instal·la el rootshell-notify si cal, el vincula amb aquest dispositiu i afegeix el hook per al Claude Code i el Codex si hi estan configurats. En escriure-la, l'ordre s'enganxa al plafó actiu sense executar-se; revisa-la i prem Retorn."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V případě potřeby nainstaluje rootshell-notify, spáruje ho s tímto zařízením a přidá hook pro Claude Code a Codex, pokud jsou na daném počítači nastavené. Napsání vloží příkaz do aktivního panelu, aniž by ho spustilo; zkontrolujte ho a stiskněte Return."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerer rootshell-notify, hvis det er nødvendigt, parrer den med denne enhed og tilføjer hooket til Claude Code og Codex, hvis de er sat op der. Skrivning indsætter kommandoen i den aktive rude uden at køre den; gennemgå den, og tryk på Retur."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installiert rootshell-notify bei Bedarf, koppelt es mit diesem Gerät und fügt den Hook für Claude Code und Codex hinzu, sofern sie dort eingerichtet sind. Beim Tippen wird der Befehl in den aktiven Bereich eingefügt, ohne ihn auszuführen; prüfe ihn und drücke Return."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala rootshell-notify si hace falta, lo empareja con este dispositivo y añade el hook para Claude Code y Codex si están configurados ahí. Al escribir, el comando se pega en el panel activo sin ejecutarse; revísalo y pulsa Retorno."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asentaa rootshell-notifyn tarvittaessa, muodostaa pariliitoksen tähän laitteeseen ja lisää hookin Claude Codelle ja Codexille, jos ne on määritetty kyseisellä tietokoneella. Kirjoittaminen liittää komennon aktiiviseen ruutuun suorittamatta sitä; tarkista se ja paina Return-näppäintä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installe rootshell-notify si nécessaire, le jumelle avec cet appareil et ajoute le hook pour Claude Code et Codex s'ils y sont configurés. La saisie colle la commande dans le volet actif sans l'exécuter ; vérifiez-la, puis appuyez sur Retour."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מתקין את rootshell-notify במידת הצורך, מתאים אותו למכשיר הזה ומוסיף את ה-hook עבור Claude Code ו-Codex אם הם מוגדרים שם. הקלדה מדביקה את הפקודה בחלונית הפעילה בלי להריץ אותה; בדוק אותה ולחץ על Return."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szükség esetén telepíti a rootshell-notify programot, párosítja ezzel az eszközzel, és hozzáadja a hookot a Claude Code-hoz és a Codexhez, ha be vannak állítva a gépen. A begépelés futtatás nélkül illeszti be a parancsot az aktív panelbe; ellenőrizze, majd nyomja meg a Return billentyűt."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installa rootshell-notify se necessario, lo abbina a questo dispositivo e aggiunge l'hook per Claude Code e Codex se sono configurati lì. La digitazione incolla il comando nel riquadro attivo senza eseguirlo; controllalo e premi Invio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "必要に応じて rootshell-notify をインストールし、このデバイスとペアリングして、そのコンピュータで Claude Code と Codex が設定されていればフックを追加します。「現在のターミナルに入力」を使うと、コマンドは実行されずにフォーカス中のペインにペーストされます。内容を確認してから Return キーを押してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필요한 경우 rootshell-notify를 설치하고 이 기기와 페어링하며, 해당 컴퓨터에 Claude Code와 Codex가 설정되어 있으면 훅을 추가합니다. “현재 터미널에 입력”을 사용하면 명령이 실행되지 않고 포커스된 패널에 붙여넣어집니다. 내용을 확인한 후 Return 키를 누르십시오."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerer rootshell-notify ved behov, kobler den sammen med denne enheten og legger til hooken for Claude Code og Codex hvis de er satt opp der. Skriving limer kommandoen inn i den aktive ruten uten å kjøre den. Se den over, og trykk på Retur."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installeert rootshell-notify indien nodig, koppelt het aan dit apparaat en voegt de hook voor Claude Code en Codex toe als die daar zijn ingesteld. Bij typen wordt de opdracht in het actieve deelvenster geplakt zonder te worden uitgevoerd; controleer hem en druk op Return."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instaluje rootshell-notify, jeśli to konieczne, paruje go z tym urządzeniem i dodaje hooka dla Claude Code oraz Codex, jeśli są tam skonfigurowane. Wpisanie wkleja polecenie do aktywnego panelu bez uruchamiania go; sprawdź je i naciśnij Return."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala o rootshell-notify se necessário, pareia-o com este dispositivo e adiciona o hook do Claude Code e do Codex, caso estejam configurados lá. Digitar cola o comando no painel ativo sem executá-lo; revise e pressione Return."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala o rootshell-notify se necessário, emparelha-o com este dispositivo e adiciona o hook do Claude Code e do Codex, caso estejam configurados aí. Ao escrever, o comando é colado no painel ativo sem ser executado; reveja-o e prima Return."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalează rootshell-notify dacă e nevoie, îl asociază cu acest dispozitiv și adaugă hook-ul pentru Claude Code și Codex, dacă sunt configurate acolo. Tastarea lipește comanda în panoul activ fără a o rula; verifică-o și apasă Return."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po potrebi namesti rootshell-notify, ga seznani s to napravo in doda hook za Claude Code in Codex, če sta tam nastavljena. Vnos prilepi ukaz v aktivno podokno, ne da bi ga zagnal; preglejte ga in pritisnite Return."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerar rootshell-notify vid behov, parar ihop den med den här enheten och lägger till hooken för Claude Code och Codex om de är konfigurerade där. Skriv in-knappen klistrar in kommandot i den aktiva panelen utan att köra det. Granska det och tryck på Retur."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Встановлює rootshell-notify за потреби, створює пару з цим пристроєм і додає хук для Claude Code та Codex, якщо їх там налаштовано. Введення вставляє команду в активну панель, не виконуючи її; перевірте її та натисніть Return."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cài đặt rootshell-notify nếu cần, ghép đôi với thiết bị này và thêm hook cho Claude Code và Codex nếu chúng đã được thiết lập trên máy đó. Khi bạn dùng “Nhập Vào Terminal Hiện Tại”, lệnh chỉ được dán vào khung đang chọn mà không chạy; hãy kiểm tra rồi nhấn Return."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如有需要会安装 rootshell-notify，将其与此设备配对，并在该电脑已设置 Claude Code 和 Codex 时为其添加钩子。使用“输入到当前终端”只会将命令粘贴到聚焦的窗格中而不运行；请检查后按下 Return 键。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "會視需要安裝 rootshell-notify，將其與這部裝置配對，並在該電腦已設定 Claude Code 和 Codex 時加入掛鉤。使用「輸入至目前終端機」只會將指令貼到焦點所在的窗格，而不會執行；請檢查後按下 Return 鍵。"
+          }
+        }
+      }
     },
     "Instance '%@' is offline" : {
       "comment" : "Cloud console error",
@@ -336378,7 +338647,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -344728,7 +346997,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -345192,7 +347461,7 @@
       }
     },
     "On" : {
-      "comment" : "Toggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Settings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -357999,16 +360268,620 @@
       }
     },
     "Pair a Computer" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إقران جهاز كمبيوتر"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vincular un ordinador"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spárování počítače"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par en computer"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computer koppeln"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emparejar un ordenador"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pariliitos tietokoneeseen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jumeler un ordinateur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התאמת מחשב"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Számítógép párosítása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbina un computer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンピュータをペアリング"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컴퓨터 페어링"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koble sammen en datamaskin"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computer koppelen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parowanie komputera"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parear um Computador"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emparelhar um computador"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asociază un computer"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seznanitev računalnika"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para ihop en dator"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Створення пари з компʼютером"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghép Đôi Máy Tính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对电脑"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配對電腦"
+          }
+        }
+      }
     },
     "Pair a Computer…" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إقران جهاز كمبيوتر…"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vincular un ordinador…"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spárovat počítač…"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par en computer…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computer koppeln…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emparejar un ordenador…"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muodosta pariliitos tietokoneeseen…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jumeler un ordinateur…"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התאמת מחשב…"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Számítógép párosítása…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbina un computer…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンピュータをペアリング…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컴퓨터 페어링…"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koble sammen en datamaskin…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computer koppelen…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sparuj komputer…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parear um Computador…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emparelhar um computador…"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asociază un computer…"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seznani računalnik…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para ihop en dator…"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Створити пару з компʼютером…"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghép Đôi Máy Tính…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对电脑…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配對電腦…"
+          }
+        }
+      }
     },
     "Paired %@" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم الاقتران في %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vinculat el %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spárováno %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parret %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekoppelt: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emparejado: %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pariliitetty %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jumelé : %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הותאם %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Párosítva: %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbinato: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ にペアリング済み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에 페어링됨"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sammenkoblet %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekoppeld: %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sparowano %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pareado em %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emparelhado em %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asociat pe %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seznanjen %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihopparad %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Створено пару %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã ghép đôi vào %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已于 %@ 配对"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已於 %@ 配對"
+          }
+        }
+      }
     },
     "Paired Computers" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أجهزة الكمبيوتر المقترنة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordinadors vinculats"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spárované počítače"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parrede computere"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekoppelte Computer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordenadores emparejados"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pariliitetyt tietokoneet"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordinateurs jumelés"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מחשבים מותאמים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Párosított számítógépek"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computer abbinati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペアリング済みのコンピュータ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "페어링된 컴퓨터"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sammenkoblede datamaskiner"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekoppelde computers"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sparowane komputery"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computadores Pareados"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computadores emparelhados"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computere asociate"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seznanjeni računalniki"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihopparade datorer"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Компʼютери в парі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máy Tính Đã Ghép Đôi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已配对的电脑"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已配對的電腦"
+          }
+        }
+      }
     },
     "Palette" : {
       "comment" : "Migration category",
@@ -383635,7 +386508,158 @@
       }
     },
     "Push Notifications" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الإشعارات الفورية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificacions push"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push oznámení"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-notifikationer"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-Benachrichtigungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificaciones push"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-ilmoitukset"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications push"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התראות דחיפה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-értesítések"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifiche push"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プッシュ通知"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "푸시 알림"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-varslinger"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pushmeldingen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadomienia push"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificações Push"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificações Push"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificări push"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potisna obvestila"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-aviseringar"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-сповіщення"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thông Báo Đẩy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推送通知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推播通知"
+          }
+        }
+      }
     },
     "Pushes terminal content above standard brightness using your display's HDR (EDR) headroom. Also available as a floating slider via a keybind or the keyboard toolbar." : {
       "localizations" : {
@@ -388272,7 +391296,158 @@
       }
     },
     "Re-pair required: this device was re-registered" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يلزم إعادة الاقتران: تمت إعادة تسجيل هذا الجهاز"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cal tornar a vincular: aquest dispositiu s'ha tornat a registrar"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je potřeba spárovat znovu: toto zařízení bylo znovu zaregistrováno"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parringen skal fornys: denne enhed blev registreret på ny"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneutes Koppeln erforderlich: Dieses Gerät wurde neu registriert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay que volver a emparejar: este dispositivo se registró de nuevo"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pariliitos on muodostettava uudelleen: tämä laite rekisteröitiin uudelleen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau jumelage requis : cet appareil a été réenregistré"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נדרשת התאמה מחדש: המכשיר הזה נרשם מחדש"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Újrapárosítás szükséges: az eszközt újraregisztrálták"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve un nuovo abbinamento: questo dispositivo è stato registrato di nuovo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再ペアリングが必要です: このデバイスは再登録されました"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 페어링해야 함: 이 기기가 재등록되었습니다"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Må kobles sammen på nytt: denne enheten ble registrert på nytt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opnieuw koppelen vereist: dit apparaat is opnieuw geregistreerd"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wymagane ponowne sparowanie: to urządzenie zostało zarejestrowane ponownie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "É preciso parear de novo: este dispositivo foi registrado novamente"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "É necessário voltar a emparelhar: este dispositivo foi registado de novo"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este necesară o nouă asociere: dispozitivul a fost reînregistrat"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potrebna je ponovna seznanitev: ta naprava je bila znova registrirana"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Måste paras ihop igen: enheten har omregistrerats"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потрібно створити пару знову: цей пристрій перереєстровано"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cần ghép đôi lại: thiết bị này đã được đăng ký lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要重新配对：此设备已重新注册"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要重新配對：這部裝置已重新註冊"
+          }
+        }
+      }
     },
     "Re-select File" : {
       "localizations" : {
@@ -397073,7 +400248,158 @@
       }
     },
     "Registered" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم التسجيل"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrat"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaregistrováno"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registreret"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registriert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrado"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rekisteröity"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistré"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רשום"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regisztrálva"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登録済み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "등록됨"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrert"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geregistreerd"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zarejestrowano"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrado"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registado"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Înregistrat"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrirano"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrerad"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зареєстровано"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã đăng ký"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已注册"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已註冊"
+          }
+        }
+      }
     },
     "Registered custom theme" : {
       "localizations" : {
@@ -397384,10 +400710,312 @@
       }
     },
     "Registering with push.rootshell.com…" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ التسجيل في push.rootshell.com…"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'està registrant a push.rootshell.com…"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrace u push.rootshell.com…"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrerer hos push.rootshell.com…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrierung bei push.rootshell.com…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrando en push.rootshell.com…"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rekisteröidään palveluun push.rootshell.com…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrement auprès de push.rootshell.com…"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מתבצע רישום בשרת push.rootshell.com…"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regisztráció a push.rootshell.com kiszolgálónál…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrazione su push.rootshell.com…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "push.rootshell.com に登録中…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "push.rootshell.com에 등록 중…"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrerer hos push.rootshell.com…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registreren bij push.rootshell.com…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejestrowanie w push.rootshell.com…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrando em push.rootshell.com…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A registar em push.rootshell.com…"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se înregistrează la push.rootshell.com…"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registriranje pri push.rootshell.com…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrerar hos push.rootshell.com…"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Реєстрація на push.rootshell.com…"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang đăng ký với push.rootshell.com…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在向 push.rootshell.com 注册…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在向 push.rootshell.com 註冊…"
+          }
+        }
+      }
     },
     "Registration failed: %@" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فشل التسجيل: %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ha fallat el registre: %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrace se nezdařila: %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrering mislykkedes: %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrierung fehlgeschlagen: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error de registro: %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rekisteröinti epäonnistui: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec de l'enregistrement : %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הרישום נכשל: %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A regisztráció sikertelen: %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrazione non riuscita: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登録に失敗しました: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "등록 실패: %@"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registreringen mislyktes: %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registratie mislukt: %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejestracja nie powiodła się: %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falha no registro: %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falha no registo: %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Înregistrarea a eșuat: %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registracija ni uspela: %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registreringen misslyckades: %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалося зареєструвати: %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đăng ký thất bại: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注册失败：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "註冊失敗：%@"
+          }
+        }
+      }
     },
     "Reject" : {
       "localizations" : {
@@ -416405,10 +420033,312 @@
       }
     },
     "Revoke" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إبطال"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoca"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odvolat"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilbagekald"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widerrufen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revocar"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitätöi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Révoquer"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "בטל אישור"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visszavonás"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoca"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取り消す"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폐기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opphev"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intrekken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unieważnij"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revogar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revogar"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revocă"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odvzemi"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Återkalla"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкликати"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thu hồi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤銷"
+          }
+        }
+      }
     },
     "Revoke this computer?" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هل تريد إبطال بيانات اعتماد هذا الكمبيوتر؟"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vols revocar aquest ordinador?"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odvolat tento počítač?"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilbagekald denne computer?"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Computer widerrufen?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Revocar este ordenador?"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitätöidäänkö tämä tietokone?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Révoquer cet ordinateur ?"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לבטל את האישור של המחשב הזה?"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visszavonja ezt a számítógépet?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revocare questo computer?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このコンピュータを取り消しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 컴퓨터의 페어링을 폐기하시겠습니까?"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oppheve denne datamaskinen?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze computer intrekken?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unieważnić ten komputer?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revogar este computador?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revogar este computador?"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vrei să revoci acest computer?"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ali želite odvzeti dostop temu računalniku?"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Återkalla den här datorn?"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкликати цей компʼютер?"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thu hồi máy tính này?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要撤销此电脑吗？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要撤銷這部電腦嗎？"
+          }
+        }
+      }
     },
     "Right" : {
       "localizations" : {
@@ -421661,10 +425591,312 @@
       }
     },
     "Run on an already-paired computer to update rootshell-notify and refresh its agent hooks. Existing pairings are kept. Where it is already installed, `rootshell-notify upgrade` does the same." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شغّله على جهاز كمبيوتر مقترن بالفعل لتحديث rootshell-notify وتحديث خطافات الوكلاء الخاصة به. تبقى عمليات الاقتران الحالية كما هي. وحيثما يكون مثبّتًا بالفعل، يؤدي `rootshell-notify upgrade` الغرض نفسه."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executa-ho en un ordinador ja vinculat per actualitzar el rootshell-notify i renovar-ne els hooks d'agent. Les vinculacions existents es conserven. Allà on ja estigui instal·lat, `rootshell-notify upgrade` fa el mateix."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spusťte na již spárovaném počítači, chcete-li aktualizovat rootshell-notify a obnovit jeho agentní hooky. Stávající spárování zůstanou zachována. Tam, kde je už nainstalován, udělá totéž `rootshell-notify upgrade`."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kør på en computer, der allerede er parret, for at opdatere rootshell-notify og forny dens agent-hooks. Eksisterende parringer bevares. Hvor den allerede er installeret, gør `rootshell-notify upgrade` det samme."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf einem bereits gekoppelten Computer ausführen, um rootshell-notify zu aktualisieren und seine Agent-Hooks zu erneuern. Bestehende Kopplungen bleiben erhalten. Wo es bereits installiert ist, bewirkt `rootshell-notify upgrade` dasselbe."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ejecútalo en un ordenador ya emparejado para actualizar rootshell-notify y renovar sus hooks de agente. Los emparejamientos existentes se mantienen. Donde ya esté instalado, `rootshell-notify upgrade` hace lo mismo."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suorita tietokoneella, johon on jo muodostettu pariliitos, kun haluat päivittää rootshell-notifyn ja uusia sen agenttihookit. Aiemmat pariliitokset säilyvät. Jos se on jo asennettu, `rootshell-notify upgrade` tekee saman."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À exécuter sur un ordinateur déjà jumelé pour mettre à jour rootshell-notify et actualiser ses hooks d'agent. Les jumelages existants sont conservés. Là où il est déjà installé, `rootshell-notify upgrade` fait la même chose."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הרץ במחשב שכבר הותאם כדי לעדכן את rootshell-notify ולרענן את ה-hooks של הסוכנים. ההתאמות הקיימות נשמרות. במקומות שבהם הוא כבר מותקן, `rootshell-notify upgrade` עושה את אותו הדבר."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Futtassa egy már párosított számítógépen a rootshell-notify frissítéséhez és az ügynökhookok megújításához. A meglévő párosítások megmaradnak. Ahol már telepítve van, a `rootshell-notify upgrade` ugyanezt teszi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da eseguire su un computer già abbinato per aggiornare rootshell-notify e rinnovare i suoi hook per gli agenti. Gli abbinamenti esistenti vengono mantenuti. Dove è già installato, `rootshell-notify upgrade` fa lo stesso."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すでにペアリング済みのコンピュータで実行すると、rootshell-notify がアップデートされ、エージェントフックが更新されます。既存のペアリングはそのまま維持されます。インストール済みの環境では、`rootshell-notify upgrade` でも同じことができます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이미 페어링된 컴퓨터에서 실행하면 rootshell-notify가 업데이트되고 에이전트 훅이 새로 고쳐집니다. 기존 페어링은 그대로 유지됩니다. 이미 설치된 컴퓨터에서는 `rootshell-notify upgrade`로도 동일하게 처리됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kjør på en datamaskin som allerede er sammenkoblet, for å oppdatere rootshell-notify og fornye agenthookene. Eksisterende sammenkoblinger beholdes. Der den allerede er installert, gjør `rootshell-notify upgrade` det samme."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voer dit uit op een al gekoppelde computer om rootshell-notify bij te werken en de agenthooks te vernieuwen. Bestaande koppelingen blijven behouden. Waar het al is geïnstalleerd, doet `rootshell-notify upgrade` hetzelfde."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uruchom na już sparowanym komputerze, aby zaktualizować rootshell-notify i odświeżyć jego hooki agentów. Istniejące parowania zostają zachowane. Tam, gdzie jest już zainstalowany, `rootshell-notify upgrade` robi to samo."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Execute em um computador já pareado para atualizar o rootshell-notify e renovar os hooks de agente. Os pareamentos existentes são mantidos. Onde ele já estiver instalado, `rootshell-notify upgrade` faz o mesmo."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Execute num computador já emparelhado para atualizar o rootshell-notify e renovar os respetivos hooks de agente. Os emparelhamentos existentes são mantidos. Onde já estiver instalado, `rootshell-notify upgrade` faz o mesmo."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rulează pe un computer deja asociat pentru a actualiza rootshell-notify și a reîmprospăta hook-urile de agent. Asocierile existente sunt păstrate. Acolo unde este deja instalat, `rootshell-notify upgrade` face același lucru."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaženite na že seznanjenem računalniku, da posodobite rootshell-notify in osvežite njegove hooke za agente. Obstoječe seznanitve se ohranijo. Kjer je že nameščen, isto naredi `rootshell-notify upgrade`."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kör på en redan ihopparad dator för att uppdatera rootshell-notify och förnya dess agent-hookar. Befintliga ihopparningar behålls. Där det redan är installerat gör `rootshell-notify upgrade` samma sak."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виконайте на компʼютері, з яким уже створено пару, щоб оновити rootshell-notify та його хуки для агентів. Наявні пари збережуться. Там, де його вже встановлено, `rootshell-notify upgrade` робить те саме."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chạy trên một máy tính đã ghép đôi để cập nhật rootshell-notify và làm mới các hook tác nhân của máy đó. Các ghép đôi hiện có vẫn được giữ nguyên. Ở nơi đã cài đặt sẵn, `rootshell-notify upgrade` cũng cho kết quả tương tự."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在已配对的电脑上运行，以更新 rootshell-notify 并刷新其代理钩子。现有配对会予以保留。如果已经安装，`rootshell-notify upgrade` 也能达到同样效果。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在已配對的電腦上執行，以更新 rootshell-notify 並重新整理其代理掛鉤。現有的配對會保留。若已經安裝，`rootshell-notify upgrade` 也有相同效果。"
+          }
+        }
+      }
     },
     "Run on the computer" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "للتشغيل على الكمبيوتر"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executa a l'ordinador"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spusťte na počítači"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kør på computeren"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf dem Computer ausführen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ejecutar en el ordenador"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suorita tietokoneella"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À exécuter sur l'ordinateur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "להרצה במחשב"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Futtatás a számítógépen"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da eseguire sul computer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンピュータで実行"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컴퓨터에서 실행"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kjør på datamaskinen"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uitvoeren op de computer"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uruchom na komputerze"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Execute no computador"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executar no computador"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rulează pe computer"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaženite na računalniku"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kör på datorn"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виконайте на компʼютері"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chạy trên máy tính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在电脑上运行"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在電腦上執行"
+          }
+        }
+      }
     },
     "Run the terminal and its keyboard toolbar edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with taps and text selection near the bottom." : {
       "localizations" : {
@@ -509673,7 +513905,158 @@
       }
     },
     "The pairing code contains this device's public key and a credential for that computer only; it can be revoked from the previous screen." : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحتوي رمز الاقتران على المفتاح العام لهذا الجهاز وعلى بيانات اعتماد لذلك الكمبيوتر فقط؛ ويمكن إبطالها من الشاشة السابقة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El codi de vinculació conté la clau pública d'aquest dispositiu i una credencial vàlida només per a aquell ordinador; es pot revocar des de la pantalla anterior."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Párovací kód obsahuje veřejný klíč tohoto zařízení a přihlašovací údaje pouze pro daný počítač; lze je odvolat na předchozí obrazovce."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parringskoden indeholder denne enheds offentlige nøgle og legitimationsoplysninger til netop den computer; de kan tilbagekaldes fra det forrige skærmbillede."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Kopplungscode enthält den öffentlichen Schlüssel dieses Geräts und Anmeldedaten nur für diesen Computer; sie können auf dem vorherigen Bildschirm widerrufen werden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El código de emparejamiento contiene la clave pública de este dispositivo y unas credenciales válidas solo para ese ordenador; se pueden revocar desde la pantalla anterior."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pariliitoskoodi sisältää tämän laitteen julkisen avaimen ja tunnistetiedot vain kyseiselle tietokoneelle; ne voi mitätöidä edellisessä näkymässä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le code de jumelage contient la clé publique de cet appareil et des identifiants valables pour cet ordinateur uniquement ; ils peuvent être révoqués depuis l'écran précédent."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קוד ההתאמה מכיל את המפתח הציבורי של המכשיר הזה ואישור עבור אותו מחשב בלבד; אפשר לבטל אותו במסך הקודם."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A párosítási kód ennek az eszköznek a nyilvános kulcsát és kizárólag az adott számítógépre szóló hitelesítő adatot tartalmazza; az előző képernyőn visszavonható."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il codice di abbinamento contiene la chiave pubblica di questo dispositivo e credenziali valide solo per quel computer; possono essere revocate dalla schermata precedente."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペアリングコードには、このデバイスの公開鍵と、そのコンピュータ専用の認証情報が含まれます。前の画面から取り消すことができます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "페어링 코드에는 이 기기의 공개 키와 해당 컴퓨터 전용 자격 증명이 담겨 있으며, 이전 화면에서 폐기할 수 있습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sammenkoblingskoden inneholder den offentlige nøkkelen til denne enheten og påloggingsinformasjon for bare den datamaskinen. Den kan oppheves fra forrige skjerm."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De koppelingscode bevat de publieke sleutel van dit apparaat en inloggegevens die alleen voor die computer gelden; ze kunnen via het vorige scherm worden ingetrokken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kod parowania zawiera klucz publiczny tego urządzenia oraz poświadczenie tylko dla tego komputera; można je unieważnić na poprzednim ekranie."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O código de pareamento contém a chave pública deste dispositivo e uma credencial válida apenas para esse computador; ela pode ser revogada na tela anterior."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O código de emparelhamento contém a chave pública deste dispositivo e uma credencial válida apenas para esse computador; pode ser revogada no ecrã anterior."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codul de asociere conține cheia publică a acestui dispozitiv și o credențială valabilă doar pentru acel computer; poate fi revocată din ecranul anterior."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koda za seznanitev vsebuje javni ključ te naprave in poverilnice samo za tisti računalnik; odvzamete jih lahko na prejšnjem zaslonu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ihopparningskoden innehåller den här enhetens publika nyckel och uppgifter som bara gäller den datorn. De kan återkallas från föregående skärm."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код пари містить публічний ключ цього пристрою й облікові дані лише для того компʼютера; їх можна відкликати на попередньому екрані."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mã ghép đôi chứa khóa công khai của thiết bị này và thông tin xác thực chỉ dành cho máy tính đó; bạn có thể thu hồi mã này từ màn hình trước."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对码包含此设备的公钥，以及仅供该电脑使用的凭据；可在上一个屏幕中撤销。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配對碼包含這部裝置的公鑰，以及僅供該電腦使用的憑證；可從上一個畫面撤銷。"
+          }
+        }
+      }
     },
     "The passkey and its per-use verification are managed by your passkey provider (iCloud Keychain or a third-party manager like 1Password). Its private key cannot be viewed, exported, or reconfigured by rootshell." : {
       "localizations" : {
@@ -544102,7 +548485,158 @@
       }
     },
     "Type into Current Terminal" : {
-
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الكتابة في الطرفية الحالية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escriu al terminal actual"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Napsat do aktuálního terminálu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skriv i aktuel terminal"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In aktuelles Terminal tippen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribir en el terminal actual"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kirjoita nykyiseen terminaaliin"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir dans le terminal actuel"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הקלד במסוף הנוכחי"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Begépelés az aktuális terminálba"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digita nel terminale attuale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のターミナルに入力"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 터미널에 입력"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skriv inn i gjeldende terminal"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typen in huidige terminal"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wpisz do bieżącego terminala"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digitar no Terminal Atual"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escrever no terminal atual"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tastează în terminalul curent"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vnesi v trenutni terminal"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skriv in i aktuell terminal"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ввести в поточний термінал"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhập Vào Terminal Hiện Tại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入到当前终端"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入至目前終端機"
+          }
+        }
+      }
     },
     "Typed input is queued while tssh is offline and delivered after reconnect." : {
       "comment" : "tssh keep pending input enabled footer",
@@ -579489,7 +584023,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
