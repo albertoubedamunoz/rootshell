@@ -1353,7 +1353,7 @@ private class TransparentWindowView: UIView {
         )
         configureTitlebarSeparator(
             for: window,
-            hidden: topTabStyle == .integrated && tabsInTitlebar && !tabBarHidden
+            hidden: topTabStyle.usesStripLayout && tabsInTitlebar && !tabBarHidden
         )
         configureWindowDragging(
             for: window,

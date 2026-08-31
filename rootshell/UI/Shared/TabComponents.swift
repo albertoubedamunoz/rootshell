@@ -293,6 +293,7 @@ enum TabMetrics {
     static let closeIconSize: CGFloat = 14
     static let titleInnerPadding: CGFloat = 32
     static let titleFontSize: CGFloat = 17
+    static let troughKnobInset: CGFloat = 4
     #else
     static let tabMaxHeight: CGFloat = 32
     static let tabBarHeight: CGFloat = 44
@@ -302,6 +303,8 @@ enum TabMetrics {
     static let closeIconSize: CGFloat = 10
     static let titleInnerPadding: CGFloat = 20
     static let titleFontSize: CGFloat = 14
+    /// Gap between the trough well and the selected knob riding inside it.
+    static let troughKnobInset: CGFloat = 2
     #endif
 }
 
@@ -318,6 +321,7 @@ struct TabButton: View {
     var secondaryTextColor: Color = .secondary
     var isLightTheme: Bool = false
     var integratedEdgePalette: IntegratedTabEdgePalette = .fallback
+    var indicatorColor: Color = .accentColor  // Ledger selection bar
     let namespace: Namespace.ID?
     let onTap: () -> Void
     let onClose: () -> Void
@@ -339,6 +343,7 @@ struct TabButton: View {
     @State private var isHovered: Bool = false
     @State private var isCloseHovered: Bool = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// iOS 27 / macOS 27 desaturate saturated content drawn on Liquid Glass (the
@@ -367,14 +372,25 @@ struct TabButton: View {
     /// - Mac Catalyst: hover only
     /// - iPad: hover OR selected tab (touch fallback)
     private var shouldShowCloseButton: Bool {
-        if style == .integrated {
+        switch style {
+        case .integrated:
             return isSelected || isHovered || tabWidth >= integratedInactiveCloseThreshold
+        case .pills, .ledger, .trough:
+            #if targetEnvironment(macCatalyst)
+            return isHovered
+            #else
+            return isHovered || isSelected
+            #endif
         }
-        #if targetEnvironment(macCatalyst)
-        return isHovered
-        #else
-        return isHovered || isSelected
-        #endif
+    }
+
+    /// Ledger has no hover fill, so the title itself brightens on hover.
+    private var titleColor: Color {
+        if isSelected { return textColor }
+        if style == .ledger, isHovered {
+            return secondaryTextColor.blended(toward: textColor, amount: 0.6)
+        }
+        return secondaryTextColor
     }
 
     private var integratedInactiveCloseThreshold: CGFloat {
@@ -410,7 +426,11 @@ struct TabButton: View {
 
             Text(title)
                 .font(.system(size: TabMetrics.titleFontSize, weight: isSelected ? .medium : .regular))
-                .foregroundColor(isSelected ? textColor : secondaryTextColor)
+                .foregroundColor(titleColor)
+                .animation(
+                    style == .ledger && !reduceMotion ? .easeOut(duration: 0.12) : nil,
+                    value: isHovered
+                )
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .layoutPriority(1)
@@ -427,23 +447,31 @@ struct TabButton: View {
             if let shortcut = keyboardShortcut {
                 Text(shortcut)
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundColor(isSelected ? textColor.opacity(0.6) : secondaryTextColor.opacity(0.6))
+                    .foregroundColor(titleColor.opacity(0.6))
                     .fixedSize()
             }
 
             // Health indicator (only show if enabled and health data available)
             if showHealthIndicator, let health = connectionHealth {
-                ConnectionHealthIndicator(health: health, textColor: isSelected ? textColor : secondaryTextColor)
+                ConnectionHealthIndicator(health: health, textColor: titleColor)
                     .fixedSize()
             }
         }
         .frame(minWidth: 0)
     }
 
+    private var closeTargetSize: CGSize {
+        switch style {
+        case .integrated: return CGSize(width: 44, height: TabMetrics.tabBarHeight)
+        case .ledger: return CGSize(width: 28, height: TabMetrics.tabBarHeight)
+        case .pills, .trough: return CGSize(width: TabMetrics.closeButtonSize, height: TabMetrics.closeButtonSize)
+        }
+    }
+
     private var closeButton: some View {
         Button(action: onClose) {
             ZStack {
-                if style == .integrated {
+                if style.usesStripLayout {
                     Circle()
                         .fill((isSelected ? textColor : secondaryTextColor).opacity(isLightTheme ? 0.10 : 0.14))
                         .frame(width: 20, height: 20)
@@ -455,14 +483,11 @@ struct TabButton: View {
                     .font(.system(size: TabMetrics.closeIconSize, weight: .medium))
                     .foregroundColor(isSelected ? textColor : secondaryTextColor)
             }
-            .frame(
-                width: style == .integrated ? 44 : TabMetrics.closeButtonSize,
-                height: style == .integrated ? TabMetrics.tabBarHeight : TabMetrics.closeButtonSize
-            )
+            .frame(width: closeTargetSize.width, height: closeTargetSize.height)
             .offset(y: style == .integrated ? 2 : 0)
         }
         .onHover { hovering in
-            if style == .integrated {
+            if style.usesStripLayout {
                 isCloseHovered = hovering
             }
         }
@@ -476,7 +501,8 @@ struct TabButton: View {
 
     var body: some View {
         Group {
-            if style == .integrated {
+            switch style {
+            case .integrated:
                 HStack(spacing: 4) {
                     titleContent
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -507,7 +533,11 @@ struct TabButton: View {
                     )
                 }
                 .contentShape(Rectangle())
-            } else {
+            case .ledger:
+                ledgerContent
+            case .trough:
+                capsuleContent(inset: TabMetrics.troughKnobInset)
+            case .pills:
                 pillContent
             }
         }
@@ -551,6 +581,12 @@ struct TabButton: View {
     }
 
     private var pillContent: some View {
+        capsuleContent(inset: 0)
+    }
+
+    /// Pill treatment. A non-zero `inset` shrinks the capsule so it rides as
+    /// the knob inside the trough well; the tab's full frame stays tappable.
+    private func capsuleContent(inset: CGFloat) -> some View {
         Group {
             #if os(visionOS)
             // visionOS: HStack layout so close button takes explicit space and never overlaps title
@@ -583,8 +619,8 @@ struct TabButton: View {
         // in the chain and still inherits the parent animation.
         .transaction { $0.animation = nil }
         .padding(.horizontal, TabMetrics.horizontalPadding)
-        .padding(.vertical, TabMetrics.verticalPadding)
-        .frame(maxWidth: .infinity, maxHeight: TabMetrics.tabMaxHeight)
+        .padding(.vertical, TabMetrics.verticalPadding - inset)
+        .frame(maxWidth: .infinity, maxHeight: TabMetrics.tabMaxHeight - inset * 2)
         .modifier(GlassTabBackgroundModifier(
             isSelected: isSelected,
             selectedBackgroundColor: selectedBackgroundColor,
@@ -594,11 +630,107 @@ struct TabButton: View {
             isLightTheme: isLightTheme,
             isHovered: isHovered
         ))
-        .contentShape(Capsule())
+        .padding(.horizontal, inset)
+        .contentShape(inset > 0 ? AnyShape(Rectangle()) : AnyShape(Capsule()))
         #if os(visionOS)
         .contentShape(.hoverEffect, Capsule())
         .hoverEffect(.highlight)
         #endif
+    }
+
+    /// Text-only tab. The close button stays in the tree (hidden via opacity)
+    /// so the title never reflows on hover.
+    private var ledgerContent: some View {
+        HStack(spacing: 4) {
+            titleContent
+                .frame(maxWidth: .infinity, alignment: .leading)
+            closeButton
+        }
+        .transaction { $0.animation = nil }
+        .padding(.leading, TabMetrics.horizontalPadding + 2)
+        .padding(.trailing, 6)
+        .frame(maxWidth: .infinity, maxHeight: TabMetrics.tabBarHeight)
+        .overlay(alignment: .bottom) {
+            LedgerTabIndicator(
+                isSelected: isSelected,
+                color: colorSchemeContrast == .increased ? textColor : indicatorColor,
+                namespace: namespace
+            )
+        }
+        .contentShape(Rectangle())
+        #if os(visionOS)
+        .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .hoverEffect(.highlight)
+        #endif
+    }
+}
+
+/// Ledger selection bar. Full tab width and bottom-aligned so it sits on,
+/// and occludes, the strip keyline under the active tab.
+private struct LedgerTabIndicator: View {
+    let isSelected: Bool
+    let color: Color
+    let namespace: Namespace.ID?
+
+    static let height: CGFloat = 2
+
+    var body: some View {
+        if isSelected {
+            let bar = Rectangle()
+                .fill(color)
+                .frame(height: Self.height)
+                .frame(maxWidth: .infinity)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            if let namespace {
+                bar.matchedGeometryEffect(id: "ledgerSelectedTab", in: namespace)
+            } else {
+                bar
+            }
+        }
+    }
+}
+
+/// Trough well: the shared segmented-control track behind the tab run. Drawn
+/// as a plain theme fill (never glass) so the selected knob's Liquid Glass
+/// is not nested inside another glass surface.
+struct TroughWellBackground: View {
+    let segmentCount: Int
+    let selectedSegment: Int?
+    let segmentWidth: CGFloat
+    let theme: ResolvedTabBarTheme
+
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private var flat: Bool {
+        reduceTransparency || colorSchemeContrast == .increased
+    }
+
+    private var hairline: Color {
+        theme.tabText.opacity(theme.isLight ? 0.12 : 0.16)
+    }
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(theme.unselectedBackground.opacity(flat ? 1 : 0.6))
+                .overlay(Capsule().strokeBorder(hairline, lineWidth: 0.5))
+
+            // Segment dividers, dropped on either side of the knob.
+            ForEach(1..<max(segmentCount, 1), id: \.self) { index in
+                let touchesKnob = selectedSegment.map { index == $0 || index == $0 + 1 } ?? false
+                Rectangle()
+                    .fill(hairline)
+                    .frame(width: 0.5, height: TabMetrics.tabMaxHeight / 2)
+                    .offset(x: CGFloat(index) * segmentWidth - 0.25)
+                    .opacity(touchesKnob ? 0 : 1)
+            }
+        }
+        .frame(height: TabMetrics.tabMaxHeight)
+        .frame(maxHeight: .infinity)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -991,6 +1123,8 @@ final class TabStyleContextMenuCoordinator: NSObject, UIContextMenuInteractionDe
                     systemImage: "rectangle.topthird.inset.filled",
                     selectedLayout: selectedLayout
                 ),
+                self.action(for: .ledger, systemImage: "underline", selectedLayout: selectedLayout),
+                self.action(for: .trough, systemImage: "rectangle.split.3x1", selectedLayout: selectedLayout),
             ]
             return UIMenu(children: actions)
         }

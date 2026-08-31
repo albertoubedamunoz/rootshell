@@ -161,7 +161,7 @@ extension MainView {
             )
         }
         .overlay(alignment: .leading) {
-            if topTabStyle == .integrated {
+            if topTabStyle.usesStripLayout {
                 Rectangle()
                     .fill(theme.tabText.opacity(theme.isLight ? 0.16 : 0.22))
                     .frame(width: 0.5, height: 18)
@@ -226,7 +226,7 @@ extension MainView {
         // clips the integrated edge across the traffic-light clearance. Outer
         // frame is unchanged, leaving drag-region geometry alone.
         tabBarChromeBackground(theme)
-            .padding(.bottom, topTabStyle == .integrated ? IntegratedTabEdgeMetrics.reservedThickness : 0)
+            .padding(.bottom, topTabStyle.usesStripLayout ? IntegratedTabEdgeMetrics.reservedThickness : 0)
             .frame(width: tabBarLeadingPadding, height: 44)
             .overlay {
                 TabStyleContextMenuRegion(selectedStyleRawValue: $topTabStyleRawValue)

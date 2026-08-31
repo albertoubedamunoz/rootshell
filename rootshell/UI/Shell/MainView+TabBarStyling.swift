@@ -47,6 +47,7 @@ struct ResolvedTabBarTheme {
     let overrideUnselectedBackground: Color?
     let overrideTabText: Color?
     let overrideTabSecondaryText: Color?
+    let overrideSheetAccent: Color?
 
     static let fallback = ResolvedTabBarTheme(
         themeColors: nil,
@@ -60,7 +61,8 @@ struct ResolvedTabBarTheme {
         overrideSelectedBackground: nil,
         overrideUnselectedBackground: nil,
         overrideTabText: nil,
-        overrideTabSecondaryText: nil
+        overrideTabSecondaryText: nil,
+        overrideSheetAccent: nil
     )
 
     /// Resolved sheet styling for one `MainView.body` evaluation. The crash
@@ -151,6 +153,18 @@ struct ResolvedTabBarTheme {
         if let override = overrideTabSecondaryText { return override }
         guard baseColor != nil else { return .secondary }
         return isLight ? Color(white: 0.4) : Color(white: 0.6)
+    }
+
+    /// Ledger's selection bar is the only selection cue, so it takes the theme
+    /// accent (same source as sheets and the sidebar) rather than the text
+    /// color, which would read as a second keyline.
+    var ledgerIndicator: Color {
+        if let override = overrideSheetAccent { return override }
+        guard baseColor != nil else { return .accentColor }
+        if let accent = themeColors?.vibrantAccentColor {
+            return accent.adjustedSheetTint(on: tabBarBackground)
+        }
+        return tabText
     }
 }
 
@@ -262,7 +276,8 @@ extension MainView {
                 overrideSelectedBackground: nil,
                 overrideUnselectedBackground: nil,
                 overrideTabText: nil,
-                overrideTabSecondaryText: nil
+                overrideTabSecondaryText: nil,
+                overrideSheetAccent: nil
             )
         }
         #if targetEnvironment(macCatalyst)
@@ -288,7 +303,8 @@ extension MainView {
             overrideSelectedBackground: overrides.selectedTabBackground.flatMap { Color(hex: $0) },
             overrideUnselectedBackground: overrides.unselectedTabBackground.flatMap { Color(hex: $0) },
             overrideTabText: overrides.tabText.flatMap { Color(hex: $0) },
-            overrideTabSecondaryText: overrides.tabSecondaryText.flatMap { Color(hex: $0) }
+            overrideTabSecondaryText: overrides.tabSecondaryText.flatMap { Color(hex: $0) },
+            overrideSheetAccent: overrides.sheetAccent.flatMap { Color(hex: $0) }
         )
     }
 
