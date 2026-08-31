@@ -34,13 +34,9 @@ enum Ghostty {
         let resourcePath = resourceURL.path
         let themesPath = (resourcePath as NSString).appendingPathComponent("themes")
 
-        // Verify themes directory exists
-        if FileManager.default.fileExists(atPath: themesPath) {
-            logger.info("Found themes directory at: \(themesPath)")
-            if let themes = try? FileManager.default.contentsOfDirectory(atPath: themesPath) {
-                logger.info("   Available themes: \(themes.count)")
-            }
-        } else {
+        // Verify themes directory exists. Deliberately no directory enumeration
+        // here — ThemeManager already walks these files, off the main thread.
+        if !FileManager.default.fileExists(atPath: themesPath) {
             logger.error("Themes directory not found at: \(themesPath)")
         }
 

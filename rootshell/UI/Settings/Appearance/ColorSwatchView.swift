@@ -185,7 +185,9 @@ extension Color {
 
     /// Calculate relative luminance (0.0 = dark, 1.0 = light)
     /// Uses the formula from WCAG 2.0
-    var luminance: CGFloat {
+    /// `nonisolated`: pure color math, called off the main thread by ThemeManager's
+    /// background theme parse.
+    nonisolated var luminance: CGFloat {
         let uiColor = UIColor(self)
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
@@ -306,7 +308,9 @@ extension Color {
     /// colors which can vary per-cell. Outside the terminal surface (swatches, accent derivation,
     /// sheet tints) we approximate with the theme's global foreground/background — the best
     /// available stand-in for UI preview purposes.
-    static func resolveKeywordColor(_ value: String, foreground: String, background: String) -> String {
+    /// `nonisolated`: pure string mapping, called off the main thread by
+    /// ThemeManager's background theme parse.
+    nonisolated static func resolveKeywordColor(_ value: String, foreground: String, background: String) -> String {
         switch value.lowercased().trimmingCharacters(in: .whitespaces) {
         case "cell-foreground": return foreground
         case "cell-background": return background

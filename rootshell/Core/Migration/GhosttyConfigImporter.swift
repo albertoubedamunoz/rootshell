@@ -633,9 +633,9 @@ final class GhosttyConfigImporter {
                 default: break
                 }
             }
-            let allThemes = Set(ThemeManager.shared.availableThemes.map { $0.name })
             if let day = dayName, let night = nightName,
-               allThemes.contains(day), allThemes.contains(night) {
+               ThemeManager.shared.themeInfo(for: day) != nil,
+               ThemeManager.shared.themeInfo(for: night) != nil {
                 plan.recognized.append(
                     RecognizedChange(
                         category: .theme, key: "theme",
@@ -653,8 +653,7 @@ final class GhosttyConfigImporter {
         }
 
         // Plain name
-        let allThemes = Set(ThemeManager.shared.availableThemes.map { $0.name })
-        if allThemes.contains(value) {
+        if ThemeManager.shared.themeInfo(for: value) != nil {
             plan.recognized.append(
                 RecognizedChange(
                     category: .theme, key: "theme",
