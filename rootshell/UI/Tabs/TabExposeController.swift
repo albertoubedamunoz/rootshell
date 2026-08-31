@@ -77,8 +77,10 @@ final class TabExposeController {
         }
     }
     /// Tabs of the neighbor scope being previewed by an in-flight group swipe
-    /// (the host keeps their renderers live; empty when no preview).
-    @ObservationIgnored private(set) var previewTabIDs: [UUID] = []
+    /// (the host keeps their renderers live; empty when no preview). Observed
+    /// because MainView's window-wide terminal-effect layer must also account
+    /// for panes entering through the neighboring preview.
+    private(set) var previewTabIDs: [UUID] = []
     var isActive: Bool { phase != .hidden }
     /// More than one page to move between (groups / projects, or the
     /// multiplexer page next to the app tabs).

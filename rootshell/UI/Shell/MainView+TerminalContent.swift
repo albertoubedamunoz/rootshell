@@ -15,6 +15,58 @@ import UIKit
 
 extension MainView {
 
+    /// A terminal effect is composited once across the whole content area, so
+    /// it cannot safely cover a rendered split tree that includes a VNC pane.
+    /// A zoomed node is the only node on screen and is therefore evaluated on
+    /// its own; an unzoomed mixed tree disables the effect for the whole tab.
+    func tabAllowsTerminalEffects(_ tab: TerminalTab) -> Bool {
+        guard let renderedNode = tab.splitTree.zoomed ?? tab.splitTree.root else {
+            return false
+        }
+
+        func containsOnlyTerminals(_ node: SplitTree<SplitPaneView>.Node) -> Bool {
+            switch node {
+            case .leaf(let pane):
+                return pane.asTerminal != nil
+            case .split(let split):
+                return containsOnlyTerminals(split.left)
+                    && containsOnlyTerminals(split.right)
+            }
+        }
+
+        return containsOnlyTerminals(renderedNode)
+    }
+
+    /// Whether the single window-wide effect layer may be shown for every tab
+    /// currently contributing pixels. During a tab swipe both tabs are live;
+    /// during Expose the current and neighboring-preview scopes are live. If
+    /// any of those app tabs contains visible VNC content, suppress the shared
+    /// layer so it never contaminates remote desktop pixels.
+    var visibleContentAllowsTerminalEffects: Bool {
+        let visibleTabs: [TerminalTab]
+
+        if tabExpose.isActive {
+            var ids = Set(tabExpose.tabIDs)
+            ids.formUnion(tabExpose.previewTabIDs)
+            if let heroTabID = tabExpose.heroTabID {
+                ids.insert(heroTabID)
+            }
+            // Multiplexer page IDs are not app-tab IDs; ignore them while
+            // retaining the app hero and any app scope sliding beside it.
+            visibleTabs = ids.compactMap { tabsModel.tab(withID: $0) }
+        } else if let swipe = appTabSwipeState {
+            visibleTabs = [swipe.sourceTabID, swipe.targetTabID]
+                .compactMap { tabsModel.tab(withID: $0) }
+        } else if let displayedTabID = tabsModel.displayedTabID,
+                  let displayedTab = tabsModel.tab(withID: displayedTabID) {
+            visibleTabs = [displayedTab]
+        } else {
+            visibleTabs = []
+        }
+
+        return !visibleTabs.isEmpty && visibleTabs.allSatisfy(tabAllowsTerminalEffects)
+    }
+
     /// Returns the reconnection overlay if needed for the current focused terminal.
     /// - Note: The `restorationVersion` check forces SwiftUI to re-evaluate when restoration state changes
     ///   (TerminalView is a class, so @State doesn't observe its @Published properties)
@@ -544,7 +596,8 @@ extension MainView {
     /// The effect overlay layer (ocean, CRT, etc.)
     @ViewBuilder
     var effectOverlay: some View {
-        if effectManager.activeEffect != nil {
+        if effectManager.activeEffect != nil,
+           visibleContentAllowsTerminalEffects {
             TerminalEffectView()
                 // Use different blend mode for light vs dark themes
                 .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
@@ -565,7 +618,8 @@ extension MainView {
     /// Background fill when terminal is inset for ocean effect.
     @ViewBuilder
     var terminalBackgroundFill: some View {
-        if effectManager.terminalBottomInsetFraction > 0,
+        if visibleContentAllowsTerminalEffects,
+           effectManager.terminalBottomInsetFraction > 0,
            let themeColors = effectiveThemeColors,
            let bgColor = Color(hex: themeColors.background) {
             bgColor
@@ -613,7 +667,8 @@ extension MainView {
         keyboardFrame: CGRect,
         keyboardHeight: CGFloat,
         reservedBottomToolbarHeight: CGFloat,
-        containerBottomSafeAreaExpansion: CGFloat
+        containerBottomSafeAreaExpansion: CGFloat,
+        terminalEffectsEnabled: Bool
     ) -> (padding: CGFloat, gridAlignsToToolbar: Bool) {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         let isDocked = effectManager.isKeyboardDocked
@@ -727,7 +782,8 @@ extension MainView {
         #endif
 
         var padding: CGFloat = 0
-        let hasOcean = effectManager.terminalBottomInsetFraction > 0
+        let hasOcean = terminalEffectsEnabled
+            && effectManager.terminalBottomInsetFraction > 0
 
         if hasOcean {
             #if !os(visionOS) && !targetEnvironment(macCatalyst)
@@ -917,6 +973,7 @@ extension MainView {
         ZStack {
             ForEach(Array(terminals.enumerated()), id: \.element.id) { index, tab in
                 if !tab.splitTree.isEmpty {
+                    let terminalEffectsEnabled = tabAllowsTerminalEffects(tab)
                     let visualMetrics = appTabSwipeVisualMetrics(for: tab.id, width: width)
                     let liveBottomToolbarHeight = tab.focusedPane?.reservedKeyboardToolbarHeightAtBottom ?? 0
                     // During an app-tab swipe both visible tabs must use the
@@ -933,7 +990,8 @@ extension MainView {
                         keyboardFrame: keyboardFrame,
                         keyboardHeight: keyboardHeight,
                         reservedBottomToolbarHeight: reservedBottomToolbarHeight,
-                        containerBottomSafeAreaExpansion: containerBottomSafeAreaExpansion
+                        containerBottomSafeAreaExpansion: containerBottomSafeAreaExpansion,
+                        terminalEffectsEnabled: terminalEffectsEnabled
                     )
                     let topPadding = bottomPadding.gridAlignsToToolbar
                         ? terminalTopGridAlignmentPadding(
@@ -949,6 +1007,7 @@ extension MainView {
                         },
                         isActive: index == selectedTabIndex,
                         focusedPane: tab.focusedPane,
+                        terminalEffectsEnabled: terminalEffectsEnabled,
                         routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
                             && !tabBarHidden
                     )
