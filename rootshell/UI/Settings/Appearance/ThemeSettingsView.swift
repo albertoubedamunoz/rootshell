@@ -63,6 +63,9 @@ struct ThemeSettingsView: View {
                 themeGrid
             }
         }
+        // Awaits the background parse if the browser is opened before it lands;
+        // normally it has already finished and this returns immediately.
+        .task { await themeManager.ensureThemesLoaded() }
         .background((sheetThemeColors?.background ?? Color(uiColor: .systemGroupedBackground)).ignoresSafeArea())
         .navigationTitle("Theme")
         .navigationBarTitleDisplayMode(.inline)

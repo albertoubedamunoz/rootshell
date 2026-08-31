@@ -48,9 +48,10 @@ class FavoriteThemesManager: ObservableObject {
 
     /// Get all favorite themes as ThemeInfo objects, sorted alphabetically
     func favoriteThemes() -> [ThemeManager.ThemeInfo] {
-        let allThemes = ThemeManager.shared.availableThemes
-        return allThemes
-            .filter { favoriteThemeIds.contains($0.id) }
+        // Resolved one name at a time: this runs during SwiftUI body evaluation,
+        // so it must not wait on (or trigger) the full catalog load.
+        favoriteThemeIds
+            .compactMap { ThemeManager.shared.themeInfo(for: $0) }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 

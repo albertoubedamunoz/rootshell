@@ -44,6 +44,9 @@ struct ThemePickerOverlay: View {
             .onAppear {
                 isSearchFocused = true
             }
+            // Awaits the background parse if the picker is opened before it
+            // lands; normally it has already finished and this returns at once.
+            .task { await themeManager.ensureThemesLoaded() }
     }
 
     private var pickerContent: some View {

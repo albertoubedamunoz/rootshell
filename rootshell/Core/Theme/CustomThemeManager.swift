@@ -194,11 +194,10 @@ class CustomThemeManager: ObservableObject {
         }
         if conflicts { return .conflictsWithCustom }
 
-        // Check if it shadows a built-in theme
-        let builtIn = ThemeManager.shared.availableThemes.first {
-            $0.name == trimmed && !$0.isCustom
-        }
-        if builtIn != nil { return .shadowsBuiltIn }
+        // Check if it shadows a built-in theme. A file probe, not a catalog scan:
+        // this runs on every keystroke in the editor and must be correct even
+        // before the background load lands.
+        if ThemeManager.shared.builtInThemeExists(named: trimmed) { return .shadowsBuiltIn }
 
         return .valid
     }
