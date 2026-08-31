@@ -3451,6 +3451,14 @@ extension Ghostty {
             }
             #endif
 
+            // Tearing down the input view set animates an input-window placement
+            // move, which draws into the lock snapshot (FrontBoard 0x2BAD45EC).
+            // Responder status is frozen until the foreground resume reconciles it.
+            if isFirstResponder, Ghostty.isSecureDrawProhibitedAtomic {
+                Ghostty.logger.info("resignFirstResponder() blocked on terminal \(self.uuid.uuidString.prefix(8)) - secure draw prohibited")
+                return false
+            }
+
             // toolbarOnlyMode is derived from the window hide intent and
             // re-applied in becomeFirstResponder(); leaving it set here avoids
             // a layout invalidation on every overlay open and tab switch.
