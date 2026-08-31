@@ -12,11 +12,7 @@ struct SSHKeyDetailView: View {
     @State private var errorMessage = ""
     @State private var showingSecuritySettings = false
 
-    // Fingerprint display
-    @State private var fingerprintCopied = false
-
     // Public key display
-    @State private var publicKeyCopied = false
     @State private var publicKeyString: String = ""
     @State private var isLoadingPublicKey = true
     @State private var showingInstallInstructions = false
@@ -131,15 +127,11 @@ struct SSHKeyDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
-                        Button(action: copyFingerprint) {
-                            HStack(spacing: 4) {
-                                Image(systemName: fingerprintCopied ? "checkmark" : "doc.on.doc")
-                                Text(fingerprintCopied ? String(localized: "Copied", comment: "Copy button state: copied") : String(localized: "Copy", comment: "Copy button"))
-                            }
-                            .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(fingerprintCopied ? .green : .blue)
+                        CopyButton(
+                            text: "SHA256:\(key.colonFormattedFingerprint)",
+                            label: String(localized: "Copy", comment: "Copy button"),
+                            isBordered: true
+                        )
                     }
 
                     Text(key.colonFormattedFingerprint)
@@ -159,15 +151,11 @@ struct SSHKeyDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
-                        Button(action: copyPublicKey) {
-                            HStack(spacing: 4) {
-                                Image(systemName: publicKeyCopied ? "checkmark" : "doc.on.doc")
-                                Text(publicKeyCopied ? String(localized: "Copied", comment: "Copy button state: copied") : String(localized: "Copy", comment: "Copy button"))
-                            }
-                            .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(publicKeyCopied ? .green : .blue)
+                        CopyButton(
+                            text: publicKeyString,
+                            label: String(localized: "Copy", comment: "Copy button"),
+                            isBordered: true
+                        )
                         .disabled(publicKeyString.isEmpty || publicKeyString.hasPrefix("#"))
                     }
 
@@ -826,28 +814,6 @@ struct SSHKeyDetailView: View {
                     isLoadingPublicKey = false
                 }
             }
-        }
-    }
-
-    private func copyFingerprint() {
-        UIPasteboard.general.string = "SHA256:\(key.colonFormattedFingerprint)"
-        fingerprintCopied = true
-
-        // Reset the copied state after 2 seconds
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            fingerprintCopied = false
-        }
-    }
-
-    private func copyPublicKey() {
-        UIPasteboard.general.string = publicKeyString
-        publicKeyCopied = true
-
-        // Reset the copied state after 2 seconds
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            publicKeyCopied = false
         }
     }
 

@@ -38,8 +38,30 @@ struct PushNotificationSettingsView: View {
                         .foregroundColor(.secondary)
                 }
                 .themedRow()
+
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Agent events")
+                                .fontWeight(.semibold)
+                            Text("Coding-agent alerts follow the Agent Notifications policy and stay hidden while you are viewing the pane.")
+                        }
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Privacy")
+                                .fontWeight(.semibold)
+                            Text("Messages use end-to-end encryption with post-quantum cryptography. The relay cannot read them and does not retain them.")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 6)
+                } label: {
+                    Label("How Push Notifications Work", systemImage: "info.circle")
+                }
+                .themedRow()
             } footer: {
-                Text("Coding agents on your computers notify this device when they finish or need input, even while rootshell is in the background. Agent events follow the Agent Notifications policy and are not shown while you are viewing the pane. Messages are end-to-end encrypted with post-quantum cryptography; the relay stores nothing and never sees their contents.")
+                Text("Receive encrypted alerts from coding agents on your paired computers.")
             }
 
             if manager.state == .registered {
@@ -66,7 +88,7 @@ struct PushNotificationSettingsView: View {
                     }
                     .themedRow()
                 } footer: {
-                    Text("Agent notifications can be limited to when rootshell is in the background. The logo setting adds Claude or Codex artwork to supported agent notifications. Explicit `rootshell-notify send` messages always show and do not include agent artwork.")
+                    Text("These options apply to detected agent events. Explicit `rootshell-notify send` messages always appear without agent artwork.")
                 }
 
                 Section {
@@ -106,13 +128,13 @@ struct PushNotificationSettingsView: View {
                 } header: {
                     Text("Paired Computers")
                 } footer: {
-                    Text("Each computer holds its own credential. Revoking one makes this device ignore its notifications immediately; pairing a computer again under the same name replaces its credential.")
+                    Text("Swipe or use the context menu to revoke a computer and stop accepting its notifications.")
                 }
 
                 PushCommandSection(
                     title: String(localized: "Install or Upgrade the Hook Client"),
                     command: PushCommandSection.upgradeCommand,
-                    footer: String(localized: "Run on an already-paired computer to update rootshell-notify and refresh its agent hooks. Existing pairings are kept. Where it is already installed, `rootshell-notify upgrade` does the same."))
+                    footer: String(localized: "Updates rootshell-notify and refreshes Claude Code and Codex hooks. Existing pairings are kept."))
             }
         }
         .themedList()
@@ -213,17 +235,36 @@ struct PushPairingView: View {
 
     @ViewBuilder
     private func pairedContent(_ bundle: String) -> some View {
-        commandSection(title: String(localized: "Run on the computer"),
-                       command: setupCommand(bundle), id: "setup",
-                       footer: String(localized: "Installs rootshell-notify if needed, pairs it with this device, and adds the hook for Claude Code and Codex if they are set up there. Typing pastes the command into the focused pane without running it; review and press Return."))
-        commandSection(title: String(localized: "Already installed?"),
-                       command: pairCommand(bundle), id: "pair",
-                       footer: String(localized: "The pairing code contains this device's public key and a credential for that computer only; it can be revoked from the previous screen."))
+        commandSection(
+            title: String(localized: "Run on the computer"),
+            command: setupCommand(bundle),
+            previewCommand: setupCommand(Self.pairingCodePlaceholder),
+            footer: String(localized: "Installs or updates rootshell-notify, pairs this device, and configures available Claude Code and Codex hooks.")
+        )
+        commandSection(
+            title: String(localized: "Already installed?"),
+            command: pairCommand(bundle),
+            previewCommand: pairCommand(Self.pairingCodePlaceholder),
+            footer: String(localized: "Pairs this computer using its device-specific, revocable credential.")
+        )
     }
 
-    private func commandSection(title: String, command: String, id: String, footer: String? = nil) -> some View {
-        PushCommandSection(title: title, command: command, footer: footer, onTyped: { dismiss() })
+    private func commandSection(
+        title: String,
+        command: String,
+        previewCommand: String? = nil,
+        footer: String? = nil
+    ) -> some View {
+        PushCommandSection(
+            title: title,
+            command: command,
+            previewCommand: previewCommand,
+            footer: footer,
+            onTyped: { dismiss() }
+        )
     }
+
+    private static let pairingCodePlaceholder = "<pairing-code>"
 
     private func pairCommand(_ bundle: String) -> String {
         "rootshell-notify setup --pair '\(bundle)'"
@@ -269,18 +310,46 @@ struct PushCommandSection: View {
 
     let title: String
     let command: String
+    var previewCommand: String? = nil
     var footer: String?
     var onTyped: (() -> Void)?
-    @State private var copied = false
+    @Environment(\.sheetThemeColors) private var sheetThemeColors
 
     var body: some View {
         Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(command)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(previewCommand == nil ? "Shell Command" : "Command Preview")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    CopyButton(
+                        text: command,
+                        label: String(localized: "Copy", comment: "Copy button"),
+                        isBordered: true
+                    )
+                }
+
+                Text(previewCommand ?? command)
                     .font(.system(.footnote, design: .monospaced))
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
+                    .lineSpacing(3)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(sheetThemeColors?.rowBackground ?? Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(6)
+
+                if previewCommand != nil {
+                    Label("Preview shortened; actions use the complete command.", systemImage: "eye.slash")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
+            .padding(.vertical, 4)
             .themedRow()
+
             if let terminal = Self.focusedTerminal {
                 Button {
                     terminal.sendUserInput(Data(command.utf8))
@@ -293,16 +362,6 @@ struct PushCommandSection: View {
                 }
                 .themedRow()
             }
-            Button {
-                UIPasteboard.general.string = command
-                copied = true
-            } label: {
-                HStack(spacing: 12) {
-                    SettingsIcon(systemName: copied ? "checkmark" : "doc.on.doc")
-                    Text(copied ? "Copied" : "Copy")
-                }
-            }
-            .themedRow()
         } header: {
             Text(title)
         } footer: {
