@@ -30,6 +30,11 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         /// Height of the tab bar strip directly above the terminal where a
         /// one-finger pull may start (0 = no one-finger reveal).
         var oneFingerBandHeight: () -> CGFloat = { 0 }
+        /// The visible top tab bar can extend across adjacent docked columns
+        /// even though this view is hosted only over the terminal. When true,
+        /// reveal and dismissal gestures that start above the terminal use the
+        /// window's horizontal bounds instead of this view's bounds.
+        var topBarActivationSpansWindowWidth: () -> Bool = { false }
         var trackpadGain: CGFloat = 2
     }
 
@@ -459,8 +464,27 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         let isInBand: (CGPoint, UIWindow, Int) -> Bool = { [weak self] start, window, touches in
             guard let self else { return false }
             let frame = self.convert(self.bounds, to: window)
-            guard start.x >= frame.minX, start.x <= frame.maxX else { return false }
-            if self.controller.isActive { return start.y <= frame.maxY }
+            let startsAboveTerminal = start.y < frame.minY
+            let startsInWindowWideTopBar = self.configuration.topBarActivationSpansWindowWidth()
+                && startsAboveTerminal
+                && start.x >= window.bounds.minX
+                && start.x <= window.bounds.maxX
+            if self.controller.isActive {
+                let startsOverTerminal = start.x >= frame.minX && start.x <= frame.maxX
+                guard startsOverTerminal || startsInWindowWideTopBar else { return false }
+                return start.y <= frame.maxY
+            }
+
+            // A pinned sidebar shifts the terminal host right, but the top tab
+            // bar still spans the window. Let its gesture band follow the real
+            // chrome without also making the sidebar body an activation area.
+            let horizontalBounds = self.configuration.topBarActivationSpansWindowWidth()
+                && startsAboveTerminal
+                ? window.bounds
+                : frame
+            guard start.x >= horizontalBounds.minX, start.x <= horizontalBounds.maxX else {
+                return false
+            }
             if touches == 1 {
                 // Only the strip itself: the status bar edge belongs to the system.
                 let strip = self.configuration.oneFingerBandHeight()
