@@ -17,6 +17,10 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     /// client size.
     var isActive: Bool = true
     let focusedPane: SplitPaneView?
+    /// Whether this rendered tab is eligible for terminal background effects.
+    /// Propagated to terminal leaves so their home-indicator inset follows the
+    /// same policy as MainView's shared effect and ocean layout layers.
+    var terminalEffectsEnabled: Bool = true
     /// True when the visible focused terminal presents OSC 9;4 progress on the
     /// integrated tab edge instead of as a duplicate straight pane-local bar.
     var routesFocusedProgressToIntegratedEdge: Bool = false
@@ -30,6 +34,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.highlightColor = uiView.tintColor ?? UIColor.systemBlue
         uiView.onResize = onResize
         uiView.isActiveTab = isActive
+        uiView.terminalEffectsEnabled = terminalEffectsEnabled
         uiView.routesFocusedProgressToIntegratedEdge = routesFocusedProgressToIntegratedEdge
         uiView.update(tree: tree, focusedPane: focusedPane)
     }
@@ -64,6 +69,12 @@ final class SplitTreeHostingView: UIView {
             guard isActiveTab != oldValue else { return }
             setNeedsLayout()
             refreshProgressBarRouting()
+        }
+    }
+    var terminalEffectsEnabled: Bool = true {
+        didSet {
+            guard terminalEffectsEnabled != oldValue else { return }
+            updateTerminalEffectsEligibility()
         }
     }
     var routesFocusedProgressToIntegratedEdge: Bool = false {
@@ -160,10 +171,18 @@ final class SplitTreeHostingView: UIView {
     func update(tree: SplitTree<SplitPaneView>, focusedPane: SplitPaneView?) {
         self.tree = tree
         self.focusedPane = focusedPane
+        updateTerminalEffectsEligibility()
         recomputeBorderEligibility()
         refreshProgressBarRouting()
         setNeedsLayout()
         updateFocusAppearance()
+    }
+
+    private func updateTerminalEffectsEligibility() {
+        guard let tree else { return }
+        for terminal in tree.terminalLeaves {
+            terminal.terminalEffectsEnabled = terminalEffectsEnabled
+        }
     }
 
     /// Teardown hook for `TerminalSplitTreeView.dismantleUIView`. The

@@ -66,7 +66,8 @@ extension MainView {
                 chromeBackground
                     .frame(height: windowSafeAreaInsets.top + (tabBarHidden ? 0 : TabMetrics.tabBarHeight))
                 Spacer()
-                if effectManager.terminalBottomInsetFraction == 0 {
+                if !visibleContentAllowsTerminalEffects
+                    || effectManager.terminalBottomInsetFraction == 0 {
                     theme.tabBarBackground
                         .frame(height: windowSafeAreaInsets.bottom)
                 }

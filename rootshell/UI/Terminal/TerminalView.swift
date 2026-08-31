@@ -163,6 +163,18 @@ extension Ghostty {
         /// Used to set initial occlusion state when surface is created.
         var isTabVisible: Bool = true
 
+        /// Whether MainView is presenting terminal effects for this pane's
+        /// rendered split tree. Mixed VNC/terminal layouts disable effects for
+        /// the whole visible tree, including effect-owned safe-area behavior.
+        var terminalEffectsEnabled: Bool = true {
+            didSet {
+                guard terminalEffectsEnabled != oldValue else { return }
+                #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                refreshBottomInset()
+                #endif
+            }
+        }
+
         /// App-level presentations, such as settings and sheets, occlude
         /// selection handle overlays before UIKit has attached a modal VC.
         var selectionUIExternallyOccluded: Bool = false
@@ -2410,7 +2422,8 @@ extension Ghostty {
         /// effect owns the strip (ocean/solar waves), or on platforms without a
         /// strip (macOS, home-button devices).
         func currentBottomInsetPixels() -> Double {
-            if EffectManager.shared.terminalBottomInsetFraction > 0 { return 0 }
+            if terminalEffectsEnabled,
+               EffectManager.shared.terminalBottomInsetFraction > 0 { return 0 }
             #if !targetEnvironment(macCatalyst) && !os(visionOS)
             // Reserve the home-indicator strip by default: it keeps a touch-safe
             // gap so the system home-swipe gesture doesn't intercept touches meant
