@@ -73,6 +73,10 @@ nonisolated enum TerminalStyle {
     /// Clear to end of line.
     static let clearLine = "\u{1b}[K"
 
+    /// Batch a terminal repaint so renderers never present its intermediate cursor positions.
+    static let syncOutputStart = "\u{1b}[?2026h"
+    static let syncOutputEnd = "\u{1b}[?2026l"
+
     // MARK: - Progress bar
 
     /// Render a colored progress bar: `████████░░░░░░`
@@ -90,7 +94,7 @@ nonisolated enum TerminalStyle {
 
     /// Render a complete progress line that fits within `cols` terminal columns.
     ///
-    /// Output: `\r\e[K{label} {bar} {pct}%{suffix}`
+    /// Output: `sync-start \r\e[K{label} {bar} {pct}%{suffix} sync-end`
     static func formatProgressLine(
         label: String,
         current: Int,
@@ -117,11 +121,11 @@ nonisolated enum TerminalStyle {
         }
 
         if barWidth < 5 {
-            return "\r\(clearLine)\(label)\(pctStr)"
+            return "\(syncOutputStart)\r\(clearLine)\(label)\(pctStr)\(syncOutputEnd)"
         }
 
         let bar = progressBar(current: current, total: total, width: barWidth, barColor: barColor)
-        return "\r\(clearLine)\(label) \(bar)\(pctStr)\(activeSuffix)"
+        return "\(syncOutputStart)\r\(clearLine)\(label) \(bar)\(pctStr)\(activeSuffix)\(syncOutputEnd)"
     }
 }
 
