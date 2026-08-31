@@ -21,8 +21,10 @@ extension MainView {
             appearance: tabExposeAppearance(),
             width: width
         )
-        // Above every sibling in the content ZStack (SwiftUI-drawn fills and
-        // re-inserted platform views alike), independent of insertion order.
+        // Above ordinary siblings in the content ZStack (SwiftUI-drawn fills
+        // and re-inserted platform views alike), independent of insertion
+        // order. The persistent background-effect layer intentionally rises
+        // one level higher while the exposé is active.
         .zIndex(1)
         .onAppear { installTabExposeHooks() }
     }

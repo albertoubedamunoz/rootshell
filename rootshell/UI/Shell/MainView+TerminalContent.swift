@@ -551,6 +551,14 @@ extension MainView {
                 .allowsHitTesting(false)
                 // Extend into bottom safe area for ocean effect
                 .ignoresSafeArea(edges: .bottom)
+                // Tab Exposé is normally the topmost terminal-content layer.
+                // While it is active, keep this *same* effect view above the
+                // mirrored terminal pixels so animations and video continue
+                // seamlessly through the reveal instead of disappearing and
+                // returning later. The controller flips `isActive` at progress
+                // zero on both ends, where changing the stacking order is
+                // visually lossless and does not recreate the effect view.
+                .zIndex(tabExpose.isActive ? 2 : 0)
         }
     }
 
@@ -1069,7 +1077,9 @@ extension MainView {
                     )
             }
             // Tab exposé: live previews pulled down over the terminal. Last so it
-            // covers the HUD overlays; inert (hit-test nil) while hidden.
+            // covers the HUD overlays; inert (hit-test nil) while hidden. The
+            // already-mounted background effect temporarily rises above it while
+            // active so its animation remains continuous through the transition.
             tabExposeHost(geometry: geometry, width: width)
         }
         .frame(width: width)
