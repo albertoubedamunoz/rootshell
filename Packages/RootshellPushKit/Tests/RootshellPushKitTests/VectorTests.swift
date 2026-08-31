@@ -78,9 +78,13 @@ final class VectorTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
         let state = PushSharedState(container: dir)
-        let record = PushEventRecord(eid: "e1", status: nil, agent: nil, thread: nil, route: nil)
+        let record = PushEventRecord(eid: "e1", status: "done", agent: "codex", thread: "first", route: nil)
         XCTAssertTrue(state.claim(record))
-        XCTAssertFalse(state.claim(record))
+        let redelivery = PushEventRecord(eid: "e1", status: "failed", agent: "claude-code", thread: "retry", route: nil)
+        XCTAssertFalse(state.claim(redelivery))
+        // A repeated delivery is bookkeeping-only: it must not replace the
+        // original event record used for notification arbitration.
+        XCTAssertEqual(state.load(), [record])
         XCTAssertTrue(state.claim(PushEventRecord(eid: "e2", status: nil, agent: nil, thread: nil, route: nil)))
         XCTAssertEqual(state.load().map(\.eid), ["e1", "e2"])
         state.release(eid: "e1")

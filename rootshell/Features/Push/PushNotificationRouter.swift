@@ -100,11 +100,12 @@ enum PushNotificationRouter {
         if let dict = try? header.userInfoDictionary() {
             content.userInfo = [PushConfiguration.headerUserInfoKey: dict]
         }
-        // Relay retries and replays carry the same eid; only the first copy is shown.
-        guard shared.claim(PushEventRecord(header: header, eid: eid)) else {
-            logger.info("dropped duplicate eid=\(eid, privacy: .public)")
-            await removeRawDelivered(eid: eid)
-            return
+        // The stable local identifier below makes retries idempotent. The
+        // claim only controls ledger bookkeeping; a duplicate must still
+        // replace any raw encrypted notification with decrypted content.
+        let createdClaim = shared.claim(PushEventRecord(header: header, eid: eid))
+        if !createdClaim {
+            logger.info("replacing redelivered eid=\(eid, privacy: .public) with decrypted content")
         }
         // A suppressed remote push still lands in Notification Center history on
         // macOS. Drop the raw copy before posting the decrypted one so the two
@@ -115,7 +116,7 @@ enum PushNotificationRouter {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
             logger.error("local re-post failed: \(String(describing: error), privacy: .public)")
-            shared.release(eid: eid)
+            if createdClaim { shared.release(eid: eid) }
             return
         }
     }
