@@ -187,7 +187,7 @@ struct MainView: View {
 
     var topTabStyle: TopTabStyle { TopTabStyle.resolve(topTabStyleRawValue) }
     var usesCompactTabSpacing: Bool {
-        topTabStyle == .integrated || compactPillTabSpacing
+        topTabStyle.usesEqualWidthTabs || compactPillTabSpacing
     }
 
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
@@ -452,7 +452,7 @@ struct MainView: View {
                                 // Background layer on purpose: the active tab
                                 // occludes the run beneath it, so the line
                                 // reads as rising around that tab.
-                                if topTabStyle == .integrated {
+                                if topTabStyle.usesStripLayout {
                                     IntegratedTabEdgeRuleView(
                                         palette: resolvedTheme.integratedEdgePalette
                                     )

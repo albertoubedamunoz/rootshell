@@ -9,10 +9,14 @@ import Foundation
 
 /// Visual treatment for the horizontal tab bar. Pills preserves the existing
 /// Rootshell appearance; Integrated connects the selected tab to the terminal
-/// and uses browser-style sizing and controls.
+/// and uses browser-style sizing and controls; Ledger is text-only with a
+/// sliding accent indicator on the strip keyline; Trough is a segmented
+/// control: one shared well with the selected tab as a sliding glass knob.
 enum TopTabStyle: String, CaseIterable, Identifiable {
     case pills
     case integrated
+    case ledger
+    case trough
 
     static let storageKey = "topTabStyle"
 
@@ -22,8 +26,16 @@ enum TopTabStyle: String, CaseIterable, Identifiable {
         switch self {
         case .pills: return String(localized: "Pills")
         case .integrated: return String(localized: "Integrated")
+        case .ledger: return String(localized: "Ledger")
+        case .trough: return String(localized: "Trough")
         }
     }
+
+    /// Tabs sit on a keylined strip (edge rule, "+" separator, no AppKit separator).
+    var usesStripLayout: Bool { self == .integrated || self == .ledger }
+
+    /// Equal-width, zero-spacing tab sizing.
+    var usesEqualWidthTabs: Bool { self != .pills }
 
     static func resolve(_ rawValue: String) -> TopTabStyle {
         TopTabStyle(rawValue: rawValue) ?? .pills
@@ -37,6 +49,8 @@ enum TopTabLayout: String, CaseIterable, Identifiable {
     case pills
     case compactPills
     case integrated
+    case ledger
+    case trough
 
     var id: String { rawValue }
 
@@ -45,6 +59,8 @@ enum TopTabLayout: String, CaseIterable, Identifiable {
         case .pills: return String(localized: "Pills")
         case .compactPills: return String(localized: "Compact Pills")
         case .integrated: return String(localized: "Integrated")
+        case .ledger: return String(localized: "Ledger")
+        case .trough: return String(localized: "Trough")
         }
     }
 
@@ -52,6 +68,8 @@ enum TopTabLayout: String, CaseIterable, Identifiable {
         switch self {
         case .pills, .compactPills: return .pills
         case .integrated: return .integrated
+        case .ledger: return .ledger
+        case .trough: return .trough
         }
     }
 
@@ -60,6 +78,8 @@ enum TopTabLayout: String, CaseIterable, Identifiable {
     static func resolve(style: TopTabStyle, compactPills: Bool) -> TopTabLayout {
         switch style {
         case .integrated: return .integrated
+        case .ledger: return .ledger
+        case .trough: return .trough
         case .pills: return compactPills ? .compactPills : .pills
         }
     }

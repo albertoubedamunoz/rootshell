@@ -56,7 +56,7 @@ enum TabBarSizingPolicy {
             return Decision(mode: .singleTab, equalTabWidth: 0, singleTabWidth: 0, scrollingTabWidth: 0)
         }
 
-        if style == .integrated || usesCompactSpacing {
+        if style.usesEqualWidthTabs || usesCompactSpacing {
             let tabCount = CGFloat(items.count)
             let equalWidth = availableWidth / max(tabCount, 1)
             let resolvedWidth = min(integratedMaximumWidth, equalWidth)
@@ -794,25 +794,27 @@ struct TabBar: View {
                 HStack(spacing: usesCompactSpacing ? 0 : 4) {
                     activeScopeMenu
                     compactScopeMenuSpacer
-                    tabItem(
-                        for: tab,
-                        index: rawIndex,
-                        isOnly: true,
-                        gatewayOwnerIDs: gatewayOwnerIDs,
-                        tabWidth: resolvedWidth
-                    )
-                        .frame(width: resolvedWidth)
-                        .contextMenu {
-                            // Full shared menu — a lone visible tab can still be a
-                            // tmux gateway/window. No move targets with one tab.
-                            tabContextMenu(
-                                for: tab,
-                                index: rawIndex,
-                                moveLeftTarget: nil,
-                                moveRightTarget: nil,
-                                includeThemeOverrideClear: true
-                            )
-                        }
+                    troughWell(segmentCount: 1, segmentWidth: resolvedWidth) {
+                        tabItem(
+                            for: tab,
+                            index: rawIndex,
+                            isOnly: true,
+                            gatewayOwnerIDs: gatewayOwnerIDs,
+                            tabWidth: resolvedWidth
+                        )
+                            .frame(width: resolvedWidth)
+                            .contextMenu {
+                                // Full shared menu — a lone visible tab can still be a
+                                // tmux gateway/window. No move targets with one tab.
+                                tabContextMenu(
+                                    for: tab,
+                                    index: rawIndex,
+                                    moveLeftTarget: nil,
+                                    moveRightTarget: nil,
+                                    includeThemeOverrideClear: true
+                                )
+                            }
+                    }
                 }
                 .fixedSize(horizontal: true, vertical: false)
                 .layoutPriority(1)
@@ -877,32 +879,34 @@ struct TabBar: View {
         HStack(spacing: usesCompactSpacing ? 0 : 4) {
             activeScopeMenu
             compactScopeMenuSpacer
-            ForEach(navigationTabs) { tab in
-                let index = tabsModel.index(of: tab.id) ?? 0
-                let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
-                let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                equalWidthTabFrame(width: tabWidth) {
-                    tabItem(
-                        for: tab,
-                        index: index,
-                        isOnly: false,
-                        gatewayOwnerIDs: gatewayOwnerIDs,
-                        tabWidth: tabWidth
-                    )
-                        .equatable()
-                }
-                    .contentShape(Rectangle())
-                    .id(tab.id)
-                    .modifier(dragModifier(for: tab, index: index))
-                    .contextMenu {
-                        tabContextMenu(
+            troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
+                ForEach(navigationTabs) { tab in
+                    let index = tabsModel.index(of: tab.id) ?? 0
+                    let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
+                    let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
+                    equalWidthTabFrame(width: tabWidth) {
+                        tabItem(
                             for: tab,
                             index: index,
-                            moveLeftTarget: moveLeftTarget,
-                            moveRightTarget: moveRightTarget,
-                            includeThemeOverrideClear: false
+                            isOnly: false,
+                            gatewayOwnerIDs: gatewayOwnerIDs,
+                            tabWidth: tabWidth
                         )
+                            .equatable()
                     }
+                        .contentShape(Rectangle())
+                        .id(tab.id)
+                        .modifier(dragModifier(for: tab, index: index))
+                        .contextMenu {
+                            tabContextMenu(
+                                for: tab,
+                                index: index,
+                                moveLeftTarget: moveLeftTarget,
+                                moveRightTarget: moveRightTarget,
+                                includeThemeOverrideClear: false
+                            )
+                        }
+                }
             }
         }
         .contentShape(Rectangle())
@@ -959,31 +963,33 @@ struct TabBar: View {
             HStack(spacing: usesCompactSpacing ? 0 : 8) {
                 activeScopeMenu
                 compactScopeMenuSpacer
-                ForEach(navigationTabs) { tab in
-                    let index = tabsModel.index(of: tab.id) ?? 0
-                    let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
-                    let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                    tabItem(
-                        for: tab,
-                        index: index,
-                        isOnly: false,
-                        gatewayOwnerIDs: gatewayOwnerIDs,
-                        tabWidth: tabWidth
-                    )
-                        .equatable()
-                        .frame(width: tabWidth)
-                        .contentShape(Rectangle())
-                        .id(tab.id)
-                        .modifier(dragModifier(for: tab, index: index))
-                        .contextMenu {
-                            tabContextMenu(
-                                for: tab,
-                                index: index,
-                                moveLeftTarget: moveLeftTarget,
-                                moveRightTarget: moveRightTarget,
-                                includeThemeOverrideClear: true
-                            )
-                        }
+                troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
+                    ForEach(navigationTabs) { tab in
+                        let index = tabsModel.index(of: tab.id) ?? 0
+                        let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
+                        let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
+                        tabItem(
+                            for: tab,
+                            index: index,
+                            isOnly: false,
+                            gatewayOwnerIDs: gatewayOwnerIDs,
+                            tabWidth: tabWidth
+                        )
+                            .equatable()
+                            .frame(width: tabWidth)
+                            .contentShape(Rectangle())
+                            .id(tab.id)
+                            .modifier(dragModifier(for: tab, index: index))
+                            .contextMenu {
+                                tabContextMenu(
+                                    for: tab,
+                                    index: index,
+                                    moveLeftTarget: moveLeftTarget,
+                                    moveRightTarget: moveRightTarget,
+                                    includeThemeOverrideClear: true
+                                )
+                            }
+                    }
                 }
             }
             .padding(.leading, usesCompactSpacing ? 0 : 8)
@@ -1001,15 +1007,38 @@ struct TabBar: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Compact pills intentionally abut one another, but the scope menu is a
-    /// separate control and should retain the small visual break used by the
-    /// regular pill layout.
+    /// Compact pills and the trough well intentionally abut, but the scope
+    /// menu is a separate control and should retain the small visual break
+    /// used by the regular pill layout.
     @ViewBuilder
     private var compactScopeMenuSpacer: some View {
         if usesCompactSpacing,
-           style == .pills,
+           !style.usesStripLayout,
            activeScopeMenuWidth > 0 {
             Color.clear.frame(width: 4)
+        }
+    }
+
+    /// Trough: the shared well behind the tab run. Other styles get the
+    /// content unwrapped so their layout is untouched.
+    @ViewBuilder
+    private func troughWell<Content: View>(
+        segmentCount: Int,
+        segmentWidth: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        if style == .trough {
+            HStack(spacing: 0) { content() }
+                .background {
+                    TroughWellBackground(
+                        segmentCount: segmentCount,
+                        selectedSegment: tabsModel.selectedTabID.flatMap { tabsModel.navigationIndex(of: $0) },
+                        segmentWidth: segmentWidth,
+                        theme: theme
+                    )
+                }
+        } else {
+            content()
         }
     }
 
@@ -1240,6 +1269,7 @@ struct TabBarItem: View, Equatable {
             && lhs.theme.unselectedBackground == rhs.theme.unselectedBackground
             && lhs.theme.tabText == rhs.theme.tabText
             && lhs.theme.tabSecondaryText == rhs.theme.tabSecondaryText
+            && lhs.theme.ledgerIndicator == rhs.theme.ledgerIndicator
     }
 
     var body: some View {
@@ -1255,6 +1285,7 @@ struct TabBarItem: View, Equatable {
             secondaryTextColor: theme.tabSecondaryText,
             isLightTheme: theme.isLight,
             integratedEdgePalette: theme.integratedEdgePalette,
+            indicatorColor: theme.ledgerIndicator,
             namespace: tabNamespace,
             onTap: onTap,
             onClose: onClose,
