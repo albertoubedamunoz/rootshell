@@ -25,6 +25,57 @@ extension LocalShellSession {
         guard !hasStopped else { return }
         scriptCancellationToken.reset()
 
+        if arguments.contains("git-progress") {
+            var failures = GitProgressSelfTest.run()
+            let quotedCommand = "git --no-color clone '/tmp/source  repo' '/tmp/dest  repo'"
+            let rewritten = Self.injectGitOptions(["--progress"], into: quotedCommand)
+            let expected = "git --progress --no-color clone '/tmp/source  repo' '/tmp/dest  repo'"
+            if rewritten != expected {
+                failures.append("option injection changed quoted whitespace")
+            }
+            let classified = GitCommandParser.tokenize("git -C '/tmp/repo with space' fetch")
+            if classified != ["git", "-C", "/tmp/repo with space", "fetch"] {
+                failures.append("quote-aware Git classification split a global option value")
+            }
+            for destination in ["destination>archive", "destination|archive"] {
+                let quotedOperatorCommand = "git clone source '\(destination)'"
+                let quotedOperatorPrepared = Self.preparedGitCommandForIOSSystem(quotedOperatorCommand)
+                let quotedOperatorExpected = "git --color=always --progress clone source '\(destination)'"
+                if quotedOperatorPrepared != quotedOperatorExpected {
+                    failures.append("quoted shell operator disabled Git terminal options")
+                }
+            }
+            for shellOperator in [">", "|"] {
+                if !Self.commandContainsUnquotedOutputOperator("git clone source \(shellOperator) archive") {
+                    failures.append("unquoted Git output operator was not detected")
+                }
+            }
+            for terminalBoundSuffix in ["< /dev/null", "; echo later", "&", "|| echo failed"] {
+                let terminalBoundCommand = "git fetch \(terminalBoundSuffix)"
+                let terminalBoundPrepared = Self.preparedGitCommandForIOSSystem(terminalBoundCommand)
+                let terminalBoundExpected = "git --color=always --progress fetch \(terminalBoundSuffix)"
+                if terminalBoundPrepared != terminalBoundExpected {
+                    failures.append("non-output shell operator disabled Git terminal options")
+                }
+            }
+            let lines: [String]
+            if failures.isEmpty {
+                lines = ["git-progress: all checks passed\n"]
+            } else {
+                lines = failures.map { "git-progress: FAIL — \($0)\n" }
+            }
+            for line in lines {
+                outputBatcher.enqueue(Data(line.replacingOccurrences(of: "\n", with: "\r\n").utf8))
+            }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.lastCommandSucceeded = failures.isEmpty
+                self.scriptCommandExitCode = failures.isEmpty ? 0 : 1
+                self.recoverFromScriptExecution()
+            }
+            return
+        }
+
         let includeExternal = arguments.contains("external") || arguments.contains("--external")
         let filter = arguments.first { $0 != "external" && $0 != "--external" }
 

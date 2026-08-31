@@ -111,7 +111,9 @@ final class GitCommand {
                         workingDirectory: workDir,
                         args: args,
                         cols: termCols,
-                        output: outputCb
+                        output: outputCb,
+                        statusOutput: outputCb,
+                        progressDefault: true
                     )
                 } catch let error as GitError {
                     if case .editorNeeded(let request) = error {

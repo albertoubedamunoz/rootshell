@@ -530,6 +530,19 @@ extension LocalShellSession {
     /// app-command interception (which can't implement these operators) and
     /// hand execution to ios_system instead.
     nonisolated static func commandContainsUnquotedShellOperator(_ command: String) -> Bool {
+        commandContainsUnquotedOperator(command, outputOnly: false)
+    }
+
+    /// Detect operators that move stdout/stderr away from their normal terminal
+    /// destinations. Input-only redirects and control operators do not qualify.
+    nonisolated static func commandContainsUnquotedOutputOperator(_ command: String) -> Bool {
+        commandContainsUnquotedOperator(command, outputOnly: true)
+    }
+
+    nonisolated private static func commandContainsUnquotedOperator(
+        _ command: String,
+        outputOnly: Bool
+    ) -> Bool {
         let scalars = Array(command.unicodeScalars)
         var i = 0
         var inSingleQuote = false
@@ -551,6 +564,21 @@ extension LocalShellSession {
                 continue
             }
             if inSingleQuote || inDoubleQuote {
+                i += 1
+                continue
+            }
+            if outputOnly {
+                if c == ">" {
+                    return true
+                }
+                if c == "|" {
+                    // `||` is control flow, not an output pipe.
+                    if i + 1 < scalars.count, scalars[i + 1] == "|" {
+                        i += 2
+                        continue
+                    }
+                    return true
+                }
                 i += 1
                 continue
             }

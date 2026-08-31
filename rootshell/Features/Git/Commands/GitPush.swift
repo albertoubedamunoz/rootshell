@@ -3,12 +3,19 @@
 import Foundation
 
 /// `git push [<remote> [<refspec>]]` — push to a remote.
-enum GitPush: GitSubcommand {
+enum GitPush: GitProgressSubcommand {
     static var helpText: String {
-        "usage: git push [<options>] [<remote> [<refspec>...]]\r\n\r\n    Update remote refs along with associated objects\r\n\r\nOptions:\r\n    -f, --force          Force update even if remote has diverged\r\n    -u, --set-upstream   Set upstream tracking reference\r\n"
+        "usage: git push [<options>] [<remote> [<refspec>...]]\r\n\r\n    Update remote refs along with associated objects\r\n\r\nOptions:\r\n    -f, --force          Force update even if remote has diverged\r\n    -u, --set-upstream   Set upstream tracking reference\r\n    -q, --quiet          Suppress status and progress output\r\n    --progress           Force progress output\r\n    --no-progress        Suppress progress output\r\n"
     }
 
-    static func run(repo: OpaquePointer?, args: [String], cols: UInt16, output: @escaping @Sendable (String) -> Void) throws -> Int32 {
+    static func run(
+        repo: OpaquePointer?,
+        args: [String],
+        cols: UInt16,
+        output: @escaping @Sendable (String) -> Void,
+        statusOutput: @escaping @Sendable (String) -> Void,
+        progressDefault: Bool
+    ) throws -> Int32 {
         guard let repo else { throw GitError.notARepository }
 
         // Parse args
@@ -17,9 +24,14 @@ enum GitPush: GitSubcommand {
         var force = false
         var setUpstream = false
         var positional: [String] = []
+        var progressControl = GitProgressControl()
 
         var i = 0
         while i < args.count {
+            if progressControl.consume(args[i]) {
+                i += 1
+                continue
+            }
             switch args[i] {
             case "-f", "--force": force = true
             case "-u", "--set-upstream": setUpstream = true
@@ -53,7 +65,7 @@ enum GitPush: GitSubcommand {
         }
 
         guard let refspec else {
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: no refspec and no current branch\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: no refspec and no current branch\r\n"))
             return 1
         }
 
@@ -64,13 +76,20 @@ enum GitPush: GitSubcommand {
         defer { git_remote_free(remote) }
 
         let url = git_remote_url(remote).map { String(cString: $0) } ?? remoteName
-        output("Pushing to \(GitStyle.fg(GitStyle.remote, remoteName)) (\(url))...\r\n")
+        if !progressControl.quiet {
+            statusOutput("Pushing to \(GitStyle.fg(GitStyle.remote, remoteName)) (\(url))...\r\n")
+        }
 
         // Set up push options
         var pushOpts = git_push_options()
         git_push_options_init(&pushOpts, UInt32(GIT_PUSH_OPTIONS_VERSION))
 
-        let ctx = PushProgressContext(output: output, cols: cols)
+        let reporter = GitProgressReporter(
+            enabled: progressControl.isEnabled(default: progressDefault),
+            cols: cols,
+            output: statusOutput
+        )
+        let ctx = PushProgressContext(reporter: reporter)
         let ctxPtr = Unmanaged.passRetained(ctx).toOpaque()
 
         pushOpts.callbacks.push_transfer_progress = { current, total, bytes, payload in
@@ -79,9 +98,9 @@ enum GitPush: GitSubcommand {
 
             if total > 0 {
                 let bytesStr = formatBytes(Int(bytes))
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Writing", current: Int(current), total: Int(total),
-                    cols: ctx.cols, suffix: "  \(bytesStr)"))
+                ctx.reporter.report(
+                    phase: "Writing", current: Int(current), total: Int(total),
+                    suffix: "  \(bytesStr)")
             }
             return 0
         }
@@ -105,11 +124,11 @@ enum GitPush: GitSubcommand {
 
         Unmanaged<PushProgressContext>.fromOpaque(ctxPtr).release()
 
-        output("\r\n")
+        reporter.finish()
 
         if result != 0 {
             let err = git_error_last()?.pointee.message.map { String(cString: $0) } ?? "unknown error"
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: \(err)\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: \(err)\r\n"))
             return 128
         }
 
@@ -128,11 +147,15 @@ enum GitPush: GitSubcommand {
                     remoteBranch: remoteBranch
                 )
                 let trackingRef = "\(remoteName)/\(remoteBranch)"
-                output("Branch '\(GitStyle.fg(GitStyle.branch, branchName))' set up to track '\(GitStyle.fg(GitStyle.remote, trackingRef))'\r\n")
+                if !progressControl.quiet {
+                    statusOutput("Branch '\(GitStyle.fg(GitStyle.branch, branchName))' set up to track '\(GitStyle.fg(GitStyle.remote, trackingRef))'\r\n")
+                }
             }
         }
 
-        output(GitStyle.fg(GitStyle.success, "\(GitStyle.checkIcon) Push complete\r\n"))
+        if !progressControl.quiet {
+            statusOutput(GitStyle.fg(GitStyle.success, "\(GitStyle.checkIcon) Push complete\r\n"))
+        }
         return 0
     }
 
@@ -196,11 +219,9 @@ enum GitPush: GitSubcommand {
 
 /// Progress context for push callbacks.
 private final class PushProgressContext: @unchecked Sendable {
-    let output: @Sendable (String) -> Void
-    let cols: UInt16
-    init(output: @escaping @Sendable (String) -> Void, cols: UInt16) {
-        self.output = output
-        self.cols = cols
+    let reporter: GitProgressReporter
+    init(reporter: GitProgressReporter) {
+        self.reporter = reporter
     }
 }
 

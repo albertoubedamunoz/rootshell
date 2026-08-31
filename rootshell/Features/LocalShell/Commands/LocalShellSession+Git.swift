@@ -617,13 +617,10 @@ extension LocalShellSession {
 
     // MARK: - ios_system Routing Helpers
 
-    /// Subcommands that should auto-page via bat when output goes to terminal.
-    private static let pagedSubcommands: Set<String> = ["diff", "log", "blame", "reflog"]
-
     /// Check if a git command needs to be intercepted (not routed through ios_system).
     /// Returns true for commands that require interactive UI: auth flags and editor commit.
     func gitCommandNeedsInterception(_ command: String) -> Bool {
-        let tokens = command.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        let tokens = GitCommandParser.tokenize(command)
         guard tokens.count >= 2 else { return true } // bare "git" → show help via intercept
 
         // Check for auth flags anywhere in the command
@@ -672,14 +669,24 @@ extension LocalShellSession {
 
     /// Prepare a git command for ios_system execution with color injection and auto-paging.
     func prepareGitForIOSSystem(_ command: String) -> String {
-        let tokens = command.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        Self.preparedGitCommandForIOSSystem(command)
+    }
+
+    /// Pure command rewriting used by both the MainActor input path and
+    /// nonisolated conformance checks.
+    nonisolated static func preparedGitCommandForIOSSystem(_ command: String) -> String {
+        let tokens = GitCommandParser.tokenize(command)
         guard tokens.count >= 2 else { return command }
 
-        // Detect if user already has pipe or redirect operators
-        let hasPipeOrRedirect = command.contains("|") || command.contains(">")
+        // Only shell syntax outside quotes changes the command's output path.
+        // Quoted operands such as 'destination>archive' remain terminal-bound.
+        let hasPipeOrRedirect = Self.commandContainsUnquotedOutputOperator(command)
 
         // Check if user already specified --color
         let hasColorFlag = tokens.contains(where: { $0 == "--color" || $0.hasPrefix("--color=") || $0 == "--no-color" })
+        let hasProgressControl = tokens.contains {
+            $0 == "--progress" || $0 == "--no-progress" || $0 == "-q" || $0 == "--quiet"
+        }
 
         // Find the subcommand (first non-flag token after "git")
         var subcommand: String?
@@ -706,26 +713,56 @@ extension LocalShellSession {
             break
         }
 
-        var result = command
+        var injectedOptions: [String] = []
+
+        // ios_system streams are pipes even when the command is displayed in
+        // the terminal. Mark terminal-bound Git network commands explicitly;
+        // pipeline/redirection paths retain the bridge's non-terminal default.
+        if !hasPipeOrRedirect,
+           !hasProgressControl,
+           let subcommand,
+           GitCommandDispatch.supportsProgress(subcommand) {
+            // GitCommandParser forwards this internal global spelling to the
+            // selected progress-capable subcommand.
+            injectedOptions.append("--progress")
+        }
 
         // Inject --color=always when output is terminal-bound (no pipe/redirect)
         // and user didn't explicitly set a color mode
         if !hasPipeOrRedirect && !hasColorFlag {
-            // Insert --color=always after "git"
-            var mutableTokens = tokens
-            mutableTokens.insert("--color=always", at: 1)
-            result = mutableTokens.joined(separator: " ")
+            injectedOptions.insert("--color=always", at: 0)
         }
 
+        // Insert options into the untouched source instead of rebuilding it
+        // from `tokens`. Rejoining a naively split command corrupts quoted
+        // whitespace (for example '/tmp/source  repo').
+        var result = Self.injectGitOptions(injectedOptions, into: command)
+
         // Auto-paging: append bat for paged subcommands when output goes to terminal
+        let pagedSubcommands: Set<String> = ["diff", "log", "blame", "reflog"]
         let hasNoPager = tokens.contains("--no-pager")
         if let sub = subcommand,
-           Self.pagedSubcommands.contains(sub),
+           pagedSubcommands.contains(sub),
            !hasNoPager,
            !hasPipeOrRedirect {
             result += " | bat --paging=always --color=never --style=plain --wrap=never"
         }
 
+        return result
+    }
+
+    /// Inject global Git options without reconstructing the caller's command.
+    /// This deliberately preserves quoting, escaping, and repeated whitespace.
+    nonisolated static func injectGitOptions(_ options: [String], into command: String) -> String {
+        guard !options.isEmpty,
+              let firstSeparator = command.firstIndex(where: { $0.isWhitespace }) else {
+            return command
+        }
+        var result = command
+        result.insert(
+            contentsOf: " " + options.joined(separator: " "),
+            at: firstSeparator
+        )
         return result
     }
 

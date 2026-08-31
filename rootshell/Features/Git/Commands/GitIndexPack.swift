@@ -3,35 +3,44 @@
 import Foundation
 
 /// `git index-pack <packfile>` — index a pack file.
-enum GitIndexPack: GitSubcommand {
+enum GitIndexPack: GitProgressSubcommand {
     static var helpText: String {
-        "usage: git index-pack <packfile>\r\n\r\n    Build pack index file for an existing packed archive\r\n"
+        "usage: git index-pack [--progress | --no-progress] [-q] <packfile>\r\n\r\n    Build pack index file for an existing packed archive\r\n"
     }
 
-    static func run(repo: OpaquePointer?, args: [String], cols: UInt16, output: @escaping @Sendable (String) -> Void) throws -> Int32 {
+    static func run(
+        repo: OpaquePointer?,
+        args: [String],
+        cols: UInt16,
+        output: @escaping @Sendable (String) -> Void,
+        statusOutput: @escaping @Sendable (String) -> Void,
+        progressDefault: Bool
+    ) throws -> Int32 {
         // Parse args
         var packPath: String?
+        var progressControl = GitProgressControl()
 
         for arg in args {
+            if progressControl.consume(arg) { continue }
             if !arg.hasPrefix("-") {
                 packPath = arg
             }
         }
 
         guard let packPath else {
-            output("usage: git index-pack <packfile>\r\n")
+            statusOutput("usage: git index-pack <packfile>\r\n")
             return 1
         }
 
         // Verify file exists
         guard FileManager.default.fileExists(atPath: packPath) else {
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: cannot open packfile '\(packPath)'\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: cannot open packfile '\(packPath)'\r\n"))
             return 128
         }
 
         // Read the pack file
         guard let fileData = FileManager.default.contents(atPath: packPath) else {
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: failed to read '\(packPath)'\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: failed to read '\(packPath)'\r\n"))
             return 128
         }
 
@@ -39,7 +48,13 @@ enum GitIndexPack: GitSubcommand {
         let dirPath = (packPath as NSString).deletingLastPathComponent
 
         // Set up progress context
-        let ctx = IndexPackProgressContext(output: output, cols: cols)
+        let reporter = GitProgressReporter(
+            enabled: progressControl.isEnabled(default: progressDefault),
+            cols: cols,
+            output: statusOutput
+        )
+        defer { reporter.finish() }
+        let ctx = IndexPackProgressContext(reporter: reporter)
         let ctxPtr = Unmanaged.passRetained(ctx).toOpaque()
         defer { Unmanaged<IndexPackProgressContext>.fromOpaque(ctxPtr).release() }
 
@@ -61,17 +76,15 @@ enum GitIndexPack: GitSubcommand {
             let received = stats.pointee.received_objects
 
             if received < total {
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Receiving", current: Int(received), total: Int(total),
-                    cols: ctx.cols))
+                ctx.reporter.report(
+                    phase: "Receiving", current: Int(received), total: Int(total))
             } else if indexed < total {
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Indexing", current: Int(indexed), total: Int(total),
-                    cols: ctx.cols))
+                ctx.reporter.report(
+                    phase: "Indexing", current: Int(indexed), total: Int(total))
             } else {
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Indexing", current: Int(indexed), total: Int(total),
-                    cols: ctx.cols, suffix: ", done."))
+                ctx.reporter.report(
+                    phase: "Indexing", current: Int(indexed), total: Int(total),
+                    suffix: ", done.")
             }
 
             return 0
@@ -86,7 +99,7 @@ enum GitIndexPack: GitSubcommand {
         )
 
         guard let indexer else {
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: failed to create indexer\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: failed to create indexer\r\n"))
             return 128
         }
         defer { git_indexer_free(indexer) }
@@ -121,7 +134,7 @@ enum GitIndexPack: GitSubcommand {
             "failed to commit index"
         )
 
-        output("\r\n")
+        reporter.finish()
 
         // Show result
         if let hashPtr = git_indexer_name(indexer) {
@@ -129,18 +142,18 @@ enum GitIndexPack: GitSubcommand {
             output("pack\t\(GitStyle.fg(GitStyle.hash, name))\r\n")
         }
 
-        output(GitStyle.fg(GitStyle.success, "\(GitStyle.checkIcon) Index complete\r\n"))
+        if !progressControl.quiet {
+            statusOutput(GitStyle.fg(GitStyle.success, "\(GitStyle.checkIcon) Index complete\r\n"))
+        }
         return 0
     }
 }
 
 /// Progress context for indexer callbacks.
 private final class IndexPackProgressContext: @unchecked Sendable {
-    let output: @Sendable (String) -> Void
-    let cols: UInt16
-    init(output: @escaping @Sendable (String) -> Void, cols: UInt16) {
-        self.output = output
-        self.cols = cols
+    let reporter: GitProgressReporter
+    init(reporter: GitProgressReporter) {
+        self.reporter = reporter
     }
 }
 

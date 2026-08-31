@@ -36,7 +36,7 @@ func git_main(_ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutablePointer<C
 
     switch parseResult {
     case .error(let message):
-        gitWriteOutput("git: \(message)\n")
+        gitWriteError("git: \(message)\n")
         return 1
 
     case .help:
@@ -47,8 +47,8 @@ func git_main(_ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutablePointer<C
         // Auth flags require interactive mode (password prompts, Keychain access).
         // When invoked via ios_system, there's no way to interact with the user mid-command.
         if config.sshKeyName != nil || config.forcePassword || config.profileName != nil {
-            gitWriteOutput("git: --ssh-key, --password, and --profile require interactive mode\n")
-            gitWriteOutput("hint: run the command without piping or redirection\n")
+            gitWriteError("git: --ssh-key, --password, and --profile require interactive mode\n")
+            gitWriteError("hint: run the command without piping or redirection\n")
             return 1
         }
 
@@ -85,11 +85,14 @@ private func gitExecute(config: GitCommandParser.GitCommandConfig, colorEnabled:
     git_libgit2_init()
     defer { git_libgit2_shutdown() }
 
-    // Capture thread_stdout for the output callback
+    // Keep stdout and human-readable status/progress separate. ios_system's
+    // pipeline executor forwards stdout downstream while leaving stderr on the
+    // terminal unless the user explicitly redirects or merges it.
     guard let threadStdout = ios_get_thread_stdout() else {
         gitWriteOutput("git: no output stream available\n")
         return 1
     }
+    let threadStderr = ios_get_thread_stderr() ?? threadStdout
 
     // Output callback: optionally strips ANSI codes, passes output to pipe.
     //
@@ -98,22 +101,27 @@ private func gitExecute(config: GitCommandParser.GitCommandConfig, colorEnabled:
     // Converting \r\n → \n would break when normalization is disabled by
     // ScreenControlDetector (triggered by progress bar \e[K sequences),
     // leaving lone \n that cascades in the terminal.
-    let outputCb: @Sendable (String) -> Void = { text in
-        var output = text
+    let makeOutputCallback: (UnsafeMutablePointer<FILE>) -> @Sendable (String) -> Void = { stream in
+        { text in
+            var rendered = text
 
-        // Strip ANSI SGR sequences when color is disabled
-        if !colorEnabled {
-            let range = NSRange(output.startIndex..., in: output)
-            output = GitBridgeConstants.sgrPattern.stringByReplacingMatches(
-                in: output,
-                range: range,
-                withTemplate: ""
-            )
+            // Strip ANSI SGR sequences when color is disabled. Terminal
+            // progress controls are confined to stderr by this point.
+            if !colorEnabled {
+                let range = NSRange(rendered.startIndex..., in: rendered)
+                rendered = GitBridgeConstants.sgrPattern.stringByReplacingMatches(
+                    in: rendered,
+                    range: range,
+                    withTemplate: ""
+                )
+            }
+
+            fputs(rendered, stream)
+            fflush(stream)
         }
-
-        fputs(output, threadStdout)
-        fflush(threadStdout)
     }
+    let outputCb = makeOutputCallback(threadStdout)
+    let statusOutputCb = makeOutputCallback(threadStderr)
 
     let subcommand = config.subcommand
 
@@ -142,19 +150,21 @@ private func gitExecute(config: GitCommandParser.GitCommandConfig, colorEnabled:
             workingDirectory: config.workingDirectory,
             args: config.args,
             cols: cols,
-            output: outputCb
+            output: outputCb,
+            statusOutput: statusOutputCb,
+            progressDefault: false
         )
     } catch let error as GitError {
         if case .editorNeeded = error {
             // Editor flow can't work through ios_system (no interactive UI access)
-            outputCb("error: editor required for this operation\n")
-            outputCb("hint: use -m to specify a commit message, or run git commit interactively\n")
+            statusOutputCb("error: editor required for this operation\n")
+            statusOutputCb("hint: use -m to specify a commit message, or run git commit interactively\n")
             return 1
         }
-        outputCb(error.styledDescription)
+        statusOutputCb(error.styledDescription)
         return 1
     } catch {
-        outputCb("fatal: \(error.localizedDescription)\n")
+        statusOutputCb("fatal: \(error.localizedDescription)\n")
         return 1
     }
 
@@ -169,6 +179,16 @@ private func gitWriteOutput(_ text: String) {
         fputs(text, stream)
         fflush(stream)
     } else if let stream = ios_get_thread_stderr() {
+        fputs(text, stream)
+        fflush(stream)
+    }
+}
+
+private func gitWriteError(_ text: String) {
+    if let stream = ios_get_thread_stderr() {
+        fputs(text, stream)
+        fflush(stream)
+    } else if let stream = ios_get_thread_stdout() {
         fputs(text, stream)
         fflush(stream)
     }
