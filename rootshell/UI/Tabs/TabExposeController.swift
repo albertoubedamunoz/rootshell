@@ -85,6 +85,14 @@ final class TabExposeController {
     var canNavigateScope: Bool {
         scopeList().scopes.count > 1
     }
+    /// Page-control metadata for the currently presented scope list.
+    var scopePageCount: Int {
+        scopeList().scopes.count
+    }
+    var currentScopePageIndex: Int {
+        let list = scopeList()
+        return list.scopes.indices.contains(list.activeIndex) ? list.activeIndex : 0
+    }
     /// Cell marked as current on the active page.
     var currentCellID: UUID? {
         showsMultiplexer ? muxFeed?.activeTabUUID : tabsModel?.selectedTabID
