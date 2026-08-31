@@ -106,11 +106,13 @@ nonisolated final class NotificationService: UNNotificationServiceExtension {
         content.userInfo = info
         decrypted = content
 
-        // Relay retries and replays carry the same eid; only the first copy is shown.
-        guard shared.claim(PushEventRecord(header: header, eid: envelope.eid)) else {
-            decrypted = nil
-            finish(silence(content, reason: "duplicate"))
-            return
+        // APNs uses eid as the collapse id, so a relay retry updates the same
+        // notification. Keep the claim as one-shot ledger bookkeeping, but
+        // never replace already-decrypted content with a blank notification:
+        // iOS can resurface the original encrypted placeholder while applying
+        // that collapsed update.
+        if !shared.claim(PushEventRecord(header: header, eid: envelope.eid)) {
+            Self.logger.info("redelivered eid=\(self.eid, privacy: .public): keeping decrypted content")
         }
 
         if header.kind == "agent", policy.showsAgentLogos {
