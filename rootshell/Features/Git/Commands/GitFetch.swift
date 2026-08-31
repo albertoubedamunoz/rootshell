@@ -3,12 +3,19 @@
 import Foundation
 
 /// `git fetch [<remote>]` — fetch from a remote with progress.
-enum GitFetch: GitSubcommand {
+enum GitFetch: GitProgressSubcommand {
     static var helpText: String {
-        "usage: git fetch [<options>] [<remote>]\r\n\r\n    Download objects and refs from a remote repository\r\n\r\nOptions:\r\n    -p, --prune          Remove remote-tracking refs that no longer exist on the remote\r\n"
+        "usage: git fetch [<options>] [<remote>]\r\n\r\n    Download objects and refs from a remote repository\r\n\r\nOptions:\r\n    -p, --prune          Remove remote-tracking refs that no longer exist on the remote\r\n    -q, --quiet          Suppress status and progress output\r\n    --progress           Force progress output\r\n    --no-progress        Suppress progress output\r\n"
     }
 
-    static func run(repo: OpaquePointer?, args: [String], cols: UInt16, output: @escaping @Sendable (String) -> Void) throws -> Int32 {
+    static func run(
+        repo: OpaquePointer?,
+        args: [String],
+        cols: UInt16,
+        output: @escaping @Sendable (String) -> Void,
+        statusOutput: @escaping @Sendable (String) -> Void,
+        progressDefault: Bool
+    ) throws -> Int32 {
         guard let repo else { throw GitError.notARepository }
 
         // Parse args
@@ -16,9 +23,14 @@ enum GitFetch: GitSubcommand {
         var prune = false
         var refspecs: [String] = []
         var positional: [String] = []
+        var progressControl = GitProgressControl()
 
         var i = 0
         while i < args.count {
+            if progressControl.consume(args[i]) {
+                i += 1
+                continue
+            }
             switch args[i] {
             case "--prune", "-p": prune = true
             default:
@@ -41,7 +53,9 @@ enum GitFetch: GitSubcommand {
         defer { git_remote_free(remote) }
 
         let url = git_remote_url(remote).map { String(cString: $0) } ?? remoteName
-        output("Fetching \(GitStyle.fg(GitStyle.remote, remoteName)) (\(url))...\r\n")
+        if !progressControl.quiet {
+            statusOutput("Fetching \(GitStyle.fg(GitStyle.remote, remoteName)) (\(url))...\r\n")
+        }
 
         // Set up fetch options with progress
         var fetchOpts = git_fetch_options()
@@ -51,7 +65,12 @@ enum GitFetch: GitSubcommand {
             fetchOpts.prune = GIT_FETCH_PRUNE
         }
 
-        let ctx = FetchProgressContext(output: output, cols: cols)
+        let reporter = GitProgressReporter(
+            enabled: progressControl.isEnabled(default: progressDefault),
+            cols: cols,
+            output: statusOutput
+        )
+        let ctx = FetchProgressContext(reporter: reporter)
         let ctxPtr = Unmanaged.passRetained(ctx).toOpaque()
 
         fetchOpts.callbacks.transfer_progress = { stats, payload in
@@ -68,32 +87,28 @@ enum GitFetch: GitSubcommand {
             let indexedDeltas = stats.pointee.indexed_deltas
 
             if received < total {
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Receiving", current: Int(received), total: Int(total),
-                    cols: ctx.cols, suffix: "  \(bytesStr)"))
+                ctx.reporter.report(
+                    phase: "Receiving", current: Int(received), total: Int(total),
+                    suffix: "  \(bytesStr)")
             } else if !ctx.didFinishReceiving {
                 ctx.didFinishReceiving = true
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Receiving", current: Int(total), total: Int(total),
-                    cols: ctx.cols, suffix: "  \(bytesStr)"))
+                ctx.reporter.report(
+                    phase: "Receiving", current: Int(total), total: Int(total),
+                    suffix: "  \(bytesStr)")
             } else if totalDeltas > 0, indexedDeltas < totalDeltas {
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Resolving deltas", current: Int(indexedDeltas), total: Int(totalDeltas),
-                    cols: ctx.cols))
+                ctx.reporter.report(
+                    phase: "Resolving deltas", current: Int(indexedDeltas), total: Int(totalDeltas))
             } else if totalDeltas > 0, !ctx.didFinishDeltas {
                 ctx.didFinishDeltas = true
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Resolving deltas", current: Int(totalDeltas), total: Int(totalDeltas),
-                    cols: ctx.cols))
+                ctx.reporter.report(
+                    phase: "Resolving deltas", current: Int(totalDeltas), total: Int(totalDeltas))
             } else if indexed < total {
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Indexing", current: Int(indexed), total: Int(total),
-                    cols: ctx.cols))
+                ctx.reporter.report(
+                    phase: "Indexing", current: Int(indexed), total: Int(total))
             } else if !ctx.didFinishIndexing {
                 ctx.didFinishIndexing = true
-                ctx.output(GitStyle.formatProgressLine(
-                    label: "Indexing", current: Int(total), total: Int(total),
-                    cols: ctx.cols))
+                ctx.reporter.report(
+                    phase: "Indexing", current: Int(total), total: Int(total))
             }
 
             return 0
@@ -107,18 +122,22 @@ enum GitFetch: GitSubcommand {
 
         Unmanaged<FetchProgressContext>.fromOpaque(ctxPtr).release()
 
-        output("\r\n")
+        reporter.finish()
 
         if result != 0 {
             let err = git_error_last()?.pointee.message.map { String(cString: $0) } ?? "unknown error"
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: \(err)\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: \(err)\r\n"))
             return 128
         }
 
         // Show updated refs summary
-        try printRefUpdates(repo: repo, remoteName: remoteName, output: output)
+        if !progressControl.quiet {
+            try printRefUpdates(repo: repo, remoteName: remoteName, output: statusOutput)
+        }
 
-        output(GitStyle.fg(GitStyle.success, "\(GitStyle.checkIcon) Fetch complete\r\n"))
+        if !progressControl.quiet {
+            statusOutput(GitStyle.fg(GitStyle.success, "\(GitStyle.checkIcon) Fetch complete\r\n"))
+        }
         return 0
     }
 
@@ -153,14 +172,12 @@ enum GitFetch: GitSubcommand {
 
 /// Progress context for fetch callbacks.
 private final class FetchProgressContext: @unchecked Sendable {
-    let output: @Sendable (String) -> Void
-    let cols: UInt16
+    let reporter: GitProgressReporter
     var didFinishReceiving = false
     var didFinishDeltas = false
     var didFinishIndexing = false
-    init(output: @escaping @Sendable (String) -> Void, cols: UInt16) {
-        self.output = output
-        self.cols = cols
+    init(reporter: GitProgressReporter) {
+        self.reporter = reporter
     }
 }
 

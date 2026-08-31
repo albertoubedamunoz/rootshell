@@ -88,6 +88,10 @@ enum GitCommandDispatch {
         CommandEntry(name: "worktree",     repoRequirement: .required, handler: GitWorktree.self),
     ]
 
+    static func supportsProgress(_ subcommand: String) -> Bool {
+        commands.first(where: { $0.name == subcommand })?.handler is GitProgressSubcommand.Type
+    }
+
     /// Look up and run a subcommand.
     /// Throws `GitError.editorNeeded` if the subcommand requires an editor (e.g., `git commit` without `-m`).
     static func run(
@@ -95,13 +99,16 @@ enum GitCommandDispatch {
         workingDirectory: String,
         args: [String],
         cols: UInt16,
-        output: @escaping @Sendable (String) -> Void
+        output: @escaping @Sendable (String) -> Void,
+        statusOutput: (@Sendable (String) -> Void)? = nil,
+        progressDefault: Bool = true
     ) throws -> Int32 {
+        let diagnosticOutput = statusOutput ?? output
         guard let entry = commands.first(where: { $0.name == subcommand }) else {
-            output(GitStyle.fg(GitStyle.errorColor, "git: '\(subcommand)' is not a git command.\r\n"))
-            output("\r\nAvailable commands:\r\n")
+            diagnosticOutput(GitStyle.fg(GitStyle.errorColor, "git: '\(subcommand)' is not a git command.\r\n"))
+            diagnosticOutput("\r\nAvailable commands:\r\n")
             for cmd in commands {
-                output("  \(cmd.name)\r\n")
+                diagnosticOutput("  \(cmd.name)\r\n")
             }
             return 1
         }
@@ -121,7 +128,7 @@ enum GitCommandDispatch {
         case .required:
             let result = git_repository_open_ext(&repo, workingDirectory, 0, nil)
             if result != 0 {
-                output(GitError.notARepository.styledDescription)
+                diagnosticOutput(GitError.notARepository.styledDescription)
                 return 128
             }
         case .optional:
@@ -136,7 +143,7 @@ enum GitCommandDispatch {
                 } else {
                     detail = "unknown error"
                 }
-                output(GitStyle.fg(GitStyle.errorColor, "fatal: \(detail)\r\n"))
+                diagnosticOutput(GitStyle.fg(GitStyle.errorColor, "fatal: \(detail)\r\n"))
                 return 128
             }
         case .none:
@@ -150,14 +157,24 @@ enum GitCommandDispatch {
         }
 
         do {
+            if let progressCommand = entry.handler as? GitProgressSubcommand.Type {
+                return try progressCommand.run(
+                    repo: repo,
+                    args: args,
+                    cols: cols,
+                    output: output,
+                    statusOutput: diagnosticOutput,
+                    progressDefault: progressDefault
+                )
+            }
             return try entry.handler.run(repo: repo, args: args, cols: cols, output: output)
         } catch let error as GitError {
             // Let editorNeeded propagate to GitCommand for editor launching
             if case .editorNeeded = error { throw error }
-            output(error.styledDescription)
+            diagnosticOutput(error.styledDescription)
             return 1
         } catch {
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: \(error.localizedDescription)\r\n"))
+            diagnosticOutput(GitStyle.fg(GitStyle.errorColor, "fatal: \(error.localizedDescription)\r\n"))
             return 1
         }
     }

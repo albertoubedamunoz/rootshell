@@ -1726,8 +1726,12 @@ extension LocalShellSession {
         let hasColorFlag = argv.contains { token in
             token == "--color" || token.hasPrefix("--color=") || token == "--no-color"
         }
+        let hasProgressControl = argv.contains { token in
+            token == "--progress" || token == "--no-progress" || token == "-q" || token == "--quiet"
+        }
 
         var subcommand: String?
+        var subcommandIndex: Int?
         var idx = 1
         while idx < argv.count {
             let token = argv[idx]
@@ -1748,10 +1752,18 @@ extension LocalShellSession {
                 continue
             }
             subcommand = token
+            subcommandIndex = idx
             break
         }
 
         var workingArgv = argv
+        if !hasPipeOrRedirect,
+           !hasProgressControl,
+           let subcommand,
+           let subcommandIndex,
+           GitCommandDispatch.supportsProgress(subcommand) {
+            workingArgv.insert("--progress", at: subcommandIndex + 1)
+        }
         if !hasPipeOrRedirect && !hasColorFlag {
             workingArgv.insert("--color=always", at: 1)
         }

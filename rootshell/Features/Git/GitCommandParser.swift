@@ -59,6 +59,7 @@ enum GitCommandParser {
         var sshKeyName: String?
         var forcePassword = false
         var profileName: String?
+        var forwardedSubcommandOptions: [String] = []
 
         while index < tokens.count {
             let token = tokens[index]
@@ -73,6 +74,13 @@ enum GitCommandParser {
                 index += 1
             } else if token == "--color=auto" {
                 colorMode = .auto
+                index += 1
+            } else if token == "--progress" || token == "--no-progress" ||
+                        token == "-q" || token == "--quiet" {
+                // The local-shell router may inject progress control directly
+                // after `git` so it can preserve the original quoted command.
+                // Forward it to the selected subcommand, where semantics live.
+                forwardedSubcommandOptions.append(token)
                 index += 1
             } else if token.hasPrefix("--color=") {
                 // Unknown value, treat as auto
@@ -120,6 +128,7 @@ enum GitCommandParser {
 
         // If --git-dir was provided, pass it as first arg
         var fullArgs = args
+        fullArgs.insert(contentsOf: forwardedSubcommandOptions, at: 0)
         if let gitDir {
             fullArgs.insert("--git-dir=\(gitDir)", at: 0)
         }
@@ -147,7 +156,9 @@ enum GitCommandParser {
     }
 
     /// Tokenize a command string, respecting quotes.
-    private static func tokenize(_ command: String) -> [String] {
+    /// Quote-aware tokenization shared with local-shell Git classification.
+    /// Returned values have shell quotes/escapes removed, matching argv.
+    static func tokenize(_ command: String) -> [String] {
         var tokens: [String] = []
         var current = ""
         var inSingleQuote = false

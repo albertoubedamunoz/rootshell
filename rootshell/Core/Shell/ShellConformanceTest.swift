@@ -472,6 +472,21 @@ nonisolated enum ShellConformanceTest {
              script: "FOO_BGTEST=xyz123 env & wait",
              expect: .contains("xyz123"),
              tier: .external),
+        Case(id: "git-pipeline.clone-stdout-clean",
+             script: "d=$(mktemp -d); git init \"$d/src\" >/dev/null; git -C \"$d/src\" config user.name shelltest; git -C \"$d/src\" config user.email shelltest@example.invalid; echo seed >\"$d/src/seed\"; git -C \"$d/src\" add seed; git -C \"$d/src\" commit -m seed >/dev/null; n=$(git clone --progress \"$d/src\" \"$d/dst\" | wc -c); rm -rf \"$d\"; echo \"$n\"",
+             expect: .exact("0\n"),
+             expectedExit: 0,
+             tier: .external),
+        Case(id: "git-pipeline.quiet-stderr-clean",
+             script: "d=$(mktemp -d); git init \"$d/src\" >/dev/null; git clone -q \"$d/src\" \"$d/dst\" 2>\"$d/status\"; n=$(wc -c <\"$d/status\"); rm -rf \"$d\"; echo \"$n\"",
+             expect: .exact("0\n"),
+             expectedExit: 0,
+             tier: .external),
+        Case(id: "git-pipeline.auth-error-stderr",
+             script: "git --password clone /definitely/not/a/repository | wc -c",
+             expect: .exact("0\n"),
+             expectedExit: 0,
+             tier: .external),
     ]
 }
 

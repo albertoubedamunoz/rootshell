@@ -3,16 +3,30 @@
 import Foundation
 
 /// `git pull` — fetch from remote and merge into current branch.
-enum GitPull: GitSubcommand {
+enum GitPull: GitProgressSubcommand {
     static var helpText: String {
-        "usage: git pull [<options>] [<remote>]\r\n\r\n    Fetch from and merge with a remote repository\r\n\r\nOptions:\r\n    -p, --prune          Remove remote-tracking refs that no longer exist on the remote\r\n"
+        "usage: git pull [<options>] [<remote>]\r\n\r\n    Fetch from and merge with a remote repository\r\n\r\nOptions:\r\n    -p, --prune          Remove remote-tracking refs that no longer exist on the remote\r\n    -q, --quiet          Suppress fetch status and progress output\r\n    --progress           Force fetch progress output\r\n    --no-progress        Suppress fetch progress output\r\n"
     }
 
-    static func run(repo: OpaquePointer?, args: [String], cols: UInt16, output: @escaping @Sendable (String) -> Void) throws -> Int32 {
+    static func run(
+        repo: OpaquePointer?,
+        args: [String],
+        cols: UInt16,
+        output: @escaping @Sendable (String) -> Void,
+        statusOutput: @escaping @Sendable (String) -> Void,
+        progressDefault: Bool
+    ) throws -> Int32 {
         guard let repo else { throw GitError.notARepository }
 
         // Step 1: Fetch
-        let fetchResult = try GitFetch.run(repo: repo, args: args, cols: cols, output: output)
+        let fetchResult = try GitFetch.run(
+            repo: repo,
+            args: args,
+            cols: cols,
+            output: output,
+            statusOutput: statusOutput,
+            progressDefault: progressDefault
+        )
         if fetchResult != 0 {
             return fetchResult
         }
@@ -20,7 +34,7 @@ enum GitPull: GitSubcommand {
         // Step 2: Determine upstream branch
         var headRef: OpaquePointer?
         guard git_repository_head(&headRef, repo) == 0, let headRef else {
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: not on any branch, cannot pull\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: not on any branch, cannot pull\r\n"))
             return 128
         }
         defer { git_reference_free(headRef) }
@@ -29,7 +43,7 @@ enum GitPull: GitSubcommand {
         let branchName = String(cString: branchNameC)
 
         guard let mergeSource = mergeTargetFromFetchHead(repo: repo) else {
-            output(GitStyle.fg(GitStyle.errorColor, "fatal: no merge candidates found in FETCH_HEAD\r\n"))
+            statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: no merge candidates found in FETCH_HEAD\r\n"))
             return 1
         }
 
@@ -123,7 +137,7 @@ enum GitPull: GitSubcommand {
             return try GitMerge.run(repo: repo, args: [remoteBranchShort], cols: cols, output: output)
         }
 
-        output(GitStyle.fg(GitStyle.errorColor, "fatal: unable to determine merge strategy\r\n"))
+        statusOutput(GitStyle.fg(GitStyle.errorColor, "fatal: unable to determine merge strategy\r\n"))
         return 1
     }
 
