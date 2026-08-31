@@ -211,6 +211,9 @@ extension MainView {
                 // AppleScript `create window`: the staged request is this
                 // window's content, so skip the default local shell.
                 dispatchClaimedIntentRequests([newWindowRequest])
+            } else if pendingState == nil, adoptPendingIntentRequestsAsFirstContent() {
+                // A folder/URL open that landed before this window appeared is
+                // this window's content.
             } else if pendingState == nil, HelperConnection.shared.isKnownRunning {
                 // createLocalShellTab() runs synchronously now: performLocalShellAction()
                 // takes its fast path when the helper is already confirmed up.
@@ -224,6 +227,9 @@ extension MainView {
                         RestorationHealthTracker.shared.markRestorationStarted()
                         Ghostty.logger.info("Restoring window state: \(savedState.tabs.count) tabs")
                         self.restoreWindowState(savedState)
+                    } else if self.adoptPendingIntentRequestsAsFirstContent() {
+                        // On cold launch the URL often lands during the helper
+                        // await above, after the synchronous claim missed it.
                     } else {
                         // Normal fresh start - helper is already running from above
                         self.checkHelperAndCreateInitialTab()

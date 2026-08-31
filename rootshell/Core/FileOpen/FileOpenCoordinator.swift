@@ -9,8 +9,9 @@
 //  event carries the receiving MainView's window ID, so global notification
 //  fan-out cannot let a different window steal the editor tab.
 //
-//  iOS/iPadOS/visionOS only: on macOS the coordinator turns file URLs into
-//  an unsupported-platform alert (registration is shared through Info.plist).
+//  iOS/iPadOS/visionOS only: on macOS a file becomes a local shell at its
+//  folder (CatalystAppDelegate), or this unsupported-platform alert in the
+//  variants that ship no helper.
 //
 
 import Foundation
@@ -49,6 +50,8 @@ final class FileOpenCoordinator {
 
     func handleIncomingFileURL(_ url: URL, targetWindowID: String) {
         #if targetEnvironment(macCatalyst)
+        // Reached only for a file macOS won't turn into a local shell (no
+        // bundled helper outside the standalone build).
         let path = url.path
         let filename = url.lastPathComponent
         let message = String(

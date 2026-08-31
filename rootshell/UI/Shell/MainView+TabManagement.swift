@@ -446,6 +446,8 @@ extension MainView {
     /// that doesn't exist falls back to HOME inside the session.
     /// `startupCommand` (AppleScript) is typed into the shell once it starts.
     func createLocalShellTab(intentDirectory: String?, startupCommand: String? = nil) {
+        // Backstop: automation must never materialize a tab in the hidden visor.
+        guard !isVisorWindow else { return }
         performLocalShellAction(description: "open a local shell tab") {
             let resolved = intentDirectory
                 .flatMap { Self.resolveIntentDirectory($0) }

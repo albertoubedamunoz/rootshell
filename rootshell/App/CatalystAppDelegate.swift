@@ -668,34 +668,59 @@ class CatalystAppDelegate: AppDelegate {
     // MARK: - URL Handling
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        logger.info("AppDelegate received URL: \(url.absoluteString)")
-        return Self.routeAutomationURL(url)
+        return Self.routeAutomationURL(url, source: "appDelegate.open")
     }
 
-    /// Shared by the app- and scene-level URL entry points. Handles
-    /// ssh://, mosh://, and folders (`odoc` from Finder/BBEdit → local
-    /// shell at that folder). Returns false for anything else.
+    /// Shared by the app-, scene- and AppleScript-level entry points. Handles
+    /// ssh://, mosh://, and file URLs (`odoc` from Finder/BBEdit → local shell
+    /// at that folder, or at a file's parent). Returns false for anything else;
+    /// true also covers a delivery the coordinator suppressed as a duplicate.
     @discardableResult
-    static func routeAutomationURL(_ url: URL) -> Bool {
+    static func routeAutomationURL(_ url: URL, source: String) -> Bool {
         if let components = SSHURLParser.parse(url) {
-            logger.info("Parsed SSH URL: \(components.displayString)")
-            AppIntentCoordinator.shared.deposit(.openSSH(components))
+            logger.info("[urlopen] route source=\(source, privacy: .public) kind=ssh")
+            AppIntentCoordinator.shared.depositURLRequest(.openSSH(components), source: source)
             return true
         }
 
         if let components = MoshURLParser.parse(url) {
-            logger.info("Parsed Mosh URL: \(components.displayString)")
-            AppIntentCoordinator.shared.deposit(.openMosh(components))
+            logger.info("[urlopen] route source=\(source, privacy: .public) kind=mosh")
+            AppIntentCoordinator.shared.depositURLRequest(.openMosh(components), source: source)
             return true
         }
 
-        if url.isFileURL, url.isExistingDirectory {
-            logger.info("Opening local shell at folder: \(url.path, privacy: .private)")
-            AppIntentCoordinator.shared.deposit(.openLocalShell(directory: url.path, command: nil))
+        if let directory = shellDirectory(for: url) {
+            logger.info("[urlopen] route source=\(source, privacy: .public) kind=folder path=\(directory, privacy: .private)")
+            AppIntentCoordinator.shared.depositURLRequest(
+                .openLocalShell(directory: directory, command: nil),
+                source: source
+            )
             return true
         }
 
+        logger.info("[urlopen] route source=\(source, privacy: .public) kind=unhandled scheme=\(url.scheme ?? "-", privacy: .public)")
         return false
+    }
+
+    /// A folder opens a shell at itself, a file at its parent. `hasDirectoryPath`
+    /// is lexical, so a LaunchServices folder URL still classifies when the
+    /// sandbox refuses the stat. Returns nil for anything we won't open, which
+    /// lets the caller fall back to its own handling.
+    private static func shellDirectory(for url: URL) -> String? {
+        guard url.isFileURL else { return nil }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        if url.isExistingDirectory || url.hasDirectoryPath { return url.path }
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+
+        // Only the standalone build embeds the shell helper, so elsewhere a
+        // file can't become a local shell — leave it to the file-open path.
+        #if STANDALONE
+        return url.deletingLastPathComponent().path
+        #else
+        return nil
+        #endif
     }
 
     // MARK: - Scene Configuration
@@ -1613,7 +1638,7 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
 
         // Handle URLs that launched the app (cold start)
-        handleURLContexts(connectionOptions.urlContexts)
+        handleURLContexts(connectionOptions.urlContexts, source: "scene.willConnect")
     }
 
     /// Detect the visor's UIScene. SwiftUI's `session.configuration.name`
@@ -1671,13 +1696,12 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         // Handle URLs opened while app is running
-        handleURLContexts(URLContexts)
+        handleURLContexts(URLContexts, source: "scene.openURLContexts")
     }
 
-    private func handleURLContexts(_ urlContexts: Set<UIOpenURLContext>) {
+    private func handleURLContexts(_ urlContexts: Set<UIOpenURLContext>, source: String) {
         for context in urlContexts {
-            logger.info("Received URL: \(context.url.absoluteString)")
-            CatalystAppDelegate.routeAutomationURL(context.url)
+            CatalystAppDelegate.routeAutomationURL(context.url, source: source)
         }
     }
 

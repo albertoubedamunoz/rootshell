@@ -37,12 +37,22 @@ extension MainView {
             // window may receive at all, and narrowing it makes iPadOS spawn
             // a new empty window for anything outside the set — including
             // plain app-icon activations and ssh/mosh/rootshell URLs.
-            .handlesExternalEvents(preferring: ["file://"], allowing: ["*"])
+            // These are the SCENE's activation conditions, so the hidden visor
+            // must not advertise itself as a file:// target.
+            .handlesExternalEvents(
+                preferring: isVisorWindow ? ["visor-terminal"] : ["file://"],
+                allowing: isVisorWindow ? ["visor-terminal"] : ["*"]
+            )
             .onOpenURL { url in
                 guard url.isFileURL else { return }
                 #if targetEnvironment(macCatalyst)
-                // Folders become a shell tab via CatalystSceneDelegate.
-                if url.isExistingDirectory { return }
+                // A folder (or a file's folder) is a shell tab, not a document.
+                // The scene delegate may deliver the same open; deposits dedupe.
+                // Whatever the router declines falls through to the file path.
+                Ghostty.logger.info("[urlopen] onOpenURL window=\(windowId, privacy: .public)")
+                if CatalystAppDelegate.routeAutomationURL(url, source: "mainView.onOpenURL") {
+                    return
+                }
                 #endif
                 FileOpenCoordinator.shared.handleIncomingFileURL(
                     url,
