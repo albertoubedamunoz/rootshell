@@ -1,5 +1,5 @@
 {
-  "originHash" : "9bb65a58625951299c22cb2117b88f4b2655d98bc293135cc72dae616dd07004",
+  "originHash" : "718351ee53cf0ad6d6b52b40377a5986832722d7adfd75b2064881de3df84be2",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -150,7 +150,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/rootshell-vnc.git",
       "state" : {
-        "revision" : "f4023314af1c29509e7810fc39f9f16e2ef84076"
+        "revision" : "0ccb286ee205c0566950feddf17a87736edcf6cc"
       }
     },
     {

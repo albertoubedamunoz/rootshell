@@ -6407,7 +6407,7 @@
 			repositoryURL = "https://github.com/kitknox/rootshell-vnc.git";
 			requirement = {
 				kind = revision;
-				revision = f4023314af1c29509e7810fc39f9f16e2ef84076;
+				revision = 0ccb286ee205c0566950feddf17a87736edcf6cc;
 			};
 		};
 		477408912ED51B9F0035CE92 /* XCRemoteSwiftPackageReference "Yams-rootshell" */ = {
