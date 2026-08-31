@@ -103,6 +103,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         clipsToBounds = true
 
         backdrop.isUserInteractionEnabled = false
+        backdrop.accessibilityElementsHidden = true
         backdropMask.fillRule = .evenOdd
         addSubview(backdrop)
         addSubview(primary)
@@ -113,6 +114,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         addSubview(pageControl)
 
         hero.isUserInteractionEnabled = false
+        hero.accessibilityElementsHidden = true
         addSubview(hero)
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
@@ -152,6 +154,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     func tabExposeDidChangeActivity(_ controller: TabExposeController) {
         if controller.isActive {
             isHidden = false
+            accessibilityViewIsModal = true
             lastAppliedProgress = -1
             resetPage()
             rebuildPrimary()
@@ -167,6 +170,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             stopDisplayLink()
             if isFirstResponder { resignFirstResponder() }
             isHidden = true
+            accessibilityViewIsModal = false
             hero.tab = nil
             syncTerminalConcealment()
             resetPage()
@@ -234,7 +238,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             muxFeed: controller.showsMultiplexer ? controller.muxFeed : nil,
             selectedID: controller.currentCellID,
             highlightedID: controller.highlightedTabID,
-            appearance: appearance
+            appearance: appearance,
+            onSelect: { [weak self] id in self?.controller.select(id) }
         )
         hero.tab = controller.heroTabID.flatMap { tabsModel.tab(withID: $0) }
         updatePageControl()
@@ -254,6 +259,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     private func makeTray(interactive: Bool) -> TabExposeTrayView {
         let tray = TabExposeTrayView()
         tray.isUserInteractionEnabled = interactive
+        tray.accessibilityElementsHidden = !interactive
         insertSubview(tray, belowSubview: pageControl)
         return tray
     }
@@ -634,7 +640,8 @@ extension TabExposeView {
             muxFeed: neighbor.isMultiplexer ? controller.muxFeed : nil,
             selectedID: neighbor.currentID,
             highlightedID: nil,
-            appearance: appearance
+            appearance: appearance,
+            onSelect: { [weak self] id in self?.controller.select(id) }
         )
         companion = tray
         companionSide = delta
@@ -690,7 +697,9 @@ extension TabExposeView {
         }
         companion = outgoing
         outgoing.isUserInteractionEnabled = false
+        outgoing.accessibilityElementsHidden = true
         primary.isUserInteractionEnabled = true
+        primary.accessibilityElementsHidden = false
         rebuildPrimary()
         setNeedsLayout()
         layoutIfNeeded()
@@ -763,6 +772,7 @@ extension TabExposeView {
         scopeCommitDeadline = 0
         dropCompanion()
         primary.isUserInteractionEnabled = true
+        primary.accessibilityElementsHidden = false
     }
 
     /// Beyond one page the drag stiffens instead of tearing away.
@@ -806,7 +816,12 @@ final class TabExposeCellView: UIView {
         didSet { currentRing.layer.borderColor = currentRingColor.cgColor }
     }
     var isCurrent = false {
-        didSet { updateRings() }
+        didSet {
+            updateRings()
+            accessibilityValue = isCurrent
+                ? String(localized: "Current tab", comment: "Tab exposé cell: this is the tab that was open before exposé was opened")
+                : nil
+        }
     }
     var isHighlighted = false {
         didSet {
@@ -823,6 +838,14 @@ final class TabExposeCellView: UIView {
     }
     var ringAlpha: CGFloat = 1 {
         didSet { updateRings() }
+    }
+
+    var onActivate: (() -> Void)?
+
+    override func accessibilityActivate() -> Bool {
+        guard let onActivate else { return false }
+        onActivate()
+        return true
     }
 
     init(tabID: UUID) {
@@ -847,6 +870,8 @@ final class TabExposeCellView: UIView {
         currentRing.layer.borderWidth = 1.5
         highlightRing.layer.borderWidth = 2.5
         updateRings()
+
+        accessibilityTraits = .button
     }
 
     @available(*, unavailable)
@@ -857,6 +882,8 @@ final class TabExposeCellView: UIView {
         muxPreview.isHidden = true
         mirror.isHidden = false
         mirror.tab = tab
+        isAccessibilityElement = true
+        accessibilityLabel = tab.title
     }
 
     func showMultiplexerTab(_ tab: MuxTab, feed: MultiplexerExposeFeed?) {
@@ -865,6 +892,8 @@ final class TabExposeCellView: UIView {
         muxPreview.isHidden = false
         muxPreview.feed = feed
         muxPreview.tab = tab
+        isAccessibilityElement = true
+        accessibilityLabel = tab.badge.map { "\(tab.title), \($0)" } ?? tab.title
     }
 
     /// Per display tick: refresh whichever picture is showing.
