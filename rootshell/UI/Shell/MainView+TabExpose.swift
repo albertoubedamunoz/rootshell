@@ -33,6 +33,9 @@ extension MainView {
         config.canBeginReveal = { !isAnySheetPresented && appTabSwipeState == nil }
         // Nothing above the terminal: let the pull start in its top strip.
         config.fallbackBandHeight = { tabBarHidden ? 28 : 0 }
+        // The top bar spans the full window even when a pinned vertical tab
+        // sidebar shifts this terminal-hosted overlay to the right.
+        config.topBarActivationSpansWindowWidth = { !tabBarHidden }
         #if !targetEnvironment(macCatalyst)
         // Touch: one finger from the tab bar strip itself.
         config.oneFingerBandHeight = { tabBarHidden ? 0 : TabMetrics.tabBarHeight }
