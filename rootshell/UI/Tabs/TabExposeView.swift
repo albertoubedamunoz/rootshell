@@ -82,6 +82,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     private var scopeSwipeBase: CGFloat = 0
     /// A committed swipe waits for the scope-changed announce until this.
     private var scopeCommitDeadline: CFTimeInterval = 0
+    /// Fixed beneath the horizontally paging trays; informational only.
+    private let pageControl = UIPageControl()
 
     private var heroRect: CGRect = .zero
     /// Highlight the tray was last scrolled to; see `tabExposeDidChangeCells`.
@@ -104,6 +106,11 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         backdropMask.fillRule = .evenOdd
         addSubview(backdrop)
         addSubview(primary)
+
+        pageControl.isUserInteractionEnabled = false
+        pageControl.hidesForSinglePage = true
+        pageControl.accessibilityTraits = .staticText
+        addSubview(pageControl)
 
         hero.isUserInteractionEnabled = false
         addSubview(hero)
@@ -230,13 +237,24 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             appearance: appearance
         )
         hero.tab = controller.heroTabID.flatMap { tabsModel.tab(withID: $0) }
+        updatePageControl()
         applyAppearance()
+    }
+
+    private func updatePageControl() {
+        let count = controller.scopePageCount
+        pageControl.numberOfPages = count
+        pageControl.currentPage = min(max(controller.currentScopePageIndex, 0), max(count - 1, 0))
+        // UIPageControl supplies its localized "page X of Y" accessibility
+        // value; expose it as information rather than an adjustable control.
+        pageControl.isAccessibilityElement = count > 1
+        lastAppliedProgress = -1
     }
 
     private func makeTray(interactive: Bool) -> TabExposeTrayView {
         let tray = TabExposeTrayView()
         tray.isUserInteractionEnabled = interactive
-        insertSubview(tray, belowSubview: hero)
+        insertSubview(tray, belowSubview: pageControl)
         return tray
     }
 
@@ -244,6 +262,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         backdrop.backgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.backgroundOpacity)
         // Mirrored pixels already carry the terminal's translucent background.
         hero.backgroundColor = isTranslucent ? .clear : appearance.backgroundColor
+        pageControl.currentPageIndicatorTintColor = appearance.textColor.withAlphaComponent(0.9)
+        pageControl.pageIndicatorTintColor = appearance.textColor.withAlphaComponent(0.3)
         syncTerminalConcealment()
         lastAppliedProgress = -1
         applyProgress()
@@ -302,17 +322,32 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             compact: isCompact, mac: mac, vision: vision,
             showsCaptions: appearance.showsCaptions, hasHeader: controller.isScoped
         )
+        let pageFooterHeight: CGFloat = controller.scopePageCount > 1
+            ? (vision ? 44 : (isCompact ? 32 : 36))
+            : 0
+        let traySize = CGSize(
+            width: heroRect.width,
+            height: max(heroRect.height - pageFooterHeight, 1)
+        )
         let radius: CGFloat = vision ? 16 : (isCompact ? 8 : 10)
         let aspect = heroRect.width / H
         for tray in [primary, companion].compactMap({ $0 }) {
-            tray.layoutGrid(size: heroRect.size, aspect: aspect, metrics: metrics, cornerRadius: radius)
+            tray.layoutGrid(size: traySize, aspect: aspect, metrics: metrics, cornerRadius: radius)
             // bounds/center, not frame: trays carry the reveal/page transform.
             // A scroll view's bounds origin is its content offset; keep it.
             var b = tray.bounds
-            b.size = heroRect.size
+            b.size = traySize
             tray.bounds = b
-            tray.center = CGPoint(x: heroRect.midX, y: heroRect.midY)
+            tray.center = CGPoint(x: heroRect.midX, y: heroRect.minY + traySize.height / 2)
         }
+        pageControl.bounds = CGRect(origin: .zero, size: CGSize(
+            width: heroRect.width,
+            height: pageFooterHeight
+        ))
+        pageControl.center = CGPoint(
+            x: heroRect.midX,
+            y: heroRect.maxY - pageFooterHeight / 2
+        )
         controller.columns = primary.layoutResult.columns
 
         // Coverage belongs to the exposé host, not to the terminal host's
@@ -352,10 +387,14 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         }
         primary.transform = primaryTransform
         companion?.transform = companionTransform
+        // Follow the vertical reveal while remaining fixed horizontally as
+        // the trays page beneath it.
+        pageControl.transform = CGAffineTransform(translationX: 0, y: y)
         let chromeAlpha = Self.smoothstep(0.6, 0.9, p)
         let ringAlpha = Self.smoothstep(0.8, 1.0, p)
         primary.setChrome(captionAlpha: chromeAlpha, ringAlpha: ringAlpha)
         companion?.setChrome(captionAlpha: chromeAlpha, ringAlpha: ringAlpha)
+        pageControl.alpha = chromeAlpha
         backdrop.isHidden = p <= 0
         if isTranslucent, !hero.isHidden {
             let path = UIBezierPath(rect: backdrop.bounds)
