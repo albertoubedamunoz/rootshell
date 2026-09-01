@@ -88,10 +88,22 @@ final class KeybindCommandGenerator: ObservableObject {
         }
 
         for (firstTrigger, binding) in chosenByFirstTrigger {
+            // Command-V is a known UIKit edit command. Do not shadow it with
+            // an app-created UIKeyCommand: only the system-owned command
+            // carries pasteboard user intent without a permission prompt.
+            let isSystemPasteShortcut = binding.action == .paste_from_clipboard
+                && !binding.sequence.isSequence
+                && firstTrigger.key == .v
+                && firstTrigger.modifiers == .command
+                && !keybindManager.isSequencePrefix(firstTrigger)
+            if isSystemPasteShortcut {
+                continue
+            }
+
             let command = createKeyCommand(
                 trigger: firstTrigger,
                 binding: binding,
-                isSequencePrefix: binding.sequence.isSequence
+                isSequencePrefix: keybindManager.isSequencePrefix(firstTrigger)
             )
             commands.append(command)
         }
@@ -175,10 +187,20 @@ final class KeybindCommandGenerator: ObservableObject {
         binding: Keybind,
         isSequencePrefix: Bool
     ) -> UIKeyCommand {
+        let action: Selector
+        if binding.action == .paste_from_clipboard, !isSequencePrefix {
+            // Paste is privacy-sensitive on iOS. Dispatching it through the
+            // generic keybind handler loses UIKit's verified keyboard-paste
+            // intent even when the physical shortcut is Command-V.
+            action = #selector(Ghostty.TerminalView.paste(_:))
+        } else {
+            action = #selector(Ghostty.TerminalView.handleKeybindCommand(_:))
+        }
+
         let command = UIKeyCommand(
             input: trigger.uiKeyInput,
             modifierFlags: trigger.uiModifierFlags,
-            action: #selector(Ghostty.TerminalView.handleKeybindCommand(_:))
+            action: action
         )
 
         // Set discoverability title for iPad keyboard shortcuts overlay

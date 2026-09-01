@@ -588,6 +588,17 @@ extension Ghostty.TerminalView {
                 return (true, true)
             }
 
+            // Command-V is a known UIKit edit command. If it reaches the raw
+            // press path, yield it back to UIKit instead of executing the
+            // configurable binding as an app-initiated pasteboard read.
+            if trigger.key == .v,
+               trigger.modifiers == .command,
+               let keybind = KeybindManager.shared.keybind(for: trigger),
+               keybind.action == .paste_from_clipboard,
+               !KeybindManager.shared.isSequencePrefix(trigger) {
+                return (false, false)
+            }
+
             if let keybind = KeybindManager.shared.keybind(for: trigger),
                keybind.source != .default,
                !keybind.action.isControlCharacter {

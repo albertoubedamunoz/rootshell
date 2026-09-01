@@ -11,6 +11,7 @@ import SwiftUI
 import os
 import GhosttyKit
 import GameController
+import UniformTypeIdentifiers
 #if targetEnvironment(macCatalyst)
 import AppKit
 #endif
@@ -710,8 +711,9 @@ extension Ghostty.TerminalView {
                 // Non-prompting detection only: deciding whether to show the menu
                 // must not pop the iOS paste-permission dialog. Content is read
                 // for real only when the user taps Paste.
-                let hasClipboard = UIPasteboard.general.hasPasteableContentWithoutPrompt
-                    || (attachmentUploadSSHConfig != nil && UIPasteboard.general.hasImages)
+                let pasteboard = UIPasteboard.general
+                let hasClipboard = pasteboard.hasPasteableContentWithoutPrompt
+                    || (attachmentUploadSSHConfig != nil && pasteboard.numberOfItems > 0)
                 let wasStationary = startPoint.map { abs($0.x - location.x) < 10 && abs($0.y - location.y) < 10 } ?? false
 
                 if hasSelection || (wasStationary && hasClipboard) {
@@ -899,29 +901,274 @@ extension Ghostty.TerminalView {
     }
 
     override func paste(_ sender: Any?) {
-        // Check for non-text clipboard content when session supports SFTP upload.
-        // On a tmux -CC pane this resolves the gateway's remote host (see
-        // attachmentUploadSSHConfig) so image paste works there too.
-        if let sshConfig = attachmentUploadSSHConfig {
-            let pasteContent = PasteAttachmentDetector.detect()
-            if case .attachments(let items) = pasteContent {
-                showAttachmentUploadSheet(attachments: items, sshConfig: sshConfig)
+        // Keep the standard responder-chain paste synchronous. iOS recognizes
+        // this direct read as part of the user-invoked paste action; asking the
+        // pasteboard for item providers here can lose that association.
+        let pasteboard = UIPasteboard.general
+
+        // SSH paste must inspect providers before choosing a textual URL. A
+        // copied PDF commonly advertises both public.pdf and public.file-url;
+        // the provider path preserves attachment-first upload semantics.
+        if attachmentUploadSSHConfig != nil {
+            let itemProviders = pasteboard.itemProviders
+            if !itemProviders.isEmpty {
+                paste(itemProviders: itemProviders)
                 return
             }
         }
 
-        // Capture into clipboard history before Ghostty reads the pasteboard.
-        // Prompt-safe: this runs only on a user-invoked paste, the same moment
-        // readClipboard would read it anyway.
-        if let text = UIPasteboard.general.getOpinionatedStringContents() {
-            ClipboardHistoryManager.shared.record(text, source: .paste)
+        #if targetEnvironment(macCatalyst)
+        // Catalyst's `.string` bridge may synthesize HTML/RTF bytes for rich-
+        // only content. Keep the strict UTI reader used before this refactor.
+        if let text = pasteboard.getOpinionatedStringContents(), !text.isEmpty {
+            _ = insertPastedText(text)
+        }
+        return
+        #else
+        // Choose the representation with detection-only properties, then do
+        // exactly one content read while the Command-V intent is active. The
+        // old opinionated reader queried URLs and then raw items, which could
+        // turn the latter access into a separately authorized pasteboard read.
+        if pasteboard.hasURLs, let urls = pasteboard.urls, !urls.isEmpty {
+            let text = urls.map { url in
+                url.isFileURL ? Ghostty.Shell.escape(url.path) : url.absoluteString
+            }.joined(separator: " ")
+            _ = insertPastedText(text)
+            return
         }
 
-        // Trigger Ghostty's paste action which will call our readClipboard callback
-        // The callback extracts the surface from userdata (set during surface creation)
-        if !performAction("paste_from_clipboard") {
-            Ghostty.logger.warning("paste_from_clipboard action failed")
+        if pasteboard.hasStrings, let text = pasteboard.string, !text.isEmpty {
+            _ = insertPastedText(text)
+            return
         }
+
+        // Covers non-text attachments such as PDFs.
+        paste(itemProviders: pasteboard.itemProviders)
+        #endif
+    }
+
+    override func canPaste(_ itemProviders: [NSItemProvider]) -> Bool {
+        let acceptsText = itemProviders.contains { provider in
+            provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+                || provider.hasItemConformingToTypeIdentifier(UTType.url.identifier)
+                || provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier)
+        }
+        if acceptsText { return true }
+
+        guard attachmentUploadSSHConfig != nil else { return false }
+        return itemProviders.contains { provider in
+            provider.hasItemConformingToTypeIdentifier(UTType.image.identifier)
+                || provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
+        }
+    }
+
+    override func paste(itemProviders: [NSItemProvider]) {
+        guard canPaste(itemProviders) else { return }
+
+        // Match the existing terminal-paste preference order: attachments for
+        // SSH sessions, URLs/file URLs, then plain text.
+        if let sshConfig = attachmentUploadSSHConfig,
+           itemProviders.contains(where: {
+               $0.hasItemConformingToTypeIdentifier(UTType.image.identifier)
+                   || $0.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
+           }) {
+            PasteAttachmentDetector.load(from: itemProviders) { [weak self] items in
+                guard let self else { return }
+                if !items.isEmpty {
+                    self.showAttachmentUploadSheet(attachments: items, sshConfig: sshConfig)
+                } else {
+                    self.loadTextPaste(
+                        from: itemProviders,
+                        excludingAttachmentProviderURLs: true
+                    )
+                }
+            }
+            return
+        }
+
+        loadTextPaste(from: itemProviders)
+    }
+
+    private func loadTextPaste(
+        from itemProviders: [NSItemProvider],
+        excludingAttachmentProviderURLs: Bool = false
+    ) {
+        let urlProviders = itemProviders.filter {
+            let hasURL = $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+                || $0.hasItemConformingToTypeIdentifier(UTType.url.identifier)
+            guard hasURL else { return false }
+            guard excludingAttachmentProviderURLs else { return true }
+            return !$0.hasItemConformingToTypeIdentifier(UTType.image.identifier)
+                && !$0.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
+        }
+        if !urlProviders.isEmpty {
+            loadPastedURLs(from: urlProviders) { [weak self] text in
+                guard let self else { return }
+                if let text, !text.isEmpty {
+                    _ = self.insertPastedText(text)
+                } else {
+                    self.loadPastedPlainText(from: itemProviders)
+                }
+            }
+            return
+        }
+
+        loadPastedPlainText(from: itemProviders)
+    }
+
+    private func loadPastedURLs(
+        from providers: [NSItemProvider],
+        completion: @escaping (String?) -> Void
+    ) {
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var values = Array<String?>(repeating: nil, count: providers.count)
+
+        for (index, provider) in providers.enumerated() {
+            group.enter()
+            _ = provider.loadObject(ofClass: URL.self) { url, error in
+                defer { group.leave() }
+                guard error == nil, let url else { return }
+                let value = url.isFileURL
+                    ? Ghostty.Shell.escape(url.path)
+                    : url.absoluteString
+                lock.lock()
+                values[index] = value
+                lock.unlock()
+            }
+        }
+
+        group.notify(queue: .main) {
+            let text = values.compactMap { $0 }.joined(separator: " ")
+            completion(text.isEmpty ? nil : text)
+        }
+    }
+
+    private func loadPastedPlainText(from providers: [NSItemProvider]) {
+        let preferredTypes = [
+            UTType.utf8PlainText.identifier,
+            UTType.utf16PlainText.identifier,
+            UTType.utf16ExternalPlainText.identifier,
+            UTType.plainText.identifier,
+        ]
+        var candidates: [(provider: NSItemProvider, typeIdentifier: String)] = []
+
+        for provider in providers {
+            let registeredTypes = provider.registeredTypeIdentifiers
+
+            // Preserve the strict reader's representation preference for each
+            // pasteboard item before considering other plain-text subtypes.
+            for identifier in preferredTypes where registeredTypes.contains(identifier) {
+                candidates.append((provider, identifier))
+            }
+            for identifier in registeredTypes
+            where !preferredTypes.contains(identifier)
+                && UTType(identifier)?.conforms(to: .plainText) == true {
+                candidates.append((provider, identifier))
+            }
+        }
+
+        loadPastedPlainText(candidates: candidates, at: 0)
+    }
+
+    private func loadPastedPlainText(
+        candidates: [(provider: NSItemProvider, typeIdentifier: String)],
+        at index: Int
+    ) {
+        guard index < candidates.count else { return }
+        let candidate = candidates[index]
+
+        func tryNextCandidate() {
+            DispatchQueue.main.async { [weak self] in
+                self?.loadPastedPlainText(candidates: candidates, at: index + 1)
+            }
+        }
+
+        func finish(with text: String?) {
+            guard let text, !text.isEmpty else {
+                tryNextCandidate()
+                return
+            }
+            DispatchQueue.main.async { [weak self] in
+                self?.insertPastedText(text)
+            }
+        }
+
+        candidate.provider.loadDataRepresentation(
+            forTypeIdentifier: candidate.typeIdentifier
+        ) { [weak self] data, _ in
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if let data,
+                   let text = self.decodePastedText(
+                       data,
+                       typeIdentifier: candidate.typeIdentifier
+                   ),
+                   !text.isEmpty {
+                    finish(with: text)
+                    return
+                }
+
+                // Some providers vend an NSString through loadItem but do not
+                // supply a data representation. Try that representation before
+                // advancing to the next type or provider.
+                candidate.provider.loadItem(
+                    forTypeIdentifier: candidate.typeIdentifier,
+                    options: nil
+                ) { item, _ in
+                    DispatchQueue.main.async {
+                        if let text = item as? String {
+                            finish(with: text)
+                        } else if let string = item as? NSString {
+                            finish(with: String(string))
+                        } else if let data = item as? Data {
+                            finish(with: self.decodePastedText(
+                                data,
+                                typeIdentifier: candidate.typeIdentifier
+                            ))
+                        } else {
+                            tryNextCandidate()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func decodePastedText(_ data: Data, typeIdentifier: String) -> String? {
+        if typeIdentifier == UTType.utf16PlainText.identifier {
+            return String(data: data, encoding: .utf16)
+                ?? String(data: data, encoding: .utf16LittleEndian)
+                ?? String(data: data, encoding: .utf16BigEndian)
+                ?? String(data: data, encoding: .utf8)
+        }
+        if typeIdentifier == UTType.utf16ExternalPlainText.identifier {
+            return String(data: data, encoding: .utf16)
+                ?? String(data: data, encoding: .utf16BigEndian)
+                ?? String(data: data, encoding: .utf16LittleEndian)
+                ?? String(data: data, encoding: .utf8)
+        }
+        return String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .utf16)
+            ?? String(data: data, encoding: .utf16LittleEndian)
+            ?? String(data: data, encoding: .utf16BigEndian)
+    }
+
+    /// Insert already-authorized paste content without temporarily replacing
+    /// the system pasteboard. Ghostty treats surface text as paste input and
+    /// applies bracketed-paste markers when the running program requests them.
+    @discardableResult
+    func insertPastedText(_ text: String, recordHistory: Bool = true) -> Bool {
+        guard let surface, !text.isEmpty else { return false }
+
+        if recordHistory {
+            ClipboardHistoryManager.shared.record(text, source: .paste)
+        }
+        text.withCString { ptr in
+            ghostty_surface_text(surface, ptr, UInt(text.utf8.count))
+        }
+        NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
+        return true
     }
 
     override func selectAll(_ sender: Any?) {
@@ -941,7 +1188,18 @@ extension Ghostty.TerminalView {
             // the iOS paste-permission dialog on every app switch. The real
             // content read happens later in paste(_:), when the user invokes it.
             if UIPasteboard.general.hasPasteableContentWithoutPrompt { return true }
-            if attachmentUploadSSHConfig != nil && UIPasteboard.general.hasImages {
+            // There is no prompt-free hasPDF predicate. An SSH target can
+            // accept image/PDF providers, so leave the system keyboard command
+            // enabled and validate providers only after invocation. While
+            // building a transient touch menu, use only the metadata item count:
+            // it keeps empty pasteboards disabled while allowing PDF-only
+            // content without reading provider types during menu validation.
+            if attachmentUploadSSHConfig != nil {
+                #if !targetEnvironment(macCatalyst)
+                if editMenuInteraction != nil {
+                    return UIPasteboard.general.numberOfItems > 0
+                }
+                #endif
                 return true
             }
             return false
@@ -1321,34 +1579,23 @@ extension Ghostty.TerminalView {
         }
         let text = formatted.joined(separator: " ")
 
-        // Use Ghostty's clipboard paste mechanism for bracketed paste markers.
-        // Save ALL pasteboard items (not just string) so non-text content
-        // (images, PDFs) is preserved after we temporarily overwrite the clipboard.
-        let savedItems = UIPasteboard.general.items
-        UIPasteboard.general.string = text
-        _ = performAction("paste_from_clipboard")
-
-        // Restore the original clipboard contents after a brief delay
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(100))
-            UIPasteboard.general.items = savedItems
-        }
+        _ = insertPastedText(text, recordHistory: false)
     }
 
     /// Paste arbitrary text through Ghostty's bracketed-paste path without
-    /// permanently clobbering the system clipboard (same temporary-overwrite
-    /// mechanism as handleUploadCompletion). Used by the clipboard manager;
-    /// suppressCapture keeps the synthetic paste (and any OSC 52 echo of it)
-    /// out of the history.
+    /// reading or replacing the system pasteboard. Used by the clipboard
+    /// manager for content rootshell already owns. Keep the short suppression
+    /// window because the pasted command may immediately echo it through OSC
+    /// 52, which should not create another history entry.
     func pasteText(_ text: String) {
         ClipboardHistoryManager.shared.suppressCapture = true
-        let savedItems = UIPasteboard.general.items
-        UIPasteboard.general.string = text
-        _ = performAction("paste_from_clipboard")
+        guard insertPastedText(text, recordHistory: false) else {
+            ClipboardHistoryManager.shared.suppressCapture = false
+            return
+        }
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(100))
-            UIPasteboard.general.items = savedItems
             ClipboardHistoryManager.shared.suppressCapture = false
         }
     }
@@ -1903,7 +2150,7 @@ extension Ghostty.TerminalView: UIEditMenuInteractionDelegate {
         // Full context menu for two-finger tap in scroll mode
         if isFullContextMenuPresentation {
             let probedLink = probeForLink(at: configuration.sourcePoint)
-            return buildContextMenu(linkURL: probedLink)
+            return buildContextMenu(linkURL: probedLink, suggestedEditActions: suggestedActions)
         }
 
         // Build a simple Copy/Paste menu for text selection
@@ -1921,24 +2168,9 @@ extension Ghostty.TerminalView: UIEditMenuInteractionDelegate {
             })
         }
 
-        // Copy (only if text is selected)
-        if let surface = surface, ghostty_surface_has_selection(surface) {
-            items.append(UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in
-                self?.copy(nil)
-            })
-        }
-
-        // Paste (only if clipboard has content). Match canPerformAction/long-press:
-        // hasStrings alone hides Paste for a URL-only clipboard, even though
-        // paste(_:) pastes URLs via getOpinionatedStringContents(). Detection-only
-        // predicate, so this still never triggers the paste-permission prompt.
-        let hasPasteContent = UIPasteboard.general.hasPasteableContentWithoutPrompt
-            || (attachmentUploadSSHConfig != nil && UIPasteboard.general.hasImages)
-        if hasPasteContent {
-            items.append(UIAction(title: String(localized: "Paste"), image: UIImage(systemName: "doc.on.clipboard")) { [weak self] _ in
-                self?.paste(nil)
-            })
-        }
+        // UIKit's suggested commands carry the system's verified edit-menu
+        // intent. Recreating visually identical Copy/Paste items loses it.
+        items.append(contentsOf: suggestedActions)
 
         return items.isEmpty ? nil : UIMenu(children: items)
     }
@@ -2034,7 +2266,10 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
     }
 
     /// Build the full context menu with all terminal actions
-    private func buildContextMenu(linkURL: String? = nil) -> UIMenu {
+    private func buildContextMenu(
+        linkURL: String? = nil,
+        suggestedEditActions: [UIMenuElement] = []
+    ) -> UIMenu {
         var menuItems: [UIMenuElement] = []
 
         // Link actions (if probed URL exists)
@@ -2055,25 +2290,24 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             menuItems.append(UIMenu(title: "", options: .displayInline, children: [openLink, copyLink]))
         }
 
-        // Copy (conditional - only if text is selected)
-        if let surface = surface, ghostty_surface_has_selection(surface) {
-            let copyAction = UIAction(
-                title: String(localized: "Copy"),
-                image: UIImage(systemName: "doc.on.doc")
-            ) { [weak self] _ in
-                self?.copy(nil)
+        if !suggestedEditActions.isEmpty {
+            menuItems.append(contentsOf: suggestedEditActions)
+        } else {
+            // UIContextMenuInteraction (right-click) supplies no suggested edit
+            // actions, so use responder-chain commands rather than closures.
+            if let surface = surface, ghostty_surface_has_selection(surface) {
+                menuItems.append(UICommand(
+                    title: String(localized: "Copy"),
+                    image: UIImage(systemName: "doc.on.doc"),
+                    action: #selector(Ghostty.TerminalView.copy(_:))
+                ))
             }
-            menuItems.append(copyAction)
+            menuItems.append(UICommand(
+                title: String(localized: "Paste"),
+                image: UIImage(systemName: "doc.on.clipboard"),
+                action: #selector(Ghostty.TerminalView.paste(_:))
+            ))
         }
-
-        // Paste
-        let pasteAction = UIAction(
-            title: String(localized: "Paste"),
-            image: UIImage(systemName: "doc.on.clipboard")
-        ) { [weak self] _ in
-            self?.paste(nil)
-        }
-        menuItems.append(pasteAction)
 
         // Clipboard manager (only when the feature is enabled)
         if ClipboardHistoryManager.shared.isEnabled {

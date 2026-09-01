@@ -151,17 +151,8 @@ final class VoiceAgentToolExecutor {
             return "Error: No active terminal"
         }
 
-        let savedItems = UIPasteboard.general.items
-        UIPasteboard.general.string = text
-
-        guard terminal.performAction("paste_from_clipboard") else {
-            UIPasteboard.general.items = savedItems
+        guard terminal.insertPastedText(text, recordHistory: false) else {
             return "Error: Paste action failed"
-        }
-
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(100))
-            UIPasteboard.general.items = savedItems
         }
 
         let lines = text.components(separatedBy: "\n").count

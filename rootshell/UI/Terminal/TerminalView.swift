@@ -11,6 +11,7 @@ import Combine
 import os
 import GhosttyKit
 import UserNotifications
+import UniformTypeIdentifiers
 #if targetEnvironment(macCatalyst)
 import AppKit
 #endif
@@ -1286,6 +1287,19 @@ extension Ghostty {
 
             // Initialize with default frame (will be resized)
             super.init(uuid: uuid ?? .init(), frame: CGRect(x: 0, y: 0, width: 800, height: 600))
+
+            // UIPasteControl and the system edit menu deliver paste contents as
+            // item providers. Declaring the accepted types lets UIKit validate
+            // paste without rootshell probing the general pasteboard first.
+            let terminalPasteConfiguration = UIPasteConfiguration()
+            terminalPasteConfiguration.acceptableTypeIdentifiers = [
+                UTType.fileURL.identifier,
+                UTType.url.identifier,
+                UTType.image.identifier,
+                UTType.pdf.identifier,
+                UTType.plainText.identifier,
+            ]
+            pasteConfiguration = terminalPasteConfiguration
             refreshPanePresentationTitle()
 
             // The session controller owns this terminal's TerminalSession/PTY
