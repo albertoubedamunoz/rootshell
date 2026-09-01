@@ -193,7 +193,7 @@ struct MultiplexerSettingsView: View {
                 }
                 .themedRow()
             } header: {
-                Text("zmx Auto-Start")
+                SettingGroupHeader("zmx Auto-Start", group: .multiplexer)
             } footer: {
                 Text("The zmx command used when auto-start is enabled on a connection.")
             }

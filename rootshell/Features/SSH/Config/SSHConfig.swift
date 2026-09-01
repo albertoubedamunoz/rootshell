@@ -800,9 +800,15 @@ struct SSHConfig: Codable, Hashable {
 
     /// Globally-configured zmx session name, falling back to `main`.
     static var zmxGlobalSessionName: String {
-        let raw = UserDefaults.standard.string(forKey: "zmxSessionName")?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let raw = SettingsStore.shared.value(Settings.Multiplexer.zmxSessionName)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         return raw.isEmpty ? zmxDefaultSessionName : raw
+    }
+
+    /// Globally-configured zmx custom command, nil when empty.
+    static var zmxGlobalCustomCommand: String? {
+        let custom = SettingsStore.shared.value(Settings.Multiplexer.zmxCustomCommand)
+        return custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : custom
     }
 
     /// Builds the attach-or-create command, falling back to `$SHELL`.
@@ -815,10 +821,8 @@ struct SSHConfig: Codable, Hashable {
     }
 
     /// Shared zmx exec command used by all session types.
-    /// Reads "zmxCustomCommand" and "zmxSessionName" from UserDefaults.
     static var zmxExecCommand: String {
-        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = zmxGlobalCustomCommand {
             return custom
         }
         return zmxExecCommandLine(sessionName: zmxGlobalSessionName)
@@ -826,8 +830,7 @@ struct SSHConfig: Codable, Hashable {
 
     /// The auto-start session, or nil when a custom command makes it unknowable.
     var zmxSessionNameForConnection: String? {
-        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if Self.zmxGlobalCustomCommand != nil {
             return nil
         }
         let raw = multiplexerSessionNameOverride ?? Self.zmxGlobalSessionName
@@ -837,8 +840,7 @@ struct SSHConfig: Codable, Hashable {
     /// Per-connection variant of `zmxExecCommand`. A custom "zmxCustomCommand"
     /// still wins.
     var zmxExecCommandForConnection: String {
-        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = Self.zmxGlobalCustomCommand {
             return custom
         }
         return Self.zmxExecCommandLine(sessionName: multiplexerSessionNameOverride ?? Self.zmxGlobalSessionName)
@@ -870,8 +872,7 @@ struct SSHConfig: Codable, Hashable {
             let raw = pinned ?? herdrGlobalSessionName
             return isEmbeddableHerdrSessionName(raw) ? raw : "default"
         case .zmx:
-            if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if zmxGlobalCustomCommand != nil {
                 return "custom"
             }
             let raw = pinned ?? zmxGlobalSessionName
