@@ -95,6 +95,8 @@ final class CloudKitSyncManager {
 
         // Set up manager callbacks for sync integration
         setupManagerCallbacks()
+
+        startAccountChangeObservation()
     }
 
     /// Set up callbacks to receive local changes from managers
@@ -119,6 +121,58 @@ final class CloudKitSyncManager {
         coordinator.isEnabled = isSyncEnabled && isAppSettingsSyncEnabled
         coordinator.onOutgoingBatch = { [weak self] records in
             self?.recordLocalSettingChanges(records)
+        }
+    }
+
+    // MARK: - Account identity
+
+    /// Set when the signed-in Apple Account changed under an enabled settings sync.
+    private(set) var settingsSyncPausedForAccountChange = false
+
+    @ObservationIgnored
+    private var accountChangeObserver: NSObjectProtocol?
+
+    private func startAccountChangeObservation() {
+        guard accountChangeObserver == nil else { return }
+        accountChangeObserver = NotificationCenter.default.addObserver(
+            forName: .CKAccountChanged, object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await CloudKitSyncManager.shared.checkAccountIdentity()
+            }
+        }
+    }
+
+    /// Detect an Apple Account switch. `ubiquityIdentityToken` is unreliable
+    /// with CloudKit-only entitlements, so compare the user record ID.
+    func checkAccountIdentity() async {
+        guard isSyncEnabled else { return }
+        let identity: String
+        do {
+            identity = try await container.userRecordID().recordName
+        } catch {
+            Self.logger.debug("Account identity unavailable: \(error.localizedDescription)")
+            return
+        }
+        let coordinator = SettingsSyncCoordinator.shared
+        let previous = coordinator.sidecar.accountIdentity
+        guard let previous else {
+            coordinator.setAccountIdentity(identity)
+            return
+        }
+        guard previous != identity else { return }
+
+        Self.logger.warning("Apple Account changed; resetting sync state and pausing settings sync")
+        zoneChangeToken = nil
+        saveChangeToken()
+        offlineQueue.clearAll()
+        coordinator.resetSyncState()
+        coordinator.setAccountIdentity(identity)
+        if isAppSettingsSyncEnabled {
+            isAppSettingsSyncEnabled = false
+            coordinator.isEnabled = false
+            settingsSyncPausedForAccountChange = true
+            saveSettings()
         }
     }
 
@@ -154,6 +208,7 @@ final class CloudKitSyncManager {
         }
         guard isSyncEnabled else { throw CloudKitSyncError.notEnabled }
         guard !isAppSettingsSyncEnabled else { return .enabled }
+        settingsSyncPausedForAccountChange = false
 
         syncState = .fetchingChanges
         do {
@@ -298,6 +353,7 @@ final class CloudKitSyncManager {
         }
 
         Self.logger.info("Revalidating CloudKit subscriptions on app launch")
+        await checkAccountIdentity()
         await recoverEmptyLocalStoresIfNeeded()
         do {
             let shouldPushAll = try await ensureCustomZoneReady()

@@ -108,6 +108,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             UserDefaultsMigration.migrateIfNeeded()
             SettingsStore.shared.bootstrap()
             SettingsSyncCoordinator.shared.start()
+            ConfigOverlayManager.shared.start()
             // Interim until every manager registers its own reload(keys:).
             SettingsRefreshHub.shared.register(
                 groups: [.theme, .font, .cursor, .transparency, .selection, .sounds, .notifications]

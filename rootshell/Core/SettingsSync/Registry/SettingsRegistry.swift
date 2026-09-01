@@ -36,10 +36,12 @@ nonisolated final class SettingsRegistry: Sendable {
     /// Explicitly registered syncable names; prefixed keys are resolved via `isSyncable(_:)`.
     let syncableKeys: Set<String>
     private let byGroup: [SettingGroup: [AnySettingDefinition]]
+    private let byConfigKey: [String: AnySettingDefinition]
 
     init(areas: [[AnySettingDefinition]], prefixRules: [PrefixRule] = Settings.System.prefixRules) {
         var defs: [String: AnySettingDefinition] = [:]
         var groups: [SettingGroup: [AnySettingDefinition]] = [:]
+        var configKeys: [String: AnySettingDefinition] = [:]
         for def in areas.joined() {
             if defs[def.name] != nil {
                 Self.logger.fault("Duplicate setting registration: \(def.name, privacy: .public)")
@@ -47,11 +49,25 @@ nonisolated final class SettingsRegistry: Sendable {
             }
             defs[def.name] = def
             groups[def.group, default: []].append(def)
+            if let ck = def.configKey { configKeys[ck] = def }
         }
         definitions = defs
         byGroup = groups
+        byConfigKey = configKeys
         self.prefixRules = prefixRules
         syncableKeys = Set(defs.values.filter(\.isSyncable).map(\.name))
+    }
+
+    /// Lookup by text-config name (`font-size`, `tab-bar-hidden`).
+    func definition(forConfigKey configKey: String) -> AnySettingDefinition? {
+        byConfigKey[configKey]
+    }
+
+    /// Keys the text config overlay can carry, ordered by group then name.
+    var configEditableDefinitions: [AnySettingDefinition] {
+        definitions.values
+            .filter { $0.configKey != nil && $0.isSyncable && $0.valueType != .data }
+            .sorted { ($0.group.rawValue, $0.name) < ($1.group.rawValue, $1.name) }
     }
 
     func prefixRule(for key: String) -> PrefixRule? {

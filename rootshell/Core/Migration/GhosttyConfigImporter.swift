@@ -38,8 +38,6 @@ final class GhosttyConfigImporter {
         }
     }
 
-    private static let maxIncludeDepth = 3
-
     /// Existing Ghostty desktop config files in well-known locations on macOS,
     /// in priority order. Used by the Standalone Mac Catalyst build to offer
     /// one-tap quick imports — the sandboxed App Store build can't read these
@@ -83,22 +81,20 @@ final class GhosttyConfigImporter {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
-        var allEntries: [ParsedConfigEntry] = []
-        var warnings: [String] = []
-        var seenFiles: Set<URL> = []
-
-        try collectEntries(
-            from: url,
-            depth: 0,
-            entries: &allEntries,
-            warnings: &warnings,
-            seenFiles: &seenFiles
-        )
+        let loaded: GhosttyConfigLoader.Result
+        do {
+            loaded = try GhosttyConfigLoader.load(url)
+        } catch GhosttyConfigLoader.LoadError.readFailed(let detail) {
+            throw ImportError.readFailed(detail)
+        } catch GhosttyConfigLoader.LoadError.tooLarge(let bytes) {
+            throw ImportError.readFailed("file is too large (\(bytes) bytes)")
+        }
+        let allEntries = loaded.entries
 
         guard !allEntries.isEmpty else { throw ImportError.empty }
 
         var plan = MigrationPlan(sourceURL: url)
-        plan.warnings = warnings
+        plan.warnings = loaded.warnings
 
         // First pass: find font-family if any, since per-family features need it.
         let fontFamilyValue = allEntries
@@ -208,91 +204,6 @@ final class GhosttyConfigImporter {
             registeredCustomThemeName: registeredCustomThemeName,
             keybindsImported: keybindsImported
         )
-    }
-
-    // MARK: - Include Resolution
-
-    private static func collectEntries(
-        from url: URL,
-        depth: Int,
-        entries: inout [ParsedConfigEntry],
-        warnings: inout [String],
-        seenFiles: inout Set<URL>
-    ) throws {
-        let canonical = url.standardizedFileURL.resolvingSymlinksInPath()
-        if seenFiles.contains(canonical) {
-            warnings.append(String(localized: "Skipped duplicate include: \(url.lastPathComponent)",
-                                   comment: "Migration warning: duplicate include"))
-            return
-        }
-        seenFiles.insert(canonical)
-
-        let contents: String
-        do {
-            contents = try String(contentsOf: url, encoding: .utf8)
-        } catch {
-            if depth == 0 { throw ImportError.readFailed(error.localizedDescription) }
-            warnings.append(String(localized: "Could not read include \(url.lastPathComponent): \(error.localizedDescription)",
-                                   comment: "Migration warning: include read failed"))
-            return
-        }
-
-        let parsed = GhosttyConfigParser.parse(contents, sourceFile: url)
-        entries.append(contentsOf: parsed)
-
-        guard depth < maxIncludeDepth else {
-            if parsed.contains(where: { $0.key == "config-file" }) {
-                warnings.append(String(localized: "Reached maximum include depth (\(maxIncludeDepth)) — deeper config-file entries skipped.",
-                                       comment: "Migration warning: include depth"))
-            }
-            return
-        }
-
-        let parentDir = url.deletingLastPathComponent()
-        for include in parsed where include.key == "config-file" {
-            let (path, optional) = parseIncludeValue(include.value)
-            guard !path.isEmpty else { continue }
-
-            let resolved = resolveIncludePath(path, relativeTo: parentDir)
-            if !FileManager.default.fileExists(atPath: resolved.path) {
-                if !optional {
-                    warnings.append(String(localized: "Include not found: \(path)",
-                                           comment: "Migration warning: missing include"))
-                }
-                continue
-            }
-
-            do {
-                try collectEntries(
-                    from: resolved,
-                    depth: depth + 1,
-                    entries: &entries,
-                    warnings: &warnings,
-                    seenFiles: &seenFiles
-                )
-            } catch {
-                warnings.append(String(localized: "Include failed: \(path) (\(error.localizedDescription))",
-                                       comment: "Migration warning: include failed"))
-            }
-        }
-    }
-
-    private static func parseIncludeValue(_ raw: String) -> (path: String, optional: Bool) {
-        var v = raw
-        var optional = false
-        if v.hasPrefix("?") {
-            optional = true
-            v.removeFirst()
-        }
-        return (v.trimmingCharacters(in: .whitespaces), optional)
-    }
-
-    private static func resolveIncludePath(_ path: String, relativeTo dir: URL) -> URL {
-        let expanded = (path as NSString).expandingTildeInPath
-        if expanded.hasPrefix("/") {
-            return URL(fileURLWithPath: expanded)
-        }
-        return dir.appendingPathComponent(expanded)
     }
 
     // MARK: - Per-Entry Mapping (parse path)

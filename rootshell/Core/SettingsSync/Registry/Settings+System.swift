@@ -71,6 +71,15 @@ nonisolated extension Settings {
         static let sparkleCheckInterval = SettingKey(
             "SUScheduledCheckInterval", default: 86400.0, group: .system, policy: .deviceOnly,
             title: String(localized: "Update Check Interval", comment: "Setting title"))
+        static let configOverlayBookmark = SettingKey<Data?>(
+            "configOverlay.bookmark", default: nil, group: .system, policy: .deviceOnly,
+            title: String(localized: "Config File Bookmark", comment: "Setting title"))
+        static let configOverlayExternalPath = SettingKey<String?>(
+            "configOverlay.externalPath", default: nil, group: .system, policy: .deviceOnly,
+            title: String(localized: "Config File Path", comment: "Setting title"))
+        static let configOverlayWriteBack = SettingKey(
+            "configOverlay.writeBackEnabled", default: true, group: .system, policy: .deviceOnly,
+            title: String(localized: "Allow Settings to Edit Config File", comment: "Setting title"))
 
         /// Key families whose full names are composed at runtime.
         static let prefixRules: [SettingsRegistry.PrefixRule] = [
@@ -90,6 +99,7 @@ nonisolated extension Settings {
             lifecycleVerboseWiFiPollLogging.erased, sshDebugLogging.erased, vncDebugLogging.erased,
             tmuxDebugLogging.erased, agentDetectionCapture.erased, ghosttyBookmarkNames, applePressAndHold.erased,
             sparkleAutomaticChecks.erased, sparkleCheckInterval.erased,
+            configOverlayBookmark.erased, configOverlayExternalPath.erased, configOverlayWriteBack.erased,
         ]
     }
 
