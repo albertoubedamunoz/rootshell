@@ -1195,9 +1195,11 @@ extension Ghostty.TerminalView {
             // it keeps empty pasteboards disabled while allowing PDF-only
             // content without reading provider types during menu validation.
             if attachmentUploadSSHConfig != nil {
+                #if !targetEnvironment(macCatalyst)
                 if editMenuInteraction != nil {
                     return UIPasteboard.general.numberOfItems > 0
                 }
+                #endif
                 return true
             }
             return false
