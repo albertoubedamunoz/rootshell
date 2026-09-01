@@ -44,37 +44,36 @@ class SelectionManager {
 
     private static let logger = Logger(subsystem: "com.rootshell", category: "SelectionManager")
 
-    // MARK: - UserDefaults Keys
+    // MARK: - Settings keys
 
-    private static let selectionModeKey = "selectionAppearanceMode"
-    private static let selectionForegroundHexKey = "selectionForegroundHex"
-    private static let selectionBackgroundHexKey = "selectionBackgroundHex"
+    private static let ownedKeys: Set<String> = [
+        Settings.Selection.appearanceMode.name,
+        Settings.Selection.foregroundHex.name,
+        Settings.Selection.backgroundHex.name,
+    ]
 
-    // MARK: - Defaults
-
-    private static let defaultMode = SelectionAppearanceMode.rootshell
-    private static let defaultForegroundHex = "1e1e2e"
-    private static let defaultBackgroundHex = "f5e0dc"
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    @ObservationIgnored private var isReloading = false
 
     // MARK: - Observable Properties
 
     var selectionMode: SelectionAppearanceMode {
         didSet {
-            UserDefaults.standard.set(selectionMode.rawValue, forKey: Self.selectionModeKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Selection.appearanceMode, selectionMode) }
             NotificationCenter.default.post(name: .selectionConfigChanged, object: nil)
         }
     }
 
     var customForegroundHex: String {
         didSet {
-            UserDefaults.standard.set(customForegroundHex, forKey: Self.selectionForegroundHexKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Selection.foregroundHex, customForegroundHex) }
             NotificationCenter.default.post(name: .selectionConfigChanged, object: nil)
         }
     }
 
     var customBackgroundHex: String {
         didSet {
-            UserDefaults.standard.set(customBackgroundHex, forKey: Self.selectionBackgroundHexKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Selection.backgroundHex, customBackgroundHex) }
             NotificationCenter.default.post(name: .selectionConfigChanged, object: nil)
         }
     }
@@ -82,18 +81,24 @@ class SelectionManager {
     // MARK: - Initialization
 
     private init() {
-        if let modeRaw = UserDefaults.standard.string(forKey: Self.selectionModeKey),
-           let mode = SelectionAppearanceMode(rawValue: modeRaw) {
-            self.selectionMode = mode
-        } else {
-            self.selectionMode = Self.defaultMode
+        let store = SettingsStore.shared
+        self.selectionMode = store.get(Settings.Selection.appearanceMode)
+        self.customForegroundHex = store.get(Settings.Selection.foregroundHex)
+        self.customBackgroundHex = store.get(Settings.Selection.backgroundHex)
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
         }
+    }
 
-        self.customForegroundHex = UserDefaults.standard.string(forKey: Self.selectionForegroundHexKey)
-            ?? Self.defaultForegroundHex
-
-        self.customBackgroundHex = UserDefaults.standard.string(forKey: Self.selectionBackgroundHexKey)
-            ?? Self.defaultBackgroundHex
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Selection.appearanceMode.name) { selectionMode = store.get(Settings.Selection.appearanceMode) }
+        if keys.contains(Settings.Selection.foregroundHex.name) { customForegroundHex = store.get(Settings.Selection.foregroundHex) }
+        if keys.contains(Settings.Selection.backgroundHex.name) { customBackgroundHex = store.get(Settings.Selection.backgroundHex) }
     }
 
     // MARK: - Config Generation

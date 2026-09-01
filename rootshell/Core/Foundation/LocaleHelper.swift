@@ -34,13 +34,12 @@ enum LocaleHelper: Sendable {
 
     /// The currently configured locale mode
     nonisolated static var localeMode: LocaleMode {
-        let raw = UserDefaults.standard.string(forKey: "localeMode") ?? "auto"
-        return LocaleMode(rawValue: raw) ?? .auto
+        SettingsStore.shared.value(Settings.Locale.mode)
     }
 
     /// The user-specified custom locale string (only used when mode is `.custom`)
     nonisolated static var customLocale: String {
-        UserDefaults.standard.string(forKey: "customLocale") ?? "en_US.UTF-8"
+        SettingsStore.shared.value(Settings.Locale.custom)
     }
 
     // MARK: - Effective Locale (respects override)

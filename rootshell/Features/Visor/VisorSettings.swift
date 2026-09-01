@@ -63,66 +63,61 @@ enum VisorSpaceBehavior: String, CaseIterable, Identifiable, Codable {
 final class VisorSettings: ObservableObject {
     static let shared = VisorSettings()
 
-    private enum Keys {
-        static let enabled = "visor.enabled"
-        static let position = "visor.position"
-        static let screen = "visor.screen"
-        static let primarySize = "visor.primarySize"
-        static let secondarySize = "visor.secondarySize"
-        static let animationDurationMs = "visor.animationDurationMs"
-        static let autohide = "visor.autohide"
-        static let spaceBehavior = "visor.spaceBehavior"
-        static let hotkeyKeyCode = "visor.hotkeyKeyCode"
-        static let hotkeyModifiers = "visor.hotkeyModifiers"
-        static let useEventTap = "visor.useEventTap"
-    }
+    private typealias Keys = Settings.Visor
 
     @Published var enabled: Bool {
-        didSet { UserDefaults.standard.set(enabled, forKey: Keys.enabled) }
+        didSet { store(Keys.enabled, enabled) }
     }
 
     @Published var position: VisorPosition {
-        didSet { UserDefaults.standard.set(position.rawValue, forKey: Keys.position) }
+        didSet { store(Keys.position, position) }
     }
 
     @Published var screen: VisorScreenChoice {
-        didSet { UserDefaults.standard.set(screen.rawValue, forKey: Keys.screen) }
+        didSet { store(Keys.screen, screen) }
     }
 
     /// Primary-axis size. `"<num>%"` or `"<num>px"`. Empty = default.
     @Published var primarySize: String {
-        didSet { UserDefaults.standard.set(primarySize, forKey: Keys.primarySize) }
+        didSet { store(Keys.primarySize, primarySize) }
     }
 
     /// Secondary-axis size. Empty = fill axis.
     @Published var secondarySize: String {
-        didSet { UserDefaults.standard.set(secondarySize, forKey: Keys.secondarySize) }
+        didSet { store(Keys.secondarySize, secondarySize) }
     }
 
     @Published var animationDurationMs: Int {
-        didSet { UserDefaults.standard.set(animationDurationMs, forKey: Keys.animationDurationMs) }
+        didSet { store(Keys.animationDurationMs, animationDurationMs) }
     }
 
     @Published var autohide: Bool {
-        didSet { UserDefaults.standard.set(autohide, forKey: Keys.autohide) }
+        didSet { store(Keys.autohide, autohide) }
     }
 
     @Published var spaceBehavior: VisorSpaceBehavior {
-        didSet { UserDefaults.standard.set(spaceBehavior.rawValue, forKey: Keys.spaceBehavior) }
+        didSet { store(Keys.spaceBehavior, spaceBehavior) }
     }
 
     /// Carbon virtual key code. -1 means unset.
     @Published var hotkeyKeyCode: Int {
-        didSet { UserDefaults.standard.set(hotkeyKeyCode, forKey: Keys.hotkeyKeyCode) }
+        didSet { store(Keys.hotkeyKeyCode, hotkeyKeyCode) }
     }
 
     /// Carbon modifier mask (cmdKey/optionKey/controlKey/shiftKey from HIToolbox).
     @Published var hotkeyModifiers: UInt32 {
-        didSet { UserDefaults.standard.set(Int(hotkeyModifiers), forKey: Keys.hotkeyModifiers) }
+        didSet { store(Keys.hotkeyModifiers, Int(hotkeyModifiers)) }
     }
 
     @Published var useEventTap: Bool {
-        didSet { UserDefaults.standard.set(useEventTap, forKey: Keys.useEventTap) }
+        didSet { store(Keys.useEventTap, useEventTap) }
+    }
+
+    private var isReloading = false
+
+    private func store<V: SettingValue>(_ key: SettingKey<V>, _ value: V) {
+        guard !isReloading else { return }
+        SettingsStore.shared.set(key, value)
     }
 
     var hotkeyConfigured: Bool {
@@ -134,22 +129,40 @@ final class VisorSettings: ObservableObject {
     }
 
     private init() {
-        let d = UserDefaults.standard
-        enabled = d.bool(forKey: Keys.enabled)
-        position = VisorPosition(rawValue: d.string(forKey: Keys.position) ?? "") ?? .top
-        screen = VisorScreenChoice(rawValue: d.string(forKey: Keys.screen) ?? "") ?? .main
-        primarySize = d.string(forKey: Keys.primarySize) ?? "30%"
-        secondarySize = d.string(forKey: Keys.secondarySize) ?? ""
-        let storedDuration = d.object(forKey: Keys.animationDurationMs) as? Int
-        animationDurationMs = storedDuration ?? 200
-        let storedAutohide = d.object(forKey: Keys.autohide) as? Bool
-        autohide = storedAutohide ?? true
-        spaceBehavior = VisorSpaceBehavior(rawValue: d.string(forKey: Keys.spaceBehavior) ?? "") ?? .move
-        let storedKey = d.object(forKey: Keys.hotkeyKeyCode) as? Int
-        hotkeyKeyCode = storedKey ?? -1
-        let storedMods = d.object(forKey: Keys.hotkeyModifiers) as? Int ?? 0
-        hotkeyModifiers = UInt32(storedMods)
-        useEventTap = d.bool(forKey: Keys.useEventTap)
+        let s = SettingsStore.shared
+        enabled = s.get(Keys.enabled)
+        position = s.get(Keys.position)
+        screen = s.get(Keys.screen)
+        primarySize = s.get(Keys.primarySize)
+        secondarySize = s.get(Keys.secondarySize)
+        animationDurationMs = s.get(Keys.animationDurationMs)
+        autohide = s.get(Keys.autohide)
+        spaceBehavior = s.get(Keys.spaceBehavior)
+        hotkeyKeyCode = s.get(Keys.hotkeyKeyCode)
+        hotkeyModifiers = UInt32(s.get(Keys.hotkeyModifiers))
+        useEventTap = s.get(Keys.useEventTap)
+        SettingsRefreshHub.shared.register(keys: [
+            Keys.enabled.name, Keys.position.name, Keys.screen.name, Keys.primarySize.name,
+            Keys.secondarySize.name, Keys.animationDurationMs.name, Keys.autohide.name,
+            Keys.spaceBehavior.name, Keys.hotkeyKeyCode.name, Keys.hotkeyModifiers.name, Keys.useEventTap.name,
+        ]) { [weak self] keys in self?.reload(keys: keys) }
+    }
+
+    private func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let s = SettingsStore.shared
+        if keys.contains(Keys.enabled.name) { enabled = s.get(Keys.enabled) }
+        if keys.contains(Keys.position.name) { position = s.get(Keys.position) }
+        if keys.contains(Keys.screen.name) { screen = s.get(Keys.screen) }
+        if keys.contains(Keys.primarySize.name) { primarySize = s.get(Keys.primarySize) }
+        if keys.contains(Keys.secondarySize.name) { secondarySize = s.get(Keys.secondarySize) }
+        if keys.contains(Keys.animationDurationMs.name) { animationDurationMs = s.get(Keys.animationDurationMs) }
+        if keys.contains(Keys.autohide.name) { autohide = s.get(Keys.autohide) }
+        if keys.contains(Keys.spaceBehavior.name) { spaceBehavior = s.get(Keys.spaceBehavior) }
+        if keys.contains(Keys.hotkeyKeyCode.name) { hotkeyKeyCode = s.get(Keys.hotkeyKeyCode) }
+        if keys.contains(Keys.hotkeyModifiers.name) { hotkeyModifiers = UInt32(s.get(Keys.hotkeyModifiers)) }
+        if keys.contains(Keys.useEventTap.name) { useEventTap = s.get(Keys.useEventTap) }
     }
 
     /// A combined publisher fired any time a setting changes that the hotkey

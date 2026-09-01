@@ -21,10 +21,8 @@ import UniformTypeIdentifiers
 /// window persistence with the tmux placeholders).
 @MainActor
 enum TabSidebarCollapseStore {
-    private static let key = "tabSidebarCollapsedGateways"
-
     static func load() -> Set<UUID> {
-        guard let strings = UserDefaults.standard.stringArray(forKey: key) else { return [] }
+        let strings = SettingsStore.shared.get(Settings.Sidebar.collapsedGateways)
         return Set(strings.compactMap(UUID.init(uuidString:)))
     }
 
@@ -33,20 +31,18 @@ enum TabSidebarCollapseStore {
     /// restarts as placeholder tabs, so they are still "known" here.
     static func save(_ collapsed: Set<UUID>, knownGateways: Set<UUID>) {
         let pruned = collapsed.intersection(knownGateways)
-        UserDefaults.standard.set(pruned.map(\.uuidString).sorted(), forKey: key)
+        SettingsStore.shared.set(Settings.Sidebar.collapsedGateways, pruned.map(\.uuidString).sorted())
     }
 }
 
 enum TabSidebarGroupCollapseStore {
-    private static let key = "tabSidebarCollapsedGroups"
-
     static func load() -> Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        Set(SettingsStore.shared.get(Settings.Sidebar.collapsedGroups))
     }
 
     static func save(_ collapsed: Set<String>, knownGroups: Set<String>) {
         let pruned = collapsed.intersection(knownGroups)
-        UserDefaults.standard.set(pruned.sorted(), forKey: key)
+        SettingsStore.shared.set(Settings.Sidebar.collapsedGroups, pruned.sorted())
     }
 }
 
@@ -285,8 +281,8 @@ struct VerticalTabSidebar: View {
     /// Open the tab exposé (shown with the header actions when the top tab bar is hidden).
     var onExposeRequested: () -> Void = {}
 
-    @AppStorage("showTabShortcutIndicators") private var showTabShortcutIndicators: Bool = false
-    @AppStorage("tabBarHidden") private var tabBarHidden: Bool = false
+    @Setting(Settings.Tabs.showShortcutIndicators) private var showTabShortcutIndicators
+    @Setting(Settings.Tabs.barHidden) private var tabBarHidden
 
     /// Live keybinds, for handling the toggle shortcut INSIDE the sidebar:
     /// the terminal resigned first responder when this presented, so its
@@ -356,12 +352,11 @@ struct VerticalTabSidebar: View {
     /// the textformat.size button in the header, persisted. Defaults large
     /// on iPhone (touch-first, full-screen panel) and compact on
     /// iPad/macOS/visionOS (pointer/keyboard, dense sidebar).
-    @AppStorage("tabSidebarLargeControls") private var largeControls: Bool =
-        UIDevice.current.userInterfaceIdiom == .phone
+    @Setting(Settings.Sidebar.largeControls) private var largeControls
 
     /// Uniform title line count for every tab row (Settings > Appearance >
     /// Window > Tab Bar).
-    @AppStorage("tabSidebarRowLines") private var titleLines: Int = 1
+    @Setting(Settings.Sidebar.rowLines) private var titleLines
 
     /// The top tab bar already provides Settings and New Tab in its trailing
     /// corner. Keep those actions in the sidebar only when the top bar is
@@ -373,12 +368,12 @@ struct VerticalTabSidebar: View {
     /// Gates all attention rendering (dots, agent cards, rollup summary);
     /// the engine itself is gated separately by the master detection
     /// toggle. (id=agent-attention)
-    @AppStorage(AgentAttentionSettings.badgesEnabledKey) private var attentionBadgesEnabled = true
+    @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
 
     /// "static" keeps tab order (t3code rule: activity never reorders);
     /// "priority" bubbles blocked/failed/done/working rows up within
     /// their section. Visual-only — the tabs array never moves.
-    @AppStorage(AgentAttentionSettings.sortKey) private var agentSortRaw = "static"
+    @Setting(Settings.CodingAgents.inboxSort) private var agentSortRaw
 
     private var attentionSortActive: Bool { agentSortRaw == "priority" }
 

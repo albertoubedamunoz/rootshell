@@ -1133,7 +1133,7 @@ final class TabStyleContextMenuCoordinator: NSObject, UIContextMenuInteractionDe
     private var selectedLayout: TopTabLayout {
         TopTabLayout.resolve(
             style: TopTabStyle.resolve(selectedStyleRawValue?.wrappedValue ?? TopTabStyle.pills.rawValue),
-            compactPills: UserDefaults.standard.bool(forKey: UserPreferences.compactPillTabSpacingKey)
+            compactPills: SettingsStore.shared.get(Settings.Tabs.compactPillSpacing)
         )
     }
 
@@ -1160,10 +1160,7 @@ final class TabStyleContextMenuCoordinator: NSObject, UIContextMenuInteractionDe
             guard let self, let selectedStyleRawValue else { return }
             withTransaction(Transaction(animation: nil)) {
                 if layout.style == .pills {
-                    UserDefaults.standard.set(
-                        layout.usesCompactPillSpacing,
-                        forKey: UserPreferences.compactPillTabSpacingKey
-                    )
+                    SettingsStore.shared.set(Settings.Tabs.compactPillSpacing, layout.usesCompactPillSpacing)
                 }
                 if selectedStyleRawValue.wrappedValue != layout.style.rawValue {
                     selectedStyleRawValue.wrappedValue = layout.style.rawValue

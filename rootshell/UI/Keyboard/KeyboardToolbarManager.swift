@@ -22,29 +22,47 @@ class KeyboardToolbarManager {
 
     // MARK: - Storage Keys
 
-    private static let configKey = "keyboardToolbarConfig"
-    private static let customKeysKey = "keyboardToolbarCustomKeys"
+    /// Device-only marker; stays raw because it never syncs.
     private static let deviceIdiomKey = "keyboardToolbarDeviceIdiom"
-    private static let drawerOpenByDefaultKey = "keyboardToolbarDrawerOpenByDefault"
-    private static let drawerToggleModeKey = "keyboardToolbarDrawerToggleMode"
+
+    private static let ownedKeys: Set<String> = [
+        Settings.KeyboardToolbar.config.name,
+        Settings.KeyboardToolbar.customKeys.name,
+        Settings.KeyboardToolbar.drawerOpenByDefault.name,
+        Settings.KeyboardToolbar.drawerToggleMode.name,
+    ]
+
+    @ObservationIgnored private var isReloading = false
 
     // MARK: - Observable Properties
 
     private(set) var config: ToolbarLayoutConfig {
-        didSet { saveConfig() }
+        didSet {
+            guard !isReloading else { return }
+            saveConfig()
+        }
     }
 
     private(set) var customKeys: [CustomKey] {
-        didSet { saveCustomKeys() }
+        didSet {
+            guard !isReloading else { return }
+            saveCustomKeys()
+        }
     }
 
     var drawerOpenByDefault: Bool {
-        didSet { UserDefaults.standard.set(drawerOpenByDefault, forKey: Self.drawerOpenByDefaultKey) }
+        didSet {
+            guard !isReloading else { return }
+            SettingsStore.shared.set(Settings.KeyboardToolbar.drawerOpenByDefault, drawerOpenByDefault)
+        }
     }
 
     /// How the "…" button steps through multiple drawer rows (stack vs cycle).
     var drawerToggleMode: DrawerToggleMode {
-        didSet { UserDefaults.standard.set(drawerToggleMode.rawValue, forKey: Self.drawerToggleModeKey) }
+        didSet {
+            guard !isReloading else { return }
+            SettingsStore.shared.set(Settings.KeyboardToolbar.drawerToggleMode, drawerToggleMode)
+        }
     }
 
     // MARK: - Computed Properties
@@ -64,9 +82,8 @@ class KeyboardToolbarManager {
         let idiom = UIDevice.current.userInterfaceIdiom
         config = Self.loadConfig(idiom: idiom)
         customKeys = Self.loadCustomKeys()
-        drawerOpenByDefault = UserDefaults.standard.bool(forKey: Self.drawerOpenByDefaultKey)
-        drawerToggleMode = UserDefaults.standard.string(forKey: Self.drawerToggleModeKey)
-            .flatMap(DrawerToggleMode.init(rawValue:)) ?? .stack
+        drawerOpenByDefault = SettingsStore.shared.get(Settings.KeyboardToolbar.drawerOpenByDefault)
+        drawerToggleMode = SettingsStore.shared.get(Settings.KeyboardToolbar.drawerToggleMode)
 
         // Check if device idiom changed (e.g. restored backup from different device)
         let savedIdiom = UserDefaults.standard.string(forKey: Self.deviceIdiomKey)
@@ -76,6 +93,29 @@ class KeyboardToolbarManager {
             config = ToolbarLayoutConfig.defaultConfig(for: idiom)
         }
         UserDefaults.standard.set(currentIdiomString, forKey: Self.deviceIdiomKey)
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Re-reads externally applied values without writing them back.
+    func reload(keys: Set<String>) {
+        isReloading = true
+        if keys.contains(Settings.KeyboardToolbar.config.name) {
+            config = Self.loadConfig(idiom: currentIdiom)
+        }
+        if keys.contains(Settings.KeyboardToolbar.customKeys.name) {
+            customKeys = Self.loadCustomKeys()
+        }
+        if keys.contains(Settings.KeyboardToolbar.drawerOpenByDefault.name) {
+            drawerOpenByDefault = SettingsStore.shared.get(Settings.KeyboardToolbar.drawerOpenByDefault)
+        }
+        if keys.contains(Settings.KeyboardToolbar.drawerToggleMode.name) {
+            drawerToggleMode = SettingsStore.shared.get(Settings.KeyboardToolbar.drawerToggleMode)
+        }
+        isReloading = false
+        notifyChange()
     }
 
     // MARK: - Layout Mutations
@@ -312,7 +352,7 @@ class KeyboardToolbarManager {
     private func saveConfig() {
         do {
             let data = try JSONEncoder().encode(config)
-            UserDefaults.standard.set(data, forKey: Self.configKey)
+            SettingsStore.shared.set(Settings.KeyboardToolbar.config, data)
         } catch {
             Self.logger.error("Failed to save toolbar config: \(error.localizedDescription)")
         }
@@ -321,14 +361,14 @@ class KeyboardToolbarManager {
     private func saveCustomKeys() {
         do {
             let data = try JSONEncoder().encode(customKeys)
-            UserDefaults.standard.set(data, forKey: Self.customKeysKey)
+            SettingsStore.shared.set(Settings.KeyboardToolbar.customKeys, data)
         } catch {
             Self.logger.error("Failed to save custom keys: \(error.localizedDescription)")
         }
     }
 
     private static func loadConfig(idiom: UIUserInterfaceIdiom) -> ToolbarLayoutConfig {
-        guard let data = UserDefaults.standard.data(forKey: configKey) else {
+        guard let data = SettingsStore.shared.get(Settings.KeyboardToolbar.config) else {
             return ToolbarLayoutConfig.defaultConfig(for: idiom)
         }
         do {
@@ -344,7 +384,7 @@ class KeyboardToolbarManager {
     }
 
     private static func loadCustomKeys() -> [CustomKey] {
-        guard let data = UserDefaults.standard.data(forKey: customKeysKey) else { return [] }
+        guard let data = SettingsStore.shared.get(Settings.KeyboardToolbar.customKeys) else { return [] }
         do {
             return try JSONDecoder().decode([CustomKey].self, from: data)
         } catch {

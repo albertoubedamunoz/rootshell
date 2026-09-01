@@ -11,10 +11,8 @@
 import SwiftUI
 
 struct TaskDetectionSettingsView: View {
-    @AppStorage(TaskDetectionSettings.enabledKey)
-    private var taskDetectionEnabled = false
-    @AppStorage(TaskNotificationPolicy.storageKey)
-    private var taskNotificationPolicy = TaskNotificationPolicy.blockedOnly.rawValue
+    @Setting(Settings.Notifications.taskDetection) private var taskDetectionEnabled
+    @Setting(Settings.Notifications.taskPolicy) private var taskNotificationPolicy
 
     var body: some View {
         List {
@@ -63,7 +61,7 @@ struct TaskDetectionSettingsView: View {
                         SettingsIcon(systemName: "bell.and.waves.left.and.right")
                         Text("Command Notifications")
                         Spacer()
-                        Text((TaskNotificationPolicy(rawValue: taskNotificationPolicy) ?? .blockedOnly).displayName)
+                        Text(taskNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -92,19 +90,19 @@ struct TaskDetectionSettingsView: View {
     }
 }
 
-/// One family switch. Its own view so each row can hold the `@AppStorage`
+/// One family switch. Its own view so each row can hold the `@Setting`
 /// for its family's key (stored properties can't be keyed dynamically).
 private struct FamilyToggleRow: View {
     let icon: String
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
-    @AppStorage private var enabled: Bool
+    @Setting private var enabled: Bool
 
     init(family: TaskFamily, icon: String, title: LocalizedStringKey, subtitle: LocalizedStringKey) {
         self.icon = icon
         self.title = title
         self.subtitle = subtitle
-        _enabled = AppStorage(wrappedValue: true, TaskDetectionSettings.familyKey(family))
+        _enabled = Setting(TaskDetectionSettings.familyKey(family))
     }
 
     var body: some View {
@@ -129,13 +127,11 @@ private struct FamilyToggleRow: View {
 // MARK: - Task Notification Policy Picker
 
 struct TaskNotificationPolicyPickerView: View {
-    @AppStorage(TaskNotificationPolicy.storageKey)
-    private var policy = TaskNotificationPolicy.blockedOnly.rawValue
-    @AppStorage(AgentAttentionSettings.notificationPromptEnabledKey)
-    private var includePrompt = true
+    @Setting(Settings.Notifications.taskPolicy) private var policy
+    @Setting(Settings.Notifications.agentIncludePrompt) private var includePrompt
 
     private var notificationsOff: Bool {
-        (TaskNotificationPolicy(rawValue: policy) ?? .blockedOnly) == .off
+        policy == .off
     }
 
     var body: some View {
@@ -143,7 +139,7 @@ struct TaskNotificationPolicyPickerView: View {
             Section {
                 ForEach(TaskNotificationPolicy.allCases, id: \.rawValue) { option in
                     Button {
-                        policy = option.rawValue
+                        policy = option
                         // Selecting a live policy is the consent moment;
                         // without authorization nothing would ever fire.
                         if option != .off {
@@ -163,7 +159,7 @@ struct TaskNotificationPolicyPickerView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer()
-                            if policy == option.rawValue {
+                            if policy == option {
                                 Image(systemName: "checkmark")
                                     .foregroundColor(.accentColor)
                             }

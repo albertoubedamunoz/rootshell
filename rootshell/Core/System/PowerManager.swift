@@ -36,9 +36,6 @@ final class PowerManager {
 
     private static let logger = Logger(subsystem: "com.rootshell", category: "PowerManager")
 
-    private static let maxRefreshRateKey = "powerMaxRefreshRate"
-    private static let autoSaverKey = "powerAutoSaver"
-    private static let batteryRefreshRateKey = "powerBatteryRefreshRate"
 
     // MARK: - Types
 
@@ -104,7 +101,7 @@ final class PowerManager {
     var maxRefreshRate: RefreshRateSetting = .auto {
         didSet {
             guard maxRefreshRate != oldValue else { return }
-            UserDefaults.standard.set(maxRefreshRate.rawValue, forKey: Self.maxRefreshRateKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Power.maxRefreshRate, maxRefreshRate) }
             tierMayHaveChanged()
         }
     }
@@ -113,7 +110,7 @@ final class PowerManager {
     var batteryRefreshRate: BatteryRefreshRate = .sixty {
         didSet {
             guard batteryRefreshRate != oldValue else { return }
-            UserDefaults.standard.set(batteryRefreshRate.rawValue, forKey: Self.batteryRefreshRateKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Power.batteryRefreshRate, batteryRefreshRate) }
             tierMayHaveChanged()
         }
     }
@@ -123,9 +120,28 @@ final class PowerManager {
     var autoSaverEnabled: Bool = true {
         didSet {
             guard autoSaverEnabled != oldValue else { return }
-            UserDefaults.standard.set(autoSaverEnabled, forKey: Self.autoSaverKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Power.autoSaver, autoSaverEnabled) }
             tierMayHaveChanged()
         }
+    }
+
+    private static let ownedKeys: Set<String> = [
+        Settings.Power.maxRefreshRate.name, Settings.Power.batteryRefreshRate.name, Settings.Power.autoSaver.name,
+    ]
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    @ObservationIgnored private var isReloading = false
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Power.maxRefreshRate.name) { maxRefreshRate = store.get(Settings.Power.maxRefreshRate) }
+        if keys.contains(Settings.Power.batteryRefreshRate.name) {
+            batteryRefreshRate = store.get(Settings.Power.batteryRefreshRate)
+        }
+        if keys.contains(Settings.Power.autoSaver.name) { autoSaverEnabled = store.get(Settings.Power.autoSaver) }
     }
 
     // MARK: - Observed system state
@@ -200,21 +216,10 @@ final class PowerManager {
     #endif
 
     private init() {
-        var refresh: RefreshRateSetting = .auto
-        if let raw = UserDefaults.standard.string(forKey: Self.maxRefreshRateKey),
-           let setting = RefreshRateSetting(rawValue: raw) {
-            refresh = setting
-        }
-        var battery: BatteryRefreshRate = .sixty
-        if let raw = UserDefaults.standard.string(forKey: Self.batteryRefreshRateKey),
-           let setting = BatteryRefreshRate(rawValue: raw) {
-            battery = setting
-        }
-        let autoSaver: Bool = if UserDefaults.standard.object(forKey: Self.autoSaverKey) != nil {
-            UserDefaults.standard.bool(forKey: Self.autoSaverKey)
-        } else {
-            true
-        }
+        let store = SettingsStore.shared
+        let refresh = store.get(Settings.Power.maxRefreshRate)
+        let battery = store.get(Settings.Power.batteryRefreshRate)
+        let autoSaver = store.get(Settings.Power.autoSaver)
 
         let info = ProcessInfo.processInfo
         let lpm = info.isLowPowerModeEnabled
@@ -231,6 +236,10 @@ final class PowerManager {
         // Stored-property observers don't fire during init, so seed the
         // broadcast baseline from the live tier now that all state is set.
         lastNotifiedTier = tier
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
 
         // These notifications can fire on background threads; hop to the
         // main actor before touching state.

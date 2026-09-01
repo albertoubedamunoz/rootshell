@@ -69,18 +69,13 @@ class KeyboardArrowJoystickButton: UIView {
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
     #endif
 
-    private static let modeKey = "arrowJoystickMode"
-
     // MARK: - Initialization
 
     init(sizes: KeyboardSizes) {
         self.sizes = sizes
         super.init(frame: .zero)
 
-        if let saved = UserDefaults.standard.string(forKey: Self.modeKey),
-           let savedMode = Mode(rawValue: saved) {
-            mode = savedMode
-        }
+        mode = SettingsStore.shared.get(Settings.KeyboardToolbar.arrowJoystickMode)
 
         setupView()
     }
@@ -237,7 +232,7 @@ class KeyboardArrowJoystickButton: UIView {
         // Toggle mode
         let newMode: Mode = (mode == .drawer) ? .joystick : .drawer
         mode = newMode
-        UserDefaults.standard.set(newMode.rawValue, forKey: Self.modeKey)
+        SettingsStore.shared.set(Settings.KeyboardToolbar.arrowJoystickMode, newMode)
 
         // Haptic
         #if !os(visionOS)

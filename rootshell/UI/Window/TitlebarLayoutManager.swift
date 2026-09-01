@@ -9,15 +9,9 @@ final class TitlebarLayoutManager {
 
     private(set) var leadingInset: CGFloat
 
-    private static let leadingInsetKey = "titlebarLeadingInset"
-
     private init() {
-        let savedInset = UserDefaults.standard.double(forKey: Self.leadingInsetKey)
-        if savedInset > 0 {
-            leadingInset = savedInset
-        } else {
-            leadingInset = 0
-        }
+        let savedInset = SettingsStore.shared.get(Settings.Window.titlebarLeadingInset)
+        leadingInset = savedInset > 0 ? savedInset : 0
     }
 
     func updateLeadingInset(_ inset: CGFloat) {
@@ -25,6 +19,6 @@ final class TitlebarLayoutManager {
         guard clampedInset > 0 else { return }
         guard abs(clampedInset - leadingInset) > 0.5 else { return }
         leadingInset = clampedInset
-        UserDefaults.standard.set(clampedInset, forKey: Self.leadingInsetKey)
+        SettingsStore.shared.set(Settings.Window.titlebarLeadingInset, Double(clampedInset))
     }
 }

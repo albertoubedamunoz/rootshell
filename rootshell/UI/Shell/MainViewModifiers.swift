@@ -43,10 +43,10 @@ struct NotificationHandlersModifier: ViewModifier {
     @Binding var sessionDiscoveryVersion: Int
     let tabsModel: TabsModel
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @AppStorage("fullScreenModeEnabled") private var fullScreenModeEnabled: Bool = false
+    @Setting(Settings.Window.fullScreenMode) private var fullScreenModeEnabled
     #endif
     #if targetEnvironment(macCatalyst)
-    @AppStorage("hideWindowTitleBar") private var hideWindowTitleBar: Bool = false
+    @Setting(Settings.Window.hideTitleBar) private var hideWindowTitleBar
     #endif
     var handleFileOpen: () -> Void
     #if !CHINA_BUILD

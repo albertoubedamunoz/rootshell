@@ -233,22 +233,22 @@ struct TransparencySettingsView: View {
 // MARK: - Window Settings
 
 struct WindowSettingsView: View {
-    @AppStorage("tabBarHidden") private var tabBarHidden: Bool = false
-    @AppStorage("showTabShortcutIndicators") private var showTabShortcutIndicators: Bool = false
-    @AppStorage(UserPreferences.showTabScopeMenuKey) private var showTabScopeMenu: Bool = true
-    @AppStorage("tabBarAnimationsDisabled") private var tabBarAnimationsDisabled: Bool = false
-    @AppStorage(TopTabStyle.storageKey) private var topTabStyleRawValue: String = TopTabStyle.pills.rawValue
-    @AppStorage(UserPreferences.compactPillTabSpacingKey) private var compactPillTabSpacing: Bool = false
-    @AppStorage(TabExposeSettings.showsCaptionsKey) private var tabExposeShowsCaptions: Bool = true
-    @AppStorage("tabSidebarTranslucent") private var tabSidebarTranslucent: Bool = true
-    @AppStorage("tabSidebarAutoHideOnSelect") private var tabSidebarAutoHideOnSelect: Bool = false
-    @AppStorage("tabSidebarRowLines") private var tabSidebarRowLines: Int = 1
-    @AppStorage(SplitFocusBorderStyle.storageKey) private var splitFocusBorderStyle: String = SplitFocusBorderStyle.standard.rawValue
-    @AppStorage(SplitFocusBorderColor.storageKey) private var splitFocusBorderColor: String = SplitFocusBorderColor.accent.rawValue
-    @AppStorage(SplitFocusBorderColor.customHexKey) private var splitFocusBorderCustomHex: String = "007AFF"
-    @AppStorage("copyOnSelect") private var copyOnSelect: Bool = true
+    @Setting(Settings.Tabs.barHidden) private var tabBarHidden
+    @Setting(Settings.Tabs.showShortcutIndicators) private var showTabShortcutIndicators
+    @Setting(Settings.Tabs.showScopeMenu) private var showTabScopeMenu
+    @Setting(Settings.Tabs.barAnimationsDisabled) private var tabBarAnimationsDisabled
+    @Setting(Settings.Tabs.topTabStyle) private var topTabStyle
+    @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
+    @Setting(Settings.Tabs.exposeShowsCaptions) private var tabExposeShowsCaptions
+    @Setting(Settings.Sidebar.translucent) private var tabSidebarTranslucent
+    @Setting(Settings.Sidebar.autoHideOnSelect) private var tabSidebarAutoHideOnSelect
+    @Setting(Settings.Sidebar.rowLines) private var tabSidebarRowLines
+    @Setting(Settings.Window.splitFocusBorderStyle) private var splitFocusBorderStyle
+    @Setting(Settings.Window.splitFocusBorderColor) private var splitFocusBorderColor
+    @Setting(Settings.Window.splitFocusBorderCustomColor) private var splitFocusBorderCustomHex
+    @Setting(Settings.Selection.copyOnSelect) private var copyOnSelect
     #if os(iOS) && !targetEnvironment(macCatalyst)
-    @AppStorage(UserPreferences.useNativeSelectionLoupeKey) private var useNativeSelectionLoupe: Bool = false
+    @Setting(Settings.Selection.useNativeLoupe) private var useNativeSelectionLoupe
     #endif
     @Bindable private var selectionManager = SelectionManager.shared
     @Bindable private var paddingManager = PaddingManager.shared
@@ -256,8 +256,8 @@ struct WindowSettingsView: View {
     // drives, surfaced here so it can be set without summoning the overlay.
     @Bindable private var brightnessManager = BrightnessManager.shared
     #if targetEnvironment(macCatalyst)
-    @AppStorage("tabsInTitlebarEnabled") private var tabsInTitlebarEnabled: Bool = true
-    @AppStorage("hideWindowTitleBar") private var hideWindowTitleBar: Bool = false
+    @Setting(Settings.Window.tabsInTitlebar) private var tabsInTitlebarEnabled
+    @Setting(Settings.Window.hideTitleBar) private var hideWindowTitleBar
     #endif
 
     /// The display's maximum potential EDR headroom (peak EDR white ÷ SDR white).
@@ -307,12 +307,12 @@ struct WindowSettingsView: View {
         Binding(
             get: {
                 TopTabLayout.resolve(
-                    style: TopTabStyle.resolve(topTabStyleRawValue),
+                    style: topTabStyle,
                     compactPills: compactPillTabSpacing
                 )
             },
             set: { layout in
-                topTabStyleRawValue = layout.style.rawValue
+                topTabStyle = layout.style
                 if layout.style == .pills {
                     compactPillTabSpacing = layout.usesCompactPillSpacing
                 }
@@ -320,7 +320,7 @@ struct WindowSettingsView: View {
         )
     }
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @AppStorage("fullScreenModeEnabled") private var fullScreenModeEnabled: Bool = false
+    @Setting(Settings.Window.fullScreenMode) private var fullScreenModeEnabled
     @Bindable private var alwaysOnDisplayManager = AlwaysOnDisplayManager.shared
 
     /// Whether this device has a home indicator (a non-zero bottom safe area).
@@ -481,19 +481,19 @@ struct WindowSettingsView: View {
             Section {
                 Picker("Split Focus Border", selection: $splitFocusBorderStyle) {
                     ForEach(SplitFocusBorderStyle.allCases, id: \.rawValue) { style in
-                        Text(style.displayName).tag(style.rawValue)
+                        Text(style.displayName).tag(style)
                     }
                 }
                 .themedRow()
 
                 Picker("Border Color", selection: $splitFocusBorderColor) {
                     ForEach(SplitFocusBorderColor.allCases, id: \.rawValue) { color in
-                        Text(color.displayName).tag(color.rawValue)
+                        Text(color.displayName).tag(color)
                     }
                 }
                 .themedRow()
 
-                if splitFocusBorderColor == SplitFocusBorderColor.custom.rawValue {
+                if splitFocusBorderColor == .custom {
                     ColorPicker("Custom Color", selection: Binding(
                         get: {
                             Color(hex: splitFocusBorderCustomHex) ?? .blue

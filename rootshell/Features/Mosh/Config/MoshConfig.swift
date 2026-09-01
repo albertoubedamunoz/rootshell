@@ -28,12 +28,12 @@ struct MoshConfig: Codable, Hashable, Sendable {
     /// open and close so a toggle in Roam settings takes effect on the next
     /// mosh connection without any restart.
     static var altScreenEnabled: Bool {
-        UserDefaults.standard.object(forKey: altScreenEnabledKey) as? Bool ?? true
+        SettingsStore.shared.value(Settings.Roam.moshAltScreen)
     }
 
     /// Reads the default overwrite-prediction preference for newly created sessions.
     static var defaultPredictOverwrite: Bool {
-        UserDefaults.standard.bool(forKey: defaultPredictOverwriteKey)
+        SettingsStore.shared.value(Settings.Roam.predictOverwrite)
     }
 
     // MARK: - SSH Configuration
@@ -136,7 +136,7 @@ struct MoshConfig: Codable, Hashable, Sendable {
         if let config = holePunchConfig {
             self.holePunchConfig = config
         } else {
-            let roamEnabled = UserDefaults.standard.bool(forKey: HolePunchConfig.roamEnabledKey)
+            let roamEnabled = SettingsStore.shared.value(Settings.Roam.holePunch)
             self.holePunchConfig = HolePunchConfig(enabled: roamEnabled)
         }
     }

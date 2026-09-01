@@ -8,12 +8,12 @@
 import SwiftUI
 
 struct OptionKeyAsAltPicker: View {
-    @AppStorage("optionKeyAsAlt") private var optionKeyAsAlt: String = "off"
+    @Setting(Settings.Keyboard.optionKeyAsAlt) private var optionKeyAsAlt
 
     var body: some View {
         Picker(selection: $optionKeyAsAlt) {
             ForEach(Ghostty.OptionKeyAsAlt.allCases, id: \.rawValue) { option in
-                Text(option.displayName).tag(option.rawValue)
+                Text(option.displayName).tag(option)
             }
         } label: {
             HStack(spacing: 12) {

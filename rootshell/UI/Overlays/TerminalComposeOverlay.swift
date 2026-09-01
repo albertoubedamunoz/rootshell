@@ -20,7 +20,7 @@ struct TerminalComposeOverlay: View {
     let onTextViewCreated: ((UITextView?) -> Void)?
 
     @State private var text: String = ""
-    @AppStorage("composeAutocorrectEnabled") private var autocorrectEnabled: Bool = false
+    @Setting(Settings.Keyboard.composeAutocorrect) private var autocorrectEnabled
 
     #if !os(visionOS)
     @Environment(\.verticalSizeClass) private var verticalSizeClass

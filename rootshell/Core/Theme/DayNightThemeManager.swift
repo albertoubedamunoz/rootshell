@@ -17,10 +17,12 @@ final class DayNightThemeManager: ObservableObject {
 
     // MARK: - UserDefaults Keys
 
-    private static let enabledKey = "dayNightThemeEnabled"
-    private static let dayThemeKey = "dayNightThemeDayTheme"
-    private static let nightThemeKey = "dayNightThemeNightTheme"
-    private static let defaultThemeKey = "dayNightThemeDefaultTheme"
+    private static let ownedKeys: Set<String> = [
+        Settings.Theme.dayNightEnabled.name, Settings.Theme.dayNightDay.name, Settings.Theme.dayNightNight.name,
+    ]
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    private var isReloading = false
 
     // MARK: - Published Properties
 
@@ -28,7 +30,7 @@ final class DayNightThemeManager: ObservableObject {
     @Published var enabled: Bool {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(enabled, forKey: Self.enabledKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Theme.dayNightEnabled, enabled) }
             handleEnabledChange(wasEnabled: oldValue)
         }
     }
@@ -37,7 +39,7 @@ final class DayNightThemeManager: ObservableObject {
     @Published var dayTheme: String {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(dayTheme, forKey: Self.dayThemeKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Theme.dayNightDay, dayTheme) }
             if enabled {
                 applyCurrentTheme()
             }
@@ -48,7 +50,7 @@ final class DayNightThemeManager: ObservableObject {
     @Published var nightTheme: String {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(nightTheme, forKey: Self.nightThemeKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Theme.dayNightNight, nightTheme) }
             if enabled {
                 applyCurrentTheme()
             }
@@ -81,11 +83,16 @@ final class DayNightThemeManager: ObservableObject {
 
     private init() {
         // Load saved settings
-        self.enabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
-        self.dayTheme = UserDefaults.standard.string(forKey: Self.dayThemeKey) ?? "Solarized Light"
-        self.nightTheme = UserDefaults.standard.string(forKey: Self.nightThemeKey) ?? "Catppuccin Mocha"
-        self.defaultTheme = UserDefaults.standard.string(forKey: Self.defaultThemeKey)
-            ?? ThemeManager.shared.currentTheme
+        let store = SettingsStore.shared
+        self.enabled = store.get(Settings.Theme.dayNightEnabled)
+        self.dayTheme = store.get(Settings.Theme.dayNightDay)
+        self.nightTheme = store.get(Settings.Theme.dayNightNight)
+        // deviceOnly restore point for the pre-day/night theme
+        self.defaultTheme = store.get(Settings.Theme.dayNightDefault) ?? ThemeManager.shared.currentTheme
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
 
         // Try to read current system appearance — may be unreliable before windows exist
         isCurrentlyLight = Self.currentInterfaceStyleIsLight()
@@ -142,11 +149,21 @@ final class DayNightThemeManager: ObservableObject {
         }
     }
 
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Theme.dayNightDay.name) { dayTheme = store.get(Settings.Theme.dayNightDay) }
+        if keys.contains(Settings.Theme.dayNightNight.name) { nightTheme = store.get(Settings.Theme.dayNightNight) }
+        if keys.contains(Settings.Theme.dayNightEnabled.name) { enabled = store.get(Settings.Theme.dayNightEnabled) }
+    }
+
     private func handleEnabledChange(wasEnabled: Bool) {
         if enabled && !wasEnabled {
             // Feature was just enabled — capture current theme for reversion
             defaultTheme = ThemeManager.shared.currentTheme
-            UserDefaults.standard.set(defaultTheme, forKey: Self.defaultThemeKey)
+            SettingsStore.shared.set(Settings.Theme.dayNightDefault, defaultTheme)
 
             isCurrentlyLight = Self.currentInterfaceStyleIsLight()
             setupTraitObserver()

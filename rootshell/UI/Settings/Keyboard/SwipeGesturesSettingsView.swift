@@ -18,7 +18,7 @@ struct SwipeGesturesSettingsView: View {
     @State private var showingResetConfirmation = false
     @State private var swapTrigger = 0
     #if !targetEnvironment(macCatalyst)
-    @AppStorage("scrollModeEnabled") private var scrollModeEnabled: Bool = true
+    @Setting(Settings.Gestures.scrollMode) private var scrollModeEnabled
     #endif
 
     // Built-in pair presets shown in the Quick Setup section. Tapping a row

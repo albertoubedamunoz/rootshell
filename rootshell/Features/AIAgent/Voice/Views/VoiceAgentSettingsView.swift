@@ -10,8 +10,8 @@
 import SwiftUI
 
 struct VoiceAgentSettingsView: View {
-    @State private var selectedVoice: GeminiVoice = .kore
-    @State private var consultationMode: VoiceConsultationMode = .letFlashDecide
+    @Setting(Settings.AI.voice) private var selectedVoice
+    @Setting(Settings.AI.voiceConsultationMode) private var consultationMode
     @Environment(\.sheetThemeColors) private var sheetThemeColors
 
     var body: some View {
@@ -23,9 +23,6 @@ struct VoiceAgentSettingsView: View {
         .themedList()
         .navigationTitle("Voice Agent")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            loadSettings()
-        }
     }
 
     // MARK: - Sections
@@ -36,9 +33,6 @@ struct VoiceAgentSettingsView: View {
                 VoiceSelectionList(selectedVoice: $selectedVoice)
             } label: {
                 LabeledContent("Voice", value: selectedVoice.displayName)
-            }
-            .onChange(of: selectedVoice) { _, newValue in
-                UserDefaults.standard.set(newValue.rawValue, forKey: "voice.agent.voice")
             }
             .themedRow()
         } header: {
@@ -62,9 +56,6 @@ struct VoiceAgentSettingsView: View {
                 }
             }
             .pickerStyle(.inline)
-            .onChange(of: consultationMode) { _, newValue in
-                UserDefaults.standard.set(newValue.rawValue, forKey: "voice.agent.consultationMode")
-            }
             .themedRow()
         } header: {
             Text("Expert Model")
@@ -87,19 +78,6 @@ struct VoiceAgentSettingsView: View {
                 .themedRow()
         } header: {
             Text("Technical Details")
-        }
-    }
-
-    // MARK: - Persistence
-
-    private func loadSettings() {
-        if let voiceRaw = UserDefaults.standard.string(forKey: "voice.agent.voice"),
-           let voice = GeminiVoice(rawValue: voiceRaw) {
-            selectedVoice = voice
-        }
-        if let modeRaw = UserDefaults.standard.string(forKey: "voice.agent.consultationMode"),
-           let mode = VoiceConsultationMode(rawValue: modeRaw) {
-            consultationMode = mode
         }
     }
 }

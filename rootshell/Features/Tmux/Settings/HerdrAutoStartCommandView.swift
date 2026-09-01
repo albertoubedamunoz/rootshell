@@ -10,8 +10,8 @@
 import SwiftUI
 
 struct HerdrAutoStartCommandView: View {
-    @AppStorage("herdrSessionName") private var sessionName = ""
-    @AppStorage("herdrCustomCommand") private var customCommand = ""
+    @Setting(Settings.Multiplexer.herdrSessionName) private var sessionName
+    @Setting(Settings.Multiplexer.herdrCustomCommand) private var customCommand
     @State private var copied = false
     @FocusState private var isEditorFocused: Bool
 

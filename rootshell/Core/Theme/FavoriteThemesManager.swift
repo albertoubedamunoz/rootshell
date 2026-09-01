@@ -13,7 +13,6 @@ import os
 class FavoriteThemesManager: ObservableObject {
     static let shared = FavoriteThemesManager()
 
-    private static let favoritesKey = "favoriteThemeIds"
     private static let logger = Logger(subsystem: "com.rootshell", category: "FavoriteThemesManager")
 
     /// Set of favorite theme IDs
@@ -24,6 +23,10 @@ class FavoriteThemesManager: ObservableObject {
 
     private init() {
         loadFavorites()
+        SettingsRefreshHub.shared.register(keys: [Settings.Theme.favoriteIds.name]) { [weak self] _ in
+            self?.loadFavorites()
+            self?.favoritesDidChange.send()
+        }
     }
 
     // MARK: - Public API
@@ -81,17 +84,13 @@ class FavoriteThemesManager: ObservableObject {
     // MARK: - Persistence
 
     private func loadFavorites() {
-        guard let stored = UserDefaults.standard.stringArray(forKey: Self.favoritesKey) else {
-            Self.logger.info("No favorite themes found in UserDefaults")
-            return
-        }
-        favoriteThemeIds = Set(stored)
+        favoriteThemeIds = Set(SettingsStore.shared.get(Settings.Theme.favoriteIds))
         Self.logger.info("Loaded \(self.favoriteThemeIds.count) favorite themes")
     }
 
     private func saveFavorites() {
         let array = Array(favoriteThemeIds)
-        UserDefaults.standard.set(array, forKey: Self.favoritesKey)
+        SettingsStore.shared.set(Settings.Theme.favoriteIds, array)
         Self.logger.info("Saved \(array.count) favorite themes to UserDefaults")
     }
 }

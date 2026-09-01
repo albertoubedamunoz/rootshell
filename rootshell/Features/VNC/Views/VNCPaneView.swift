@@ -1363,7 +1363,7 @@ struct VNCPaneThemedSurface<Content: View>: View {
     let windowId: String
     @ViewBuilder let content: () -> Content
 
-    @AppStorage("themedUI") private var themedUIEnabled = true
+    @Setting(Settings.Theme.themedUI) private var themedUIEnabled
     @Environment(\.colorScheme) private var systemColorScheme
 
     var body: some View {

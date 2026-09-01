@@ -2023,7 +2023,7 @@ final class TabsModel {
     private func beginTabSwitchAnimationGate() {
         // Nothing to protect when tab-bar animations are off — don't add title
         // latency for an instant switch.
-        guard !UserDefaults.standard.bool(forKey: "tabBarAnimationsDisabled") else { return }
+        guard !SettingsStore.shared.value(Settings.Tabs.barAnimationsDisabled) else { return }
         isTabSwitchAnimating = true
         tabSwitchAnimationTimer?.invalidate()
         // .spring(response: 0.3) settles in ~0.4s; the `.animation(_:value:)`

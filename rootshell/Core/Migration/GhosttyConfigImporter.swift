@@ -836,11 +836,13 @@ final class GhosttyConfigImporter {
             #endif
 
         case .copyOnSelect(let on):
-            UserDefaults.standard.set(on, forKey: "copyOnSelect")
+            SettingsStore.shared.set(Settings.Selection.copyOnSelect, on)
 
         case .optionAsAlt(let stored):
             #if targetEnvironment(macCatalyst)
-            UserDefaults.standard.set(stored, forKey: "optionKeyAsAlt")
+            if let mode = Ghostty.OptionKeyAsAlt(rawValue: stored) {
+                SettingsStore.shared.set(Settings.Keyboard.optionKeyAsAlt, mode)
+            }
             #else
             _ = stored
             #endif

@@ -12,9 +12,6 @@ class SSHPasswordManager {
 
     // MARK: - UserDefaults Keys
 
-    private static let defaultStorageLevelKey = "sshPasswordDefaultStorageLevel"
-    private static let defaultAuthRequirementKey = "sshPasswordDefaultAuthRequirement"
-
     /// Device-local map of `connectionKey -> lastUsedDate`. Kept out of the
     /// synchronizable Keychain metadata so a connect can update "last used"
     /// without re-writing (and thus resurrecting) a synced password item.
@@ -28,16 +25,20 @@ class SSHPasswordManager {
     /// Default storage level for new passwords
     var defaultStorageLevel: KeyStorageLevel {
         didSet {
-            UserDefaults.standard.set(defaultStorageLevel.rawValue, forKey: Self.defaultStorageLevelKey)
+            guard !isReloading else { return }
+            SettingsStore.shared.set(Settings.Connections.passwordDefaultStorageLevel, defaultStorageLevel)
         }
     }
 
     /// Default auth requirement for new passwords
     var defaultAuthRequirement: KeyAuthRequirement {
         didSet {
-            UserDefaults.standard.set(defaultAuthRequirement.rawValue, forKey: Self.defaultAuthRequirementKey)
+            guard !isReloading else { return }
+            SettingsStore.shared.set(Settings.Connections.passwordDefaultAuthRequirement, defaultAuthRequirement)
         }
     }
+
+    @ObservationIgnored private var isReloading = false
 
     // MARK: - Session-based Auth Cache
 
@@ -48,24 +49,27 @@ class SSHPasswordManager {
 
     private init() {
         self.keychainManager = KeychainManager.shared
-
-        // Load default settings from UserDefaults
-        if let storageLevelRaw = UserDefaults.standard.string(forKey: Self.defaultStorageLevelKey),
-           let storageLevel = KeyStorageLevel(rawValue: storageLevelRaw) {
-            self.defaultStorageLevel = storageLevel
-        } else {
-            self.defaultStorageLevel = .backupOnly
-        }
-
-        if let authRequirementRaw = UserDefaults.standard.string(forKey: Self.defaultAuthRequirementKey),
-           let authRequirement = KeyAuthRequirement(rawValue: authRequirementRaw) {
-            self.defaultAuthRequirement = authRequirement
-        } else {
-            self.defaultAuthRequirement = .none
-        }
+        self.defaultStorageLevel = SettingsStore.shared.get(Settings.Connections.passwordDefaultStorageLevel)
+        self.defaultAuthRequirement = SettingsStore.shared.get(Settings.Connections.passwordDefaultAuthRequirement)
 
         // Load saved passwords from Keychain
         loadPasswords()
+
+        SettingsRefreshHub.shared.register(keys: [
+            Settings.Connections.passwordDefaultStorageLevel.name,
+            Settings.Connections.passwordDefaultAuthRequirement.name,
+        ]) { [weak self] keys in self?.reload(keys: keys) }
+    }
+
+    private func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Connections.passwordDefaultStorageLevel.name) {
+            defaultStorageLevel = SettingsStore.shared.get(Settings.Connections.passwordDefaultStorageLevel)
+        }
+        if keys.contains(Settings.Connections.passwordDefaultAuthRequirement.name) {
+            defaultAuthRequirement = SettingsStore.shared.get(Settings.Connections.passwordDefaultAuthRequirement)
+        }
     }
 
     // MARK: - Public Methods

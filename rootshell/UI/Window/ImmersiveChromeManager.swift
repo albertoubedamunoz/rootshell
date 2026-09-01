@@ -93,12 +93,13 @@ final class ImmersiveChromeManager {
 
     private var isInstalled = false
     private var defaultsObserver: NSObjectProtocol?
+    private var settingsObserver: NSObjectProtocol?
     private var windowObserver: NSObjectProtocol?
 
     private init() {
         // Seed the atomic with the persisted value so the first swizzle
         // sees the right state before `install()` is called.
-        let initial = UserDefaults.standard.bool(forKey: Self.userDefaultsKey)
+        let initial = SettingsStore.shared.get(Settings.Window.fullScreenMode)
         Self.activeFlag.withLock { $0 = initial }
     }
 
@@ -135,7 +136,19 @@ final class ImmersiveChromeManager {
             object: UserDefaults.standard,
             queue: .main
         ) { _ in
+            // Batched external writes settle first; `.settingsDidChange` re-reads below.
+            guard !SettingsStore.shared.isApplyingBatchAtomic else { return }
             let nowActive = UserDefaults.standard.bool(forKey: Self.userDefaultsKey)
+            Task { @MainActor in
+                ImmersiveChromeManager.shared.handleActiveChange(to: nowActive)
+            }
+        }
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: .settingsDidChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            let nowActive = SettingsStore.shared.value(Settings.Window.fullScreenMode)
             Task { @MainActor in
                 ImmersiveChromeManager.shared.handleActiveChange(to: nowActive)
             }

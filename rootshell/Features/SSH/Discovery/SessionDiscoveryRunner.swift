@@ -382,8 +382,7 @@ enum SessionDiscoveryParser {
             sessions.append(contentsOf: zmx.map { MultiplexerSession.from(zmx: $0) })
         }
 
-        let rawOrder = UserDefaults.standard.string(forKey: SessionDiscoverySortOrder.storageKey)
-        let order = rawOrder.flatMap(SessionDiscoverySortOrder.init(rawValue:)) ?? .attachedFirst
+        let order = SettingsStore.shared.value(Settings.Multiplexer.sessionDiscoverySortOrder)
         sessions.sort(by: order.compare)
 
         let count = sessions.count

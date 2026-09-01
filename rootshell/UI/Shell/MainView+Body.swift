@@ -156,7 +156,7 @@ extension MainView {
                 .accessibilityHidden(true)
 
             TabStyleContextMenuRegion(
-                selectedStyleRawValue: $topTabStyleRawValue,
+                selectedStyleRawValue: topTabStyleRawValueBinding,
                 primaryAction: addNewTab,
                 accessibilityLabel: String(localized: "New Tab")
             )
@@ -185,7 +185,7 @@ extension MainView {
                 .accessibilityHidden(true)
 
             TabStyleContextMenuRegion(
-                selectedStyleRawValue: $topTabStyleRawValue,
+                selectedStyleRawValue: topTabStyleRawValueBinding,
                 primaryAction: { requestSettingsPresentation() },
                 accessibilityLabel: String(localized: "Settings")
             )
@@ -199,18 +199,18 @@ extension MainView {
     func integratedTabBarDragRegion() -> some View {
         #if targetEnvironment(macCatalyst)
         if usesTitlebarTabs || hideWindowTitleBar {
-            CatalystWindowDragRegion(tabStyleSelection: $topTabStyleRawValue)
+            CatalystWindowDragRegion(tabStyleSelection: topTabStyleRawValueBinding)
                 .frame(minWidth: Self.catalystWindowDragWidth, maxWidth: .infinity)
                 .frame(height: TabMetrics.tabBarHeight)
                 .catalystCursorRegion(.openHand, priority: .titlebar)
                 .accessibilityHidden(true)
         } else {
-            TabStyleContextMenuRegion(selectedStyleRawValue: $topTabStyleRawValue)
+            TabStyleContextMenuRegion(selectedStyleRawValue: topTabStyleRawValueBinding)
                 .frame(minWidth: 0, maxWidth: .infinity)
                 .frame(height: TabMetrics.tabBarHeight)
         }
         #else
-        TabStyleContextMenuRegion(selectedStyleRawValue: $topTabStyleRawValue)
+        TabStyleContextMenuRegion(selectedStyleRawValue: topTabStyleRawValueBinding)
             .frame(minWidth: 0, maxWidth: .infinity)
             .frame(height: TabMetrics.tabBarHeight)
         #endif
@@ -230,11 +230,11 @@ extension MainView {
             .padding(.bottom, topTabStyle.usesStripLayout ? IntegratedTabEdgeMetrics.reservedThickness : 0)
             .frame(width: tabBarLeadingPadding, height: 44)
             .overlay {
-                TabStyleContextMenuRegion(selectedStyleRawValue: $topTabStyleRawValue)
+                TabStyleContextMenuRegion(selectedStyleRawValue: topTabStyleRawValueBinding)
             }
             .overlay(alignment: .trailing) {
                 if dragWidth > 0 {
-                    CatalystWindowDragRegion(tabStyleSelection: $topTabStyleRawValue)
+                    CatalystWindowDragRegion(tabStyleSelection: topTabStyleRawValueBinding)
                         .frame(width: dragWidth, height: TabMetrics.tabBarHeight)
                         .catalystCursorRegion(.openHand, priority: .titlebar)
                         .accessibilityHidden(true)

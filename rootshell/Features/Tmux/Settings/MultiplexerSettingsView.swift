@@ -1,25 +1,22 @@
 import SwiftUI
 
 struct MultiplexerSettingsView: View {
-    @AppStorage("tmuxSessionDiscoveryEnabled") private var tmuxDiscoveryEnabled = true
-    @AppStorage("zellijSessionDiscoveryEnabled") private var zellijDiscoveryEnabled = true
-    @AppStorage("herdrSessionDiscoveryEnabled") private var herdrDiscoveryEnabled = true
-    @AppStorage("zmxSessionDiscoveryEnabled") private var zmxDiscoveryEnabled = true
-    @AppStorage("localSessionDiscoveryEnabled") private var localDiscoveryEnabled = true
-    @AppStorage(SessionDiscoverySortOrder.storageKey) private var sortOrder = SessionDiscoverySortOrder.attachedFirst.rawValue
-    @AppStorage(TabExposeSettings.multiplexerEnabledKey) private var exposeMultiplexerEnabled = true
-    @AppStorage("tmuxSessionName") private var sessionName = ""
-    @AppStorage("tmuxCustomCommand") private var customCommand = ""
-    @AppStorage("herdrSessionName") private var herdrSessionName = ""
-    @AppStorage("herdrCustomCommand") private var herdrCustomCommand = ""
-    @AppStorage("zmxSessionName") private var zmxSessionName = ""
-    @AppStorage("zmxCustomCommand") private var zmxCustomCommand = ""
-    @AppStorage(TmuxController.autoHideGatewayOnAttachDefaultsKey)
-    private var autoHideGatewayOnAttach = false
-    @AppStorage(TmuxTabCloseAction.storageKey)
-    private var tabCloseAction = TmuxTabCloseAction.closeWindow.rawValue
-    @AppStorage(TmuxNewTabAction.storageKey)
-    private var newTabAction = TmuxNewTabAction.localShell.rawValue
+    @Setting(Settings.Multiplexer.tmuxSessionDiscovery) private var tmuxDiscoveryEnabled
+    @Setting(Settings.Multiplexer.zellijSessionDiscovery) private var zellijDiscoveryEnabled
+    @Setting(Settings.Multiplexer.herdrSessionDiscovery) private var herdrDiscoveryEnabled
+    @Setting(Settings.Multiplexer.zmxSessionDiscovery) private var zmxDiscoveryEnabled
+    @Setting(Settings.Multiplexer.localSessionDiscovery) private var localDiscoveryEnabled
+    @Setting(Settings.Multiplexer.sessionDiscoverySortOrder) private var sortOrder
+    @Setting(Settings.Multiplexer.tabExposeMultiplexer) private var exposeMultiplexerEnabled
+    @Setting(Settings.Multiplexer.tmuxSessionName) private var sessionName
+    @Setting(Settings.Multiplexer.tmuxCustomCommand) private var customCommand
+    @Setting(Settings.Multiplexer.herdrSessionName) private var herdrSessionName
+    @Setting(Settings.Multiplexer.herdrCustomCommand) private var herdrCustomCommand
+    @Setting(Settings.Multiplexer.zmxSessionName) private var zmxSessionName
+    @Setting(Settings.Multiplexer.zmxCustomCommand) private var zmxCustomCommand
+    @Setting(Settings.Multiplexer.tmuxAutoHideGatewayOnAttach) private var autoHideGatewayOnAttach
+    @Setting(Settings.Multiplexer.tmuxTabCloseAction) private var tabCloseAction
+    @Setting(Settings.Multiplexer.tmuxNewTabAction) private var newTabAction
 
     private var hasCustomCommand: Bool {
         !customCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -107,7 +104,7 @@ struct MultiplexerSettingsView: View {
 
                 Picker(selection: $sortOrder) {
                     ForEach(SessionDiscoverySortOrder.allCases, id: \.rawValue) { order in
-                        Text(order.displayName).tag(order.rawValue)
+                        Text(order.displayName).tag(order)
                     }
                 } label: {
                     HStack(spacing: 12) {
@@ -152,7 +149,7 @@ struct MultiplexerSettingsView: View {
                         SettingsIcon(systemName: "xmark.rectangle")
                         Text("Close Tab Action")
                         Spacer()
-                        Text((TmuxTabCloseAction(rawValue: tabCloseAction) ?? .closeWindow).displayName)
+                        Text(tabCloseAction.displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -166,7 +163,7 @@ struct MultiplexerSettingsView: View {
                         SettingsIcon(systemName: "plus.rectangle.on.rectangle")
                         Text("New Tab Action")
                         Spacer()
-                        Text((TmuxNewTabAction(rawValue: newTabAction) ?? .localShell).displayName)
+                        Text(newTabAction.displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -258,15 +255,14 @@ struct MultiplexerSettingsView: View {
 /// explanations have room instead of piling into the Multiplexers form footer
 /// as a wall of text. Mirrors the SSH key security picker. (id=tmux-tab-close-action)
 struct TmuxTabCloseActionPickerView: View {
-    @AppStorage(TmuxTabCloseAction.storageKey)
-    private var tabCloseAction = TmuxTabCloseAction.closeWindow.rawValue
+    @Setting(Settings.Multiplexer.tmuxTabCloseAction) private var tabCloseAction
 
     var body: some View {
         List {
             Section {
                 ForEach(TmuxTabCloseAction.allCases, id: \.rawValue) { action in
                     Button {
-                        tabCloseAction = action.rawValue
+                        tabCloseAction = action
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: action.iconName)
@@ -281,7 +277,7 @@ struct TmuxTabCloseActionPickerView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer()
-                            if tabCloseAction == action.rawValue {
+                            if tabCloseAction == action {
                                 Image(systemName: "checkmark")
                                     .foregroundColor(.accentColor)
                             }
@@ -306,15 +302,14 @@ struct TmuxTabCloseActionPickerView: View {
 /// Same layout as the close-action picker: per-option icon + description.
 /// (id=tmux-new-tab-action)
 struct TmuxNewTabActionPickerView: View {
-    @AppStorage(TmuxNewTabAction.storageKey)
-    private var newTabAction = TmuxNewTabAction.localShell.rawValue
+    @Setting(Settings.Multiplexer.tmuxNewTabAction) private var newTabAction
 
     var body: some View {
         List {
             Section {
                 ForEach(TmuxNewTabAction.allCases, id: \.rawValue) { action in
                     Button {
-                        newTabAction = action.rawValue
+                        newTabAction = action
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: action.iconName)
@@ -329,7 +324,7 @@ struct TmuxNewTabActionPickerView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer()
-                            if newTabAction == action.rawValue {
+                            if newTabAction == action {
                                 Image(systemName: "checkmark")
                                     .foregroundColor(.accentColor)
                             }

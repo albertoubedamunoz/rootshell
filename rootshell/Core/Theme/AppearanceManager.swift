@@ -49,8 +49,12 @@ class AppearanceManager: ObservableObject {
         #endif
     }
 
-    private static let appearanceKey = "appearanceMode"
-    private static let themedUIKey = "themedUI"
+    private static let ownedKeys: Set<String> = [
+        Settings.Theme.appearanceMode.name, Settings.Theme.themedUI.name,
+    ]
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    private var isReloading = false
 
     /// Currently selected appearance mode
     @Published var currentAppearanceMode: AppearanceMode {
@@ -65,8 +69,8 @@ class AppearanceManager: ObservableObject {
     /// Whether to apply terminal theme colors to sheets and settings
     @Published var themedUIEnabled: Bool {
         didSet {
-            guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(themedUIEnabled, forKey: Self.themedUIKey)
+            guard ProtectedDataGuard.isAvailable, !isReloading else { return }
+            SettingsStore.shared.set(Settings.Theme.themedUI, themedUIEnabled)
         }
     }
 
@@ -83,14 +87,12 @@ class AppearanceManager: ObservableObject {
     #endif
 
     private init() {
-        // Load saved appearance mode or default to automatic
-        if let savedMode = UserDefaults.standard.string(forKey: Self.appearanceKey),
-           let mode = AppearanceMode(rawValue: savedMode) {
-            self.currentAppearanceMode = mode
-        } else {
-            self.currentAppearanceMode = .automatic
+        self.currentAppearanceMode = SettingsStore.shared.get(Settings.Theme.appearanceMode)
+        self.themedUIEnabled = SettingsStore.shared.get(Settings.Theme.themedUI)
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
         }
-        self.themedUIEnabled = UserDefaults.standard.object(forKey: Self.themedUIKey) as? Bool ?? true
 
         #if canImport(UIKit)
         // Stamp the override onto every window as it appears (covers windows
@@ -107,9 +109,22 @@ class AppearanceManager: ObservableObject {
         #endif
     }
 
-    /// Save current appearance mode to UserDefaults
+    /// Save current appearance mode through the settings store
     private func saveAppearanceMode() {
-        UserDefaults.standard.set(currentAppearanceMode.rawValue, forKey: Self.appearanceKey)
+        guard !isReloading else { return }
+        SettingsStore.shared.set(Settings.Theme.appearanceMode, currentAppearanceMode)
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Theme.appearanceMode.name) {
+            currentAppearanceMode = SettingsStore.shared.get(Settings.Theme.appearanceMode)
+        }
+        if keys.contains(Settings.Theme.themedUI.name) {
+            themedUIEnabled = SettingsStore.shared.get(Settings.Theme.themedUI)
+        }
     }
 
     // MARK: - Window-level appearance enforcement

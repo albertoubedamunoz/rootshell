@@ -104,7 +104,8 @@ nonisolated enum UserPreferences {
 
     /// Custom is the default; the system loupe is an explicit iOS/iPadOS opt-in.
     static var useNativeSelectionLoupe: Bool {
-        get { UserDefaults.standard.bool(forKey: useNativeSelectionLoupeKey) }
+        get { SettingsStore.shared.value(Settings.Selection.useNativeLoupe) }
+        // Setter stays raw: this enum is nonisolated and the store's set is MainActor
         set { UserDefaults.standard.set(newValue, forKey: useNativeSelectionLoupeKey) }
     }
 
@@ -116,25 +117,17 @@ nonisolated enum UserPreferences {
     /// Sharing panes should request a short UIKit background grace task when
     /// the app backgrounds.
     static var backgroundSessionKeepaliveEnabled: Bool {
-        get {
-            guard UserDefaults.standard.object(forKey: backgroundSessionKeepaliveEnabledKey) != nil else {
-                return true
-            }
-            return UserDefaults.standard.bool(forKey: backgroundSessionKeepaliveEnabledKey)
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: backgroundSessionKeepaliveEnabledKey)
-        }
+        get { SettingsStore.shared.value(Settings.Connections.backgroundKeepalive) }
+        // Setter stays raw: this enum is nonisolated and the store's set is MainActor
+        set { UserDefaults.standard.set(newValue, forKey: backgroundSessionKeepaliveEnabledKey) }
     }
 
     // MARK: - Username
 
-    private static let customUsernameKey = "customUsername"
-
     /// Returns the custom username if set, otherwise falls back to NSUserName()
     static var effectiveUsername: String {
-        if let custom = UserDefaults.standard.string(forKey: customUsernameKey),
-           !custom.isEmpty {
+        let custom = SettingsStore.shared.value(Settings.Prompt.customUsername)
+        if !custom.isEmpty {
             return custom
         }
         return NSUserName()
@@ -161,16 +154,9 @@ nonisolated enum UserPreferences {
 
     /// Current clock format preference
     static var clockFormat: ClockFormat {
-        get {
-            guard let raw = UserDefaults.standard.string(forKey: clockFormatKey),
-                  let format = ClockFormat(rawValue: raw) else {
-                return .system
-            }
-            return format
-        }
-        set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: clockFormatKey)
-        }
+        get { SettingsStore.shared.value(Settings.Locale.clockFormat) }
+        // Setter stays raw: this enum is nonisolated and the store's set is MainActor
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: clockFormatKey) }
     }
 
     /// Formats current time according to the user's clock format preference

@@ -39,6 +39,21 @@ nonisolated extension Settings {
             "taskNotificationPolicy", default: TaskNotificationPolicy.blockedOnly, group: .notifications,
             configKey: "task-notification-policy",
             title: String(localized: "Task Notifications", comment: "Setting title"))
+        static let taskDetectPrompts = SettingKey(
+            "taskDetectPrompts", default: true, group: .notifications, configKey: "task-detect-prompts",
+            title: String(localized: "Detect Prompts", comment: "Setting title"))
+        static let taskDetectTests = SettingKey(
+            "taskDetectTests", default: true, group: .notifications, configKey: "task-detect-tests",
+            title: String(localized: "Detect Tests", comment: "Setting title"))
+        static let taskDetectBuilds = SettingKey(
+            "taskDetectBuilds", default: true, group: .notifications, configKey: "task-detect-builds",
+            title: String(localized: "Detect Builds", comment: "Setting title"))
+        static let taskDetectInfra = SettingKey(
+            "taskDetectInfra", default: true, group: .notifications, configKey: "task-detect-infra",
+            title: String(localized: "Detect Infrastructure Commands", comment: "Setting title"))
+        static let taskDetectTransfers = SettingKey(
+            "taskDetectTransfers", default: true, group: .notifications, configKey: "task-detect-transfers",
+            title: String(localized: "Detect Transfers", comment: "Setting title"))
         static let pushAgentBackgroundOnly = SettingKey(
             "pushAgentBackgroundOnly", default: false, group: .notifications, configKey: "push-agent-background-only",
             title: String(localized: "Push Only When in Background", comment: "Setting title"))
@@ -57,7 +72,9 @@ nonisolated extension Settings {
 
         static let all: [AnySettingDefinition] = [
             sshReminders.erased, terminalNotifications.erased, agentPolicy.erased, agentIncludePrompt.erased,
-            taskDetection.erased, taskPolicy.erased, pushAgentBackgroundOnly.erased, pushAgentLogos.erased,
+            taskDetection.erased, taskPolicy.erased, taskDetectPrompts.erased, taskDetectTests.erased,
+            taskDetectBuilds.erased, taskDetectInfra.erased, taskDetectTransfers.erased,
+            pushAgentBackgroundOnly.erased, pushAgentLogos.erased,
             pushEnabled.erased, pushPairedSenders.erased, pushRevokedSenders.erased,
         ]
     }
@@ -133,8 +150,10 @@ nonisolated extension Settings {
     }
 
     enum Privacy {
+        // Mirrors GeoProviderType.defaultProvider without touching the MainActor enum.
         static let geoProviderType = SettingKey(
-            "geoProviderType", default: GeoProviderType.dns, group: .privacy, configKey: "geo-provider-type",
+            "geoProviderType", default: IPInfoLiteClient.isConfigured ? GeoProviderType.ipinfo : .dns,
+            group: .privacy, configKey: "geo-provider-type",
             title: String(localized: "IP Geolocation", comment: "Setting title"))
         static let locationDiaryAutoMode = SettingKey(
             "location_diary_auto_mode", default: false, group: .privacy, configKey: "location-diary-auto-mode",

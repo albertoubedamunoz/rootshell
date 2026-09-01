@@ -16,12 +16,6 @@ import Combine
 class WindowSizeManager: ObservableObject {
     static let shared = WindowSizeManager()
 
-    private static let windowWidthKey = "lastWindowWidth"
-    private static let windowHeightKey = "lastWindowHeight"
-    private static let windowOriginXKey = "lastWindowOriginX"
-    private static let windowOriginYKey = "lastWindowOriginY"
-    private static let hasOriginKey = "lastWindowHasOrigin"
-
     private static let defaultWidth: CGFloat = 800
     private static let defaultHeight: CGFloat = 600
     private static let minWidth: CGFloat = 400
@@ -34,8 +28,9 @@ class WindowSizeManager: ObservableObject {
     let windowSizeForNewWindow = PassthroughSubject<CGSize, Never>()
 
     private init() {
-        let savedWidth = UserDefaults.standard.double(forKey: Self.windowWidthKey)
-        let savedHeight = UserDefaults.standard.double(forKey: Self.windowHeightKey)
+        let store = SettingsStore.shared
+        let savedWidth = store.get(Settings.Window.lastWidth)
+        let savedHeight = store.get(Settings.Window.lastHeight)
 
         if savedWidth >= Self.minWidth && savedHeight >= Self.minHeight {
             self.lastWindowSize = CGSize(width: savedWidth, height: savedHeight)
@@ -43,9 +38,9 @@ class WindowSizeManager: ObservableObject {
             self.lastWindowSize = CGSize(width: Self.defaultWidth, height: Self.defaultHeight)
         }
 
-        if UserDefaults.standard.bool(forKey: Self.hasOriginKey) {
-            let x = UserDefaults.standard.double(forKey: Self.windowOriginXKey)
-            let y = UserDefaults.standard.double(forKey: Self.windowOriginYKey)
+        if store.get(Settings.Window.lastHasOrigin) {
+            let x = store.get(Settings.Window.lastOriginX)
+            let y = store.get(Settings.Window.lastOriginY)
             self.lastWindowOrigin = CGPoint(x: x, y: y)
         } else {
             self.lastWindowOrigin = nil
@@ -59,16 +54,16 @@ class WindowSizeManager: ObservableObject {
 
         if size != lastWindowSize {
             lastWindowSize = size
-            UserDefaults.standard.set(size.width, forKey: Self.windowWidthKey)
-            UserDefaults.standard.set(size.height, forKey: Self.windowHeightKey)
+            SettingsStore.shared.set(Settings.Window.lastWidth, Double(size.width))
+            SettingsStore.shared.set(Settings.Window.lastHeight, Double(size.height))
         }
 
         let origin = frame.origin
         if origin != lastWindowOrigin {
             lastWindowOrigin = origin
-            UserDefaults.standard.set(origin.x, forKey: Self.windowOriginXKey)
-            UserDefaults.standard.set(origin.y, forKey: Self.windowOriginYKey)
-            UserDefaults.standard.set(true, forKey: Self.hasOriginKey)
+            SettingsStore.shared.set(Settings.Window.lastOriginX, Double(origin.x))
+            SettingsStore.shared.set(Settings.Window.lastOriginY, Double(origin.y))
+            SettingsStore.shared.set(Settings.Window.lastHasOrigin, true)
         }
     }
 

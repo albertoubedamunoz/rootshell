@@ -544,20 +544,13 @@ public final class ReconnectionManager: ObservableObject {
 
 extension ReconnectionManager.Config {
 
-    private static let enabledKey = "autoReconnectEnabled"
-    private static let maxAttemptsKey = "autoReconnectMaxAttempts"
-
-    /// Load configuration from UserDefaults
+    /// Load configuration from the settings store
     static func fromUserDefaults() -> ReconnectionManager.Config {
         var config = ReconnectionManager.Config.default
+        config.enabled = SettingsStore.shared.value(Settings.Connections.autoReconnectEnabled)
 
-        // Load enabled state (default: true)
-        if UserDefaults.standard.object(forKey: enabledKey) != nil {
-            config.enabled = UserDefaults.standard.bool(forKey: enabledKey)
-        }
-
-        // Load max attempts (default: 5)
-        let maxAttempts = UserDefaults.standard.integer(forKey: maxAttemptsKey)
+        // A stored 0 still falls back to the default attempt count
+        let maxAttempts = SettingsStore.shared.value(Settings.Connections.autoReconnectMaxAttempts)
         if maxAttempts > 0 {
             config.maxAttempts = maxAttempts
         }
@@ -565,9 +558,9 @@ extension ReconnectionManager.Config {
         return config
     }
 
-    /// Save configuration to UserDefaults
+    /// Save configuration to the settings store
     func saveToUserDefaults() {
-        UserDefaults.standard.set(enabled, forKey: Self.enabledKey)
-        UserDefaults.standard.set(maxAttempts, forKey: Self.maxAttemptsKey)
+        SettingsStore.shared.set(Settings.Connections.autoReconnectEnabled, enabled)
+        SettingsStore.shared.set(Settings.Connections.autoReconnectMaxAttempts, maxAttempts)
     }
 }

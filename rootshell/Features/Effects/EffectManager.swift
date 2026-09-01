@@ -17,11 +17,6 @@ import UIKit
 final class EffectManager {
     static let shared = EffectManager()
 
-    // MARK: - Persistence Keys
-
-    private static let activeEffectKey = "activeEffectId"
-    private static let effectConfigurationsKey = "effectConfigurations"
-
     // MARK: - Observable Properties
     //
     // With `@Observable`, SwiftUI tracks per-property reads inside view bodies,
@@ -38,10 +33,12 @@ final class EffectManager {
     /// Currently active effect (nil = no effect)
     var activeEffect: AnyTerminalEffect? {
         didSet {
-            saveActiveEffect()
+            if !isReloading { saveActiveEffect() }
             effectDidChange.send()
         }
     }
+
+    @ObservationIgnored private var isReloading = false
 
     /// Theme colors for effects (updated from ThemeManager)
     private(set) var themeColors: EffectThemeColors = .defaults
@@ -163,6 +160,21 @@ final class EffectManager {
 
         // Load persisted settings (must happen after effects are registered)
         loadSettings()
+
+        SettingsRefreshHub.shared.register(keys: [
+            Settings.Shaders.activeEffectId.name, Settings.Shaders.effectConfigurations.name,
+        ]) { [weak self] keys in self?.reload(keys: keys) }
+    }
+
+    private func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Shaders.effectConfigurations.name), let activeEffect {
+            restoreConfiguration(for: activeEffect)
+        }
+        if keys.contains(Settings.Shaders.activeEffectId.name) {
+            activeEffect = SettingsStore.shared.get(Settings.Shaders.activeEffectId).flatMap { effect(withId: $0) }
+        }
     }
 
     func notifyKeyboardToolbarLayoutChanged() {
@@ -252,7 +264,11 @@ final class EffectManager {
     // MARK: - Configuration Persistence
 
     private func saveActiveEffect() {
-        UserDefaults.standard.set(activeEffect?.id, forKey: Self.activeEffectKey)
+        if let id = activeEffect?.id {
+            SettingsStore.shared.set(Settings.Shaders.activeEffectId, id)
+        } else {
+            SettingsStore.shared.reset(Settings.Shaders.activeEffectId)
+        }
     }
 
     func saveEffectConfiguration(_ effect: AnyTerminalEffect) {
@@ -260,19 +276,19 @@ final class EffectManager {
         configs[effect.id] = effect.encodeConfiguration()
 
         if let data = try? JSONSerialization.data(withJSONObject: configs) {
-            UserDefaults.standard.set(data, forKey: Self.effectConfigurationsKey)
+            SettingsStore.shared.set(Settings.Shaders.effectConfigurations, data)
         }
     }
 
     private func loadSettings() {
         // Load active effect
-        if let activeId = UserDefaults.standard.string(forKey: Self.activeEffectKey) {
+        if let activeId = SettingsStore.shared.get(Settings.Shaders.activeEffectId) {
             activeEffect = effect(withId: activeId)
         }
     }
 
     private func loadAllConfigurations() -> [String: [String: Any]] {
-        guard let data = UserDefaults.standard.data(forKey: Self.effectConfigurationsKey),
+        guard let data = SettingsStore.shared.get(Settings.Shaders.effectConfigurations),
               let configs = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]]
         else {
             return [:]

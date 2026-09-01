@@ -25,11 +25,7 @@ final class WindowStateManager {
 
     /// Whether session persistence is enabled (default: true)
     static var isSessionPersistenceEnabled: Bool {
-        // Check if key exists; if not, return default (true)
-        if UserDefaults.standard.object(forKey: sessionPersistenceEnabledKey) == nil {
-            return true
-        }
-        return UserDefaults.standard.bool(forKey: sessionPersistenceEnabledKey)
+        SettingsStore.shared.value(Settings.SessionRestore.sessionPersistence)
     }
 
     // MARK: - Configuration

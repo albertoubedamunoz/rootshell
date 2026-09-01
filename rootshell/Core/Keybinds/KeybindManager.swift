@@ -55,7 +55,6 @@ final class KeybindManager: ObservableObject {
 
     // MARK: - Private Storage
 
-    private let userDefaultsKey = "keybindOverrides"
     private let externalConfigPathKey = "externalGhosttyConfigPath"
     private let externalConfigFileNameKey = "externalGhosttyConfigPath_originalFilename"
     private var defaultBindings: [Keybind] = []
@@ -74,6 +73,13 @@ final class KeybindManager: ObservableObject {
         loadExternalConfigPath()
         reloadBindings()
         hasFinishedInitialization = true
+
+        SettingsRefreshHub.shared.register(keys: [Settings.Keybinds.overrides.name]) { [weak self] _ in
+            guard let self else { return }
+            // A removed key clears overrides; loadUserOverrides leaves them untouched on nil
+            if SettingsStore.shared.get(Settings.Keybinds.overrides) == nil { self.userOverrides = [] }
+            self.reloadOverrides()
+        }
     }
 
     // MARK: - Default Bindings
@@ -618,14 +624,14 @@ final class KeybindManager: ObservableObject {
     private func saveUserOverrides() {
         do {
             let data = try JSONEncoder().encode(userOverrides)
-            UserDefaults.standard.set(data, forKey: userDefaultsKey)
+            SettingsStore.shared.set(Settings.Keybinds.overrides, data)
         } catch {
             Self.logger.error("Failed to save user overrides: \(error.localizedDescription)")
         }
     }
 
     private func loadUserOverrides() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
+        guard let data = SettingsStore.shared.get(Settings.Keybinds.overrides) else {
             return
         }
 

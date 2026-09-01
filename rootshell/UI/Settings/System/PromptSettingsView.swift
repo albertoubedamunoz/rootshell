@@ -11,14 +11,14 @@ import SwiftUI
 // MARK: - Prompt & Username Settings (combined view)
 
 struct PromptSettingsView: View {
-    @AppStorage("customUsername") private var customUsername: String = ""
-    @AppStorage("useStarshipPrompt") private var useStarshipPrompt: Bool = true
-    @AppStorage("showGitInPrompt") private var showGitInPrompt: Bool = true
-    @AppStorage("starshipTheme") private var starshipTheme: String = "catppuccin"
-    @AppStorage("clockFormat") private var clockFormat: String = "system"
-    @AppStorage("useTransientPrompt") private var useTransientPrompt: Bool = false
-    @AppStorage("useRightPrompt") private var useRightPrompt: Bool = false
-    @AppStorage("promptAddNewline") private var promptAddNewline: Bool = true
+    @Setting(Settings.Prompt.customUsername) private var customUsername
+    @Setting(Settings.Prompt.useStarship) private var useStarshipPrompt
+    @Setting(Settings.Prompt.showGit) private var showGitInPrompt
+    @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
+    @Setting(Settings.Locale.clockFormat) private var clockFormat
+    @Setting(Settings.Prompt.useTransientPrompt) private var useTransientPrompt
+    @Setting(Settings.Prompt.useRightPrompt) private var useRightPrompt
+    @Setting(Settings.Prompt.addNewline) private var promptAddNewline
 
     #if !targetEnvironment(macCatalyst)
     @State private var customConfigStatus: PromptConfigStatus = .none
@@ -111,8 +111,8 @@ struct PromptSettingsView: View {
                         HStack {
                             Text("Theme")
                             Spacer()
-                            PromptThemePreview(theme: StarshipTheme(rawValue: starshipTheme) ?? .catppuccin, compact: true)
-                            Text(StarshipTheme(rawValue: starshipTheme)?.displayName ?? "Catppuccin Powerline")
+                            PromptThemePreview(theme: starshipTheme, compact: true)
+                            Text(starshipTheme.displayName)
                                 .foregroundColor(.secondary)
                                 .font(.subheadline)
                         }
@@ -124,7 +124,7 @@ struct PromptSettingsView: View {
 
                     Picker("Clock Format", selection: $clockFormat) {
                         ForEach(UserPreferences.ClockFormat.allCases, id: \.rawValue) { format in
-                            Text(format.displayName).tag(format.rawValue)
+                            Text(format.displayName).tag(format)
                         }
                     }
                     .themedRow()
@@ -260,13 +260,13 @@ struct PromptSettingsView: View {
 // MARK: - Prompt Theme Picker
 
 struct PromptThemePickerView: View {
-    @AppStorage("starshipTheme") private var starshipTheme: String = "catppuccin"
+    @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
 
     var body: some View {
         List {
             ForEach(StarshipTheme.allCases, id: \.self) { theme in
                 Button(action: {
-                    starshipTheme = theme.rawValue
+                    starshipTheme = theme
                 }) {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
@@ -281,7 +281,7 @@ struct PromptThemePickerView: View {
 
                         Spacer()
 
-                        if starshipTheme == theme.rawValue {
+                        if starshipTheme == theme {
                             Image(systemName: "checkmark")
                                 .foregroundColor(.blue)
                         }

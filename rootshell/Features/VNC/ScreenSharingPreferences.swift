@@ -16,10 +16,7 @@ enum ScreenSharingClipboardSyncDefault: String, CaseIterable, Sendable {
     static let defaultValue = Self.automatic
 
     static var current: Self {
-        guard let rawValue = UserDefaults.standard.string(forKey: storageKey) else {
-            return defaultValue
-        }
-        return Self(rawValue: rawValue) ?? defaultValue
+        SettingsStore.shared.value(Settings.ScreenSharing.clipboardSyncDefault)
     }
 
     var displayName: String {
@@ -42,10 +39,7 @@ enum ScreenSharingPanningDefault: String, CaseIterable, Sendable {
     static let defaultValue = Self.edge
 
     static var current: Self {
-        guard let rawValue = UserDefaults.standard.string(forKey: storageKey) else {
-            return defaultValue
-        }
-        return Self(rawValue: rawValue) ?? defaultValue
+        SettingsStore.shared.value(Settings.ScreenSharing.panningDefault)
     }
 
     var displayName: String {

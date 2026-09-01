@@ -16,31 +16,34 @@ class SoundManager: ObservableObject {
 
     nonisolated static let logger = Logger(subsystem: "com.rootshell", category: "SoundManager")
 
-    // MARK: - UserDefaults Keys
+    // MARK: - Settings keys
 
-    private static let bellPresetKey = "bellSoundPreset"
-    private static let bellVolumeKey = "bellSoundVolume"
-    private static let notificationPresetKey = "notificationSoundPreset"
+    private static let ownedKeys: Set<String> = [
+        Settings.Sounds.bellPreset.name, Settings.Sounds.bellVolume.name, Settings.Sounds.notificationPreset.name,
+    ]
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    private var isReloading = false
 
     // MARK: - Published Properties
 
     @Published var bellPreset: BellSoundPreset {
         didSet {
-            UserDefaults.standard.set(bellPreset.rawValue, forKey: Self.bellPresetKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Sounds.bellPreset, bellPreset) }
             prepareBellPlayer()
         }
     }
 
     @Published var bellVolume: Float {
         didSet {
-            UserDefaults.standard.set(bellVolume, forKey: Self.bellVolumeKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Sounds.bellVolume, bellVolume) }
             bellPlayer?.volume = bellVolume
         }
     }
 
     @Published var notificationPreset: NotificationSoundPreset {
         didSet {
-            UserDefaults.standard.set(notificationPreset.rawValue, forKey: Self.notificationPresetKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Sounds.notificationPreset, notificationPreset) }
         }
     }
 
@@ -59,29 +62,29 @@ class SoundManager: ObservableObject {
     // MARK: - Init
 
     private init() {
-        // Load persisted preferences
-        if let raw = UserDefaults.standard.string(forKey: Self.bellPresetKey),
-           let preset = BellSoundPreset(rawValue: raw) {
-            self.bellPreset = preset
-        } else {
-            self.bellPreset = .hapticOnly
-        }
-
-        if UserDefaults.standard.object(forKey: Self.bellVolumeKey) != nil {
-            self.bellVolume = UserDefaults.standard.float(forKey: Self.bellVolumeKey)
-        } else {
-            self.bellVolume = 0.7
-        }
-
-        if let raw = UserDefaults.standard.string(forKey: Self.notificationPresetKey),
-           let preset = NotificationSoundPreset(rawValue: raw) {
-            self.notificationPreset = preset
-        } else {
-            self.notificationPreset = .systemDefault
-        }
+        let store = SettingsStore.shared
+        self.bellPreset = store.get(Settings.Sounds.bellPreset)
+        self.bellVolume = store.get(Settings.Sounds.bellVolume)
+        self.notificationPreset = store.get(Settings.Sounds.notificationPreset)
 
         configurAudioSession()
         prepareBellPlayer()
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Sounds.bellPreset.name) { bellPreset = store.get(Settings.Sounds.bellPreset) }
+        if keys.contains(Settings.Sounds.bellVolume.name) { bellVolume = store.get(Settings.Sounds.bellVolume) }
+        if keys.contains(Settings.Sounds.notificationPreset.name) {
+            notificationPreset = store.get(Settings.Sounds.notificationPreset)
+        }
     }
 
     // MARK: - Audio Session

@@ -8,15 +8,11 @@
 import SwiftUI
 
 struct ScreenSharingSettingsView: View {
-    @AppStorage(ScreenSharingClipboardSyncDefault.storageKey)
-    private var clipboardSyncDefault = ScreenSharingClipboardSyncDefault.defaultValue.rawValue
-
-    @AppStorage(ScreenSharingPanningDefault.storageKey)
-    private var panningDefault = ScreenSharingPanningDefault.defaultValue.rawValue
+    @Setting(Settings.ScreenSharing.clipboardSyncDefault) private var clipboardSyncDefault
+    @Setting(Settings.ScreenSharing.panningDefault) private var panningDefault
 
     private var resolvedClipboardSyncDefault: ScreenSharingClipboardSyncDefault {
-        ScreenSharingClipboardSyncDefault(rawValue: clipboardSyncDefault)
-            ?? ScreenSharingClipboardSyncDefault.defaultValue
+        clipboardSyncDefault
     }
 
     var body: some View {
@@ -24,7 +20,7 @@ struct ScreenSharingSettingsView: View {
             Section {
                 Picker(selection: $clipboardSyncDefault) {
                     ForEach(ScreenSharingClipboardSyncDefault.allCases, id: \.rawValue) { behavior in
-                        Text(behavior.displayName).tag(behavior.rawValue)
+                        Text(behavior.displayName).tag(behavior)
                     }
                 } label: {
                     HStack(spacing: 12) {
@@ -42,7 +38,7 @@ struct ScreenSharingSettingsView: View {
             Section {
                 Picker(selection: $panningDefault) {
                     ForEach(ScreenSharingPanningDefault.allCases, id: \.rawValue) { mode in
-                        Text(mode.displayName).tag(mode.rawValue)
+                        Text(mode.displayName).tag(mode)
                     }
                 } label: {
                     HStack(spacing: 12) {

@@ -17,8 +17,7 @@ struct EffectSettingsView: View {
     @ObservedObject private var videoManager = VideoBackgroundManager.shared
     @ObservedObject private var downloadManager = VideoBackgroundDownloadManager.shared
     @ObservedObject private var localVideoManager = LocalVideoBackgroundManager.shared
-    @AppStorage(UserPreferences.backgroundEffectIncludesPinnedSidebarKey)
-    private var backgroundEffectIncludesPinnedSidebar: Bool = true
+    @Setting(Settings.Shaders.effectIncludesPinnedSidebar) private var backgroundEffectIncludesPinnedSidebar
 
     // Local state for sliders - only commit on release
     @State private var localIntensity: Double = 0.3

@@ -30,18 +30,18 @@ struct TrzszConfig: Codable, Hashable, Sendable {
     /// Whether typed input should be queued while tssh is disconnected.
     /// Defaults to false, matching upstream tsshd's conservative discard behavior.
     static var keepPendingInput: Bool {
-        UserDefaults.standard.bool(forKey: keepPendingInputKey)
+        SettingsStore.shared.value(Settings.Roam.trzszKeepPendingInput)
     }
 
     /// The user's preferred minimum UDP port from settings (defaults to 61000)
     static var preferredUDPPortMin: Int {
-        let value = UserDefaults.standard.integer(forKey: defaultUDPPortMinKey)
+        let value = SettingsStore.shared.value(Settings.Roam.trzszUDPPortMin)
         return value != 0 ? value : 61000
     }
 
     /// The user's preferred maximum UDP port from settings (defaults to 61999)
     static var preferredUDPPortMax: Int {
-        let value = UserDefaults.standard.integer(forKey: defaultUDPPortMaxKey)
+        let value = SettingsStore.shared.value(Settings.Roam.trzszUDPPortMax)
         return value != 0 ? value : 61999
     }
 
@@ -70,11 +70,7 @@ struct TrzszConfig: Codable, Hashable, Sendable {
 
         /// The user's preferred transport mode from settings
         static var preferred: TransportMode {
-            guard let rawValue = UserDefaults.standard.string(forKey: defaultTransportModeKey),
-                  let mode = TransportMode(rawValue: rawValue) else {
-                return .kcp
-            }
-            return mode
+            SettingsStore.shared.value(Settings.Roam.trzszTransportMode)
         }
 
         var displayName: String {

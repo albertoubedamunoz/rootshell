@@ -36,10 +36,7 @@ nonisolated enum AgentNotificationPolicy: String, CaseIterable, Codable, Sendabl
     static let storageKey = "agentNotificationPolicy"
 
     @MainActor static var current: AgentNotificationPolicy {
-        guard let raw = UserDefaults.standard.string(forKey: storageKey),
-              let policy = AgentNotificationPolicy(rawValue: raw)
-        else { return .blockedOnly }
-        return policy
+        SettingsStore.shared.get(Settings.Notifications.agentPolicy)
     }
 
     var displayName: String {
@@ -110,10 +107,7 @@ nonisolated enum TaskNotificationPolicy: String, CaseIterable, Codable, Sendable
     static let storageKey = "taskNotificationPolicy"
 
     @MainActor static var current: TaskNotificationPolicy {
-        guard let raw = UserDefaults.standard.string(forKey: storageKey),
-              let policy = TaskNotificationPolicy(rawValue: raw)
-        else { return .blockedOnly }
-        return policy
+        SettingsStore.shared.get(Settings.Notifications.taskPolicy)
     }
 
     var displayName: String {

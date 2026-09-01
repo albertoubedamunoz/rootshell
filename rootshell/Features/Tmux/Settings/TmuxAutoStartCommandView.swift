@@ -10,8 +10,8 @@
 import SwiftUI
 
 struct TmuxAutoStartCommandView: View {
-    @AppStorage("tmuxSessionName") private var sessionName = ""
-    @AppStorage("tmuxCustomCommand") private var customCommand = ""
+    @Setting(Settings.Multiplexer.tmuxSessionName) private var sessionName
+    @Setting(Settings.Multiplexer.tmuxCustomCommand) private var customCommand
     @State private var copied = false
     @FocusState private var isEditorFocused: Bool
 

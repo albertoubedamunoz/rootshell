@@ -115,10 +115,10 @@ extension Ghostty {
     private var lastObservedScrollbar: Ghostty.Action.Scrollbar?
 
     /// Cached line-scroll setting used by the hot scroll path.
-    private var useLineScrollback: Bool = UserDefaults.standard.bool(forKey: "lineScrollbackEnabled")
+    private var useLineScrollback: Bool = SettingsStore.shared.value(Settings.Gestures.lineScrollback)
 
     /// Cached rubber-band setting used by the hot scroll path.
-    private var useRubberBandScrollback: Bool = UserDefaults.standard.bool(forKey: "rubberBandScrollbackEnabled")
+    private var useRubberBandScrollback: Bool = SettingsStore.shared.value(Settings.Gestures.rubberBandScrollback)
 
     /// Last time multiplexer-owned scroll updates asked UIKit to reveal the native scrollbar.
     private var lastMultiplexerScrollIndicatorRevealTime: TimeInterval = 0
@@ -487,7 +487,7 @@ extension Ghostty {
     #if !targetEnvironment(macCatalyst)
     /// Update scroll view pan gesture touch requirements based on touch mode
     private func updateScrollViewTouchRequirements() {
-        let scrollMode = UserDefaults.standard.bool(forKey: "scrollModeEnabled")
+        let scrollMode = SettingsStore.shared.value(Settings.Gestures.scrollMode)
         scrollView.panGestureRecognizer.minimumNumberOfTouches = scrollMode ? 1 : 2
     }
     #endif
@@ -635,8 +635,8 @@ extension Ghostty {
         ) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.useLineScrollback = UserDefaults.standard.bool(forKey: "lineScrollbackEnabled")
-                self.useRubberBandScrollback = UserDefaults.standard.bool(forKey: "rubberBandScrollbackEnabled")
+                self.useLineScrollback = SettingsStore.shared.value(Settings.Gestures.lineScrollback)
+                self.useRubberBandScrollback = SettingsStore.shared.value(Settings.Gestures.rubberBandScrollback)
                 #if !targetEnvironment(macCatalyst)
                 self.updateScrollViewTouchRequirements()
                 #endif
@@ -733,7 +733,7 @@ extension Ghostty {
                         self.terminalView.contextMenuInteraction = newInteraction
                     }
                     // Respect touch mode for scroll view settings
-                    let scrollMode = UserDefaults.standard.bool(forKey: "scrollModeEnabled")
+                    let scrollMode = SettingsStore.shared.value(Settings.Gestures.scrollMode)
                     self.scrollView.panGestureRecognizer.minimumNumberOfTouches = scrollMode ? 1 : 2
                 }
                 #endif

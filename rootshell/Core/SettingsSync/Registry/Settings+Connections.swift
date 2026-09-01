@@ -149,6 +149,15 @@ nonisolated extension Settings {
         static let herdrSessionDiscovery = SettingKey(
             "herdrSessionDiscoveryEnabled", default: true, group: .multiplexer, configKey: "herdr-session-discovery-enabled",
             title: String(localized: "Discover herdr Sessions", comment: "Setting title"))
+        static let zmxSessionName = SettingKey(
+            "zmxSessionName", default: "", group: .multiplexer, configKey: "zmx-session-name",
+            title: String(localized: "zmx Session Name", comment: "Setting title"))
+        static let zmxCustomCommand = SettingKey(
+            "zmxCustomCommand", default: "", group: .multiplexer, configKey: "zmx-custom-command",
+            title: String(localized: "zmx Auto-Start Command", comment: "Setting title"))
+        static let zmxSessionDiscovery = SettingKey(
+            "zmxSessionDiscoveryEnabled", default: true, group: .multiplexer, configKey: "zmx-session-discovery-enabled",
+            title: String(localized: "Discover zmx Sessions", comment: "Setting title"))
         static let localSessionDiscovery = SettingKey(
             "localSessionDiscoveryEnabled", default: true, group: .multiplexer, configKey: "local-session-discovery-enabled",
             title: String(localized: "Discover Local Sessions", comment: "Setting title"))
@@ -170,7 +179,8 @@ nonisolated extension Settings {
             tmuxSessionName.erased, tmuxCustomCommand.erased, tmuxSessionDiscovery.erased,
             tmuxAutoHideGatewayOnAttach.erased, tmuxDiscoveryAttachMode.erased, tmuxNewTabAction.erased,
             tmuxTabCloseAction.erased, zellijSessionDiscovery.erased, herdrSessionName.erased,
-            herdrCustomCommand.erased, herdrSessionDiscovery.erased, localSessionDiscovery.erased,
+            herdrCustomCommand.erased, herdrSessionDiscovery.erased,
+            zmxSessionName.erased, zmxCustomCommand.erased, zmxSessionDiscovery.erased, localSessionDiscovery.erased,
             sessionDiscoverySortOrder.erased, tabExposeMultiplexer.erased,
             tmuxHiddenWindowsBySession, tmuxLastSessionByConnection,
         ]

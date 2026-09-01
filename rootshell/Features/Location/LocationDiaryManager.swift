@@ -26,19 +26,23 @@ class LocationDiaryManager: NSObject, ObservableObject {
             logger.info("Location diary mode changed: \(oldValue.rawValue) -> \(self.mode.rawValue)")
 
             // Persist/clear auto mode preference based on mode changes.
-            // UserDefaults.set is buffered but the encoding cost lands on the
-            // calling thread; off-main keeps the main actor unblocked.
-            let persistedValue: Bool
-            switch mode {
-            case .autoForRemote: persistedValue = true
-            case .sessionOnly:   persistedValue = false
-            case .off:           persistedValue = false
-            }
-            DispatchQueue.global(qos: .utility).async {
-                UserDefaults.standard.set(persistedValue, forKey: Self.autoModeKey)
+            if !isReloading {
+                SettingsStore.shared.set(Settings.Privacy.locationDiaryAutoMode, mode == .autoForRemote)
             }
 
             updateTrackingState()
+        }
+    }
+
+    private var isReloading = false
+
+    private func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if SettingsStore.shared.get(Settings.Privacy.locationDiaryAutoMode) {
+            mode = .autoForRemote
+        } else if mode == .autoForRemote {
+            mode = .off
         }
     }
 
@@ -52,7 +56,7 @@ class LocationDiaryManager: NSObject, ObservableObject {
 
     /// Whether auto mode is saved (for checking on app restart)
     var hasAutoModeEnabled: Bool {
-        UserDefaults.standard.bool(forKey: Self.autoModeKey)
+        SettingsStore.shared.get(Settings.Privacy.locationDiaryAutoMode)
     }
 
     /// Whether Location Diary is configured and able to work.
@@ -181,7 +185,7 @@ class LocationDiaryManager: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self else { return }
             DispatchQueue.global(qos: .utility).async { [weak self] in
-                let saved = UserDefaults.standard.bool(forKey: Self.autoModeKey)
+                let saved = SettingsStore.shared.value(Settings.Privacy.locationDiaryAutoMode)
                 guard saved else { return }
                 Task { @MainActor [weak self] in
                     guard let self else { return }
@@ -191,6 +195,10 @@ class LocationDiaryManager: NSObject, ObservableObject {
             }
         }
         #endif
+
+        SettingsRefreshHub.shared.register(keys: [Settings.Privacy.locationDiaryAutoMode.name]) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
 
         logger.info("LocationDiaryManager initialized, mode: \(self.mode.rawValue)")
     }

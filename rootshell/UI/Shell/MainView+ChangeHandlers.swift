@@ -342,7 +342,7 @@ extension MainView {
             .onChange(of: tabsInTitlebarEnabled) { _, _ in
                 handleTabsInTitlebarEnabledChange()
             }
-            .onChange(of: topTabStyleRawValue) { _, _ in
+            .onChange(of: topTabStyle) { _, _ in
                 handleTabsInTitlebarEnabledChange()
             }
             .onChange(of: hideWindowTitleBar) { _, _ in

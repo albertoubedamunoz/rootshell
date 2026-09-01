@@ -43,11 +43,11 @@ enum MPTCPBootstrap {
     }()
 
     static var isEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "roamMultipathTCPEnabled")
+        SettingsStore.shared.value(Settings.Roam.multipathTCP)
     }
 
     private static var shouldForceIPv4: Bool {
-        UserDefaults.standard.bool(forKey: "sshForceIPv4Enabled")
+        SettingsStore.shared.value(Settings.Connections.forceIPv4)
     }
 
     private static func isIPv6Literal(_ host: String) -> Bool {

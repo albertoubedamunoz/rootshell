@@ -339,14 +339,8 @@ extension MainView {
         session.terminalView = focusedTerminal
 
         // Load consultation mode from settings
-        if let modeRaw = UserDefaults.standard.string(forKey: "voice.agent.consultationMode"),
-           let mode = VoiceConsultationMode(rawValue: modeRaw) {
-            session.consultationMode = mode
-        }
-        if let voiceRaw = UserDefaults.standard.string(forKey: "voice.agent.voice"),
-           let voice = GeminiVoice(rawValue: voiceRaw) {
-            session.voiceName = voice
-        }
+        session.consultationMode = SettingsStore.shared.get(Settings.AI.voiceConsultationMode)
+        session.voiceName = SettingsStore.shared.get(Settings.AI.voice)
 
         voiceAgentSessions[terminalId] = session
 

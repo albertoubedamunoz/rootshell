@@ -220,11 +220,15 @@ nonisolated extension Settings {
         static let videoPausedDownloads = AnySettingDefinition.opaque(
             "videoBackgroundPausedDownloads", group: .shaders,
             title: String(localized: "Paused Video Downloads", comment: "Setting title"))
+        static let effectIncludesPinnedSidebar = SettingKey(
+            "backgroundEffectIncludesPinnedSidebar", default: true, group: .shaders,
+            configKey: "background-effect-includes-pinned-sidebar",
+            title: String(localized: "Extend Effect Under Pinned Sidebar", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             animationMode.erased, activeEffectId.erased, effectConfigurations.erased, customShadersList.erased,
             enabledCustomShaders.erased, pendingVideoActivation.erased, solarCachedLocation.erased,
-            videoPausedDownloads,
+            videoPausedDownloads, effectIncludesPinnedSidebar.erased,
         ]
     }
 }

@@ -125,10 +125,10 @@ struct SSHConnectionView: View {
     // Globals the multiplexer captions fall back to. Observed rather than read
     // directly so the captions refresh when Settings change; the values
     // themselves come from SSHConfig.multiplexerSessionDisplayName.
-    @AppStorage("tmuxSessionName") private var tmuxSessionNameSetting: String = ""
-    @AppStorage("tmuxCustomCommand") private var tmuxCustomCommandSetting: String = ""
-    @AppStorage("herdrSessionName") private var herdrSessionNameSetting: String = ""
-    @AppStorage("herdrCustomCommand") private var herdrCustomCommandSetting: String = ""
+    @Setting(Settings.Multiplexer.tmuxSessionName) private var tmuxSessionNameSetting
+    @Setting(Settings.Multiplexer.tmuxCustomCommand) private var tmuxCustomCommandSetting
+    @Setting(Settings.Multiplexer.herdrSessionName) private var herdrSessionNameSetting
+    @Setting(Settings.Multiplexer.herdrCustomCommand) private var herdrCustomCommandSetting
 
     /// Session name the multiplexer captions describe: the override carried in
     /// from a profile or history entry, else the global.
@@ -235,7 +235,7 @@ struct SSHConnectionView: View {
         // Pre-initialize connectionType to match what onAppear would set.
         // This prevents .id(connectionType) from triggering a view recreation
         // during the sidebar's slide-in animation.
-        let lastRaw = UserDefaults.standard.string(forKey: "lastConnectionType") ?? "Profiles"
+        let lastRaw = SettingsStore.shared.get(Settings.Connections.lastConnectionType) ?? "Profiles"
         let defaultType = ConnectionType(rawValue: lastRaw) ?? .profiles
         if let initialTab {
             switch initialTab {
@@ -412,10 +412,10 @@ struct SSHConnectionView: View {
     }
     
     // Persist last selected connection type
-    @AppStorage("lastConnectionType") private var lastConnectionTypeRaw: String = "Profiles"
-    
+    @Setting(Settings.Connections.lastConnectionType) private var lastConnectionTypeRaw
+
     private var defaultConnectionType: ConnectionType {
-        ConnectionType(rawValue: lastConnectionTypeRaw) ?? .profiles
+        ConnectionType(rawValue: lastConnectionTypeRaw ?? "Profiles") ?? .profiles
     }
     
     // Internal (not private) so the +VNC extension file can switch forms.
@@ -454,10 +454,10 @@ struct SSHConnectionView: View {
             Button(String(localized: "Enable Auto Location")) {
                 locationDiaryManager.mode = .autoForRemote
                 locationDiaryManager.requestPermission()
-                UserDefaults.standard.set(true, forKey: "hasSeenPortForwardBackgroundPrompt")
+                SettingsStore.shared.set(Settings.Connections.hasSeenPortForwardBackgroundPrompt, true)
             }
             Button(String(localized: "Not Now"), role: .cancel) {
-                UserDefaults.standard.set(true, forKey: "hasSeenPortForwardBackgroundPrompt")
+                SettingsStore.shared.set(Settings.Connections.hasSeenPortForwardBackgroundPrompt, true)
             }
         } message: {
             Text("iOS suspends apps in the background, which stops SSH port forwards. Enable Auto Location to keep connections alive when you switch apps.")
@@ -1065,7 +1065,7 @@ struct SSHConnectionView: View {
                     #if !targetEnvironment(macCatalyst)
                     if wasEmpty
                         && !locationDiaryManager.isConfigured
-                        && !UserDefaults.standard.bool(forKey: "hasSeenPortForwardBackgroundPrompt") {
+                        && !SettingsStore.shared.get(Settings.Connections.hasSeenPortForwardBackgroundPrompt) {
                         showPortForwardBackgroundAlert = true
                     }
                     #endif
@@ -3722,7 +3722,7 @@ extension SSHConnectionView {
         @State private var editingProfile: ConnectionProfile?
         @State private var profileToDelete: ConnectionProfile?
         @State private var newProfileFolder: String = ""
-        @AppStorage(ProfileSortOrder.storageKey) private var sortOrderRaw = ProfileSortOrder.name.rawValue
+        @Setting(Settings.Connections.profilesSortOrder) private var sortOrder
 
         // Navigation path for folder browsing
         @Binding var navigationPath: [SSHConnectionView.InlineProfilesRoute]
@@ -3744,10 +3744,6 @@ extension SSHConnectionView {
             navigationPath.last?.folderPath ?? ""
         }
 
-        private var sortOrder: ProfileSortOrder {
-            ProfileSortOrder(rawValue: sortOrderRaw) ?? .name
-        }
-        
         // MARK: - Navigable Items
         
         private enum NavigableItem: Identifiable {
@@ -3809,7 +3805,7 @@ extension SSHConnectionView {
                 .onChange(of: selectedTags) { _, _ in
                     highlightedIndex = 0
                 }
-                .onChange(of: sortOrderRaw) { _, _ in
+                .onChange(of: sortOrder) { _, _ in
                     highlightedIndex = 0
                 }
                 .navigationDestination(isPresented: $showingNewProfileSheet) {
@@ -3986,9 +3982,9 @@ extension SSHConnectionView {
                 }
 
                 Menu {
-                    Picker("Sort By", selection: $sortOrderRaw) {
+                    Picker("Sort By", selection: $sortOrder) {
                         ForEach(ProfileSortOrder.allCases, id: \.rawValue) { order in
-                            Text(order.displayName).tag(order.rawValue)
+                            Text(order.displayName).tag(order)
                         }
                     }
                 } label: {

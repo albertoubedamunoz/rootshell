@@ -308,7 +308,7 @@ class SidePanelOverlayViewController: UIViewController {
         // Hidden-titlebar mode hides the window controls behind UIKit's back,
         // so the corner-adapted region still reports clearance for buttons
         // that aren't there. Force zero.
-        let adaptedTop = UserDefaults.standard.bool(forKey: "hideWindowTitleBar")
+        let adaptedTop = SettingsStore.shared.get(Settings.Window.hideTitleBar)
             ? 0 : sourceView.edgeInsets(for: .safeArea(cornerAdaptation: .vertical)).top
         #else
         let adaptedTop = sourceView.edgeInsets(for: .safeArea(cornerAdaptation: .vertical)).top

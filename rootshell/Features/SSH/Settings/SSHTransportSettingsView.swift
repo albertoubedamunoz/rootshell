@@ -10,13 +10,13 @@
 import SwiftUI
 
 struct SSHTransportSettingsView: View {
-    @AppStorage("sshHealthMonitoringEnabled") private var sshHealthMonitoringEnabled: Bool = true
-    @AppStorage("sshHealthProbeInterval") private var sshHealthProbeInterval: Int = 15
-    @AppStorage("hideNonPQKexWarning") private var hideNonPQKexWarning: Bool = false
-    @AppStorage("sshPublicKeyAuthProbeEnabled") private var sshPublicKeyAuthProbeEnabled: Bool = false
-    @AppStorage("sshForceIPv4Enabled") private var sshForceIPv4Enabled: Bool = false
+    @Setting(Settings.Connections.healthMonitoring) private var sshHealthMonitoringEnabled
+    @Setting(Settings.Connections.healthProbeInterval) private var sshHealthProbeInterval
+    @Setting(Settings.Connections.hideNonPQKexWarning) private var hideNonPQKexWarning
+    @Setting(Settings.Connections.publicKeyAuthProbe) private var sshPublicKeyAuthProbeEnabled
+    @Setting(Settings.Connections.forceIPv4) private var sshForceIPv4Enabled
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @AppStorage(UserPreferences.backgroundSessionKeepaliveEnabledKey) private var backgroundSessionKeepaliveEnabled: Bool = true
+    @Setting(Settings.Connections.backgroundKeepalive) private var backgroundSessionKeepaliveEnabled
     #endif
 
     private var networkFooterText: String {

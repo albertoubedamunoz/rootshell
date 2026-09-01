@@ -442,7 +442,7 @@ final class SSHSession: SSHTerminalSession {
                 // AdaptiveRecvByteBufferAllocator don't apply to NWConnection
                 // — Network.framework manages its own buffers and TCP options.
                 .connectTimeout(SSHTimeoutConfig.connectionTimeout)
-            if UserDefaults.standard.bool(forKey: "sshForceIPv4Enabled"),
+            if SettingsStore.shared.value(Settings.Connections.forceIPv4),
                !config.host.contains(":") {
                 bootstrap = bootstrap.configureNWParameters { parameters in
                     if let ipOptions = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options {

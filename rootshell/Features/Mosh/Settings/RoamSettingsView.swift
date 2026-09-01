@@ -9,15 +9,15 @@ import SwiftUI
 
 struct RoamSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
-    @AppStorage(HolePunchConfig.roamEnabledKey) private var roamEnabled: Bool = false
-    @AppStorage(MoshConfig.defaultPredictionModeKey) private var defaultPredictionMode: String = MoshConfig.PredictionMode.adaptive.rawValue
-    @AppStorage(MoshConfig.defaultPredictOverwriteKey) private var defaultPredictOverwrite: Bool = false
-    @AppStorage(MoshConfig.altScreenEnabledKey) private var moshAltScreenEnabled: Bool = true
-    @AppStorage(TrzszConfig.TransportMode.defaultTransportModeKey) private var defaultTransportMode: String = TrzszConfig.TransportMode.kcp.rawValue
-    @AppStorage(TrzszConfig.keepPendingInputKey) private var keepPendingInput: Bool = false
+    @Setting(Settings.Roam.holePunch) private var roamEnabled
+    @Setting(Settings.Roam.predictionMode) private var defaultPredictionMode
+    @Setting(Settings.Roam.predictOverwrite) private var defaultPredictOverwrite
+    @Setting(Settings.Roam.moshAltScreen) private var moshAltScreenEnabled
+    @Setting(Settings.Roam.trzszTransportMode) private var defaultTransportMode
+    @Setting(Settings.Roam.trzszKeepPendingInput) private var keepPendingInput
     @State private var trzszPortMin: String = ""
     @State private var trzszPortMax: String = ""
-    @AppStorage("roamMultipathTCPEnabled") private var multipathTCPEnabled: Bool = false
+    @Setting(Settings.Roam.multipathTCP) private var multipathTCPEnabled
 
     private enum Field: Hashable { case portMin, portMax }
     @FocusState private var focusedField: Field?
@@ -51,7 +51,7 @@ struct RoamSettingsView: View {
 
                 Picker(selection: $defaultPredictionMode) {
                     ForEach(MoshConfig.PredictionMode.allCases, id: \.rawValue) { mode in
-                        Text(mode.displayName).tag(mode.rawValue)
+                        Text(mode.displayName).tag(mode)
                     }
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
@@ -100,7 +100,7 @@ struct RoamSettingsView: View {
                         VStack(alignment: .leading) {
                             Text(mode.displayName)
                         }
-                        .tag(mode.rawValue)
+                        .tag(mode)
                     }
                 }
                 .themedRow()
@@ -123,7 +123,7 @@ struct RoamSettingsView: View {
                         .frame(width: 80)
                         .focused($focusedField, equals: .portMin)
                         .onChange(of: trzszPortMin) { _, newValue in
-                            syncPortToDefaults(key: TrzszConfig.defaultUDPPortMinKey, value: newValue)
+                            syncPortToDefaults(key: Settings.Roam.trzszUDPPortMin, value: newValue)
                         }
                 }
                 .themedRow()
@@ -137,7 +137,7 @@ struct RoamSettingsView: View {
                         .frame(width: 80)
                         .focused($focusedField, equals: .portMax)
                         .onChange(of: trzszPortMax) { _, newValue in
-                            syncPortToDefaults(key: TrzszConfig.defaultUDPPortMaxKey, value: newValue)
+                            syncPortToDefaults(key: Settings.Roam.trzszUDPPortMax, value: newValue)
                         }
                 }
                 .themedRow()
@@ -217,10 +217,12 @@ struct RoamSettingsView: View {
         }
         #endif
         .onAppear {
-            let minVal = UserDefaults.standard.integer(forKey: TrzszConfig.defaultUDPPortMinKey)
-            trzszPortMin = minVal != 0 ? String(minVal) : ""
-            let maxVal = UserDefaults.standard.integer(forKey: TrzszConfig.defaultUDPPortMaxKey)
-            trzszPortMax = maxVal != 0 ? String(maxVal) : ""
+            // Unset shows the placeholder, not the registry default.
+            let store = SettingsStore.shared
+            trzszPortMin = store.isUserSet(Settings.Roam.trzszUDPPortMin.name)
+                ? String(store.get(Settings.Roam.trzszUDPPortMin)) : ""
+            trzszPortMax = store.isUserSet(Settings.Roam.trzszUDPPortMax.name)
+                ? String(store.get(Settings.Roam.trzszUDPPortMax)) : ""
         }
         .navigationTitle("Roam")
         .navigationBarTitleDisplayMode(.inline)
@@ -229,8 +231,7 @@ struct RoamSettingsView: View {
     // MARK: - Helper Views
 
     private var transportModeFooterText: String {
-        let mode = TrzszConfig.TransportMode(rawValue: defaultTransportMode) ?? .kcp
-        return mode.descriptionText
+        defaultTransportMode.descriptionText
     }
 
     private var keepPendingInputFooterText: String {
@@ -281,12 +282,12 @@ struct RoamSettingsView: View {
         return ""
     }
 
-    private func syncPortToDefaults(key: String, value: String) {
+    private func syncPortToDefaults(key: SettingKey<Int>, value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespaces)
         if let intValue = Int(trimmed), intValue >= 1024, intValue <= 65535 {
-            UserDefaults.standard.set(intValue, forKey: key)
+            SettingsStore.shared.set(key, intValue)
         } else {
-            UserDefaults.standard.removeObject(forKey: key)
+            SettingsStore.shared.reset(key)
         }
     }
 

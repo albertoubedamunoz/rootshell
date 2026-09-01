@@ -62,14 +62,13 @@ final class BackgroundTunnelManager {
         return total
     }
 
-    // MARK: - Persistence Keys
-
-    private let enabledProfilesKey = "backgroundTunnelEnabledProfiles"
-
     // MARK: - Initialization
 
     private init() {
         loadEnabledProfiles()
+        SettingsRefreshHub.shared.register(keys: [Settings.Connections.backgroundTunnelEnabledProfiles.name]) { [weak self] _ in
+            self?.loadEnabledProfiles()
+        }
     }
 
     // MARK: - Public Methods
@@ -279,7 +278,7 @@ final class BackgroundTunnelManager {
     }
 
     private func loadEnabledProfiles() {
-        if let data = UserDefaults.standard.data(forKey: enabledProfilesKey),
+        if let data = SettingsStore.shared.get(Settings.Connections.backgroundTunnelEnabledProfiles),
            let ids = try? JSONDecoder().decode(Set<UUID>.self, from: data) {
             enabledProfileIDs = ids
             Self.logger.info("Loaded \(ids.count) enabled tunnel profiles")
@@ -288,7 +287,7 @@ final class BackgroundTunnelManager {
 
     private func saveEnabledProfiles() {
         if let data = try? JSONEncoder().encode(enabledProfileIDs) {
-            UserDefaults.standard.set(data, forKey: enabledProfilesKey)
+            SettingsStore.shared.set(Settings.Connections.backgroundTunnelEnabledProfiles, data)
         }
     }
 }

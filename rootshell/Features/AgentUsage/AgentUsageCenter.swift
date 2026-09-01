@@ -22,7 +22,7 @@ nonisolated enum AgentUsageSettings {
     static let enabledKey = "agentUsageTrackingEnabled"
 
     nonisolated static var enabled: Bool {
-        UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true
+        SettingsStore.shared.value(Settings.CodingAgents.usageTracking)
     }
 }
 

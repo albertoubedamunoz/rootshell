@@ -47,12 +47,17 @@ final class PushRegistrationManager {
     private(set) var isBusy = false
     /// Agent pushes are dropped while the app is foreground; explicit sends still show.
     var agentBackgroundOnly: Bool {
-        didSet { UserDefaults.standard.set(agentBackgroundOnly, forKey: Self.backgroundOnlyKey) }
+        didSet {
+            guard !isReloading else { return }
+            SettingsStore.shared.set(Settings.Notifications.pushAgentBackgroundOnly, agentBackgroundOnly)
+        }
     }
     /// Adds bundled Claude/Codex artwork to agent pushes when supported.
     var agentLogosEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(agentLogosEnabled, forKey: Self.agentLogosKey)
+            if !isReloading {
+                SettingsStore.shared.set(Settings.Notifications.pushAgentLogos, agentLogosEnabled)
+            }
             publishPolicy()
         }
     }
@@ -61,16 +66,31 @@ final class PushRegistrationManager {
     @ObservationIgnored private var apnsToken: Data?
     @ObservationIgnored private var registrationTask: Task<Void, Never>?
     @ObservationIgnored private var revoked: Set<String>
+    @ObservationIgnored private var isReloading = false
 
     private init() {
         let defaults = UserDefaults.standard
         isEnabled = defaults.bool(forKey: Self.enabledKey)
-        agentBackgroundOnly = defaults.bool(forKey: Self.backgroundOnlyKey)
-        agentLogosEnabled = defaults.object(forKey: Self.agentLogosKey) as? Bool ?? true
+        agentBackgroundOnly = SettingsStore.shared.get(Settings.Notifications.pushAgentBackgroundOnly)
+        agentLogosEnabled = SettingsStore.shared.get(Settings.Notifications.pushAgentLogos)
         senders = (defaults.data(forKey: Self.sendersKey)).flatMap { try? JSONDecoder().decode([PushPairedSender].self, from: $0) } ?? []
         revoked = Set(defaults.stringArray(forKey: Self.revokedKey) ?? [])
         if isEnabled { state = credentials == nil ? .waitingForToken : .registered }
         publishPolicy()
+        SettingsRefreshHub.shared.register(keys: [
+            Settings.Notifications.pushAgentBackgroundOnly.name, Settings.Notifications.pushAgentLogos.name,
+        ]) { [weak self] keys in self?.reload(keys: keys) }
+    }
+
+    private func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Notifications.pushAgentBackgroundOnly.name) {
+            agentBackgroundOnly = SettingsStore.shared.get(Settings.Notifications.pushAgentBackgroundOnly)
+        }
+        if keys.contains(Settings.Notifications.pushAgentLogos.name) {
+            agentLogosEnabled = SettingsStore.shared.get(Settings.Notifications.pushAgentLogos)
+        }
     }
 
     var credentials: PushCredentials? { try? keychain.loadCredentials() }

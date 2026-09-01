@@ -28,8 +28,7 @@ enum TmuxNewTabAction: String, CaseIterable, Codable, Sendable {
 
     /// The user's current preference, defaulting to `.localShell`.
     static var current: TmuxNewTabAction {
-        UserDefaults.standard.string(forKey: storageKey)
-            .flatMap(TmuxNewTabAction.init(rawValue:)) ?? .localShell
+        SettingsStore.shared.value(Settings.Multiplexer.tmuxNewTabAction)
     }
 
     var displayName: String {

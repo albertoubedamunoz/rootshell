@@ -106,6 +106,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ProtectedDataGuard.whenAvailable {
             UserDefaultsBackup.detectAndRecover()
             UserDefaultsMigration.migrateIfNeeded()
+            SettingsStore.shared.bootstrap()
+            SettingsSyncCoordinator.shared.start()
+            // Interim until every manager registers its own reload(keys:).
+            SettingsRefreshHub.shared.register(
+                groups: [.theme, .font, .cursor, .transparency, .selection, .sounds, .notifications]
+            ) { _ in BackupImporter.refreshAllManagers() }
             RootshellShortcuts.updateAppShortcutParameters()
             application.registerForRemoteNotifications()
             // Instantiate eagerly so the battery / Low Power Mode / thermal /

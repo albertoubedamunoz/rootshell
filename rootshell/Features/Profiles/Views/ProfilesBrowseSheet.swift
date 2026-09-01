@@ -37,7 +37,7 @@ struct ProfilesBrowseSheet: View {
     @State private var searchQuery: String = ""
     @State private var selectedTags: Set<String> = []
     @State private var showTagFilter: Bool = false
-    @AppStorage(ProfileSortOrder.storageKey) private var sortOrderRaw = ProfileSortOrder.name.rawValue
+    @Setting(Settings.Connections.profilesSortOrder) private var sortOrder
     @State private var showingNewProfileSheet: Bool = false
     @State private var editingProfile: ConnectionProfile?
     @State private var profileToDelete: ConnectionProfile?
@@ -63,10 +63,6 @@ struct ProfilesBrowseSheet: View {
 
     init(onProfileSelected: ((ProfileSelection) -> Void)? = nil) {
         self.onProfileSelected = onProfileSelected
-    }
-
-    private var sortOrder: ProfileSortOrder {
-        ProfileSortOrder(rawValue: sortOrderRaw) ?? .name
     }
 
     // MARK: - Navigable Items
@@ -146,7 +142,7 @@ struct ProfilesBrowseSheet: View {
             highlightedIndex = 0
             triggerDNSPrefetch()
         }
-        .onChange(of: sortOrderRaw) { _, _ in
+        .onChange(of: sortOrder) { _, _ in
             highlightedIndex = 0
         }
         .onChange(of: highlightedIndex) { _, _ in
@@ -340,9 +336,9 @@ struct ProfilesBrowseSheet: View {
             }
 
             Menu {
-                Picker("Sort By", selection: $sortOrderRaw) {
+                Picker("Sort By", selection: $sortOrder) {
                     ForEach(ProfileSortOrder.allCases, id: \.rawValue) { order in
-                        Text(order.displayName).tag(order.rawValue)
+                        Text(order.displayName).tag(order)
                     }
                 }
             } label: {

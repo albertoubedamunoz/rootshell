@@ -16,32 +16,46 @@ extension Notification.Name {
 class PaletteManager {
     static let shared = PaletteManager()
 
-    // MARK: - UserDefaults Keys
-
-    private static let paletteGenerateKey = "paletteGenerate"
-    private static let paletteHarmoniousKey = "paletteHarmonious"
-
     // MARK: - Observable Properties
 
     var paletteGenerateEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(paletteGenerateEnabled, forKey: Self.paletteGenerateKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Palette.generate, paletteGenerateEnabled) }
             NotificationCenter.default.post(name: .paletteConfigChanged, object: nil)
         }
     }
 
     var paletteHarmoniousEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(paletteHarmoniousEnabled, forKey: Self.paletteHarmoniousKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Palette.harmonious, paletteHarmoniousEnabled) }
             NotificationCenter.default.post(name: .paletteConfigChanged, object: nil)
         }
     }
 
+    @ObservationIgnored private var isReloading = false
+
     // MARK: - Initialization
 
     private init() {
-        self.paletteGenerateEnabled = UserDefaults.standard.bool(forKey: Self.paletteGenerateKey)
-        self.paletteHarmoniousEnabled = UserDefaults.standard.bool(forKey: Self.paletteHarmoniousKey)
+        self.paletteGenerateEnabled = SettingsStore.shared.get(Settings.Palette.generate)
+        self.paletteHarmoniousEnabled = SettingsStore.shared.get(Settings.Palette.harmonious)
+        SettingsRefreshHub.shared.register(
+            keys: [Settings.Palette.generate.name, Settings.Palette.harmonious.name]
+        ) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Re-read owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Palette.generate.name) {
+            paletteGenerateEnabled = SettingsStore.shared.get(Settings.Palette.generate)
+        }
+        if keys.contains(Settings.Palette.harmonious.name) {
+            paletteHarmoniousEnabled = SettingsStore.shared.get(Settings.Palette.harmonious)
+        }
     }
 
     // MARK: - Config Generation

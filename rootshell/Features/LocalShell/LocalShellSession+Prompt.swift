@@ -3,53 +3,28 @@
 import Foundation
 
 extension LocalShellSession {
-    // Check setting with default=true (UserDefaults.bool returns false if unset)
     var useStarshipPrompt: Bool {
-        let key = "useStarshipPrompt"
-        if UserDefaults.standard.object(forKey: key) == nil {
-            return true  // Default to Starship when never set
-        }
-        return UserDefaults.standard.bool(forKey: key)
+        SettingsStore.shared.value(Settings.Prompt.useStarship)
     }
 
-    // Check setting with default=true
     var showGitInPrompt: Bool {
-        let key = "showGitInPrompt"
-        if UserDefaults.standard.object(forKey: key) == nil {
-            return true  // Default to showing git status
-        }
-        return UserDefaults.standard.bool(forKey: key)
+        SettingsStore.shared.value(Settings.Prompt.showGit)
     }
 
-    // Get selected starship theme (default: catppuccin)
     var starshipTheme: StarshipTheme {
-        let key = "starshipTheme"
-        guard let themeString = UserDefaults.standard.string(forKey: key),
-              let theme = StarshipTheme(rawValue: themeString) else {
-            return .catppuccin
-        }
-        return theme
+        SettingsStore.shared.value(Settings.Prompt.starshipTheme)
     }
 
-    // Check setting with default=true
     var promptAddNewline: Bool {
-        let key = "promptAddNewline"
-        if UserDefaults.standard.object(forKey: key) == nil {
-            return true  // Default to a blank row above the prompt
-        }
-        return UserDefaults.standard.bool(forKey: key)
+        SettingsStore.shared.value(Settings.Prompt.addNewline)
     }
 
-    // Check transient prompt setting (default: false)
     var useTransientPrompt: Bool {
-        let key = "useTransientPrompt"
-        return UserDefaults.standard.bool(forKey: key)
+        SettingsStore.shared.value(Settings.Prompt.useTransientPrompt)
     }
 
-    // Check right prompt setting (default: false)
     var useRightPrompt: Bool {
-        let key = "useRightPrompt"
-        return UserDefaults.standard.bool(forKey: key)
+        SettingsStore.shared.value(Settings.Prompt.useRightPrompt)
     }
 
     /// Formats a path for display in tab title

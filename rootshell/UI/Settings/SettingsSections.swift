@@ -14,7 +14,7 @@ struct SettingsAppearanceSection: View {
     var transparencyManager = TransparencyManager.shared
     var effectManager = EffectManager.shared
     @ObservedObject var iconManager = AppIconManager.shared
-    @AppStorage("tabBarHidden") private var tabBarHidden: Bool = false
+    @Setting(Settings.Tabs.barHidden) private var tabBarHidden
 
     @ViewBuilder
     private var windowSettingsSecondaryLabel: some View {
@@ -230,44 +230,48 @@ struct SettingsAppearanceSection: View {
 
 /// Terminal section detail (Toolbar Keys, Keyboard Shortcuts, ModTap, Option Key, Session Restore, etc.)
 struct SettingsTerminalSection: View {
-    @AppStorage("useStarshipPrompt") private var useStarshipPrompt: Bool = true
-    @AppStorage("starshipTheme") private var starshipTheme: String = "catppuccin"
-    @AppStorage("customUsername") private var customUsername: String = ""
-    @AppStorage(WindowStateManager.sessionPersistenceEnabledKey) private var sessionPersistenceEnabled: Bool = true
-    @AppStorage(ScrollbackPersistenceManager.enabledKey) private var scrollbackPersistenceEnabled: Bool = true
-    @AppStorage("localeMode") private var localeMode: String = "auto"
-    @AppStorage("geoProviderType") private var geoProviderType: String = GeoProviderType.defaultProvider.rawValue
-    @AppStorage("customLocale") private var customLocale: String = "en_US.UTF-8"
-    @AppStorage(TerminalTypeSettings.localKey) private var localTerm: String = TerminalTypeSettings.localFallback
-    @AppStorage(TerminalTypeSettings.remoteKey) private var remoteTerm: String = TerminalTypeSettings.fallback
-    @AppStorage("lineScrollbackEnabled") private var lineScrollbackEnabled: Bool = false
-    @AppStorage("rubberBandScrollbackEnabled") private var rubberBandScrollbackEnabled: Bool = true
-    @AppStorage(AgentAttentionSettings.detectionEnabledKey) private var agentDetectionEnabled: Bool = true
-    @AppStorage(TaskDetectionSettings.enabledKey) private var taskDetectionEnabled: Bool = false
-    @AppStorage(TabExposeSettings.gestureEnabledKey) private var tabExposeGestureEnabled: Bool = true
+    @Setting(Settings.Prompt.useStarship) private var useStarshipPrompt
+    @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
+    @Setting(Settings.Prompt.customUsername) private var customUsername
+    @Setting(Settings.SessionRestore.sessionPersistence) private var sessionPersistenceEnabled
+    @Setting(Settings.SessionRestore.scrollbackPersistence) private var scrollbackPersistenceEnabled
+    @Setting(Settings.Locale.mode) private var localeMode
+    @Setting(Settings.Privacy.geoProviderType) private var geoProviderType
+    @Setting(Settings.Locale.custom) private var customLocale
+    @Setting(Settings.Terminal.terminalTypeLocal) private var localTerm
+    @Setting(Settings.Terminal.terminalTypeRemote) private var remoteTerm
+    @Setting(Settings.Gestures.lineScrollback) private var lineScrollbackEnabled
+    @Setting(Settings.Gestures.rubberBandScrollback) private var rubberBandScrollbackEnabled
+    @Setting(Settings.CodingAgents.detectionEnabled) private var agentDetectionEnabled
+    @Setting(Settings.Notifications.taskDetection) private var taskDetectionEnabled
+    @Setting(Settings.Gestures.tabExposeGesture) private var tabExposeGestureEnabled
     #if targetEnvironment(macCatalyst)
-    @AppStorage("tabsInTitlebarEnabled") private var tabsInTitlebarEnabled: Bool = true
+    @Setting(Settings.Window.tabsInTitlebar) private var tabsInTitlebarEnabled
     #if STANDALONE
     // Read only to redraw the summary; the value itself comes from LocalShellSettings.
-    @AppStorage(LocalShellSettings.commandKey) private var localShellCommand: String = ""
+    @Setting(Settings.Terminal.localShellCommand) private var localShellCommand
     #endif
     #else
-    @AppStorage("scrollModeEnabled") private var scrollModeEnabled: Bool = true
-    @AppStorage("doubleSpaceForPeriod") private var doubleSpaceForPeriod: Bool = false
-    @AppStorage(TwoFingerLongPressSetting.key)
-    private var twoFingerLongPressDuration: Double = TwoFingerLongPressSetting.defaultDuration
+    @Setting(Settings.Gestures.scrollMode) private var scrollModeEnabled
+    @Setting(Settings.Keyboard.doubleSpaceForPeriod) private var doubleSpaceForPeriod
+    @Setting(Settings.Gestures.twoFingerLongPressDuration) private var twoFingerLongPressDuration
     #if !os(visionOS)
-    @AppStorage("persistentToolbar") private var persistentToolbar: Bool = false
-    @AppStorage("showToolbarWithHardwareKeyboard") private var showToolbarWithHardwareKeyboard: Bool = false
+    @Setting(Settings.KeyboardToolbar.persistent) private var persistentToolbar
+    @Setting(Settings.KeyboardToolbar.showWithHardwareKeyboard) private var showToolbarWithHardwareKeyboard
     #endif
     #endif
+
+    /// Unset falls back to `GeoProviderType.defaultProvider`, which can differ from the registry default.
+    private var geoProviderRawValue: String? {
+        _geoProviderType.isUserSet ? geoProviderType.rawValue : nil
+    }
 
 #if !targetEnvironment(macCatalyst)
     @ObservedObject var bookmarkedLocationsManager = BookmarkedLocationsManager.shared
 #endif
 
     private var localeSummary: String {
-        switch LocaleHelper.LocaleMode(rawValue: localeMode) ?? .auto {
+        switch localeMode {
         case .auto:
             return LocaleHelper.posixLocale
         case .none:
@@ -595,7 +599,7 @@ struct SettingsTerminalSection: View {
                         Text("Prompt & Username")
                         Spacer()
                         if useStarshipPrompt {
-                            PromptThemePreview(theme: StarshipTheme(rawValue: starshipTheme) ?? .catppuccin, compact: true)
+                            PromptThemePreview(theme: starshipTheme, compact: true)
                         }
                         Text(customUsername.isEmpty ? NSUserName() : customUsername)
                             .foregroundColor(.secondary)
@@ -643,7 +647,7 @@ struct SettingsTerminalSection: View {
                         SettingsIcon(systemName: "location")
                         Text("IP Geolocation")
                         Spacer()
-                        Text(GeoProviderType.availableProvider(for: geoProviderType).displayName)
+                        Text(GeoProviderType.availableProvider(for: geoProviderRawValue).displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                             .lineLimit(1)
@@ -720,7 +724,7 @@ struct SettingsTerminalSection: View {
                         SettingsIcon(systemName: "location")
                         Text("IP Geolocation")
                         Spacer()
-                        Text(GeoProviderType.availableProvider(for: geoProviderType).displayName)
+                        Text(GeoProviderType.availableProvider(for: geoProviderRawValue).displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                             .lineLimit(1)
@@ -748,8 +752,8 @@ struct SettingsConnectionsSection: View {
     @ObservedObject var kubernetesManager = KubernetesClusterManager.shared
     @ObservedObject var cloudAccountManager = CloudAccountManager.shared
     @ObservedObject var wifiAPAccountManager = WiFiAPAccountManager.shared
-    @AppStorage("tmuxSessionName") private var tmuxSessionName: String = ""
-    @AppStorage("tmuxCustomCommand") private var tmuxCustomCommand: String = ""
+    @Setting(Settings.Multiplexer.tmuxSessionName) private var tmuxSessionName
+    @Setting(Settings.Multiplexer.tmuxCustomCommand) private var tmuxCustomCommand
     @State private var showClearHistoryAlert = false
 
     private var multiplexerSettingsSummary: String {
@@ -1022,7 +1026,7 @@ struct SettingsConnectionsSection: View {
                         SettingsIcon(systemName: "antenna.radiowaves.left.and.right")
                         Text("Roam")
                         Spacer()
-                        Text(UserDefaults.standard.bool(forKey: HolePunchConfig.roamEnabledKey) ? String(localized: "On", comment: "Toggle state: enabled") : String(localized: "Off", comment: "Toggle state: disabled"))
+                        Text(SettingsStore.shared.get(Settings.Roam.holePunch) ? String(localized: "On", comment: "Toggle state: enabled") : String(localized: "Off", comment: "Toggle state: disabled"))
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -1388,12 +1392,10 @@ struct SettingsNotificationsSection: View {
     @ObservedObject var notificationManager = NotificationManager.shared
     @ObservedObject var soundManager = SoundManager.shared
     private let pushManager = PushRegistrationManager.shared
-    @AppStorage(AgentAttentionSettings.detectionEnabledKey) private var agentDetectionEnabled: Bool = true
-    @AppStorage(AgentNotificationPolicy.storageKey)
-    private var agentNotificationPolicy = AgentNotificationPolicy.blockedOnly.rawValue
-    @AppStorage(TaskDetectionSettings.enabledKey) private var taskDetectionEnabled: Bool = false
-    @AppStorage(TaskNotificationPolicy.storageKey)
-    private var taskNotificationPolicy = TaskNotificationPolicy.blockedOnly.rawValue
+    @Setting(Settings.CodingAgents.detectionEnabled) private var agentDetectionEnabled
+    @Setting(Settings.Notifications.agentPolicy) private var agentNotificationPolicy
+    @Setting(Settings.Notifications.taskDetection) private var taskDetectionEnabled
+    @Setting(Settings.Notifications.taskPolicy) private var taskNotificationPolicy
 #if STANDALONE && targetEnvironment(macCatalyst)
     @ObservedObject var updateManager = UpdateManager.shared
 #endif
@@ -1480,7 +1482,7 @@ struct SettingsNotificationsSection: View {
                         SettingsIcon(systemName: "bell.and.waves.left.and.right")
                         Text("Agent Notifications")
                         Spacer()
-                        Text((AgentNotificationPolicy(rawValue: agentNotificationPolicy) ?? .blockedOnly).displayName)
+                        Text(agentNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -1504,7 +1506,7 @@ struct SettingsNotificationsSection: View {
                         SettingsIcon(systemName: "clock.badge.checkmark")
                         Text("Command Notifications")
                         Spacer()
-                        Text((TaskNotificationPolicy(rawValue: taskNotificationPolicy) ?? .blockedOnly).displayName)
+                        Text(taskNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }

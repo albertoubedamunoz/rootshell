@@ -860,8 +860,7 @@ final class SplitTreeHostingView: UIView {
             return
         }
 
-        let styleRaw = UserDefaults.standard.string(forKey: SplitFocusBorderStyle.storageKey) ?? SplitFocusBorderStyle.standard.rawValue
-        let style = SplitFocusBorderStyle(rawValue: styleRaw) ?? .standard
+        let style = SettingsStore.shared.value(Settings.Window.splitFocusBorderStyle)
 
         if showBorder && isFocused && style != .none {
             container.layer.borderWidth = style.borderWidth
@@ -873,15 +872,16 @@ final class SplitTreeHostingView: UIView {
     }
 
     private func resolvedBorderColor() -> UIColor {
-        let colorRaw = UserDefaults.standard.string(forKey: SplitFocusBorderColor.storageKey) ?? SplitFocusBorderColor.accent.rawValue
-        switch SplitFocusBorderColor(rawValue: colorRaw) ?? .accent {
+        let store = SettingsStore.shared
+        switch store.value(Settings.Window.splitFocusBorderColor) {
         case .accent:
             return highlightColor
         case .gray:
             return .systemGray
         case .custom:
-            if let hex = UserDefaults.standard.string(forKey: SplitFocusBorderColor.customHexKey),
-               let color = UIColor(hex: hex) {
+            // Unset hex falls back to the accent color, matching pre-store behavior.
+            if store.isUserSet(Settings.Window.splitFocusBorderCustomColor.name),
+               let color = UIColor(hex: store.value(Settings.Window.splitFocusBorderCustomColor)) {
                 return color
             }
             return highlightColor

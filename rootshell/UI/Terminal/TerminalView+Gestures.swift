@@ -2412,7 +2412,7 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
         menuItems.append(terminalMenu)
 
         // Tab bar visibility toggle
-        let isTabBarHidden = UserDefaults.standard.bool(forKey: "tabBarHidden")
+        let isTabBarHidden = SettingsStore.shared.value(Settings.Tabs.barHidden)
         let tabBarAction = UIAction(
             title: isTabBarHidden ? String(localized: "Show Top Tab Bar") : String(localized: "Hide Top Tab Bar"),
             image: UIImage(systemName: isTabBarHidden ? "rectangle.topthird.inset.filled" : "rectangle.topthird.inset")

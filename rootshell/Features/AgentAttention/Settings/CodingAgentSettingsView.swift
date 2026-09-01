@@ -11,16 +11,11 @@
 import SwiftUI
 
 struct CodingAgentSettingsView: View {
-    @AppStorage(AgentAttentionSettings.detectionEnabledKey)
-    private var agentDetectionEnabled = true
-    @AppStorage(AgentAttentionSettings.badgesEnabledKey)
-    private var attentionBadgesEnabled = true
-    @AppStorage(AgentAttentionSettings.projectProbesEnabledKey)
-    private var projectProbesEnabled = true
-    @AppStorage(AgentUsageSettings.enabledKey)
-    private var usageTrackingEnabled = true
-    @AppStorage(AgentNotificationPolicy.storageKey)
-    private var agentNotificationPolicy = AgentNotificationPolicy.blockedOnly.rawValue
+    @Setting(Settings.CodingAgents.detectionEnabled) private var agentDetectionEnabled
+    @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
+    @Setting(Settings.CodingAgents.projectProbes) private var projectProbesEnabled
+    @Setting(Settings.CodingAgents.usageTracking) private var usageTrackingEnabled
+    @Setting(Settings.Notifications.agentPolicy) private var agentNotificationPolicy
 
     var body: some View {
         List {
@@ -62,7 +57,7 @@ struct CodingAgentSettingsView: View {
                         SettingsIcon(systemName: "bell.and.waves.left.and.right")
                         Text("Agent Notifications")
                         Spacer()
-                        Text((AgentNotificationPolicy(rawValue: agentNotificationPolicy) ?? .blockedOnly).displayName)
+                        Text(agentNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -120,13 +115,11 @@ struct CodingAgentSettingsView: View {
 // MARK: - Agent Notification Policy Picker (id=agent-attention)
 
 struct AgentNotificationPolicyPickerView: View {
-    @AppStorage(AgentNotificationPolicy.storageKey)
-    private var policy = AgentNotificationPolicy.blockedOnly.rawValue
-    @AppStorage(AgentAttentionSettings.notificationPromptEnabledKey)
-    private var includePrompt = true
+    @Setting(Settings.Notifications.agentPolicy) private var policy
+    @Setting(Settings.Notifications.agentIncludePrompt) private var includePrompt
 
     private var notificationsOff: Bool {
-        (AgentNotificationPolicy(rawValue: policy) ?? .blockedOnly) == .off
+        policy == .off
     }
 
     var body: some View {
@@ -134,7 +127,7 @@ struct AgentNotificationPolicyPickerView: View {
             Section {
                 ForEach(AgentNotificationPolicy.allCases, id: \.rawValue) { option in
                     Button {
-                        policy = option.rawValue
+                        policy = option
                         // Selecting a live policy is the consent moment;
                         // without authorization nothing would ever fire.
                         if option != .off {
@@ -154,7 +147,7 @@ struct AgentNotificationPolicyPickerView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer()
-                            if policy == option.rawValue {
+                            if policy == option {
                                 Image(systemName: "checkmark")
                                     .foregroundColor(.accentColor)
                             }

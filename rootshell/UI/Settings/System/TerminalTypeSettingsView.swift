@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct TerminalTypeSettingsView: View {
-    @AppStorage(TerminalTypeSettings.localKey) private var localTerm: String = TerminalTypeSettings.localFallback
-    @AppStorage(TerminalTypeSettings.remoteKey) private var remoteTerm: String = TerminalTypeSettings.fallback
+    @Setting(Settings.Terminal.terminalTypeLocal) private var localTerm
+    @Setting(Settings.Terminal.terminalTypeRemote) private var remoteTerm
 
     /// Custom mode is explicit state rather than "the value isn't a preset":
     /// otherwise typing a preset name by hand would collapse the text field
