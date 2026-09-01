@@ -87,6 +87,7 @@ struct TunnelDetailView: View {
                     Text(profile.sshConfig.host)
                         .foregroundStyle(.secondary)
                 }
+                .hostAddressCopyMenu(hostname: profile.sshConfig.host)
                 .themedRow()
 
                 if let jumpHost = profile.sshConfig.jumpHost {
@@ -96,6 +97,7 @@ struct TunnelDetailView: View {
                         Text(jumpHost.host)
                             .foregroundStyle(.secondary)
                     }
+                    .hostAddressCopyMenu(hostname: jumpHost.host)
                     .themedRow()
                 }
             }

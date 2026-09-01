@@ -40,6 +40,7 @@ struct KnownHostsView: View {
                     NavigationLink(destination: KnownHostDetailView(host: host)) {
                         KnownHostRow(host: host)
                     }
+                    .hostAddressCopyMenu(hostname: host.hostname)
                 }
                 .onDelete(perform: deleteHosts)
                 .themedRow()

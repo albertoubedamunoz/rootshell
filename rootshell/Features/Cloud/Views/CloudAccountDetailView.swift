@@ -302,6 +302,10 @@ struct CloudAccountDetailView: View {
         Section {
             ForEach(instances) { instance in
                 CloudInstanceRowView(instance: instance)
+                    .hostAddressCopyMenu(
+                        hostname: instance.hostname,
+                        ipAddress: instance.ipv4Address
+                    )
                     .themedRow()
             }
         } header: {

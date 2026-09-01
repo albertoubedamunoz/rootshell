@@ -269,6 +269,7 @@ struct SSHHostBrowseListContent: View {
                         DiscoveredHostRow(host: host) {
                             selectDiscoveredHost(host)
                         }
+                        .hostAddressCopyMenu(hostname: host.hostname)
                         .id(rowID)
                         .listRowBackground(
                             isItemHighlighted(rowID)
@@ -308,6 +309,10 @@ struct SSHHostBrowseListContent: View {
                                 ? Color.accentColor.opacity(0.15) : sheetThemeColors?.rowBackground
                         )
                         .contextMenu {
+                            HostAddressCopyActions(hostname: entry.host)
+
+                            Divider()
+
                             Button {
                                 historyEntryForProfile = entry
                                 showingProfileEditor = true
@@ -335,6 +340,10 @@ struct SSHHostBrowseListContent: View {
                         CloudInstanceHostRow(instance: instance, account: group.account) {
                             selectCloudInstance(instance)
                         }
+                        .hostAddressCopyMenu(
+                            hostname: instance.hostname,
+                            ipAddress: instance.ipv4Address
+                        )
                         .id(rowID)
                         .listRowBackground(
                             isItemHighlighted(rowID)

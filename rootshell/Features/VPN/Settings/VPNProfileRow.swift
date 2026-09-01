@@ -55,6 +55,7 @@ struct VPNProfileRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hostAddressCopyMenu(hostname: profile.sshConfig.host)
         .padding(.vertical, 4)
         .alert("VPN Error", isPresented: $showError) {
             Button("OK") {}
