@@ -595,23 +595,34 @@ extension MainView {
 
     /// The effect overlay layer (ocean, CRT, etc.)
     @ViewBuilder
-    var effectOverlay: some View {
+    func effectOverlay(leadingExtension: CGFloat) -> some View {
         if effectManager.activeEffect != nil,
            visibleContentAllowsTerminalEffects {
-            TerminalEffectView()
-                // Use different blend mode for light vs dark themes
-                .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
-                .allowsHitTesting(false)
-                // Extend into bottom safe area for ocean effect
-                .ignoresSafeArea(edges: .bottom)
-                // Tab Exposé is normally the topmost terminal-content layer.
-                // While it is active, keep this *same* effect view above the
-                // mirrored terminal pixels so animations and video continue
-                // seamlessly through the reveal instead of disappearing and
-                // returning later. The controller flips `isActive` at progress
-                // zero on both ends, where changing the stacking order is
-                // visually lossless and does not recreate the effect view.
-                .zIndex(tabExpose.isActive ? 2 : 0)
+            GeometryReader { geometry in
+                TerminalEffectView()
+                    // GeometryReader keeps the widened effect out of the
+                    // ZStack's layout calculation. The terminal therefore
+                    // retains its exact width while only the effect overflows
+                    // left across the docked sidebar.
+                    .frame(
+                        width: geometry.size.width + leadingExtension,
+                        height: geometry.size.height
+                    )
+                    .offset(x: -leadingExtension)
+                    // Use different blend mode for light vs dark themes
+                    .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
+            }
+            .allowsHitTesting(false)
+            // Extend into bottom safe area for ocean effect
+            .ignoresSafeArea(edges: .bottom)
+            // Tab Exposé is normally the topmost terminal-content layer.
+            // While it is active, keep this *same* effect view above the
+            // mirrored terminal pixels so animations and video continue
+            // seamlessly through the reveal instead of disappearing and
+            // returning later. The controller flips `isActive` at progress
+            // zero on both ends, where changing the stacking order is
+            // visually lossless and does not recreate the effect view.
+            .zIndex(tabExpose.isActive ? 2 : 0)
         }
     }
 
@@ -1053,6 +1064,10 @@ extension MainView {
                 }
             }
         }
+        // App-tab swipe views deliberately travel beyond their own bounds.
+        // Clip at the expanded terminal viewport (which already includes the
+        // bottom safe-area escape) so they cannot smear beneath the sidebar.
+        .clipped()
     }
 
     private func appTabSwipeVisualMetrics(for tabID: UUID, width: CGFloat) -> (opacity: Double, offsetX: CGFloat, zIndex: Double) {
@@ -1106,13 +1121,17 @@ extension MainView {
 
     /// The main terminal content ZStack (terminals + effects + overlays).
     @ViewBuilder
-    func terminalContentZStack(geometry: GeometryProxy, width: CGFloat) -> some View {
+    func terminalContentZStack(
+        geometry: GeometryProxy,
+        width: CGFloat,
+        effectLeadingExtension: CGFloat
+    ) -> some View {
         ZStack {
             terminalBackgroundFill
             tabRevealBackdropFill
             terminalTabsView(geometry: geometry, width: width)
             tmuxReconnectingSwipeFallback
-            effectOverlay
+            effectOverlay(leadingExtension: effectLeadingExtension)
             terminalOverlays()
             if tabTransferDropOverlayVisible {
                 Color.clear
@@ -1192,6 +1211,7 @@ extension MainView {
         // Available on both China and non-China builds.
         let docked = tabSidebarIsDocked
         let dockedWidth = dockedTabSidebarWidth(windowWidth: geometry.size.width)
+        let dockedSidebarTheme: ResolvedSheetTheme? = docked ? resolvedSheetTheme() : nil
         #if !CHINA_BUILD
         let shouldShowSidebar = shouldShowAISidebar(currentTabId: currentTabId)
         let sidebarWidth = shouldShowSidebar ? aiAgentSidebarWidth : 0
@@ -1201,17 +1221,23 @@ extension MainView {
         #endif
 
         HStack(spacing: 0) {
-            if docked {
-                dockedTabSidebar(geometry: geometry)
+            if let dockedSidebarTheme {
+                dockedTabSidebar(geometry: geometry, theme: dockedSidebarTheme)
                     .frame(width: dockedWidth)
                     .transition(.move(edge: .leading))
                     // Paint the docked column above the terminal content so an
-                    // app-tab swipe's `.offset(x:)` tab (the content isn't
-                    // clipped) can't smear over the opaque, full-height column.
+                    // effect spanning in from the terminal stays behind its
+                    // controls and resize divider.
                     .zIndex(1)
             }
 
-            terminalContentZStack(geometry: geometry, width: terminalWidth)
+            terminalContentZStack(
+                geometry: geometry,
+                width: terminalWidth,
+                effectLeadingExtension: backgroundEffectIncludesPinnedSidebar
+                    ? dockedWidth
+                    : 0
+            )
 
             #if !CHINA_BUILD
             if shouldShowSidebar, let session = aiAgentSessions[currentTabId] {
@@ -1220,6 +1246,17 @@ extension MainView {
             #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // The docked sidebar's theme fill sits below the shared effect canvas;
+        // its controls remain in the HStack above it. This makes the effect
+        // full-strength in the column without duplicating animated state or
+        // video playback.
+        .background(alignment: .leading) {
+            if let dockedSidebarTheme {
+                dockedTabSidebarBackground(theme: dockedSidebarTheme)
+                    .frame(width: dockedWidth)
+                    .ignoresSafeArea(.container, edges: .bottom)
+            }
+        }
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: docked)
         // Animate width changes when the docked column toggles/snaps, but never
         // during the live drag (the gesture drives width directly). Outside the
@@ -1242,18 +1279,10 @@ extension MainView {
     /// content the floating overlay hosts. On Mac Catalyst the user can opt
     /// into matching the terminal window's background opacity.
     @ViewBuilder
-    private func dockedTabSidebar(geometry: GeometryProxy) -> some View {
-        let theme = resolvedSheetTheme()
-        let bg = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
-        #if targetEnvironment(macCatalyst)
-        let sidebarBackground = bg.opacity(
-            transparencyManager.pinnedSidebarTransparencyEnabled
-                ? transparencyManager.backgroundOpacity
-                : 1.0
-        )
-        #else
-        let sidebarBackground = bg
-        #endif
+    private func dockedTabSidebar(
+        geometry: GeometryProxy,
+        theme: ResolvedSheetTheme
+    ) -> some View {
         HStack(spacing: 0) {
             verticalTabSidebarContent(
                 sheetTheme: theme,
@@ -1273,9 +1302,9 @@ extension MainView {
                 minWidth: TabSidebarLayout.dockedMinWidth(largeControls: tabSidebarLargeControls),
                 maxWidth: geometry.size.width * 0.5,
                 defaultWidth: TabSidebarLayout.defaultWidth,
-                // The HStack's background supplies the fill. Keeping the
-                // divider hit area clear avoids stacking the translucent color
-                // twice across its 16pt interaction strip.
+                // The parent supplies the fill below the effect. Keeping the
+                // divider hit area clear leaves that canvas visible across its
+                // 16pt interaction strip.
                 backgroundColor: .clear,
                 onCommit: { TabSidebarLayout.saveDockedWidth($0) }
             )
@@ -1293,15 +1322,22 @@ extension MainView {
         // appearance, rendering black-on-dark (unreadable) under a dark theme
         // when the device is in Light mode. `nil` = no override.
         .optionalColorSchemeEnvironment(theme.colorScheme)
-        // Bleed the column fill into the bottom safe area (home-indicator
-        // strip) without moving the tab list. The terminal's drawable extends
-        // into that strip (TerminalSplitTreeView `.ignoresSafeArea(.bottom)`), so
-        // during an app-tab swipe a sliding tab would otherwise smear a sliver
-        // into the bottom-left corner the column's frame doesn't reach. Extending
-        // only the background keeps the corner covered (paired with the column's
-        // `.zIndex(1)` above) and makes the docked column fill to the screen
-        // bottom. No-op on Catalyst (no bottom safe area).
-        .background(sidebarBackground.ignoresSafeArea(.container, edges: .bottom))
+    }
+
+    /// Theme surface below the docked sidebar's share of the continuous effect
+    /// canvas. Kept separate from `dockedTabSidebar` so the effect can composite
+    /// over the fill while tab rows and controls remain crisp above it.
+    private func dockedTabSidebarBackground(theme: ResolvedSheetTheme) -> Color {
+        let background = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
+        #if targetEnvironment(macCatalyst)
+        return background.opacity(
+            transparencyManager.pinnedSidebarTransparencyEnabled
+                ? transparencyManager.backgroundOpacity
+                : 1.0
+        )
+        #else
+        return background
+        #endif
     }
 
     /// Bottom clearance for the docked tab sidebar's content so it stays

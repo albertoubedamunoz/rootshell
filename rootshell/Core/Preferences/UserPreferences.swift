@@ -93,6 +93,11 @@ nonisolated enum UserPreferences {
     static let showTabScopeMenuKey = "showTabScopeMenu"
     static let compactPillTabSpacingKey = "compactPillTabSpacing"
 
+    // MARK: - Background Effects
+
+    static let backgroundEffectIncludesPinnedSidebarKey =
+        "backgroundEffectIncludesPinnedSidebar"
+
     // MARK: - Text Selection
 
     static let useNativeSelectionLoupeKey = "useNativeSelectionLoupe"

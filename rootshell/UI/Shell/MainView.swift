@@ -170,6 +170,11 @@ struct MainView: View {
     // in other files.
     @AppStorage("themedUI") var themedUIEnabled: Bool = true
 
+    /// Extend the active background effect through the docked vertical tab
+    /// sidebar. Enabled by default so the content area reads as one canvas.
+    @AppStorage(UserPreferences.backgroundEffectIncludesPinnedSidebarKey)
+    var backgroundEffectIncludesPinnedSidebar: Bool = true
+
     // SSH settings
     @AppStorage("sshHealthMonitoringEnabled") var sshHealthMonitoringEnabled: Bool = true
 #if targetEnvironment(macCatalyst)
