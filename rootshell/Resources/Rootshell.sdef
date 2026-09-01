@@ -4,7 +4,10 @@
 
 	<suite name="Standard Suite" code="????" description="Common commands for most applications.">
 		<command name="open" code="aevtodoc" description="Open a folder in a new local shell tab.">
-			<direct-parameter description="The folder to open." type="file"/>
+			<cocoa class="RootshellOpenCommand"/>
+			<direct-parameter description="The file or folder to open.">
+				<type type="file" list="yes"/>
+			</direct-parameter>
 		</command>
 	</suite>
 

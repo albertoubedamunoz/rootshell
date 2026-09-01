@@ -19,10 +19,21 @@ extension MainView {
     /// window wins; if no window is key (cold-start foregrounding), the
     /// deferred pass still claims — a request is never dropped.
     func consumePendingIntentRequests(retriesRemaining: Int = 20) {
+        // A request claimed here would open its tab off-screen; the visor's
+        // terminal comes from VisorController alone.
+        guard !isVisorWindow else { return }
         guard AppIntentCoordinator.shared.hasPending else { return }
 
-        let windowScenes = UIApplication.shared.connectedScenes
+        // The hidden visor scene stays connected once summoned. Counting it
+        // would push a lone visible window into the deferred branch below and
+        // let the visor race it for the request.
+        let connected = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
+        #if targetEnvironment(macCatalyst)
+        let windowScenes = connected.filter { !CatalystSceneDelegate.isVisorScene($0) }
+        #else
+        let windowScenes = connected
+        #endif
         if windowScenes.count > 1 && !windowIsKeyWindow {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 700_000_000)
@@ -51,7 +62,25 @@ extension MainView {
             return
         }
 
-        dispatchClaimedIntentRequests(AppIntentCoordinator.shared.consumeAll())
+        let claimed = AppIntentCoordinator.shared.consumeAll()
+        guard !claimed.isEmpty else { return }
+        Ghostty.logger.info("[urlopen] claim window=\(windowId, privacy: .public) key=\(windowIsKeyWindow) count=\(claimed.count)")
+        dispatchClaimedIntentRequests(claimed)
+    }
+
+    /// Catalyst empty-window bring-up: a request deposited before this window
+    /// appeared is this window's content, so it becomes the FIRST tab instead
+    /// of a default shell followed by a second one. Claim and dispatch are one
+    /// MainActor step; `false` means nothing was pending and the caller must
+    /// fall back to its default shell.
+    @discardableResult
+    func adoptPendingIntentRequestsAsFirstContent() -> Bool {
+        guard !isVisorWindow, AppIntentCoordinator.shared.hasPending else { return false }
+        let requests = AppIntentCoordinator.shared.consumeAll()
+        guard !requests.isEmpty else { return false }
+        Ghostty.logger.info("[urlopen] adopt-as-first window=\(windowId, privacy: .public) count=\(requests.count)")
+        dispatchClaimedIntentRequests(requests)
+        return true
     }
 
     /// Routes already-claimed requests (AppleScript `create window` hands a
@@ -76,6 +105,7 @@ extension MainView {
             case .openProfile(let profileRequest):
                 handleProfileIntent(profileRequest)
             case .openLocalShell(let directory, let command):
+                Ghostty.logger.info("[urlopen] dispatch window=\(windowId, privacy: .public) dir=\(directory ?? "-", privacy: .private)")
                 createLocalShellTab(intentDirectory: directory, startupCommand: command)
             case .openSSH(let components):
                 handleSSHURL(components)

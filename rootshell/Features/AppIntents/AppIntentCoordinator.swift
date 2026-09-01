@@ -17,6 +17,9 @@
 
 import Foundation
 import UIKit
+import os
+
+private let logger = Logger(subsystem: "com.rootshell", category: "AppIntentCoordinator")
 
 extension Notification.Name {
     /// Posted after an intent request was deposited.
@@ -49,6 +52,63 @@ final class AppIntentCoordinator {
     func consumeAll() -> [IntentRequest] {
         defer { pending.removeAll() }
         return pending
+    }
+
+    // MARK: - URL / Apple event deposits
+
+    /// One open reaches us through several paths at once (odoc command, scene
+    /// urlContexts, app- and window-level .onOpenURL). Each invocation gets a
+    /// record that accumulates the paths which delivered it; a delivery is a
+    /// twin only if some record is still waiting on that path, so a path with
+    /// nothing left to answer is a deliberate second invocation.
+    private struct URLDelivery {
+        let key: String
+        var sources: Set<String>
+        var expiresAt: Date
+    }
+
+    private var recentURLDeliveries: [URLDelivery] = []
+    private static let urlDedupeWindow: TimeInterval = 1.5
+
+    /// Returns false when another delivery path already took this request.
+    @discardableResult
+    func depositURLRequest(_ request: IntentRequest, source: String) -> Bool {
+        let now = Date()
+        recentURLDeliveries.removeAll { $0.expiresAt <= now }
+
+        // Keyed on the resolved request, not the url, so /tmp and /tmp/
+        // collapse to one tab.
+        let key = Self.dedupeKey(for: request)
+        let expiresAt = now.addingTimeInterval(Self.urlDedupeWindow)
+
+        // Oldest record still awaiting this path claims the delivery (FIFO), so
+        // interleaved invocations pair off in order.
+        if let index = recentURLDeliveries.firstIndex(where: {
+            $0.key == key && !$0.sources.contains(source)
+        }) {
+            recentURLDeliveries[index].sources.insert(source)
+            recentURLDeliveries[index].expiresAt = expiresAt
+            logger.info("[urlopen] suppressed duplicate source=\(source, privacy: .public)")
+            return false
+        }
+
+        recentURLDeliveries.append(URLDelivery(key: key, sources: [source], expiresAt: expiresAt))
+        logger.info("[urlopen] deposit source=\(source, privacy: .public)")
+        deposit(request)
+        return true
+    }
+
+    private static func dedupeKey(for request: IntentRequest) -> String {
+        switch request {
+        case .openProfile(let profileRequest):
+            return "profile|\(profileRequest.profileID)"
+        case .openLocalShell(let directory, let command):
+            return "shell|\(directory ?? "")|\(command ?? "")"
+        case .openSSH(let components):
+            return "ssh|\(components.displayString)"
+        case .openMosh(let components):
+            return "mosh|\(components.displayString)"
+        }
     }
 
     // MARK: - New-window requests

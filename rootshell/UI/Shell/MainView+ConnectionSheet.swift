@@ -384,9 +384,16 @@ extension MainView {
     #if !CHINA_BUILD
     func handleVPNIntent() {
         // VPN intent notifications are global; with multiple windows only
-        // the key window should open Settings > VPN.
-        let windowScenes = UIApplication.shared.connectedScenes
+        // the key window should open Settings > VPN. The hidden visor never
+        // should, and its connected scene must not inflate the count.
+        guard !isVisorWindow else { return }
+        let connected = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
+        #if targetEnvironment(macCatalyst)
+        let windowScenes = connected.filter { !CatalystSceneDelegate.isVisorScene($0) }
+        #else
+        let windowScenes = connected
+        #endif
         if windowScenes.count > 1 && !windowIsKeyWindow {
             return
         }

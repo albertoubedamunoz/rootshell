@@ -12,6 +12,9 @@
 //
 
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.rootshell", category: "Automation")
 
 extension URL {
     /// True for a file URL whose path exists and is a directory.
@@ -107,6 +110,54 @@ final class RootshellCreateWindowCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
         performAutomationCommand(self) { AppIntentCoordinator.shared.depositForNewWindow($0) }
         return nil
+    }
+}
+
+/// `open`: the `odoc` Apple event behind Finder's Open With, `open -b`, and a
+/// Dock drop. Handling it here is what makes the folder open deterministic —
+/// declaring the command in the sdef claims the event for Cocoa Scripting, so
+/// without an implementation class the system dispatched it to a no-op.
+@objc(RootshellOpenCommand)
+final class RootshellOpenCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        let urls = Self.fileURLs(from: directParameter)
+        guard !urls.isEmpty else {
+            scriptErrorNumber = NSArgumentsWrongScriptError
+            scriptErrorString = "Expected a file or folder to open."
+            return nil
+        }
+
+        MainActor.assumeIsolated {
+            logger.info("[urlopen] odoc items=\(urls.count)")
+            var routed = false
+            for url in urls {
+                if CatalystAppDelegate.routeAutomationURL(url, source: "applescript.open") {
+                    routed = true
+                }
+            }
+            // No reopen event accompanies a document open, so with zero
+            // regular windows the deposit would sit until Cmd-N. The new
+            // window adopts it as its first tab.
+            if routed {
+                CatalystSceneDelegate.openMainWindowIfNoneConnected()
+            }
+        }
+        return nil
+    }
+
+    /// The direct parameter arrives as a URL, a path string, or a list of either.
+    private static func fileURLs(from parameter: Any?) -> [URL] {
+        switch parameter {
+        case let url as URL:
+            return [url]
+        case let path as String:
+            let expanded = (path as NSString).expandingTildeInPath
+            return expanded.isEmpty ? [] : [URL(fileURLWithPath: expanded)]
+        case let list as [Any]:
+            return list.flatMap { fileURLs(from: $0) }
+        default:
+            return []
+        }
     }
 }
 

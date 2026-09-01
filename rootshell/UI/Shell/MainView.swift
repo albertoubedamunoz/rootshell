@@ -50,6 +50,9 @@ struct MainView: View {
     @SceneStorage("windowId") var sceneWindowId: String = UUID().uuidString
     var overrideWindowId: String? = nil
     var windowId: String { overrideWindowId ?? sceneWindowId }
+    /// The visor's hidden panel: it must never claim work meant for a window
+    /// the user can see.
+    var isVisorWindow: Bool { windowId == "visor" }
     @State var isWindowFocused: Bool = false
     @State var windowIsKeyWindow: Bool = false
     @State var lifecycleScenePhase: ScenePhase = {

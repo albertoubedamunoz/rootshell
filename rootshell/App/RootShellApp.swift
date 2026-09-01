@@ -183,11 +183,13 @@ struct RootShellApp: App {
                     }
                     // Handle ssh:// and ssh: URLs
                     else if let components = SSHURLParser.parse(url) {
-                        AppIntentCoordinator.shared.deposit(.openSSH(components))
+                        AppIntentCoordinator.shared.depositURLRequest(
+                            .openSSH(components), source: "app.onOpenURL")
                     }
                     // Handle mosh:// and mosh: URLs
                     else if let components = MoshURLParser.parse(url) {
-                        AppIntentCoordinator.shared.deposit(.openMosh(components))
+                        AppIntentCoordinator.shared.depositURLRequest(
+                            .openMosh(components), source: "app.onOpenURL")
                     }
                 }
                 .onContinueUserActivity(TrzszTransferActivity.activityType) { activity in
