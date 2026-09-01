@@ -9,15 +9,11 @@ import SwiftUI
 
 struct RoamSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
-    @Setting(Settings.Roam.holePunch) private var roamEnabled
     @Setting(Settings.Roam.predictionMode) private var defaultPredictionMode
-    @Setting(Settings.Roam.predictOverwrite) private var defaultPredictOverwrite
-    @Setting(Settings.Roam.moshAltScreen) private var moshAltScreenEnabled
     @Setting(Settings.Roam.trzszTransportMode) private var defaultTransportMode
     @Setting(Settings.Roam.trzszKeepPendingInput) private var keepPendingInput
     @State private var trzszPortMin: String = ""
     @State private var trzszPortMax: String = ""
-    @Setting(Settings.Roam.multipathTCP) private var multipathTCPEnabled
 
     private enum Field: Hashable { case portMin, portMax }
     @FocusState private var focusedField: Field?
@@ -39,14 +35,11 @@ struct RoamSettingsView: View {
 
             // MARK: - Mosh Settings
             Section {
-                Toggle(isOn: $roamEnabled) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Enable Hole-Punch")
-                        Text("Use STUN and UDP hole-punching to traverse restrictive firewalls.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                SettingDescribedToggle(
+                    Settings.Roam.holePunch,
+                    title: "Enable Hole-Punch",
+                    description: "Use STUN and UDP hole-punching to traverse restrictive firewalls."
+                )
                 .themedRow()
 
                 Picker(selection: $defaultPredictionMode) {
@@ -56,6 +49,7 @@ struct RoamSettingsView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Default Prediction Mode")
+                            .settingRow(Settings.Roam.predictionMode)
                         Text("Controls when local echo predictions appear in new Mosh sessions.")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -63,24 +57,18 @@ struct RoamSettingsView: View {
                 }
                 .themedRow()
 
-                Toggle(isOn: $defaultPredictOverwrite) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Overwrite Predictions")
-                        Text("Replace predicted cells instead of shifting content, preserving multiplexer borders.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                SettingDescribedToggle(
+                    Settings.Roam.predictOverwrite,
+                    title: "Overwrite Predictions",
+                    description: "Replace predicted cells instead of shifting content, preserving multiplexer borders."
+                )
                 .themedRow()
 
-                Toggle(isOn: $moshAltScreenEnabled) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Use Alternate Screen")
-                        Text("Isolate Mosh rendering from the primary terminal screen.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                SettingDescribedToggle(
+                    Settings.Roam.moshAltScreen,
+                    title: "Use Alternate Screen",
+                    description: "Isolate Mosh rendering from the primary terminal screen."
+                )
                 .themedRow()
 
                 NavigationLink {
@@ -90,32 +78,30 @@ struct RoamSettingsView: View {
                 }
                 .themedRow()
             } header: {
-                Text("Mosh Settings")
+                SettingGroupHeader("Mosh Settings", group: .roam)
             }
 
             // MARK: - tssh Settings
             Section {
-                Picker("Default Transport", selection: $defaultTransportMode) {
+                Picker(selection: $defaultTransportMode) {
                     ForEach(TrzszConfig.TransportMode.allCases, id: \.rawValue) { mode in
                         VStack(alignment: .leading) {
                             Text(mode.displayName)
                         }
                         .tag(mode)
                     }
+                } label: {
+                    Text("Default Transport")
+                        .settingRow(Settings.Roam.trzszTransportMode)
                 }
                 .themedRow()
 
-                Toggle(
-                    "Discard Input While Offline",
-                    isOn: Binding(
-                        get: { !keepPendingInput },
-                        set: { keepPendingInput = !$0 }
-                    )
-                )
+                SettingToggle(Settings.Roam.trzszKeepPendingInput, title: "Discard Input While Offline", inverted: true)
                     .themedRow()
 
                 HStack {
                     Text("Port Range Min")
+                        .settingRow(Settings.Roam.trzszUDPPortMin)
                     Spacer()
                     TextField("61000", text: $trzszPortMin)
                         .keyboardType(.numberPad)
@@ -130,6 +116,7 @@ struct RoamSettingsView: View {
 
                 HStack {
                     Text("Port Range Max")
+                        .settingRow(Settings.Roam.trzszUDPPortMax)
                     Spacer()
                     TextField("61999", text: $trzszPortMax)
                         .keyboardType(.numberPad)
@@ -156,7 +143,7 @@ struct RoamSettingsView: View {
                 }
                 .themedRow()
             } header: {
-                Text("tssh Settings")
+                SettingGroupHeader("tssh Settings", group: .roam)
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(transportModeFooterText)
@@ -166,7 +153,7 @@ struct RoamSettingsView: View {
 
             // MARK: - SSH Settings
             Section {
-                Toggle("Multipath TCP", isOn: $multipathTCPEnabled)
+                SettingToggle(Settings.Roam.multipathTCP, title: "Multipath TCP")
                     .themedRow()
 
                 NavigationLink {
@@ -176,7 +163,7 @@ struct RoamSettingsView: View {
                 }
                 .themedRow()
             } header: {
-                Text("SSH Settings")
+                SettingGroupHeader("SSH Settings", group: .roam)
             } footer: {
                 Text("Enables seamless handover between WiFi and cellular. Falls back to regular TCP when unavailable. The server must also support MPTCP.")
             }

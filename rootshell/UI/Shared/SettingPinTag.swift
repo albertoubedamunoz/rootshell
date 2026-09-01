@@ -32,11 +32,15 @@ struct SettingPinTag: View {
     }
 
     var body: some View {
-        if syncManager.isAppSettingsSyncEnabled {
-            switch subject {
-            case .key(let name):
-                keyTag(coordinator.pinState(for: name))
-            case .group(let group):
+        switch subject {
+        case .key(let name):
+            let state = coordinator.pinState(for: name)
+            // File provenance matters even without iCloud; pins only with it.
+            if state == .configFile || syncManager.isAppSettingsSyncEnabled {
+                keyTag(state)
+            }
+        case .group(let group):
+            if syncManager.isAppSettingsSyncEnabled {
                 groupTag(coordinator.pinState(for: group))
             }
         }

@@ -84,6 +84,7 @@ struct KeyboardShortcutsSettingsView: View {
         }
         .themedList()
         .navigationTitle("Keyboard Shortcuts")
+        .toolbar { SettingsScreenPinMenu(groups: [.keybinds]) }
         .sheet(
             item: $editingAction,
             onDismiss: applyPendingOutcome

@@ -32,11 +32,19 @@ struct VoiceAgentSettingsView: View {
             NavigationLink {
                 VoiceSelectionList(selectedVoice: $selectedVoice)
             } label: {
-                LabeledContent("Voice", value: selectedVoice.displayName)
+                LabeledContent {
+                    Text(selectedVoice.displayName)
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("Voice")
+                        SettingPinTag(Settings.AI.voice.erased)
+                    }
+                }
             }
             .themedRow()
+            .settingContextMenu(Settings.AI.voice)
         } header: {
-            Text("Voice")
+            SettingGroupHeader("Voice", group: .ai)
         } footer: {
             Text("Select the voice used by the AI assistant during voice sessions.")
         }
@@ -44,7 +52,7 @@ struct VoiceAgentSettingsView: View {
 
     private var consultationSection: some View {
         Section {
-            Picker("Expert Consultation", selection: $consultationMode) {
+            Picker(selection: $consultationMode) {
                 ForEach(VoiceConsultationMode.allCases, id: \.self) { mode in
                     VStack(alignment: .leading) {
                         Text(mode.displayName)
@@ -54,11 +62,14 @@ struct VoiceAgentSettingsView: View {
                     }
                     .tag(mode)
                 }
+            } label: {
+                Text("Expert Consultation")
+                    .settingRow(Settings.AI.voiceConsultationMode)
             }
             .pickerStyle(.inline)
             .themedRow()
         } header: {
-            Text("Expert Model")
+            SettingGroupHeader("Expert Model", group: .ai)
         } footer: {
             Text("Controls whether the voice agent (Gemini Flash) delegates complex questions to Gemini 3.1 Pro for deeper analysis.")
         }
@@ -117,6 +128,7 @@ private struct VoiceSelectionList: View {
         .themedList()
         .navigationTitle("Voice")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.ai]) }
     }
 }
 #endif

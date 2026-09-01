@@ -41,6 +41,13 @@ struct SettingsSyncRows: View {
             .themedRow()
         }
 
+        if syncManager.settingsSyncPausedForAccountChange {
+            Text("Settings sync was paused because the Apple Account changed. Turn it on again to choose which settings to keep.")
+                .font(.footnote)
+                .foregroundColor(.orange)
+                .themedRow()
+        }
+
         if let errorMessage {
             Text(errorMessage)
                 .font(.footnote)

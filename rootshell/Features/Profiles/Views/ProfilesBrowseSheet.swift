@@ -341,6 +341,11 @@ struct ProfilesBrowseSheet: View {
                         Text(order.displayName).tag(order)
                     }
                 }
+                if SettingPinActions.hasActions(for: Settings.Connections.profilesSortOrder.erased) {
+                    Section {
+                        SettingPinActions(definition: Settings.Connections.profilesSortOrder.erased)
+                    }
+                }
             } label: {
                 Image(systemName: "arrow.up.arrow.down")
                     .font(.title3)

@@ -27,6 +27,7 @@ struct HerdrAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .disabled(hasCustomCommand)
                     .foregroundStyle(hasCustomCommand ? .secondary : .primary)
+                    .settingRow(Settings.Multiplexer.herdrSessionName)
                     .themedRow()
             } header: {
                 Text("Session Name")
@@ -45,6 +46,7 @@ struct HerdrAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .focused($isEditorFocused)
                     .frame(minHeight: 80)
+                    .settingRow(Settings.Multiplexer.herdrCustomCommand)
                     .themedRow()
 
                 if hasCustomCommand {

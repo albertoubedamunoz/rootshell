@@ -43,10 +43,13 @@ struct CursorSettingsView: View {
                         .themedRow()
                 }
 
-                Picker("Cursor Effect", selection: $cursorManager.cursorEffect) {
+                Picker(selection: $cursorManager.cursorEffect) {
                     ForEach(CursorEffect.allCases, id: \.self) { effect in
                         Text(effect.displayName).tag(effect)
                     }
+                } label: {
+                    Text("Cursor Effect")
+                        .settingRow(Settings.Cursor.effect)
                 }
                 .themedRow()
             } header: {
@@ -56,14 +59,17 @@ struct CursorSettingsView: View {
             }
 
             Section {
-                Toggle("Blinking", isOn: $cursorManager.cursorBlinkEnabled)
+                SettingToggle(Settings.Cursor.blinkEnabled, isOn: $cursorManager.cursorBlinkEnabled, title: "Blinking")
                     .themedRow()
 
                 if cursorManager.cursorBlinkEnabled {
-                    Picker("Blink Style", selection: $cursorManager.cursorBlinkMode) {
+                    Picker(selection: $cursorManager.cursorBlinkMode) {
                         ForEach(CursorBlinkMode.allCases, id: \.self) { mode in
                             Text(mode.displayName).tag(mode)
                         }
+                    } label: {
+                        Text("Blink Style")
+                            .settingRow(Settings.Cursor.blinkMode)
                     }
                     .themedRow()
                 }
@@ -76,24 +82,42 @@ struct CursorSettingsView: View {
             }
 
             Section {
-                Toggle("Custom Cursor Color", isOn: $hasCursorColor)
-                    .themedRow()
+                Toggle(isOn: $hasCursorColor) {
+                    HStack(spacing: 6) {
+                        Text("Custom Cursor Color")
+                        SettingPinTag(Settings.Cursor.color.erased)
+                    }
+                }
+                .themedRow()
+                .settingContextMenu(Settings.Cursor.color)
                 if hasCursorColor {
-                    ColorPicker("Cursor Color", selection: $cursorSwiftColor, supportsOpacity: false)
-                        .onChange(of: cursorSwiftColor) { _, newValue in
-                            cursorManager.cursorColor = newValue.hexString
-                        }
-                        .themedRow()
+                    ColorPicker(selection: $cursorSwiftColor, supportsOpacity: false) {
+                        Text("Cursor Color")
+                            .settingRow(Settings.Cursor.color)
+                    }
+                    .onChange(of: cursorSwiftColor) { _, newValue in
+                        cursorManager.cursorColor = newValue.hexString
+                    }
+                    .themedRow()
                 }
 
-                Toggle("Custom Text Color", isOn: $hasCursorTextColor)
-                    .themedRow()
+                Toggle(isOn: $hasCursorTextColor) {
+                    HStack(spacing: 6) {
+                        Text("Custom Text Color")
+                        SettingPinTag(Settings.Cursor.textColor.erased)
+                    }
+                }
+                .themedRow()
+                .settingContextMenu(Settings.Cursor.textColor)
                 if hasCursorTextColor {
-                    ColorPicker("Text Under Cursor", selection: $cursorTextSwiftColor, supportsOpacity: false)
-                        .onChange(of: cursorTextSwiftColor) { _, newValue in
-                            cursorManager.cursorTextColor = newValue.hexString
-                        }
-                        .themedRow()
+                    ColorPicker(selection: $cursorTextSwiftColor, supportsOpacity: false) {
+                        Text("Text Under Cursor")
+                            .settingRow(Settings.Cursor.textColor)
+                    }
+                    .onChange(of: cursorTextSwiftColor) { _, newValue in
+                        cursorManager.cursorTextColor = newValue.hexString
+                    }
+                    .themedRow()
                 }
             } header: {
                 Text("Colors")
@@ -105,6 +129,7 @@ struct CursorSettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Opacity")
+                            .settingRow(Settings.Cursor.opacity)
                         Spacer()
                         Text(cursorManager.cursorOpacity, format: .wholePercent)
                             .foregroundColor(.secondary)
@@ -120,10 +145,16 @@ struct CursorSettingsView: View {
             }
 
             Section {
-                Stepper("Thickness: \(cursorThicknessLabel)", value: $cursorManager.cursorThickness, in: -4...10)
-                    .themedRow()
-                Stepper("Height: \(cursorHeightLabel)", value: $cursorManager.cursorHeight, in: -4...10)
-                    .themedRow()
+                Stepper(value: $cursorManager.cursorThickness, in: -4...10) {
+                    Text("Thickness: \(cursorThicknessLabel)")
+                        .settingRow(Settings.Cursor.thickness)
+                }
+                .themedRow()
+                Stepper(value: $cursorManager.cursorHeight, in: -4...10) {
+                    Text("Height: \(cursorHeightLabel)")
+                        .settingRow(Settings.Cursor.height)
+                }
+                .themedRow()
             } header: {
                 Text("Size Adjustments")
             } footer: {
@@ -134,6 +165,7 @@ struct CursorSettingsView: View {
         .themedList()
         .navigationTitle("Cursor")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.cursor]) }
         .onAppear {
             hasCursorColor = cursorManager.cursorColor != nil
             hasCursorTextColor = cursorManager.cursorTextColor != nil

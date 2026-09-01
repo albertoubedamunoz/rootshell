@@ -20,6 +20,7 @@ struct OptionKeyAsAltPicker: View {
                 SettingsIcon(systemName: "option")
                 Text("Option Key as Alt")
             }
+            .settingRow(Settings.Keyboard.optionKeyAsAlt)
         }
     }
 }

@@ -21,6 +21,7 @@ struct TerminalTypeSettingsView: View {
         Form {
             scopeSection(
                 title: String(localized: "Local Shell", comment: "Terminal type section: local shell"),
+                key: Settings.Terminal.terminalTypeLocal,
                 selection: $localTerm,
                 isCustom: $localIsCustom,
                 placeholder: TerminalTypeSettings.localFallback,
@@ -29,6 +30,7 @@ struct TerminalTypeSettingsView: View {
 
             scopeSection(
                 title: String(localized: "Remote Sessions", comment: "Terminal type section: remote sessions"),
+                key: Settings.Terminal.terminalTypeRemote,
                 selection: $remoteTerm,
                 isCustom: $remoteIsCustom,
                 placeholder: TerminalTypeSettings.fallback,
@@ -44,6 +46,7 @@ struct TerminalTypeSettingsView: View {
         }
         .themedList()
         .navigationTitle("Terminal Type")
+        .toolbar { SettingsScreenPinMenu(groups: [.terminal]) }
         .onAppear {
             localIsCustom = !TerminalTypeSettings.presets.contains(localTerm)
             remoteIsCustom = !TerminalTypeSettings.presets.contains(remoteTerm)
@@ -65,6 +68,7 @@ struct TerminalTypeSettingsView: View {
     @ViewBuilder
     private func scopeSection(
         title: String,
+        key: SettingKey<String>,
         selection: Binding<String>,
         isCustom: Binding<Bool>,
         placeholder: String,
@@ -131,7 +135,10 @@ struct TerminalTypeSettingsView: View {
                 }
             }
         } header: {
-            Text(title)
+            HStack(spacing: 6) {
+                Text(title)
+                SettingPinTag(key.erased)
+            }
         } footer: {
             Text(footer)
         }

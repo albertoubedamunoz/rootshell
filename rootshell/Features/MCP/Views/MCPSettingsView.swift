@@ -42,7 +42,7 @@ struct MCPSettingsView: View {
 
     private var serverSection: some View {
         Section {
-            Toggle("Enable MCP Server", isOn: Binding(
+            Toggle(isOn: Binding(
                 get: { server.isRunning },
                 set: { newValue in
                     Task {
@@ -55,8 +55,14 @@ struct MCPSettingsView: View {
                         }
                     }
                 }
-            ))
+            )) {
+                HStack(spacing: 6) {
+                    Text("Enable MCP Server")
+                    SettingPinTag(Settings.AI.mcpServerConfig.erased)
+                }
+            }
             .themedRow()
+            .settingContextMenu(Settings.AI.mcpServerConfig)
 
             if server.isRunning, let port = server.boundPort {
                 HStack {
@@ -73,7 +79,7 @@ struct MCPSettingsView: View {
                 .themedRow()
             }
         } header: {
-            Text("Server")
+            SettingGroupHeader("Server", group: .ai)
         } footer: {
             Text("The MCP server allows AI tools like Claude Code, Codex, and Gemini CLI to execute SSH commands and access cloud resources. New connections require your approval.")
         }
@@ -83,7 +89,7 @@ struct MCPSettingsView: View {
 
     private var securityModeSection: some View {
         Section {
-            Picker("Session Mode", selection: Binding(
+            Picker(selection: Binding(
                 get: { server.config.sessionMode },
                 set: { newMode in
                     if newMode == .yolo {
@@ -100,6 +106,9 @@ struct MCPSettingsView: View {
                     }
                     .tag(mode)
                 }
+            } label: {
+                Text("Session Mode")
+                    .settingRow(Settings.AI.mcpServerConfig)
             }
             .pickerStyle(.menu)
             .themedRow()
@@ -117,7 +126,7 @@ struct MCPSettingsView: View {
             }
             .themedRow()
         } header: {
-            Text("Security")
+            SettingGroupHeader("Security", group: .ai)
         } footer: {
             securityModeFooter
         }

@@ -14,18 +14,32 @@ import SwiftUI
 struct SettingPinActions: View {
     let definition: AnySettingDefinition
     @State private var coordinator = SettingsSyncCoordinator.shared
+    @State private var overlay = ConfigOverlayManager.shared
+    @State private var syncManager = CloudKitSyncManager.shared
 
     static func hasActions(for definition: AnySettingDefinition) -> Bool {
-        definition.isSyncable && CloudKitSyncManager.shared.isAppSettingsSyncEnabled
+        guard definition.isSyncable else { return false }
+        if CloudKitSyncManager.shared.isAppSettingsSyncEnabled { return true }
+        return SettingsSyncCoordinator.shared.pinState(for: definition.name) == .configFile
+            || (definition.configKey != nil && ConfigOverlayManager.shared.fileExists)
     }
 
     var body: some View {
         switch coordinator.pinState(for: definition.name) {
         case .none:
-            Button {
-                coordinator.setPinned(definition.name, true)
-            } label: {
-                Label("Keep on This Device", systemImage: "pin")
+            if syncManager.isAppSettingsSyncEnabled {
+                Button {
+                    coordinator.setPinned(definition.name, true)
+                } label: {
+                    Label("Keep on This Device", systemImage: "pin")
+                }
+            }
+            if definition.configKey != nil, overlay.fileExists {
+                Button {
+                    overlay.addToFile(definition.name)
+                } label: {
+                    Label("Add to Config File", systemImage: "doc.badge.plus")
+                }
             }
         case .key:
             Menu {
@@ -59,7 +73,14 @@ struct SettingPinActions: View {
                 Label("Sync This Setting Again…", systemImage: "icloud")
             }
         case .configFile:
-            Text(String(localized: "Set in config file", comment: "Disabled context menu note"))
+            if let entry = overlay.boundEntries[definition.name] {
+                Text(String(localized: "Set in \(entry.file.lastPathComponent):\(entry.line)", comment: "Disabled context menu note"))
+            }
+            Button {
+                overlay.removeFromFile(definition.name)
+            } label: {
+                Label("Remove from Config File", systemImage: "doc.badge.minus")
+            }
         case .deviceOnly:
             EmptyView()
         }
@@ -123,10 +144,16 @@ struct SettingGroupPinActions: View {
 private struct SettingContextMenuModifier: ViewModifier {
     let definition: AnySettingDefinition
     @State private var syncManager = CloudKitSyncManager.shared
+    @State private var overlay = ConfigOverlayManager.shared
+    @State private var coordinator = SettingsSyncCoordinator.shared
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if syncManager.isAppSettingsSyncEnabled, definition.isSyncable {
+        // Observed reads so the gate re-evaluates when sync or the file changes.
+        let syncOn = syncManager.isAppSettingsSyncEnabled
+        let fileBound = coordinator.pinState(for: definition.name) == .configFile
+        let fileAvailable = definition.configKey != nil && overlay.fileExists
+        if definition.isSyncable, syncOn || fileBound || fileAvailable {
             content.contextMenu { SettingPinActions(definition: definition) }
         } else {
             content

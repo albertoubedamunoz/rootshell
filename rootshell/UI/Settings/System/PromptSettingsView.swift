@@ -31,6 +31,7 @@ struct PromptSettingsView: View {
             Section {
                 HStack {
                     Text("Username")
+                        .settingRow(Settings.Prompt.customUsername)
                     Spacer()
                     TextField("mobile", text: $customUsername)
                         .multilineTextAlignment(.trailing)
@@ -98,7 +99,7 @@ struct PromptSettingsView: View {
             #endif
 
             Section {
-                Toggle("Starship-style Prompt", isOn: $useStarshipPrompt)
+                SettingToggle(Settings.Prompt.useStarship, title: "Starship-style Prompt")
                     .themedRow()
                     #if !targetEnvironment(macCatalyst)
                     .disabled(hasCustomConfig && customConfigIsActive)
@@ -110,6 +111,7 @@ struct PromptSettingsView: View {
                     } label: {
                         HStack {
                             Text("Theme")
+                            SettingPinTag(Settings.Prompt.starshipTheme.erased)
                             Spacer()
                             PromptThemePreview(theme: starshipTheme, compact: true)
                             Text(starshipTheme.displayName)
@@ -118,21 +120,25 @@ struct PromptSettingsView: View {
                         }
                     }
                     .themedRow()
+                    .settingContextMenu(Settings.Prompt.starshipTheme)
                     #if !targetEnvironment(macCatalyst)
                     .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                     #endif
 
-                    Picker("Clock Format", selection: $clockFormat) {
+                    Picker(selection: $clockFormat) {
                         ForEach(UserPreferences.ClockFormat.allCases, id: \.rawValue) { format in
                             Text(format.displayName).tag(format)
                         }
+                    } label: {
+                        Text("Clock Format")
+                            .settingRow(Settings.Locale.clockFormat)
                     }
                     .themedRow()
                     #if !targetEnvironment(macCatalyst)
                     .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                     #endif
 
-                    Toggle("Show Git Status", isOn: $showGitInPrompt)
+                    SettingToggle(Settings.Prompt.showGit, title: "Show Git Status")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
@@ -165,21 +171,21 @@ struct PromptSettingsView: View {
 
             if useStarshipPrompt {
                 Section {
-                    Toggle("Transient Prompt", isOn: $useTransientPrompt)
+                    SettingToggle(Settings.Prompt.useTransientPrompt, title: "Transient Prompt")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .disabled(hasCustomConfig && customConfigIsActive)
                         .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                         #endif
 
-                    Toggle("Right Prompt", isOn: $useRightPrompt)
+                    SettingToggle(Settings.Prompt.useRightPrompt, title: "Right Prompt")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .disabled(hasCustomConfig && customConfigIsActive)
                         .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                         #endif
 
-                    Toggle("Blank Line Before Prompt", isOn: $promptAddNewline)
+                    SettingToggle(Settings.Prompt.addNewline, title: "Blank Line Before Prompt")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .disabled(hasCustomConfig && customConfigIsActive)
@@ -296,6 +302,7 @@ struct PromptThemePickerView: View {
         .themedList()
         .navigationTitle("Prompt Theme")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.prompt]) }
     }
 }
 

@@ -1,20 +1,13 @@
 import SwiftUI
 
 struct MultiplexerSettingsView: View {
-    @Setting(Settings.Multiplexer.tmuxSessionDiscovery) private var tmuxDiscoveryEnabled
-    @Setting(Settings.Multiplexer.zellijSessionDiscovery) private var zellijDiscoveryEnabled
-    @Setting(Settings.Multiplexer.herdrSessionDiscovery) private var herdrDiscoveryEnabled
-    @Setting(Settings.Multiplexer.zmxSessionDiscovery) private var zmxDiscoveryEnabled
-    @Setting(Settings.Multiplexer.localSessionDiscovery) private var localDiscoveryEnabled
     @Setting(Settings.Multiplexer.sessionDiscoverySortOrder) private var sortOrder
-    @Setting(Settings.Multiplexer.tabExposeMultiplexer) private var exposeMultiplexerEnabled
     @Setting(Settings.Multiplexer.tmuxSessionName) private var sessionName
     @Setting(Settings.Multiplexer.tmuxCustomCommand) private var customCommand
     @Setting(Settings.Multiplexer.herdrSessionName) private var herdrSessionName
     @Setting(Settings.Multiplexer.herdrCustomCommand) private var herdrCustomCommand
     @Setting(Settings.Multiplexer.zmxSessionName) private var zmxSessionName
     @Setting(Settings.Multiplexer.zmxCustomCommand) private var zmxCustomCommand
-    @Setting(Settings.Multiplexer.tmuxAutoHideGatewayOnAttach) private var autoHideGatewayOnAttach
     @Setting(Settings.Multiplexer.tmuxTabCloseAction) private var tabCloseAction
     @Setting(Settings.Multiplexer.tmuxNewTabAction) private var newTabAction
 
@@ -60,46 +53,21 @@ struct MultiplexerSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: $tmuxDiscoveryEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: MultiplexerType.tmux.iconName)
-                        Text("Discover tmux Sessions")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Multiplexer.tmuxSessionDiscovery, title: "Discover tmux Sessions", icon: MultiplexerType.tmux.iconName)
+                    .themedRow()
 
-                Toggle(isOn: $zellijDiscoveryEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: MultiplexerType.zellij.iconName)
-                        Text("Discover zellij Sessions")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Multiplexer.zellijSessionDiscovery, title: "Discover zellij Sessions", icon: MultiplexerType.zellij.iconName)
+                    .themedRow()
 
-                Toggle(isOn: $herdrDiscoveryEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: MultiplexerType.herdr.iconName)
-                        Text("Discover herdr Sessions")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Multiplexer.herdrSessionDiscovery, title: "Discover herdr Sessions", icon: MultiplexerType.herdr.iconName)
+                    .themedRow()
 
-                Toggle(isOn: $zmxDiscoveryEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: MultiplexerType.zmx.iconName)
-                        Text("Discover zmx Sessions")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Multiplexer.zmxSessionDiscovery, title: "Discover zmx Sessions", icon: MultiplexerType.zmx.iconName)
+                    .themedRow()
 
                 #if targetEnvironment(macCatalyst)
-                Toggle(isOn: $localDiscoveryEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "desktopcomputer")
-                        Text("Discover Local Sessions")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Multiplexer.localSessionDiscovery, title: "Discover Local Sessions", icon: "desktopcomputer")
+                    .themedRow()
                 #endif
 
                 Picker(selection: $sortOrder) {
@@ -111,36 +79,27 @@ struct MultiplexerSettingsView: View {
                         SettingsIcon(systemName: "arrow.up.arrow.down")
                         Text("Sort Order")
                     }
+                    .settingRow(Settings.Multiplexer.sessionDiscoverySortOrder)
                 }
                 .themedRow()
             } header: {
-                Text("Session Discovery")
+                SettingGroupHeader("Session Discovery", group: .multiplexer)
             } footer: {
                 Text(discoveryFooterText)
             }
 
             Section {
-                Toggle(isOn: $exposeMultiplexerEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "rectangle.grid.2x2")
-                        Text("Show Multiplexer Tabs")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Multiplexer.tabExposeMultiplexer, title: "Show Multiplexer Tabs", icon: "rectangle.grid.2x2")
+                    .themedRow()
             } header: {
-                Text("Tab Exposé")
+                SettingGroupHeader("Tab Exposé", group: .multiplexer)
             } footer: {
                 Text("On a tab attached to tmux, zellij, or herdr, Tab Exposé opens on that session's own tabs with live previews, and swiping sideways returns to your app tabs. Reads the session's layout and pane contents over the connection the tab already holds while the exposé is open.")
             }
 
             Section {
-                Toggle(isOn: $autoHideGatewayOnAttach) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "eye.slash")
-                        Text("Auto-hide Gateway on Attach")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Multiplexer.tmuxAutoHideGatewayOnAttach, title: "Auto-hide Gateway on Attach", icon: "eye.slash")
+                    .themedRow()
 
                 NavigationLink {
                     TmuxTabCloseActionPickerView()
@@ -148,6 +107,7 @@ struct MultiplexerSettingsView: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "xmark.rectangle")
                         Text("Close Tab Action")
+                        SettingPinTag(Settings.Multiplexer.tmuxTabCloseAction.erased)
                         Spacer()
                         Text(tabCloseAction.displayName)
                             .foregroundColor(.secondary)
@@ -155,6 +115,7 @@ struct MultiplexerSettingsView: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.Multiplexer.tmuxTabCloseAction)
 
                 NavigationLink {
                     TmuxNewTabActionPickerView()
@@ -162,6 +123,7 @@ struct MultiplexerSettingsView: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "plus.rectangle.on.rectangle")
                         Text("New Tab Action")
+                        SettingPinTag(Settings.Multiplexer.tmuxNewTabAction.erased)
                         Spacer()
                         Text(newTabAction.displayName)
                             .foregroundColor(.secondary)
@@ -169,8 +131,9 @@ struct MultiplexerSettingsView: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.Multiplexer.tmuxNewTabAction)
             } header: {
-                Text("tmux Control Mode")
+                SettingGroupHeader("tmux Control Mode", group: .multiplexer)
             } footer: {
                 Text("These settings apply while attached with tmux -CC control mode, where each tmux window is its own tab.")
             }
@@ -190,7 +153,7 @@ struct MultiplexerSettingsView: View {
                 }
                 .themedRow()
             } header: {
-                Text("tmux Auto-Start")
+                SettingGroupHeader("tmux Auto-Start", group: .multiplexer)
             } footer: {
                 Text("The tmux command used when auto-start is enabled on a connection.")
             }
@@ -210,7 +173,7 @@ struct MultiplexerSettingsView: View {
                 }
                 .themedRow()
             } header: {
-                Text("herdr Auto-Start")
+                SettingGroupHeader("herdr Auto-Start", group: .multiplexer)
             } footer: {
                 Text("The herdr command used when auto-start is enabled on a connection.")
             }
@@ -295,6 +258,7 @@ struct TmuxTabCloseActionPickerView: View {
         .themedList()
         .navigationTitle("Close Tab Action")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.multiplexer]) }
     }
 }
 
@@ -342,5 +306,6 @@ struct TmuxNewTabActionPickerView: View {
         .themedList()
         .navigationTitle("New Tab Action")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.multiplexer]) }
     }
 }

@@ -14,12 +14,12 @@ struct PaletteSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: Bindable(paletteManager).paletteGenerateEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "swatchpalette")
-                        Text("Generate Palette")
-                    }
-                }
+                SettingToggle(
+                    Settings.Palette.generate,
+                    isOn: Bindable(paletteManager).paletteGenerateEnabled,
+                    title: "Generate Palette",
+                    icon: "swatchpalette"
+                )
                 .themedRow()
             } footer: {
                 Text("Generates the extended 256-color palette from your theme's base 16 colors using perceptually uniform interpolation in CIELAB color space.")
@@ -27,12 +27,12 @@ struct PaletteSettingsView: View {
 
             if paletteManager.paletteGenerateEnabled {
                 Section {
-                    Toggle(isOn: Bindable(paletteManager).paletteHarmoniousEnabled) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemName: "circle.lefthalf.filled")
-                            Text("Harmonious Mode")
-                        }
-                    }
+                    SettingToggle(
+                        Settings.Palette.harmonious,
+                        isOn: Bindable(paletteManager).paletteHarmoniousEnabled,
+                        title: "Harmonious Mode",
+                        icon: "circle.lefthalf.filled"
+                    )
                     .themedRow()
                 } footer: {
                     Text("Preserves palette index ordering for light themes so palette-based applications display consistent colors in both light and dark modes.")

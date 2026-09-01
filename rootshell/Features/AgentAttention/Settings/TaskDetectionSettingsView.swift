@@ -17,13 +17,7 @@ struct TaskDetectionSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: $taskDetectionEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "clock.badge.checkmark")
-                        Text("Detect Long-Running Commands")
-                    }
-                }
-                .onChange(of: taskDetectionEnabled) { _, enabled in
+                SettingToggle(Settings.Notifications.taskDetection, title: "Detect Long-Running Commands", icon: "clock.badge.checkmark") { enabled in
                     AgentAttentionCenter.shared.setTaskDetectionEnabled(enabled)
                 }
                 .themedRow()
@@ -48,7 +42,7 @@ struct TaskDetectionSettingsView: View {
                              title: "File Transfers",
                              subtitle: "rsync, scp, curl, wget")
             } header: {
-                Text("What to Detect")
+                SettingGroupHeader("What to Detect", group: .notifications)
             } footer: {
                 Text("Detected commands appear as cards in the tab sidebar, the same way agents do, with a badge while running and an unread marker when they finish in a tab you aren't looking at.")
             }
@@ -60,6 +54,7 @@ struct TaskDetectionSettingsView: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "bell.and.waves.left.and.right")
                         Text("Command Notifications")
+                        SettingPinTag(Settings.Notifications.taskPolicy.erased)
                         Spacer()
                         Text(taskNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
@@ -68,8 +63,9 @@ struct TaskDetectionSettingsView: View {
                 }
                 .disabled(!taskDetectionEnabled)
                 .themedRow()
+                .settingContextMenu(Settings.Notifications.taskPolicy)
             } header: {
-                Text("Notifications")
+                SettingGroupHeader("Notifications", group: .notifications)
             } footer: {
                 Text("Sidebar badges follow the \"Show Attention Badges\" switch in Coding Agents; notifications follow this policy independently of agent notifications.")
             }
@@ -93,16 +89,19 @@ struct TaskDetectionSettingsView: View {
 /// One family switch. Its own view so each row can hold the `@Setting`
 /// for its family's key (stored properties can't be keyed dynamically).
 private struct FamilyToggleRow: View {
+    private let key: SettingKey<Bool>
     let icon: String
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     @Setting private var enabled: Bool
 
     init(family: TaskFamily, icon: String, title: LocalizedStringKey, subtitle: LocalizedStringKey) {
+        let key = TaskDetectionSettings.familyKey(family)
+        self.key = key
         self.icon = icon
         self.title = title
         self.subtitle = subtitle
-        _enabled = Setting(TaskDetectionSettings.familyKey(family))
+        _enabled = Setting(key)
     }
 
     var body: some View {
@@ -110,7 +109,11 @@ private struct FamilyToggleRow: View {
             HStack(spacing: 12) {
                 SettingsIcon(systemName: icon)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .layoutPriority(1)
+                        SettingPinTag(key.erased)
+                    }
                     Text(subtitle)
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -121,6 +124,7 @@ private struct FamilyToggleRow: View {
             AgentAttentionCenter.shared.taskFamiliesChanged()
         }
         .themedRow()
+        .settingContextMenu(key)
     }
 }
 
@@ -128,7 +132,6 @@ private struct FamilyToggleRow: View {
 
 struct TaskNotificationPolicyPickerView: View {
     @Setting(Settings.Notifications.taskPolicy) private var policy
-    @Setting(Settings.Notifications.agentIncludePrompt) private var includePrompt
 
     private var notificationsOff: Bool {
         policy == .off
@@ -175,16 +178,11 @@ struct TaskNotificationPolicyPickerView: View {
             }
 
             Section {
-                Toggle(isOn: $includePrompt) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "text.bubble")
-                        Text("Include the Prompt")
-                    }
-                }
-                .disabled(notificationsOff)
-                .themedRow()
+                SettingToggle(Settings.Notifications.agentIncludePrompt, title: "Include the Prompt", icon: "text.bubble")
+                    .disabled(notificationsOff)
+                    .themedRow()
             } header: {
-                Text("Detail")
+                SettingGroupHeader("Detail", group: .notifications)
             } footer: {
                 Text("Quotes the waiting prompt (\"[sudo] password for …:\") in the notification. Shared with agent notifications: turn it off to keep terminal text off the Lock Screen.")
             }
@@ -192,5 +190,6 @@ struct TaskNotificationPolicyPickerView: View {
         .themedList()
         .navigationTitle("Command Notifications")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.notifications]) }
     }
 }

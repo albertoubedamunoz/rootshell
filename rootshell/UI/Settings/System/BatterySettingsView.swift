@@ -23,6 +23,7 @@ struct BatterySettingsView: View {
                         SettingsIcon(systemName: "gauge.with.dots.needle.67percent")
                         Text("Maximum Refresh Rate")
                     }
+                    .settingRow(Settings.Power.maxRefreshRate)
                 }
                 .themedRow()
 
@@ -36,6 +37,7 @@ struct BatterySettingsView: View {
                             SettingsIcon(systemName: "battery.50percent")
                             Text("On Battery")
                         }
+                        .settingRow(Settings.Power.batteryRefreshRate)
                     }
                     .themedRow()
                 }
@@ -44,12 +46,12 @@ struct BatterySettingsView: View {
             }
 
             Section {
-                Toggle(isOn: $powerManager.autoSaverEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "battery.25percent")
-                        Text("Automatic Battery Saver")
-                    }
-                }
+                SettingToggle(
+                    Settings.Power.autoSaver,
+                    isOn: $powerManager.autoSaverEnabled,
+                    title: "Automatic Battery Saver",
+                    icon: "battery.25percent"
+                )
                 .themedRow()
             } footer: {
                 Text("Reduces refresh rate and animation frame rates when Low Power Mode is on or the device is warm.")

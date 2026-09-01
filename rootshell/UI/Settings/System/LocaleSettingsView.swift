@@ -10,7 +10,6 @@ import SwiftUI
 struct LocaleSettingsView: View {
     @Setting(Settings.Locale.mode) private var localeMode
     @Setting(Settings.Locale.custom) private var customLocale
-    @Setting(Settings.Keyboard.forceASCIIKeyboard) private var forceASCIIKeyboard
     @FocusState private var isTextFieldFocused: Bool
 
     private var mode: LocaleHelper.LocaleMode { localeMode }
@@ -88,12 +87,15 @@ struct LocaleSettingsView: View {
 
             if mode == .custom {
                 Section {
-                    TextField("en_US.UTF-8", text: $customLocale)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .submitLabel(.done)
-                        .focused($isTextFieldFocused)
-                        .themedRow()
+                    HStack(spacing: 6) {
+                        TextField("en_US.UTF-8", text: $customLocale)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .submitLabel(.done)
+                            .focused($isTextFieldFocused)
+                        SettingPinTag(Settings.Locale.custom.erased)
+                    }
+                    .themedRow()
                 } footer: {
                     if let warning = LocaleHelper.validate(customLocale).warning {
                         Label(warning, systemImage: "exclamationmark.triangle.fill")
@@ -104,13 +106,9 @@ struct LocaleSettingsView: View {
             }
             #if !targetEnvironment(macCatalyst)
             Section {
-                Toggle("Force ASCII Keyboard", isOn: Binding(
-                    get: { forceASCIIKeyboard },
-                    set: { newValue in
-                        forceASCIIKeyboard = newValue
-                        NotificationCenter.default.post(name: .forceASCIIKeyboardChanged, object: nil)
-                    }
-                ))
+                SettingToggle(Settings.Keyboard.forceASCIIKeyboard, title: "Force ASCII Keyboard") { _ in
+                    NotificationCenter.default.post(name: .forceASCIIKeyboardChanged, object: nil)
+                }
                 .themedRow()
             } footer: {
                 Text("Restricts the software keyboard to ASCII layout, preventing input methods from substituting terminal characters like | and ~.")
@@ -119,5 +117,6 @@ struct LocaleSettingsView: View {
         }
         .themedList()
         .navigationTitle("Locale")
+        .toolbar { SettingsScreenPinMenu(groups: [.locale]) }
     }
 }

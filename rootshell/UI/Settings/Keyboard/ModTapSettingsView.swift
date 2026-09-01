@@ -100,7 +100,10 @@ struct ModTapSettingsView: View {
                         manager.rules.remove(atOffsets: indexSet)
                     }
                 } header: {
-                    Text("Rules")
+                    HStack(spacing: 6) {
+                        Text("Rules")
+                        SettingPinTag(Settings.Keybinds.modTapRules.erased)
+                    }
                 }
 
                 if let sourceKey = nextAvailableSourceKey {
@@ -121,6 +124,7 @@ struct ModTapSettingsView: View {
         }
         .themedList()
         .navigationTitle("Mod-Tap Keys")
+        .toolbar { SettingsScreenPinMenu(groups: [.keybinds]) }
     }
 }
 

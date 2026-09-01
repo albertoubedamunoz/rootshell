@@ -27,10 +27,11 @@ struct ScreenSharingSettingsView: View {
                         SettingsIcon(systemName: "arrow.triangle.2.circlepath")
                         Text("Default Clipboard Sync")
                     }
+                    .settingRow(Settings.ScreenSharing.clipboardSyncDefault)
                 }
                 .themedRow()
             } header: {
-                Text("Shared Clipboard")
+                SettingGroupHeader("Shared Clipboard", group: .screenSharing)
             } footer: {
                 Text(clipboardFooterText)
             }
@@ -45,10 +46,11 @@ struct ScreenSharingSettingsView: View {
                         SettingsIcon(systemName: "cursorarrow.motionlines")
                         Text("Default Mode")
                     }
+                    .settingRow(Settings.ScreenSharing.panningDefault)
                 }
                 .themedRow()
             } header: {
-                Text("Screen Panning")
+                SettingGroupHeader("Screen Panning", group: .screenSharing)
             } footer: {
                 Text("Sets the initial panning mode for new Screen Sharing sessions. You can change it for the current session from the Screen Sharing menu.")
             }

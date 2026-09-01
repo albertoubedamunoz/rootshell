@@ -16,19 +16,19 @@ struct PushNotificationSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: Binding(
-                    get: { manager.isEnabled },
-                    set: { newValue in
-                        Task {
-                            if newValue { _ = await manager.enable() } else { manager.disable() }
+                SettingToggle(
+                    Settings.Notifications.pushEnabled,
+                    isOn: Binding(
+                        get: { manager.isEnabled },
+                        set: { newValue in
+                            Task {
+                                if newValue { _ = await manager.enable() } else { manager.disable() }
+                            }
                         }
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "lock.shield")
-                        Text("Push Notifications")
-                    }
-                }
+                    ),
+                    title: "Push Notifications",
+                    icon: "lock.shield"
+                )
                 .themedRow()
 
                 HStack(spacing: 12) {
@@ -66,26 +66,26 @@ struct PushNotificationSettingsView: View {
 
             if manager.state == .registered {
                 Section {
-                    Toggle(isOn: Binding(
-                        get: { manager.agentBackgroundOnly },
-                        set: { manager.agentBackgroundOnly = $0 }
-                    )) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemName: "moon.zzz")
-                            Text("Only When in Background")
-                        }
-                    }
+                    SettingToggle(
+                        Settings.Notifications.pushAgentBackgroundOnly,
+                        isOn: Binding(
+                            get: { manager.agentBackgroundOnly },
+                            set: { manager.agentBackgroundOnly = $0 }
+                        ),
+                        title: "Only When in Background",
+                        icon: "moon.zzz"
+                    )
                     .themedRow()
 
-                    Toggle(isOn: Binding(
-                        get: { manager.agentLogosEnabled },
-                        set: { manager.agentLogosEnabled = $0 }
-                    )) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemName: "photo")
-                            Text("Show Agent Logos")
-                        }
-                    }
+                    SettingToggle(
+                        Settings.Notifications.pushAgentLogos,
+                        isOn: Binding(
+                            get: { manager.agentLogosEnabled },
+                            set: { manager.agentLogosEnabled = $0 }
+                        ),
+                        title: "Show Agent Logos",
+                        icon: "photo"
+                    )
                     .themedRow()
                 } footer: {
                     Text("These options apply to detected agent events. Explicit `rootshell-notify send` messages always appear without agent artwork.")

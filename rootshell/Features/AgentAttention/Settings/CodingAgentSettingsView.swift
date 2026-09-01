@@ -12,21 +12,12 @@ import SwiftUI
 
 struct CodingAgentSettingsView: View {
     @Setting(Settings.CodingAgents.detectionEnabled) private var agentDetectionEnabled
-    @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
-    @Setting(Settings.CodingAgents.projectProbes) private var projectProbesEnabled
-    @Setting(Settings.CodingAgents.usageTracking) private var usageTrackingEnabled
     @Setting(Settings.Notifications.agentPolicy) private var agentNotificationPolicy
 
     var body: some View {
         List {
             Section {
-                Toggle(isOn: $agentDetectionEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "sparkles.rectangle.stack")
-                        Text("Detect Coding Agents")
-                    }
-                }
-                .onChange(of: agentDetectionEnabled) { _, enabled in
+                SettingToggle(Settings.CodingAgents.detectionEnabled, title: "Detect Coding Agents", icon: "sparkles.rectangle.stack") { enabled in
                     AgentAttentionCenter.shared.setDetectionEnabled(enabled)
                 }
                 .themedRow()
@@ -42,13 +33,8 @@ struct CodingAgentSettingsView: View {
             }
 
             Section {
-                Toggle(isOn: $attentionBadgesEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "circlebadge.fill")
-                        Text("Show Attention Badges")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.CodingAgents.attentionBadges, title: "Show Attention Badges", icon: "circlebadge.fill")
+                    .themedRow()
 
                 NavigationLink {
                     AgentNotificationPolicyPickerView()
@@ -56,6 +42,7 @@ struct CodingAgentSettingsView: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "bell.and.waves.left.and.right")
                         Text("Agent Notifications")
+                        SettingPinTag(Settings.Notifications.agentPolicy.erased)
                         Spacer()
                         Text(agentNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
@@ -64,6 +51,7 @@ struct CodingAgentSettingsView: View {
                 }
                 .disabled(!agentDetectionEnabled)
                 .themedRow()
+                .settingContextMenu(Settings.Notifications.agentPolicy)
             } header: {
                 Text("Attention & Notifications")
             } footer: {
@@ -71,37 +59,25 @@ struct CodingAgentSettingsView: View {
             }
 
             Section {
-                Toggle(isOn: $projectProbesEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "folder.badge.questionmark")
-                        Text("Look Up Project Details")
-                    }
-                }
-                .disabled(!agentDetectionEnabled)
-                .onChange(of: projectProbesEnabled) { _, enabled in
+                SettingToggle(Settings.CodingAgents.projectProbes, title: "Look Up Project Details", icon: "folder.badge.questionmark") { enabled in
                     AgentAttentionCenter.shared.setProjectProbesEnabled(enabled)
                 }
+                .disabled(!agentDetectionEnabled)
                 .themedRow()
             } header: {
-                Text("Project Details")
+                SettingGroupHeader("Project Details", group: .codingAgents)
             } footer: {
                 Text("Shows each agent's project and branch by running a short read-only command on the connected host, only for tabs where an agent was detected. When off, nothing is sent; the branch is hidden and the project appears only when the shell reports it on its own.")
             }
 
             Section {
-                Toggle(isOn: $usageTrackingEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "gauge.with.needle")
-                        Text("Show Subscription Usage")
-                    }
-                }
-                .disabled(!agentDetectionEnabled)
-                .onChange(of: usageTrackingEnabled) { _, enabled in
+                SettingToggle(Settings.CodingAgents.usageTracking, title: "Show Subscription Usage", icon: "gauge.with.needle") { enabled in
                     AgentUsageCenter.shared.setEnabled(enabled)
                 }
+                .disabled(!agentDetectionEnabled)
                 .themedRow()
             } header: {
-                Text("Subscription Usage")
+                SettingGroupHeader("Subscription Usage", group: .codingAgents)
             } footer: {
                 Text("Shows how much of your Claude, Codex, or GitHub Copilot subscription allowance is used, at the bottom of the tab sidebar, for agents currently running in a tab. Reads the agent's own sign-in from the connected host and checks usage with its provider from this device, no more than once every 5 to 15 minutes per account depending on the provider. An oh-my-pi session is different: it is signed in to several providers at once, so it is asked for its own usage summary instead and every account it reports appears, including providers listed here. Nothing is written to the host, and an oh-my-pi sign-in is never read at all. Your sign-in is never saved on this device; only the usage figures, plan name, account label and their timestamps are kept, so the sidebar can fill in immediately at launch.")
             }
@@ -116,7 +92,6 @@ struct CodingAgentSettingsView: View {
 
 struct AgentNotificationPolicyPickerView: View {
     @Setting(Settings.Notifications.agentPolicy) private var policy
-    @Setting(Settings.Notifications.agentIncludePrompt) private var includePrompt
 
     private var notificationsOff: Bool {
         policy == .off
@@ -163,16 +138,11 @@ struct AgentNotificationPolicyPickerView: View {
             }
 
             Section {
-                Toggle(isOn: $includePrompt) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "text.bubble")
-                        Text("Include the Question")
-                    }
-                }
-                .disabled(notificationsOff)
-                .themedRow()
+                SettingToggle(Settings.Notifications.agentIncludePrompt, title: "Include the Question", icon: "text.bubble")
+                    .disabled(notificationsOff)
+                    .themedRow()
             } header: {
-                Text("Detail")
+                SettingGroupHeader("Detail", group: .notifications)
             } footer: {
                 Text("Quotes what the agent is asking (\"Do you want to make this edit to …?\") in the notification. Turn this off to keep terminal text off the Lock Screen; notifications then show the project, branch, and how long the run took.")
             }
@@ -180,5 +150,6 @@ struct AgentNotificationPolicyPickerView: View {
         .themedList()
         .navigationTitle("Agent Notifications")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.notifications]) }
     }
 }

@@ -92,6 +92,8 @@ enum SettingsSearchDestination: Hashable {
     case mcpServer
     case voiceAgent
     case iCloudSync
+    case pinnedSettings
+    case configFile
     case locationDiary
     case liveActivity
     case clipboardManager
@@ -671,6 +673,24 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 systemImage: "arrow.triangle.2.circlepath.icloud",
                 action: .destination(.iCloudSync),
                 keywords: ["sync", "cloudkit", "backup"],
+                isSuggested: false
+            ),
+            .init(
+                id: "pinned-settings",
+                title: String(localized: "Pinned Settings"),
+                subtitle: String(localized: "Privacy & Data"),
+                systemImage: "pin",
+                action: .destination(.pinnedSettings),
+                keywords: ["pin", "pinned", "local", "device", "sync", "icloud"],
+                isSuggested: false
+            ),
+            .init(
+                id: "config-file",
+                title: String(localized: "Config File"),
+                subtitle: String(localized: "Privacy & Data"),
+                systemImage: "doc.text",
+                action: .destination(.configFile),
+                keywords: ["config", "dotfile", "text", "file", "ghostty", "rootshell.conf", "editor"],
                 isSuggested: false
             ),
             .init(
@@ -1435,6 +1455,10 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         #endif
     case .iCloudSync:
         CloudSyncSettingsView()
+    case .pinnedSettings:
+        PinnedSettingsView()
+    case .configFile:
+        ConfigFileSettingsView()
     case .locationDiary:
         #if !targetEnvironment(macCatalyst)
         LocationDiaryView()

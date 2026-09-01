@@ -33,6 +33,7 @@ struct SettingsAppearanceSection: View {
                         HStack(spacing: 12) {
                             SettingsIcon(systemName: "app.badge")
                             Text(String(localized: "App Icon", comment: "Settings row: app icon picker"))
+                            SettingPinTag(Settings.Theme.appIconVariant.erased)
                             Spacer()
                             Text(iconManager.selectedVariant.displayName)
                                 .foregroundColor(.secondary)
@@ -44,6 +45,7 @@ struct SettingsAppearanceSection: View {
                         }
                     }
                     .themedRow()
+                    .settingContextMenu(Settings.Theme.appIconVariant)
                 }
 
                 NavigationLink {
@@ -52,7 +54,10 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "paintpalette")
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Theme")
+                            HStack(spacing: 6) {
+                                Text("Theme")
+                                SettingPinTag(group: .theme)
+                            }
                             Text(themeManager.currentTheme)
                                 .foregroundColor(.secondary)
                                 .font(.subheadline)
@@ -69,6 +74,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.theme)
 
                 NavigationLink {
                     PaletteSettingsView()
@@ -76,6 +82,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "swatchpalette")
                         Text("Colors")
+                        SettingPinTag(group: .palette)
                         Spacer()
                         Text(PaletteManager.shared.paletteGenerateEnabled
                             ? String(localized: "Harmonious", comment: "Palette status: generated palette active")
@@ -85,6 +92,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.palette)
 
                 NavigationLink {
                     FontSettingsView()
@@ -92,6 +100,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "textformat")
                         Text("Font")
+                        SettingPinTag(group: .font)
                         Spacer()
                         Text("\(fontManager.currentFontFamilyDisplayName) - \(Int(fontManager.currentFontSize))pt")
                             .foregroundColor(.secondary)
@@ -100,6 +109,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.font)
 
                 NavigationLink {
                     CursorSettingsView()
@@ -107,6 +117,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "character.cursor.ibeam")
                         Text("Cursor")
+                        SettingPinTag(group: .cursor)
                         Spacer()
                         Text(CursorManager.shared.cursorStyle.displayName)
                             .foregroundColor(.secondary)
@@ -114,6 +125,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.cursor)
 
                 NavigationLink {
                     AppearanceModeSettingsView()
@@ -121,6 +133,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "circle.lefthalf.filled")
                         Text("Appearance Mode")
+                        SettingPinTag(group: .theme)
                         Spacer()
                         Text(appearanceManager.currentAppearanceMode.displayName)
                             .foregroundColor(.secondary)
@@ -128,6 +141,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.theme)
 
                 NavigationLink {
                     EffectSettingsView()
@@ -135,6 +149,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "sparkles")
                         Text("Background Effect")
+                        SettingPinTag(group: .shaders)
                         Spacer()
                         Text(effectManager.activeEffect?.displayName ?? String(localized: "None", comment: "Background effect: no effect active"))
                             .foregroundColor(.secondary)
@@ -142,6 +157,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.shaders)
 
                 NavigationLink {
                     ShaderSettingsView()
@@ -149,6 +165,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "cpu")
                         Text("Custom Shaders")
+                        SettingPinTag(group: .shaders)
                         Spacer()
                         if ShaderManager.shared.enabledShaderCount == 0 {
                             Text("None")
@@ -162,6 +179,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.shaders)
 
                 #if targetEnvironment(macCatalyst)
                 NavigationLink {
@@ -170,6 +188,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "slider.horizontal.below.rectangle")
                         Text("Transparency")
+                        SettingPinTag(group: .transparency)
                         Spacer()
                         Text(transparencyManager.backgroundOpacity, format: .wholePercent)
                             .foregroundColor(.secondary)
@@ -177,6 +196,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.transparency)
                 #endif
 
                 NavigationLink {
@@ -185,11 +205,13 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "macwindow")
                         Text("Window")
+                        SettingPinTag(group: .window)
                         Spacer()
                         windowSettingsSecondaryLabel
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.window)
 
                 NavigationLink {
                     BatterySettingsView()
@@ -197,6 +219,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "battery.25percent")
                         Text("Battery")
+                        SettingPinTag(group: .power)
                         Spacer()
                         Text(PowerManager.shared.tier.displayName)
                             .foregroundColor(.secondary)
@@ -204,6 +227,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.power)
 
                 #if STANDALONE && targetEnvironment(macCatalyst)
                 NavigationLink {
@@ -212,6 +236,7 @@ struct SettingsAppearanceSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "rectangle.topthird.inset.filled")
                         Text("Visor")
+                        SettingPinTag(group: .visor)
                         Spacer()
                         Text(VisorSettings.shared.enabled ? "On" : "Off")
                             .foregroundColor(.secondary)
@@ -219,6 +244,7 @@ struct SettingsAppearanceSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.visor)
                 #endif
             }
         }
@@ -233,18 +259,14 @@ struct SettingsTerminalSection: View {
     @Setting(Settings.Prompt.useStarship) private var useStarshipPrompt
     @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
     @Setting(Settings.Prompt.customUsername) private var customUsername
-    @Setting(Settings.SessionRestore.sessionPersistence) private var sessionPersistenceEnabled
-    @Setting(Settings.SessionRestore.scrollbackPersistence) private var scrollbackPersistenceEnabled
     @Setting(Settings.Locale.mode) private var localeMode
     @Setting(Settings.Privacy.geoProviderType) private var geoProviderType
     @Setting(Settings.Locale.custom) private var customLocale
     @Setting(Settings.Terminal.terminalTypeLocal) private var localTerm
     @Setting(Settings.Terminal.terminalTypeRemote) private var remoteTerm
     @Setting(Settings.Gestures.lineScrollback) private var lineScrollbackEnabled
-    @Setting(Settings.Gestures.rubberBandScrollback) private var rubberBandScrollbackEnabled
     @Setting(Settings.CodingAgents.detectionEnabled) private var agentDetectionEnabled
     @Setting(Settings.Notifications.taskDetection) private var taskDetectionEnabled
-    @Setting(Settings.Gestures.tabExposeGesture) private var tabExposeGestureEnabled
     #if targetEnvironment(macCatalyst)
     @Setting(Settings.Window.tabsInTitlebar) private var tabsInTitlebarEnabled
     #if STANDALONE
@@ -253,12 +275,7 @@ struct SettingsTerminalSection: View {
     #endif
     #else
     @Setting(Settings.Gestures.scrollMode) private var scrollModeEnabled
-    @Setting(Settings.Keyboard.doubleSpaceForPeriod) private var doubleSpaceForPeriod
     @Setting(Settings.Gestures.twoFingerLongPressDuration) private var twoFingerLongPressDuration
-    #if !os(visionOS)
-    @Setting(Settings.KeyboardToolbar.persistent) private var persistentToolbar
-    @Setting(Settings.KeyboardToolbar.showWithHardwareKeyboard) private var showToolbarWithHardwareKeyboard
-    #endif
     #endif
 
     /// Unset falls back to `GeoProviderType.defaultProvider`, which can differ from the registry default.
@@ -300,6 +317,7 @@ struct SettingsTerminalSection: View {
             HStack(spacing: 12) {
                 SettingsIcon(systemName: "character.cursor.ibeam")
                 Text("Terminal Type")
+                SettingPinTag(group: .terminal)
                 Spacer()
                 Text(terminalTypeSummary)
                     .foregroundColor(.secondary)
@@ -308,6 +326,7 @@ struct SettingsTerminalSection: View {
             }
         }
         .themedRow()
+        .settingGroupContextMenu(.terminal)
     }
 
     #if STANDALONE && targetEnvironment(macCatalyst)
@@ -326,6 +345,7 @@ struct SettingsTerminalSection: View {
             HStack(spacing: 12) {
                 SettingsIcon(systemName: "apple.terminal")
                 Text("Local Shell")
+                SettingPinTag(group: .terminal)
                 Spacer()
                 Text(localShellSummary)
                     .foregroundColor(.secondary)
@@ -335,37 +355,20 @@ struct SettingsTerminalSection: View {
             }
         }
         .themedRow()
+        .settingGroupContextMenu(.terminal)
     }
     #endif
 
     private var lineScrollingToggle: some View {
-        Toggle(isOn: Binding(
-            get: { lineScrollbackEnabled },
-            set: { newValue in
-                lineScrollbackEnabled = newValue
-                NotificationCenter.default.post(name: .touchModeChanged, object: nil)
-            }
-        )) {
-            HStack(spacing: 12) {
-                SettingsIcon(systemName: "line.3.horizontal")
-                Text("Use Line Scrolling")
-            }
+        SettingToggle(Settings.Gestures.lineScrollback, title: "Use Line Scrolling", icon: "line.3.horizontal") { _ in
+            NotificationCenter.default.post(name: .touchModeChanged, object: nil)
         }
         .themedRow()
     }
 
     private var rubberBandScrollingToggle: some View {
-        Toggle(isOn: Binding(
-            get: { rubberBandScrollbackEnabled },
-            set: { newValue in
-                rubberBandScrollbackEnabled = newValue
-                NotificationCenter.default.post(name: .touchModeChanged, object: nil)
-            }
-        )) {
-            HStack(spacing: 12) {
-                SettingsIcon(systemName: "arrow.up.arrow.down")
-                Text("Rubber Band Scrolling")
-            }
+        SettingToggle(Settings.Gestures.rubberBandScrollback, title: "Rubber Band Scrolling", icon: "arrow.up.arrow.down") { _ in
+            NotificationCenter.default.post(name: .touchModeChanged, object: nil)
         }
         .themedRow()
     }
@@ -381,6 +384,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "keyboard")
                         Text("Toolbar Keys")
+                        SettingPinTag(group: .keyboardToolbar)
                         Spacer()
                         if KeyboardToolbarManager.shared.isCustomized {
                             Text("Customized")
@@ -390,14 +394,10 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.keyboardToolbar)
 
-                Toggle(isOn: $doubleSpaceForPeriod) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "character.cursor.ibeam")
-                        Text("\"\u{200B}.\u{200B}\" Shortcut")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Keyboard.doubleSpaceForPeriod, title: "\"\u{200B}.\u{200B}\" Shortcut", icon: "character.cursor.ibeam")
+                    .themedRow()
 
                 Text("Double-tap Space on the on-screen keyboard to insert a period followed by a space.")
                     .font(.caption)
@@ -405,30 +405,16 @@ struct SettingsTerminalSection: View {
                     .themedRow()
 
                 #if !os(visionOS)
-                Toggle(isOn: $persistentToolbar) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "arrow.up.and.down.text.horizontal")
-                        Text("Persistent Toolbar")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.KeyboardToolbar.persistent, title: "Persistent Toolbar", icon: "arrow.up.and.down.text.horizontal")
+                    .themedRow()
 
                 Text("Keep the toolbar visible when the on-screen keyboard is dismissed. Tap the terminal to bring the keyboard back.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .themedRow()
 
-                Toggle(isOn: Binding(
-                    get: { showToolbarWithHardwareKeyboard },
-                    set: { newValue in
-                        showToolbarWithHardwareKeyboard = newValue
-                        NotificationCenter.default.post(name: .keyboardToolbarHardwareSettingChanged, object: nil)
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "keyboard.badge.ellipsis")
-                        Text("Show Toolbar with Hardware Keyboard")
-                    }
+                SettingToggle(Settings.KeyboardToolbar.showWithHardwareKeyboard, title: "Show Toolbar with Hardware Keyboard", icon: "keyboard.badge.ellipsis") { _ in
+                    NotificationCenter.default.post(name: .keyboardToolbarHardwareSettingChanged, object: nil)
                 }
                 .themedRow()
 
@@ -445,6 +431,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "command")
                         Text("Keyboard Shortcuts")
+                        SettingPinTag(group: .keybinds)
                         Spacer()
                         Text("\(KeybindManager.shared.userOverrides.count) custom")
                             .foregroundColor(.secondary)
@@ -452,6 +439,7 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.keybinds)
 
                 NavigationLink {
                     ModTapSettingsView()
@@ -459,6 +447,7 @@ struct SettingsTerminalSection: View {
                     ModTapSettingsLabel()
                 }
                 .themedRow()
+                .settingContextMenu(Settings.Keybinds.modTapRules)
 
                 OptionKeyAsAltPicker()
                     .themedRow()
@@ -474,6 +463,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "hand.draw")
                         Text("Swipe Gestures")
+                        SettingPinTag(Settings.Gestures.swipeBindings.erased)
                         Spacer()
                         if SwipeGestureManager.shared.isCustomized {
                             Text("Customized")
@@ -483,14 +473,15 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.Gestures.swipeBindings)
 
                 #if !os(visionOS)
-                DescribedToggle(
+                SettingDescribedToggle(
+                    Settings.Gestures.tabExposeGesture,
                     title: "Pull Down for Tab Exposé",
                     description: UIDevice.current.userInterfaceIdiom == .phone
                         ? "Swipe down from the tab bar to show live previews of your tabs. Two fingers also work from above the terminal."
-                        : "Swipe down from the tab bar (one finger, two fingers, or trackpad scroll) to show live previews of your tabs.",
-                    isOn: $tabExposeGestureEnabled
+                        : "Swipe down from the tab bar (one finger, two fingers, or trackpad scroll) to show live previews of your tabs."
                 )
                 .themedRow()
                 #endif
@@ -511,6 +502,7 @@ struct SettingsTerminalSection: View {
                         SettingsIcon(systemName: "hand.point.up.left")
                         Text("Two-Finger Long Press")
                     }
+                    .settingRow(Settings.Gestures.twoFingerLongPressDuration)
                 }
                 .pickerStyle(.menu)
                 .themedRow()
@@ -521,34 +513,22 @@ struct SettingsTerminalSection: View {
                     .themedRow()
                 #endif
             } header: {
-                Text("Gestures")
+                SettingGroupHeader("Gestures", group: .gestures)
             }
 
             // MARK: - Session
-            Section("Session") {
-                Toggle(isOn: $sessionPersistenceEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "arrow.counterclockwise")
-                        Text("Restore Sessions on Launch")
-                    }
-                }
-                .themedRow()
+            Section {
+                SettingToggle(Settings.SessionRestore.sessionPersistence, title: "Restore Sessions on Launch", icon: "arrow.counterclockwise")
+                    .themedRow()
 
-                Toggle(isOn: Binding(
-                    get: { scrollbackPersistenceEnabled },
-                    set: { newValue in
-                        scrollbackPersistenceEnabled = newValue
-                        if !newValue {
-                            ScrollbackPersistenceManager.shared.removeAllScrollbackFiles()
-                        }
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "clock.arrow.circlepath")
-                        Text("Persist Scrollback History")
+                SettingToggle(Settings.SessionRestore.scrollbackPersistence, title: "Persist Scrollback History", icon: "clock.arrow.circlepath") { newValue in
+                    if !newValue {
+                        ScrollbackPersistenceManager.shared.removeAllScrollbackFiles()
                     }
                 }
                 .themedRow()
+            } header: {
+                SettingGroupHeader("Session", group: .sessionRestore)
             }
 
             // MARK: - Agents & Commands
@@ -561,6 +541,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "sparkles.rectangle.stack")
                         Text("Coding Agents")
+                        SettingPinTag(group: .codingAgents)
                         Spacer()
                         Text(agentDetectionEnabled
                             ? String(localized: "On", comment: "Toggle state: enabled")
@@ -570,6 +551,7 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.codingAgents)
 
                 NavigationLink {
                     TaskDetectionSettingsView()
@@ -577,6 +559,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "clock.badge.checkmark")
                         Text("Command Detection")
+                        SettingPinTag(group: .notifications)
                         Spacer()
                         Text(taskDetectionEnabled
                             ? String(localized: "On", comment: "Toggle state: enabled")
@@ -586,6 +569,7 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.notifications)
             }
 
 #if !targetEnvironment(macCatalyst)
@@ -597,6 +581,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "person.text.rectangle")
                         Text("Prompt & Username")
+                        SettingPinTag(group: .prompt)
                         Spacer()
                         if useStarshipPrompt {
                             PromptThemePreview(theme: starshipTheme, compact: true)
@@ -608,6 +593,7 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.prompt)
 
                 NavigationLink {
                     BookmarkedLocationsView()
@@ -629,6 +615,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "globe")
                         Text("Locale")
+                        SettingPinTag(group: .locale)
                         Spacer()
                         Text(localeSummary)
                             .foregroundColor(.secondary)
@@ -637,6 +624,7 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.locale)
 
                 terminalTypeRow
 
@@ -646,6 +634,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "location")
                         Text("IP Geolocation")
+                        SettingPinTag(Settings.Privacy.geoProviderType.erased)
                         Spacer()
                         Text(GeoProviderType.availableProvider(for: geoProviderRawValue).displayName)
                             .foregroundColor(.secondary)
@@ -654,18 +643,10 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.Privacy.geoProviderType)
 
-                Toggle(isOn: Binding(
-                    get: { scrollModeEnabled },
-                    set: { newValue in
-                        scrollModeEnabled = newValue
-                        NotificationCenter.default.post(name: .touchModeChanged, object: nil)
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "hand.draw")
-                        Text("Scroll Mode")
-                    }
+                SettingToggle(Settings.Gestures.scrollMode, title: "Scroll Mode", icon: "hand.draw") { _ in
+                    NotificationCenter.default.post(name: .touchModeChanged, object: nil)
                 }
                 .themedRow()
 
@@ -702,6 +683,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "globe")
                         Text("Locale")
+                        SettingPinTag(group: .locale)
                         Spacer()
                         Text(localeSummary)
                             .foregroundColor(.secondary)
@@ -710,6 +692,7 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.locale)
 
                 terminalTypeRow
 
@@ -723,6 +706,7 @@ struct SettingsTerminalSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "location")
                         Text("IP Geolocation")
+                        SettingPinTag(Settings.Privacy.geoProviderType.erased)
                         Spacer()
                         Text(GeoProviderType.availableProvider(for: geoProviderRawValue).displayName)
                             .foregroundColor(.secondary)
@@ -731,6 +715,7 @@ struct SettingsTerminalSection: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.Privacy.geoProviderType)
             } header: {
                 Text("Shell")
             }
@@ -1025,6 +1010,7 @@ struct SettingsConnectionsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "antenna.radiowaves.left.and.right")
                         Text("Roam")
+                        SettingPinTag(group: .roam)
                         Spacer()
                         Text(SettingsStore.shared.get(Settings.Roam.holePunch) ? String(localized: "On", comment: "Toggle state: enabled") : String(localized: "Off", comment: "Toggle state: disabled"))
                             .foregroundColor(.secondary)
@@ -1032,6 +1018,7 @@ struct SettingsConnectionsSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.roam)
 
                 NavigationLink {
                     ScreenSharingSettingsView()
@@ -1039,9 +1026,11 @@ struct SettingsConnectionsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "display.2")
                         Text("Screen Sharing")
+                        SettingPinTag(group: .screenSharing)
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.screenSharing)
 
                 NavigationLink {
                     SSHTransportSettingsView()
@@ -1049,9 +1038,11 @@ struct SettingsConnectionsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "shield.lefthalf.filled")
                         Text("SSH Transport")
+                        SettingPinTag(group: .connections)
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.connections)
 
                 NavigationLink {
                     MultiplexerSettingsView()
@@ -1059,6 +1050,7 @@ struct SettingsConnectionsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "rectangle.split.2x1")
                         Text("Multiplexers")
+                        SettingPinTag(group: .multiplexer)
                         Spacer()
                         Text(multiplexerSettingsSummary)
                             .foregroundColor(.secondary)
@@ -1067,6 +1059,7 @@ struct SettingsConnectionsSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.multiplexer)
 
                 Button(role: .destructive) {
                     showClearHistoryAlert = true
@@ -1121,6 +1114,7 @@ struct SettingsAISection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "gearshape")
                         Text("Configuration")
+                        SettingPinTag(group: .ai)
                         Spacer()
                         if AICredentialsManager.shared.hasOpenAIProviderConfigured {
                             Text("Configured")
@@ -1134,6 +1128,7 @@ struct SettingsAISection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.ai)
 
                 NavigationLink {
                     AIAgentFontSettingsView()
@@ -1141,6 +1136,7 @@ struct SettingsAISection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "textformat.size")
                         Text("Text Size")
+                        SettingPinTag(Settings.AI.textSize.erased)
                         Spacer()
                         Text("\(Int(AIAgentFontManager.shared.textSize))pt")
                             .foregroundColor(.secondary)
@@ -1148,6 +1144,7 @@ struct SettingsAISection: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.AI.textSize)
 
                 NavigationLink {
                     VoiceAgentSettingsView()
@@ -1166,6 +1163,7 @@ struct SettingsAISection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "server.rack")
                         Text("MCP Server")
+                        SettingPinTag(Settings.AI.mcpServerConfig.erased)
                         Spacer()
                         if MCPServer.shared.isRunning {
                             HStack(spacing: 4) {
@@ -1184,6 +1182,7 @@ struct SettingsAISection: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.AI.mcpServerConfig)
             } footer: {
                 Text("AI providers and tool integration for external AI assistants")
                     .font(.caption)
@@ -1200,6 +1199,15 @@ struct SettingsPrivacySection: View {
     @ObservedObject var notificationManager = NotificationManager.shared
     var clipboardManager = ClipboardHistoryManager.shared
     var redactionManager = RedactionManager.shared
+    @State private var configOverlay = ConfigOverlayManager.shared
+
+    private var configFileSummary: String {
+        switch configOverlay.status {
+        case .notFound: String(localized: "Not set up", comment: "Config file row summary")
+        case .active(let count): String(localized: "\(count) settings", comment: "Config file row summary")
+        case .error: String(localized: "Error", comment: "Config file row summary")
+        }
+    }
 #if !targetEnvironment(macCatalyst)
     @ObservedObject var locationManager = LocationDiaryManager.shared
     #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
@@ -1241,6 +1249,20 @@ struct SettingsPrivacySection: View {
                 .themedRow()
 
                 NavigationLink {
+                    ConfigFileSettingsView()
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "doc.text")
+                        Text("Config File")
+                        Spacer()
+                        Text(configFileSummary)
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
+                }
+                .themedRow()
+
+                NavigationLink {
                     GhosttyConfigImportView()
                 } label: {
                     HStack(spacing: 12) {
@@ -1261,21 +1283,21 @@ struct SettingsPrivacySection: View {
                 .themedRow()
 
 #if !targetEnvironment(macCatalyst)
-                Toggle(isOn: Binding(
-                    get: { locationManager.mode != .off },
-                    set: { newValue in
-                        if newValue {
-                            locationManager.mode = .autoForRemote
-                        } else {
-                            locationManager.mode = .off
+                SettingToggle(
+                    Settings.Privacy.locationDiaryAutoMode,
+                    isOn: Binding(
+                        get: { locationManager.mode != .off },
+                        set: { newValue in
+                            if newValue {
+                                locationManager.mode = .autoForRemote
+                            } else {
+                                locationManager.mode = .off
+                            }
                         }
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "mappin.and.ellipse")
-                        Text("Location Diary Mode")
-                    }
-                }
+                    ),
+                    title: "Location Diary Mode",
+                    icon: "mappin.and.ellipse"
+                )
                 .themedRow()
 
                 if locationManager.mode != .off {
@@ -1334,6 +1356,7 @@ struct SettingsPrivacySection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "record.circle")
                         Text("Live Activity")
+                        SettingPinTag(group: .liveActivity)
                         Spacer()
                         Text(liveActivityManager.isEnabled ? "On" : "Off")
                             .foregroundColor(.secondary)
@@ -1341,6 +1364,7 @@ struct SettingsPrivacySection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.liveActivity)
     #endif
 #endif
 
@@ -1350,6 +1374,7 @@ struct SettingsPrivacySection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "list.clipboard")
                         Text("Clipboard Manager")
+                        SettingPinTag(group: .clipboard)
                         Spacer()
                         Text(clipboardManager.isEnabled ? "On" : "Off")
                             .foregroundColor(.secondary)
@@ -1357,6 +1382,7 @@ struct SettingsPrivacySection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.clipboard)
 
                 NavigationLink {
                     AutoRedactSettingsView()
@@ -1364,6 +1390,7 @@ struct SettingsPrivacySection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "eye.slash")
                         Text("Auto-Redact")
+                        SettingPinTag(group: .privacy)
                         Spacer()
                         Text(redactionManager.isEnabled ? "On" : "Off")
                             .foregroundColor(.secondary)
@@ -1371,6 +1398,7 @@ struct SettingsPrivacySection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.privacy)
             } footer: {
 #if targetEnvironment(macCatalyst)
                 Text("Data synchronization settings")
@@ -1403,24 +1431,24 @@ struct SettingsNotificationsSection: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: Binding(
-                    get: { notificationManager.terminalNotificationsEnabled },
-                    set: { newValue in
-                        Task {
-                            if newValue {
-                                let granted = await notificationManager.requestPermissions()
-                                notificationManager.terminalNotificationsEnabled = granted
-                            } else {
-                                notificationManager.terminalNotificationsEnabled = false
+                SettingToggle(
+                    Settings.Notifications.terminalNotifications,
+                    isOn: Binding(
+                        get: { notificationManager.terminalNotificationsEnabled },
+                        set: { newValue in
+                            Task {
+                                if newValue {
+                                    let granted = await notificationManager.requestPermissions()
+                                    notificationManager.terminalNotificationsEnabled = granted
+                                } else {
+                                    notificationManager.terminalNotificationsEnabled = false
+                                }
                             }
                         }
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "bell")
-                        Text("Terminal Notifications")
-                    }
-                }
+                    ),
+                    title: "Terminal Notifications",
+                    icon: "bell"
+                )
                 .themedRow()
 
                 Text("Show notifications for terminal events (OSC 9/777) when the terminal is not focused")
@@ -1429,28 +1457,28 @@ struct SettingsNotificationsSection: View {
                     .themedRow()
 
 #if !targetEnvironment(macCatalyst)
-                Toggle(isOn: Binding(
-                    get: { notificationManager.isEnabled },
-                    set: { newValue in
-                        Task {
-                            if newValue {
-                                let granted = await notificationManager.requestPermissions()
-                                if granted {
-                                    notificationManager.isEnabled = true
+                SettingToggle(
+                    Settings.Notifications.sshReminders,
+                    isOn: Binding(
+                        get: { notificationManager.isEnabled },
+                        set: { newValue in
+                            Task {
+                                if newValue {
+                                    let granted = await notificationManager.requestPermissions()
+                                    if granted {
+                                        notificationManager.isEnabled = true
+                                    } else {
+                                        notificationManager.isEnabled = false
+                                    }
                                 } else {
                                     notificationManager.isEnabled = false
                                 }
-                            } else {
-                                notificationManager.isEnabled = false
                             }
                         }
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "bell.badge")
-                        Text("SSH Session Reminders")
-                    }
-                }
+                    ),
+                    title: "SSH Session Reminders",
+                    icon: "bell.badge"
+                )
                 .themedRow()
 
                 Text("Reminds you to return to the app or enable Location Diary after 60 seconds in the background with active SSH sessions")
@@ -1465,6 +1493,7 @@ struct SettingsNotificationsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "lock.shield")
                         Text("Push Notifications")
+                        SettingPinTag(group: .notifications)
                         Spacer()
                         Text(pushManager.isEnabled ? "On" : "Off")
                             .foregroundColor(.secondary)
@@ -1472,6 +1501,7 @@ struct SettingsNotificationsSection: View {
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.notifications)
 
                 // Same @AppStorage key as the Coding Agents screen, so both
                 // entry points always show the same policy.
@@ -1481,6 +1511,7 @@ struct SettingsNotificationsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "bell.and.waves.left.and.right")
                         Text("Agent Notifications")
+                        SettingPinTag(Settings.Notifications.agentPolicy.erased)
                         Spacer()
                         Text(agentNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
@@ -1489,6 +1520,7 @@ struct SettingsNotificationsSection: View {
                 }
                 .disabled(!agentDetectionEnabled)
                 .themedRow()
+                .settingContextMenu(Settings.Notifications.agentPolicy)
 
                 if !agentDetectionEnabled {
                     Text("Turn on Detect Coding Agents in Terminal settings to enable agent notifications.")
@@ -1505,6 +1537,7 @@ struct SettingsNotificationsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "clock.badge.checkmark")
                         Text("Command Notifications")
+                        SettingPinTag(Settings.Notifications.taskPolicy.erased)
                         Spacer()
                         Text(taskNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
@@ -1513,6 +1546,7 @@ struct SettingsNotificationsSection: View {
                 }
                 .disabled(!taskDetectionEnabled)
                 .themedRow()
+                .settingContextMenu(Settings.Notifications.taskPolicy)
 
                 if !taskDetectionEnabled {
                     Text("Turn on Detect Long-Running Commands in Terminal settings to enable command notifications.")
@@ -1521,7 +1555,7 @@ struct SettingsNotificationsSection: View {
                         .themedRow()
                 }
             } header: {
-                Text("Notifications")
+                SettingGroupHeader("Notifications", group: .notifications)
             }
 
             Section {
@@ -1534,6 +1568,7 @@ struct SettingsNotificationsSection: View {
                         SettingsIcon(systemName: "speaker.wave.2")
                         Text("Bell Sound")
                     }
+                    .settingRow(Settings.Sounds.bellPreset)
                 }
                 .onChange(of: soundManager.bellPreset) { _, newValue in
                     soundManager.previewBellSound(newValue)
@@ -1544,6 +1579,7 @@ struct SettingsNotificationsSection: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "speaker.wave.3")
                         Text("Volume")
+                            .settingRow(Settings.Sounds.bellVolume)
                         Slider(value: $soundManager.bellVolume, in: 0...1)
                     }
                     .themedRow()
@@ -1564,6 +1600,7 @@ struct SettingsNotificationsSection: View {
                             SettingsIcon(systemName: "music.note")
                             Text("Notification Sound")
                         }
+                        .settingRow(Settings.Sounds.notificationPreset)
                     }
                     .onChange(of: soundManager.notificationPreset) { _, newValue in
                         soundManager.previewNotificationSound(newValue)
@@ -1576,7 +1613,7 @@ struct SettingsNotificationsSection: View {
                         .themedRow()
                 }
             } header: {
-                Text("Sounds")
+                SettingGroupHeader("Sounds", group: .sounds)
             }
 
             // Updates section (Standalone Mac Catalyst only)

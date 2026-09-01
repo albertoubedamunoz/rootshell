@@ -27,6 +27,7 @@ struct TmuxAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .disabled(hasCustomCommand)
                     .foregroundStyle(hasCustomCommand ? .secondary : .primary)
+                    .settingRow(Settings.Multiplexer.tmuxSessionName)
                     .themedRow()
             } header: {
                 Text("Session Name")
@@ -45,6 +46,7 @@ struct TmuxAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .focused($isEditorFocused)
                     .frame(minHeight: 80)
+                    .settingRow(Settings.Multiplexer.tmuxCustomCommand)
                     .themedRow()
 
                 if hasCustomCommand {
