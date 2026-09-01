@@ -23,6 +23,12 @@ enum IntegratedTabEdgeMetrics {
         1 / max(1, displayScale)
     }
 
+    /// OSC progress needs extra visual weight on an iPhone's smaller display,
+    /// while the ordinary integrated edge remains a one-pixel hairline.
+    static func progressLineWidth(for displayScale: CGFloat, isPhone: Bool) -> CGFloat {
+        (isPhone ? 2 : 1) / max(1, displayScale)
+    }
+
     /// For layouts reserving room before a display scale is available (1x case).
     static let reservedThickness: CGFloat = 1
 }
@@ -294,7 +300,10 @@ struct IntegratedOSCProgressEdgeHost: View {
 
     var body: some View {
         if let report = terminalView.progressReport, report.state != .remove {
-            let lineWidth = IntegratedTabEdgeMetrics.lineWidth(for: displayScale)
+            let lineWidth = IntegratedTabEdgeMetrics.progressLineWidth(
+                for: displayScale,
+                isPhone: UIDevice.current.userInterfaceIdiom == .phone
+            )
             let path = IntegratedTabGeometry.progressEdgePath(
                 in: CGRect(origin: .zero, size: rowSize),
                 activeTabRect: activeTabRect,
