@@ -11,21 +11,35 @@ struct SettingsSyncRows: View {
     @State private var syncManager = CloudKitSyncManager.shared
     @State private var coordinator = SettingsSyncCoordinator.shared
     @State private var isBusy = false
+    /// What the switch shows while the enable/disable is in flight.
+    @State private var pendingValue: Bool?
     @State private var mergePreview: SettingsMergePreview?
     @State private var errorMessage: String?
 
     var body: some View {
-        Toggle("Sync Settings", isOn: Binding(
-            get: { syncManager.isAppSettingsSyncEnabled },
-            set: { setEnabled($0) }
-        ))
+        // Read in body so observation re-renders this row when the manager flips the flag.
+        let isEnabled = syncManager.isAppSettingsSyncEnabled
+        let shown = pendingValue ?? isEnabled
+
+        Toggle(isOn: Binding(get: { shown }, set: { setEnabled($0) })) {
+            HStack(spacing: 8) {
+                Text("Sync Settings")
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Checking iCloud…")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
         .disabled(isBusy)
         .themedRow()
         .sheet(item: $mergePreview) { preview in
             SettingsSyncMergeSheet(preview: preview) { mergePreview = nil }
         }
 
-        if syncManager.isAppSettingsSyncEnabled {
+        if isEnabled {
             NavigationLink {
                 PinnedSettingsView()
             } label: {
@@ -58,9 +72,13 @@ struct SettingsSyncRows: View {
 
     private func setEnabled(_ enabled: Bool) {
         isBusy = true
+        pendingValue = enabled
         errorMessage = nil
         Task {
-            defer { isBusy = false }
+            defer {
+                isBusy = false
+                pendingValue = nil
+            }
             do {
                 switch try await syncManager.setAppSettingsSyncEnabled(enabled) {
                 case .enabled:

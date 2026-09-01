@@ -61,18 +61,18 @@ struct AppSettingRecord: CloudKitSyncable {
         return encoder
     }()
 
-    static func encodePayload(_ value: CodableValue) -> String? {
+    nonisolated static func encodePayload(_ value: CodableValue) -> String? {
         guard let data = try? payloadEncoder.encode(value) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
-    static func decodePayload(_ string: String) -> CodableValue? {
+    nonisolated static func decodePayload(_ string: String) -> CodableValue? {
         guard let data = string.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(CodableValue.self, from: data)
     }
 
     /// Stable content hash used to suppress re-pushing unchanged values.
-    static func contentHash(of value: CodableValue?) -> String {
+    nonisolated static func contentHash(of value: CodableValue?) -> String {
         guard let value, let json = encodePayload(value) else { return "tombstone" }
         let digest = SHA256.hash(data: Data(json.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()

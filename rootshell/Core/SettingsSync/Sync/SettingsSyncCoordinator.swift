@@ -222,6 +222,8 @@ final class SettingsSyncCoordinator {
         var pushBack: [String] = []
         var accepted: [AppSettingRecord] = []
         var shadowed = 0
+        var keptLocal = 0
+        var unchanged = 0
 
         for record in records {
             let key = record.key
@@ -251,8 +253,10 @@ final class SettingsSyncCoordinator {
             case .keepLocalAndPush:
                 pushBack.append(key)
             case .keepLocal:
-                break
+                keptLocal += 1
+                Self.logger.info("Kept local \(key, privacy: .public): local \(meta?.modifiedAt?.description ?? "unknown", privacy: .public) vs remote \(record.modifiedAt.description, privacy: .public) from \(record.deviceID, privacy: .public)")
             case .noop:
+                unchanged += 1
                 sidecarStore.mutate { sidecar in
                     var m = sidecar.meta[key] ?? SettingSyncMeta()
                     m.lastPushedHash = record.contentHash
@@ -281,7 +285,7 @@ final class SettingsSyncCoordinator {
             outgoing.formUnion(pushBack)
             scheduleOutgoingFlush()
         }
-        Self.logger.info("Merged \(records.count) remote settings: \(batch.count) applied, \(pushBack.count) kept local, \(shadowed) shadowed")
+        Self.logger.info("Merged \(records.count) remote settings: \(batch.count) applied, \(pushBack.count) pushed back, \(keptLocal) kept local, \(unchanged) unchanged, \(shadowed) shadowed")
     }
 
     private func deferRemote(_ records: [AppSettingRecord]) {

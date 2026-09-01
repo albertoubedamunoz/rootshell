@@ -44,20 +44,18 @@ struct ConfigFileSettingsView: View {
             Button("Create") { manager.createTemplate() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The file starts with every setting commented out. Any line you uncomment is kept on this device and stops following iCloud until you remove it.")
+            Text("The file starts with every setting commented out, including your current values. Any line you uncomment is kept on this device and stops following iCloud until you comment it out again.")
         }
     }
 
     private var statusSection: some View {
         Section {
-            HStack {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Path")
-                Spacer()
                 Text(manager.shellDisplayPath)
                     .font(.system(.footnote, design: .monospaced))
                     .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                    .textSelection(.enabled)
             }
             .themedRow()
             HStack {
@@ -106,6 +104,14 @@ struct ConfigFileSettingsView: View {
                     Label("Reload Now", systemImage: "arrow.clockwise")
                 }
                 .themedRow()
+                #if targetEnvironment(macCatalyst)
+                Button {
+                    UIApplication.shared.open(manager.activeURL.deletingLastPathComponent())
+                } label: {
+                    Label("Show in Finder", systemImage: "folder")
+                }
+                .themedRow()
+                #endif
             }
             Button {
                 showImporter = true
@@ -196,7 +202,7 @@ struct ConfigFileSettingsView: View {
     private var exportSection: some View {
         Section {
             Button {
-                exportDocument = ConfigTextDocument(text: ConfigFileExporter.render(includeDefaults: true))
+                exportDocument = ConfigTextDocument(text: ConfigFileExporter.render(includeDefaults: true, liveValues: true))
                 showExporter = true
             } label: {
                 Label("Export Current Settings…", systemImage: "square.and.arrow.up")

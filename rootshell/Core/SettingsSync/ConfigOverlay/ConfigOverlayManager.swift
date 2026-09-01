@@ -13,7 +13,7 @@ import os
 
 @MainActor @Observable
 final class ConfigOverlayManager {
-    static let shared = ConfigOverlayManager()
+    static let shared = ConfigOverlayManager(store: .shared, registry: .shared, coordinator: .shared)
 
     private static let logger = Logger(subsystem: "com.rootshell", category: "ConfigOverlay")
 
@@ -51,8 +51,8 @@ final class ConfigOverlayManager {
     @ObservationIgnored private var securityScopeActive = false
     @ObservationIgnored private var started = false
 
-    init(store: SettingsStore = .shared, registry: SettingsRegistry = .shared,
-         coordinator: SettingsSyncCoordinator = .shared) {
+    // No default arguments: they evaluate nonisolated and cannot touch MainActor singletons.
+    init(store: SettingsStore, registry: SettingsRegistry, coordinator: SettingsSyncCoordinator) {
         self.store = store
         self.registry = registry
         self.coordinator = coordinator
@@ -74,6 +74,7 @@ final class ConfigOverlayManager {
     func start() {
         guard !started else { return }
         started = true
+        migrateLegacyLocationIfNeeded()
         resolveActiveURL()
         reload()
         installWatcher()
@@ -87,6 +88,21 @@ final class ConfigOverlayManager {
             forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.reloadIfModified() }
+        }
+    }
+
+    /// An earlier build followed XDG_CONFIG_HOME into Application Support; move that file home.
+    private func migrateLegacyLocationIfNeeded() {
+        guard let legacy = ConfigOverlayLocation.legacyApplicationSupportURL else { return }
+        let canonical = ConfigOverlayLocation.canonicalURL
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: legacy.path), !fm.fileExists(atPath: canonical.path) else { return }
+        do {
+            try fm.createDirectory(at: canonical.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fm.moveItem(at: legacy, to: canonical)
+            Self.logger.info("Moved config file from Application Support to \(canonical.path, privacy: .public)")
+        } catch {
+            Self.logger.error("Could not move legacy config file: \(error.localizedDescription)")
         }
     }
 
@@ -307,10 +323,10 @@ final class ConfigOverlayManager {
         reload()
     }
 
-    /// Write a starter file at the canonical location.
+    /// Write a starter file at the canonical location, fully commented so nothing is pinned yet.
     func createTemplate() {
         guard !fileExists else { return }
-        let text = ConfigFileExporter.render(includeDefaults: true)
+        let text = ConfigFileExporter.render(includeDefaults: true, liveValues: false)
         writeText(text)
         installWatcher()
         reload()

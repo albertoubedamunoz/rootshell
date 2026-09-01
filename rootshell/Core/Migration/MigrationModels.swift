@@ -9,7 +9,7 @@
 import Foundation
 
 /// One non-comment, non-blank line from a parsed Ghostty config file.
-struct ParsedConfigEntry: Hashable {
+nonisolated struct ParsedConfigEntry: Hashable, Sendable {
     let key: String
     let value: String
     let sourceFile: URL

@@ -29,11 +29,18 @@ nonisolated enum SettingsMergeResolver {
         case noop
     }
 
-    static let skewTolerance: TimeInterval = 120
+    /// Only edits this close together count as a tie. Wider windows collapse
+    /// consecutive edits from one device into ties that the tie-break then rejects.
+    static let skewTolerance: TimeInterval = 2
 
     static func resolve(local: Local, remote: Remote, alreadyPushed: Bool) -> Decision {
         if local.value == remote.value { return .noop }
         guard let localDate = local.modifiedAt else { return .applyRemote }
+        // Same author on both sides means the same clock: newest wins outright.
+        if let localDevice = local.deviceID, localDevice == remote.deviceID {
+            if remote.modifiedAt > localDate { return .applyRemote }
+            return alreadyPushed ? .keepLocal : .keepLocalAndPush
+        }
         if remote.modifiedAt > localDate + skewTolerance { return .applyRemote }
         if localDate > remote.modifiedAt + skewTolerance { return alreadyPushed ? .keepLocal : .keepLocalAndPush }
         // Near-simultaneous: lowest device ID wins on every device.

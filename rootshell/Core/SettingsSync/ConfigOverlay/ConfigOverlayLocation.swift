@@ -10,16 +10,18 @@ import Foundation
 
 nonisolated enum ConfigOverlayLocation {
     #if STANDALONE && targetEnvironment(macCatalyst)
-    /// Non-sandboxed Mac: honor XDG, default to ~/.config/rootshell/config.
+    /// Non-sandboxed Mac. The process sets XDG_CONFIG_HOME to Application
+    /// Support for GhosttyKit, so that variable is deliberately ignored here.
     static var canonicalURL: URL {
-        let env = ProcessInfo.processInfo.environment
-        if let xdg = env["XDG_CONFIG_HOME"], !xdg.isEmpty {
-            return URL(fileURLWithPath: xdg, isDirectory: true)
-                .appendingPathComponent("rootshell", isDirectory: true)
-                .appendingPathComponent("config")
-        }
-        return URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
             .appendingPathComponent(".config/rootshell/config")
+    }
+
+    /// Where an earlier build wrote the file by following XDG_CONFIG_HOME.
+    static var legacyApplicationSupportURL: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("rootshell", isDirectory: true)
+            .appendingPathComponent("config")
     }
 
     static let canonicalShellPath = "~/.config/rootshell/config"
@@ -37,6 +39,7 @@ nonisolated enum ConfigOverlayLocation {
     static let canonicalShellPath = "~/rootshell.conf"
     #endif
     static let supportsDirectExternalPath = false
+    static var legacyApplicationSupportURL: URL? { nil }
     #endif
 
     /// Resolve a user-picked external file from the stored bookmark or path.

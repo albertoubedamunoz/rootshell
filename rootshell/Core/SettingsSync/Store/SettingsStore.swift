@@ -25,7 +25,8 @@ final class SettingBox {
 
 @MainActor
 final class SettingsStore {
-    static let shared = SettingsStore()
+    /// Nonisolated so hot paths can reach the nonisolated `value(_:)` without hopping actors.
+    nonisolated static let shared = SettingsStore()
 
     private static let logger = Logger(subsystem: "com.rootshell", category: "SettingsStore")
 
@@ -46,7 +47,8 @@ final class SettingsStore {
     private var deferredBatch: [String: CodableValue?] = [:]
     private var deferredOrigin: SettingsChangeOrigin = .remote
 
-    init(registry: SettingsRegistry = .shared) {
+    /// Only stores nonisolated values, so the singleton can be created off the main actor.
+    nonisolated init(registry: SettingsRegistry = .shared) {
         self.registry = registry
         self.cache = SettingsCache(registry: registry)
     }
@@ -234,7 +236,7 @@ final class SettingsStore {
         return AsyncStream { continuation in
             continuations[id] = continuation
             continuation.onTermination = { [weak self] _ in
-                Task { @MainActor in self?.continuations.removeValue(forKey: id) }
+                Task { @MainActor [weak self] in self?.continuations.removeValue(forKey: id) }
             }
         }
     }

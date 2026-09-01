@@ -1042,9 +1042,16 @@ final class CloudKitSyncManager {
             currentToken = changes.changeToken
             moreComing = changes.moreComing
 
-            // Safety limit to prevent infinite loops
-            if fetchCount > 100 {
-                Self.logger.warning("Zone changes fetch hit safety limit of 100 iterations")
+            // Long-lived zones page through a change log where most entries are
+            // superseded, so a walk from an old token can take hundreds of
+            // near-empty pages. Stopping early leaves the newest records
+            // unreached while the sync still reports success, so only guard
+            // against a runaway loop.
+            if fetchCount % 100 == 0 {
+                Self.logger.info("Zone changes fetch still paging: \(fetchCount) fetches, \(changedRecords.count) records so far")
+            }
+            if fetchCount >= 5000 {
+                Self.logger.error("Zone changes fetch hit safety limit of \(fetchCount) iterations")
                 break
             }
         }

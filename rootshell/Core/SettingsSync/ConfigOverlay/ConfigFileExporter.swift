@@ -19,7 +19,9 @@ enum ConfigFileExporter {
     #
     """
 
-    static func render(includeDefaults: Bool = true, store: SettingsStore = .shared, registry: SettingsRegistry = .shared) -> String {
+    /// `liveValues` writes changed settings as active lines (a dotfile copy);
+    /// otherwise every line is commented so placing the file pins nothing.
+    static func render(includeDefaults: Bool = true, liveValues: Bool, store: SettingsStore = .shared, registry: SettingsRegistry = .shared) -> String {
         var out: [String] = [preamble]
         var currentGroup: SettingGroup?
         for def in registry.configEditableDefinitions {
@@ -33,7 +35,8 @@ enum ConfigFileExporter {
             let defaultText = def.defaultCodable.flatMap { ConfigOverlayCodec.encode($0, for: def) }?.joined(separator: ", ")
             if let current, current != def.defaultCodable, let lines = ConfigOverlayCodec.encode(current, for: def) {
                 if let defaultText { out.append("# \(def.title) (default: \(defaultText))") } else { out.append("# \(def.title)") }
-                out.append(contentsOf: lines.map { ConfigOverlayCodec.line(configKey: configKey, value: $0) })
+                let prefix = liveValues ? "" : "# "
+                out.append(contentsOf: lines.map { prefix + ConfigOverlayCodec.line(configKey: configKey, value: $0) })
             } else if includeDefaults {
                 let shown = defaultText ?? ""
                 out.append("# \(def.title)")

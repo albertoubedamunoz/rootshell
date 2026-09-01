@@ -2,9 +2,11 @@
 //  SettingPinTag.swift
 //  rootshell
 //
-//  Provenance tag for a settings row or group header: kept on this device,
-//  set by the config file, or nothing. Renders as EmptyView when there is
-//  nothing to say so it drops into any HStack without spacing artifacts.
+//  Provenance glyph for a settings row or group header: kept on this device,
+//  set by the config file, or nothing. A single small symbol so it never
+//  competes with the title for width; the words live in the context menu
+//  and the accessibility label. Renders as EmptyView when there is nothing
+//  to say so it drops into any HStack without spacing artifacts.
 //
 
 import SwiftUI
@@ -37,26 +39,26 @@ struct SettingPinTag: View {
             let state = coordinator.pinState(for: name)
             // File provenance matters even without iCloud; pins only with it.
             if state == .configFile || syncManager.isAppSettingsSyncEnabled {
-                keyTag(state)
+                keyGlyph(state)
             }
         case .group(let group):
             if syncManager.isAppSettingsSyncEnabled {
-                groupTag(coordinator.pinState(for: group))
+                groupGlyph(coordinator.pinState(for: group))
             }
         }
     }
 
     @ViewBuilder
-    private func keyTag(_ state: SettingPinState) -> some View {
+    private func keyGlyph(_ state: SettingPinState) -> some View {
         switch state {
         case .key:
-            tag(String(localized: "This Device", comment: "Pinned setting tag"), symbol: "pin.fill", tint: .blue)
+            glyph("pin.fill", tint: .tint)
                 .accessibilityLabel(Text("Kept on this device"))
         case .group:
-            tag(String(localized: "This Device", comment: "Pinned setting tag"), symbol: "pin", tint: .secondary)
+            glyph("pin", tint: .secondary)
                 .accessibilityLabel(Text("Kept on this device with its group"))
         case .configFile:
-            tag(String(localized: "Config File", comment: "Config-file setting tag"), symbol: "doc.text", tint: .orange)
+            glyph("doc.text", tint: .orange)
                 .accessibilityLabel(Text("Set by config file"))
         case .none, .deviceOnly:
             EmptyView()
@@ -64,30 +66,25 @@ struct SettingPinTag: View {
     }
 
     @ViewBuilder
-    private func groupTag(_ state: GroupPinState) -> some View {
+    private func groupGlyph(_ state: GroupPinState) -> some View {
         switch state {
         case .all:
-            tag(String(localized: "This Device", comment: "Pinned setting tag"), symbol: "pin.fill", tint: .blue)
+            glyph("pin.fill", tint: .tint)
+                .accessibilityLabel(Text("Whole group kept on this device"))
         case .partial(let pinned, let total):
-            tag(String(localized: "\(pinned) of \(total) on This Device", comment: "Partially pinned group tag"),
-                symbol: "pin", tint: .secondary)
+            glyph("pin", tint: .secondary)
+                .accessibilityLabel(Text(String(localized: "\(pinned) of \(total) settings kept on this device",
+                                                comment: "Partially pinned group accessibility label")))
         case .none:
             EmptyView()
         }
     }
 
-    private func tag(_ text: String, symbol: String, tint: Color) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: symbol)
-                .font(.system(size: 9, weight: .semibold))
-            Text(text)
-        }
-        .font(.caption2)
-        .foregroundStyle(tint)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(tint.opacity(0.1))
-        .cornerRadius(4)
-        .fixedSize()
+    private func glyph(_ symbol: String, tint: some ShapeStyle) -> some View {
+        Image(systemName: symbol)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(tint)
+            .fixedSize()
+            .accessibilityHidden(false)
     }
 }

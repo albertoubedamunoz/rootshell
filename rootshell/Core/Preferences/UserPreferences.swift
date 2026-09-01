@@ -136,7 +136,7 @@ nonisolated enum UserPreferences {
     // MARK: - Clock Format
 
     /// Clock display format for prompt themes
-    enum ClockFormat: String, CaseIterable {
+    enum ClockFormat: String, CaseIterable, Sendable {
         case system = "system"
         case twelveHour = "twelveHour"
         case twentyFourHour = "twentyFourHour"
