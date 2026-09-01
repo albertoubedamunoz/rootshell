@@ -95,6 +95,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             Self.logger.warning("Failed to configure audio session: \(error.localizedDescription)")
         }
 
+        // Registry defaults depend on idiom; must precede any SettingKey access.
+        SettingsPlatform.configure()
+        SettingsRegistry.shared.assertInvariants()
+
         // All UserDefaults-dependent initialization must wait until the device is unlocked.
         // Background launches (VPN reconnect, Live Activities, CloudKit push) can start
         // the app process before protected data is available, causing UserDefaults to return
