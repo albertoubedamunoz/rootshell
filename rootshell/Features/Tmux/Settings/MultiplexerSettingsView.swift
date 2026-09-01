@@ -4,6 +4,7 @@ struct MultiplexerSettingsView: View {
     @AppStorage("tmuxSessionDiscoveryEnabled") private var tmuxDiscoveryEnabled = true
     @AppStorage("zellijSessionDiscoveryEnabled") private var zellijDiscoveryEnabled = true
     @AppStorage("herdrSessionDiscoveryEnabled") private var herdrDiscoveryEnabled = true
+    @AppStorage("zmxSessionDiscoveryEnabled") private var zmxDiscoveryEnabled = true
     @AppStorage("localSessionDiscoveryEnabled") private var localDiscoveryEnabled = true
     @AppStorage(SessionDiscoverySortOrder.storageKey) private var sortOrder = SessionDiscoverySortOrder.attachedFirst.rawValue
     @AppStorage(TabExposeSettings.multiplexerEnabledKey) private var exposeMultiplexerEnabled = true
@@ -11,6 +12,8 @@ struct MultiplexerSettingsView: View {
     @AppStorage("tmuxCustomCommand") private var customCommand = ""
     @AppStorage("herdrSessionName") private var herdrSessionName = ""
     @AppStorage("herdrCustomCommand") private var herdrCustomCommand = ""
+    @AppStorage("zmxSessionName") private var zmxSessionName = ""
+    @AppStorage("zmxCustomCommand") private var zmxCustomCommand = ""
     @AppStorage(TmuxController.autoHideGatewayOnAttachDefaultsKey)
     private var autoHideGatewayOnAttach = false
     @AppStorage(TmuxTabCloseAction.storageKey)
@@ -38,6 +41,16 @@ struct MultiplexerSettingsView: View {
         return name.isEmpty ? "default" : name
     }
 
+    private var zmxAutoStartCommandSummary: String {
+        if !zmxCustomCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Custom"
+        }
+        let name = zmxSessionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Unlike herdr there is no unnamed default session to fall back to, so
+        // the placeholder is a real session name.
+        return name.isEmpty ? SSHConfig.zmxDefaultSessionName : name
+    }
+
     private var discoveryFooterText: String {
         let base = "Checks for active sessions after an SSH connection. Skipped for connections with multiplexer auto-start enabled."
         #if targetEnvironment(macCatalyst)
@@ -52,7 +65,7 @@ struct MultiplexerSettingsView: View {
             Section {
                 Toggle(isOn: $tmuxDiscoveryEnabled) {
                     HStack(spacing: 12) {
-                        SettingsIcon(systemName: "rectangle.split.2x1")
+                        SettingsIcon(systemName: MultiplexerType.tmux.iconName)
                         Text("Discover tmux Sessions")
                     }
                 }
@@ -60,7 +73,7 @@ struct MultiplexerSettingsView: View {
 
                 Toggle(isOn: $zellijDiscoveryEnabled) {
                     HStack(spacing: 12) {
-                        SettingsIcon(systemName: "rectangle.split.3x1")
+                        SettingsIcon(systemName: MultiplexerType.zellij.iconName)
                         Text("Discover zellij Sessions")
                     }
                 }
@@ -68,8 +81,16 @@ struct MultiplexerSettingsView: View {
 
                 Toggle(isOn: $herdrDiscoveryEnabled) {
                     HStack(spacing: 12) {
-                        SettingsIcon(systemName: "square.grid.2x2")
+                        SettingsIcon(systemName: MultiplexerType.herdr.iconName)
                         Text("Discover herdr Sessions")
+                    }
+                }
+                .themedRow()
+
+                Toggle(isOn: $zmxDiscoveryEnabled) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: MultiplexerType.zmx.iconName)
+                        Text("Discover zmx Sessions")
                     }
                 }
                 .themedRow()
@@ -199,9 +220,29 @@ struct MultiplexerSettingsView: View {
 
             Section {
                 NavigationLink {
+                    ZmxAutoStartCommandView()
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "play.rectangle")
+                        Text("Auto-Start Command")
+                        Spacer()
+                        Text(zmxAutoStartCommandSummary)
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
+                }
+                .themedRow()
+            } header: {
+                Text("zmx Auto-Start")
+            } footer: {
+                Text("The zmx command used when auto-start is enabled on a connection.")
+            }
+
+            Section {
+                NavigationLink {
                     TmuxGuideView()
                 } label: {
-                    Label("tmux Tips", systemImage: "questionmark.circle")
+                    Label("Multiplexer Tips", systemImage: "questionmark.circle")
                 }
                 .themedRow()
             }

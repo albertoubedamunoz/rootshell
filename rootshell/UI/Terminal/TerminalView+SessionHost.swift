@@ -68,6 +68,10 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
         // Cancel connection success timer if session ends prematurely.
         self.sessionController.cancelConnectionSuccessTimer()
 
+        // Reconnection starts outside any picker-attached passthrough session;
+        // configured bindings are restored when the new session becomes ready.
+        self.passthroughMultiplexer = nil
+
         // Check if reconnection manager is in a state that should keep tab open
         if let state = self.sessionController.reconnectionState {
             switch state {

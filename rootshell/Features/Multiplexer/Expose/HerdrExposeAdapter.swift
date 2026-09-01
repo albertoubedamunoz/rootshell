@@ -33,7 +33,7 @@ nonisolated struct HerdrExposeAdapter: MultiplexerExposeAdapter {
         return MuxScript.wrap(body, nonce: nonce)
     }
 
-    func parseTick(output: String, nonce: String) -> MuxTickResult? {
+    func parseTick(output: String, session _: String?, nonce: String) -> MuxTickResult? {
         let sections = MuxScript.sections(of: output, nonce: nonce)
         guard sections.found, !sections.unsupported else { return nil }
         guard let root = MuxScript.json(sections.topology) as? [String: Any] else { return nil }

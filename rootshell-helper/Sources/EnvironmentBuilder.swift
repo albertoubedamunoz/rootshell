@@ -58,6 +58,16 @@ class EnvironmentBuilder {
         LocaleHelper.posixLocale
     }
 
+    /// The launchd-provided per-user temp directory, or nil on failure.
+    private static func darwinUserTempDir() -> String? {
+        let size = confstr(_CS_DARWIN_USER_TEMP_DIR, nil, 0)
+        guard size > 0 else { return nil }
+        var buffer = [Int8](repeating: 0, count: size)
+        let result = confstr(_CS_DARWIN_USER_TEMP_DIR, &buffer, size)
+        guard result > 0, result <= size else { return nil }
+        return String(cString: buffer)
+    }
+
     /// Convenience initializer that auto-detects bundle paths
     convenience init(bundle: Bundle = .main, version: String = "1.0.0") {
         var config = Config()
@@ -116,6 +126,11 @@ class EnvironmentBuilder {
 
         // Minimal default PATH - login shell will extend this
         env["PATH"] = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+        // Multiplexer socket paths rely on launchd's per-user temp directory.
+        if let tmpDir = Self.darwinUserTempDir() {
+            env["TMPDIR"] = tmpDir
+        }
 
         // TERM: an explicit value from the app's settings wins outright — the
         // user picked it, and honoring it is the whole point of the setting.

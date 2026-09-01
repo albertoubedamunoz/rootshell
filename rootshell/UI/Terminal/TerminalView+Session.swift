@@ -471,8 +471,15 @@ extension Ghostty.TerminalView {
     /// multiplexer is still running, so the binding must survive those paths.
     /// (id=agent-attention-raw-mux)
     func applyConfiguredMultiplexerBinding() {
-        guard rawMultiplexer == nil else { return }
         guard let sshConfig = connectionConfig.sshConfigForHistory else { return }
+
+        // Keep zmx's transparent identity separate from raw multiplexer
+        // bindings, since raw bindings also suppress agent attention.
+        if sshConfig.zmxAutoEnable, let name = sshConfig.zmxSessionNameForConnection {
+            bindPassthroughMultiplexer(.zmx, sessionName: name, canDetachSwitch: false)
+        }
+
+        guard rawMultiplexer == nil else { return }
 
         // Auto-connect. Control mode gets its own surface per pane, so only
         // the plain mode collapses a whole session onto this one.
@@ -499,10 +506,23 @@ extension Ghostty.TerminalView {
 
     /// Sets the binding and re-runs monitor reconcile, so a pane that already
     /// published an agent card before the multiplexer was known drops it.
+    ///
+    /// Binds only multiplexers that own the alternate screen; raw bindings
+    /// suppress agent attention until ownership is released.
     func bindRawMultiplexer(_ type: MultiplexerType, sessionName: String?) {
+        guard type.ownsAlternateScreen else { return }
         guard rawMultiplexer == nil else { return }
         rawMultiplexer = .init(type: type, sessionName: sessionName)
         AgentAttentionCenter.shared.topologyDidChange()
+    }
+
+    /// Records a transparent multiplexer identity without affecting agent
+    /// attention. The session name is required because it cannot be inferred
+    /// safely from a host with multiple sessions.
+    func bindPassthroughMultiplexer(_ type: MultiplexerType, sessionName: String, canDetachSwitch: Bool) {
+        guard !type.ownsAlternateScreen else { return }
+        guard passthroughMultiplexer == nil else { return }
+        passthroughMultiplexer = .init(type: type, sessionName: sessionName, canDetachSwitch: canDetachSwitch)
     }
 
     /// Maps a configured command to the multiplexer it starts, or nil when it
@@ -541,6 +561,7 @@ extension Ghostty.TerminalView {
 
         let sshConfig = connectionConfig.sshConfigForHistory
         let multiplexerAutoEnabled = (sshConfig?.tmuxAutoEnable ?? false) || (sshConfig?.herdrAutoEnable ?? false)
+            || (sshConfig?.zmxAutoEnable ?? false)
         let launchCommand = sshConfig?.launchCommand
 
         // Skip for resumed sessions - the remote shell already has tmux/commands running
@@ -611,7 +632,7 @@ extension Ghostty.TerminalView {
         }
     }
 
-    /// Discovers multiplexer sessions (tmux, zellij, herdr) on the active host or local shell.
+    /// Discovers multiplexer sessions (tmux, zellij, herdr, zmx) on the active host or local shell.
     /// Called after the session reports it is ready for input.
     func discoverSessionsIfConfigured() {
         // Check which discoveries are enabled (default to true for all)
@@ -621,8 +642,10 @@ extension Ghostty.TerminalView {
             || UserDefaults.standard.bool(forKey: "zellijSessionDiscoveryEnabled")
         let herdrEnabled = UserDefaults.standard.object(forKey: "herdrSessionDiscoveryEnabled") == nil
             || UserDefaults.standard.bool(forKey: "herdrSessionDiscoveryEnabled")
+        let zmxEnabled = UserDefaults.standard.object(forKey: "zmxSessionDiscoveryEnabled") == nil
+            || UserDefaults.standard.bool(forKey: "zmxSessionDiscoveryEnabled")
 
-        guard tmuxEnabled || zellijEnabled || herdrEnabled else { return }
+        guard tmuxEnabled || zellijEnabled || herdrEnabled || zmxEnabled else { return }
 
         #if STANDALONE && targetEnvironment(macCatalyst)
         if session is CatalystLocalShellSession, case .local = connectionConfig {
@@ -634,6 +657,7 @@ extension Ghostty.TerminalView {
             let skipTmuxSessions = !tmuxEnabled
             let skipZellijSessions = !zellijEnabled
             let skipHerdrSessions = !herdrEnabled
+            let skipZmxSessions = !zmxEnabled
             let discoverTmuxBindings = tmuxEnabled
             let discoverZellijBindings = zellijEnabled
             let workingDirectory = connectionConfig.workingDirectory
@@ -644,6 +668,7 @@ extension Ghostty.TerminalView {
                     skipTmuxSessions: skipTmuxSessions,
                     skipZellijSessions: skipZellijSessions,
                     skipHerdrSessions: skipHerdrSessions,
+                    skipZmxSessions: skipZmxSessions,
                     discoverTmuxBindings: discoverTmuxBindings,
                     discoverZellijBindings: discoverZellijBindings
                 )
@@ -663,16 +688,18 @@ extension Ghostty.TerminalView {
         // multiplexer types: the connection is already committed to a
         // multiplexer, so sessions of another type must not pop the picker
         // over its freshly started UI.
-        let multiplexerAutoStart = sshConfig.tmuxAutoEnable || sshConfig.herdrAutoEnable
+        let multiplexerAutoStart = sshConfig.tmuxAutoEnable || sshConfig.herdrAutoEnable || sshConfig.zmxAutoEnable
         let allowSessionPickerOverlay = !hasLaunchCommand && !hasRemoteCommand && !wasResumed
             && !multiplexerAutoStart
         let skipTmuxSessions = !tmuxEnabled || !allowSessionPickerOverlay
         let skipZellijSessions = !zellijEnabled || !allowSessionPickerOverlay
         let skipHerdrSessions = !herdrEnabled || !allowSessionPickerOverlay
+        let skipZmxSessions = !zmxEnabled || !allowSessionPickerOverlay
         let discoverTmuxBindings = tmuxEnabled
         let discoverZellijBindings = zellijEnabled
 
-        guard discoverTmuxBindings || discoverZellijBindings || !skipTmuxSessions || !skipZellijSessions || !skipHerdrSessions else {
+        guard discoverTmuxBindings || discoverZellijBindings || !skipTmuxSessions
+            || !skipZellijSessions || !skipHerdrSessions || !skipZmxSessions else {
             return
         }
 
@@ -704,6 +731,7 @@ extension Ghostty.TerminalView {
                     skipTmuxSessions: skipTmuxSessions,
                     skipZellijSessions: skipZellijSessions,
                     skipHerdrSessions: skipHerdrSessions,
+                    skipZmxSessions: skipZmxSessions,
                     discoverTmuxBindings: discoverTmuxBindings,
                     discoverZellijBindings: discoverZellijBindings
                 )
@@ -716,6 +744,7 @@ extension Ghostty.TerminalView {
                 skipTmuxSessions: skipTmuxSessions,
                 skipZellijSessions: skipZellijSessions,
                 skipHerdrSessions: skipHerdrSessions,
+                skipZmxSessions: skipZmxSessions,
                 discoverTmuxBindings: discoverTmuxBindings,
                 discoverZellijBindings: discoverZellijBindings,
                 onKeyboardInteractiveChallenge: discoveryKeyboardInteractive
@@ -799,7 +828,6 @@ extension Ghostty.TerminalView {
         let escapedName = session.name.shellEscapedForDoubleQuotes
         // Wrap in sh -c for portability across all login shells (bash, zsh, fish, csh).
         // $PATH expands inside sh, not the outer shell.
-        let pathPrefix = "PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:/snap/bin\""
         let attachCommand: String
         switch session.type {
         case .tmux:
@@ -819,13 +847,44 @@ extension Ghostty.TerminalView {
             // server. "default" is the literal name of the default session.
             attachCommand = "herdr session attach \"\(escapedName)\""
             bindRawMultiplexer(.herdr, sessionName: session.name)
+        case .zmx:
+            // zmx is transparent, so preserve its identity without suppressing
+            // the inner program's agent state. Clear the prefix because the
+            // discovered name is already the fully resolved socket name.
+            attachCommand = "ZMX_SESSION_PREFIX= zmx attach \"\(escapedName)\""
+            bindPassthroughMultiplexer(.zmx, sessionName: session.name, canDetachSwitch: true)
+
+            // Use the reported directory until OSC 7 provides a fresher value.
+            if let cwd = session.workingDirectory, cwd.hasPrefix("/") {
+                handlePwdChange(cwd)
+            }
         }
-        let script = "\(pathPrefix) \(attachCommand)"
-        let command = "sh -c '\(shellEscapeForSingleQuotes(script))'\n"
+        let command = multiplexerAttachInputLine(attachCommand)
+        if session.type == .zmx, userOverrideTitle == nil {
+            // Preserve the session name until a real OSC 2 title arrives;
+            // suppress the shell's one-shot command echo.
+            title = session.name
+            pendingCommandEcho = (
+                command: command.trimmingCharacters(in: .whitespacesAndNewlines),
+                until: Date().addingTimeInterval(Self.commandEchoTitleWindow)
+            )
+        }
         if let data = command.data(using: .utf8) {
             sendUserInput(data)
         }
         dismissSessionDiscovery()
+    }
+
+    /// Builds the zmx attach line used when focus reattaches through the shell.
+    func zmxAttachInputLine(sessionName: String) -> String {
+        let escapedName = sessionName.shellEscapedForDoubleQuotes
+        return multiplexerAttachInputLine("ZMX_SESSION_PREFIX= zmx attach \"\(escapedName)\"")
+    }
+
+    private func multiplexerAttachInputLine(_ attachCommand: String) -> String {
+        let pathPrefix = "PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:/snap/bin\""
+        let script = "\(pathPrefix) \(attachCommand)"
+        return "sh -c '\(shellEscapeForSingleQuotes(script))'\n"
     }
 }
 

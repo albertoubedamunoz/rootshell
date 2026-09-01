@@ -34,11 +34,14 @@ import Foundation
 /// from the record being replaced.
 struct HistoryExtensionPayload: Codable, Hashable, Sendable {
     /// Envelope schema version. Bump on every added member.
-    static let currentVersion = 2
+    static let currentVersion = 3
 
     /// Envelope version that introduced `multiplexerSessionName`. Writers below
     /// this predate the field, so their nil is a gap, not a clear.
     static let multiplexerSessionNameVersion = 2
+
+    /// Envelope version that introduced `zmxAutoEnable`. Same rule.
+    static let zmxAutoEnableVersion = 3
 
     var version: Int
 
@@ -50,18 +53,29 @@ struct HistoryExtensionPayload: Codable, Hashable, Sendable {
     /// global default for whichever multiplexer auto-start selects.
     var multiplexerSessionName: String?
 
+    /// Whether zmx auto-start is on for this connection.
+    ///
+    /// Deliberately here rather than as a top-level `CKRecord` field, unlike the
+    /// `herdrAutoEnable` line sitting right beside it in `CloudKitSyncable`. A
+    /// new top-level field is not free: it needs a production CloudKit schema
+    /// deploy, which is exactly the cost this envelope was introduced to stop
+    /// paying.
+    var zmxAutoEnable: Bool?
+
     init(
         version: Int = HistoryExtensionPayload.currentVersion,
         terminalType: String? = nil,
-        multiplexerSessionName: String? = nil
+        multiplexerSessionName: String? = nil,
+        zmxAutoEnable: Bool? = nil
     ) {
         self.version = version
         self.terminalType = terminalType
         self.multiplexerSessionName = multiplexerSessionName
+        self.zmxAutoEnable = zmxAutoEnable
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, terminalType, multiplexerSessionName
+        case version, terminalType, multiplexerSessionName, zmxAutoEnable
     }
 
     init(from decoder: Decoder) throws {
@@ -73,6 +87,7 @@ struct HistoryExtensionPayload: Codable, Hashable, Sendable {
         // Field-level tolerance: a bad member must not sink the envelope.
         terminalType = (try? container.decodeIfPresent(String.self, forKey: .terminalType)) ?? nil
         multiplexerSessionName = (try? container.decodeIfPresent(String.self, forKey: .multiplexerSessionName)) ?? nil
+        zmxAutoEnable = (try? container.decodeIfPresent(Bool.self, forKey: .zmxAutoEnable)) ?? nil
     }
 
     func encode(to encoder: Encoder) throws {
@@ -80,5 +95,6 @@ struct HistoryExtensionPayload: Codable, Hashable, Sendable {
         try container.encode(version, forKey: .version)
         try container.encodeIfPresent(terminalType, forKey: .terminalType)
         try container.encodeIfPresent(multiplexerSessionName, forKey: .multiplexerSessionName)
+        try container.encodeIfPresent(zmxAutoEnable, forKey: .zmxAutoEnable)
     }
 }

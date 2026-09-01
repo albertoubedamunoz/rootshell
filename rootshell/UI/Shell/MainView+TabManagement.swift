@@ -426,8 +426,10 @@ extension MainView {
     func createLocalShellTabInternal() {
         // Get CWD from focused terminal (if any) to inherit working directory
         let inheritedCwd: String?
-        if selectedTabIndex >= 0 && selectedTabIndex < terminals.count {
-            inheritedCwd = terminals[selectedTabIndex].focusedTerminal?.pwd
+        if selectedTabIndex >= 0 && selectedTabIndex < terminals.count,
+           let focusedTerminal = terminals[selectedTabIndex].focusedTerminal,
+           case .local = focusedTerminal.connectionConfig {
+            inheritedCwd = focusedTerminal.pwd
         } else {
             inheritedCwd = nil
         }
@@ -498,7 +500,13 @@ extension MainView {
             // Local splits inherit the working directory from the resolved
             // split target (not the tab's focused terminal at call time).
             // Non-terminal split targets have no cwd to inherit.
-            configFor: { .local(workingDirectory: $0.asTerminal?.pwd) },
+            configFor: {
+                guard let terminal = $0.asTerminal,
+                      case .local = terminal.connectionConfig else {
+                    return .local(workingDirectory: nil)
+                }
+                return .local(workingDirectory: terminal.pwd)
+            },
             fallbackToTab: { self.createLocalShellTabInternal() }
         )
     }

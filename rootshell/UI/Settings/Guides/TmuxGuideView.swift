@@ -3,8 +3,9 @@
 //  rootshell
 //
 //  Explains tmux -CC control mode (gateway tab, auto-hide, tab shortcuts)
-//  and shows the recommended ~/.tmux.conf lines, so the Multiplexers screen
-//  can keep its footers short.
+//  and zmx's detach key and attach-or-create behaviour, and shows the
+//  recommended ~/.tmux.conf lines, so the Multiplexers screen can keep its
+//  footers short.
 //
 
 import SwiftUI
@@ -52,6 +53,37 @@ struct TmuxGuideView: View {
                 Text("Control Mode")
             }
 
+            // MARK: - zmx
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    guideRow(
+                        icon: "arrow.right.square",
+                        title: "Detaching",
+                        description: "Press ctrl+\\ to detach from a zmx session and return to the shell. Set ZMX_NO_DETACH_KEY=1 on the host to disable that key if it conflicts with something you use."
+                    )
+
+                    Divider()
+
+                    guideRow(
+                        icon: "plus.square.on.square",
+                        title: "Attach or Create",
+                        description: "zmx attach joins the session if it exists and creates it otherwise, so auto-start never fails on a fresh host. There is no unnamed default session, so a name is always used — \"main\" unless you set another."
+                    )
+
+                    Divider()
+
+                    guideRow(
+                        icon: "arrow.up.left.and.arrow.down.right",
+                        title: "Resizing",
+                        description: "A zmx session has one size shared by every attached client, and the last client to type sets it. Attaching from rootshell will reflow the session for anyone else attached as soon as you type. This is how zmx works, not a rootshell limitation."
+                    )
+                }
+                .padding(.vertical, 4)
+                .themedRow()
+            } header: {
+                Text("zmx")
+            }
+
             // MARK: - Recommended Configuration
             Section {
                 Text("Add these lines to enable mouse support and pass window titles through to rootshell tab titles.")
@@ -87,7 +119,7 @@ struct TmuxGuideView: View {
             }
         }
         .themedList()
-        .navigationTitle("tmux Tips")
+        .navigationTitle("Multiplexer Tips")
         .navigationBarTitleDisplayMode(.inline)
     }
 

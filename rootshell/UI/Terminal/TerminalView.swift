@@ -234,6 +234,45 @@ extension Ghostty {
         /// Title provided by the terminal session (from escape sequences)
         var sessionProvidedTitle: String?
 
+        /// A shell title emitted as an echo of an attach command typed by the app.
+        var pendingCommandEcho: (command: String, until: Date)?
+
+        static let commandEchoTitleWindow: TimeInterval = 2
+        static let commandEchoMatchPrefix = 16
+
+        /// Consumes a matching, one-shot command echo.
+        func consumesCommandEcho(_ title: String) -> Bool {
+            guard let echo = pendingCommandEcho else { return false }
+            guard Date() < echo.until else {
+                pendingCommandEcho = nil
+                return false
+            }
+            let reported = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !reported.isEmpty else { return false }
+            // Shell integrations may truncate or decorate command titles.
+            let needle = String(echo.command.prefix(Self.commandEchoMatchPrefix))
+            guard needle.count >= Self.commandEchoMatchPrefix else {
+                guard reported == echo.command else { return false }
+                pendingCommandEcho = nil
+                return true
+            }
+            guard reported.contains(needle) else { return false }
+            pendingCommandEcho = nil
+            return true
+        }
+
+        /// Deadline for suppressing titles from a briefly exposed fallback shell.
+        var titleSuppressedUntil: Date?
+
+        func suppressesTitleUpdate() -> Bool {
+            guard let until = titleSuppressedUntil else { return false }
+            guard Date() < until else {
+                titleSuppressedUntil = nil
+                return false
+            }
+            return true
+        }
+
         /// Most recent working directory the terminal has reported. Cached in a
         /// non-observed property so we can keep it up to date while the resume
         /// gate is up without triggering SwiftUI scene updates (see
@@ -390,8 +429,16 @@ extension Ghostty {
             /// binding instantly. Only a primary frame AFTER ownership means
             /// the multiplexer detached or exited.
             var hasOwnedAltScreen: Bool = false
+            /// Whether focus may detach this zmx client and reattach through
+            /// the shell beneath it. Auto-started clients have no shell to
+            /// fall back to, so they must use leader-addressed IPC instead.
+            var canDetachSwitch: Bool = false
         }
         var rawMultiplexer: RawMultiplexerBinding?
+
+        /// A transparent multiplexer identity that does not suppress agent
+        /// attention or depend on alternate-screen ownership.
+        var passthroughMultiplexer: RawMultiplexerBinding?
         nonisolated(unsafe) var tmuxDetachInProgressAtomic: Bool = false
 
         var isTmuxDetachInProgress: Bool {
@@ -4477,6 +4524,14 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             // Timer fires on the run loop that scheduled it (main).
             MainActor.assumeIsolated {
                 guard let self = self else { return }
+                if self.suppressesTitleUpdate() {
+                    Ghostty.logger.debug("Swallowed transient mid-switch title: \(title)")
+                    return
+                }
+                if self.consumesCommandEcho(title) {
+                    Ghostty.logger.debug("Swallowed command-echo title: \(title)")
+                    return
+                }
                 // Always cache the session-provided title so foreground replay has it.
                 self.sessionProvidedTitle = title
                 // Agent identity/state from title rules (cheap, no screen
@@ -4504,7 +4559,9 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             paneUUID: uuid, exitCode: exitCode, duration: duration)
     }
 
-    func handlePwdChange(_ pwd: String) {
+    func handlePwdChange(_ reported: String) {
+        // Decode OSC 7/file URLs at the point where all pwd sources converge.
+        let pwd = WorkingDirectoryURI.path(reported)
         // Always cache so we don't lose the latest value while backgrounded.
         self.sessionProvidedPwd = pwd
         guard !Ghostty.isAppBackgroundedAtomic else { return }

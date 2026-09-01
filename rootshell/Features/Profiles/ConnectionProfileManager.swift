@@ -242,6 +242,7 @@ final class ConnectionProfileManager {
         sshConfig.tmuxAutoEnable = historyEntry.tmuxAutoEnable ?? false
         sshConfig.tmuxAutoMode = historyEntry.tmuxAutoMode ?? .regular
         sshConfig.herdrAutoEnable = historyEntry.herdrAutoEnable ?? false
+        sshConfig.zmxAutoEnable = historyEntry.zmxAutoEnable ?? false
         sshConfig.launchCommand = historyEntry.launchCommand
         sshConfig.launchCommandMode = historyEntry.launchCommandMode ?? .afterConnect
         sshConfig.terminalType = historyEntry.terminalType

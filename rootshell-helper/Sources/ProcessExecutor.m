@@ -324,6 +324,25 @@
     return @"/bin/sh";
 }
 
+/// The launchd-provided per-user temp directory, or nil on failure.
++ (nullable NSString *)darwinUserTempDir {
+    size_t size = confstr(_CS_DARWIN_USER_TEMP_DIR, NULL, 0);
+    if (size == 0) {
+        return nil;
+    }
+    char *buffer = malloc(size);
+    if (!buffer) {
+        return nil;
+    }
+    size_t result = confstr(_CS_DARWIN_USER_TEMP_DIR, buffer, size);
+    NSString *value = nil;
+    if (result > 0 && result <= size) {
+        value = [NSString stringWithUTF8String:buffer];
+    }
+    free(buffer);
+    return value;
+}
+
 /// Build environment array with minimal required variables plus custom ones
 + (char **)buildEnvironmentWithCustom:(nullable NSDictionary<NSString *, NSString *> *)customEnv {
     NSMutableDictionary *env = [NSMutableDictionary dictionary];
@@ -344,6 +363,12 @@
         if (pw->pw_shell) {
             env[@"SHELL"] = [NSString stringWithUTF8String:pw->pw_shell];
         }
+    }
+
+    // Set before customEnv so an explicit value still wins.
+    NSString *tmpDir = [self darwinUserTempDir];
+    if (tmpDir) {
+        env[@"TMPDIR"] = tmpDir;
     }
 
     // Merge custom environment (overrides defaults)

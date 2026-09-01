@@ -92,6 +92,7 @@ struct ProfileEditorSheet: View {
 
     // herdr auto-attach (mutually exclusive with enableTmux via the picker)
     @State private var enableHerdr: Bool = false
+    @State private var enableZmx: Bool = false
 
     // Globals the multiplexer captions fall back to. Observed rather than read
     // directly so the captions refresh when Settings change; the values
@@ -1305,15 +1306,17 @@ struct ProfileEditorSheet: View {
         connectionProtocol == .mosh ? .regular : tmuxAutoMode
     }
 
-    /// Bridges the stored `(enableTmux, tmuxAutoMode, enableHerdr)` fields to a
+    /// Bridges the stored `(enableTmux, tmuxAutoMode, enableHerdr, enableZmx)` fields to a
     /// single Picker. Control mode can't run over Mosh, so it's presented as
     /// regular there.
     private var tmuxLaunchSelection: Binding<TmuxLaunchSelection> {
         Binding(
-            get: { TmuxLaunchSelection(tmuxEnabled: enableTmux, mode: effectiveTmuxAutoMode, herdrEnabled: enableHerdr) },
+            get: { TmuxLaunchSelection(tmuxEnabled: enableTmux, mode: effectiveTmuxAutoMode,
+                                       herdrEnabled: enableHerdr, zmxEnabled: enableZmx) },
             set: { sel in
                 enableTmux = sel.tmuxEnabled
                 enableHerdr = sel.herdrEnabled
+                enableZmx = sel.zmxEnabled
                 if sel.tmuxEnabled { tmuxAutoMode = sel.mode }
             }
         )
@@ -1351,6 +1354,7 @@ struct ProfileEditorSheet: View {
                     Text("tmux -CC (control)").tag(TmuxLaunchSelection.control)
                 }
                 Text("herdr").tag(TmuxLaunchSelection.herdr)
+                Text("zmx").tag(TmuxLaunchSelection.zmx)
             }
             .pickerStyle(.menu)
             .themedRow()
@@ -1383,6 +1387,11 @@ struct ProfileEditorSheet: View {
                     .themedRow()
             } else if enableHerdr {
                 Text("Attach to or create herdr session \"\(multiplexerCaptionSessionName)\" on connect")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .themedRow()
+            } else if enableZmx {
+                Text("Attach to or create zmx session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .themedRow()
@@ -1858,6 +1867,7 @@ struct ProfileEditorSheet: View {
             enableTmux = config.tmuxAutoEnable
             tmuxAutoMode = config.tmuxAutoMode
             enableHerdr = config.herdrAutoEnable
+            enableZmx = config.zmxAutoEnable
 
             // Load launch command
             launchCommand = config.launchCommand ?? ""
@@ -1976,6 +1986,7 @@ struct ProfileEditorSheet: View {
             enableTmux = entry.tmuxAutoEnable ?? false
             tmuxAutoMode = entry.tmuxAutoMode ?? .regular
             enableHerdr = entry.herdrAutoEnable ?? false
+            enableZmx = entry.zmxAutoEnable ?? false
 
             // Launch command from history
             launchCommand = entry.launchCommand ?? ""
@@ -2140,6 +2151,7 @@ struct ProfileEditorSheet: View {
         var finalConfig = sshConfig
         finalConfig.authMethod = sshAuthMethod
         finalConfig.herdrAutoEnable = enableHerdr
+        finalConfig.zmxAutoEnable = enableZmx
 
         // TERM override. Empty (or malformed) means inherit the global default
         // rather than pinning a value that would silently fall back anyway.
@@ -2435,6 +2447,8 @@ private struct ProfileMultiplexerSessionEditor: View {
     @AppStorage("tmuxCustomCommand") private var tmuxCustomCommandSetting = ""
     @AppStorage("herdrSessionName") private var herdrSessionNameSetting = ""
     @AppStorage("herdrCustomCommand") private var herdrCustomCommandSetting = ""
+    @AppStorage("zmxSessionName") private var zmxSessionNameSetting = ""
+    @AppStorage("zmxCustomCommand") private var zmxCustomCommandSetting = ""
 
     @State private var isCustom: Bool
 
@@ -2447,6 +2461,7 @@ private struct ProfileMultiplexerSessionEditor: View {
     }
 
     private var isHerdr: Bool { selection == .herdr }
+    private var isZmx: Bool { selection == .zmx }
 
     private var trimmed: String {
         sessionName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2459,20 +2474,42 @@ private struct ProfileMultiplexerSessionEditor: View {
             let name = herdrSessionNameSetting.trimmingCharacters(in: .whitespacesAndNewlines)
             return SSHConfig.isEmbeddableHerdrSessionName(name) ? name : "default"
         }
+        if isZmx {
+            let name = zmxSessionNameSetting.trimmingCharacters(in: .whitespacesAndNewlines)
+            return SSHConfig.isEmbeddableZmxSessionName(name) ? name : SSHConfig.zmxDefaultSessionName
+        }
         let name = tmuxSessionNameSetting.trimmingCharacters(in: .whitespacesAndNewlines)
         return name.isEmpty ? "main" : name
+    }
+
+    /// The Settings command override for whichever multiplexer the picker
+    /// selected. Reading the wrong one here would disable the field for a
+    /// command the connection will never run.
+    private var customCommandSetting: String {
+        if isHerdr { return herdrCustomCommandSetting }
+        if isZmx { return zmxCustomCommandSetting }
+        return tmuxCustomCommandSetting
     }
 
     /// A full-command override in Settings replaces the session name outright,
     /// so pinning one here would do nothing.
     private var hasCustomCommand: Bool {
-        let command = isHerdr ? herdrCustomCommandSetting : tmuxCustomCommandSetting
-        return !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !customCommandSetting.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var customWarning: String? {
-        guard isCustom, !trimmed.isEmpty,
-              !SSHConfig.isEmbeddableMultiplexerSessionName(trimmed) else { return nil }
+        guard isCustom, !trimmed.isEmpty else { return nil }
+        if isZmx {
+            guard !SSHConfig.isEmbeddableZmxSessionName(trimmed) else { return nil }
+            // A leading `-` passes the shared charset rule but `zmx attach`
+            // reads it as a flag, so name the real problem rather than sending
+            // the user hunting for an illegal character that isn't there.
+            if trimmed.hasPrefix("-") {
+                return String(localized: "zmx reads a name starting with '-' as an option. This name falls back to the global default.")
+            }
+            return String(localized: "Use letters, digits, and . _ - only, up to 64 characters. Other names fall back to the global default.")
+        }
+        guard !SSHConfig.isEmbeddableMultiplexerSessionName(trimmed) else { return nil }
         return String(localized: "Use letters, digits, and . _ - only, up to 64 characters. Other names fall back to the global default.")
     }
 
@@ -2516,6 +2553,8 @@ private struct ProfileMultiplexerSessionEditor: View {
                     Text("Ignored when a custom auto-start command is set in Settings.")
                 } else if isHerdr {
                     Text("The herdr session this profile attaches to on connect. Leave on the global default to use the session name from Settings. Names may use letters, numbers, '.', '_' and '-' (\".\" and \"..\" alone are reserved).")
+                } else if isZmx {
+                    Text("The zmx session this profile attaches to or creates on connect. Leave on the global default to use the session name from Settings. Names may use letters, numbers, '.', '_' and '-', and may not start with '-'.")
                 } else {
                     Text("The tmux session this profile attaches to or creates on connect. Leave on the global default to use the session name from Settings. A pinned name also overrides the session you were last attached to on this host.")
                 }

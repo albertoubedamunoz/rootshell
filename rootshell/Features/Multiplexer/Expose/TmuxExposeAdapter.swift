@@ -88,7 +88,7 @@ nonisolated struct TmuxExposeAdapter: MultiplexerExposeAdapter {
         )
     }
 
-    func parseTick(output: String, nonce: String) -> MuxTickResult? {
+    func parseTick(output: String, session _: String?, nonce: String) -> MuxTickResult? {
         let sections = MuxScript.sections(of: output, nonce: nonce)
         guard sections.found, !sections.unsupported else { return nil }
         let rows = sections.topology.split(separator: "\n").compactMap(row)

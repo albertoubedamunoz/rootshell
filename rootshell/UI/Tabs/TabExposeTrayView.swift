@@ -46,6 +46,7 @@ final class TabExposeTrayView: UIScrollView {
         header.addSubview(headerIcon)
         header.addSubview(headerLabel)
         header.isUserInteractionEnabled = false
+        header.accessibilityTraits = .header
         addSubview(header)
     }
 
@@ -65,7 +66,8 @@ final class TabExposeTrayView: UIScrollView {
         muxFeed: MultiplexerExposeFeed? = nil,
         selectedID: UUID?,
         highlightedID: UUID?,
-        appearance: TabExposeView.Appearance
+        appearance: TabExposeView.Appearance,
+        onSelect: ((UUID) -> Void)? = nil
     ) -> [TabExposeCellView] {
         self.appearance = appearance
         self.muxFeed = muxFeed
@@ -91,6 +93,7 @@ final class TabExposeTrayView: UIScrollView {
             }
             cell.isCurrent = id == selectedID
             cell.isHighlighted = id == highlightedID
+            cell.onActivate = onSelect.map { select in { select(id) } }
             // Captions only re-host when the cell's position changes (hover
             // highlight churn must not rebuild SwiftUI per cell). A
             // multiplexer caption also follows the tab's title.
@@ -124,10 +127,15 @@ final class TabExposeTrayView: UIScrollView {
                 }
             }
             headerLabel.text = parts.joined(separator: " · ")
+            header.isAccessibilityElement = true
+            header.accessibilityLabel = headerLabel.text
             let symbol = muxFeed != nil ? "rectangle.split.2x1" : (tabsModel.isProjectGroupingActive ? "folder" : "square.grid.2x2")
             headerIcon.image = UIImage(systemName: symbol)
+        } else {
+            header.isAccessibilityElement = false
         }
         applyAppearance(appearance)
+        accessibilityElements = (scoped ? [header] : []) + cells
         return entering
     }
 

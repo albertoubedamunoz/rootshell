@@ -25,21 +25,21 @@ extension TmuxAutoMode {
     }
 }
 
-/// UI-facing selection for the "Auto-start multiplexer" menu, bridging the
-/// stored `(tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable)` fields to a single
-/// Picker selection. tmux and herdr auto-start are mutually exclusive: only
-/// one exec command can win at connect.
+/// UI-facing selection for the mutually exclusive auto-start options.
 enum TmuxLaunchSelection: Hashable, CaseIterable {
     case off
     case regular
     case control
     case herdr
+    case zmx
 
-    init(tmuxEnabled: Bool, mode: TmuxAutoMode, herdrEnabled: Bool) {
+    init(tmuxEnabled: Bool, mode: TmuxAutoMode, herdrEnabled: Bool, zmxEnabled: Bool) {
         if tmuxEnabled {
             self = (mode == .control) ? .control : .regular
         } else if herdrEnabled {
             self = .herdr
+        } else if zmxEnabled {
+            self = .zmx
         } else {
             self = .off
         }
@@ -50,6 +50,9 @@ enum TmuxLaunchSelection: Hashable, CaseIterable {
 
     /// Whether herdr auto-start is on.
     var herdrEnabled: Bool { self == .herdr }
+
+    /// Whether zmx auto-start is on.
+    var zmxEnabled: Bool { self == .zmx }
 
     /// The persisted tmux launch mode (regular when tmux is off, which is
     /// irrelevant then).
@@ -147,6 +150,7 @@ struct SSHConfig: Codable, Hashable {
     /// connect. Mutually exclusive with `tmuxAutoEnable` in the UI; when both
     /// are somehow set, tmux wins.
     var herdrAutoEnable: Bool = false
+    var zmxAutoEnable: Bool = false
 
     /// Session name for whichever multiplexer the auto-start picker selects.
     /// nil or empty falls back to the global default, which is how every
@@ -547,7 +551,7 @@ struct SSHConfig: Codable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case host, port, username, authMethod, cachedIP, jumpHost
         case hssShorthand, cloudInstanceLabel, agentConfig, gpgAgentConfig, portForwardConfig
-        case tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, launchCommand, launchCommandMode, fallbackKeyIDs, keyResolutionHints
+        case tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, zmxAutoEnable, launchCommand, launchCommandMode, fallbackKeyIDs, keyResolutionHints
         case terminalType, multiplexerSessionName
     }
 
@@ -568,6 +572,7 @@ struct SSHConfig: Codable, Hashable {
         tmuxAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .tmuxAutoEnable) ?? false
         tmuxAutoMode = try container.decodeIfPresent(TmuxAutoMode.self, forKey: .tmuxAutoMode) ?? .regular
         herdrAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .herdrAutoEnable) ?? false
+        zmxAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .zmxAutoEnable) ?? false
         launchCommand = try container.decodeIfPresent(String.self, forKey: .launchCommand)
         launchCommandMode = try container.decodeIfPresent(LaunchCommandMode.self, forKey: .launchCommandMode) ?? .afterConnect
         fallbackKeyIDs = try container.decodeIfPresent([UUID].self, forKey: .fallbackKeyIDs)
@@ -707,11 +712,6 @@ struct SSHConfig: Codable, Hashable {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    /// herdr session names are ASCII alphanumerics plus `.` `_` `-`, at most
-    /// 64 bytes, and never the reserved `.`/`..` (herdr's validate_name
-    /// rejects those). Anything else can't be embedded in the single-quoted
-    /// exec line — or would make herdr exit instead of attaching — and
-    /// degrades to the default session.
     static func isEmbeddableHerdrSessionName(_ name: String) -> Bool {
         !name.isEmpty && name != "." && name != ".." && name.utf8.count <= 64 && name.allSatisfy {
             $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "_" || $0 == "-")
@@ -727,11 +727,12 @@ struct SSHConfig: Codable, Hashable {
         return name
     }
 
-    /// Strictest of the two multiplexers' rules, so one stored value stays
-    /// legal for whichever the picker selects: herdr's rule is tmux's charset
-    /// plus a 64-byte cap and the reserved `.`/`..` names.
     static func isEmbeddableMultiplexerSessionName(_ name: String) -> Bool {
         isEmbeddableHerdrSessionName(name)
+    }
+
+    static func isEmbeddableZmxSessionName(_ name: String) -> Bool {
+        isEmbeddableMultiplexerSessionName(name) && !name.hasPrefix("-")
     }
 
     /// Builds the `sh -c '...'` line that attaches to (or creates) a herdr
@@ -783,6 +784,58 @@ struct SSHConfig: Codable, Hashable {
         return Self.herdrExecCommandLine(sessionName: herdrRawSessionNameForConnection)
     }
 
+    // MARK: - zmx auto-start
+
+    /// zmx has no default-session concept: `zmx attach` with no name is an
+    /// error, so unlike herdr the fallback has to be a real name.
+    static let zmxDefaultSessionName = "main"
+
+    /// Globally-configured zmx session name, falling back to `main`.
+    static var zmxGlobalSessionName: String {
+        let raw = UserDefaults.standard.string(forKey: "zmxSessionName")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return raw.isEmpty ? zmxDefaultSessionName : raw
+    }
+
+    /// Builds the attach-or-create command, falling back to `$SHELL`.
+    static func zmxExecCommandLine(sessionName: String) -> String {
+        let name = isEmbeddableZmxSessionName(sessionName) ? sessionName : zmxDefaultSessionName
+        // Listed names already contain any configured session prefix.
+        return "sh -c '\(remoteExecPathPrefix)command -v zmx >/dev/null"
+            + " && ZMX_SESSION_PREFIX= exec zmx attach \(name)"
+            + " || exec $SHELL'"
+    }
+
+    /// Shared zmx exec command used by all session types.
+    /// Reads "zmxCustomCommand" and "zmxSessionName" from UserDefaults.
+    static var zmxExecCommand: String {
+        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
+           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return custom
+        }
+        return zmxExecCommandLine(sessionName: zmxGlobalSessionName)
+    }
+
+    /// The auto-start session, or nil when a custom command makes it unknowable.
+    var zmxSessionNameForConnection: String? {
+        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
+           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return nil
+        }
+        let raw = multiplexerSessionNameOverride ?? Self.zmxGlobalSessionName
+        return Self.isEmbeddableZmxSessionName(raw) ? raw : Self.zmxDefaultSessionName
+    }
+
+    /// Per-connection variant of `zmxExecCommand`. A custom "zmxCustomCommand"
+    /// still wins.
+    var zmxExecCommandForConnection: String {
+        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
+           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return custom
+        }
+        return Self.zmxExecCommandLine(sessionName: multiplexerSessionNameOverride ?? Self.zmxGlobalSessionName)
+    }
+
     /// Session name the given picker selection would attach to, for the editor
     /// captions. Deliberately ignores TmuxGatewaySessionStore: the editor may
     /// describe a profile with no live connection, and the captions already
@@ -810,6 +863,13 @@ struct SSHConfig: Codable, Hashable {
             }
             let raw = pinned ?? herdrGlobalSessionName
             return isEmbeddableHerdrSessionName(raw) ? raw : "default"
+        case .zmx:
+            if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
+               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return "custom"
+            }
+            let raw = pinned ?? zmxGlobalSessionName
+            return isEmbeddableZmxSessionName(raw) ? raw : zmxDefaultSessionName
         }
     }
 
@@ -835,9 +895,21 @@ struct SSHConfig: Codable, Hashable {
         return launchCommand
     }
 
+    /// Whether the channel replaced the interactive shell with a command.
+    var hasExecTakeoverCommand: Bool {
+        !MuxDetachGate.hasFallbackShell(
+            hasRemoteCommand: !(remoteCommand?.isEmpty ?? true),
+            hasInitialCommandLaunch: initialLaunchCommand != nil,
+            tmuxAutoEnable: tmuxAutoEnable,
+            herdrAutoEnable: herdrAutoEnable,
+            zmxAutoEnable: zmxAutoEnable
+        )
+    }
+
     /// Returns the exec command to use, if any.
     /// Remote command takes precedence over profile launch command and
-    /// multiplexer auto-start; tmux wins over herdr if both are set.
+    /// multiplexer auto-start; precedence among multiplexers is tmux, then
+    /// herdr, then zmx.
     var effectiveExecCommand: String? {
         if let remoteCommand, !remoteCommand.isEmpty {
             return Self.command(remoteCommand, applying: remoteCommandPolicy)
@@ -850,6 +922,9 @@ struct SSHConfig: Codable, Hashable {
         }
         if herdrAutoEnable {
             return herdrExecCommandForConnection
+        }
+        if zmxAutoEnable {
+            return zmxExecCommandForConnection
         }
         return nil
     }
@@ -874,6 +949,9 @@ struct SSHConfig: Codable, Hashable {
         if herdrAutoEnable {
             // herdr has no control mode; the same exec line works under Mosh.
             return herdrExecCommandForConnection
+        }
+        if zmxAutoEnable {
+            return zmxExecCommandForConnection
         }
         return "$SHELL -l"
     }

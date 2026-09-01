@@ -159,8 +159,14 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
         // device which members the writer knew. A nil member means the user
         // cleared it only when the stamped version is at least the version that
         // introduced that member.
+        // zmxAutoEnable rides the envelope rather than getting its own record
+        // field like `herdrAutoEnable` above. That inconsistency is deliberate:
+        // a new top-level field costs a production CloudKit schema deploy, which
+        // an outside contributor cannot perform, and the envelope exists
+        // precisely so later fields do not.
         let envelope = HistoryExtensionPayload(terminalType: terminalType,
-                                               multiplexerSessionName: multiplexerSessionName)
+                                               multiplexerSessionName: multiplexerSessionName,
+                                               zmxAutoEnable: zmxAutoEnable)
         if let envelopeData = try? JSONEncoder().encode(envelope) {
             record["extensionData"] = envelopeData
         } else {
@@ -280,6 +286,7 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
             tmuxAutoEnable: tmuxAutoEnable,
             tmuxAutoMode: tmuxAutoMode,
             herdrAutoEnable: herdrAutoEnable,
+            zmxAutoEnable: extensionPayload?.zmxAutoEnable,
             launchCommand: launchCommand,
             launchCommandMode: launchCommandMode,
             terminalType: extensionPayload?.terminalType,

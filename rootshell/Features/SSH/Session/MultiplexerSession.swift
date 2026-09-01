@@ -2,7 +2,7 @@
 //  MultiplexerSession.swift
 //  rootshell
 //
-//  Unified model for terminal multiplexer sessions (tmux, zellij, herdr).
+//  Unified model for terminal multiplexer sessions (tmux, zellij, herdr, zmx).
 //
 
 import Foundation
@@ -13,6 +13,26 @@ enum MultiplexerType: String, Sendable, Equatable, Hashable {
     case tmux
     case zellij
     case herdr
+    case zmx
+
+    /// Whether the multiplexer, rather than its inner program, owns the screen.
+    var ownsAlternateScreen: Bool {
+        switch self {
+        case .tmux, .zellij, .herdr: return true
+        case .zmx: return false
+        }
+    }
+
+    /// SF Symbol representing this multiplexer.
+    ///
+    var iconName: String {
+        switch self {
+        case .tmux: return "rectangle.split.2x1"
+        case .zellij: return "rectangle.split.3x1"
+        case .herdr: return "square.grid.2x2"
+        case .zmx: return "rectangle"
+        }
+    }
 }
 
 // MARK: - Unified Session Model
@@ -25,6 +45,8 @@ struct MultiplexerSession: Identifiable, Equatable, Sendable {
     let detail: String
     /// Secondary info: active command+path for tmux, nil for zellij
     let subtitle: String?
+    /// Absolute working directory reported by the session.
+    let workingDirectory: String?
     /// ANSI-captured terminal content for preview rendering
     var capturedContent: String?
     /// Whether this is an exited zellij session that can be resurrected
@@ -48,17 +70,21 @@ extension MultiplexerSession {
             isAttached: session.isAttached,
             detail: detail,
             subtitle: subtitle.isEmpty ? nil : subtitle,
+            // tmux panes are bound as a raw multiplexer, and `noteProject`
+            // refuses outright inside one, so a directory here would be
+            // carried and never used.
+            workingDirectory: nil,
             capturedContent: session.capturedContent,
             isExited: false
         )
     }
 
+    /// Collapses `/home/<user>` and `/Users/<user>` to `~`.
     private static func shortenPath(_ path: String) -> String {
-        if path.hasPrefix("/home/") {
-            return "~" + String(path.dropFirst(5 + path.dropFirst(6).prefix(while: { $0 != "/" }).count))
-        }
-        if path.hasPrefix("/Users/") {
-            return "~" + String(path.dropFirst(6 + path.dropFirst(7).prefix(while: { $0 != "/" }).count))
+        for root in ["/home/", "/Users/"] where path.hasPrefix(root) {
+            let afterRoot = path.dropFirst(root.count)
+            let username = afterRoot.prefix(while: { $0 != "/" })
+            return "~" + afterRoot.dropFirst(username.count)
         }
         return path
     }
@@ -74,8 +100,36 @@ extension MultiplexerSession {
             isAttached: session.isAttached,
             detail: session.createdAgo,
             subtitle: nil,
+            workingDirectory: nil,
             capturedContent: session.capturedContent,
             isExited: session.isExited
+        )
+    }
+}
+
+// MARK: - Factory: from ZmxSessionInfo
+
+extension MultiplexerSession {
+    static func from(zmx session: ZmxSessionInfo) -> MultiplexerSession {
+        // zmx has no windows to count; show age when nobody is attached.
+        let clientCount = session.clientCount ?? 0
+        let detail = clientCount > 0
+            ? String(localized: "\(clientCount) clients", comment: "zmx attached client count")
+            : session.createdAgo
+
+        let subtitle = [session.labels["project"], session.cwd.map { shortenPath($0) }]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+
+        return MultiplexerSession(
+            type: .zmx,
+            name: session.name,
+            isAttached: session.isAttached,
+            detail: detail,
+            subtitle: subtitle.isEmpty ? nil : subtitle,
+            workingDirectory: session.cwd,
+            capturedContent: session.capturedContent,
+            isExited: false
         )
     }
 }
@@ -92,6 +146,8 @@ extension MultiplexerSession {
             isAttached: false,
             detail: session.detailText,
             subtitle: session.agentSubtitle,
+            // Raw-multiplexer bound like tmux; see the note there.
+            workingDirectory: nil,
             capturedContent: session.capturedContent,
             isExited: !session.isRunning
         )
