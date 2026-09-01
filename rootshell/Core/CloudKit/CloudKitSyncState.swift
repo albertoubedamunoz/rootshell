@@ -109,6 +109,9 @@ enum CloudKitSyncSettings {
     /// Connection profiles sync enabled (default: false when master enabled)
     static let syncProfilesKey = "cloudKitSyncProfiles"
 
+    /// App settings sync enabled. Opt-in; never auto-enabled for existing sync users.
+    static let syncAppSettingsKey = "cloudKitSyncAppSettings"
+
     /// Last successful sync date
     static let lastSyncDateKey = "cloudKitLastSyncDate"
 

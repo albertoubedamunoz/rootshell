@@ -34,6 +34,9 @@ final class CloudKitSyncManager {
     /// Whether connection profiles sync is enabled
     private(set) var isProfilesSyncEnabled: Bool = false
 
+    /// Whether app settings sync is enabled (opt-in, never auto-enabled)
+    private(set) var isAppSettingsSyncEnabled: Bool = false
+
     /// Current sync state
     private(set) var syncState: CloudKitSyncState = .disabled
 
@@ -110,6 +113,178 @@ final class CloudKitSyncManager {
         ConnectionProfileManager.shared.onLocalChange = { [weak self] profile, operation in
             self?.recordLocalChange(profile, operation: operation)
         }
+
+        // App settings: batched by the coordinator, pushed here
+        let coordinator = SettingsSyncCoordinator.shared
+        coordinator.isEnabled = isSyncEnabled && isAppSettingsSyncEnabled
+        coordinator.onOutgoingBatch = { [weak self] records in
+            self?.recordLocalSettingChanges(records)
+        }
+    }
+
+    // MARK: - App Settings Sync
+
+    enum SettingsSyncEnableOutcome {
+        case enabled
+        case needsMergeChoice(SettingsMergePreview)
+    }
+
+    /// Push a batch of changed setting records, or queue them offline.
+    private func recordLocalSettingChanges(_ records: [AppSettingRecord]) {
+        guard isSyncEnabled, isAppSettingsSyncEnabled else { return }
+        if isNetworkAvailable && !isRateLimitBackoff {
+            Task { await pushRecords(records) }
+        } else {
+            for record in records {
+                offlineQueue.enqueue(record, operation: record.isDeleted ? .delete : .update)
+            }
+        }
+    }
+
+    /// Enable settings sync. When both this device and iCloud already hold
+    /// settings the caller must present the merge choice and complete it.
+    func setAppSettingsSyncEnabled(_ enabled: Bool) async throws -> SettingsSyncEnableOutcome {
+        let coordinator = SettingsSyncCoordinator.shared
+        guard enabled else {
+            isAppSettingsSyncEnabled = false
+            coordinator.isEnabled = false
+            coordinator.resetSyncState()
+            saveSettings()
+            return .enabled
+        }
+        guard isSyncEnabled else { throw CloudKitSyncError.notEnabled }
+        guard !isAppSettingsSyncEnabled else { return .enabled }
+
+        syncState = .fetchingChanges
+        do {
+            _ = try await ensureCustomZoneReady()
+            // An existing change token has already consumed past AppSetting
+            // records, so fetch the zone from scratch.
+            let changes = try await fetchZoneChanges(resetToken: true)
+            await processChangedRecords(changes.records)
+            await processDeletedRecords(changes.deletedRecords)
+            let cloud = changes.records.compactMap { $0.recordType == AppSettingRecord.recordType ? AppSettingRecord.from($0) : nil }
+            let preview = coordinator.mergePreview(cloud: cloud)
+            let localCount = coordinator.recordsForInitialPush().count
+
+            if preview.cloudCount > 0 && localCount > 0 {
+                syncState = .idle
+                return .needsMergeChoice(preview)
+            }
+            let choice: SettingsMergeChoice = preview.cloudCount > 0 ? .useCloud : .uploadLocal
+            try await completeAppSettingsSyncEnable(preview: preview, choice: choice)
+            return .enabled
+        } catch let error as CloudKitSyncError {
+            syncState = .error(error)
+            throw error
+        } catch let ckError as CKError {
+            let syncError = CloudKitSyncError.from(ckError)
+            syncState = .error(syncError)
+            throw syncError
+        }
+    }
+
+    /// Finish enabling after the merge choice (or automatically when one side was empty).
+    func completeAppSettingsSyncEnable(preview: SettingsMergePreview, choice: SettingsMergeChoice) async throws {
+        let coordinator = SettingsSyncCoordinator.shared
+        syncState = .pushingChanges
+        let toPush = coordinator.completeInitialMerge(cloud: preview.cloud, choice: choice)
+        isAppSettingsSyncEnabled = true
+        coordinator.isEnabled = true
+        saveSettings()
+        if !toPush.isEmpty {
+            await pushRecords(toPush)
+        }
+        syncState = .idle
+        Self.logger.info("App settings sync enabled (\(toPush.count) records pushed)")
+    }
+
+    /// Batched save with per-record results; conflicts are merged per key.
+    private func pushRecords(_ records: [AppSettingRecord]) async {
+        guard !records.isEmpty else { return }
+        let coordinator = SettingsSyncCoordinator.shared
+        for chunk in stride(from: 0, to: records.count, by: 200).map({ Array(records[$0..<min($0 + 200, records.count)]) }) {
+            do {
+                let outcome = try await saveRecords(chunk)
+                coordinator.markPushed(outcome.saved)
+                if !outcome.serverWins.isEmpty {
+                    coordinator.applyRemote(outcome.serverWins)
+                }
+                for record in outcome.failed {
+                    offlineQueue.enqueue(record, operation: record.isDeleted ? .delete : .update)
+                }
+            } catch let error as CKError where error.code == .requestRateLimited {
+                let retryAfter = error.retryAfterSeconds ?? 30
+                Self.logger.warning("Rate limited pushing settings, queuing \(chunk.count) and backing off \(retryAfter)s")
+                for record in chunk { offlineQueue.enqueue(record, operation: record.isDeleted ? .delete : .update) }
+                isRateLimitBackoff = true
+                scheduleRateLimitedRetry(after: retryAfter)
+                return
+            } catch {
+                Self.logger.warning("Failed to push settings batch, queuing: \(error.localizedDescription)")
+                for record in chunk { offlineQueue.enqueue(record, operation: record.isDeleted ? .delete : .update) }
+            }
+        }
+    }
+
+    private struct SettingsSaveOutcome {
+        var saved: [AppSettingRecord] = []
+        var serverWins: [AppSettingRecord] = []
+        var failed: [AppSettingRecord] = []
+    }
+
+    private func saveRecords(_ records: [AppSettingRecord]) async throws -> SettingsSaveOutcome {
+        let byName = Dictionary(records.map { (AppSettingRecord.recordName(for: $0), $0) }, uniquingKeysWith: { $1 })
+        let (saveResults, _) = try await database.modifyRecords(
+            saving: records.map { $0.toCKRecord() },
+            deleting: [],
+            savePolicy: .allKeys,
+            atomically: false
+        )
+        var outcome = SettingsSaveOutcome()
+        var retry: [CKRecord] = []
+        for (recordID, result) in saveResults {
+            guard let local = byName[recordID.recordName] else { continue }
+            switch result {
+            case .success:
+                outcome.saved.append(local)
+            case .failure(let error):
+                if let ckError = error as? CKError, ckError.code == .serverRecordChanged,
+                   let serverRecord = ckError.userInfo[CKRecordChangedErrorServerRecordKey] as? CKRecord,
+                   let serverModel = AppSettingRecord.from(serverRecord) {
+                    let decision = SettingsMergeResolver.resolve(
+                        local: .init(value: local.isDeleted ? nil : local.payload, modifiedAt: local.modifiedAt, deviceID: local.deviceID),
+                        remote: .init(value: serverModel.payload, modifiedAt: serverModel.modifiedAt, deviceID: serverModel.deviceID),
+                        alreadyPushed: false)
+                    switch decision {
+                    case .keepLocalAndPush, .keepLocal:
+                        local.apply(to: serverRecord)
+                        retry.append(serverRecord)
+                    case .applyRemote:
+                        outcome.serverWins.append(serverModel)
+                    case .noop:
+                        outcome.saved.append(local)
+                    }
+                } else if let ckError = error as? CKError, ckError.code == .requestRateLimited {
+                    throw ckError
+                } else {
+                    Self.logger.warning("Setting record \(local.key, privacy: .public) failed: \(error.localizedDescription)")
+                    outcome.failed.append(local)
+                }
+            }
+        }
+        if !retry.isEmpty {
+            let (retryResults, _) = try await database.modifyRecords(
+                saving: retry, deleting: [], savePolicy: .allKeys, atomically: false)
+            for (recordID, result) in retryResults {
+                guard let local = byName[recordID.recordName] else { continue }
+                switch result {
+                case .success: outcome.saved.append(local)
+                case .failure: outcome.failed.append(local)
+                }
+            }
+        }
+        return outcome
     }
 
     // MARK: - Public API
@@ -300,6 +475,9 @@ final class CloudKitSyncManager {
                 for host in hosts {
                     await pushRecord(host, operation: .create)
                 }
+            case AppSettingRecord.recordType:
+                // Settings are opt-in through setAppSettingsSyncEnabled; never pushed here.
+                break
             default:
                 Self.logger.warning("Unknown record type in pending push: \(recordType)")
             }
@@ -372,6 +550,9 @@ final class CloudKitSyncManager {
             isHistorySyncEnabled = false
             isKnownHostsSyncEnabled = false
             isProfilesSyncEnabled = false
+            isAppSettingsSyncEnabled = false
+            SettingsSyncCoordinator.shared.isEnabled = false
+            SettingsSyncCoordinator.shared.resetSyncState()
             saveSettings()
 
             Self.logger.info("CloudKit sync disabled")
@@ -411,6 +592,10 @@ final class CloudKitSyncManager {
         Self.logger.info("History sync enabled: \(self.isHistorySyncEnabled)")
         Self.logger.info("Known hosts sync enabled: \(self.isKnownHostsSyncEnabled)")
         Self.logger.info("Profiles sync enabled: \(self.isProfilesSyncEnabled)")
+        Self.logger.info("App settings sync enabled: \(self.isAppSettingsSyncEnabled)")
+        let coordinator = SettingsSyncCoordinator.shared
+        let registry = SettingsRegistry.shared
+        Self.logger.info("Settings registry: \(registry.definitions.count) keys, \(registry.syncableKeys.count) syncable, \(coordinator.pinnedDefinitions().count) pinned, \(coordinator.sidecar.pinnedGroups.count) pinned groups, \(coordinator.sidecar.deferredRemote.count) deferred remote")
         Self.logger.info("Current state: \(String(describing: self.syncState))")
         Self.logger.info("Last sync: \(self.lastSyncDate?.description ?? "never")")
         Self.logger.info("Pending changes: \(self.pendingChangesCount)")
@@ -503,6 +688,8 @@ final class CloudKitSyncManager {
             guard isKnownHostsSyncEnabled else { return }
         case ConnectionProfile.recordType:
             guard isProfilesSyncEnabled else { return }
+        case AppSettingRecord.recordType:
+            guard isAppSettingsSyncEnabled else { return }
         default:
             break
         }
@@ -817,8 +1004,16 @@ final class CloudKitSyncManager {
 
     /// Process changed records from CloudKit
     private func processChangedRecords(_ records: [CKRecord]) async {
+        // Settings are merged as one batch so managers reload and the terminal
+        // config rewrites once, not once per key.
+        var settingRecords: [AppSettingRecord] = []
         for record in records {
             switch record.recordType {
+            case AppSettingRecord.recordType:
+                guard isAppSettingsSyncEnabled else { continue }
+                if let setting = AppSettingRecord.from(record) {
+                    settingRecords.append(setting)
+                }
             case SSHConnectionHistoryEntry.recordType:
                 guard isHistorySyncEnabled else { continue }
                 if let entry = SSHConnectionHistoryEntry.from(record) {
@@ -837,6 +1032,9 @@ final class CloudKitSyncManager {
             default:
                 Self.logger.warning("Unknown record type: \(record.recordType)")
             }
+        }
+        if !settingRecords.isEmpty {
+            await applyRemoteRecords(settingRecords, type: AppSettingRecord.self)
         }
     }
 
@@ -859,6 +1057,9 @@ final class CloudKitSyncManager {
             case ConnectionProfile.recordType:
                 guard isProfilesSyncEnabled else { continue }
                 profileDeletions.insert(record.recordID.recordName)
+            case AppSettingRecord.recordType:
+                // Hard deletes only come from dashboard cleanup; tombstones carry the semantics.
+                offlineQueue.dequeueRecord(record.recordID.recordName)
             default:
                 Self.logger.warning("Unknown deleted record type: \(record.recordType)")
             }
@@ -902,6 +1103,10 @@ final class CloudKitSyncManager {
         case ConnectionProfile.recordType:
             if let profiles = records as? [ConnectionProfile] {
                 ConnectionProfileManager.shared.applyRemoteChanges(profiles)
+            }
+        case AppSettingRecord.recordType:
+            if let settings = records as? [AppSettingRecord] {
+                SettingsSyncCoordinator.shared.applyRemote(settings)
             }
         default:
             break
@@ -991,7 +1196,15 @@ final class CloudKitSyncManager {
 
         Self.logger.info("Pushing \(batch.count) pending changes")
 
-        for change in batch {
+        // Settings go out as one batched save; the rest one at a time.
+        let settingChanges = batch.filter { $0.recordType == AppSettingRecord.recordType }
+        if !settingChanges.isEmpty {
+            let records = settingChanges.compactMap { try? payloadDecoder.decode(AppSettingRecord.self, from: $0.payload) }
+            for change in settingChanges { offlineQueue.dequeue(change.id) }
+            await pushRecords(records)
+        }
+
+        for change in batch where change.recordType != AppSettingRecord.recordType {
             do {
                 try await pushPendingChange(change)
                 offlineQueue.dequeue(change.id)
@@ -1045,6 +1258,11 @@ final class CloudKitSyncManager {
                 throw CloudKitSyncError.invalidPayload("ConnectionProfile payload decode failed")
             }
             try await saveRecord(profile)
+        case AppSettingRecord.recordType:
+            guard let setting = try? payloadDecoder.decode(AppSettingRecord.self, from: change.payload) else {
+                throw CloudKitSyncError.invalidPayload("AppSetting payload decode failed")
+            }
+            await pushRecords([setting])
         default:
             Self.logger.warning("Unknown record type in pending change: \(change.recordType)")
         }
@@ -1111,6 +1329,12 @@ final class CloudKitSyncManager {
             for profile in profiles {
                 await pushRecord(profile, operation: .create)
             }
+        }
+
+        if isAppSettingsSyncEnabled {
+            let settings = SettingsSyncCoordinator.shared.recordsForInitialPush()
+            Self.logger.info("Pushing \(settings.count) app setting records to CloudKit")
+            await pushRecords(settings)
         }
     }
 
@@ -1230,6 +1454,9 @@ final class CloudKitSyncManager {
             isProfilesSyncEnabled = UserDefaults.standard.bool(forKey: CloudKitSyncSettings.syncProfilesKey)
         }
 
+        // Plain read: settings sync is opt-in and never joins the auto-enable path above.
+        isAppSettingsSyncEnabled = isSyncEnabled && UserDefaults.standard.bool(forKey: CloudKitSyncSettings.syncAppSettingsKey)
+
         syncState = isSyncEnabled ? .idle : .disabled
     }
 
@@ -1238,6 +1465,7 @@ final class CloudKitSyncManager {
         UserDefaults.standard.set(isHistorySyncEnabled, forKey: CloudKitSyncSettings.syncHistoryKey)
         UserDefaults.standard.set(isKnownHostsSyncEnabled, forKey: CloudKitSyncSettings.syncKnownHostsKey)
         UserDefaults.standard.set(isProfilesSyncEnabled, forKey: CloudKitSyncSettings.syncProfilesKey)
+        UserDefaults.standard.set(isAppSettingsSyncEnabled, forKey: CloudKitSyncSettings.syncAppSettingsKey)
     }
 
     private func loadChangeToken() {

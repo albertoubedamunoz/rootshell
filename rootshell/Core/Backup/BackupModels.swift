@@ -226,7 +226,7 @@ struct WiFiAPManualEntriesBackup: Codable {
 
 // MARK: - CodableValue (Type-erasing wrapper for UserDefaults values)
 
-nonisolated enum CodableValue: Codable, Equatable, Sendable {
+nonisolated enum CodableValue: Codable, Equatable, Hashable, Sendable {
     case string(String)
     case int(Int)
     case double(Double)

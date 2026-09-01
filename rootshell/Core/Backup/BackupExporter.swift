@@ -395,7 +395,7 @@ enum BackupExporter {
     private static let excludedPrefKeys: Set<String> = [
         // CloudKit sync state (device-specific, will be re-established)
         "cloudKitSyncEnabled", "cloudKitSyncHistory", "cloudKitSyncKnownHosts",
-        "cloudKitSyncProfiles", "cloudKitLastSyncDate", "cloudKitZoneChangeToken",
+        "cloudKitSyncProfiles", "cloudKitSyncAppSettings", "cloudKitLastSyncDate", "cloudKitZoneChangeToken",
         "cloudKitMigratedToCustomZone", "cloudKitDeviceID",
         // Migration flags (one-time, should re-run on fresh install)
         "sshKeysMetadataMigratedToKeychain", "nerdFontFamilyMigrationDone",
