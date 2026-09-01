@@ -13,6 +13,7 @@ struct KnownHostDetailView: View {
         Form {
             Section("Host Information") {
                 LabeledContent("Hostname", value: host.hostname)
+                    .hostAddressCopyMenu(hostname: host.hostname)
                     .themedRow()
                 LabeledContent("Port", value: "\(host.port)")
                     .themedRow()

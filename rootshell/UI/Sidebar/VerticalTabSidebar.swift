@@ -1664,6 +1664,21 @@ struct VerticalTabSidebar: View {
         .disabled(tab.connectionInfo == nil)
     }
 
+    @ViewBuilder
+    private func connectionAddressCopyItems(for tab: TabModel) -> some View {
+        if let info = tab.connectionInfo,
+           HostAddressCopyActions.hasActions(
+               hostname: info.copyableHostname,
+               ipAddress: info.copyableIPAddress
+           ) {
+            HostAddressCopyActions(
+                hostname: info.copyableHostname,
+                ipAddress: info.copyableIPAddress
+            )
+            Divider()
+        }
+    }
+
     /// Transfer + theme-override items shared by every row menu, both
     /// conditional. Mirrors the top tab bar.
     @ViewBuilder
@@ -1860,6 +1875,7 @@ struct VerticalTabSidebar: View {
     /// Context menu for a regular (non-tmux) tab row.
     @ViewBuilder
     private func flatRowMenu(for tab: TabModel) -> some View {
+        connectionAddressCopyItems(for: tab)
         connectionInfoItem(for: tab)
         transferAndThemeItems(for: tab)
         moveToWindowItems(for: tab)
@@ -1877,6 +1893,7 @@ struct VerticalTabSidebar: View {
     /// sessions, hide), close (configurable tmux tab-close action).
     @ViewBuilder
     private func windowRowMenu(for tab: TabModel) -> some View {
+        connectionAddressCopyItems(for: tab)
         connectionInfoItem(for: tab)
         TmuxTabMenuItems(
             tab: tab,
@@ -1899,6 +1916,7 @@ struct VerticalTabSidebar: View {
     /// Context menu for a HIDDEN tmux window row.
     @ViewBuilder
     private func hiddenWindowRowMenu(for tab: TabModel) -> some View {
+        connectionAddressCopyItems(for: tab)
         Button {
             showHiddenWindow(tab)
         } label: {
@@ -1918,6 +1936,7 @@ struct VerticalTabSidebar: View {
     /// destructive section — graceful Detach before Close.
     @ViewBuilder
     private func gatewayHeaderMenu(for tab: TabModel, ownerID: UUID) -> some View {
+        connectionAddressCopyItems(for: tab)
         connectionInfoItem(for: tab)
         TmuxTabMenuItems(
             tab: tab,

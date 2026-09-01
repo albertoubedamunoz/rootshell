@@ -509,6 +509,8 @@ struct TabBar: View {
         moveRightTarget: Int?,
         includeThemeOverrideClear: Bool
     ) -> some View {
+        connectionAddressCopyItems(for: tab)
+
         Button {
             onShowConnectionInfo(tab)
         } label: {
@@ -579,6 +581,21 @@ struct TabBar: View {
             onCloseTab(index)
         } label: {
             Label("Close Tab", systemImage: "xmark")
+        }
+    }
+
+    @ViewBuilder
+    private func connectionAddressCopyItems(for tab: TabModel) -> some View {
+        if let info = tab.connectionInfo,
+           HostAddressCopyActions.hasActions(
+               hostname: info.copyableHostname,
+               ipAddress: info.copyableIPAddress
+           ) {
+            HostAddressCopyActions(
+                hostname: info.copyableHostname,
+                ipAddress: info.copyableIPAddress
+            )
+            Divider()
         }
     }
 

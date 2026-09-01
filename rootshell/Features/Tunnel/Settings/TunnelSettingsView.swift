@@ -111,6 +111,7 @@ struct TunnelSettingsView: View {
                             )
                         )
                     }
+                    .hostAddressCopyMenu(hostname: tunnel.sshConfig.host)
                     .themedRow()
                 }
             }
@@ -153,6 +154,7 @@ struct TunnelSettingsView: View {
                             }
                         }
                     )
+                    .hostAddressCopyMenu(hostname: profile.sshConfig.host)
                     .themedRow()
                 }
             }

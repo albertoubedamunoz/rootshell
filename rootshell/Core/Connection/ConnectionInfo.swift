@@ -54,4 +54,26 @@ enum ConnectionInfo: Identifiable, Sendable {
         case .vnc(let info): return info.connectedAt
         }
     }
+
+    /// User-entered or provider-supplied host suitable for clipboard actions.
+    var copyableHostname: String? {
+        switch self {
+        case .ssh(let info), .mosh(let info), .trzsz(let info, _, _):
+            return info.host
+        case .vnc(let info):
+            return info.host
+        case .local, .kubernetes, .console:
+            return nil
+        }
+    }
+
+    /// Resolved address for live SSH-family sessions, when available.
+    var copyableIPAddress: String? {
+        switch self {
+        case .ssh(let info), .mosh(let info), .trzsz(let info, _, _):
+            return info.resolvedIP
+        case .local, .kubernetes, .console, .vnc:
+            return nil
+        }
+    }
 }

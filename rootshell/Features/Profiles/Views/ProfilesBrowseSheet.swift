@@ -472,6 +472,14 @@ struct ProfilesBrowseSheet: View {
 
     @ViewBuilder
     private func profileContextMenu(_ profile: ConnectionProfile) -> some View {
+        if HostAddressCopyActions.hasActions(
+            hostname: profile.sshConfig.host,
+            ipAddress: nil
+        ) {
+            HostAddressCopyActions(hostname: profile.sshConfig.host)
+            Divider()
+        }
+
         Button {
             editingProfile = profile
         } label: {
