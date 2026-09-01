@@ -17,6 +17,8 @@ struct EffectSettingsView: View {
     @ObservedObject private var videoManager = VideoBackgroundManager.shared
     @ObservedObject private var downloadManager = VideoBackgroundDownloadManager.shared
     @ObservedObject private var localVideoManager = LocalVideoBackgroundManager.shared
+    @AppStorage(UserPreferences.backgroundEffectIncludesPinnedSidebarKey)
+    private var backgroundEffectIncludesPinnedSidebar: Bool = true
 
     // Local state for sliders - only commit on release
     @State private var localIntensity: Double = 0.3
@@ -150,6 +152,15 @@ struct EffectSettingsView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .themedRow()
+            }
+
+            Section("Layout") {
+                DescribedToggle(
+                    title: "Include Pinned Sidebar",
+                    description: "Extend the background effect behind the pinned vertical tab bar.",
+                    isOn: $backgroundEffectIncludesPinnedSidebar
+                )
                 .themedRow()
             }
 
