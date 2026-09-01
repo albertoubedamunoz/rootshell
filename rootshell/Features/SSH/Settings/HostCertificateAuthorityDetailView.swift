@@ -37,13 +37,12 @@ struct AddHostCertificateAuthorityView: View {
                         .lineLimit(3...8)
                         .themedRow()
 
-                    Button {
-                        if let clip = UIPasteboard.general.string {
+                    PasteButton(payloadType: String.self) { strings in
+                        if let clip = strings.first {
                             keyText = clip
                         }
-                    } label: {
-                        Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
                     }
+                    .labelStyle(.titleAndIcon)
                     .themedRow()
 
                     Button {

@@ -25,44 +25,71 @@ struct PasteAttachment: Sendable {
     }
 }
 
-/// Result of inspecting the clipboard for paste content
-enum PasteContent: Sendable {
-    case empty
-    case textOnly
-    case attachments([PasteAttachment])
-}
-
-/// Inspects UIPasteboard for non-text content suitable for SFTP upload
+/// Loads non-text paste content suitable for SFTP upload.
 enum PasteAttachmentDetector {
 
-    /// Inspect the general pasteboard and classify its content
-    @MainActor
-    static func detect() -> PasteContent {
-        let pb = UIPasteboard.general
-
-        // Check for images first (most common paste-from-Photos flow)
-        if pb.hasImages, let image = pb.image {
-            let attachment = imageAttachment(from: image)
-            return .attachments([attachment])
+    /// Load paste-control item providers without reading UIPasteboard.general.
+    /// Completion is always delivered on the main queue.
+    static func load(from providers: [NSItemProvider], completion: @escaping ([PasteAttachment]) -> Void) {
+        let candidates = providers.enumerated().filter {
+            $0.element.hasItemConformingToTypeIdentifier(UTType.image.identifier)
+                || $0.element.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
+        }
+        guard !candidates.isEmpty else {
+            completion([])
+            return
         }
 
-        // Check for typed item data (PDFs, etc.)
-        var attachments: [PasteAttachment] = []
-        for item in pb.items {
-            if let att = extractAttachment(from: item) {
-                attachments.append(att)
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var attachments = Array<PasteAttachment?>(repeating: nil, count: providers.count)
+
+        for (index, provider) in candidates {
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier),
+               provider.canLoadObject(ofClass: UIImage.self) {
+                group.enter()
+                _ = provider.loadObject(ofClass: UIImage.self) { image, error in
+                    guard error == nil, let image = image as? UIImage else {
+                        group.leave()
+                        return
+                    }
+                    DispatchQueue.main.async {
+                        let attachment = imageAttachment(from: image)
+                        lock.lock()
+                        attachments[index] = attachment
+                        lock.unlock()
+                        group.leave()
+                    }
+                }
+                continue
+            }
+
+            if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
+                group.enter()
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.pdf.identifier) { data, error in
+                    guard error == nil, let data else {
+                        group.leave()
+                        return
+                    }
+                    DispatchQueue.main.async {
+                        let attachment = PasteAttachment(
+                            data: data,
+                            suggestedName: generateName(extension: "pdf"),
+                            uti: .pdf,
+                            thumbnail: nil
+                        )
+                        lock.lock()
+                        attachments[index] = attachment
+                        lock.unlock()
+                        group.leave()
+                    }
+                }
             }
         }
-        if !attachments.isEmpty {
-            return .attachments(attachments)
-        }
 
-        // Check for text content
-        if pb.hasStrings || pb.hasURLs {
-            return .textOnly
+        group.notify(queue: .main) {
+            completion(attachments.compactMap { $0 })
         }
-
-        return .empty
     }
 
     // MARK: - Private
@@ -79,43 +106,11 @@ enum PasteAttachmentDetector {
         )
     }
 
-    private static func extractAttachment(from item: [String: Any]) -> PasteAttachment? {
-        // PDF
-        if let data = item[UTType.pdf.identifier] as? Data {
-            return PasteAttachment(
-                data: data,
-                suggestedName: generateName(extension: "pdf"),
-                uti: .pdf,
-                thumbnail: nil
-            )
-        }
-        // JPEG
-        if let data = item[UTType.jpeg.identifier] as? Data {
-            let image = UIImage(data: data)
-            return PasteAttachment(
-                data: data,
-                suggestedName: generateName(extension: "jpg"),
-                uti: .jpeg,
-                thumbnail: image.flatMap { generateThumbnail(from: $0) }
-            )
-        }
-        // PNG
-        if let data = item[UTType.png.identifier] as? Data {
-            let image = UIImage(data: data)
-            return PasteAttachment(
-                data: data,
-                suggestedName: generateName(extension: "png"),
-                uti: .png,
-                thumbnail: image.flatMap { generateThumbnail(from: $0) }
-            )
-        }
-        return nil
-    }
-
     private static func generateName(extension ext: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        return "paste-\(formatter.string(from: Date())).\(ext)"
+        let uniqueSuffix = UUID().uuidString.lowercased()
+        return "paste-\(formatter.string(from: Date()))-\(uniqueSuffix).\(ext)"
     }
 
     private static func generateThumbnail(from image: UIImage, maxSize: CGFloat = 120) -> UIImage? {

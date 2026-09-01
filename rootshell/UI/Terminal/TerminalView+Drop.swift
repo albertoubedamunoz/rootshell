@@ -439,32 +439,10 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
 
     /// Insert dropped content into the terminal
     private func insertDroppedContent(_ content: String) {
-        guard let surface = surface else {
-            Ghostty.logger.warning("Dropped content but surface is nil")
+        guard insertPastedText(content, recordHistory: false) else {
+            Ghostty.logger.warning("Dropped content but surface is nil or content is empty")
             return
         }
-
-        // Route dropped text through Ghostty core, matching native macOS Ghostty's
-        // drop handler (sendText -> ghostty_surface_text). The core treats this as a
-        // paste: when the running app has bracketed-paste mode (DEC 2004) enabled —
-        // as Claude Code does — the path is wrapped in \e[200~...\e[201~ so the app
-        // recognizes it as a pasted file path (and attaches a dragged image). With
-        // bracketed mode off (plain shell) the path is inserted as-is. The bracketed
-        // paste is written to the surface response pipe and forwarded to the session
-        // by TerminalResponsePipeline's paste coalescer.
-        //
-        // We deliberately bypass the keyboard insertText path here: that applies
-        // dictation/Option-key/document-buffer logic meant for typed keystrokes and
-        // sends raw bytes via session.sendInput (no bracketed paste), which is why
-        // dragged images were not detected as images.
-        let byteCount = content.utf8.count
-        content.withCString { ptr in
-            ghostty_surface_text(surface, ptr, UInt(byteCount))
-        }
-
-        // Keep scroll-to-bottom behaviour consistent with typed/pasted input.
-        NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
-
         Ghostty.logger.info("Dropped content inserted via surface text: \(content.prefix(50))...")
     }
 }
