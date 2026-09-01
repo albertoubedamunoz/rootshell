@@ -177,11 +177,12 @@ final class SettingsSyncCoordinator {
             Self.logger.fault("Refusing initial push: defaults look unreadable")
             return []
         }
-        let snapshot = store.snapshot(keys: registry.syncableKeys)
+        // Pin checks read the sidecar, so resolve them before taking exclusive access in mutate.
+        let snapshot = store.snapshot(keys: registry.syncableKeys).filter { !isPinned($0.key) }
         var out: [AppSettingRecord] = []
         let device = deviceID
         sidecarStore.mutate { sidecar in
-            for (key, value) in snapshot where !isPinned(key) {
+            for (key, value) in snapshot {
                 var meta = sidecar.meta[key] ?? SettingSyncMeta()
                 if meta.modifiedAt == nil {
                     meta.modifiedAt = stamp
