@@ -2,7 +2,7 @@
 //  SessionDiscoveryRunner.swift
 //  rootshell
 //
-//  Combined orchestrator that discovers tmux, zellij, and herdr sessions via a single SSH exec channel.
+//  Combined orchestrator that discovers tmux, zellij, herdr, and zmx sessions via a single SSH exec channel.
 //
 
 import Foundation
@@ -24,7 +24,7 @@ struct SessionDiscoveryResult: Sendable {
 // MARK: - Combined Discovery Command
 
 enum SessionDiscoveryCommand {
-    /// Builds a single shell command that discovers tmux, zellij, and herdr sessions.
+    /// Builds a single shell command that discovers tmux, zellij, herdr, and zmx sessions.
     /// Each section is wrapped in nonce-tagged markers so captured terminal content
     /// (which may contain marker strings if this source code is visible) cannot collide.
     /// Uses a single SSH exec channel for efficiency.
@@ -32,6 +32,7 @@ enum SessionDiscoveryCommand {
         skipTmuxSessions: Bool,
         skipZellijSessions: Bool,
         skipHerdrSessions: Bool,
+        skipZmxSessions: Bool,
         discoverTmuxBindings: Bool,
         discoverZellijBindings: Bool,
         skipCaptures: Bool = false
@@ -156,6 +157,60 @@ enum SessionDiscoveryCommand {
             )
         }
 
+        if !skipZmxSessions {
+            // `zmx list` probes every session socket serially, so one wedged
+            // daemon costs a second of the budget this command shares with
+            // tmux, zellij and herdr. Three choices bound that:
+            //
+            //  1. ONE `zmx list`. The capture loop derives its names from that
+            //     same output rather than a second `--short` call, which would
+            //     pay for every wedged daemon twice. `grep -F` on a tab before
+            //     `pid=` keeps only real rows; `cut -f1` yields the bare name.
+            //  2. NO tight `timeout` on the list. It emits nothing until every
+            //     probe finishes, so a timeout that fires costs the full wall
+            //     clock AND returns nothing -- indistinguishable to the user
+            //     from zmx not being installed. The 5 s backstop only catches a
+            //     genuine hang.
+            //  3. `timeout 2` on each `zmx history`, where truncation costs one
+            //     preview rather than the whole result.
+            //
+            // Session names may contain spaces, `*`, `?` and quotes, so the loop
+            // reads them with `IFS= read -r` rather than `for s in $(...)`,
+            // which would split and glob them. herdr can use that idiom because
+            // its names are constrained; zmx's are not.
+            //
+            // `ZMX_SESSION_PREFIX=` on every call: `zmx list` reports real
+            // socket names but every other subcommand prepends the variable, so
+            // an exported prefix would silently point `history` at a different
+            // session. The same neutralisation is applied in
+            // `TerminalView+Session.attachToSession` and
+            // `SSHConfig.zmxExecCommandLine`.
+            var section = "_zt=\"\"; command -v timeout >/dev/null 2>&1 && _zt=\"timeout 2\";"
+                + " _zl=$(ZMX_SESSION_PREFIX= ${_zt:+timeout 5} zmx list 2>/dev/null);"
+                + " echo \"::SESSIONS::\";"
+                + " printf \"%s\\n\" \"$_zl\";"
+            if !skipCaptures {
+                // NOTE: the "\t" below is a REAL tab in the emitted shell, which
+                // is what makes it match a field boundary rather than the letter
+                // t. Do not "tidy" it into an escape sequence.
+                section += " echo \"::CAPTURES::\";"
+                    + " printf \"%s\\n\" \"$_zl\" | grep -F \"\tpid=\""
+                    + " | sed \"s/^[^=]*=//\" | cut -f1 | head -n 8 |"
+                    + " while IFS= read -r s; do"
+                    + " printf \"::CAPTURE:%s::\\n\" \"$s\";"
+                    + " ZMX_SESSION_PREFIX= $_zt zmx history \"$s\" --vt 2>/dev/null | tail -n 200 || true;"
+                    + " printf \"\\n\";"
+                    + " done;"
+            }
+            parts.append(
+                "echo \"::ZMX_START_\(nonce)::\";"
+                + " if command -v zmx >/dev/null 2>&1; then"
+                + " \(section)"
+                + " fi;"
+                + " echo \"::ZMX_END_\(nonce)::\""
+            )
+        }
+
         let body = parts.joined(separator: " ; ")
         return ("sh -lc '\(SSHConfig.remoteExecPathPrefix)\(body)'", nonce)
     }
@@ -172,6 +227,7 @@ extension SessionDiscoveryRunner {
         skipTmuxSessions: Bool = false,
         skipZellijSessions: Bool = false,
         skipHerdrSessions: Bool = false,
+        skipZmxSessions: Bool = false,
         discoverTmuxBindings: Bool = true,
         discoverZellijBindings: Bool = true
     ) async throws -> SessionDiscoveryResult {
@@ -185,6 +241,7 @@ extension SessionDiscoveryRunner {
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
+            skipZmxSessions: skipZmxSessions,
             discoverTmuxBindings: discoverTmuxBindings,
             discoverZellijBindings: discoverZellijBindings
         )
@@ -208,6 +265,7 @@ extension SessionDiscoveryRunner {
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
+            skipZmxSessions: skipZmxSessions,
             discoverTmuxBindings: discoverTmuxBindings,
             discoverZellijBindings: discoverZellijBindings,
             nonce: nonce
@@ -225,13 +283,14 @@ enum SessionDiscoveryParser {
         category: "SessionDiscoveryParser"
     )
 
-    /// Parse combined output, extracting tmux, zellij, and herdr sections independently.
+    /// Parse combined output, extracting tmux, zellij, herdr, and zmx sections independently.
     /// Nonce-tagged markers ensure captured terminal content cannot cause false matches.
     static func parse(
         output: String,
         skipTmuxSessions: Bool,
         skipZellijSessions: Bool,
         skipHerdrSessions: Bool,
+        skipZmxSessions: Bool,
         discoverTmuxBindings: Bool,
         discoverZellijBindings: Bool,
         nonce: String
@@ -239,6 +298,7 @@ enum SessionDiscoveryParser {
         var tmuxSessions: [TmuxSessionInfo] = []
         var zellijSessions: [ZellijSessionInfo] = []
         var herdrSessions: [HerdrSessionInfo] = []
+        var zmxSessions: [ZmxSessionInfo] = []
         var swipeBindings = MultiplexerSwipeBindings()
 
         // Extract and parse tmux section
@@ -275,13 +335,28 @@ enum SessionDiscoveryParser {
             herdrSessions = HerdrDiscoveryParser.parse(output: herdrOutput)
         }
 
-        return merge(tmux: tmuxSessions, zellij: zellijSessions, herdr: herdrSessions, swipeBindings: swipeBindings)
+        // Extract and parse zmx section
+        if !skipZmxSessions,
+           let zmxStart = output.range(of: "::ZMX_START_\(nonce)::"),
+           let zmxEnd = output.range(of: "::ZMX_END_\(nonce)::") {
+            let zmxOutput = String(output[zmxStart.upperBound..<zmxEnd.lowerBound])
+            zmxSessions = ZmxDiscoveryParser.parse(output: zmxOutput)
+        }
+
+        return merge(
+            tmux: tmuxSessions,
+            zellij: zellijSessions,
+            herdr: herdrSessions,
+            zmx: zmxSessions,
+            swipeBindings: swipeBindings
+        )
     }
 
     private static func merge(
         tmux: [TmuxSessionInfo],
         zellij: [ZellijSessionInfo],
         herdr: [HerdrSessionInfo],
+        zmx: [ZmxSessionInfo],
         swipeBindings: MultiplexerSwipeBindings
     ) -> SessionDiscoveryResult {
         var types = Set<MultiplexerType>()
@@ -300,6 +375,11 @@ enum SessionDiscoveryParser {
         if !herdr.isEmpty {
             types.insert(.herdr)
             sessions.append(contentsOf: herdr.map { MultiplexerSession.from(herdr: $0) })
+        }
+
+        if !zmx.isEmpty {
+            types.insert(.zmx)
+            sessions.append(contentsOf: zmx.map { MultiplexerSession.from(zmx: $0) })
         }
 
         let rawOrder = UserDefaults.standard.string(forKey: SessionDiscoverySortOrder.storageKey)
@@ -338,6 +418,7 @@ enum SessionDiscoveryRunner {
         skipTmuxSessions: Bool = false,
         skipZellijSessions: Bool = false,
         skipHerdrSessions: Bool = false,
+        skipZmxSessions: Bool = false,
         discoverTmuxBindings: Bool = true,
         discoverZellijBindings: Bool = true
     ) async throws -> SessionDiscoveryResult {
@@ -349,6 +430,7 @@ enum SessionDiscoveryRunner {
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
+            skipZmxSessions: skipZmxSessions,
             discoverTmuxBindings: discoverTmuxBindings,
             discoverZellijBindings: discoverZellijBindings
         )
@@ -364,6 +446,7 @@ enum SessionDiscoveryRunner {
         skipTmuxSessions: Bool = false,
         skipZellijSessions: Bool = false,
         skipHerdrSessions: Bool = false,
+        skipZmxSessions: Bool = false,
         discoverTmuxBindings: Bool = true,
         discoverZellijBindings: Bool = true,
         onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)? = nil
@@ -390,6 +473,7 @@ enum SessionDiscoveryRunner {
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
+            skipZmxSessions: skipZmxSessions,
             discoverTmuxBindings: discoverTmuxBindings,
             discoverZellijBindings: discoverZellijBindings
         )
@@ -412,6 +496,7 @@ enum SessionDiscoveryRunner {
         skipTmuxSessions: Bool,
         skipZellijSessions: Bool,
         skipHerdrSessions: Bool,
+        skipZmxSessions: Bool,
         discoverTmuxBindings: Bool,
         discoverZellijBindings: Bool
     ) async throws -> SessionDiscoveryResult {
@@ -421,6 +506,7 @@ enum SessionDiscoveryRunner {
                 skipTmuxSessions: skipTmuxSessions,
                 skipZellijSessions: skipZellijSessions,
                 skipHerdrSessions: skipHerdrSessions,
+                skipZmxSessions: skipZmxSessions,
                 discoverTmuxBindings: discoverTmuxBindings,
                 discoverZellijBindings: discoverZellijBindings,
                 skipCaptures: false
@@ -440,6 +526,7 @@ enum SessionDiscoveryRunner {
                 skipTmuxSessions: skipTmuxSessions,
                 skipZellijSessions: skipZellijSessions,
                 skipHerdrSessions: skipHerdrSessions,
+                skipZmxSessions: skipZmxSessions,
                 discoverTmuxBindings: false,
                 discoverZellijBindings: false,
                 skipCaptures: true
@@ -460,6 +547,7 @@ enum SessionDiscoveryRunner {
         skipTmuxSessions: Bool,
         skipZellijSessions: Bool,
         skipHerdrSessions: Bool,
+        skipZmxSessions: Bool,
         discoverTmuxBindings: Bool,
         discoverZellijBindings: Bool,
         skipCaptures: Bool
@@ -468,6 +556,7 @@ enum SessionDiscoveryRunner {
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
+            skipZmxSessions: skipZmxSessions,
             discoverTmuxBindings: discoverTmuxBindings,
             discoverZellijBindings: discoverZellijBindings,
             skipCaptures: skipCaptures
@@ -497,6 +586,7 @@ enum SessionDiscoveryRunner {
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
+            skipZmxSessions: skipZmxSessions,
             discoverTmuxBindings: discoverTmuxBindings,
             discoverZellijBindings: discoverZellijBindings,
             nonce: nonce

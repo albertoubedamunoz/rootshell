@@ -136,6 +136,9 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     // herdr auto-enable (optional for backward compatibility)
     var herdrAutoEnable: Bool?
 
+    // zmx auto-enable (optional for backward compatibility)
+    var zmxAutoEnable: Bool?
+
     // Launch command to run when the session is ready/started (optional for backward compatibility)
     var launchCommand: String?
 
@@ -180,7 +183,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     init(username: String, host: String, port: Int = 22, authType: SSHAuthType,
          connectionProtocol: ConnectionProtocol? = nil,
          jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
-         lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil, agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
+         lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil, agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, zmxAutoEnable: Bool? = nil, launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
          terminalType: String? = nil,
          multiplexerSessionName: String? = nil,
          keyResolutionHints: [String: KeyResolutionHint]? = nil) {
@@ -203,6 +206,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.tmuxAutoEnable = tmuxAutoEnable
         self.tmuxAutoMode = tmuxAutoMode
         self.herdrAutoEnable = herdrAutoEnable
+        self.zmxAutoEnable = zmxAutoEnable
         self.launchCommand = launchCommand
         self.launchCommandMode = launchCommandMode
         self.terminalType = terminalType
@@ -217,7 +221,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
          connectionProtocol: ConnectionProtocol? = nil,
          jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
          lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil,
-         agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil,
+         agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, zmxAutoEnable: Bool? = nil,
          launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil, terminalType: String? = nil, multiplexerSessionName: String? = nil, keyResolutionHints: [String: KeyResolutionHint]? = nil,
          modifiedAt: Date? = nil, isDeleted: Bool = false) {
         self.id = id
@@ -239,6 +243,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.tmuxAutoEnable = tmuxAutoEnable
         self.tmuxAutoMode = tmuxAutoMode
         self.herdrAutoEnable = herdrAutoEnable
+        self.zmxAutoEnable = zmxAutoEnable
         self.launchCommand = launchCommand
         self.launchCommandMode = launchCommandMode
         self.terminalType = terminalType
@@ -253,7 +258,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     private enum CodingKeys: String, CodingKey {
         case id, username, host, port, authType, lastUsed, cachedIP
         case jumpHost, jumpPort, jumpUsername, jumpAuthType
-        case hssShorthand, agentConfig, gpgAgentConfig, portForwardConfig, tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, launchCommand, launchCommandMode
+        case hssShorthand, agentConfig, gpgAgentConfig, portForwardConfig, tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, zmxAutoEnable, launchCommand, launchCommandMode
         case connectionProtocol, keyResolutionHints
         case terminalType, multiplexerSessionName
         case modifiedAt, isDeleted
@@ -284,6 +289,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         tmuxAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .tmuxAutoEnable)
         tmuxAutoMode = try container.decodeIfPresent(TmuxAutoMode.self, forKey: .tmuxAutoMode)
         herdrAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .herdrAutoEnable)
+        zmxAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .zmxAutoEnable)
         launchCommand = try container.decodeIfPresent(String.self, forKey: .launchCommand)
         launchCommandMode = try container.decodeIfPresent(SSHConfig.LaunchCommandMode.self, forKey: .launchCommandMode)
         terminalType = try container.decodeIfPresent(String.self, forKey: .terminalType)
@@ -465,6 +471,7 @@ class SSHConnectionHistoryManager: ObservableObject {
         tmuxAutoEnable: Bool? = nil,
         tmuxAutoMode: TmuxAutoMode? = nil,
         herdrAutoEnable: Bool? = nil,
+        zmxAutoEnable: Bool? = nil,
         launchCommand: String? = nil,
         launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
         terminalType: String? = nil,
@@ -506,6 +513,9 @@ class SSHConnectionHistoryManager: ObservableObject {
             }
             if let herdrAutoEnable = herdrAutoEnable {
                 updated.herdrAutoEnable = herdrAutoEnable
+            }
+            if let zmxAutoEnable = zmxAutoEnable {
+                updated.zmxAutoEnable = zmxAutoEnable
             }
             updated.launchCommand = launchCommand
             updated.launchCommandMode = launchCommandMode
@@ -561,6 +571,9 @@ class SSHConnectionHistoryManager: ObservableObject {
             if let herdrAutoEnable = herdrAutoEnable {
                 updated.herdrAutoEnable = herdrAutoEnable
             }
+            if let zmxAutoEnable = zmxAutoEnable {
+                updated.zmxAutoEnable = zmxAutoEnable
+            }
             updated.launchCommand = launchCommand
             updated.launchCommandMode = launchCommandMode
             // Always write, like launchCommand: nil means the user cleared the
@@ -591,6 +604,7 @@ class SSHConnectionHistoryManager: ObservableObject {
                 tmuxAutoEnable: tmuxAutoEnable,
                 tmuxAutoMode: tmuxAutoMode,
                 herdrAutoEnable: herdrAutoEnable,
+                zmxAutoEnable: zmxAutoEnable,
                 launchCommand: launchCommand,
                 launchCommandMode: launchCommandMode,
                 terminalType: terminalType,
@@ -683,6 +697,30 @@ class SSHConnectionHistoryManager: ObservableObject {
                     continue  // Local is newer, keep local
                 }
                 // Remote is newer - update existing record (keep local UUID)
+                //
+                // The envelope-gated fields are resolved into locals first. They
+                // are not just for readability: inlining both ternaries into the
+                // initialiser below pushes it past the type-checker's budget
+                // ("unable to type-check this expression in reasonable time").
+                let envelopeVersion = remote.syncEnvelopeVersion ?? 0
+                // Gated on the envelope version, not on its presence: a build
+                // that predates this field still writes a valid (older)
+                // envelope, and its silence is a gap rather than a clear.
+                // Without this, reconnecting once on an older device during a
+                // mixed-version rollout erases the override.
+                let mergedMultiplexerSessionName: String? =
+                    envelopeVersion >= HistoryExtensionPayload.multiplexerSessionNameVersion
+                        ? remote.multiplexerSessionName
+                        : (remote.multiplexerSessionName ?? existing.multiplexerSessionName)
+                // Same rule, different introducing version. Note this is NOT the
+                // plain-optional fallback `herdrAutoEnable` uses below: that
+                // field has its own CloudKit record column, so its absence is
+                // unambiguous, whereas an envelope member is absent both when
+                // the user cleared it and when the writer predates it.
+                let mergedZmxAutoEnable: Bool? =
+                    envelopeVersion >= HistoryExtensionPayload.zmxAutoEnableVersion
+                        ? remote.zmxAutoEnable
+                        : (remote.zmxAutoEnable ?? existing.zmxAutoEnable)
                 let updated = SSHConnectionHistoryEntry(
                     id: existingUUID,  // Keep local UUID for consistency
                     username: remote.username,
@@ -703,6 +741,7 @@ class SSHConnectionHistoryManager: ObservableObject {
                     tmuxAutoEnable: remote.tmuxAutoEnable ?? existing.tmuxAutoEnable,
                     tmuxAutoMode: remote.tmuxAutoMode ?? existing.tmuxAutoMode,
                     herdrAutoEnable: remote.herdrAutoEnable ?? existing.herdrAutoEnable,
+                    zmxAutoEnable: mergedZmxAutoEnable,
                     launchCommand: remote.launchCommand ?? existing.launchCommand,
                     launchCommandMode: remote.launchCommandMode ?? existing.launchCommandMode,
                     // Remote is strictly newer here, so when it carried an
@@ -713,14 +752,7 @@ class SSHConnectionHistoryManager: ObservableObject {
                     terminalType: remote.syncCarriedExtensions
                         ? remote.terminalType
                         : (remote.terminalType ?? existing.terminalType),
-                    // Gated on the envelope version, not on its presence: a
-                    // build that predates this field still writes a valid
-                    // (older) envelope, and its silence is a gap rather than a
-                    // clear. Without this, reconnecting once on an older device
-                    // during a mixed-version rollout erases the override.
-                    multiplexerSessionName: (remote.syncEnvelopeVersion ?? 0) >= HistoryExtensionPayload.multiplexerSessionNameVersion
-                        ? remote.multiplexerSessionName
-                        : (remote.multiplexerSessionName ?? existing.multiplexerSessionName),
+                    multiplexerSessionName: mergedMultiplexerSessionName,
                     keyResolutionHints: remote.keyResolutionHints ?? existing.keyResolutionHints,
                     modifiedAt: remote.modifiedAt,
                     isDeleted: remote.isDeleted

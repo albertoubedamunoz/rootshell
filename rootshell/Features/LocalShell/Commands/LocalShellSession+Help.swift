@@ -207,7 +207,7 @@ Use this after editing the file from a local shell or through a symlink in your 
         let examplesHeader = String(localized: "Examples:", comment: "Command help: examples section header")
 
         let helpText = """
-usage: ssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--path] [-o option] destination [command]
+usage: ssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr|--zmx] [--path] [-o option] destination [command]
 
 \(optionsHeader)
   -p port       \(String(localized: "Connect to this port (default: 22)", comment: "SSH help: -p option"))
@@ -218,6 +218,7 @@ usage: ssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--he
   -AA           \(String(localized: "Enable SSH agent forwarding with auto-approval", comment: "SSH help: -AA option"))
   --tmux        \(String(localized: "Auto-start tmux on the remote host", comment: "SSH help: --tmux option"))
   --herdr       \(String(localized: "Auto-start herdr on the remote host", comment: "SSH help: --herdr option"))
+  --zmx         \(String(localized: "Auto-start zmx on the remote host", comment: "SSH help: --zmx option"))
   --path        \(String(localized: "Prepend Rootshell's PATH wrapper for remote exec commands", comment: "SSH help: --path option"))
   -o option     \(String(localized: "Set SSH option (Port, User, ProxyJump, IdentityFile)", comment: "SSH help: -o option"))
 
@@ -250,6 +251,7 @@ usage: ssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--he
   ssh -AA user@host
   ssh --tmux user@host
   ssh --herdr user@host
+  ssh --zmx user@host
   ssh --path user@host wish serve
   ssh user@host ls -la /tmp
   ssh user@host "echo hello"
@@ -399,8 +401,8 @@ usage: sftp [-P port] [-i identity] [-J jump_host] [-o option] [user@]host
         let examplesHeader = String(localized: "Examples:", comment: "Command help: examples section header")
 
         let helpText = """
-usage: roam [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--predict mode] [--predict-overwrite] destination
-       mosh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--predict mode] [--predict-overwrite] destination
+usage: roam [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr|--zmx] [--predict mode] [--predict-overwrite] destination
+       mosh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr|--zmx] [--predict mode] [--predict-overwrite] destination
 
 \(optionsHeader)
   -p port         \(String(localized: "Connect to this port (default: 22)", comment: "Mosh help: -p option"))
@@ -411,6 +413,7 @@ usage: roam [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--h
   -AA             \(String(localized: "Enable SSH agent forwarding with auto-approval", comment: "Mosh help: -AA option"))
   --tmux          \(String(localized: "Auto-start tmux on the remote host", comment: "Mosh help: --tmux option"))
   --herdr         \(String(localized: "Auto-start herdr on the remote host", comment: "Mosh help: --herdr option"))
+  --zmx           \(String(localized: "Auto-start zmx on the remote host", comment: "Mosh help: --zmx option"))
   --predict mode  \(String(localized: "Prediction mode: always, adaptive, never (default: always)", comment: "Mosh help: --predict option"))
   --predict-overwrite     \(String(localized: "Replace existing cells when predicting input", comment: "Mosh help: --predict-overwrite option"))
   --no-predict-overwrite  \(String(localized: "Use inserting predictions for this session", comment: "Mosh help: --no-predict-overwrite option"))
@@ -442,6 +445,7 @@ usage: roam [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--h
   roam -J bastion user@internal
   mosh --tmux user@host
   mosh --herdr user@host
+  mosh --zmx user@host
 
 """
         Task { @MainActor [weak self] in
@@ -544,8 +548,8 @@ usage: ssh-copy-id [-fnp] [-i identity] [-t target] [-o option] [user@]hostname
         let examplesHeader = String(localized: "Examples:", comment: "Command help: examples section header")
 
         let helpText = """
-usage: tssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--quic|--kcp] destination
-       trzsz [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr] [--quic|--kcp] destination
+usage: tssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr|--zmx] [--quic|--kcp] destination
+       trzsz [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--herdr|--zmx] [--quic|--kcp] destination
 
 \(optionsHeader)
   -p port         \(String(localized: "Connect to this port (default: 22)", comment: "Trzsz help: -p option"))
@@ -556,6 +560,7 @@ usage: tssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--h
   -AA             \(String(localized: "Enable SSH agent forwarding with auto-approval", comment: "Trzsz help: -AA option"))
   --tmux          \(String(localized: "Auto-start tmux on the remote host", comment: "Trzsz help: --tmux option"))
   --herdr         \(String(localized: "Auto-start herdr on the remote host", comment: "Trzsz help: --herdr option"))
+  --zmx           \(String(localized: "Auto-start zmx on the remote host", comment: "Trzsz help: --zmx option"))
   --quic          \(String(localized: "Force QUIC transport mode", comment: "Trzsz help: --quic option"))
   --kcp           \(String(localized: "Force KCP transport mode", comment: "Trzsz help: --kcp option"))
   --server path   \(String(localized: "Path to tssh server on remote", comment: "Trzsz help: --server option"))
@@ -586,6 +591,7 @@ usage: tssh [-p port] [-l user] [-i identity] [-J jumphost] [-A|-AA] [--tmux|--h
   trzsz -J bastion user@internal
   tssh --tmux user@host
   tssh --herdr user@host
+  tssh --zmx user@host
 
 """
         Task { @MainActor [weak self] in

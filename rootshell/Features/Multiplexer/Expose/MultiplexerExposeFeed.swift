@@ -2,12 +2,6 @@
 //  MultiplexerExposeFeed.swift
 //  rootshell
 //
-//  Keeps a raw multiplexer session's tabs and pane frames fresh while the
-//  exposé is up, over one-shot exec commands on the pane's own connection
-//  (RemoteExecProbe). Ticks are strictly serialized and adaptively paced:
-//  fast while frames change, backing off when the session is quiet, with
-//  visible panes fetched first and the rest on a slower cadence.
-//
 
 import Foundation
 import GhosttyKit
@@ -18,14 +12,10 @@ import os
 final class MultiplexerExposeFeed {
     enum State: Equatable {
         case idle
-        /// No binding yet: working out which multiplexer a local pane is
-        /// attached to (hand-started `tmux` / `herdr` / `zellij`).
         case detecting
         case loading
         case live
-        /// The multiplexer is unusable here (too old, no session): show app tabs.
         case unsupported
-        /// Ticks keep failing; the last frames stay up with a hint.
         case failed
     }
 
@@ -35,7 +25,6 @@ final class MultiplexerExposeFeed {
     private(set) var snapshot: MuxExposeSnapshot?
     private(set) var type: MultiplexerType?
     private(set) var sessionName: String?
-    /// Fired on state or topology changes (frames are polled by the views).
     var onChange: (() -> Void)?
 
     private(set) weak var terminal: Ghostty.TerminalView?
@@ -44,19 +33,25 @@ final class MultiplexerExposeFeed {
     private var adapter: (any MultiplexerExposeAdapter)?
     private var frames: [String: MuxPaneFrame] = [:]
     private var loop: Task<Void, Never>?
+    private var focusTask: Task<Void, Never>?
     private var sleeper: Task<Void, Never>?
     private var stopTask: Task<Void, Never>?
     private var visiblePanes: Set<String> = []
     private var lastFetchAt: [String: CFTimeInterval] = [:]
     private var hints: [String: String] = [:]
-    /// Bumped by every teardown; identifies the run that owns the feed.
+    /// Negative detection is cached across short exposé lifetimes.
+    private var negativeDetectAt: [ObjectIdentifier: CFTimeInterval] = [:]
     private var generation: UInt64 = 0
+    private var focusGeneration: UInt64 = 0
+    /// Distinguishes authoritative absence from probe failures.
+    private var detectionWasConclusive = false
+    /// Cached zmx bindings are revalidated before serving their cached page.
+    private var validatingZmxBinding = false
     private var tickCount = 0
     private var interval: TimeInterval = baseInterval
     private var failures = 0
     private var fetchCap = Int.max
     private var cleanTicks = 0
-    /// Last presentation, reusable for an instant repaint on quick re-entry.
     private var cache: (owner: ObjectIdentifier, session: String, snapshot: MuxExposeSnapshot,
                         frames: [String: MuxPaneFrame], at: CFTimeInterval)?
 
@@ -68,9 +63,9 @@ final class MultiplexerExposeFeed {
     private static let maxPreviewPanesPerTab = 6
     private static let responseCap = 512 * 1024
     private static let tickTimeout: TimeInterval = 5
-    /// Retries while another probe holds the transport's single slot.
+    private static let negativeProbeCooldown: CFTimeInterval = 4
     private static let focusAttempts = 12
-    /// Consecutive failures before the tray says the session is unavailable.
+    private static let focusMaxResponseBytes = 32 * 1024
     private static let failuresBeforeUnavailable = 3
 
     // MARK: - Identity
@@ -93,13 +88,13 @@ final class MultiplexerExposeFeed {
 
     var isServing: Bool { state == .loading || state == .live || state == .failed }
 
-    /// Short name for the tray header.
     var title: String {
         let mux: String
         switch type {
         case .tmux: mux = "tmux"
         case .zellij: mux = "zellij"
         case .herdr: mux = "herdr"
+        case .zmx: mux = "zmx"
         case nil: mux = ""
         }
         if let sessionName, !sessionName.isEmpty { return "\(mux) · \(sessionName)" }
@@ -108,21 +103,32 @@ final class MultiplexerExposeFeed {
 
     // MARK: - Eligibility
 
-    /// The multiplexer this terminal is attached to, once it owns the screen.
-    /// `hasOwnedAltScreen` is maintained by agent attention's scans, which
-    /// may not have run yet; the surface's own alt-screen state stands in.
+    /// Returns the active multiplexer binding, preferring the raw slot.
     static func binding(for terminal: Ghostty.TerminalView?) -> Ghostty.TerminalView.RawMultiplexerBinding? {
-        guard let terminal, let binding = terminal.rawMultiplexer, RemoteExecProbe.canProbe(terminal),
-              binding.hasOwnedAltScreen || isAlternateScreenActive(terminal) else { return nil }
-        return binding
+        guard let terminal, RemoteExecProbe.canProbe(terminal) else { return nil }
+        if let binding = terminal.rawMultiplexer, adapter(for: binding.type) != nil,
+           binding.hasOwnedAltScreen || isAlternateScreenActive(terminal) {
+            return binding
+        }
+        if let binding = terminal.passthroughMultiplexer, adapter(for: binding.type) != nil {
+            return binding
+        }
+        return nil
     }
 
-    /// A pane with no binding whose screen is taken by something: ask the
-    /// host what is running there. The alternate screen is the gate — every
-    /// multiplexer holds it for its whole attach — so an ordinary shell is
-    /// never probed just because the exposé opened.
+    /// Returns the adapter for a supported multiplexer type.
+    static func adapter(for type: MultiplexerType) -> (any MultiplexerExposeAdapter)? {
+        switch type {
+        case .herdr: HerdrExposeAdapter()
+        case .tmux: TmuxExposeAdapter()
+        case .zellij: ZellijExposeAdapter()
+        case .zmx: ZmxExposeAdapter()
+        }
+    }
+
+    /// A pane can be probed even when no binding has been recorded yet.
     static func canDetect(_ terminal: Ghostty.TerminalView) -> Bool {
-        RemoteExecProbe.canProbe(terminal) && isAlternateScreenActive(terminal)
+        RemoteExecProbe.canProbe(terminal)
     }
 
     private static func isAlternateScreenActive(_ terminal: Ghostty.TerminalView) -> Bool {
@@ -132,7 +138,6 @@ final class MultiplexerExposeFeed {
         return altActive
     }
 
-    /// `ttys004` for a local macOS pane; nil for anything remote.
     private static func localTTY(_ terminal: Ghostty.TerminalView) -> String? {
         #if targetEnvironment(macCatalyst)
         guard terminal.connectionConfig.underlyingSSHConfig == nil,
@@ -151,25 +156,41 @@ final class MultiplexerExposeFeed {
     func start(terminal: Ghostty.TerminalView) -> Bool {
         let binding = Self.binding(for: terminal)
         guard binding != nil || Self.canDetect(terminal) else {
-            Self.logger.debug("not a multiplexer pane: bound=\(terminal.rawMultiplexer != nil) probe=\(RemoteExecProbe.canProbe(terminal)) alt=\(Self.isAlternateScreenActive(terminal))")
+            Self.logger.debug("not a multiplexer pane: bound=\(terminal.rawMultiplexer != nil) passthrough=\(terminal.passthroughMultiplexer != nil) probe=\(RemoteExecProbe.canProbe(terminal)) alt=\(Self.isAlternateScreenActive(terminal))")
             return false
         }
         Self.logger.debug("start: \(binding?.type.rawValue ?? "detect", privacy: .public)")
         stopTask?.cancel()
         stopTask = nil
+        validatingZmxBinding = false
+        // A zmx passthrough can be detached while the feed is in its short
+        // stop grace period. Its terminal binding is intentionally retained
+        // until a successful listing proves what happened, but a cached live
+        // feed must not make the next reveal bypass that validation.
+        let requiresZmxValidation = binding?.type == .zmx
         if loop != nil, self.terminal === terminal,
+           !requiresZmxValidation,
            binding == nil || (type == binding?.type && sessionName == binding?.sessionName) {
             // Re-opened inside the stop grace: the running feed still serves
             // this session, so its tabs and frames are already current.
             Self.logger.debug("reusing live feed: \(self.tabs.count) tabs, \(self.frames.count) frames")
             return true
         }
+        cancelFocus()
         teardownLoop()
 
         self.terminal = terminal
         resetSession()
         if let binding {
-            configure(binding)
+            if binding.type == .zmx {
+                // A cached zmx binding must be confirmed after a detach.
+                configure(binding)
+                validatingZmxBinding = true
+                state = .detecting
+                negativeDetectAt.removeValue(forKey: ObjectIdentifier(terminal))
+            } else {
+                configure(binding)
+            }
         } else {
             type = nil
             sessionName = nil
@@ -182,13 +203,17 @@ final class MultiplexerExposeFeed {
         return true
     }
 
+    /// Fast end of the pacing range for the adapter in hand.
+    private var floorInterval: TimeInterval {
+        max(Self.baseInterval, adapter?.minInterval ?? 0)
+    }
+
     private func resetSession() {
         frames = [:]
         snapshot = nil
         hints = [:]
         lastHints = [:]
         lastFetchAt = [:]
-        // Pane ids are the previous session's; the tray reports afresh.
         visiblePanes = []
         tickCount = 0
         failures = 0
@@ -198,14 +223,11 @@ final class MultiplexerExposeFeed {
     }
 
     private func configure(_ binding: Ghostty.TerminalView.RawMultiplexerBinding) {
+        let sameMultiplexer = type == binding.type && adapter != nil
         type = binding.type
         sessionName = binding.sessionName
-        switch binding.type {
-        case .herdr: adapter = HerdrExposeAdapter()
-        case .tmux: adapter = TmuxExposeAdapter()
-        case .zellij: adapter = ZellijExposeAdapter()
-        }
-        // Quick re-entry: repaint the last picture while the first tick runs.
+        if !sameMultiplexer { adapter = Self.adapter(for: binding.type) }
+        interval = floorInterval
         if let terminal, let cache, cache.owner == ObjectIdentifier(terminal),
            cache.session == "\(binding.type.rawValue):\(binding.sessionName ?? "")",
            CACurrentMediaTime() - cache.at < Self.cacheLifetime {
@@ -250,6 +272,12 @@ final class MultiplexerExposeFeed {
         sleeper = nil
     }
 
+    private func cancelFocus() {
+        focusTask?.cancel()
+        focusTask = nil
+        focusGeneration &+= 1
+    }
+
     /// Panes on screen right now; they are fetched first and every tick.
     func setVisiblePanes(_ ids: Set<String>) {
         guard ids != visiblePanes else { return }
@@ -263,15 +291,63 @@ final class MultiplexerExposeFeed {
     /// still runs while the exposé is already dismissing.
     func focus(tabID: String) {
         guard let terminal, let adapter else { return }
-        let script = adapter.focusScript(session: sessionName, tabID: tabID)
-        Task { [weak self] in
+        let session = sessionName
+        cancelFocus()
+        let focusRun = focusGeneration
+
+        // Avoid resetting terminal state when the selected tab is already active.
+        guard session != tabID else { return }
+
+        // Use the pane's own PTY when a shell is known to be available below zmx.
+        if type == .zmx, let sourceBinding = terminal.passthroughMultiplexer,
+           sourceBinding.canDetachSwitch,
+           let session, !session.isEmpty, session != tabID {
+            guard let zmxAdapter = adapter as? ZmxExposeAdapter,
+                  let sourceClients = zmxAdapter.clientCount(for: session),
+                  let targetClients = zmxAdapter.clientCount(for: tabID)
+            else {
+                Self.logger.warning("detach focus has no client census; leaving the pane untouched")
+                return
+            }
+            prepareForPassthroughSwitch(terminal)
+            performZmxDetachSwitch(
+                terminal: terminal,
+                session: session,
+                tabID: tabID,
+                sourceClients: sourceClients,
+                targetClients: targetClients,
+                sourceBinding: sourceBinding,
+                focusRun: focusRun
+            )
+            return
+        }
+
+        guard adapter.canFocus(session: session, tabID: tabID) else {
+            Self.logger.info("focus declined by the adapter; leaving the pane where it is")
+            return
+        }
+        let script = adapter.focusScript(session: session, tabID: tabID)
+        prepareForPassthroughSwitch(terminal)
+        focusTask = Task { [weak self, weak terminal] in
+            guard let self, let terminal else { return }
             for attempt in 0..<Self.focusAttempts {
+                guard !Task.isCancelled, self.focusGeneration == focusRun,
+                      self.terminal === terminal else { return }
                 do {
-                    _ = try await RemoteExecProbe.run(script, on: terminal, timeout: 4, maxResponseBytes: 4096)
-                    self?.wake()
+                    let output = try await RemoteExecProbe.run(
+                        script, on: terminal, timeout: 4, maxResponseBytes: Self.focusMaxResponseBytes
+                    )
+                    // Trust the binding only after the adapter confirms the switch.
+                    guard adapter.parseFocusResult(output: output, session: session, tabID: tabID) else {
+                        Self.logger.warning("focus did not confirm the switch landed; leaving the current session name alone")
+                        return
+                    }
+                    guard !Task.isCancelled, self.focusGeneration == focusRun,
+                          self.terminal === terminal else { return }
+                    self.notePassthroughFocus(tabID: tabID)
+                    self.wake()
                     return
                 } catch RemoteExecProbe.ProbeError.busy {
-                    // tssh: one probe at a time; the tick in flight is short.
                     try? await Task.sleep(for: .milliseconds(250))
                     if attempt == Self.focusAttempts - 1 { Self.logger.warning("focus abandoned: transport busy") }
                 } catch {
@@ -282,8 +358,158 @@ final class MultiplexerExposeFeed {
         }
     }
 
+    /// Delay after detach so the remote pty can finish its cleanup.
+    private static let zmxDetachSettleDelay: TimeInterval = 0.4
+    private static let zmxDetachConfirmationDelay: TimeInterval = 0.35
+    private static let zmxDetachSwitchAttempts = 3
+    private static let zmxDetachCensusScript = MuxScript.wrap(
+        "echo \"::SESSIONS::\"; ZMX_SESSION= zmx list 2>/dev/null",
+        nonce: "detach-census"
+    )
+
+    /// Move a detachable zmx pane by typing into its own PTY.
+    private func performZmxDetachSwitch(
+        terminal: Ghostty.TerminalView,
+        session: String,
+        tabID: String,
+        sourceClients: Int,
+        targetClients: Int,
+        sourceBinding: Ghostty.TerminalView.RawMultiplexerBinding,
+        focusRun: UInt64
+    ) {
+        // Seed the title before typing so an echoed command cannot win the race.
+        let originalTitle = terminal.title
+        if terminal.userOverrideTitle == nil {
+            terminal.title = tabID
+        }
+        let inputLine = terminal.zmxAttachInputLine(sessionName: tabID)
+        focusTask = Task { [weak self, weak terminal] in
+            guard let self, let terminal else { return }
+            @MainActor func isCurrentFocus() -> Bool {
+                !Task.isCancelled && self.focusGeneration == focusRun
+                    && self.terminal === terminal
+                    && terminal.passthroughMultiplexer == sourceBinding
+            }
+            var confirmed = false
+            defer {
+                if !confirmed, self.focusGeneration == focusRun {
+                    terminal.titleSuppressedUntil = nil
+                    terminal.pendingCommandEcho = nil
+                    if terminal.userOverrideTitle == nil, terminal.title == tabID {
+                        terminal.title = originalTitle
+                    }
+                }
+            }
+            var needsDetach = true
+            switchAttempts: for attempt in 0..<Self.zmxDetachSwitchAttempts {
+                guard isCurrentFocus() else { return }
+                if needsDetach {
+                    terminal.sendUserInput(Data([0x1C]))
+                    try? await Task.sleep(for: .seconds(Self.zmxDetachSettleDelay))
+                    guard isCurrentFocus() else { return }
+                }
+
+                terminal.pendingCommandEcho = (
+                    command: inputLine.trimmingCharacters(in: .whitespacesAndNewlines),
+                    until: Date().addingTimeInterval(Ghostty.TerminalView.commandEchoTitleWindow)
+                )
+                terminal.titleSuppressedUntil = Date()
+                    .addingTimeInterval(Self.zmxDetachSettleDelay + 1)
+                if let data = inputLine.data(using: .utf8) {
+                    guard isCurrentFocus() else { return }
+                    terminal.sendUserInput(data)
+                }
+                terminal.titleSuppressedUntil = nil
+
+                try? await Task.sleep(for: .seconds(Self.zmxDetachConfirmationDelay))
+                guard isCurrentFocus() else { return }
+                guard let counts = await self.fetchZmxDetachCensus(on: terminal),
+                      let sourceAfter = counts[session],
+                      let targetAfter = counts[tabID]
+                else {
+                    Self.logger.warning("detach focus could not read its confirmation census")
+                    break
+                }
+
+                switch MuxZmxDetachTransfer.classify(
+                    sourceBefore: sourceClients,
+                    targetBefore: targetClients,
+                    sourceAfter: sourceAfter,
+                    targetAfter: targetAfter
+                ) {
+                case .confirmed:
+                    guard isCurrentFocus() else { return }
+                    confirmed = true
+                    self.notePassthroughFocus(tabID: tabID)
+                    self.wake()
+                    return
+                case .unchanged:
+                    needsDetach = true
+                case .detachedOnly:
+                    needsDetach = false
+                case .ambiguous:
+                    Self.logger.warning("detach focus census changed ambiguously; refusing to type again")
+                    break switchAttempts
+                }
+                if attempt < Self.zmxDetachSwitchAttempts - 1 { continue }
+            }
+
+            Self.logger.warning("detach focus did not confirm after retries; leaving the binding unchanged")
+        }
+    }
+
+    private func fetchZmxDetachCensus(on terminal: Ghostty.TerminalView) async -> [String: Int]? {
+        for attempt in 0..<Self.focusAttempts {
+            do {
+                let output = try await RemoteExecProbe.run(
+                    Self.zmxDetachCensusScript,
+                    on: terminal,
+                    timeout: 4,
+                    maxResponseBytes: Self.focusMaxResponseBytes
+                )
+                let sessions = ZmxDiscoveryParser.parse(output: output)
+                return sessions.reduce(into: [:]) { counts, info in
+                    if let clients = info.clientCount { counts[info.name] = clients }
+                }
+            } catch RemoteExecProbe.ProbeError.busy {
+                try? await Task.sleep(for: .milliseconds(250))
+                if attempt == Self.focusAttempts - 1 {
+                    Self.logger.warning("detach focus confirmation abandoned: transport busy")
+                }
+            } catch {
+                Self.logger.warning("detach focus confirmation failed: \(error.localizedDescription)")
+                return nil
+            }
+        }
+        return nil
+    }
+
     private func wake() {
         sleeper?.cancel()
+    }
+
+    /// Clears mouse tracking before a passthrough switch.
+    private func prepareForPassthroughSwitch(_ terminal: Ghostty.TerminalView) {
+        guard type == .zmx else { return }
+        terminal.surfaceOutputPipeline.writeDirect(Self.mouseTrackingReset)
+    }
+
+    /// DECRST for every mouse tracking mode and every extended encoding, so
+    /// the reset holds whichever the departing program had selected.
+    private static let mouseTrackingReset =
+        "\u{1B}[?1000l\u{1B}[?1001l\u{1B}[?1002l\u{1B}[?1003l"
+        + "\u{1B}[?1005l\u{1B}[?1006l\u{1B}[?1015l\u{1B}[?1016l"
+
+    private func notePassthroughFocus(tabID: String) {
+        guard let terminal, let type, !type.ownsAlternateScreen else { return }
+        let canDetachSwitch = terminal.passthroughMultiplexer?.canDetachSwitch ?? false
+        terminal.passthroughMultiplexer = .init(type: type, sessionName: tabID, canDetachSwitch: canDetachSwitch)
+
+        // Seed the title because zmx may not replay one for a new session.
+        guard sessionName != tabID else { return }
+        if terminal.userOverrideTitle == nil {
+            terminal.title = tabID
+        }
     }
 
     // MARK: - Loop
@@ -296,6 +522,15 @@ final class MultiplexerExposeFeed {
         generation == self.generation && !Task.isCancelled
     }
 
+    private func clearCurrentPassthroughBinding() {
+        guard type == .zmx,
+              let terminal,
+              terminal.passthroughMultiplexer?.type == .zmx,
+              terminal.passthroughMultiplexer?.sessionName == sessionName
+        else { return }
+        terminal.passthroughMultiplexer = nil
+    }
+
     private func giveUp(_ reason: String) {
         Self.logger.debug("\(reason, privacy: .public)")
         state = .unsupported
@@ -304,18 +539,40 @@ final class MultiplexerExposeFeed {
     }
 
     private func run(generation: UInt64) async {
-        if adapter == nil {
+        if adapter == nil || validatingZmxBinding {
+            defer { validatingZmxBinding = false }
             let detected = await detect()
             guard isCurrent(generation) else {
                 Self.logger.debug("detect superseded by a newer run")
                 return
             }
             guard let detected else {
+                if detectionWasConclusive { clearCurrentPassthroughBinding() }
                 giveUp("detect: nothing attached on this tty")
                 return
             }
             Self.logger.debug("detected \(detected.type.rawValue, privacy: .public), session named=\(detected.sessionName != nil)")
+            let identityChanged = type != detected.type || sessionName != detected.sessionName
+            if identityChanged { resetSession() }
             configure(detected)
+            if let terminal, !detected.type.ownsAlternateScreen, let name = detected.sessionName {
+                // Process inspection cannot distinguish an interactive attach
+                // from an exec takeover, but the connection configuration can.
+                let canDetachSwitch = terminal.connectionConfig.sshConfigForHistory
+                    .map { !$0.hasExecTakeoverCommand } ?? true
+                if terminal.passthroughMultiplexer?.type == detected.type {
+                    // Validation may discover that an in-place/session change
+                    // updated the socket-backed name while the old slot was
+                    // cached. Refresh the exact identity before serving it.
+                    terminal.passthroughMultiplexer = .init(
+                        type: detected.type,
+                        sessionName: name,
+                        canDetachSwitch: canDetachSwitch
+                    )
+                } else {
+                    terminal.bindPassthroughMultiplexer(detected.type, sessionName: name, canDetachSwitch: canDetachSwitch)
+                }
+            }
             onChange?()
         }
         if sessionName == nil {
@@ -356,14 +613,40 @@ final class MultiplexerExposeFeed {
     /// command and narrowed by ancestry: this exec channel and the pane's
     /// shell descend from the same sshd/tsshd, exactly as the project probe
     /// identifies a pane's process. (id=mux-expose-detect)
+    ///
+    /// Candidates are then narrowed a second way, by screen state, but only
+    /// for the types it speaks to: one that OWNS the alternate screen must be
+    /// found on an alternate screen, so a raw `tmux ls` typed at a bare prompt
+    /// is not mistaken for an attach. A passthrough is exempt -- its pane
+    /// shows whatever runs inside the session, primary or alternate -- and is
+    /// tied to this pane by its session socket and by ancestry instead.
+    /// (id=zmx-passthrough-detect)
     private func detect() async -> Ghostty.TerminalView.RawMultiplexerBinding? {
         guard let terminal else { return nil }
+        detectionWasConclusive = false
+        let altActive = Self.isAlternateScreenActive(terminal)
+        if !altActive, let last = negativeDetectAt[ObjectIdentifier(terminal)],
+           CACurrentMediaTime() - last < Self.negativeProbeCooldown {
+            return nil
+        }
+        // Scoped to the alt-inactive branch only: tmux/zellij/herdr were
+        // never gated by `canDetect` this way, so their probe cadence stays
+        // untouched.
+        func fail(conclusive: Bool = false) -> Ghostty.TerminalView.RawMultiplexerBinding? {
+            if conclusive { detectionWasConclusive = true }
+            if !altActive {
+                let now = CACurrentMediaTime()
+                negativeDetectAt = negativeDetectAt.filter { now - $0.value < Self.negativeProbeCooldown * 8 }
+                negativeDetectAt[ObjectIdentifier(terminal)] = now
+            }
+            return nil
+        }
         let tty = Self.localTTY(terminal)
         let nonce = Self.nonce()
         // Candidate multiplexer clients: on this tty locally, ours anywhere
         // otherwise. `grep` only narrows; the command name is checked here.
         let candidates = tty.map { "ps -t \(MuxScript.dq($0)) -o pid=,ppid=,tty=,args= 2>/dev/null" }
-            ?? "ps -xo pid=,ppid=,tty=,args= 2>/dev/null | grep -E \"tmux|herdr|zellij\" | grep -v grep"
+            ?? "ps -xo pid=,ppid=,tty=,args= 2>/dev/null | grep -E \"tmux|herdr|zellij|zmx\" | grep -v grep"
         let candidatePIDs = "$(\(candidates) | awk \"{print \\$1}\")"
         // Ancestor walks, so a candidate can be tied to THIS connection.
         let walk = "_q=$1; while [ -n \"$_q\" ] && [ \"$_q\" -gt 1 ] 2>/dev/null;"
@@ -373,6 +656,10 @@ final class MultiplexerExposeFeed {
         body += "; echo \(MuxScript.dq(MuxScript.topology(nonce)))"
         body += "; \(candidates)"
         body += "; echo \"::MX_SELF::\"; _walk $$"
+        // OpenSSH gives every channel on one transport the same connection
+        // tuple. Keep it as a fallback for servers whose process tree does
+        // not leave the interactive and exec channels under a shared sshd.
+        body += "; echo \"::MX_CONNECTION::\"; printf \"%s\\n\" \"${SSH_CONNECTION-}\""
         body += "; echo \"::MX_CHAINS::\"; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\"; _walk \"$_p\"; done"
         body += "; echo \"::MX_CLIENTS::\""
         body += "; tmux list-clients -F \"#{client_tty}\(TmuxExposeAdapter.separator)#{session_name}\" 2>/dev/null"
@@ -383,17 +670,18 @@ final class MultiplexerExposeFeed {
         // has no path of its own, so its inode is matched in /proc/net/unix.
         // Linux servers routinely lack lsof, and a client socket there
         // usually has no name in it even when installed.
-        body += "; echo \"::MX_SOCKETS::\"; for _p in \(candidatePIDs); do"
-        body += " echo \"::MX_PID:$_p::\"; lsof -a -p \"$_p\" -U -F n 2>/dev/null;"
-        body += " if [ -d \"/proc/$_p/fd\" ]; then"
-        body += " for _i in $(ls -l \"/proc/$_p/fd\" 2>/dev/null"
+        body += "; echo \"::MX_SOCKETS::\"; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\";"
+        body += " for _s in \"$_p\" $(ps -xo pid=,ppid= 2>/dev/null | awk -v p=\"$_p\" \"\\$2==p {print \\$1}\"); do"
+        body += " lsof -a -p \"$_s\" -U -F n 2>/dev/null;"
+        body += " if [ -d \"/proc/$_s/fd\" ]; then"
+        body += " for _i in $(ls -l \"/proc/$_s/fd\" 2>/dev/null"
         body += " | sed -n \"s/.*socket:\\[\\([0-9][0-9]*\\)\\].*/\\1/p\"); do"
         body += " awk -v i=\"$_i\" \"\\$7==i && \\$8 ~ /^\\// {print \\$8}\" /proc/net/unix 2>/dev/null;"
-        body += " done; fi; done"
+        body += " done; fi; done; done"
         // Exported by the user's own shell where it was used (`HERDR_SESSION=x herdr`).
         body += "; echo \"::MX_ENV::\"; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\";"
         body += " [ -r \"/proc/$_p/environ\" ] && tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
-        body += " | grep -E \"^(HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME)=\"; done"
+        body += " | grep -E \"^(HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME|SSH_CONNECTION|\(TerminalIdentity.paneTokenVariable))=\"; done"
         // zellij's server runs as `zellij --server <sock dir>/<session>`.
         body += "; echo \"::MX_SERVERS::\"; ps -xo pid=,ppid=,args= 2>/dev/null | grep -- \"--server\" | grep -v grep"
 
@@ -402,22 +690,23 @@ final class MultiplexerExposeFeed {
             timeout: Self.tickTimeout, maxResponseBytes: 64 * 1024
         ) else {
             Self.logger.debug("detect: probe failed")
-            return nil
+            return fail()
         }
-        let parts = ["::MX_SELF::", "::MX_CHAINS::", "::MX_CLIENTS::", "::MX_SOCKETS::", "::MX_ENV::", "::MX_SERVERS::"]
+        let parts = ["::MX_SELF::", "::MX_CONNECTION::", "::MX_CHAINS::", "::MX_CLIENTS::", "::MX_SOCKETS::", "::MX_ENV::", "::MX_SERVERS::"]
             .reduce([MuxScript.sections(of: output, nonce: nonce).topology]) { sections, marker in
                 sections.flatMap { $0.components(separatedBy: marker) }
             }
-        guard parts.count >= 7 else {
+        guard parts.count >= 8 else {
             Self.logger.debug("detect: unexpected reply, \(output.count) bytes")
-            return nil
+            return fail()
         }
         let ownChain = Set(parts[1].split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) })
-        let chains = Self.pidSections(parts[2]).mapValues { Set($0) }
-        let clients = parts[3]
-        let sockets = Self.pidSections(parts[4])
-        let environments = Self.pidSections(parts[5]).mapValues { Self.environment($0) }
-        let servers = parts[6]
+        let ownSSHConnection = parts[2].trimmingCharacters(in: .whitespacesAndNewlines)
+        let chains = Self.pidSections(parts[3]).mapValues { Set($0) }
+        let clients = parts[4]
+        let sockets = Self.pidSections(parts[5])
+        let environments = Self.pidSections(parts[6]).mapValues { Self.environment($0) }
+        let servers = parts[7]
 
         var found: [(binding: Ghostty.TerminalView.RawMultiplexerBinding, pid: String, tty: String)] = []
         for line in parts[0].split(separator: "\n") {
@@ -470,24 +759,104 @@ final class MultiplexerExposeFeed {
                     ?? Self.zellijSession(in: sockets[pid] ?? [])
                     ?? Self.zellijSession(servers: servers, clientPID: pid)
                 binding = .init(type: .zellij, sessionName: session, hasOwnedAltScreen: true)
+            case "zmx":
+                // `zmx run` owns a detached session but is not a client
+                // attached to this pane. It may share the pane's SSH
+                // connection when it was launched from the same shell, so
+                // exclude it before applying connection correlation below.
+                if let subcommand = words.dropFirst().first,
+                   subcommand == "run" || subcommand == "r" {
+                    continue
+                }
+                // `switchSesh` (main.zig) recurses into `attach()` in the SAME
+                // process without ever re-exec'ing, so argv keeps naming
+                // whatever session this pane FIRST attached to, forever,
+                // through any number of later switches. The session's actual
+                // daemon -- forked, not exec'd, at attach and at every switch
+                // -- holds the live named socket instead, so it is asked
+                // first; argv is only a fallback for the moment before that
+                // fork's socket shows up here, or a host with neither `lsof`
+                // nor `/proc`.
+                var session = Self.zmxSession(in: sockets[pid] ?? [])
+                if session == nil, let index = words.firstIndex(where: { $0 == "attach" || $0 == "a" }),
+                   index + 1 < words.count, !words[index + 1].hasPrefix("-") {
+                    session = words[index + 1]
+                }
+                // Nothing to focus or to key the exposé's tab identity by
+                // without a name, and guessing one would risk moving a
+                // session this pane is not actually in -- same reasoning as
+                // the configured-binding decline in
+                // `applyConfiguredMultiplexerBinding`.
+                guard let session else { continue }
+                binding = .init(type: .zmx, sessionName: session, hasOwnedAltScreen: false)
             default:
                 continue
             }
             found.append((binding, pid, processTTY))
         }
-        guard !found.isEmpty else { return nil }
-        // On the pane's own tty there is nothing to disambiguate, and a lone
-        // client on the host is the one this pane is attached to.
-        if tty != nil || found.count == 1 { return found[0].binding }
-        // Otherwise keep only what shares this connection's sshd, and give up
-        // unless exactly one does: showing another session's tabs, or focusing
-        // one, is worse than falling back to the app tabs.
-        let related = found.filter { !(chains[$0.pid] ?? []).intersection(ownChain).isEmpty }
-        guard related.count == 1 else {
-            Self.logger.debug("detect: \(found.count) candidates, \(related.count) on this connection; not guessing")
-            return nil
+        // Raw multiplexers own the alternate screen for the attach. zmx is a
+        // passthrough, so its inner application alone determines screen state.
+        found = found.filter {
+            MuxScreenGate.admits(
+                ownsAlternateScreen: $0.binding.type.ownsAlternateScreen,
+                alternateScreenActive: altActive
+            )
         }
-        return related[0].binding
+        guard !found.isEmpty else { return fail(conclusive: true) }
+        // On the pane's own tty there is nothing to disambiguate.
+        if tty != nil { return found[0].binding }
+        // Prefer the per-pane token Rootshel forwards with the interactive
+        // channel. Several terminal channels may share one SSH transport, so
+        // their processes also share the sshd ancestry and SSH_CONNECTION
+        // tuple; neither identifies WHICH pane owns a client. Servers that do
+        // not accept LC_* variables fall back to those coarser signals.
+        let paneToken = terminal.uuid.uuidString
+        let paneRelated = found.filter {
+            environments[$0.pid]?[TerminalIdentity.paneTokenVariable] == paneToken
+        }
+
+        // Otherwise keep only what shares this connection's sshd or exact
+        // SSH_CONNECTION tuple, and give up unless they all agree on a single
+        // binding: showing another
+        // session's tabs, or focusing one, is worse than falling back to the
+        // app tabs. Plain agreement (not just a lone survivor) is the bar
+        // because of zmx: unlike tmux/zellij/herdr, whose client process IS
+        // the thing that ends up attached, zmx FORKS its session daemon as a
+        // child of the attaching client -- at attach and at every later
+        // switch -- rather than ever exec'ing into it. So one hand-typed
+        // `zmx a foo1` in a pane yields TWO candidates above that both share
+        // `ownChain` (the fork is a descendant of the client): the client
+        // itself and its forked daemon. Both resolve the same socket via
+        // `zmxSession(in:)` and so carry an identical binding -- that is
+        // corroboration, not ambiguity, and collapsing agreeing candidates
+        // before counting is what tells the two apart. (id=zmx-fork-collapse)
+        let related = paneRelated.isEmpty ? found.filter {
+            if !(chains[$0.pid] ?? []).intersection(ownChain).isEmpty { return true }
+            guard !ownSSHConnection.isEmpty else { return false }
+            return environments[$0.pid]?["SSH_CONNECTION"] == ownSSHConnection
+        } : paneRelated
+        guard !related.isEmpty else {
+            // The probe completed, but no candidate belongs to this
+            // connection: authoritative absence for a cached zmx binding.
+            return fail(conclusive: true)
+        }
+        guard let winner = Self.collapseAgreeingBindings(related.map(\.binding)) else {
+            Self.logger.debug("detect: \(found.count) candidates, \(related.count) on this connection; not guessing")
+            return fail()
+        }
+        return winner
+    }
+
+    /// Reduces a list of binding candidates that share this connection down
+    /// to a single agreed-upon binding, or `nil` when the list is empty or
+    /// the candidates genuinely disagree. Generic over the candidate's own
+    /// equality rather than named against
+    /// `Ghostty.TerminalView.RawMultiplexerBinding` directly, keeping this
+    /// reduction independent of the transport-specific binding type.
+    /// (id=zmx-fork-collapse)
+    static func collapseAgreeingBindings<Binding: Equatable>(_ candidates: [Binding]) -> Binding? {
+        guard let first = candidates.first, candidates.allSatisfy({ $0 == first }) else { return nil }
+        return first
     }
 
     /// Lines grouped by the `::MX_PID:<pid>::` markers the script emits.
@@ -563,6 +932,22 @@ final class MultiplexerExposeFeed {
         return nil
     }
 
+    /// Returns the most-referenced zmx session socket. A stable tie-break keeps
+    /// the client and its forked daemon aligned for candidate correlation.
+    private static func zmxSession(in paths: [String]) -> String? {
+        var hits: [String: Int] = [:]
+        for path in paths where path.hasPrefix("/") {
+            let directory = (path as NSString).deletingLastPathComponent
+            let dirName = (directory as NSString).lastPathComponent
+            guard dirName == "zmx" || dirName.hasPrefix("zmx-") else { continue }
+            let name = (path as NSString).lastPathComponent
+            guard !name.isEmpty else { continue }
+            hits[name, default: 0] += 1
+        }
+        guard let highest = hits.values.max() else { return nil }
+        return hits.filter { $0.value == highest }.keys.sorted().first
+    }
+
     /// The session name when the host runs exactly one; nil leaves the feed
     /// unusable rather than guessing (the caller applies the result).
     private func resolveSession() async -> String? {
@@ -603,13 +988,22 @@ final class MultiplexerExposeFeed {
         // The reply describes the session this run was started for; a newer
         // run may already own the feed's frames and snapshot.
         guard isCurrent(generation) else { return .cancelled }
-        guard let result = adapter.parseTick(output: output, nonce: nonce) else {
+        guard let result = adapter.parseTick(output: output, session: sessionName, nonce: nonce) else {
             // Only the prelude's own verdict is final. Anything else (a
             // half-written reply, a momentarily unavailable server) is a
             // transient failure worth retrying, and never throws away a
             // session that has already been serving.
             if MuxScript.sections(of: output, nonce: nonce).unsupported {
                 Self.logger.debug("multiplexer reports unsupported")
+                return .unsupported
+            }
+            if type == .zmx,
+               !MuxScript.sections(of: output, nonce: nonce).truncated,
+               let zmx = adapter as? ZmxExposeAdapter,
+               let sessionName,
+               zmx.boundSessionIsUnavailable(sessionName) {
+                Self.logger.debug("zmx bound session is no longer attached")
+                clearCurrentPassthroughBinding()
                 return .unsupported
             }
             Self.logger.debug("tick: unparseable reply, \(output.count) bytes")
@@ -663,7 +1057,7 @@ final class MultiplexerExposeFeed {
         // First topology lands with no frames: fetch the visible set right away.
         if tickCount == 1 { return .immediate }
         if changed {
-            interval = Self.baseInterval
+            interval = floorInterval
         } else {
             interval = min(interval * 1.5, Self.maxInterval)
         }

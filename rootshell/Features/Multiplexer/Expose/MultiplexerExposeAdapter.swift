@@ -2,12 +2,6 @@
 //  MultiplexerExposeAdapter.swift
 //  rootshell
 //
-//  One adapter per raw multiplexer turns "what do I need this tick" into a
-//  single shell script and its output back into a MuxTickResult. Scripts run
-//  through RemoteExecProbe on the pane's own connection, so they must be
-//  self-contained, nonce-framed, and exit 0 (Citadel discards the output of
-//  a failing command).
-//
 
 import Foundation
 
@@ -19,6 +13,60 @@ nonisolated struct MuxTickRequest: Sendable {
     var knownRevisions: [String: String] = [:]
 }
 
+/// Checks whether screen state is compatible with a multiplexer attachment.
+nonisolated enum MuxScreenGate {
+    /// Passthrough multiplexers are admitted on either screen.
+    static func admits(ownsAlternateScreen: Bool, alternateScreenActive: Bool) -> Bool {
+        !ownsAlternateScreen || alternateScreenActive
+    }
+}
+
+/// Checks whether a detachable multiplexer has a shell underneath it.
+nonisolated enum MuxDetachGate {
+    static func hasFallbackShell(
+        hasRemoteCommand: Bool,
+        hasInitialCommandLaunch: Bool,
+        tmuxAutoEnable: Bool,
+        herdrAutoEnable: Bool,
+        zmxAutoEnable: Bool
+    ) -> Bool {
+        !(hasRemoteCommand || hasInitialCommandLaunch || tmuxAutoEnable || herdrAutoEnable || zmxAutoEnable)
+    }
+}
+
+/// Classifies a detach-and-reattach attempt from its client-count census.
+nonisolated enum MuxZmxDetachTransfer {
+    enum Result: Equatable {
+        case confirmed
+        case unchanged
+        case detachedOnly
+        case ambiguous
+    }
+
+    static func classify(
+        sourceBefore: Int,
+        targetBefore: Int,
+        sourceAfter: Int,
+        targetAfter: Int
+    ) -> Result {
+        if sourceAfter == sourceBefore - 1,
+           targetAfter == targetBefore + 1 {
+            return .confirmed
+        }
+        if sourceAfter == sourceBefore,
+           targetAfter == targetBefore {
+            return .unchanged
+        }
+        // A single-client source proves this pane reached its fallback shell.
+        if sourceBefore == 1,
+           sourceAfter == 0,
+           targetAfter == targetBefore {
+            return .detachedOnly
+        }
+        return .ambiguous
+    }
+}
+
 nonisolated protocol MultiplexerExposeAdapter: Sendable {
     var type: MultiplexerType { get }
 
@@ -28,10 +76,25 @@ nonisolated protocol MultiplexerExposeAdapter: Sendable {
 
     func tickScript(session: String?, request: MuxTickRequest, nonce: String) -> String
 
-    /// nil when the multiplexer is unusable here (too old, no session).
-    func parseTick(output: String, nonce: String) -> MuxTickResult?
+    /// nil when the multiplexer is unavailable or has no usable session.
+    func parseTick(output: String, session: String?, nonce: String) -> MuxTickResult?
+
+    /// Whether switching from `session` to `tabID` is safe.
+    func canFocus(session: String?, tabID: String) -> Bool
 
     func focusScript(session: String?, tabID: String) -> String
+
+    /// Whether the focus command's output confirms the switch.
+    func parseFocusResult(output: String, session: String?, tabID: String) -> Bool
+
+    /// Floor for the feed's tick pacing.
+    var minInterval: TimeInterval { get }
+}
+
+nonisolated extension MultiplexerExposeAdapter {
+    var minInterval: TimeInterval { 0 }
+    func parseFocusResult(output: String, session: String?, tabID: String) -> Bool { true }
+    func canFocus(session: String?, tabID: String) -> Bool { true }
 }
 
 /// Marker framing and shell quoting shared by the adapters.

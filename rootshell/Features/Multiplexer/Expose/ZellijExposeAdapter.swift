@@ -45,7 +45,7 @@ nonisolated struct ZellijExposeAdapter: MultiplexerExposeAdapter {
         return MuxScript.wrap(body, nonce: nonce)
     }
 
-    func parseTick(output: String, nonce: String) -> MuxTickResult? {
+    func parseTick(output: String, session _: String?, nonce: String) -> MuxTickResult? {
         let sections = MuxScript.sections(of: output, nonce: nonce)
         guard sections.found, !sections.unsupported else { return nil }
         let halves = sections.topology.components(separatedBy: "::MX_PANES::")

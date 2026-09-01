@@ -1707,6 +1707,515 @@
         }
       }
     },
+    "%lld clients" : {
+      "comment" : "zmx attached client count",
+      "localizations" : {
+        "ar" : {
+          "variations" : {
+            "plural" : {
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld عميل"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "عميل واحد"
+                }
+              },
+              "two" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "عميلان"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld عملاء"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld عميلًا"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld عميل"
+                }
+              }
+            }
+          }
+        },
+        "ca" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld clients"
+                }
+              }
+            }
+          }
+        },
+        "cs" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klient"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klienti"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klienta"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klientů"
+                }
+              }
+            }
+          }
+        },
+        "da" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klient"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klienter"
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Clients"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld cliente"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld clientes"
+                }
+              }
+            }
+          }
+        },
+        "fi" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld asiakas"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld asiakasta"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld clients"
+                }
+              }
+            }
+          }
+        },
+        "he" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "לקוח אחד"
+                }
+              },
+              "two" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "שני לקוחות"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld לקוחות"
+                }
+              }
+            }
+          }
+        },
+        "hu" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld kliens"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld kliens"
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld client"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lldクライアント"
+                }
+              }
+            }
+          }
+        },
+        "ko" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "클라이언트 %lld개"
+                }
+              }
+            }
+          }
+        },
+        "nb" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klient"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klienter"
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld client"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld clients"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klient"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klienci"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klientów"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klienta"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld cliente"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld clientes"
+                }
+              }
+            }
+          }
+        },
+        "pt-PT" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld cliente"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld clientes"
+                }
+              }
+            }
+          }
+        },
+        "ro" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld client"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld clienți"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de clienți"
+                }
+              }
+            }
+          }
+        },
+        "sl" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld odjemalec"
+                }
+              },
+              "two" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld odjemalca"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld odjemalci"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld odjemalcev"
+                }
+              }
+            }
+          }
+        },
+        "sv" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klient"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld klienter"
+                }
+              }
+            }
+          }
+        },
+        "uk" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld клієнт"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld клієнти"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld клієнтів"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld клієнта"
+                }
+              }
+            }
+          }
+        },
+        "vi" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld máy khách"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 个客户端"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 個用戶端"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "-/%llu" : {
       "localizations" : {
         "ar" : {
@@ -2166,6 +2675,2009 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "-rw-r--r--  "
+          }
+        }
+      }
+    },
+    "Attach to or create zmx session \"%@\" on connect" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الاتصال بجلسة zmx \"%@\" أو إنشاؤها عند الاتصال"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecta o crea la sessió zmx \"%@\" en connectar"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Připojit se k relaci zmx \"%@\" nebo ji vytvořit při připojení"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilslut eller opret zmx-session \"%@\" ved forbindelse"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-Sitzung \"%@\" beim Verbinden anhängen oder erstellen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar o crear sesión zmx \"%@\" al conectar"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liity zmx-istuntoon \"%@\" tai luo se yhdistettäessä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter à la session zmx \"%@\" ou la créer lors de la connexion"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התחברות או יצירת הפעלת zmx \"%@\" בעת חיבור"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Csatlakozás a(z) \"%@\" zmx-munkamenethez, vagy létrehozása kapcsolódáskor"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collega o crea la sessione zmx \"%@\" alla connessione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続時にzmxセッション「%@」に接続または作成"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결 시 zmx 세션 \"%@\"에 연결하거나 생성"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koble til eller opprett zmx-økt \"%@\" ved tilkobling"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden met of zmx-sessie \"%@\" aanmaken bij verbinding"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podłącz do sesji zmx \"%@\" lub utwórz ją przy połączeniu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar ou criar sessão zmx \"%@\" ao conectar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligar ou criar sessão zmx \"%@\" ao ligar"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectare la sau creare sesiune zmx \"%@\" la conectare"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pripni se na sejo zmx \"%@\" ali jo ustvari ob povezavi"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anslut till eller skapa zmx-session \"%@\" vid anslutning"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приєднатися до сеансу zmx \"%@\" або створити його при підключенні"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kết nối hoặc tạo phiên zmx \"%@\" khi kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接时附加到或创建 zmx 会话「%@」"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連線時附加到或建立 zmx 工作階段「%@」"
+          }
+        }
+      }
+    },
+    "Created %@" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أُنشئت %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creada %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vytvořeno %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oprettet %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstellt %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creada %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luotu %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Créée %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נוצר %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Létrehozva %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creata %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作成 %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "생성됨 %@"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opprettet %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aangemaakt %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utworzono %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Criada %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Criada %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creată %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustvarjeno %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skapad %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Створено %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã tạo %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建于 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建立於 %@"
+          }
+        }
+      },
+      "comment" : "zmx session age, e.g. 'Created 2 hr. ago'"
+    },
+    "Discover zmx Sessions" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اكتشاف جلسات zmx"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descobreix sessions d'zmx"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zjistit relace zmx"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opdag zmx-sessioner"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-Sitzungen entdecken"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descubrir sesiones de zmx"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etsi zmx-istuntoja"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Découvrir les sessions zmx"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "גלה סשנים של zmx"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-munkamenetek felderítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scopri sessioni zmx"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmxセッションを検出"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 세션 검색"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oppdag zmx-økter"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-sessies ontdekken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wykryj sesje zmx"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descobrir sessões zmx"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descobrir sessões zmx"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descoperă sesiuni zmx"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odkrij seje zmx"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identifiera zmx-sessioner"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виявити сеанси zmx"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khám phá phiên zmx"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发现 zmx 会话"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "探索 zmx 工作階段"
+          }
+        }
+      }
+    },
+    "Multiplexer Tips" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نصائح معددات الطرفية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consells de multiplexors"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipy pro multiplexery"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplekser-tip"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplexer-Tipps"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consejos de multiplexores"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplekservinkit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conseils multiplexeurs"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "טיפים למרבבים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplexer tippek"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consigli sui multiplexer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マルチプレクサのヒント"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "멀티플렉서 팁"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplekser-tips"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplexer-tips"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wskazówki multiplekserów"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dicas de multiplexadores"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sugestões de multiplexadores"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sfaturi multiplexoare"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nasveti za multiplekserje"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiplexertips"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поради щодо мультиплексорів"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mẹo bộ ghép kênh"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "终端复用器提示"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "終端多工器提示"
+          }
+        }
+      }
+    },
+    "Overrides the entire zmx command, including the session name. Leave empty to use the default." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتجاوز أمر zmx بالكامل، بما في ذلك اسم الجلسة. اتركه فارغًا لاستخدام الأمر الافتراضي."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitueix tota l'ordre d'zmx, inclòs el nom de la sessió. Deixa-ho buit per utilitzar el valor per defecte."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nahradí celý příkaz zmx včetně názvu relace. Ponechte prázdné pro použití výchozího."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilsidesætter hele zmx-kommandoen, inklusive sessionsnavnet. Lad feltet stå tomt for at bruge standarden."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Überschreibt den gesamten zmx-Befehl, einschließlich des Sitzungsnamens. Leer lassen, um den Standard zu verwenden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sustituye todo el comando de zmx, incluido el nombre de la sesión. Déjalo vacío para usar el predeterminado."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Korvaa koko zmx-komennon, myös istunnon nimen. Jätä tyhjäksi käyttääksesi oletusta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplace toute la commande zmx, y compris le nom de session. Laissez vide pour utiliser la valeur par défaut."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "עוקף את כל פקודת zmx, כולל שם ההפעלה. השאר ריק כדי להשתמש בברירת המחדל."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Felülírja a teljes zmx-parancsot, a munkamenet nevével együtt. Hagyja üresen az alapértelmezett használatához."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sostituisce l'intero comando zmx, incluso il nome della sessione. Lascia vuoto per usare il valore predefinito."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セッション名を含め、zmxコマンド全体を上書きします。空欄にするとデフォルトを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "세션 이름을 포함한 전체 zmx 명령어를 대체합니다. 비워 두면 기본값을 사용합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overstyrer hele zmx-kommandoen, inkludert øktnavnet. La feltet stå tomt for å bruke standarden."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overschrijft de volledige zmx-opdracht, inclusief de sessienaam. Laat leeg om de standaard te gebruiken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zastępuje całe polecenie zmx, łącznie z nazwą sesji. Pozostaw puste, aby użyć domyślnego."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitui todo o comando do zmx, incluindo o nome da sessão. Deixe vazio para usar o padrão."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitui todo o comando do zmx, incluindo o nome da sessão. Deixe vazio para usar a predefinição."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Înlocuiește întreaga comandă zmx, inclusiv numele sesiunii. Lăsați gol pentru a folosi valoarea implicită."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nadomesti celoten ukaz zmx, vključno z imenom seje. Pustite prazno za privzeto vrednost."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ersätter hela zmx-kommandot, inklusive sessionsnamnet. Lämna tomt för att använda standardvärdet."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Замінює всю команду zmx, зокрема назву сеансу. Залиште порожнім, щоб використати типову."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghi đè toàn bộ lệnh zmx, bao gồm cả tên phiên. Để trống để dùng giá trị mặc định."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆盖整条 zmx 命令，包括会话名称。留空则使用默认值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆寫整道 zmx 指令，包括工作階段名稱。留空則使用預設值。"
+          }
+        }
+      }
+    },
+    "The zmx command used when auto-start is enabled on a connection." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أمر zmx المستخدَم عند تفعيل البدء التلقائي في اتصال."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'ordre d'zmx que s'utilitza quan l'inici automàtic està activat en una connexió."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Příkaz zmx použitý, když je pro připojení zapnuté automatické spuštění."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den zmx-kommando, der bruges, når automatisk start er slået til for en forbindelse."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der zmx-Befehl, der verwendet wird, wenn Autostart für eine Verbindung aktiviert ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El comando de zmx que se usa cuando el inicio automático está activado en una conexión."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-komento, jota käytetään, kun automaattinen käynnistys on käytössä yhteydessä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La commande zmx utilisée lorsque le démarrage automatique est activé sur une connexion."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פקודת zmx המשמשת כאשר הפעלה אוטומטית מופעלת בחיבור."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A zmx-parancs, amelyet az automatikus indítás használ egy kapcsolatnál."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il comando zmx usato quando l'avvio automatico è abilitato su una connessione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続で自動起動が有効なときに使用されるzmxコマンドです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결에서 자동 시작이 켜져 있을 때 사용되는 zmx 명령어입니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-kommandoen som brukes når automatisk start er slått på for en tilkobling."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De zmx-opdracht die wordt gebruikt wanneer automatisch starten is ingeschakeld voor een verbinding."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polecenie zmx używane, gdy dla połączenia włączony jest automatyczny start."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O comando do zmx usado quando o início automático está ativado em uma conexão."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O comando do zmx utilizado quando o arranque automático está ativado numa ligação."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comanda zmx folosită când pornirea automată este activată pentru o conexiune."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ukaz zmx, ki se uporabi, ko je za povezavo vklopljen samodejni zagon."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-kommandot som används när automatisk start är aktiverad för en anslutning."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Команда zmx, що використовується, коли для з'єднання ввімкнено автозапуск."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lệnh zmx được dùng khi bật khởi động tự động cho một kết nối."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在连接上启用自动启动时所使用的 zmx 命令。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在連線上啟用自動啟動時所使用的 zmx 指令。"
+          }
+        }
+      }
+    },
+    "The zmx session name used by auto-start. Defaults to \"main\" if empty." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اسم جلسة zmx المستخدم بواسطة التشغيل التلقائي. القيمة الافتراضية \"main\" إذا كان فارغًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El nom de la sessió zmx utilitzat per l'inici automàtic. Per defecte és \"main\" si està buit."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Název relace zmx používaný automatickým spuštěním. Výchozí hodnota je \"main\", pokud je prázdný."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tmux-sessionsnavnet brugt af autostart. Standard er \"main\", hvis tomt."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der von Autostart verwendete zmx-Sitzungsname. Standard ist \"main\", wenn leer."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El nombre de sesión zmx usado por el inicio automático. Por defecto es \"main\" si está vacío."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automaattisen käynnistyksen käyttämä zmx-istunnon nimi. Oletusarvo on \"main\", jos tyhjä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le nom de session zmx utilisé par le démarrage automatique. Par défaut \"main\" si vide."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שם הפעלת zmx המשמש הפעלה אוטומטית. ברירת המחדל היא \"main\" אם ריק."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az automatikus indítás által használt zmx-munkamenet neve. Alapértelmezés: \"main\", ha üres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il nome della sessione zmx usato dall'avvio automatico. Predefinito: \"main\" se vuoto."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動起動で使用されるzmxセッション名。空の場合、デフォルトは「main」です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 시작에서 사용하는 zmx 세션 이름. 비어 있으면 기본값은 \"main\"입니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-øktnavnet brukt av autostart. Standard er \"main\" hvis tomt."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De zmx-sessienaam gebruikt door automatisch starten. Standaard \"main\" indien leeg."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nazwa sesji zmx używana przez automatyczne uruchamianie. Domyślnie \"main\", jeśli puste."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O nome da sessão zmx usado pelo início automático. O padrão é \"main\" se vazio."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O nome da sessão zmx utilizado pelo arranque automático. Predefinição: \"main\" se vazio."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Numele sesiunii zmx utilizat de pornirea automată. Implicit \"main\" dacă este gol."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ime seje zmx, ki ga uporablja samodejni zagon. Privzeto je \"main\", če je prazno."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tmux-sessionsnamnet som används av autostart. Standard är \"main\" om tomt."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назва сеансу zmx для автозапуску. За замовчуванням \"main\", якщо порожнє."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tên phiên zmx được sử dụng bởi tự động khởi động. Mặc định là \"main\" nếu để trống."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动启动使用的 zmx 会话名称。为空时默认为「main」。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動啟動使用的 zmx 工作階段名稱。為空時預設為「main」。"
+          }
+        }
+      }
+    },
+    "This command runs when zmx auto-start is enabled on a connection. zmx attaches to the session if it is running, or starts it." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتم تشغيل هذا الأمر عند تمكين التشغيل التلقائي لـ zmx على الاتصال. يرتبط zmx بالجلسة إذا كانت قيد التشغيل، أو يبدؤها."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquesta ordre s'executa quan l'inici automàtic d'zmx està habilitat en una connexió. zmx es connecta a la sessió si s'està executant, o la inicia."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tento příkaz se spustí, když je na připojení zapnuto automatické spuštění zmx. zmx se připojí k relaci, pokud běží, nebo ji spustí."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne kommando køres, når zmx-autostart er aktiveret på en forbindelse. zmx tilslutter sessionen, hvis den kører, eller starter den."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Befehl wird ausgeführt, wenn zmx-Autostart für eine Verbindung aktiviert ist. zmx hängt sich an die Sitzung an, falls sie läuft, oder startet sie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este comando se ejecuta cuando el inicio automático de zmx está habilitado en una conexión. zmx se conecta a la sesión si está en ejecución, o la inicia."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tämä komento suoritetaan, kun zmx-automaattikäynnistys on käytössä yhteydellä. zmx liittyy istuntoon, jos se on käynnissä, tai käynnistää sen."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette commande s'exécute lorsque le démarrage automatique de zmx est activé sur une connexion. zmx se connecte à la session si elle est en cours d'exécution, sinon il la démarre."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פקודה זו מופעלת כאשר הפעלה אוטומטית של zmx מופעלת בחיבור. zmx מתחבר להפעלה אם היא פועלת, או מפעיל אותה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ez a parancs fut, amikor a zmx automatikus indítás engedélyezve van egy kapcsolaton. A zmx csatlakozik a munkamenethez, ha az fut, vagy elindítja azt."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo comando viene eseguito quando l'avvio automatico di zmx è abilitato su una connessione. zmx si collega alla sessione se è in esecuzione, altrimenti la avvia."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このコマンドは、接続でzmx自動起動が有効になっている場合に実行されます。zmxはセッションが実行中であればそのセッションに接続し、実行中でなければ起動します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 명령은 연결에서 zmx 자동 시작이 활성화된 경우 실행됩니다. zmx는 세션이 실행 중이면 연결하고, 실행 중이 아니면 시작합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne kommandoen kjøres når zmx-autostart er aktivert på en tilkobling. zmx kobler til økten hvis den kjører, eller starter den."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit commando wordt uitgevoerd wanneer zmx automatisch starten is ingeschakeld op een verbinding. zmx verbindt met de sessie als deze actief is, of start deze."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To polecenie jest uruchamiane, gdy automatyczne uruchamianie zmx jest włączone dla połączenia. zmx podłącza się do sesji, jeśli jest uruchomiona, lub ją uruchamia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este comando é executado quando o início automático do zmx está habilitado em uma conexão. O zmx conecta à sessão se ela estiver em execução ou a inicia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este comando é executado quando o arranque automático do zmx está ativado numa ligação. O zmx liga-se à sessão se esta estiver em execução ou inicia-a."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Această comandă rulează când pornirea automată zmx este activată pe o conexiune. zmx se atașează la sesiune dacă aceasta rulează sau o pornește."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta ukaz se izvede, ko je samodejni zagon zmx omogočen na povezavi. zmx se pripne na sejo, če ta teče, sicer jo zažene."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detta kommando körs när zmx-autostart är aktiverat på en anslutning. zmx ansluter till sessionen om den körs, annars startas den."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ця команда виконується, коли автозапуск zmx увімкнено для з'єднання. zmx приєднується до сеансу, якщо він запущений, або запускає його."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lệnh này chạy khi tự động khởi động zmx được bật trên kết nối. zmx sẽ kết nối vào phiên nếu phiên đang chạy, hoặc khởi động phiên đó."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当连接上启用 zmx 自动启动时，将运行此命令。如果会话正在运行，zmx 会附加到该会话，否则会启动它。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當連線上啟用 zmx 自動啟動時，將執行此指令。若工作階段正在執行，zmx 會附加到該工作階段，否則會啟動它。"
+          }
+        }
+      }
+    },
+    "zmx" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx"
+          }
+        }
+      }
+    },
+    "zmx Auto-Start" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "البدء التلقائي لـ zmx"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inici automàtic d'zmx"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatické spuštění zmx"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatisk start af zmx"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-Autostart"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicio automático de zmx"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmxin automaattinen käynnistys"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarrage automatique de zmx"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעלה אוטומטית של zmx"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx automatikus indítás"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avvio automatico di zmx"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx自動起動"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 자동 시작"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatisk start av zmx"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx automatisch starten"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatyczny start zmx"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Início Automático do zmx"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arranque Automático do zmx"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pornire automată zmx"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Samodejni zagon zmx"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatisk start av zmx"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Автозапуск zmx"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khởi động tự động zmx"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 自动启动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 自動啟動"
+          }
+        }
+      }
+    },
+    "zmx attaches automatically" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يرتبط zmx تلقائيًا"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx es connecta automàticament"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx se připojuje automaticky"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx tilslutter automatisk"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx hängt sich automatisch an"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx se conecta automáticamente"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx liittyy automaattisesti"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx s'attache automatiquement"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx מתחבר אוטומטית"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A zmx automatikusan csatlakozik"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx si collega automaticamente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx自動接続"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 자동 연결"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx kobler til automatisk"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx verbindt automatisch"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx podłącza się automatycznie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx conecta automaticamente"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx liga-se automaticamente"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx se atașează automat"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx se pripne samodejno"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx ansluter automatiskt"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx приєднується автоматично"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx tự động kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 自动附加"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 自動附加"
+          }
+        }
+      }
+    },
+    "zmx enabled, launch command configured" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx مُفعَّل، تم تكوين أمر التشغيل"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx activat, ordre d'inici configurada"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx povolen, spouštěcí příkaz nakonfigurován"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx aktiveret, startkommando konfigureret"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx aktiviert, Startbefehl konfiguriert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx activado, comando de inicio configurado"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx käytössä, käynnistyskomento määritetty"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx activé, commande de lancement configurée"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx מופעל, פקודת הפעלה מוגדרת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx engedélyezve, indítási parancs konfigurálva"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx attivato, comando di avvio configurato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx有効、起動コマンド設定済み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 활성화됨, 실행 명령 설정됨"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx aktivert, startkommando konfigurert"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx ingeschakeld, startcommando geconfigureerd"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx włączony, polecenie uruchomieniowe skonfigurowane"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx ativado, comando de inicialização configurado"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx ativado, comando de lançamento configurado"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx activat, comandă de lansare configurată"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx omogočen, zagonski ukaz nastavljen"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx aktiverat, startkommando konfigurerat"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx увімкнено, команду запуску налаштовано"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã bật zmx, đã cấu hình lệnh khởi chạy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 已启用，启动命令已配置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 已啟用，啟動命令已設定"
+          }
+        }
+      }
+    },
+    "zmx reads a name starting with '-' as an option. This name falls back to the global default." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يقرأ zmx الاسم الذي يبدأ بـ '-' كخيار. سيعود هذا الاسم إلى الإعداد الافتراضي العام."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx interpreta un nom que comença amb '-' com una opció. Aquest nom recorre al valor global per defecte."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx čte název začínající znakem '-' jako volbu. Tento název se vrátí ke globální výchozí hodnotě."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx læser et navn, der begynder med '-', som en indstilling. Dette navn falder tilbage til den globale standard."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx liest einen Namen, der mit '-' beginnt, als Option. Dieser Name fällt auf die globale Vorgabe zurück."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx interpreta un nombre que empieza por '-' como una opción. Este nombre recurre al valor global predeterminado."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx tulkitsee '-'-merkillä alkavan nimen valitsimeksi. Tämä nimi palautuu yleiseen oletusarvoon."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx interprète un nom commençant par '-' comme une option. Ce nom revient à la valeur globale par défaut."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "‏zmx קורא שם שמתחיל ב-'-' כאפשרות. שם זה חוזר לברירת המחדל הגלובלית."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A zmx a '-' karakterrel kezdődő nevet kapcsolóként értelmezi. Ez a név a globális alapértelmezésre vált vissza."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx interpreta un nome che inizia con '-' come un'opzione. Questo nome torna al valore predefinito globale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx は '-' で始まる名前をオプションとして解釈します。この名前はグローバルのデフォルトに戻ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx는 '-'로 시작하는 이름을 옵션으로 인식합니다. 이 이름은 전역 기본값으로 대체됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx leser et navn som starter med '-', som et valg. Dette navnet faller tilbake til den globale standarden."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx leest een naam die met '-' begint als een optie. Deze naam valt terug op de algemene standaard."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx odczytuje nazwę zaczynającą się od '-' jako opcję. Ta nazwa powróci do domyślnej wartości globalnej."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O zmx interpreta um nome iniciado por '-' como uma opção. Esse nome retorna ao padrão global."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O zmx interpreta um nome iniciado por '-' como uma opção. Este nome regressa à predefinição global."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx interpretează un nume care începe cu '-' ca opțiune. Acest nume revine la valoarea implicită globală."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx ime, ki se začne z '-', prebere kot možnost. To ime se vrne na globalno privzeto vrednost."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx tolkar ett namn som börjar med '-' som en flagga. Det här namnet återgår till den globala standarden."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx читає ім'я, що починається з '-', як параметр. Це ім'я повертається до глобального значення за замовчуванням."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx đọc tên bắt đầu bằng '-' như một tùy chọn. Tên này sẽ quay lại giá trị mặc định chung."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 会将以“-”开头的名称视为选项。此名称将回退到全局默认值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx 會將以「-」開頭的名稱視為選項。此名稱將回復為全域預設值。"
           }
         }
       }
@@ -72550,6 +75062,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在遠端主機上自動啟動 tmux"
+          }
+        }
+      }
+    },
+    "Auto-start zmx on the remote host" : {
+      "comment" : "Mosh help: --zmx option\nSSH help: --zmx option\nTrzsz help: --zmx option",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بدء zmx تلقائيًا على المضيف البعيد"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar zmx automàticament a l'amfitrió remot"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automaticky spustit zmx na vzdáleném hostiteli"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start zmx automatisk på fjernværten"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx automatisch auf dem Remote-Host starten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar zmx automáticamente en el host remoto"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistä zmx automaattisesti etäisännässä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarrer zmx automatiquement sur l'hôte distant"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעלה אוטומטית של zmx במארח המרוחק"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A zmx automatikus indítása a távoli gazdagépen"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avvia automaticamente zmx sull'host remoto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リモートホストで zmx を自動起動"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원격 호스트에서 zmx 자동 시작"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start zmx automatisk på fjernverten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx automatisch starten op de externe host"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatycznie uruchom zmx na zdalnym hoście"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar o zmx automaticamente no host remoto"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar o zmx automaticamente no anfitrião remoto"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pornește automat zmx pe gazda la distanță"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Samodejno zaženi zmx na oddaljenem gostitelju"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starta zmx automatiskt på fjärrvärden"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Автоматично запускати zmx на віддаленому хості"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tự động khởi động zmx trên máy chủ từ xa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在远程主机上自动启动 zmx"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在遠端主機上自動啟動 zmx"
           }
         }
       }
@@ -518530,6 +521197,160 @@
         }
       }
     },
+    "The zmx session this profile attaches to or creates on connect. Leave on the global default to use the session name from Settings. Names may use letters, numbers, '.', '_' and '-', and may not start with '-'." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جلسة zmx التي يتصل بها هذا الملف الشخصي أو ينشئها عند الاتصال. اتركه على الافتراضي العام لاستخدام اسم الجلسة من الإعدادات. يمكن أن تحتوي الأسماء على أحرف وأرقام و'.' و'_' و'-'، ولا يمكن أن تبدأ بـ '-'."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sessió zmx a la qual aquest perfil es connecta o que crea en connectar-se. Deixeu-ho al valor global per defecte per utilitzar el nom de sessió de la configuració. Els noms poden fer servir lletres, xifres, '.', '_' i '-', i no poden començar amb '-'."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relace zmx, ke které se tento profil při připojení připojí nebo kterou vytvoří. Ponechte globální výchozí hodnotu, chcete-li použít název relace z Nastavení. Názvy mohou obsahovat písmena, číslice, '.', '_' a '-' a nesmí začínat znakem '-'."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den zmx-session, som denne profil tilsluttes eller opretter ved forbindelse. Behold den globale standard for at bruge sessionsnavnet fra Indstillinger. Navne må bruge bogstaver, tal, '.', '_' og '-' og må ikke begynde med '-'."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die zmx-Sitzung, mit der sich dieses Profil beim Verbinden verbindet oder die es erstellt. Belasse die globale Vorgabe, um den Sitzungsnamen aus den Einstellungen zu verwenden. Namen dürfen Buchstaben, Ziffern, '.', '_' und '-' enthalten und nicht mit '-' beginnen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sesión de zmx a la que este perfil se conecta o que crea al conectar. Déjalo en el valor global predeterminado para usar el nombre de sesión de Ajustes. Los nombres pueden usar letras, números, '.', '_' y '-', y no pueden empezar por '-'."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-istunto, johon tämä profiili yhdistää tai jonka se luo yhdistettäessä. Jätä yleiseen oletusarvoon käyttääksesi asetusten istuntonimeä. Nimissä voi käyttää kirjaimia, numeroita sekä merkkejä '.', '_' ja '-', eivätkä ne saa alkaa merkillä '-'."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La session zmx à laquelle ce profil se connecte ou qu'il crée à la connexion. Laissez la valeur globale par défaut pour utiliser le nom de session des Réglages. Les noms peuvent contenir des lettres, des chiffres, '.', '_' et '-', et ne peuvent pas commencer par '-'."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "‏הפעלת zmx שאליה פרופיל זה מתחבר או שהוא יוצר בעת ההתחברות. השאר את ברירת המחדל הגלובלית כדי להשתמש בשם ההפעלה מההגדרות. שמות יכולים לכלול אותיות, ספרות, '.', '_' ו-'-', ואינם יכולים להתחיל ב-'-'."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A zmx-munkamenet, amelyhez ez a profil csatlakozik, vagy amelyet létrehoz csatlakozáskor. Hagyd a globális alapértelmezésen a Beállítások munkamenetnevének használatához. A nevek betűket, számjegyeket, '.', '_' és '-' karaktereket tartalmazhatnak, és nem kezdődhetnek '-' karakterrel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sessione zmx a cui questo profilo si connette o che crea alla connessione. Lascia il valore predefinito globale per usare il nome sessione dalle Impostazioni. I nomi possono usare lettere, numeri, '.', '_' e '-', e non possono iniziare con '-'."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このプロファイルが接続時に接続または作成する zmx セッションです。設定のセッション名を使うにはグローバルのデフォルトのままにします。名前には英数字と '.'、'_'、'-' を使用でき、'-' で始めることはできません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 프로파일이 연결 시 연결하거나 생성하는 zmx 세션입니다. 설정의 세션 이름을 사용하려면 전역 기본값으로 두십시오. 이름에는 문자, 숫자, '.', '_', '-'를 사용할 수 있으며 '-'로 시작할 수 없습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-økten denne profilen kobler til eller oppretter ved tilkobling. La den stå på den globale standarden for å bruke øktnavnet fra Innstillinger. Navn kan bruke bokstaver, tall, '.', '_' og '-', og kan ikke starte med '-'."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De zmx-sessie waarmee dit profiel verbinding maakt of die het aanmaakt bij verbinden. Laat op de algemene standaard staan om de sessienaam uit Instellingen te gebruiken. Namen mogen letters, cijfers, '.', '_' en '-' bevatten en mogen niet met '-' beginnen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesja zmx, z którą ten profil się łączy lub którą tworzy przy połączeniu. Pozostaw wartość domyślną globalną, aby użyć nazwy sesji z Ustawień. Nazwy mogą zawierać litery, cyfry, '.', '_' i '-' oraz nie mogą zaczynać się od '-'."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sessão zmx à qual este perfil se conecta ou que cria ao conectar. Deixe no padrão global para usar o nome de sessão dos Ajustes. Os nomes podem usar letras, números, '.', '_' e '-', e não podem começar com '-'."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sessão zmx à qual este perfil se liga ou que cria ao ligar. Deixe na predefinição global para usar o nome de sessão das Definições. Os nomes podem usar letras, números, '.', '_' e '-', e não podem começar por '-'."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesiunea zmx la care se conectează acest profil sau pe care o creează la conectare. Lasă valoarea implicită globală pentru a folosi numele sesiunii din Configurări. Numele pot folosi litere, cifre, '.', '_' și '-' și nu pot începe cu '-'."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seja zmx, s katero se ta profil poveže ali jo ustvari ob povezavi. Pustite globalno privzeto vrednost, da uporabite ime seje iz Nastavitev. Imena lahko vsebujejo črke, števke, '.', '_' in '-' ter se ne smejo začeti z '-'."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zmx-sessionen som den här profilen ansluter till eller skapar vid anslutning. Låt den stå på den globala standarden för att använda sessionsnamnet från Inställningar. Namn kan använda bokstäver, siffror, '.', '_' och '-', och får inte börja med '-'."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сеанс zmx, до якого цей профіль підключається або який створює під час підключення. Залиште глобальне значення за замовчуванням, щоб використати назву сеансу з Параметрів. Назви можуть містити літери, цифри, '.', '_' і '-' та не можуть починатися з '-'."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phiên zmx mà hồ sơ này kết nối tới hoặc tạo khi kết nối. Giữ nguyên mặc định chung để dùng tên phiên từ Cài đặt. Tên có thể dùng chữ cái, chữ số, '.', '_' và '-', và không được bắt đầu bằng '-'."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置在连接时接入或创建的 zmx 会话。保持全局默认值可使用“设置”中的会话名称。名称可使用字母、数字、“.”、“_”和“-”，且不能以“-”开头。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此描述檔在連線時接入或建立的 zmx 工作階段。保持全域預設值可使用「設定」中的工作階段名稱。名稱可使用字母、數字、「.」、「_」和「-」，且不能以「-」開頭。"
+          }
+        }
+      }
+    },
     "The VNC stream itself is unencrypted, but every byte travels inside the SSH tunnel." : {
       "localizations" : {
         "ar" : {
@@ -533963,160 +536784,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "tmux 自動啟動"
-          }
-        }
-      }
-    },
-    "tmux Tips" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "نصائح tmux"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consells de tmux"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tipy pro tmux"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux-tip"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux-Tipps"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consejos de tmux"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux-vinkit"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conseils tmux"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "טיפים ל-tmux"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux tippek"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consigli su tmux"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmuxのヒント"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux 팁"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux-tips"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux-tips"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wskazówki tmux"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dicas do tmux"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sugestões do tmux"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sfaturi tmux"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nasveti za tmux"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux-tips"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Поради щодо tmux"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mẹo tmux"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux 提示"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tmux 提示"
           }
         }
       }

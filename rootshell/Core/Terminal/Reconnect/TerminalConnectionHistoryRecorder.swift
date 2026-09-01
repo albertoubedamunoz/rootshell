@@ -101,6 +101,7 @@ final class TerminalConnectionHistoryRecorder {
                 tmuxAutoEnable: sshConfig.tmuxAutoEnable,
                 tmuxAutoMode: sshConfig.tmuxAutoMode,
                 herdrAutoEnable: sshConfig.herdrAutoEnable,
+                zmxAutoEnable: sshConfig.zmxAutoEnable,
                 launchCommand: sshConfig.launchCommand,
                 launchCommandMode: sshConfig.launchCommandMode,
                 terminalType: sshConfig.terminalType,

@@ -123,8 +123,8 @@ brew install --cask rootshell
 - **Multipath TCP** - MPTCP over Apple Network.framework maintains subflows on WiFi and cellular simultaneously for near-instant handover (requires Linux 5.6+ on server)
 - **Native SCP & SFTP** - Built-in `scp` and interactive `sftp` client with tab completion, glob patterns, and real-time progress
 - **Background SSH Tunnels** - Maintain port forwards without a terminal UI with auto-start on launch and byte transfer statistics
-- **Auto-start tmux** - Automatically attach to or create tmux sessions on connect
-- **tmux Session Discovery** - After connecting, lists active tmux sessions with window count and live terminal preview
+- **Auto-start Multiplexer** - Automatically attach to or create a tmux, herdr or zmx session on connect
+- **Multiplexer Session Discovery** - After connecting, lists active tmux, zellij, herdr and zmx sessions with per-multiplexer detail and a live terminal preview
 - **Tailscale Integration** - Device discovery and SSH to your tailnet with no-auth support
 - **Host Shorthand (HSS)** - Pattern-based hostname expansion with YAML configuration
 - **Connection Health** - Real-time RTT and packet loss tracking with time series chart and negotiated cryptographic algorithm details

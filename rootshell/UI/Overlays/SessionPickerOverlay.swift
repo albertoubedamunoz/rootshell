@@ -2,7 +2,7 @@
 //  SessionPickerOverlay.swift
 //  rootshell
 //
-//  Overlay for selecting an active multiplexer session (tmux/zellij/herdr) after SSH connection.
+//  Overlay for selecting an active multiplexer session (tmux/zellij/herdr/zmx) after SSH connection.
 //
 
 import SwiftUI
@@ -29,13 +29,12 @@ struct SessionPickerOverlay: View {
     }
 
     private var headerIcon: String {
-        if sessionTypes.count == 1, sessionTypes.contains(.zellij) {
-            return "rectangle.split.2x1"
+        // Single-type pickers show that multiplexer's own icon; mixed pickers
+        // fall back to tmux's, which reads as a generic "panes" glyph.
+        if sessionTypes.count == 1, let type = sessionTypes.first {
+            return type.iconName
         }
-        if sessionTypes.count == 1, sessionTypes.contains(.herdr) {
-            return "square.grid.2x2"
-        }
-        return "rectangle.split.3x1"
+        return MultiplexerType.tmux.iconName
     }
 
     private var isMixed: Bool { sessionTypes.count > 1 }

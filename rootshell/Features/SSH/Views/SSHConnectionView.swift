@@ -90,6 +90,9 @@ struct SSHConnectionView: View {
     // herdr auto-attach (mutually exclusive with enableTmux via the picker)
     @State private var enableHerdr: Bool = false
 
+    // zmx auto-attach (mutually exclusive with the others via the picker)
+    @State private var enableZmx: Bool = false
+
     // Launch command
     @State private var launchCommand: String = ""
     @State private var launchCommandMode: SSHConfig.LaunchCommandMode = .afterConnect
@@ -494,6 +497,11 @@ struct SSHConnectionView: View {
                 }
             }
             .onChange(of: enableHerdr) { _, enabled in
+                if enabled {
+                    isTerminalOptionsExpanded = true
+                }
+            }
+            .onChange(of: enableZmx) { _, enabled in
                 if enabled {
                     isTerminalOptionsExpanded = true
                 }
@@ -1089,15 +1097,17 @@ struct SSHConnectionView: View {
         connectionProtocol == .mosh ? .regular : tmuxAutoMode
     }
 
-    /// Bridges the stored `(enableTmux, tmuxAutoMode, enableHerdr)` fields to a
+    /// Bridges the stored `(enableTmux, tmuxAutoMode, enableHerdr, enableZmx)` fields to a
     /// single Picker. Control mode can't run over Mosh, so it's presented as
     /// regular there.
     private var tmuxLaunchSelection: Binding<TmuxLaunchSelection> {
         Binding(
-            get: { TmuxLaunchSelection(tmuxEnabled: enableTmux, mode: effectiveTmuxAutoMode, herdrEnabled: enableHerdr) },
+            get: { TmuxLaunchSelection(tmuxEnabled: enableTmux, mode: effectiveTmuxAutoMode,
+                                       herdrEnabled: enableHerdr, zmxEnabled: enableZmx) },
             set: { sel in
                 enableTmux = sel.tmuxEnabled
                 enableHerdr = sel.herdrEnabled
+                enableZmx = sel.zmxEnabled
                 if sel.tmuxEnabled { tmuxAutoMode = sel.mode }
             }
         )
@@ -1112,6 +1122,7 @@ struct SSHConnectionView: View {
                     Text("tmux -CC (control)").tag(TmuxLaunchSelection.control)
                 }
                 Text("herdr").tag(TmuxLaunchSelection.herdr)
+                Text("zmx").tag(TmuxLaunchSelection.zmx)
             }
             .pickerStyle(.menu)
 
@@ -1125,6 +1136,10 @@ struct SSHConnectionView: View {
                     .foregroundColor(.secondary)
             } else if enableHerdr {
                 Text("Attach to or create herdr session \"\(multiplexerCaptionSessionName)\" on connect")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if enableZmx {
+                Text("Attach to or create zmx session \"\(multiplexerCaptionSessionName)\" on connect")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1551,6 +1566,16 @@ struct SSHConnectionView: View {
             return String(localized: "herdr attaches automatically")
         }
 
+        if enableZmx && !trimmedCommand.isEmpty {
+            return launchCommandMode == .initialCommandWithPTY
+            ? String(localized: "Initial command with PTY")
+            : String(localized: "zmx enabled, launch command configured")
+        }
+
+        if enableZmx {
+            return String(localized: "zmx attaches automatically")
+        }
+
         if !trimmedCommand.isEmpty {
             return launchCommandMode == .initialCommandWithPTY
             ? String(localized: "Initial command with PTY")
@@ -1666,6 +1691,7 @@ struct SSHConnectionView: View {
             enableTmux = config.tmuxAutoEnable
             tmuxAutoMode = config.tmuxAutoMode
             enableHerdr = config.herdrAutoEnable
+            enableZmx = config.zmxAutoEnable
             launchCommand = config.launchCommand ?? ""
             launchCommandMode = config.launchCommandMode
             restoreCarriedOverrides(terminalType: config.terminalType,
@@ -1881,6 +1907,7 @@ struct SSHConnectionView: View {
             tmuxAutoEnable: enableTmux ? true : nil,
             tmuxAutoMode: enableTmux ? effectiveTmuxAutoMode : nil,
             herdrAutoEnable: enableHerdr ? true : nil,
+            zmxAutoEnable: enableZmx ? true : nil,
             launchCommand: launchCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : launchCommand.trimmingCharacters(in: .whitespacesAndNewlines),
             launchCommandMode: launchCommandMode,
             terminalType: terminalTypeOverride(
@@ -2071,6 +2098,7 @@ struct SSHConnectionView: View {
         )
         config.fallbackKeyIDs = fallbackKeyIDs
         config.herdrAutoEnable = enableHerdr
+        config.zmxAutoEnable = enableZmx
 
         // Apply the GPG agent config after the SSHConfig is built —
         // the convenience initializers above don't carry it.
@@ -2554,6 +2582,7 @@ struct SSHConnectionView: View {
         enableTmux = entry.tmuxAutoEnable ?? false
         tmuxAutoMode = entry.tmuxAutoMode ?? .regular
         enableHerdr = entry.herdrAutoEnable ?? false
+        enableZmx = entry.zmxAutoEnable ?? false
 
         // Restore launch command if present
         launchCommand = entry.launchCommand ?? ""
@@ -2685,6 +2714,7 @@ struct SSHConnectionView: View {
         enableTmux = config.tmuxAutoEnable
         tmuxAutoMode = config.tmuxAutoMode
         enableHerdr = config.herdrAutoEnable
+        enableZmx = config.zmxAutoEnable
 
         // Set launch command
         launchCommand = config.launchCommand ?? ""

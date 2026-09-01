@@ -36,6 +36,14 @@ final class MuxTabPreviewView: UIView {
         /// holds it; grown when the surface reports a grid that is too small.
         var slackColumns: CGFloat = 2
         var slackRows: CGFloat = 2
+        /// A reported grid must stay unchanged until Ghostty's terminal
+        /// mailbox has had time to apply the resize. `ghostty_surface_set_size`
+        /// publishes the new grid immediately, but the mailbox lags behind;
+        /// writing sooner can parse a 144-column frame at the old (roughly
+        /// half-width) grid, wrapping and scrolling it before the new size
+        /// lands. This matches `TmuxPreviewContainer`'s established delay.
+        var settledGrid: String?
+        var readyAfter: CFTimeInterval = 0
     }
 
     private var previews: [String: PanePreview] = [:]
@@ -119,8 +127,10 @@ final class MuxTabPreviewView: UIView {
                 width: (CGFloat(rect.width) + preview.slackColumns) * cell.width + padX * 2,
                 height: (CGFloat(rect.height) + preview.slackRows) * cell.height + padY * 2
             )
-            if abs(preview.surfaceSize.width - virtual.width) > 0.5
-                || abs(preview.surfaceSize.height - virtual.height) > 0.5 {
+            let resized = abs(preview.surfaceSize.width - virtual.width) > 0.5
+                || abs(preview.surfaceSize.height - virtual.height) > 0.5
+            let isZmx = feed?.type == .zmx
+            if resized {
                 preview.surfaceSize = virtual
                 surface.bounds = CGRect(origin: .zero, size: virtual)
                 surface.setNeedsLayout()
@@ -128,6 +138,10 @@ final class MuxTabPreviewView: UIView {
                 // The old frame was laid out for the old grid: draw it again.
                 preview.writtenRevision = nil
                 preview.writtenGrid = nil
+                if isZmx {
+                    preview.settledGrid = nil
+                    preview.readyAfter = CACurrentMediaTime() + 0.15
+                }
             }
             // Map the pane's own cells onto the cell, ignoring slack AND the
             // padding: the grid starts at (padX, padY), so scaling from the
@@ -136,14 +150,31 @@ final class MuxTabPreviewView: UIView {
             // and any sub-cell remainder sits on the trailing edges.
             let sx = frame.width / max(CGFloat(rect.width) * cell.width, 1)
             let sy = frame.height / max(CGFloat(rect.height) * cell.height, 1)
-            surface.transform = CGAffineTransform(translationX: -padX * sx, y: -padY * sy)
-                .scaledBy(x: sx, y: sy)
+            if isZmx {
+                // Separate zmx sessions may have different aspect ratios.
+                let fit = min(sx, sy)
+                let insetX = (frame.width - CGFloat(rect.width) * cell.width * fit) / 2
+                let insetY = (frame.height - CGFloat(rect.height) * cell.height * fit) / 2
+                surface.transform = CGAffineTransform(
+                    translationX: insetX - padX * fit, y: insetY - padY * fit
+                ).scaledBy(x: fit, y: fit)
+            } else {
+                surface.transform = CGAffineTransform(translationX: -padX * sx, y: -padY * sy)
+                    .scaledBy(x: sx, y: sy)
+            }
 
             // Write only into a grid that can hold the capture unwrapped.
             let grid = surface.gridSize
             let fits = grid.map { $0.columns >= rect.width && $0.rows >= rect.height } ?? false
             let gridKey = grid.map { "\($0.columns)x\($0.rows)" }
-            if fits, let latest = feed?.frame(for: pane.id),
+            let gridIsSettled = !isZmx || (!resized
+                && CACurrentMediaTime() >= preview.readyAfter
+                && gridKey != nil
+                && preview.settledGrid == gridKey)
+            if isZmx, !resized, preview.settledGrid != gridKey {
+                preview.settledGrid = gridKey
+            }
+            if gridIsSettled, fits, let latest = feed?.frame(for: pane.id),
                latest.revision != preview.writtenRevision || gridKey != preview.writtenGrid {
                 surface.writeFrame(latest.ansi, cursor: latest.cursor.map { ($0.x, $0.y, $0.visible) })
                 preview.writtenRevision = latest.revision
