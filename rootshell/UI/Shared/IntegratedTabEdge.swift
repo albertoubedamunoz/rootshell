@@ -377,7 +377,7 @@ private final class IntegratedOSCProgressLayerUIView: UIView {
         let selectionChanged = selectedTabID != nil && selectedTabID != newSelectedTabID
         selectedTabID = newSelectedTabID
 
-        let oldPath = (progressLayer.presentation() as? CAShapeLayer)?.path
+        let oldPath = progressLayer.presentation()?.path
             ?? progressLayer.path
             ?? lastPath
 

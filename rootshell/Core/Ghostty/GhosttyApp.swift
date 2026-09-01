@@ -1424,16 +1424,20 @@ extension Ghostty {
                              "NSWindowDidEnterFullScreenNotification", "NSWindowDidExitFullScreenNotification"] {
                     backdrop.observers.append(center.addObserver(
                         forName: Notification.Name(name), object: window, queue: .main
-                    ) { [weak self, weak window] _ in
-                        guard let window else { return }
-                        Task { @MainActor in self?.syncGlassBackdrop(to: window) }
+                    ) { [weak self] notification in
+                        guard let window = notification.object as? NSObject else { return }
+                        MainActor.assumeIsolated {
+                            self?.syncGlassBackdrop(to: window)
+                        }
                     })
                 }
                 backdrop.observers.append(center.addObserver(
                     forName: Notification.Name("NSWindowWillCloseNotification"), object: window, queue: .main
-                ) { [weak self, weak window] _ in
-                    guard let window else { return }
-                    Task { @MainActor in self?.removeGlassEffectViewFromWindow(window) }
+                ) { [weak self] notification in
+                    guard let window = notification.object as? NSObject else { return }
+                    MainActor.assumeIsolated {
+                        self?.removeGlassEffectViewFromWindow(window)
+                    }
                 })
                 glassBackdrops[key] = backdrop
             }

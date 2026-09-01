@@ -25,6 +25,13 @@ extension Notification.Name {
 class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
 
+    /// `UNNotificationContent.userInfo` is an immutable snapshot supplied by
+    /// UserNotifications, but its Objective-C-shaped value type cannot express
+    /// that guarantee to Swift's sendability checker.
+    private nonisolated struct UserInfoSnapshot: @unchecked Sendable {
+        let value: [AnyHashable: Any]
+    }
+
     // MARK: - Published Properties
 
     @Published var isEnabled: Bool = false {
@@ -421,8 +428,9 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
 
         if categoryId == PushConfiguration.categoryIdentifier || userInfo["rs"] != nil,
            response.actionIdentifier != UNNotificationDismissActionIdentifier {
+            let snapshot = UserInfoSnapshot(value: userInfo)
             Task { @MainActor in
-                PushNotificationRouter.handleTap(userInfo: userInfo)
+                PushNotificationRouter.handleTap(userInfo: snapshot.value)
             }
         }
 
