@@ -721,28 +721,32 @@ final class CloudKitSyncManager {
         Self.logger.info("Migrated to custom zone: \(UserDefaults.standard.bool(forKey: CloudKitSyncSettings.migratedToCustomZoneKey))")
         Self.logger.info("Network available: \(self.isNetworkAvailable)")
 
-        // Check iCloud account status
-        do {
-            let status = try await container.accountStatus()
-            Self.logger.info("iCloud account status: \(String(describing: status))")
-        } catch {
-            Self.logger.warning("Failed to check iCloud account: \(error.localizedDescription)")
-        }
+        if isSyncEnabled {
+            // Check iCloud account status
+            do {
+                let status = try await container.accountStatus()
+                Self.logger.info("iCloud account status: \(String(describing: status))")
+            } catch {
+                Self.logger.warning("Failed to check iCloud account: \(error.localizedDescription)")
+            }
 
-        // Check zone exists
-        do {
-            let zone = try await fetchRecordZone(CloudKitSyncSettings.zoneID)
-            Self.logger.info("Custom zone exists: \(zone != nil)")
-        } catch {
-            Self.logger.warning("Failed to check zone: \(error.localizedDescription)")
-        }
+            // Check zone exists
+            do {
+                let zone = try await fetchRecordZone(CloudKitSyncSettings.zoneID)
+                Self.logger.info("Custom zone exists: \(zone != nil)")
+            } catch {
+                Self.logger.warning("Failed to check zone: \(error.localizedDescription)")
+            }
 
-        // Check subscription
-        do {
-            let subscription = try await database.subscription(for: "ghostty-sync-zone-changes")
-            Self.logger.info("Zone subscription exists: \(subscription is CKRecordZoneSubscription)")
-        } catch {
-            Self.logger.info("Zone subscription: not found")
+            // Check subscription
+            do {
+                let subscription = try await database.subscription(for: "ghostty-sync-zone-changes")
+                Self.logger.info("Zone subscription exists: \(subscription is CKRecordZoneSubscription)")
+            } catch {
+                Self.logger.info("Zone subscription: not found")
+            }
+        } else {
+            Self.logger.info("CloudKit sync disabled, skipping remote diagnostics")
         }
 
         // Log local record counts (active vs total including tombstones)
