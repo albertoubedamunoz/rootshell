@@ -2214,17 +2214,6 @@ nonisolated enum AgentDetectionManifestData {
                 ]
               },
               {
-                "contains": [
-                  "ask anything..."
-                ]
-              },
-              {
-                "lineRegex": [
-                  "^\\s*╹▀{8,}"
-                ],
-                "region": "bottom_non_empty_lines(8)"
-              },
-              {
                 "lineRegex": [
                   "(?i)^\\s*continue\\s+opencode\\s+-s\\s+\\S"
                 ],
