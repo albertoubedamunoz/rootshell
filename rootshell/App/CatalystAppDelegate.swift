@@ -8,10 +8,134 @@
 import UIKit
 import os
 import ObjectiveC
+import UniformTypeIdentifiers
 
 #if targetEnvironment(macCatalyst)
 
 private let logger = Logger(subsystem: "com.rootshell", category: "CatalystAppDelegate")
+
+@MainActor
+private final class CatalystContinuityPasteboardBridge {
+    static let shared = CatalystContinuityPasteboardBridge()
+    private weak var target: Ghostty.TerminalView?
+    private var menuIsActive = false
+    private var serviceMayBePending = false
+
+    func arm(for target: Ghostty.TerminalView) {
+        self.target = target
+        menuIsActive = true
+        serviceMayBePending = false
+    }
+
+    func noteResigned(_ target: Ghostty.TerminalView) {
+        guard self.target === target, menuIsActive else { return }
+        // Choosing Insert from iPhone/iPad resigns the UIKit terminal while
+        // AppKit keeps the context interaction alive awaiting the result.
+        serviceMayBePending = true
+    }
+
+    func menuDidEnd(for target: Ghostty.TerminalView) {
+        guard self.target === target else { return }
+        menuIsActive = false
+        // A normal cancellation leaves the terminal as first responder and
+        // clears immediately. A selected Service needs the target until AppKit
+        // performs its later valid-requestor lookup.
+        if !serviceMayBePending || !target.isLogicallyFocused {
+            disarm(for: target)
+        }
+    }
+
+    func disarm(for target: Ghostty.TerminalView) {
+        guard self.target === target else { return }
+        self.target = nil
+        menuIsActive = false
+        serviceMayBePending = false
+    }
+
+    func makeReceiver(sendType: String?, returnType: String?) -> AnyObject? {
+        guard sendType == nil,
+              let target,
+              target.window != nil,
+              let returnType else { return nil }
+        guard Self.isAttachmentType(returnType) else { return nil }
+        return CatalystContinuityPasteboardReceiver(target: target)
+    }
+
+    private static func isAttachmentType(_ type: String) -> Bool {
+        guard let contentType = UTType(type) else { return false }
+        return contentType.conforms(to: .image) || contentType.conforms(to: .pdf)
+    }
+}
+
+/// One requestor per native Services query. The menu bridge can be disarmed as
+/// soon as its menu closes without invalidating the requestor AppKit already
+/// retained for a selected Continuity action.
+@MainActor
+private final class CatalystContinuityPasteboardReceiver: NSObject {
+    private weak var target: Ghostty.TerminalView?
+    private var hasDelivered = false
+
+    init(target: Ghostty.TerminalView) {
+        self.target = target
+        super.init()
+    }
+
+    @objc(readSelectionFromPasteboard:)
+    private func readSelection(from pasteboard: NSObject) -> Bool {
+        guard !hasDelivered, let target, target.window != nil else { return false }
+        hasDelivered = true
+        defer {
+            CatalystContinuityPasteboardBridge.shared.disarm(for: target)
+            self.target = nil
+        }
+        guard let types = pasteboard.value(forKey: "types") as? [String] else {
+            logger.error("Continuity service returned a pasteboard without types")
+            return false
+        }
+
+        logger.info("Continuity service pasteboard types: \(types.joined(separator: "|"), privacy: .public)")
+
+        // A document scan can expose both PDF and an image preview. Keep the
+        // PDF so all pages survive; otherwise normalize the first readable
+        // native image representation to PNG for the UIKit provider.
+        if let pdfType = types.first(where: { type in
+            UTType(type)?.conforms(to: .pdf) == true
+        }), let data = Self.data(from: pasteboard, type: pdfType), !data.isEmpty {
+            target.paste(itemProviders: [Self.provider(data: data, type: UTType.pdf.identifier)])
+            return true
+        }
+
+        for type in types where Self.isImageType(type) {
+            guard let data = Self.data(from: pasteboard, type: type),
+                  let image = UIImage(data: data),
+                  let pngData = image.pngData(),
+                  !pngData.isEmpty else { continue }
+            target.paste(itemProviders: [Self.provider(data: pngData, type: UTType.png.identifier)])
+            return true
+        }
+
+        logger.error("Continuity service supplied no readable image or PDF data")
+        return false
+    }
+
+    private static func isImageType(_ type: String) -> Bool {
+        UTType(type)?.conforms(to: .image) == true
+    }
+
+    private static func data(from pasteboard: NSObject, type: String) -> Data? {
+        let selector = NSSelectorFromString("dataForType:")
+        return pasteboard.perform(selector, with: type)?.takeUnretainedValue() as? Data
+    }
+
+    private static func provider(data: Data, type: String) -> NSItemProvider {
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: type, visibility: .all) { completion in
+            completion(data, nil)
+            return nil
+        }
+        return provider
+    }
+}
 
 // MARK: - UIApplication Menu Actions Extension
 // These methods are on UIApplication to ensure they're always in the responder chain.
@@ -433,6 +557,11 @@ class CatalystAppDelegate: AppDelegate {
         // scenePhase and UIApplication.didBecomeActiveNotification don't fire reliably
         setupWorkspaceActivationObserver()
         setupApplicationHideObserver()
+        // AppKit owns Continuity Camera's Services handoff even in Catalyst.
+        // Install after launch, once the native NSApplication subclass exists.
+        DispatchQueue.main.async { [weak self] in
+            self?.installContinuityPasteboardInterposer()
+        }
         #if STANDALONE
         setupVisorAutohideObserver()
         // Deferred: the UIKit shim installs the NSApplication delegate as
@@ -460,6 +589,78 @@ class CatalystAppDelegate: AppDelegate {
         }
 
         return true
+    }
+
+    @MainActor
+    static func armContinuityPasteboardReceiver(for terminal: Ghostty.TerminalView) {
+        CatalystContinuityPasteboardBridge.shared.arm(for: terminal)
+    }
+
+    @MainActor
+    static func noteContinuityPasteboardTargetResigned(_ terminal: Ghostty.TerminalView) {
+        CatalystContinuityPasteboardBridge.shared.noteResigned(terminal)
+    }
+
+    @MainActor
+    static func continuityPasteboardMenuDidEnd(for terminal: Ghostty.TerminalView) {
+        CatalystContinuityPasteboardBridge.shared.menuDidEnd(for: terminal)
+    }
+
+    private static var continuityPasteboardInterposerInstalled = false
+
+    /// Override NSApplication's Services requestor lookup for the narrow case
+    /// UIKit fails to bridge: a no-input service returning an image or PDF to
+    /// the terminal whose context menu is currently open.
+    private func installContinuityPasteboardInterposer() {
+        guard !Self.continuityPasteboardInterposerInstalled else { return }
+        let selector = NSSelectorFromString("validRequestorForSendType:returnType:")
+        guard let nsAppClass = NSClassFromString("NSApplication") as? NSObject.Type,
+              let sharedApp = nsAppClass.value(forKey: "sharedApplication") as? NSObject,
+              let applicationClass = object_getClass(sharedApp),
+              let inheritedMethod = class_getInstanceMethod(applicationClass, selector) else {
+            logger.warning("Could not install Continuity Services pasteboard receiver")
+            return
+        }
+
+        let originalIMP = method_getImplementation(inheritedMethod)
+        typealias ValidRequestorFunc = @convention(c) (
+            NSObject, Selector, NSString?, NSString?
+        ) -> AnyObject?
+
+        let block: @convention(block) (
+            NSObject, NSString?, NSString?
+        ) -> AnyObject? = { application, sendType, returnType in
+            if let receiver = MainActor.assumeIsolated({
+                CatalystContinuityPasteboardBridge.shared.makeReceiver(
+                    sendType: sendType as String?,
+                    returnType: returnType as String?
+                )
+            }) {
+                logger.info(
+                    "Routing native Services result to terminal (return type: \((returnType as String?) ?? "nil", privacy: .public))"
+                )
+                return receiver
+            }
+
+            return unsafeBitCast(originalIMP, to: ValidRequestorFunc.self)(
+                application,
+                selector,
+                sendType,
+                returnType
+            )
+        }
+
+        let replacement = imp_implementationWithBlock(block)
+        // Add an override when the implementation is inherited; replacing the
+        // Method returned for an inherited selector would mutate NSResponder
+        // globally. If this concrete NSApplication subclass already overrides
+        // it, replace only that implementation.
+        if !class_addMethod(applicationClass, selector, replacement, "@@:@@"),
+           let concreteMethod = class_getInstanceMethod(applicationClass, selector) {
+            method_setImplementation(concreteMethod, replacement)
+        }
+        Self.continuityPasteboardInterposerInstalled = true
+        logger.info("Installed Continuity Services pasteboard receiver")
     }
 
     private func setupApplicationHideObserver() {

@@ -1344,14 +1344,13 @@ extension Ghostty {
             // UIPasteControl and the system edit menu deliver paste contents as
             // item providers. Declaring the accepted types lets UIKit validate
             // paste without rootshell probing the general pasteboard first.
-            let terminalPasteConfiguration = UIPasteConfiguration()
-            terminalPasteConfiguration.acceptableTypeIdentifiers = [
+            let terminalPasteConfiguration = UIPasteConfiguration(forAccepting: UIImage.self)
+            terminalPasteConfiguration.addAcceptableTypeIdentifiers([
                 UTType.fileURL.identifier,
                 UTType.url.identifier,
-                UTType.image.identifier,
                 UTType.pdf.identifier,
                 UTType.plainText.identifier,
-            ]
+            ])
             pasteConfiguration = terminalPasteConfiguration
             refreshPanePresentationTitle()
 
@@ -3549,6 +3548,9 @@ extension Ghostty {
             let result = super.resignFirstResponder()
             if result {
                 EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+                #if targetEnvironment(macCatalyst)
+                CatalystAppDelegate.noteContinuityPasteboardTargetResigned(self)
+                #endif
             }
 
             // Sync Ghostty surface focus when UIKit resigns us
