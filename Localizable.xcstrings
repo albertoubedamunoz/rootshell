@@ -57974,7 +57974,7 @@
       }
     },
     "Always" : {
-      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
+      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -72788,6 +72788,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "附件"
+          }
+        }
+      }
+    },
+    "Attachment Paste Unavailable" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لصق المرفقات غير متوفر"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es poden enganxar fitxers adjunts"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vložení přílohy není k dispozici"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indsættelse af vedhæftede filer er ikke tilgængelig"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anhang einfügen nicht verfügbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pegado de archivos adjuntos no disponible"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liitteen liittäminen ei käytettävissä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collage de pièces jointes indisponible"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הדבקת קבצים מצורפים אינה זמינה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A melléklet beillesztése nem érhető el"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile incollare l'allegato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添付ファイルのペーストは利用できません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "첨부 파일 붙여넣기 사용 불가"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Innliming av vedlegg er utilgjengelig"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bijlage plakken niet beschikbaar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wklejanie załączników niedostępne"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colagem de anexos indisponível"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colagem de anexos indisponível"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lipirea atașamentelor este indisponibilă"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lepljenje prilog ni na voljo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inklistring av bilagor är ej tillgänglig"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставлення вкладень недоступне"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể dán tệp đính kèm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法粘贴附件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法貼上附件"
           }
         }
       }
@@ -139858,7 +140012,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -170757,7 +170911,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
+      "comment" : "Location Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -263174,7 +263328,7 @@
       }
     },
     "Identity" : {
-      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
+      "comment" : "OpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -317403,7 +317557,7 @@
       }
     },
     "Local SSH Agent" : {
-      "comment" : "Local SSH agent settings title\nSetting title\nSettings row: local SSH agent",
+      "comment" : "Setting title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -364789,7 +364943,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -373605,7 +373759,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -374069,7 +374223,7 @@
       }
     },
     "On" : {
-      "comment" : "Setting value display\nSettings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Setting value display\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -515264,7 +515418,7 @@
       }
     },
     "SSH Agent" : {
-      "comment" : "Agent key section header\nSetting group title",
+      "comment" : "Setting group title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -567599,6 +567753,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此設定檔通常會從「設定」繼承遠端終端機類型。只有在主機需要不同的 terminfo 名稱時才覆寫它。"
+          }
+        }
+      }
+    },
+    "This remote session does not support uploading pasted attachments." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا تدعم هذه الجلسة عن بُعد رفع المرفقات الملصقة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquesta sessió remota no admet la pujada de fitxers adjunts enganxats."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tato vzdálená relace nepodporuje nahrávání vložených příloh."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne fjernsession understøtter ikke upload af indsatte vedhæftede filer."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Remote-Sitzung unterstützt das Hochladen eingefügter Anhänge nicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta sesión remota no admite subir archivos adjuntos pegados."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tämä etäistunto ei tue liitettyjen liitteiden lataamista."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette session distante ne prend pas en charge l'envoi de pièces jointes collées."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעלה מרוחקת זו אינה תומכת בהעלאת קבצים מצורפים שהודבקו."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ez a távoli munkamenet nem támogatja a beillesztett mellékletek feltöltését."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa sessione remota non supporta il caricamento degli allegati incollati."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このリモートセッションは、ペーストした添付ファイルのアップロードに対応していません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 원격 세션은 붙여넣은 첨부 파일 업로드를 지원하지 않습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne eksterne økten støtter ikke opplasting av innlimte vedlegg."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze externe sessie ondersteunt het uploaden van geplakte bijlagen niet."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta sesja zdalna nie obsługuje przesyłania wklejonych załączników."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta sessão remota não é compatível com o envio de anexos colados."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta sessão remota não suporta o envio de anexos colados."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Această sesiune la distanță nu acceptă încărcarea atașamentelor lipite."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta oddaljena seja ne podpira nalaganja prilepljenih prilog."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den här fjärrsessionen har inte stöd för uppladdning av inklistrade bilagor."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей віддалений сеанс не підтримує завантаження вставлених вкладень."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phiên từ xa này không hỗ trợ tải lên tệp đính kèm đã dán."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此远程会话不支持上传粘贴的附件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此遠端工作階段不支援上傳貼上的附件。"
           }
         }
       }
@@ -632659,7 +632967,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
+      "comment" : "Agent usage window title: weekly quota",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
