@@ -9,17 +9,19 @@
 import UIKit
 
 nonisolated enum SettingsPlatform {
-    /// Set once at launch, before any registry key is touched.
-    nonisolated(unsafe) private(set) static var isPhone = false
-
     #if targetEnvironment(macCatalyst)
     static let isCatalyst = true
+    static let isPhone = false
     #else
     static let isCatalyst = false
+    /// Resolved on first use. The registry is always first built on the main
+    /// thread during app init, so no launch-order hook is needed.
+    static let isPhone: Bool = {
+        guard Thread.isMainThread else {
+            assertionFailure("Registry built off the main thread before the idiom was known")
+            return false
+        }
+        return MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .phone }
+    }()
     #endif
-
-    @MainActor
-    static func configure() {
-        isPhone = UIDevice.current.userInterfaceIdiom == .phone
-    }
 }

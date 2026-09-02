@@ -43,6 +43,8 @@ struct SettingsMergePreview: Sendable {
     let cloudCount: Int
     let localCount: Int
     let overlapping: Int
+    /// Cloud tombstones for keys this device has set; adopting cloud resets them.
+    let resetCount: Int
     let newestCloudDate: Date?
     let cloudDeviceIDs: Set<String>
 }
@@ -171,14 +173,25 @@ final class SettingsSyncCoordinator {
         return AppSettingRecord(key: key, payload: nil, modifiedAt: modifiedAt, isDeleted: true, deviceID: device)
     }
 
-    /// Every user-set syncable, unpinned key. Unknown-age values are stamped now so they win on other devices.
+    /// Keys reset locally after they were once stamped; they go out as tombstones.
+    private func localTombstoneKeys() -> [String] {
+        sidecar.meta.compactMap { key, meta in
+            guard meta.modifiedAt != nil, registry.isSyncable(key), !isPinned(key),
+                  store.codableValue(key) == nil else { return nil }
+            return key
+        }
+    }
+
+    /// Every user-set syncable, unpinned key plus local reset tombstones.
+    /// Unknown-age values are stamped now so they win on other devices.
     func recordsForInitialPush(stampUnknownAs stamp: Date = Date()) -> [AppSettingRecord] {
         guard !SettingsStore.looksCorrupted() else {
             Self.logger.fault("Refusing initial push: defaults look unreadable")
             return []
         }
         // Pin checks read the sidecar, so resolve them before taking exclusive access in mutate.
-        let snapshot = store.snapshot(keys: registry.syncableKeys).filter { !isPinned($0.key) }
+        let snapshot = store.syncableSnapshot().filter { !isPinned($0.key) }
+        let tombstones = localTombstoneKeys()
         var out: [AppSettingRecord] = []
         let device = deviceID
         sidecarStore.mutate { sidecar in
@@ -193,6 +206,12 @@ final class SettingsSyncCoordinator {
                     key: key, payload: value, modifiedAt: meta.modifiedAt ?? stamp,
                     isDeleted: false, deviceID: meta.deviceID ?? device)
                 if record.payloadSizeOK { out.append(record) }
+            }
+            for key in tombstones {
+                guard let meta = sidecar.meta[key], let modifiedAt = meta.modifiedAt else { continue }
+                out.append(AppSettingRecord(
+                    key: key, payload: nil, modifiedAt: modifiedAt,
+                    isDeleted: true, deviceID: meta.deviceID ?? device))
             }
         }
         return out
@@ -313,13 +332,17 @@ final class SettingsSyncCoordinator {
 
     func mergePreview(cloud: [AppSettingRecord]) -> SettingsMergePreview {
         let live = cloud.filter { !$0.isDeleted && registry.isSyncable($0.key) }
-        let localKeys = Set(store.snapshot(keys: registry.syncableKeys).keys)
+        // Same set the initial push sends: live values plus local reset tombstones.
+        let liveLocal = Set(store.syncableSnapshot().keys).filter { !isPinned($0) }
+        let localKeys = liveLocal.union(localTombstoneKeys())
         let cloudKeys = Set(live.map(\.key))
+        let tombstoneKeys = Set(cloud.filter { $0.isDeleted && registry.isSyncable($0.key) }.map(\.key))
         return SettingsMergePreview(
             cloud: cloud,
             cloudCount: live.count,
             localCount: localKeys.count,
             overlapping: localKeys.intersection(cloudKeys).count,
+            resetCount: liveLocal.intersection(tombstoneKeys).count,
             newestCloudDate: live.map(\.modifiedAt).max(),
             cloudDeviceIDs: Set(live.map(\.deviceID))
         )
@@ -355,8 +378,9 @@ final class SettingsSyncCoordinator {
 
         case .uploadLocal:
             // Local wins: stamp everything now so it beats cloud everywhere; adopt cloud-only keys.
+            // Local resets count as local state, so cloud must not resurrect them.
             var batch: [String: CodableValue?] = [:]
-            let localKeys = Set(store.snapshot(keys: registry.syncableKeys).keys)
+            let localKeys = Set(store.syncableSnapshot().keys).union(localTombstoneKeys())
             for record in cloud where !record.isDeleted && !localKeys.contains(record.key)
                 && registry.isSyncable(record.key) && !isPinned(record.key) {
                 if let payload = record.payload, let def = registry.definition(for: record.key), def.validate(payload) {
@@ -446,12 +470,23 @@ final class SettingsSyncCoordinator {
     func pinState(for group: SettingGroup) -> GroupPinState {
         _ = pinGeneration
         if sidecar.pinnedGroups.contains(group) { return .all }
-        let keys = registry.keys(in: group).filter(\.isSyncable)
+        let keys = syncableKeyNames(in: group)
         guard !keys.isEmpty else { return .none }
-        let pinned = keys.filter { isPinned($0.name) }.count
+        let pinned = keys.filter { isPinned($0) }.count
         if pinned == 0 { return .none }
         if pinned == keys.count { return .all }
         return .partial(pinned: pinned, of: keys.count)
+    }
+
+    /// Explicit definitions plus prefix-rule keys this device has stored or shadowed.
+    private func syncableKeyNames(in group: SettingGroup) -> [String] {
+        var names = registry.keys(in: group).filter(\.isSyncable).map(\.name)
+        let dynamic = Set(store.syncableSnapshot().keys).union(sidecar.meta.keys)
+        for key in dynamic where registry.definitions[key] == nil {
+            guard let rule = registry.prefixRule(for: key), rule.group == group, rule.policy != .deviceOnly else { continue }
+            names.append(key)
+        }
+        return names
     }
 
     func shadowValue(for key: String) -> ShadowValue? {
@@ -460,6 +495,10 @@ final class SettingsSyncCoordinator {
 
     func setPinned(_ key: String, _ pinned: Bool, resolution: UnpinResolution = .adoptCloud) {
         guard let def = registry.definition(for: key), def.policy != .deviceOnly else { return }
+        // Group members read the sidecar, so resolve them before mutate takes exclusive access.
+        let siblings = syncableKeyNames(in: def.group)
+            .filter { $0 != key }
+            .compactMap { name in registry.definition(for: name).map { (name, $0.policy) } }
         sidecarStore.mutate { sidecar in
             switch def.policy {
             case .synced:
@@ -472,9 +511,9 @@ final class SettingsSyncCoordinator {
             if !pinned, sidecar.pinnedGroups.contains(def.group) {
                 // Dissolve the group pin into per-key pins so the others stay pinned.
                 sidecar.pinnedGroups.remove(def.group)
-                for other in registry.keys(in: def.group) where other.name != key && other.isSyncable {
-                    if other.policy == .synced { sidecar.pinnedKeys.insert(other.name) }
-                    if other.policy == .localByDefault { sidecar.unpinnedKeys.remove(other.name) }
+                for (name, policy) in siblings {
+                    if policy == .synced { sidecar.pinnedKeys.insert(name) }
+                    if policy == .localByDefault { sidecar.unpinnedKeys.remove(name) }
                 }
             }
         }
@@ -483,15 +522,16 @@ final class SettingsSyncCoordinator {
     }
 
     func setPinned(group: SettingGroup, _ pinned: Bool, resolution: UnpinResolution = .adoptCloud) {
-        let keys = registry.keys(in: group).filter(\.isSyncable).map(\.name)
+        let keys = syncableKeyNames(in: group)
+        let policies = keys.compactMap { name in registry.definition(for: name).map { (name, $0.policy) } }
         sidecarStore.mutate { sidecar in
             if pinned {
                 sidecar.pinnedGroups.insert(group)
             } else {
                 sidecar.pinnedGroups.remove(group)
-                for def in registry.keys(in: group) {
-                    sidecar.pinnedKeys.remove(def.name)
-                    if def.policy == .localByDefault { sidecar.unpinnedKeys.insert(def.name) }
+                for (name, policy) in policies {
+                    sidecar.pinnedKeys.remove(name)
+                    if policy == .localByDefault { sidecar.unpinnedKeys.insert(name) }
                 }
             }
         }
@@ -543,8 +583,14 @@ final class SettingsSyncCoordinator {
     /// Syncable keys currently pinned by any rule, for the pinned-settings list.
     func pinnedDefinitions() -> [AnySettingDefinition] {
         _ = pinGeneration
-        return registry.definitions.values
-            .filter { $0.isSyncable && isPinned($0.name) }
-            .sorted { $0.name < $1.name }
+        var defs = registry.definitions.values.filter { $0.isSyncable && isPinned($0.name) }
+        // Prefix-rule keys have no static definition; cover every one this device knows.
+        let dynamic = Set(store.syncableSnapshot().keys).union(sidecar.meta.keys).union(sidecar.pinnedKeys)
+        for name in dynamic where registry.definitions[name] == nil {
+            if let def = registry.definition(for: name), def.isSyncable, isPinned(name) {
+                defs.append(def)
+            }
+        }
+        return defs.sorted { $0.name < $1.name }
     }
 }

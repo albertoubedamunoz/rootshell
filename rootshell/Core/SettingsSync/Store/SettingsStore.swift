@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import UIKit
 import os
 
 /// Per-key observable cell so SwiftUI views invalidate only for keys they read.
@@ -66,6 +67,7 @@ final class SettingsStore {
         let domain = persistedDomain()
         if domain.isEmpty && Self.looksCorrupted() {
             Self.logger.fault("Defaults domain empty while sentinels are missing; refusing to prime cache")
+            scheduleBootstrapRetry()
             return
         }
         cache.replaceAll(Self.decode(domain, registry: registry))
@@ -87,10 +89,31 @@ final class SettingsStore {
         return UserDefaults.standard.persistentDomain(forName: bundleID) ?? [:]
     }
 
-    /// All sentinel keys absent at once means the plist was read while locked.
+    /// All sentinels absent while a backup exists means the plist was read while locked.
+    /// A fresh install has neither and must prime normally.
     static func looksCorrupted() -> Bool {
+        guard UserDefaultsBackup.hasBackup else { return false }
         let sentinels = ["selectedTheme", "fontSize", "cursorStyle", "cloudKitDeviceID"]
         return sentinels.allSatisfy { UserDefaults.standard.object(forKey: $0) == nil }
+    }
+
+    private var bootstrapRetryObserver: NSObjectProtocol?
+
+    /// One more attempt on the next activation; a locked-launch read usually clears by then.
+    private func scheduleBootstrapRetry() {
+        guard bootstrapRetryObserver == nil else { return }
+        bootstrapRetryObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if let observer = self.bootstrapRetryObserver {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+                self.bootstrapRetryObserver = nil
+                self.bootstrap()
+            }
+        }
     }
 
     nonisolated static func decode(_ domain: [String: Any], registry: SettingsRegistry) -> [String: CodableValue] {
@@ -153,6 +176,11 @@ final class SettingsStore {
 
     func snapshot(keys: Set<String>) -> [String: CodableValue] {
         cache.snapshot().filter { keys.contains($0.key) }
+    }
+
+    /// Every user-set value under a syncable definition or prefix rule.
+    func syncableSnapshot() -> [String: CodableValue] {
+        cache.snapshot().filter { registry.isSyncable($0.key) }
     }
 
     /// Observable cell for SwiftUI; created on first use.

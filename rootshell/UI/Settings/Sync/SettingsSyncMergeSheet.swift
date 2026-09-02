@@ -83,6 +83,9 @@ struct SettingsSyncMergeSheet: View {
         if preview.overlapping > 0 {
             parts.append(String(localized: "\(preview.overlapping) will change on this device", comment: "Merge sheet detail"))
         }
+        if preview.resetCount > 0 {
+            parts.append(String(localized: "\(preview.resetCount) will reset to default", comment: "Merge sheet detail"))
+        }
         if let date = preview.newestCloudDate {
             parts.append(String(localized: "last updated \(date.formatted(.relative(presentation: .named)))", comment: "Merge sheet detail"))
         }

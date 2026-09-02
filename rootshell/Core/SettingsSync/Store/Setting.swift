@@ -12,11 +12,18 @@ import SwiftUI
 @propertyWrapper
 struct Setting<V: SettingValue>: DynamicProperty {
     private let key: SettingKey<V>
-    private let box: SettingBox
+    private let holder = BoxHolder()
 
     init(_ key: SettingKey<V>) {
         self.key = key
-        self.box = SettingsStore.shared.box(for: key.name)
+    }
+
+    /// Resolved on first read so declaring a `@Setting` never builds the store or registry.
+    private var box: SettingBox {
+        if let box = holder.box { return box }
+        let box = SettingsStore.shared.box(for: key.name)
+        holder.box = box
+        return box
     }
 
     var wrappedValue: V {
@@ -37,4 +44,9 @@ struct Setting<V: SettingValue>: DynamicProperty {
     func reset() {
         SettingsStore.shared.reset(key)
     }
+}
+
+@MainActor
+private final class BoxHolder {
+    var box: SettingBox?
 }

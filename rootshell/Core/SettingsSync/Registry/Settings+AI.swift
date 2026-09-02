@@ -54,8 +54,9 @@ nonisolated extension Settings {
         static let openAIAuthMode = SettingKey<String?>(
             "ai.openai.authMode", default: nil, group: .ai, policy: .deviceOnly,
             title: String(localized: "ChatGPT Sign-In Mode", comment: "Setting title"))
+        // Endpoint URLs may embed proxy credentials, so this stays local until the user opts in.
         static let customProviders = SettingKey<Data?>(
-            "ai.customProviders", default: nil, group: .ai,
+            "ai.customProviders", default: nil, group: .ai, policy: .localByDefault,
             title: String(localized: "Custom AI Providers", comment: "Setting title"))
         static let openRouterFavorites = SettingKey(
             "ai.openrouter.favorites", default: [String](), group: .ai, configKey: "ai-openrouter-favorites",

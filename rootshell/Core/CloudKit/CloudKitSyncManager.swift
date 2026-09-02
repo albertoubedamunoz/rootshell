@@ -59,6 +59,23 @@ final class CloudKitSyncManager {
     /// Offline queue for pending changes
     private let offlineQueue = CloudKitOfflineQueue()
 
+    /// Last known server copies of AppSetting records, keyed by record name, so
+    /// saves carry a change tag and conflicts surface instead of overwriting.
+    @ObservationIgnored
+    private var settingServerRecords: [String: CKRecord] = [:]
+
+    /// Bumped whenever settings sync state is torn down (disable, master
+    /// disable, account switch). In-flight saves compare it after each await
+    /// and drop their results if it moved.
+    @ObservationIgnored
+    private var settingsSyncGeneration = 0
+
+    private func invalidateSettingsSync() {
+        settingsSyncGeneration += 1
+        offlineQueue.removeAll(recordType: AppSettingRecord.recordType)
+        settingServerRecords = [:]
+    }
+
     /// JSON decoder for pending change payloads
     private let payloadDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -166,6 +183,7 @@ final class CloudKitSyncManager {
         zoneChangeToken = nil
         saveChangeToken()
         offlineQueue.clearAll()
+        invalidateSettingsSync()
         coordinator.resetSyncState()
         coordinator.setAccountIdentity(identity)
         if isAppSettingsSyncEnabled {
@@ -203,6 +221,8 @@ final class CloudKitSyncManager {
             isAppSettingsSyncEnabled = false
             coordinator.isEnabled = false
             coordinator.resetSyncState()
+            // Queued edits must not drain later under a disabled toggle.
+            invalidateSettingsSync()
             saveSettings()
             return .enabled
         }
@@ -220,9 +240,9 @@ final class CloudKitSyncManager {
             await processDeletedRecords(changes.deletedRecords)
             let cloud = changes.records.compactMap { $0.recordType == AppSettingRecord.recordType ? AppSettingRecord.from($0) : nil }
             let preview = coordinator.mergePreview(cloud: cloud)
-            let localCount = coordinator.recordsForInitialPush().count
 
-            if preview.cloudCount > 0 && localCount > 0 {
+            // A cloud holding only resets still conflicts with local values.
+            if (preview.cloudCount > 0 || preview.resetCount > 0) && preview.localCount > 0 {
                 syncState = .idle
                 return .needsMergeChoice(preview)
             }
@@ -243,7 +263,12 @@ final class CloudKitSyncManager {
     func completeAppSettingsSyncEnable(preview: SettingsMergePreview, choice: SettingsMergeChoice) async throws {
         let coordinator = SettingsSyncCoordinator.shared
         syncState = .pushingChanges
-        let toPush = coordinator.completeInitialMerge(cloud: preview.cloud, choice: choice)
+        // Fetches while the sheet was open updated the record cache but were
+        // otherwise dropped, so merge from the cache rather than the preview.
+        let cloud = settingServerRecords.isEmpty
+            ? preview.cloud
+            : settingServerRecords.values.compactMap { AppSettingRecord.from($0) }
+        let toPush = coordinator.completeInitialMerge(cloud: cloud, choice: choice)
         isAppSettingsSyncEnabled = true
         coordinator.isEnabled = true
         saveSettings()
@@ -256,11 +281,16 @@ final class CloudKitSyncManager {
 
     /// Batched save with per-record results; conflicts are merged per key.
     private func pushRecords(_ records: [AppSettingRecord]) async {
-        guard !records.isEmpty else { return }
+        guard !records.isEmpty, isSyncEnabled, isAppSettingsSyncEnabled else { return }
         let coordinator = SettingsSyncCoordinator.shared
+        let generation = settingsSyncGeneration
         for chunk in stride(from: 0, to: records.count, by: 200).map({ Array(records[$0..<min($0 + 200, records.count)]) }) {
             do {
                 let outcome = try await saveRecords(chunk)
+                guard generation == settingsSyncGeneration, isAppSettingsSyncEnabled else {
+                    Self.logger.info("Dropping results of a settings push that outlived its sync session")
+                    return
+                }
                 coordinator.markPushed(outcome.saved)
                 if !outcome.serverWins.isEmpty {
                     coordinator.applyRemote(outcome.serverWins)
@@ -268,7 +298,10 @@ final class CloudKitSyncManager {
                 for record in outcome.failed {
                     offlineQueue.enqueue(record, operation: record.isDeleted ? .delete : .update)
                 }
+            } catch is CancellationError {
+                return
             } catch let error as CKError where error.code == .requestRateLimited {
+                guard generation == settingsSyncGeneration else { return }
                 let retryAfter = error.retryAfterSeconds ?? 30
                 Self.logger.warning("Rate limited pushing settings, queuing \(chunk.count) and backing off \(retryAfter)s")
                 for record in chunk { offlineQueue.enqueue(record, operation: record.isDeleted ? .delete : .update) }
@@ -276,6 +309,7 @@ final class CloudKitSyncManager {
                 scheduleRateLimitedRetry(after: retryAfter)
                 return
             } catch {
+                guard generation == settingsSyncGeneration else { return }
                 Self.logger.warning("Failed to push settings batch, queuing: \(error.localizedDescription)")
                 for record in chunk { offlineQueue.enqueue(record, operation: record.isDeleted ? .delete : .update) }
             }
@@ -288,25 +322,44 @@ final class CloudKitSyncManager {
         var failed: [AppSettingRecord] = []
     }
 
+    /// Saves are conditional on the server change tag, so an older offline edit
+    /// can never overwrite newer cloud state; conflicts are settled per key.
     private func saveRecords(_ records: [AppSettingRecord]) async throws -> SettingsSaveOutcome {
         let byName = Dictionary(records.map { (AppSettingRecord.recordName(for: $0), $0) }, uniquingKeysWith: { $1 })
+        let toSave: [CKRecord] = byName.map { name, local in
+            if let known = settingServerRecords[name] {
+                local.apply(to: known)
+                return known
+            }
+            return local.toCKRecord()
+        }
+        let generation = settingsSyncGeneration
         let (saveResults, _) = try await database.modifyRecords(
-            saving: records.map { $0.toCKRecord() },
+            saving: toSave,
             deleting: [],
-            savePolicy: .allKeys,
+            savePolicy: .ifServerRecordUnchanged,
             atomically: false
         )
+        // Sync was torn down while the request was in flight; touch nothing.
+        guard generation == settingsSyncGeneration else { throw CancellationError() }
         var outcome = SettingsSaveOutcome()
         var retry: [CKRecord] = []
         for (recordID, result) in saveResults {
             guard let local = byName[recordID.recordName] else { continue }
             switch result {
-            case .success:
+            case .success(let saved):
+                settingServerRecords[recordID.recordName] = saved
                 outcome.saved.append(local)
             case .failure(let error):
                 if let ckError = error as? CKError, ckError.code == .serverRecordChanged,
-                   let serverRecord = ckError.userInfo[CKRecordChangedErrorServerRecordKey] as? CKRecord,
-                   let serverModel = AppSettingRecord.from(serverRecord) {
+                   let serverRecord = ckError.userInfo[CKRecordChangedErrorServerRecordKey] as? CKRecord {
+                    settingServerRecords[recordID.recordName] = serverRecord
+                    guard let serverModel = AppSettingRecord.from(serverRecord) else {
+                        // Unreadable server copy: replace it with the local value.
+                        local.apply(to: serverRecord)
+                        retry.append(serverRecord)
+                        continue
+                    }
                     let decision = SettingsMergeResolver.resolve(
                         local: .init(value: local.isDeleted ? nil : local.payload, modifiedAt: local.modifiedAt, deviceID: local.deviceID),
                         remote: .init(value: serverModel.payload, modifiedAt: serverModel.modifiedAt, deviceID: serverModel.deviceID),
@@ -330,12 +383,17 @@ final class CloudKitSyncManager {
         }
         if !retry.isEmpty {
             let (retryResults, _) = try await database.modifyRecords(
-                saving: retry, deleting: [], savePolicy: .allKeys, atomically: false)
+                saving: retry, deleting: [], savePolicy: .ifServerRecordUnchanged, atomically: false)
+            guard generation == settingsSyncGeneration else { throw CancellationError() }
             for (recordID, result) in retryResults {
                 guard let local = byName[recordID.recordName] else { continue }
                 switch result {
-                case .success: outcome.saved.append(local)
-                case .failure: outcome.failed.append(local)
+                case .success(let saved):
+                    settingServerRecords[recordID.recordName] = saved
+                    outcome.saved.append(local)
+                case .failure:
+                    // Lost a second race; the queue retries and the next fetch brings the winner.
+                    outcome.failed.append(local)
                 }
             }
         }
@@ -569,6 +627,9 @@ final class CloudKitSyncManager {
                 // Register subscriptions
                 try await registerSubscriptions()
 
+                // Record the account before any data moves, so a later switch is detected.
+                await checkAccountIdentity()
+
                 // Perform initial sync
                 syncState = .fetchingChanges
                 try await performInitialSync()
@@ -600,6 +661,7 @@ final class CloudKitSyncManager {
 
             // Clear offline queue
             offlineQueue.clearAll()
+            invalidateSettingsSync()
 
             // Save settings
             isSyncEnabled = false
@@ -1073,6 +1135,7 @@ final class CloudKitSyncManager {
         for record in records {
             switch record.recordType {
             case AppSettingRecord.recordType:
+                settingServerRecords[record.recordID.recordName] = record
                 guard isAppSettingsSyncEnabled else { continue }
                 if let setting = AppSettingRecord.from(record) {
                     settingRecords.append(setting)
@@ -1123,6 +1186,7 @@ final class CloudKitSyncManager {
             case AppSettingRecord.recordType:
                 // Hard deletes only come from dashboard cleanup; tombstones carry the semantics.
                 offlineQueue.dequeueRecord(record.recordID.recordName)
+                settingServerRecords[record.recordID.recordName] = nil
             default:
                 Self.logger.warning("Unknown deleted record type: \(record.recordType)")
             }
@@ -1262,9 +1326,11 @@ final class CloudKitSyncManager {
         // Settings go out as one batched save; the rest one at a time.
         let settingChanges = batch.filter { $0.recordType == AppSettingRecord.recordType }
         if !settingChanges.isEmpty {
-            let records = settingChanges.compactMap { try? payloadDecoder.decode(AppSettingRecord.self, from: $0.payload) }
             for change in settingChanges { offlineQueue.dequeue(change.id) }
-            await pushRecords(records)
+            if isAppSettingsSyncEnabled {
+                let records = settingChanges.compactMap { try? payloadDecoder.decode(AppSettingRecord.self, from: $0.payload) }
+                await pushRecords(records)
+            }
         }
 
         for change in batch where change.recordType != AppSettingRecord.recordType {

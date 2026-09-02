@@ -9,8 +9,10 @@
 import Foundation
 import CloudKit
 import Crypto
+import os
 
 struct AppSettingRecord: CloudKitSyncable {
+    private static let logger = Logger(subsystem: "com.rootshell", category: "AppSettingRecord")
     /// Deterministic per key so `SyncableRecord` identity is stable across devices.
     let id: UUID
     let key: String
@@ -103,7 +105,15 @@ struct AppSettingRecord: CloudKitSyncable {
     static func from(_ record: CKRecord) -> AppSettingRecord? {
         guard record.recordType == recordType, let key = record["key"] as? String else { return nil }
         let isDeleted = (record["isDeleted"] as? Int64 ?? 0) != 0
-        let payload = (record["payload"] as? String).flatMap(decodePayload)
+        // A live record with no readable payload is corrupt, not a reset.
+        var payload: CodableValue?
+        if !isDeleted {
+            guard let json = record["payload"] as? String, let decoded = decodePayload(json) else {
+                logger.error("Ignoring \(key, privacy: .public): live record has no decodable payload")
+                return nil
+            }
+            payload = decoded
+        }
         // The field is the edit time on the writing device; server time would
         // let "last to reach the server" win, which is wrong for offline edits.
         let serverDate = record.modificationDate ?? Date()
@@ -111,7 +121,7 @@ struct AppSettingRecord: CloudKitSyncable {
         let modifiedAt = min(field, serverDate.addingTimeInterval(futureSkewTolerance))
         return AppSettingRecord(
             key: key,
-            payload: isDeleted ? nil : payload,
+            payload: payload,
             modifiedAt: modifiedAt,
             isDeleted: isDeleted,
             deviceID: record["deviceID"] as? String ?? ""
