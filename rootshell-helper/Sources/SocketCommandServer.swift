@@ -290,6 +290,9 @@ class SocketCommandServer {
             spawnConfig.shell = createRequest.shell
             spawnConfig.environment = environment
             spawnConfig.enableShellIntegration = createRequest.enableShellIntegration
+            spawnConfig.shellIntegrationPath = EnvironmentBuilder.shellIntegrationDirectory(
+                resourcesDir: createRequest.resourcesDir
+            )
 
             // Spawn shell process (creates PTY internally)
             let spawnResult = try ProcessSpawner.spawnShell(with: spawnConfig)
