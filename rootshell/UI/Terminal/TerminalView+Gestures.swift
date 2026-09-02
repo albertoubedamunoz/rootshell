@@ -922,6 +922,11 @@ extension Ghostty.TerminalView {
         // only content. Keep the strict UTI reader used before this refactor.
         if let text = pasteboard.getOpinionatedStringContents(), !text.isEmpty {
             _ = insertPastedText(text)
+            return
+        }
+        let itemProviders = pasteboard.itemProviders
+        if !itemProviders.isEmpty {
+            paste(itemProviders: itemProviders)
         }
         return
         #else
@@ -948,6 +953,11 @@ extension Ghostty.TerminalView {
     }
 
     override func canPaste(_ itemProviders: [NSItemProvider]) -> Bool {
+        // Let UIKit validate object-backed identifiers such as
+        // `com.apple.uikit.image`. Those identifiers are part of UIImage's
+        // paste configuration on Catalyst but do not conform to public.image.
+        if super.canPaste(itemProviders) { return true }
+
         let acceptsText = itemProviders.contains { provider in
             provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
                 || provider.hasItemConformingToTypeIdentifier(UTType.url.identifier)
@@ -955,9 +965,9 @@ extension Ghostty.TerminalView {
         }
         if acceptsText { return true }
 
-        guard attachmentUploadSSHConfig != nil else { return false }
         return itemProviders.contains { provider in
-            provider.hasItemConformingToTypeIdentifier(UTType.image.identifier)
+            provider.canLoadObject(ofClass: UIImage.self)
+                || provider.hasItemConformingToTypeIdentifier(UTType.image.identifier)
                 || provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
         }
     }
@@ -965,13 +975,21 @@ extension Ghostty.TerminalView {
     override func paste(itemProviders: [NSItemProvider]) {
         guard canPaste(itemProviders) else { return }
 
+        let typeSummary = itemProviders
+            .map { $0.registeredTypeIdentifiers.joined(separator: "|") }
+            .joined(separator: " ; ")
+        Ghostty.logger.info("paste(itemProviders:) offered types: \(typeSummary)")
+
+        let containsAttachments = itemProviders.contains {
+            $0.canLoadObject(ofClass: UIImage.self)
+                || $0.hasItemConformingToTypeIdentifier(UTType.image.identifier)
+                || $0.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
+        }
+
         // Match the existing terminal-paste preference order: attachments for
         // SSH sessions, URLs/file URLs, then plain text.
         if let sshConfig = attachmentUploadSSHConfig,
-           itemProviders.contains(where: {
-               $0.hasItemConformingToTypeIdentifier(UTType.image.identifier)
-                   || $0.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
-           }) {
+           containsAttachments {
             PasteAttachmentDetector.load(from: itemProviders) { [weak self] items in
                 guard let self else { return }
                 if !items.isEmpty {
@@ -986,7 +1004,118 @@ extension Ghostty.TerminalView {
             return
         }
 
+        // Preserve Finder/file paste semantics for local terminals: use an
+        // existing URL when the provider offers one. Continuity Camera items
+        // normally have no usable URL and fall back to materializing their
+        // image/PDF data in our temporary directory.
+        if containsAttachments {
+            guard canMaterializeAttachmentsLocally else {
+                pasteUsableRemoteRepresentationOrShowAttachmentAlert(from: itemProviders)
+                return
+            }
+            let urlProviders = itemProviders.filter {
+                $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+                    || $0.hasItemConformingToTypeIdentifier(UTType.url.identifier)
+            }
+            if !urlProviders.isEmpty {
+                loadPastedURLs(from: urlProviders) { [weak self] text in
+                    guard let self else { return }
+                    if let text, !text.isEmpty {
+                        _ = self.insertPastedText(text)
+                    } else {
+                        self.loadLocalPastedAttachments(from: itemProviders)
+                    }
+                }
+            } else {
+                loadLocalPastedAttachments(from: itemProviders)
+            }
+            return
+        }
+
         loadTextPaste(from: itemProviders)
+    }
+
+    /// Remote backends without an upload transport cannot use local attachment
+    /// paths, but a mixed provider may still contain independently useful
+    /// content. Preserve a web URL or plain text before rejecting the image.
+    private func pasteUsableRemoteRepresentationOrShowAttachmentAlert(
+        from providers: [NSItemProvider]
+    ) {
+        let urlProviders = providers.filter {
+            $0.hasItemConformingToTypeIdentifier(UTType.url.identifier)
+        }
+
+        func tryPlainText() {
+            self.loadPastedPlainText(from: providers) { [weak self] inserted in
+                guard let self, !inserted else { return }
+                self.showUnsupportedRemoteAttachmentAlert()
+            }
+        }
+
+        guard !urlProviders.isEmpty else {
+            tryPlainText()
+            return
+        }
+
+        loadPastedNonFileURLs(from: urlProviders) { [weak self] text in
+            guard let self else { return }
+            if let text, !text.isEmpty, self.insertPastedText(text) {
+                return
+            }
+            tryPlainText()
+        }
+    }
+
+    private func loadLocalPastedAttachments(from providers: [NSItemProvider]) {
+        PasteAttachmentDetector.load(from: providers) { [weak self] attachments in
+            guard let self else { return }
+            guard !attachments.isEmpty else {
+                self.loadPastedPlainText(from: providers)
+                return
+            }
+            self.materializeLocalPastedAttachments(attachments)
+        }
+    }
+
+    private func showUnsupportedRemoteAttachmentAlert() {
+        Ghostty.logger.warning(
+            "Ignoring pasted attachment for unsupported remote session: \(self.connectionConfig.lifecycleDebugKind)"
+        )
+        guard let presenter = self.findPresenterViewController(),
+              presenter.presentedViewController == nil else { return }
+        let alert = UIAlertController(
+            title: String(localized: "Attachment Paste Unavailable"),
+            message: String(localized: "This remote session does not support uploading pasted attachments."),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+        presenter.present(alert, animated: true)
+    }
+
+    private func materializeLocalPastedAttachments(_ attachments: [PasteAttachment]) {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let urls = attachments.compactMap { attachment -> URL? in
+                guard !attachment.data.isEmpty else { return nil }
+                let url = temporaryDirectory.appendingPathComponent(attachment.suggestedName)
+                do {
+                    try attachment.data.write(to: url, options: .atomic)
+                    return url
+                } catch {
+                    Ghostty.logger.warning("Failed to materialize pasted attachment: \(error.localizedDescription)")
+                    return nil
+                }
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !urls.isEmpty else { return }
+                let text = urls
+                    .map { Ghostty.Shell.escape($0.path) }
+                    .joined(separator: " ")
+                _ = self.insertPastedText(text, recordHistory: false)
+            }
+        }
     }
 
     private func loadTextPaste(
@@ -1044,7 +1173,76 @@ extension Ghostty.TerminalView {
         }
     }
 
-    private func loadPastedPlainText(from providers: [NSItemProvider]) {
+    private func loadPastedNonFileURLs(
+        from providers: [NSItemProvider],
+        completion: @escaping (String?) -> Void
+    ) {
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var values = Array<String?>(repeating: nil, count: providers.count)
+
+        for (index, provider) in providers.enumerated() {
+            group.enter()
+            loadPastedNonFileURL(from: provider) { url in
+                defer { group.leave() }
+                guard let url else { return }
+                lock.lock()
+                values[index] = url.absoluteString
+                lock.unlock()
+            }
+        }
+
+        group.notify(queue: .main) {
+            let text = values.compactMap { $0 }.joined(separator: " ")
+            completion(text.isEmpty ? nil : text)
+        }
+    }
+
+    private func loadPastedNonFileURL(
+        from provider: NSItemProvider,
+        completion: @escaping (URL?) -> Void
+    ) {
+        func usableURL(from item: Any?) -> URL? {
+            let url: URL?
+            if let value = item as? URL {
+                url = value
+            } else if let value = item as? String {
+                url = URL(string: value)
+            } else if let value = item as? Data {
+                url = URL(dataRepresentation: value, relativeTo: nil)
+            } else {
+                url = nil
+            }
+            guard let url, !url.isFileURL, url.scheme != nil else { return nil }
+            return url
+        }
+
+        func loadItemFallback() {
+            provider.loadItem(
+                forTypeIdentifier: UTType.url.identifier,
+                options: nil
+            ) { item, _ in
+                completion(usableURL(from: item))
+            }
+        }
+
+        guard provider.canLoadObject(ofClass: URL.self) else {
+            loadItemFallback()
+            return
+        }
+        _ = provider.loadObject(ofClass: URL.self) { url, error in
+            if error == nil, let url = usableURL(from: url) {
+                completion(url)
+            } else {
+                loadItemFallback()
+            }
+        }
+    }
+
+    private func loadPastedPlainText(
+        from providers: [NSItemProvider],
+        completion: ((Bool) -> Void)? = nil
+    ) {
         let preferredTypes = [
             UTType.utf8PlainText.identifier,
             UTType.utf16PlainText.identifier,
@@ -1068,19 +1266,31 @@ extension Ghostty.TerminalView {
             }
         }
 
-        loadPastedPlainText(candidates: candidates, at: 0)
+        loadPastedPlainText(candidates: candidates, at: 0, completion: completion)
     }
 
     private func loadPastedPlainText(
         candidates: [(provider: NSItemProvider, typeIdentifier: String)],
-        at index: Int
+        at index: Int,
+        completion: ((Bool) -> Void)?
     ) {
-        guard index < candidates.count else { return }
+        guard index < candidates.count else {
+            completion?(false)
+            return
+        }
         let candidate = candidates[index]
 
         func tryNextCandidate() {
             DispatchQueue.main.async { [weak self] in
-                self?.loadPastedPlainText(candidates: candidates, at: index + 1)
+                guard let self else {
+                    completion?(false)
+                    return
+                }
+                self.loadPastedPlainText(
+                    candidates: candidates,
+                    at: index + 1,
+                    completion: completion
+                )
             }
         }
 
@@ -1090,7 +1300,12 @@ extension Ghostty.TerminalView {
                 return
             }
             DispatchQueue.main.async { [weak self] in
-                self?.insertPastedText(text)
+                guard let self else {
+                    completion?(false)
+                    return
+                }
+                let inserted = self.insertPastedText(text)
+                completion?(inserted)
             }
         }
 
@@ -1188,21 +1403,10 @@ extension Ghostty.TerminalView {
             // the iOS paste-permission dialog on every app switch. The real
             // content read happens later in paste(_:), when the user invokes it.
             if UIPasteboard.general.hasPasteableContentWithoutPrompt { return true }
-            // There is no prompt-free hasPDF predicate. An SSH target can
-            // accept image/PDF providers, so leave the system keyboard command
-            // enabled and validate providers only after invocation. While
-            // building a transient touch menu, use only the metadata item count:
-            // it keeps empty pasteboards disabled while allowing PDF-only
+            // There is no prompt-free hasPDF predicate. The metadata-only item
+            // count keeps empty pasteboards disabled while allowing image/PDF
             // content without reading provider types during menu validation.
-            if attachmentUploadSSHConfig != nil {
-                #if !targetEnvironment(macCatalyst)
-                if editMenuInteraction != nil {
-                    return UIPasteboard.general.numberOfItems > 0
-                }
-                #endif
-                return true
-            }
-            return false
+            return UIPasteboard.general.numberOfItems > 0
         }
         if action == #selector(selectAll(_:)) {
             return surface != nil
@@ -1465,6 +1669,25 @@ extension Ghostty.TerminalView {
         }
 #endif
         return nil
+    }
+
+    /// Whether a path inside this app's temporary directory is meaningful to
+    /// the shell receiving input. Non-SSH remote backends have no attachment
+    /// transport, so inserting a Catalyst sandbox path would be unusable.
+    var canMaterializeAttachmentsLocally: Bool {
+        let effectiveTerminal: Ghostty.TerminalView
+        if let binding = tmuxPaneBinding {
+            guard let gateway = ghosttyApp?.surfaceView(for: binding.parentSurface),
+                  gateway.uuid == binding.parentUUID else { return false }
+            effectiveTerminal = gateway
+        } else {
+            effectiveTerminal = self
+        }
+
+        if case .local = effectiveTerminal.connectionConfig.unwrappedConfig {
+            return true
+        }
+        return false
     }
 
     /// Present the attachment upload confirmation sheet
@@ -2257,6 +2480,13 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             return nil
         }
 
+        #if targetEnvironment(macCatalyst)
+        // The native Services menu is assembled after this callback. Remember
+        // the initiating terminal so Continuity Camera's AppKit pasteboard
+        // result can be routed back to the correct local or remote session.
+        CatalystAppDelegate.armContinuityPasteboardReceiver(for: self)
+        #endif
+
         // Probe for link before building menu
         let probedLink = probeForLink(at: location)
 
@@ -2264,6 +2494,24 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             self?.buildContextMenu(linkURL: probedLink)
         }
     }
+
+    #if targetEnvironment(macCatalyst)
+    public func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        willEndFor configuration: UIContextMenuConfiguration,
+        animator: (any UIContextMenuInteractionAnimating)?
+    ) {
+        let disarm = { [weak self] in
+            guard let self else { return }
+            CatalystAppDelegate.continuityPasteboardMenuDidEnd(for: self)
+        }
+        if let animator {
+            animator.addCompletion(disarm)
+        } else {
+            disarm()
+        }
+    }
+    #endif
 
     /// Build the full context menu with all terminal actions
     private func buildContextMenu(
