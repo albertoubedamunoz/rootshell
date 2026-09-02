@@ -97,10 +97,10 @@ struct ProfileEditorSheet: View {
     // Globals the multiplexer captions fall back to. Observed rather than read
     // directly so the captions refresh when Settings change; the values
     // themselves come from SSHConfig.multiplexerSessionDisplayName.
-    @AppStorage("tmuxSessionName") private var tmuxSessionNameSetting: String = ""
-    @AppStorage("tmuxCustomCommand") private var tmuxCustomCommandSetting: String = ""
-    @AppStorage("herdrSessionName") private var herdrSessionNameSetting: String = ""
-    @AppStorage("herdrCustomCommand") private var herdrCustomCommandSetting: String = ""
+    @Setting(Settings.Multiplexer.tmuxSessionName) private var tmuxSessionNameSetting
+    @Setting(Settings.Multiplexer.tmuxCustomCommand) private var tmuxCustomCommandSetting
+    @Setting(Settings.Multiplexer.herdrSessionName) private var herdrSessionNameSetting
+    @Setting(Settings.Multiplexer.herdrCustomCommand) private var herdrCustomCommandSetting
 
     // Launch command state
     @State private var launchCommand: String = ""
@@ -320,7 +320,7 @@ struct ProfileEditorSheet: View {
                 #if !targetEnvironment(macCatalyst)
                 if wasEmpty
                     && !locationDiaryManager.isConfigured
-                    && !UserDefaults.standard.bool(forKey: "hasSeenPortForwardBackgroundPrompt") {
+                    && !SettingsStore.shared.get(Settings.Connections.hasSeenPortForwardBackgroundPrompt) {
                     showPortForwardBackgroundAlert = true
                 }
                 #endif
@@ -335,10 +335,10 @@ struct ProfileEditorSheet: View {
             Button(String(localized: "Enable Auto Location")) {
                 locationDiaryManager.mode = .autoForRemote
                 locationDiaryManager.requestPermission()
-                UserDefaults.standard.set(true, forKey: "hasSeenPortForwardBackgroundPrompt")
+                SettingsStore.shared.set(Settings.Connections.hasSeenPortForwardBackgroundPrompt, true)
             }
             Button(String(localized: "Not Now"), role: .cancel) {
-                UserDefaults.standard.set(true, forKey: "hasSeenPortForwardBackgroundPrompt")
+                SettingsStore.shared.set(Settings.Connections.hasSeenPortForwardBackgroundPrompt, true)
             }
         } message: {
             Text("iOS suspends apps in the background, which stops SSH port forwards. Enable Auto Location to keep connections alive when you switch apps.")
@@ -2443,12 +2443,12 @@ private struct ProfileMultiplexerSessionEditor: View {
     @Binding var sessionName: String
     let selection: TmuxLaunchSelection
 
-    @AppStorage("tmuxSessionName") private var tmuxSessionNameSetting = ""
-    @AppStorage("tmuxCustomCommand") private var tmuxCustomCommandSetting = ""
-    @AppStorage("herdrSessionName") private var herdrSessionNameSetting = ""
-    @AppStorage("herdrCustomCommand") private var herdrCustomCommandSetting = ""
-    @AppStorage("zmxSessionName") private var zmxSessionNameSetting = ""
-    @AppStorage("zmxCustomCommand") private var zmxCustomCommandSetting = ""
+    @Setting(Settings.Multiplexer.tmuxSessionName) private var tmuxSessionNameSetting
+    @Setting(Settings.Multiplexer.tmuxCustomCommand) private var tmuxCustomCommandSetting
+    @Setting(Settings.Multiplexer.herdrSessionName) private var herdrSessionNameSetting
+    @Setting(Settings.Multiplexer.herdrCustomCommand) private var herdrCustomCommandSetting
+    @Setting(Settings.Multiplexer.zmxSessionName) private var zmxSessionNameSetting
+    @Setting(Settings.Multiplexer.zmxCustomCommand) private var zmxCustomCommandSetting
 
     @State private var isCustom: Bool
 

@@ -1451,9 +1451,7 @@ extension Ghostty.TerminalView {
             return true
         }
 
-        let setting = Ghostty.OptionKeyAsAlt(
-            rawValue: UserDefaults.standard.string(forKey: "optionKeyAsAlt") ?? "off"
-        ) ?? .off
+        let setting = SettingsStore.shared.value(Settings.Keyboard.optionKeyAsAlt)
 
         switch setting {
         case .off:

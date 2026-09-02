@@ -26,8 +26,7 @@ enum TwoFingerLongPressSetting {
         Option(label: String(localized: "Off", comment: "Two-finger long press: gesture disabled"), value: 0.0),
     ]
 
-    static func storedDuration(from defaults: UserDefaults = .standard) -> Double {
-        guard defaults.object(forKey: key) != nil else { return defaultDuration }
-        return defaults.double(forKey: key)
+    nonisolated static func storedDuration() -> Double {
+        SettingsStore.shared.value(Settings.Gestures.twoFingerLongPressDuration)
     }
 }

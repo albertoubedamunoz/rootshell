@@ -1448,7 +1448,6 @@ enum TabSidebarLayout {
     static let minWidthLargeControls: CGFloat = 320
     /// Default width + the divider's magnetic-snap / double-tap-reset target.
     static let defaultWidth: CGFloat = 420
-    private static let key = "tabSidebar.docked.width"
 
     /// The resize floor for the docked column at the current control density.
     static func dockedMinWidth(largeControls: Bool) -> CGFloat {
@@ -1456,12 +1455,12 @@ enum TabSidebarLayout {
     }
 
     static func loadDockedWidth() -> CGFloat {
-        let saved = UserDefaults.standard.double(forKey: key)
+        let saved = SettingsStore.shared.get(Settings.Sidebar.dockedWidth)
         return saved >= Double(minWidth) ? CGFloat(saved) : defaultWidth
     }
 
     static func saveDockedWidth(_ width: CGFloat) {
-        UserDefaults.standard.set(Double(max(width, minWidth)), forKey: key)
+        SettingsStore.shared.set(Settings.Sidebar.dockedWidth, Double(max(width, minWidth)))
     }
 }
 

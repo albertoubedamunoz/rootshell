@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LocalShellSettingsView: View {
-    @AppStorage(LocalShellSettings.commandKey) private var command: String = ""
+    @Setting(Settings.Terminal.localShellCommand) private var command
 
     /// Custom mode is explicit state rather than "the value isn't a preset":
     /// otherwise typing a preset path by hand would collapse the text field
@@ -67,7 +67,10 @@ struct LocalShellSettingsView: View {
                     }
                 }
             } header: {
-                Text("Shell")
+                HStack(spacing: 6) {
+                    Text("Shell")
+                    SettingPinTag(Settings.Terminal.localShellCommand.erased)
+                }
             } footer: {
                 Text("Launched for every new local tab. Arguments are supported, and the line is parsed by a shell, so a path containing spaces has to be quoted.")
             }
@@ -86,6 +89,7 @@ struct LocalShellSettingsView: View {
         }
         .themedList()
         .navigationTitle("Local Shell")
+        .toolbar { SettingsScreenPinMenu(groups: [.terminal]) }
         .onAppear {
             isCustom = !command.isEmpty && !LocalShellSettings.presets.contains(command)
         }

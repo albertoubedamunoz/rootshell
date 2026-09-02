@@ -21,8 +21,6 @@ final class SwipeGestureManager {
 
     static let bindingsDidChangeNotification = Notification.Name("SwipeGestureBindingsDidChange")
 
-    private static let storageKey = "swipeGestureBindings"
-
     // MARK: - Defaults
 
     static let defaultLeftBinding: SwipeGestureBinding = .preset(.nextTab)
@@ -51,6 +49,10 @@ final class SwipeGestureManager {
         let stored = Self.load()
         leftBinding = stored?.left ?? Self.defaultLeftBinding
         rightBinding = stored?.right ?? Self.defaultRightBinding
+
+        SettingsRefreshHub.shared.register(keys: [Settings.Gestures.swipeBindings.name]) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
 
         // Observe toolbar custom-key changes so we can clear any swipe binding
         // that referenced a now-deleted custom key. Without this the recognizer
@@ -123,11 +125,22 @@ final class SwipeGestureManager {
         let right: SwipeGestureBinding
     }
 
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        guard keys.contains(Settings.Gestures.swipeBindings.name) else { return }
+        isBatching = true
+        let stored = Self.load()
+        leftBinding = stored?.left ?? Self.defaultLeftBinding
+        rightBinding = stored?.right ?? Self.defaultRightBinding
+        isBatching = false
+        NotificationCenter.default.post(name: Self.bindingsDidChangeNotification, object: nil)
+    }
+
     private func save() {
         let stored = StoredBindings(left: leftBinding, right: rightBinding)
         do {
             let data = try JSONEncoder().encode(stored)
-            UserDefaults.standard.set(data, forKey: Self.storageKey)
+            SettingsStore.shared.set(Settings.Gestures.swipeBindings, data)
         } catch {
             Self.logger.error("Failed to save swipe gesture bindings: \(error.localizedDescription)")
         }
@@ -135,7 +148,7 @@ final class SwipeGestureManager {
     }
 
     private static func load() -> StoredBindings? {
-        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return nil }
+        guard let data = SettingsStore.shared.get(Settings.Gestures.swipeBindings) else { return nil }
         do {
             return try JSONDecoder().decode(StoredBindings.self, from: data)
         } catch {

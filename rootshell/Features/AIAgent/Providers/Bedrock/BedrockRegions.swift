@@ -39,7 +39,7 @@ enum BedrockRegions {
     ]
 
     /// Default region for first-time configuration.
-    static let defaultRegion = "us-east-1"
+    nonisolated static let defaultRegion = "us-east-1"
 
     /// Returns true if the given AWS region ID is in our Bedrock-supported list.
     static func isSupported(_ regionID: String) -> Bool {

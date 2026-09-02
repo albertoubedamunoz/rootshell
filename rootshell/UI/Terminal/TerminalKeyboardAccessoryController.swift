@@ -378,7 +378,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
             guard let self else { return }
             if self.toolbarOnlyMode {
                 self.exitToolbarOnlyMode()
-            } else if self.usesHideIntent || UserDefaults.standard.bool(forKey: "persistentToolbar") {
+            } else if self.usesHideIntent || SettingsStore.shared.value(Settings.KeyboardToolbar.persistent) {
                 self.setHideIntent(.hidden(pinned: false))
                 self.enterToolbarOnlyMode(pinned: false)
             } else {
@@ -484,7 +484,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #endif
 
         let tracker = KeyboardTracker.shared
-        let showWithHardware = UserDefaults.standard.bool(forKey: "showToolbarWithHardwareKeyboard")
+        let showWithHardware = SettingsStore.shared.value(Settings.KeyboardToolbar.showWithHardwareKeyboard)
         let initialShowToolbar = !tracker.isHardwareKeyboard || tracker.isSoftwareKeyboardVisible || showWithHardware
         shouldShowKeyboardToolbar = initialShowToolbar
         EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
@@ -604,7 +604,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         emptyInputViewHeightConstraint?.constant = 0
         toolbarOnlyHidesToolbar = usesHideIntent
             && !pinned
-            && !UserDefaults.standard.bool(forKey: "persistentToolbar")
+            && !SettingsStore.shared.value(Settings.KeyboardToolbar.persistent)
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         // Snapshot before changing the input set. Once the software keyboard
         // starts hiding, its placement frame is no longer reliable enough to
@@ -653,7 +653,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
             enterToolbarOnlyMode(pinned: pinned)
             return true
         }
-        let hidesToolbar = !pinned && !UserDefaults.standard.bool(forKey: "persistentToolbar")
+        let hidesToolbar = !pinned && !SettingsStore.shared.value(Settings.KeyboardToolbar.persistent)
         var changed = false
         if toolbarOnlyHidesToolbar != hidesToolbar {
             toolbarOnlyHidesToolbar = hidesToolbar
@@ -847,7 +847,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     private func updateKeyboardToolbarVisibility(reason: String) {
         let tracker = KeyboardTracker.shared
-        let showWithHardware = UserDefaults.standard.bool(forKey: "showToolbarWithHardwareKeyboard")
+        let showWithHardware = SettingsStore.shared.value(Settings.KeyboardToolbar.showWithHardwareKeyboard)
         let newShouldShow = !tracker.isHardwareKeyboard || tracker.isSoftwareKeyboardVisible || showWithHardware
         if !newShouldShow && toolbarOnlyMode && !usesHideIntent {
             toolbarOnlyMode = false

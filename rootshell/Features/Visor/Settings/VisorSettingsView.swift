@@ -16,13 +16,13 @@ struct VisorSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Enable Visor", isOn: $settings.enabled)
+                SettingToggle(Settings.Visor.enabled, isOn: $settings.enabled, title: "Enable Visor")
                     .themedRow()
             } footer: {
                 Text("Slide a terminal down from a screen edge with a global hotkey, from anywhere in macOS.")
             }
 
-            Section("Hotkey") {
+            Section {
                 HStack {
                     Text("Combination")
                     Spacer()
@@ -32,30 +32,43 @@ struct VisorSettingsView: View {
                 .themedRow()
                 ModifierTogglesRow(modifiers: $settings.hotkeyModifiers)
                     .themedRow()
-                Picker("Key", selection: $settings.hotkeyKeyCode) {
+                    .settingContextMenu(Settings.Visor.hotkeyModifiers)
+                Picker(selection: $settings.hotkeyKeyCode) {
                     Text("None").tag(-1)
                     ForEach(VisorKeyChoice.all) { choice in
                         Text(choice.displayName).tag(choice.keyCode)
                     }
+                } label: {
+                    Text("Key")
+                        .settingRow(Settings.Visor.hotkeyKeyCode)
                 }
                 .themedRow()
+            } header: {
+                SettingGroupHeader("Hotkey", group: .visor)
             }
 
-            Section("Position") {
-                Picker("Edge", selection: $settings.position) {
+            Section {
+                Picker(selection: $settings.position) {
                     ForEach(VisorPosition.allCases) { p in
                         Text(p.displayName).tag(p)
                     }
+                } label: {
+                    Text("Edge")
+                        .settingRow(Settings.Visor.position)
                 }
                 .themedRow()
-                Picker("Screen", selection: $settings.screen) {
+                Picker(selection: $settings.screen) {
                     ForEach(VisorScreenChoice.allCases) { c in
                         Text(c.displayName).tag(c)
                     }
+                } label: {
+                    Text("Screen")
+                        .settingRow(Settings.Visor.screen)
                 }
                 .themedRow()
                 HStack {
                     Text("Space behavior")
+                        .settingRow(Settings.Visor.spaceBehavior)
                     Spacer()
                     Picker("", selection: $settings.spaceBehavior) {
                         ForEach(VisorSpaceBehavior.allCases) { s in
@@ -66,31 +79,36 @@ struct VisorSettingsView: View {
                     .fixedSize(horizontal: true, vertical: false)
                 }
                 .themedRow()
+            } header: {
+                SettingGroupHeader("Position", group: .visor)
             }
 
             Section {
                 VisorSizeSettingRow(
+                    key: Settings.Visor.primarySize,
                     title: "Slide size",
                     defaultTitle: "Default",
                     value: $settings.primarySize
                 )
                 .themedRow()
                 VisorSizeSettingRow(
+                    key: Settings.Visor.secondarySize,
                     title: "Cross axis",
                     defaultTitle: "Fill",
                     value: $settings.secondarySize
                 )
                 .themedRow()
             } header: {
-                Text("Size")
+                SettingGroupHeader("Size", group: .visor)
             } footer: {
                 Text("Slide size is height for top or bottom edges and width for left or right edges. Cross axis is the perpendicular dimension.")
             }
 
-            Section("Behavior") {
+            Section {
                 VStack(alignment: .leading) {
                     HStack {
                         Text("Animation duration")
+                            .settingRow(Settings.Visor.animationDurationMs)
                         Spacer()
                         Text("\(settings.animationDurationMs)ms").foregroundStyle(.secondary)
                     }
@@ -104,12 +122,14 @@ struct VisorSettingsView: View {
                     )
                 }
                 .themedRow()
-                Toggle("Auto-hide when focus moves to another app", isOn: $settings.autohide)
+                SettingToggle(Settings.Visor.autohide, isOn: $settings.autohide, title: "Auto-hide when focus moves to another app")
                     .themedRow()
+            } header: {
+                SettingGroupHeader("Behavior", group: .visor)
             }
 
             Section {
-                Toggle("Use event tap (requires Accessibility permission)", isOn: $settings.useEventTap)
+                SettingToggle(Settings.Visor.useEventTap, isOn: $settings.useEventTap, title: "Use event tap (requires Accessibility permission)")
                     .themedRow()
                 if settings.useEventTap, hotkey.lastError != nil {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
@@ -124,7 +144,7 @@ struct VisorSettingsView: View {
                     }
                 }
             } header: {
-                Text("Advanced")
+                SettingGroupHeader("Advanced", group: .visor)
             } footer: {
                 Text("Event tap allows more exotic key combinations but requires Accessibility permission. If denied, the visor falls back to a Carbon hotkey automatically.")
             }
@@ -164,6 +184,7 @@ private enum VisorSizeUnit: String, CaseIterable, Identifiable {
 }
 
 private struct VisorSizeSettingRow: View {
+    let key: SettingKey<String>
     let title: String
     let defaultTitle: String
     @Binding var value: String
@@ -172,6 +193,7 @@ private struct VisorSizeSettingRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
+                    .settingRow(key)
                 Spacer()
                 Picker("", selection: unitBinding) {
                     Text(defaultTitle).tag(VisorSizeUnit.defaultSize)

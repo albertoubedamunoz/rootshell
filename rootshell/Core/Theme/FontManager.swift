@@ -90,16 +90,18 @@ class FontManager: ObservableObject {
 
     // MARK: - Keys
 
-    private static let fontSizeKey = "fontSize"
-    private static let fontFamilyKey = "fontFamily"
-    private static let ligaturesEnabledKey = "ligaturesEnabled"
     private static let customFontFamiliesKey = "customFontFamilies"
     private static let replacedBundledFamiliesKey = "replacedBundledFamilies"
     private static let nerdFontMigrationKey = "nerdFontFamilyMigrationDone"
-    private static let fontFeaturePrefsKey = "fontFeaturePrefs"
-    private static let cellAdjustmentsKey = "cellAdjustmentPrefs"
-    private static let defaultFontSize: Double = 13.0
-    private static let defaultLigaturesEnabled: Bool = true
+
+    /// Registered keys this manager reloads from the store; file-backed font lists stay raw.
+    private static let ownedKeys: Set<String> = [
+        Settings.Font.size.name, Settings.Font.family.name, Settings.Font.ligatures.name,
+        Settings.Font.featurePrefs.name, Settings.Font.cellAdjustmentPrefs.name,
+    ]
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    private var isReloading = false
 
     /// Maps old Nerd Font Mono family names to their unpatched replacements.
     /// Used for one-time migration when users had a nerd font family selected.
@@ -177,36 +179,24 @@ class FontManager: ObservableObject {
     // MARK: - Initialization
 
     private init() {
-        // Load saved font size
-        let savedSize = UserDefaults.standard.double(forKey: Self.fontSizeKey)
-        self.currentFontSize = savedSize > 0 ? savedSize : Self.defaultFontSize
+        let store = SettingsStore.shared
+
+        // A stored 0 still falls back to the default size
+        let savedSize = store.get(Settings.Font.size)
+        self.currentFontSize = savedSize > 0 ? savedSize : Settings.Font.size.defaultValue
 
         // Load saved font family (nil = use Ghostty default)
-        self.currentFontFamily = UserDefaults.standard.string(forKey: Self.fontFamilyKey)
+        self.currentFontFamily = store.get(Settings.Font.family)
 
-        // Load saved ligatures enabled state or default to true
-        if UserDefaults.standard.object(forKey: Self.ligaturesEnabledKey) != nil {
-            self.ligaturesEnabled = UserDefaults.standard.bool(forKey: Self.ligaturesEnabledKey)
-        } else {
-            self.ligaturesEnabled = Self.defaultLigaturesEnabled
-        }
+        self.ligaturesEnabled = store.get(Settings.Font.ligatures)
 
-        // Load saved font feature preferences
         // Clean up any previously-seeded legacy defaults (from earlier migration code)
         if UserDefaults.standard.bool(forKey: "fontFeatureMigrationV1Done") {
-            UserDefaults.standard.removeObject(forKey: Self.fontFeaturePrefsKey)
+            store.reset(Settings.Font.featurePrefs)
             UserDefaults.standard.removeObject(forKey: "fontFeatureMigrationV1Done")
         }
-        if let data = UserDefaults.standard.data(forKey: Self.fontFeaturePrefsKey),
-           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
-            self.enabledFontFeatures = decoded.mapValues { Set($0) }
-        }
-
-        // Load saved cell adjustments
-        if let data = UserDefaults.standard.data(forKey: Self.cellAdjustmentsKey),
-           let decoded = try? JSONDecoder().decode([String: CellAdjustments].self, from: data) {
-            self.cellAdjustments = decoded
-        }
+        self.enabledFontFeatures = Self.decodeFontFeatures(store.get(Settings.Font.featurePrefs))
+        self.cellAdjustments = Self.decodeCellAdjustments(store.get(Settings.Font.cellAdjustmentPrefs))
 
         // One-time migration: map old Nerd Font Mono family names to unpatched equivalents.
         // Skip when protected data is unavailable — bool(forKey:) returns false (not migrated)
@@ -216,7 +206,7 @@ class FontManager: ObservableObject {
             if let current = self.currentFontFamily,
                let migrated = Self.nerdFontFamilyMigration[current] {
                 self.currentFontFamily = migrated
-                UserDefaults.standard.set(migrated, forKey: Self.fontFamilyKey)
+                store.set(Settings.Font.family, migrated)
             }
             UserDefaults.standard.set(true, forKey: Self.nerdFontMigrationKey)
         }
@@ -245,6 +235,41 @@ class FontManager: ObservableObject {
         loadAvailableFamilies()
         loadSystemFonts()
         setupFontRegistrationObserver()
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Font.size.name) {
+            let savedSize = store.get(Settings.Font.size)
+            currentFontSize = savedSize > 0 ? savedSize : Settings.Font.size.defaultValue
+        }
+        if keys.contains(Settings.Font.family.name) { currentFontFamily = store.get(Settings.Font.family) }
+        if keys.contains(Settings.Font.ligatures.name) { ligaturesEnabled = store.get(Settings.Font.ligatures) }
+        if keys.contains(Settings.Font.featurePrefs.name) {
+            enabledFontFeatures = Self.decodeFontFeatures(store.get(Settings.Font.featurePrefs))
+            fontFeaturesDidChange.send()
+        }
+        if keys.contains(Settings.Font.cellAdjustmentPrefs.name) {
+            cellAdjustments = Self.decodeCellAdjustments(store.get(Settings.Font.cellAdjustmentPrefs))
+            cellAdjustmentsDidChange.send()
+        }
+    }
+
+    private static func decodeFontFeatures(_ data: Data?) -> [String: Set<String>] {
+        guard let data, let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) else { return [:] }
+        return decoded.mapValues { Set($0) }
+    }
+
+    private static func decodeCellAdjustments(_ data: Data?) -> [String: CellAdjustments] {
+        guard let data, let decoded = try? JSONDecoder().decode([String: CellAdjustments].self, from: data) else { return [:] }
+        return decoded
     }
 
     // MARK: - Font Registration
@@ -931,19 +956,22 @@ class FontManager: ObservableObject {
     // MARK: - Persistence
 
     private func saveFontSize() {
-        UserDefaults.standard.set(currentFontSize, forKey: Self.fontSizeKey)
+        guard !isReloading else { return }
+        SettingsStore.shared.set(Settings.Font.size, currentFontSize)
     }
 
     private func saveFontFamily() {
+        guard !isReloading else { return }
         if let family = currentFontFamily {
-            UserDefaults.standard.set(family, forKey: Self.fontFamilyKey)
+            SettingsStore.shared.set(Settings.Font.family, family)
         } else {
-            UserDefaults.standard.removeObject(forKey: Self.fontFamilyKey)
+            SettingsStore.shared.reset(Settings.Font.family)
         }
     }
 
     private func saveLigaturesEnabled() {
-        UserDefaults.standard.set(ligaturesEnabled, forKey: Self.ligaturesEnabledKey)
+        guard !isReloading else { return }
+        SettingsStore.shared.set(Settings.Font.ligatures, ligaturesEnabled)
     }
 
     private func saveCustomFontFamilies() {
@@ -955,7 +983,7 @@ class FontManager: ObservableObject {
     private func saveFontFeaturePrefs() {
         let serializable = enabledFontFeatures.mapValues { Array($0) }
         if let data = try? JSONEncoder().encode(serializable) {
-            UserDefaults.standard.set(data, forKey: Self.fontFeaturePrefsKey)
+            SettingsStore.shared.set(Settings.Font.featurePrefs, data)
         }
     }
 
@@ -963,7 +991,7 @@ class FontManager: ObservableObject {
         // Drop zeroed entries so the dict stays clean across launches.
         let pruned = cellAdjustments.filter { !$0.value.isZero }
         if let data = try? JSONEncoder().encode(pruned) {
-            UserDefaults.standard.set(data, forKey: Self.cellAdjustmentsKey)
+            SettingsStore.shared.set(Settings.Font.cellAdjustmentPrefs, data)
         }
     }
 

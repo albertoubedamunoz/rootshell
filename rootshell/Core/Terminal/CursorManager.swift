@@ -125,34 +125,23 @@ class CursorManager {
 
     private static let logger = Logger(subsystem: "com.rootshell", category: "CursorManager")
 
-    // MARK: - UserDefaults Keys
+    // MARK: - Settings keys
 
-    private static let cursorBlinkEnabledKey = "cursorBlinkEnabled"
-    private static let cursorBlinkModeKey = "cursorBlinkMode"
-    private static let cursorStyleKey = "cursorStyle"
-    private static let cursorEffectKey = "cursorEffect"
-    private static let cursorColorKey = "cursorColor"
-    private static let cursorTextColorKey = "cursorTextColor"
-    private static let cursorOpacityKey = "cursorOpacity"
-    private static let cursorThicknessKey = "cursorThickness"
-    private static let cursorHeightKey = "cursorHeight"
+    private static let ownedKeys: Set<String> = [
+        Settings.Cursor.blinkEnabled.name, Settings.Cursor.blinkMode.name, Settings.Cursor.style.name,
+        Settings.Cursor.effect.name, Settings.Cursor.color.name, Settings.Cursor.textColor.name,
+        Settings.Cursor.opacity.name, Settings.Cursor.thickness.name, Settings.Cursor.height.name,
+    ]
 
-    // MARK: - Defaults
-
-    private static let defaultCursorBlinkEnabled = false
-    private static let defaultCursorBlinkMode = CursorBlinkMode.normal
-    private static let defaultCursorStyle = CursorStyle.block
-    private static let defaultCursorEffect = CursorEffect.none
-    private static let defaultCursorOpacity: Double = 0.8
-    private static let defaultCursorThickness: Int = 0
-    private static let defaultCursorHeight: Int = 0
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    @ObservationIgnored private var isReloading = false
 
     // MARK: - Observable Properties
 
     var cursorBlinkEnabled: Bool {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(cursorBlinkEnabled, forKey: Self.cursorBlinkEnabledKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Cursor.blinkEnabled, cursorBlinkEnabled) }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
     }
@@ -160,7 +149,7 @@ class CursorManager {
     var cursorBlinkMode: CursorBlinkMode {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(cursorBlinkMode.rawValue, forKey: Self.cursorBlinkModeKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Cursor.blinkMode, cursorBlinkMode) }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
     }
@@ -168,7 +157,7 @@ class CursorManager {
     var cursorStyle: CursorStyle {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(cursorStyle.rawValue, forKey: Self.cursorStyleKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Cursor.style, cursorStyle) }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
     }
@@ -176,7 +165,7 @@ class CursorManager {
     var cursorEffect: CursorEffect {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(cursorEffect.rawValue, forKey: Self.cursorEffectKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Cursor.effect, cursorEffect) }
             notifyEffectChanged()
         }
     }
@@ -185,10 +174,12 @@ class CursorManager {
     var cursorColor: String? {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            if let color = cursorColor {
-                UserDefaults.standard.set(color, forKey: Self.cursorColorKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: Self.cursorColorKey)
+            if !isReloading {
+                if let color = cursorColor {
+                    SettingsStore.shared.set(Settings.Cursor.color, color)
+                } else {
+                    SettingsStore.shared.reset(Settings.Cursor.color)
+                }
             }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
@@ -198,10 +189,12 @@ class CursorManager {
     var cursorTextColor: String? {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            if let color = cursorTextColor {
-                UserDefaults.standard.set(color, forKey: Self.cursorTextColorKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: Self.cursorTextColorKey)
+            if !isReloading {
+                if let color = cursorTextColor {
+                    SettingsStore.shared.set(Settings.Cursor.textColor, color)
+                } else {
+                    SettingsStore.shared.reset(Settings.Cursor.textColor)
+                }
             }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
@@ -211,7 +204,7 @@ class CursorManager {
     var cursorOpacity: Double {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(cursorOpacity, forKey: Self.cursorOpacityKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Cursor.opacity, cursorOpacity) }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
     }
@@ -220,7 +213,7 @@ class CursorManager {
     var cursorThickness: Int {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(cursorThickness, forKey: Self.cursorThicknessKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Cursor.thickness, cursorThickness) }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
     }
@@ -229,7 +222,7 @@ class CursorManager {
     var cursorHeight: Int {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(cursorHeight, forKey: Self.cursorHeightKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Cursor.height, cursorHeight) }
             NotificationCenter.default.post(name: .cursorConfigChanged, object: nil)
         }
     }
@@ -245,57 +238,45 @@ class CursorManager {
     // MARK: - Initialization
 
     private init() {
-        // Load cursor blink setting
-        if UserDefaults.standard.object(forKey: Self.cursorBlinkEnabledKey) != nil {
-            self.cursorBlinkEnabled = UserDefaults.standard.bool(forKey: Self.cursorBlinkEnabledKey)
+        let store = SettingsStore.shared
+        self.cursorBlinkEnabled = store.get(Settings.Cursor.blinkEnabled)
+        self.cursorBlinkMode = store.get(Settings.Cursor.blinkMode)
+        self.cursorStyle = store.get(Settings.Cursor.style)
+
+        // Legacy ShaderManager migration only runs when the effect key was never written
+        if UserDefaults.standard.object(forKey: Settings.Cursor.effect.name) != nil {
+            self.cursorEffect = store.get(Settings.Cursor.effect)
         } else {
-            self.cursorBlinkEnabled = Self.defaultCursorBlinkEnabled
+            self.cursorEffect = Self.migrateFromShaderManager() ?? Settings.Cursor.effect.defaultValue
         }
 
-        // Load cursor blink mode
-        if let modeRaw = UserDefaults.standard.string(forKey: Self.cursorBlinkModeKey),
-           let mode = CursorBlinkMode(rawValue: modeRaw) {
-            self.cursorBlinkMode = mode
-        } else {
-            self.cursorBlinkMode = Self.defaultCursorBlinkMode
+        self.cursorColor = store.get(Settings.Cursor.color)
+        self.cursorTextColor = store.get(Settings.Cursor.textColor)
+        self.cursorOpacity = store.get(Settings.Cursor.opacity)
+        self.cursorThickness = store.get(Settings.Cursor.thickness)
+        self.cursorHeight = store.get(Settings.Cursor.height)
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
         }
+    }
 
-        // Load cursor style
-        if let styleRaw = UserDefaults.standard.string(forKey: Self.cursorStyleKey),
-           let style = CursorStyle(rawValue: styleRaw) {
-            self.cursorStyle = style
-        } else {
-            self.cursorStyle = Self.defaultCursorStyle
-        }
+    // MARK: - External refresh
 
-        // Load cursor effect (with migration from ShaderManager)
-        if let effectRaw = UserDefaults.standard.string(forKey: Self.cursorEffectKey),
-           let effect = CursorEffect(rawValue: effectRaw) {
-            self.cursorEffect = effect
-        } else {
-            // Migrate from ShaderManager's enabledBuiltInShaders if present
-            self.cursorEffect = Self.migrateFromShaderManager() ?? Self.defaultCursorEffect
-        }
-
-        // Load cursor color (nil = default)
-        self.cursorColor = UserDefaults.standard.string(forKey: Self.cursorColorKey)
-
-        // Load cursor text color (nil = default)
-        self.cursorTextColor = UserDefaults.standard.string(forKey: Self.cursorTextColorKey)
-
-        // Load cursor opacity
-        if UserDefaults.standard.object(forKey: Self.cursorOpacityKey) != nil {
-            self.cursorOpacity = UserDefaults.standard.double(forKey: Self.cursorOpacityKey)
-        } else {
-            self.cursorOpacity = Self.defaultCursorOpacity
-        }
-
-        // Load cursor thickness
-        self.cursorThickness = UserDefaults.standard.integer(forKey: Self.cursorThicknessKey)
-
-        // Load cursor height
-        self.cursorHeight = UserDefaults.standard.integer(forKey: Self.cursorHeightKey)
-
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Cursor.blinkEnabled.name) { cursorBlinkEnabled = store.get(Settings.Cursor.blinkEnabled) }
+        if keys.contains(Settings.Cursor.blinkMode.name) { cursorBlinkMode = store.get(Settings.Cursor.blinkMode) }
+        if keys.contains(Settings.Cursor.style.name) { cursorStyle = store.get(Settings.Cursor.style) }
+        if keys.contains(Settings.Cursor.effect.name) { cursorEffect = store.get(Settings.Cursor.effect) }
+        if keys.contains(Settings.Cursor.color.name) { cursorColor = store.get(Settings.Cursor.color) }
+        if keys.contains(Settings.Cursor.textColor.name) { cursorTextColor = store.get(Settings.Cursor.textColor) }
+        if keys.contains(Settings.Cursor.opacity.name) { cursorOpacity = store.get(Settings.Cursor.opacity) }
+        if keys.contains(Settings.Cursor.thickness.name) { cursorThickness = store.get(Settings.Cursor.thickness) }
+        if keys.contains(Settings.Cursor.height.name) { cursorHeight = store.get(Settings.Cursor.height) }
     }
 
     // MARK: - Migration

@@ -18,15 +18,15 @@ struct ClipboardManagerSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: Binding(
-                    get: { manager.isEnabled },
-                    set: { manager.isEnabled = $0 }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "list.clipboard")
-                        Text("Clipboard Manager")
-                    }
-                }
+                SettingToggle(
+                    Settings.Clipboard.managerEnabled,
+                    isOn: Binding(
+                        get: { manager.isEnabled },
+                        set: { manager.isEnabled = $0 }
+                    ),
+                    title: "Clipboard Manager",
+                    icon: "list.clipboard"
+                )
                 .themedRow()
             } footer: {
                 Text("Keeps an encrypted history of copies, pastes, and remote clipboard writes made inside the app. Turning this off deletes all history.")
@@ -36,15 +36,15 @@ struct ClipboardManagerSettingsView: View {
             if manager.isEnabled {
                 Section {
                     if SSHKeyAuthManager.shared.isBiometricAvailable {
-                        Toggle(isOn: Binding(
-                            get: { manager.requireBiometric },
-                            set: { manager.requireBiometric = $0 }
-                        )) {
-                            HStack(spacing: 12) {
-                                SettingsIcon(systemName: SSHKeyAuthManager.shared.biometricIconName)
-                                Text("Require \(biometricTypeName) to Open")
-                            }
-                        }
+                        SettingToggle(
+                            Settings.Clipboard.requireBiometric,
+                            isOn: Binding(
+                                get: { manager.requireBiometric },
+                                set: { manager.requireBiometric = $0 }
+                            ),
+                            title: "Require \(biometricTypeName) to Open",
+                            icon: SSHKeyAuthManager.shared.biometricIconName
+                        )
                         .themedRow()
                     }
 
@@ -60,6 +60,7 @@ struct ClipboardManagerSettingsView: View {
                             SettingsIcon(systemName: "clock.arrow.circlepath")
                             Text("Keep History")
                         }
+                        .settingRow(Settings.Clipboard.retention)
                     }
                     .themedRow()
                 } footer: {

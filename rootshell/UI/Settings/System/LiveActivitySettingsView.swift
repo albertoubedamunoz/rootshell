@@ -28,12 +28,12 @@ struct LiveActivitySettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: Bindable(liveActivityManager).isEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "record.circle")
-                        Text("Live Activity")
-                    }
-                }
+                SettingToggle(
+                    Settings.LiveActivity.enabled,
+                    isOn: Bindable(liveActivityManager).isEnabled,
+                    title: "Live Activity",
+                    icon: "record.circle"
+                )
                 .themedRow()
             }
 
@@ -48,6 +48,7 @@ struct LiveActivitySettingsView: View {
                             SettingsIcon(systemName: "line.3.horizontal.decrease.circle")
                             Text("Session Filter")
                         }
+                        .settingRow(Settings.LiveActivity.sessionFilter)
                     }
                     .themedRow()
                 } footer: {
@@ -59,7 +60,10 @@ struct LiveActivitySettingsView: View {
                         HStack(spacing: 12) {
                             SettingsIcon(systemName: "wifi")
                             VStack(alignment: .leading) {
-                                Text("WiFi Info")
+                                HStack(spacing: 6) {
+                                    Text("WiFi Info")
+                                    SettingPinTag(Settings.LiveActivity.wifiInfo.erased)
+                                }
                                 Text("Show SSID and access point on Lock Screen")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -67,6 +71,7 @@ struct LiveActivitySettingsView: View {
                         }
                     }
                     .themedRow()
+                    .settingContextMenu(Settings.LiveActivity.wifiInfo)
                     .onChange(of: liveActivityManager.isWiFiInfoEnabled) { _, enabled in
                         if enabled {
                             if !wifiInfoService.shouldShowWiFiInfo && wifiInfoService.canRequestPermission {
@@ -87,7 +92,10 @@ struct LiveActivitySettingsView: View {
                         HStack(spacing: 12) {
                             SettingsIcon(systemName: "network")
                             VStack(alignment: .leading) {
-                                Text("Network Info")
+                                HStack(spacing: 6) {
+                                    Text("Network Info")
+                                    SettingPinTag(Settings.LiveActivity.networkInfo.erased)
+                                }
                                 Text("Show public IP and ISP on Lock Screen")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -95,6 +103,7 @@ struct LiveActivitySettingsView: View {
                         }
                     }
                     .themedRow()
+                    .settingContextMenu(Settings.LiveActivity.networkInfo)
                 } footer: {
                     if liveActivityManager.sessionFilter == .infoOnly
                         && !liveActivityManager.isWiFiInfoEnabled

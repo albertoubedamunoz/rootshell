@@ -140,8 +140,6 @@ final class ClipboardHistoryManager {
     // MARK: Settings keys
 
     static let enabledKey = "clipboardManagerEnabled"
-    private static let biometricKey = "clipboardManagerRequireBiometric"
-    private static let retentionKey = "clipboardManagerRetention"
 
     enum Retention: String, CaseIterable, Identifiable {
         case forever
@@ -184,7 +182,7 @@ final class ClipboardHistoryManager {
     var isEnabled: Bool = false {
         didSet {
             guard settingsLoaded, ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Clipboard.managerEnabled, isEnabled) }
             if !isEnabled { wipe() }
         }
     }
@@ -192,7 +190,7 @@ final class ClipboardHistoryManager {
     var requireBiometric: Bool = false {
         didSet {
             guard settingsLoaded, ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(requireBiometric, forKey: Self.biometricKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Clipboard.requireBiometric, requireBiometric) }
             if requireBiometric { isUnlocked = false }
         }
     }
@@ -200,9 +198,28 @@ final class ClipboardHistoryManager {
     var retention: Retention = .week {
         didSet {
             guard settingsLoaded, ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(retention.rawValue, forKey: Self.retentionKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Clipboard.retention, retention) }
             if sweepRetention() { scheduleSave() }
         }
+    }
+
+    private static let ownedKeys: Set<String> = [
+        Settings.Clipboard.managerEnabled.name, Settings.Clipboard.requireBiometric.name, Settings.Clipboard.retention.name,
+    ]
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    @ObservationIgnored private var isReloading = false
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Clipboard.managerEnabled.name) { isEnabled = store.get(Settings.Clipboard.managerEnabled) }
+        if keys.contains(Settings.Clipboard.requireBiometric.name) {
+            requireBiometric = store.get(Settings.Clipboard.requireBiometric)
+        }
+        if keys.contains(Settings.Clipboard.retention.name) { retention = store.get(Settings.Clipboard.retention) }
     }
 
     // MARK: State
@@ -240,6 +257,10 @@ final class ClipboardHistoryManager {
             self?.loadSettingsAndStore()
         }
 
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+
         lifecycleObservers.append(
             NotificationCenter.default.addObserver(
                 forName: UIApplication.didEnterBackgroundNotification,
@@ -256,12 +277,10 @@ final class ClipboardHistoryManager {
     }
 
     private func loadSettingsAndStore() {
-        let defaults = UserDefaults.standard
-        isEnabled = defaults.bool(forKey: Self.enabledKey)
-        requireBiometric = defaults.bool(forKey: Self.biometricKey)
-        if let raw = defaults.string(forKey: Self.retentionKey), let stored = Retention(rawValue: raw) {
-            retention = stored
-        }
+        let store = SettingsStore.shared
+        isEnabled = store.get(Settings.Clipboard.managerEnabled)
+        requireBiometric = store.get(Settings.Clipboard.requireBiometric)
+        retention = store.get(Settings.Clipboard.retention)
         settingsLoaded = true
 
         guard isEnabled else {

@@ -164,7 +164,8 @@ final class ThemeManager {
         }
     }
 
-    private static let themeKey = "selectedTheme"
+    /// True while `reload(keys:)` re-assigns `currentTheme` from the store.
+    @ObservationIgnored private var isReloading = false
 
     /// All available themes. Empty until the background load lands; no launch
     /// path reads it, and the views that do read it observe this manager.
@@ -217,12 +218,7 @@ final class ThemeManager {
     @ObservationIgnored let themeDidChange = PassthroughSubject<String, Never>()
 
     private init() {
-        // Load saved theme or default to Catppuccin Mocha
-        if let savedTheme = UserDefaults.standard.string(forKey: Self.themeKey) {
-            self.currentTheme = savedTheme
-        } else {
-            self.currentTheme = "Catppuccin Mocha"
-        }
+        self.currentTheme = SettingsStore.shared.get(Settings.Theme.selected)
 
         self.themesDirectory = Self.locateThemesDirectory()
 
@@ -231,11 +227,25 @@ final class ThemeManager {
         // full catalog (450+ files) is built off the main thread instead.
         self.currentThemeInfo = themeInfo(for: currentTheme)
         startBackgroundLoad()
+
+        SettingsRefreshHub.shared.register(keys: [Settings.Theme.selected.name]) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
     }
 
-    /// Save current theme to UserDefaults
+    /// Save current theme through the settings store
     private func saveTheme() {
-        UserDefaults.standard.set(currentTheme, forKey: Self.themeKey)
+        guard !isReloading else { return }
+        SettingsStore.shared.set(Settings.Theme.selected, currentTheme)
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Theme.selected.name) {
+            currentTheme = SettingsStore.shared.get(Settings.Theme.selected)
+        }
     }
 
     /// Get ThemeInfo for a specific theme name, parsing the single backing file

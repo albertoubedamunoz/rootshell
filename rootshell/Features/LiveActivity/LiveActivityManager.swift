@@ -56,7 +56,9 @@ class LiveActivityManager {
     var isEnabled: Bool {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            if !isReloading {
+                SettingsStore.shared.set(Settings.LiveActivity.enabled, isEnabled)
+            }
             if !isEnabled {
                 endActivity()
             } else {
@@ -69,7 +71,9 @@ class LiveActivityManager {
     var sessionFilter: LiveActivitySessionFilter {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(sessionFilter.rawValue, forKey: Self.filterKey)
+            if !isReloading {
+                SettingsStore.shared.set(Settings.LiveActivity.sessionFilter, sessionFilter)
+            }
             handleFilterChanged()
         }
     }
@@ -78,7 +82,9 @@ class LiveActivityManager {
     var isWiFiInfoEnabled: Bool {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(isWiFiInfoEnabled, forKey: Self.wifiInfoKey)
+            if !isReloading {
+                SettingsStore.shared.set(Settings.LiveActivity.wifiInfo, isWiFiInfoEnabled)
+            }
             handleWiFiToggleChanged()
         }
     }
@@ -87,10 +93,15 @@ class LiveActivityManager {
     var isNetworkInfoEnabled: Bool {
         didSet {
             guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(isNetworkInfoEnabled, forKey: Self.networkInfoKey)
+            if !isReloading {
+                SettingsStore.shared.set(Settings.LiveActivity.networkInfo, isNetworkInfoEnabled)
+            }
             handleNetworkToggleChanged()
         }
     }
+
+    @ObservationIgnored
+    private var isReloading = false
 
     /// Whether a Live Activity is currently running
     private(set) var isActivityActive: Bool = false
@@ -222,15 +233,15 @@ class LiveActivityManager {
     }
 
     private init() {
-        self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
-        if let rawFilter = UserDefaults.standard.string(forKey: Self.filterKey),
-           let filter = LiveActivitySessionFilter(rawValue: rawFilter) {
-            self.sessionFilter = filter
-        } else {
-            self.sessionFilter = .diary
-        }
-        self.isWiFiInfoEnabled = UserDefaults.standard.bool(forKey: Self.wifiInfoKey)
-        self.isNetworkInfoEnabled = UserDefaults.standard.bool(forKey: Self.networkInfoKey)
+        let store = SettingsStore.shared
+        self.isEnabled = store.get(Settings.LiveActivity.enabled)
+        self.sessionFilter = store.get(Settings.LiveActivity.sessionFilter)
+        self.isWiFiInfoEnabled = store.get(Settings.LiveActivity.wifiInfo)
+        self.isNetworkInfoEnabled = store.get(Settings.LiveActivity.networkInfo)
+        SettingsRefreshHub.shared.register(keys: [
+            Settings.LiveActivity.enabled.name, Settings.LiveActivity.sessionFilter.name,
+            Settings.LiveActivity.wifiInfo.name, Settings.LiveActivity.networkInfo.name,
+        ]) { [weak self] keys in self?.reload(keys: keys) }
 
         // Reclaim any orphaned Live Activity from a previous app launch.
         //
@@ -279,6 +290,24 @@ class LiveActivityManager {
                     await orphan.end(nil, dismissalPolicy: .immediate)
                 }
             }
+        }
+    }
+
+    private func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.LiveActivity.enabled.name) {
+            isEnabled = store.get(Settings.LiveActivity.enabled)
+        }
+        if keys.contains(Settings.LiveActivity.sessionFilter.name) {
+            sessionFilter = store.get(Settings.LiveActivity.sessionFilter)
+        }
+        if keys.contains(Settings.LiveActivity.wifiInfo.name) {
+            isWiFiInfoEnabled = store.get(Settings.LiveActivity.wifiInfo)
+        }
+        if keys.contains(Settings.LiveActivity.networkInfo.name) {
+            isNetworkInfoEnabled = store.get(Settings.LiveActivity.networkInfo)
         }
     }
 

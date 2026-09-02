@@ -291,6 +291,24 @@ struct DebugSettingsView: View {
                 Text("Export copies the log to Documents/.ghostty/ for local shell access.")
             }
             #endif
+
+            // MARK: - Settings Registry
+
+            Section {
+                NavigationLink {
+                    SettingsRegistryDebugView()
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "list.bullet.rectangle")
+                        Text("Settings Registry")
+                    }
+                }
+                .themedRow()
+            } header: {
+                Text("Settings Sync")
+            } footer: {
+                Text("Every UserDefaults key must be registered with a type, default, and sync policy before it can sync. Lists keys that are still unregistered or stored with an unexpected type.")
+            }
         }
         .themedList()
         .navigationTitle("Debug")

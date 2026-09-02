@@ -29,6 +29,9 @@ final class ThemeUIOverridesManager {
 
     private init() {
         self.overrides = Self.load()
+        SettingsRefreshHub.shared.register(keys: [Settings.Theme.uiOverrides.name]) { [weak self] _ in
+            self?.reloadFromDefaults()
+        }
     }
 
     // MARK: - Read
@@ -101,7 +104,7 @@ final class ThemeUIOverridesManager {
     private func persist() {
         do {
             let data = try JSONEncoder().encode(overrides)
-            UserDefaults.standard.set(data, forKey: Self.userDefaultsKey)
+            SettingsStore.shared.set(Settings.Theme.uiOverrides, data)
         } catch {
             let message = error.localizedDescription
             Self.logger.error("Failed to encode theme UI overrides: \(message)")
@@ -109,7 +112,7 @@ final class ThemeUIOverridesManager {
     }
 
     private static func load() -> [String: ThemeUIOverrides] {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else { return [:] }
+        guard let data = SettingsStore.shared.get(Settings.Theme.uiOverrides) else { return [:] }
         do {
             return try JSONDecoder().decode([String: ThemeUIOverrides].self, from: data)
         } catch {

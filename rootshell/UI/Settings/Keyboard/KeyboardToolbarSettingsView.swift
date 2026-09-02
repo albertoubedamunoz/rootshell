@@ -175,12 +175,17 @@ struct KeyboardToolbarSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .themedRow()
+                .settingContextMenu(Settings.KeyboardToolbar.drawerToggleMode)
             }
 
-            Toggle("Open Drawer by Default", isOn: Binding(
-                get: { manager.drawerOpenByDefault },
-                set: { manager.drawerOpenByDefault = $0 }
-            ))
+            SettingToggle(
+                Settings.KeyboardToolbar.drawerOpenByDefault,
+                isOn: Binding(
+                    get: { manager.drawerOpenByDefault },
+                    set: { manager.drawerOpenByDefault = $0 }
+                ),
+                title: "Open Drawer by Default"
+            )
             .themedRow()
         } footer: {
             Text(drawerBehaviorFooter)
@@ -278,6 +283,7 @@ struct KeyboardToolbarSettingsView: View {
                         .foregroundStyle(.tint)
                         .frame(width: 24)
                     Text("Swipe Gestures")
+                    SettingPinTag(Settings.Gestures.swipeBindings.erased)
                     Spacer()
                     if SwipeGestureManager.shared.isCustomized {
                         Text("Customized")
@@ -287,6 +293,7 @@ struct KeyboardToolbarSettingsView: View {
                 }
             }
             .themedRow()
+            .settingContextMenu(Settings.Gestures.swipeBindings)
         } header: {
             Text("Related")
         } footer: {

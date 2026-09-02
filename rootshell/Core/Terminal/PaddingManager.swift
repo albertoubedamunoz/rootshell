@@ -21,25 +21,30 @@ final class PaddingManager {
     @ObservationIgnored
     private let logger = Logger(subsystem: "com.rootshell", category: "PaddingManager")
 
-    private static let paddingXKey = "windowPaddingXOverride"
-    private static let paddingYKey = "windowPaddingYOverride"
-    private static let extendUnderHomeIndicatorKey = "extendUnderHomeIndicator"
+    private static let ownedKeys: Set<String> = [
+        Settings.Terminal.paddingXOverride.name,
+        Settings.Terminal.paddingYOverride.name,
+        Settings.Window.extendUnderHomeIndicator.name,
+    ]
 
     private static let allowedRange: ClosedRange<Int> = 0...32
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    @ObservationIgnored private var isReloading = false
 
     /// User override for horizontal window padding. nil means use the platform default.
     var paddingXOverride: Int? {
         didSet {
-            guard paddingXOverride != oldValue else { return }
-            persist(paddingXOverride, forKey: Self.paddingXKey)
+            guard paddingXOverride != oldValue, !isReloading else { return }
+            persist(paddingXOverride, for: Settings.Terminal.paddingXOverride)
         }
     }
 
     /// User override for vertical window padding. nil means use the platform default.
     var paddingYOverride: Int? {
         didSet {
-            guard paddingYOverride != oldValue else { return }
-            persist(paddingYOverride, forKey: Self.paddingYKey)
+            guard paddingYOverride != oldValue, !isReloading else { return }
+            persist(paddingYOverride, for: Settings.Terminal.paddingYOverride)
         }
     }
 
@@ -53,22 +58,39 @@ final class PaddingManager {
     var extendUnderHomeIndicator: Bool {
         didSet {
             guard extendUnderHomeIndicator != oldValue else { return }
-            UserDefaults.standard.set(extendUnderHomeIndicator, forKey: Self.extendUnderHomeIndicatorKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Window.extendUnderHomeIndicator, extendUnderHomeIndicator) }
             NotificationCenter.default.post(name: .terminalBottomInsetInvalidated, object: nil)
         }
     }
 
     private init() {
-        self.paddingXOverride = UserDefaults.standard.object(forKey: Self.paddingXKey) as? Int
-        self.paddingYOverride = UserDefaults.standard.object(forKey: Self.paddingYKey) as? Int
-        self.extendUnderHomeIndicator = UserDefaults.standard.bool(forKey: Self.extendUnderHomeIndicatorKey)
+        let store = SettingsStore.shared
+        self.paddingXOverride = store.get(Settings.Terminal.paddingXOverride)
+        self.paddingYOverride = store.get(Settings.Terminal.paddingYOverride)
+        self.extendUnderHomeIndicator = store.get(Settings.Window.extendUnderHomeIndicator)
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
     }
 
-    private func persist(_ value: Int?, forKey key: String) {
+    private func persist(_ value: Int?, for key: SettingKey<Int?>) {
         if let value {
-            UserDefaults.standard.set(value, forKey: key)
+            SettingsStore.shared.set(key, value)
         } else {
-            UserDefaults.standard.removeObject(forKey: key)
+            SettingsStore.shared.reset(key)
+        }
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        let store = SettingsStore.shared
+        if keys.contains(Settings.Terminal.paddingXOverride.name) { paddingXOverride = store.get(Settings.Terminal.paddingXOverride) }
+        if keys.contains(Settings.Terminal.paddingYOverride.name) { paddingYOverride = store.get(Settings.Terminal.paddingYOverride) }
+        if keys.contains(Settings.Window.extendUnderHomeIndicator.name) {
+            extendUnderHomeIndicator = store.get(Settings.Window.extendUnderHomeIndicator)
         }
     }
 

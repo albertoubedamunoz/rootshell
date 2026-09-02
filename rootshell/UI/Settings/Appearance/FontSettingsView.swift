@@ -195,6 +195,7 @@ struct FontSettingsView: View {
                     Text("\(Int(fontManager.currentFontSize))")
                         .frame(width: 40)
                         .monospacedDigit()
+                        .settingRow(Settings.Font.size)
                     Slider(value: $fontManager.currentFontSize, in: 4...24, step: 1)
                 }
                 .themedRow()
@@ -203,7 +204,7 @@ struct FontSettingsView: View {
             cellSpacingSection
 
             Section {
-                Toggle("Enable Ligatures", isOn: $fontManager.ligaturesEnabled)
+                SettingToggle(Settings.Font.ligatures, isOn: $fontManager.ligaturesEnabled, title: "Enable Ligatures")
                     .padding(.vertical, 4)
                     .themedRow()
 
@@ -212,6 +213,7 @@ struct FontSettingsView: View {
                 } label: {
                     HStack {
                         Text("Stylistic Sets")
+                        SettingPinTag(Settings.Font.featurePrefs.erased)
                         Spacer()
                         let count = fontManager.enabledFeatureTags(for: fontManager.currentFontFamily).count
                         if count > 0 {
@@ -221,6 +223,7 @@ struct FontSettingsView: View {
                     }
                 }
                 .themedRow()
+                .settingContextMenu(Settings.Font.featurePrefs)
             } header: {
                 Text("Font Features")
             } footer: {
@@ -248,6 +251,7 @@ struct FontSettingsView: View {
         .themedList()
         .navigationTitle("Font")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.font]) }
         .fileImporter(
             isPresented: $showingFileImporter,
             allowedContentTypes: [.font, UTType(filenameExtension: "ttf")!, UTType(filenameExtension: "otf")!],
@@ -298,6 +302,7 @@ struct FontSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text("Width")
+                        .settingRow(Settings.Font.cellAdjustmentPrefs)
                     Spacer()
                     Text(current.widthPercent, format: .percent)
                         .monospacedDigit()
@@ -311,6 +316,7 @@ struct FontSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text("Height")
+                        .settingRow(Settings.Font.cellAdjustmentPrefs)
                     Spacer()
                     Text(current.heightPercent, format: .percent)
                         .monospacedDigit()

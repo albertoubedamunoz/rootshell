@@ -71,10 +71,7 @@ struct MoshCommandParser {
 
         // Extract Mosh-specific flags before delegating to SSH parser
         // Read default prediction mode from UserDefaults, falling back to .adaptive
-        var predictionMode: MoshConfig.PredictionMode = {
-            let rawValue = UserDefaults.standard.string(forKey: MoshConfig.defaultPredictionModeKey) ?? ""
-            return MoshConfig.PredictionMode(rawValue: rawValue) ?? .adaptive
-        }()
+        var predictionMode = SettingsStore.shared.value(Settings.Roam.predictionMode)
         var predictOverwrite = MoshConfig.defaultPredictOverwrite
         var serverPath: String?
         var filteredParts: [String] = ["ssh"]

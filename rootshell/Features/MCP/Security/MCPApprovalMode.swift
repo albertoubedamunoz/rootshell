@@ -124,19 +124,18 @@ struct MCPServerConfig: Codable, Sendable {
 
     // MARK: - Persistence
 
-    private static let key = "mcp_server_config"
-
     static func load() -> MCPServerConfig {
-        guard let data = UserDefaults.standard.data(forKey: key),
+        guard let data = SettingsStore.shared.value(Settings.AI.mcpServerConfig),
               let config = try? JSONDecoder().decode(MCPServerConfig.self, from: data) else {
             return .default
         }
         return config
     }
 
+    @MainActor
     func save() {
         if let data = try? JSONEncoder().encode(self) {
-            UserDefaults.standard.set(data, forKey: Self.key)
+            SettingsStore.shared.set(Settings.AI.mcpServerConfig, data)
         }
     }
 }

@@ -143,25 +143,32 @@ struct AIAgentSettingsView: View {
 
     private var webSearchSection: some View {
         Section {
-            Toggle("Enable Web Search", isOn: Binding(
-                get: { credentialsManager.webSearchEnabled },
-                set: { credentialsManager.webSearchEnabled = $0 }
-            ))
+            SettingToggle(
+                Settings.AI.webSearchEnabled,
+                isOn: Binding(
+                    get: { credentialsManager.webSearchEnabled },
+                    set: { credentialsManager.webSearchEnabled = $0 }
+                ),
+                title: "Enable Web Search"
+            )
             .themedRow()
 
             if credentialsManager.webSearchEnabled {
-                Picker("Default Engine", selection: Binding(
+                Picker(selection: Binding(
                     get: { credentialsManager.defaultSearchEngine },
                     set: { credentialsManager.defaultSearchEngine = $0 }
                 )) {
                     ForEach(SearchEngine.allCases, id: \.self) { engine in
                         Text(engine.displayName).tag(engine)
                     }
+                } label: {
+                    Text("Default Engine")
+                        .settingRow(Settings.AI.webSearchEngine)
                 }
                 .themedRow()
             }
         } header: {
-            Text("Web Search")
+            SettingGroupHeader("Web Search", group: .ai)
         } footer: {
             Text("Allow AI agent to search the web for documentation and solutions")
         }
@@ -169,10 +176,14 @@ struct AIAgentSettingsView: View {
 
     private var gitCommitSection: some View {
         Section {
-            Toggle("AI Commit Messages", isOn: Binding(
-                get: { credentialsManager.aiCommitMessageEnabled },
-                set: { credentialsManager.aiCommitMessageEnabled = $0 }
-            ))
+            SettingToggle(
+                Settings.AI.commitMessageEnabled,
+                isOn: Binding(
+                    get: { credentialsManager.aiCommitMessageEnabled },
+                    set: { credentialsManager.aiCommitMessageEnabled = $0 }
+                ),
+                title: "AI Commit Messages"
+            )
             .themedRow()
 
             if credentialsManager.aiCommitMessageEnabled {
@@ -182,7 +193,7 @@ struct AIAgentSettingsView: View {
                         .foregroundStyle(.secondary)
                         .themedRow()
                 } else {
-                    Picker("Model", selection: Binding(
+                    Picker(selection: Binding(
                         get: { credentialsManager.aiCommitMessageModelID },
                         set: { credentialsManager.aiCommitMessageModelID = $0 }
                     )) {
@@ -190,12 +201,15 @@ struct AIAgentSettingsView: View {
                         ForEach(available, id: \.id) { model in
                             Text(model.displayName).tag(model.id)
                         }
+                    } label: {
+                        Text("Model")
+                            .settingRow(Settings.AI.commitMessageModel)
                     }
                     .themedRow()
                 }
             }
         } header: {
-            Text("Git Integration")
+            SettingGroupHeader("Git Integration", group: .ai)
         } footer: {
             Text("When running git commit, generate a message from staged changes using the selected AI model")
         }
@@ -217,9 +231,10 @@ struct AIAgentSettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                .settingRow(Settings.AI.presentationMode)
                 .themedRow()
             } header: {
-                Text("Display Mode")
+                SettingGroupHeader("Display Mode", group: .ai)
             } footer: {
                 Text(credentialsManager.aiAgentPresentationMode.description)
             }

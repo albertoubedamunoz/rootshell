@@ -698,6 +698,7 @@ extension Ghostty {
         /// Apply the current theme from ThemeManager
         /// Respects per-surface overrides - surfaces with tab/window overrides are skipped
         func applyCurrentTheme() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             #if !targetEnvironment(macCatalyst)
             // Update bat's terminal palette so next bat invocation uses new colors
             LocalShellSession.updateBatTerminalPalette()
@@ -777,6 +778,7 @@ extension Ghostty {
 
         /// Apply the current font size from FontManager
         func applyCurrentFontSize() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply font size: app is nil")
                 return
@@ -810,6 +812,7 @@ extension Ghostty {
 
         /// Apply the current font family from FontManager
         func applyCurrentFontFamily() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply font family: app is nil")
                 return
@@ -860,6 +863,7 @@ extension Ghostty {
 
         /// Apply the current ligatures setting from FontManager
         func applyCurrentLigatures() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply ligatures: app is nil")
                 return
@@ -897,6 +901,7 @@ extension Ghostty {
 
         /// Apply the current font feature settings from FontManager
         func applyCurrentFontFeatures() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply font features: app is nil")
                 return
@@ -931,6 +936,7 @@ extension Ghostty {
         /// (which embeds `adjust-cell-width` / `adjust-cell-height` lines)
         /// and notifying the app + active surfaces.
         func applyCellAdjustments() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply cell adjustments: app is nil")
                 return
@@ -979,6 +985,7 @@ extension Ghostty {
 
         /// Apply shader config changes by updating app and all surfaces
         func applyShaderConfig() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply shader config: app is nil")
                 return
@@ -1154,21 +1161,26 @@ extension Ghostty {
 
         /// Apply cursor config changes by reloading config
         func applyCursorConfig() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
+            logger.info("Cursor config changed, reloading config...")
+            reloadGlobalConfig()
+        }
+
+        /// Rewrite the generated config from every manager and push it once.
+        /// Used after a batched settings change instead of one rewrite per key.
+        func reloadGlobalConfig() {
             guard let app = self.app else {
-                logger.warning("Cannot apply cursor config: app is nil")
+                logger.warning("Cannot reload config: app is nil")
                 return
             }
-
-            logger.info("Cursor config changed, reloading config...")
-
-            // Rewrite the config file with current theme (includes cursor settings)
-            // setTheme replaces config.config with new pointer
+            #if !targetEnvironment(macCatalyst)
+            LocalShellSession.updateBatTerminalPalette()
+            #endif
             let currentTheme = ThemeManager.shared.currentTheme
             guard config.setTheme(currentTheme), let newCfg = config.config else {
-                logger.warning("Failed to set theme for cursor config")
+                logger.warning("Failed to rewrite config for reload")
                 return
             }
-
             pushConfig(app: app, globalConfig: newCfg)
         }
 
@@ -1188,6 +1200,7 @@ extension Ghostty {
 
         /// Apply selection config changes by reloading config
         func applySelectionConfig() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply selection config: app is nil")
                 return
@@ -1220,6 +1233,7 @@ extension Ghostty {
 
         /// Apply palette config changes by reloading config
         func applyPaletteConfig() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply palette config: app is nil")
                 return
@@ -1238,6 +1252,7 @@ extension Ghostty {
 
         /// Apply imported Ghostty keybind config changes by reloading the app config.
         func applyKeybindConfig() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             guard let app = self.app else {
                 logger.warning("Cannot apply keybind config: app is nil")
                 return
@@ -1256,6 +1271,7 @@ extension Ghostty {
 
         /// Apply the current transparency settings from TransparencyManager
         func applyCurrentTransparency() {
+            guard !SettingsStore.shared.isApplyingBatch else { return }
             #if targetEnvironment(macCatalyst)
             guard let app = self.app else {
                 logger.warning("Cannot apply transparency: app is nil")

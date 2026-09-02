@@ -34,7 +34,7 @@ enum SSHConnectionHelper {
     private static let closeTimeoutSeconds: TimeInterval = 2.0
 
     private static var publicKeyAuthMode: NIOSSHUserAuthenticationOffer.Offer.PrivateKey.AuthenticationMode {
-        UserDefaults.standard.bool(forKey: "sshPublicKeyAuthProbeEnabled") ? .probeThenSign : .signedRequest
+        SettingsStore.shared.value(Settings.Connections.publicKeyAuthProbe) ? .probeThenSign : .signedRequest
     }
 
     // MARK: - PTY Defaults

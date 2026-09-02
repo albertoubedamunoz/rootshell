@@ -1649,8 +1649,8 @@ final class TmuxController {
 
     /// UserDefaults key for the opt-in "auto-hide the gateway tab on attach"
     /// preference (Settings → Connections → Multiplexers). Shared with
-    /// `MultiplexerSettingsView` so the @AppStorage binding and the read below
-    /// can't drift. Default off (unset → `bool(forKey:)` is `false`).
+    /// `MultiplexerSettingsView`; both now go through
+    /// `Settings.Multiplexer.tmuxAutoHideGatewayOnAttach`. Default off.
     static let autoHideGatewayOnAttachDefaultsKey = "tmuxAutoHideGatewayOnAttach"
 
     /// One-shot guard for auto-hide-on-attach: fires once per attachment (a
@@ -1702,7 +1702,7 @@ final class TmuxController {
             didAutoHideGatewayOnAttach = true
             hideGatewayTab()
         } else if !didAutoHideGatewayOnAttach,
-                  UserDefaults.standard.bool(forKey: Self.autoHideGatewayOnAttachDefaultsKey),
+                  SettingsStore.shared.get(Settings.Multiplexer.tmuxAutoHideGatewayOnAttach),
                   !windowTabs.isEmpty {
             // Opt-in (Settings → Multiplexers): hide the gateway once its
             // windows have arrived. One-shot so a later manual "Show Gateway

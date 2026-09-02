@@ -24,10 +24,7 @@ final class ScrollbackPersistenceManager {
     static let enabledKey = "scrollbackPersistenceEnabled"
 
     static var isEnabled: Bool {
-        if UserDefaults.standard.object(forKey: enabledKey) == nil {
-            return true
-        }
-        return UserDefaults.standard.bool(forKey: enabledKey)
+        SettingsStore.shared.value(Settings.SessionRestore.scrollbackPersistence)
     }
 
     // MARK: - Configuration

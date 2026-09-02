@@ -107,29 +107,11 @@ final class AICredentialsManager {
     @ObservationIgnored
     private let selectedModelKey = "ai.selectedModel"
     @ObservationIgnored
-    private let globalSelectedModelKey = "ai.globalSelectedModel"
-    @ObservationIgnored
-    private let customProvidersKey = "ai.customProviders"
-    @ObservationIgnored
-    private let approvalModeKey = "ai.approvalMode"
-    @ObservationIgnored
     private let legacyYoloModeKey = "ai.yoloMode.enabled"  // For migration only
-    @ObservationIgnored
-    private let webSearchEnabledKey = "ai.webSearch.enabled"
-    @ObservationIgnored
-    private let defaultSearchEngineKey = "ai.webSearch.defaultEngine"
     @ObservationIgnored
     private let aiAgentFullScreenKey = "ai.agent.fullscreen.mode"  // Legacy, for migration
     @ObservationIgnored
-    private let aiAgentPresentationModeKey = "ai.agent.presentation.mode"
-    @ObservationIgnored
-    private let aiAgentSidebarWidthKey = "ai.agent.sidebar.width"
-    @ObservationIgnored
     private let temperatureKeyPrefix = "ai.temperature"
-    @ObservationIgnored
-    private let aiCommitMessageEnabledKey = "ai.commitMessage.enabled"
-    @ObservationIgnored
-    private let aiCommitMessageModelKey = "ai.commitMessage.model"
     @ObservationIgnored
     private let openAIAuthModeKey = "ai.openai.authMode"
 
@@ -155,14 +137,19 @@ final class AICredentialsManager {
     // linked CloudAccount's existing Keychain record).
     @ObservationIgnored
     private let bedrockCloudAccountIDKey = "ai.bedrock.cloudAccountID"
-    @ObservationIgnored
-    private let bedrockRegionKey = "ai.bedrock.region"
 
     // OpenRouter UserDefaults keys
     @ObservationIgnored
-    private let openRouterFavoritesKey = "ai.openrouter.favorites"
-    @ObservationIgnored
     private let openRouterModelsKey = "ai.openrouter.discoveredModels"
+
+    /// Registered scalar keys this manager mirrors into its backing storage.
+    @ObservationIgnored
+    private static let storeKeyNames: Set<String> = [
+        Settings.AI.globalSelectedModel.name, Settings.AI.approvalMode.name, Settings.AI.customProviders.name,
+        Settings.AI.openRouterFavorites.name, Settings.AI.webSearchEnabled.name, Settings.AI.webSearchEngine.name,
+        Settings.AI.commitMessageEnabled.name, Settings.AI.commitMessageModel.name,
+        Settings.AI.presentationMode.name, Settings.AI.sidebarWidth.name, Settings.AI.bedrockRegion.name,
+    ]
 
     /// In-flight model-list refreshes, keyed by provider, so a second request for the same
     /// provider replaces the first instead of racing it.
@@ -236,18 +223,17 @@ final class AICredentialsManager {
     // MARK: - Initialization
 
     private init() {
-        // Load initial values from UserDefaults
-        _globalSelectedModelID = UserDefaults.standard.string(forKey: globalSelectedModelKey) ?? AIProviderModel.defaultModelID
+        let store = SettingsStore.shared
+        _globalSelectedModelID = store.get(Settings.AI.globalSelectedModel)
 
         // Load approval mode (with migration from legacy YOLO toggle)
-        if let modeString = UserDefaults.standard.string(forKey: approvalModeKey),
-           let mode = CommandApprovalMode(rawValue: modeString) {
-            _approvalMode = mode
+        if UserDefaults.standard.object(forKey: Settings.AI.approvalMode.name) != nil {
+            _approvalMode = store.get(Settings.AI.approvalMode)
         } else if UserDefaults.standard.bool(forKey: legacyYoloModeKey) {
             // Migration from old YOLO toggle
             _approvalMode = .yolo
             // Save in new format and clear old key
-            UserDefaults.standard.set(CommandApprovalMode.yolo.rawValue, forKey: approvalModeKey)
+            store.set(Settings.AI.approvalMode, .yolo)
             UserDefaults.standard.removeObject(forKey: legacyYoloModeKey)
             Self.logger.info("Migrated YOLO mode setting to new approval mode format")
         } else {
@@ -255,15 +241,13 @@ final class AICredentialsManager {
         }
 
         // Load custom providers
-        if let data = UserDefaults.standard.data(forKey: customProvidersKey),
+        if let data = store.get(Settings.AI.customProviders),
            let providers = try? JSONDecoder().decode([CustomProviderConfig].self, from: data) {
             _customProviders = providers
         }
 
         // Load OpenRouter favorites
-        if let favoritesArray = UserDefaults.standard.array(forKey: openRouterFavoritesKey) as? [String] {
-            _openRouterFavoriteModelIDs = Set(favoritesArray)
-        }
+        _openRouterFavoriteModelIDs = Set(store.get(Settings.AI.openRouterFavorites))
 
         // Load OpenRouter discovered models
         if let data = UserDefaults.standard.data(forKey: openRouterModelsKey),
@@ -272,22 +256,21 @@ final class AICredentialsManager {
         }
 
         // Load web search settings
-        _webSearchEnabled = UserDefaults.standard.object(forKey: webSearchEnabledKey) as? Bool ?? true
-        _defaultSearchEngine = UserDefaults.standard.string(forKey: defaultSearchEngineKey) ?? "duckduckgo"
+        _webSearchEnabled = store.get(Settings.AI.webSearchEnabled)
+        _defaultSearchEngine = store.get(Settings.AI.webSearchEngine).rawValue
 
         // Load AI commit message settings
-        _aiCommitMessageEnabled = UserDefaults.standard.object(forKey: aiCommitMessageEnabledKey) as? Bool ?? false
-        _aiCommitMessageModelID = UserDefaults.standard.string(forKey: aiCommitMessageModelKey) ?? ""
+        _aiCommitMessageEnabled = store.get(Settings.AI.commitMessageEnabled)
+        _aiCommitMessageModelID = store.get(Settings.AI.commitMessageModel)
         migrateLegacyModelSelections()
 
         // Load AI Agent presentation mode (with migration from legacy fullscreen bool)
-        if let modeString = UserDefaults.standard.string(forKey: aiAgentPresentationModeKey),
-           let mode = AIAgentPresentationMode(rawValue: modeString) {
-            _aiAgentPresentationMode = mode
+        if UserDefaults.standard.object(forKey: Settings.AI.presentationMode.name) != nil {
+            _aiAgentPresentationMode = store.get(Settings.AI.presentationMode)
         } else if UserDefaults.standard.bool(forKey: aiAgentFullScreenKey) {
             // Migration from old fullscreen boolean
             _aiAgentPresentationMode = .window
-            UserDefaults.standard.set(AIAgentPresentationMode.window.rawValue, forKey: aiAgentPresentationModeKey)
+            store.set(Settings.AI.presentationMode, .window)
             UserDefaults.standard.removeObject(forKey: aiAgentFullScreenKey)
             Self.logger.info("Migrated AI Agent fullscreen mode to presentation mode: window")
         } else {
@@ -295,7 +278,7 @@ final class AICredentialsManager {
         }
 
         // Load sidebar width
-        let savedWidth = CGFloat(UserDefaults.standard.double(forKey: aiAgentSidebarWidthKey))
+        let savedWidth = CGFloat(store.get(Settings.AI.sidebarWidth))
         _aiAgentSidebarWidth = savedWidth >= 280 ? savedWidth : 400  // Default 400, minimum 280
 
         // Initialize API key state from Keychain
@@ -308,8 +291,8 @@ final class AICredentialsManager {
            let uuid = UUID(uuidString: stored) {
             _bedrockCloudAccountID = uuid
         }
-        if let storedRegion = UserDefaults.standard.string(forKey: bedrockRegionKey),
-           BedrockRegions.isSupported(storedRegion) {
+        let storedRegion = store.get(Settings.AI.bedrockRegion)
+        if BedrockRegions.isSupported(storedRegion) {
             _bedrockRegion = storedRegion
         }
 
@@ -321,44 +304,86 @@ final class AICredentialsManager {
             let signedIn = await ChatGPTCredentialStore.shared.refreshCachedState()
             self?._isChatGPTSignedIn = signedIn
         }
+
+        SettingsRefreshHub.shared.register(keys: Self.storeKeyNames) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Mirrors externally applied store values into the backing storage.
+    private func reload(keys: Set<String>) {
+        let store = SettingsStore.shared
+        if keys.contains(Settings.AI.globalSelectedModel.name) {
+            _globalSelectedModelID = store.get(Settings.AI.globalSelectedModel)
+        }
+        if keys.contains(Settings.AI.approvalMode.name) {
+            _approvalMode = store.get(Settings.AI.approvalMode)
+        }
+        if keys.contains(Settings.AI.customProviders.name) {
+            if let data = store.get(Settings.AI.customProviders),
+               let providers = try? JSONDecoder().decode([CustomProviderConfig].self, from: data) {
+                _customProviders = providers
+            } else {
+                _customProviders = []
+            }
+            NotificationCenter.default.post(name: .aiCredentialsChanged, object: self)
+        }
+        if keys.contains(Settings.AI.openRouterFavorites.name) {
+            _openRouterFavoriteModelIDs = Set(store.get(Settings.AI.openRouterFavorites))
+        }
+        if keys.contains(Settings.AI.webSearchEnabled.name) {
+            _webSearchEnabled = store.get(Settings.AI.webSearchEnabled)
+        }
+        if keys.contains(Settings.AI.webSearchEngine.name) {
+            _defaultSearchEngine = store.get(Settings.AI.webSearchEngine).rawValue
+        }
+        if keys.contains(Settings.AI.commitMessageEnabled.name) {
+            _aiCommitMessageEnabled = store.get(Settings.AI.commitMessageEnabled)
+        }
+        if keys.contains(Settings.AI.commitMessageModel.name) {
+            _aiCommitMessageModelID = store.get(Settings.AI.commitMessageModel)
+        }
+        if keys.contains(Settings.AI.presentationMode.name) {
+            _aiAgentPresentationMode = store.get(Settings.AI.presentationMode)
+        }
+        if keys.contains(Settings.AI.sidebarWidth.name) {
+            let savedWidth = CGFloat(store.get(Settings.AI.sidebarWidth))
+            _aiAgentSidebarWidth = savedWidth >= 280 ? savedWidth : 400
+        }
+        if keys.contains(Settings.AI.bedrockRegion.name) {
+            let storedRegion = store.get(Settings.AI.bedrockRegion)
+            _bedrockRegion = BedrockRegions.isSupported(storedRegion) ? storedRegion : BedrockRegions.defaultRegion
+        }
     }
 
     /// Re-reads cached state from UserDefaults and Keychain.
     /// Call after restoring AI settings from a backup.
     func reloadFromDefaults() {
-        _globalSelectedModelID = UserDefaults.standard.string(forKey: globalSelectedModelKey) ?? AIProviderModel.defaultModelID
+        let store = SettingsStore.shared
+        _globalSelectedModelID = store.get(Settings.AI.globalSelectedModel)
+        _approvalMode = store.get(Settings.AI.approvalMode)
 
-        if let modeString = UserDefaults.standard.string(forKey: approvalModeKey),
-           let mode = CommandApprovalMode(rawValue: modeString) {
-            _approvalMode = mode
-        }
-
-        if let data = UserDefaults.standard.data(forKey: customProvidersKey),
+        if let data = store.get(Settings.AI.customProviders),
            let providers = try? JSONDecoder().decode([CustomProviderConfig].self, from: data) {
             _customProviders = providers
         }
 
-        if let favoritesArray = UserDefaults.standard.array(forKey: openRouterFavoritesKey) as? [String] {
-            _openRouterFavoriteModelIDs = Set(favoritesArray)
-        }
+        _openRouterFavoriteModelIDs = Set(store.get(Settings.AI.openRouterFavorites))
 
         if let data = UserDefaults.standard.data(forKey: openRouterModelsKey),
            let models = try? JSONDecoder().decode([AIProviderModel].self, from: data) {
             _openRouterDiscoveredModels = models
         }
 
-        _webSearchEnabled = UserDefaults.standard.object(forKey: webSearchEnabledKey) as? Bool ?? true
-        _defaultSearchEngine = UserDefaults.standard.string(forKey: defaultSearchEngineKey) ?? "duckduckgo"
-        _aiCommitMessageEnabled = UserDefaults.standard.object(forKey: aiCommitMessageEnabledKey) as? Bool ?? false
-        _aiCommitMessageModelID = UserDefaults.standard.string(forKey: aiCommitMessageModelKey) ?? ""
+        _webSearchEnabled = store.get(Settings.AI.webSearchEnabled)
+        _defaultSearchEngine = store.get(Settings.AI.webSearchEngine).rawValue
+        _aiCommitMessageEnabled = store.get(Settings.AI.commitMessageEnabled)
+        _aiCommitMessageModelID = store.get(Settings.AI.commitMessageModel)
         migrateLegacyModelSelections()
 
-        if let modeString = UserDefaults.standard.string(forKey: aiAgentPresentationModeKey),
-           let mode = AIAgentPresentationMode(rawValue: modeString) {
-            _aiAgentPresentationMode = mode
-        }
+        _aiAgentPresentationMode = store.get(Settings.AI.presentationMode)
 
-        let savedWidth = CGFloat(UserDefaults.standard.double(forKey: aiAgentSidebarWidthKey))
+        let savedWidth = CGFloat(store.get(Settings.AI.sidebarWidth))
         _aiAgentSidebarWidth = savedWidth >= 280 ? savedWidth : 400
 
         _hasAnthropicAPIKey = loadAPIKey(for: anthropicAccount) != nil
@@ -372,12 +397,8 @@ final class AICredentialsManager {
         } else {
             _bedrockCloudAccountID = nil
         }
-        if let storedRegion = UserDefaults.standard.string(forKey: bedrockRegionKey),
-           BedrockRegions.isSupported(storedRegion) {
-            _bedrockRegion = storedRegion
-        } else {
-            _bedrockRegion = BedrockRegions.defaultRegion
-        }
+        let storedRegion = store.get(Settings.AI.bedrockRegion)
+        _bedrockRegion = BedrockRegions.isSupported(storedRegion) ? storedRegion : BedrockRegions.defaultRegion
 
         // ChatGPT subscription state — backup restores can repopulate these.
         _openAIAuthMode = UserDefaults.standard.string(forKey: openAIAuthModeKey)
@@ -477,7 +498,7 @@ final class AICredentialsManager {
 
         if let migrated = Self.legacyModelMigrations[_globalSelectedModelID] {
             _globalSelectedModelID = migrated
-            defaults.set(migrated, forKey: globalSelectedModelKey)
+            SettingsStore.shared.set(Settings.AI.globalSelectedModel, migrated)
         }
 
         let migratedProviders = [
@@ -495,7 +516,7 @@ final class AICredentialsManager {
 
         if let migrated = Self.legacyModelMigrations[_aiCommitMessageModelID] {
             _aiCommitMessageModelID = migrated
-            defaults.set(migrated, forKey: aiCommitMessageModelKey)
+            SettingsStore.shared.set(Settings.AI.commitMessageModel, migrated)
         }
     }
 
@@ -620,7 +641,7 @@ final class AICredentialsManager {
         get { _globalSelectedModelID }
         set {
             _globalSelectedModelID = newValue
-            UserDefaults.standard.set(newValue, forKey: globalSelectedModelKey)
+            SettingsStore.shared.set(Settings.AI.globalSelectedModel, newValue)
             Self.logger.debug("Global selected model: \(newValue)")
         }
     }
@@ -640,7 +661,7 @@ final class AICredentialsManager {
         if let firstModel = available.first {
             // Auto-correct the stored selection
             _globalSelectedModelID = firstModel.id
-            UserDefaults.standard.set(firstModel.id, forKey: globalSelectedModelKey)
+            SettingsStore.shared.set(Settings.AI.globalSelectedModel, firstModel.id)
             Self.logger.info("Auto-selected model \(firstModel.id) (previous selection unavailable)")
             return firstModel.id
         }
@@ -813,7 +834,7 @@ final class AICredentialsManager {
         providers[index] = config
         _customProviders = providers
         if let data = try? JSONEncoder().encode(providers) {
-            UserDefaults.standard.set(data, forKey: customProvidersKey)
+            SettingsStore.shared.set(Settings.AI.customProviders, data)
         }
     }
 
@@ -835,7 +856,7 @@ final class AICredentialsManager {
     private func saveCustomProviders() {
         let providers = _customProviders
         if let data = try? JSONEncoder().encode(providers) {
-            UserDefaults.standard.set(data, forKey: customProvidersKey)
+            SettingsStore.shared.set(Settings.AI.customProviders, data)
             let count = providers.count
             Self.logger.debug("Saved \(count) custom providers")
         }
@@ -1081,7 +1102,7 @@ final class AICredentialsManager {
         _hasOpenRouterAPIKey = false
         _openRouterFavoriteModelIDs.removeAll()
         _openRouterDiscoveredModels.removeAll()
-        UserDefaults.standard.removeObject(forKey: openRouterFavoritesKey)
+        SettingsStore.shared.reset(Settings.AI.openRouterFavorites)
         UserDefaults.standard.removeObject(forKey: openRouterModelsKey)
 
         do {
@@ -1090,7 +1111,7 @@ final class AICredentialsManager {
             _hasOpenRouterAPIKey = previousFlag
             _openRouterFavoriteModelIDs = previousFavorites
             _openRouterDiscoveredModels = previousDiscovered
-            UserDefaults.standard.set(Array(previousFavorites), forKey: openRouterFavoritesKey)
+            SettingsStore.shared.set(Settings.AI.openRouterFavorites, Array(previousFavorites))
             if let data = try? JSONEncoder().encode(previousDiscovered) {
                 UserDefaults.standard.set(data, forKey: openRouterModelsKey)
             }
@@ -1131,7 +1152,7 @@ final class AICredentialsManager {
         set {
             let normalized = BedrockRegions.isSupported(newValue) ? newValue : BedrockRegions.defaultRegion
             _bedrockRegion = normalized
-            UserDefaults.standard.set(normalized, forKey: bedrockRegionKey)
+            SettingsStore.shared.set(Settings.AI.bedrockRegion, normalized)
         }
     }
 
@@ -1149,7 +1170,7 @@ final class AICredentialsManager {
         get { _openRouterFavoriteModelIDs }
         set {
             _openRouterFavoriteModelIDs = newValue
-            UserDefaults.standard.set(Array(newValue), forKey: openRouterFavoritesKey)
+            SettingsStore.shared.set(Settings.AI.openRouterFavorites, Array(newValue))
             Self.logger.debug("Saved \(newValue.count) OpenRouter favorites")
         }
     }
@@ -1157,14 +1178,14 @@ final class AICredentialsManager {
     /// Add a model to OpenRouter favorites
     func addOpenRouterFavorite(_ modelID: String) {
         _openRouterFavoriteModelIDs.insert(modelID)
-        UserDefaults.standard.set(Array(_openRouterFavoriteModelIDs), forKey: openRouterFavoritesKey)
+        SettingsStore.shared.set(Settings.AI.openRouterFavorites, Array(_openRouterFavoriteModelIDs))
         Self.logger.debug("Added OpenRouter favorite: \(modelID)")
     }
 
     /// Remove a model from OpenRouter favorites
     func removeOpenRouterFavorite(_ modelID: String) {
         _openRouterFavoriteModelIDs.remove(modelID)
-        UserDefaults.standard.set(Array(_openRouterFavoriteModelIDs), forKey: openRouterFavoritesKey)
+        SettingsStore.shared.set(Settings.AI.openRouterFavorites, Array(_openRouterFavoriteModelIDs))
         Self.logger.debug("Removed OpenRouter favorite: \(modelID)")
     }
 
@@ -1215,7 +1236,7 @@ final class AICredentialsManager {
         get { _approvalMode }
         set {
             _approvalMode = newValue
-            UserDefaults.standard.set(newValue.rawValue, forKey: approvalModeKey)
+            SettingsStore.shared.set(Settings.AI.approvalMode, newValue)
             Self.logger.debug("Approval mode: \(newValue.rawValue)")
         }
     }
@@ -1232,7 +1253,7 @@ final class AICredentialsManager {
         get { _webSearchEnabled }
         set {
             _webSearchEnabled = newValue
-            UserDefaults.standard.set(newValue, forKey: webSearchEnabledKey)
+            SettingsStore.shared.set(Settings.AI.webSearchEnabled, newValue)
             Self.logger.debug("Web search enabled: \(newValue)")
         }
     }
@@ -1242,7 +1263,7 @@ final class AICredentialsManager {
         get { SearchEngine(rawValue: _defaultSearchEngine) ?? .duckduckgo }
         set {
             _defaultSearchEngine = newValue.rawValue
-            UserDefaults.standard.set(newValue.rawValue, forKey: defaultSearchEngineKey)
+            SettingsStore.shared.set(Settings.AI.webSearchEngine, newValue)
             Self.logger.debug("Default search engine: \(newValue.rawValue)")
         }
     }
@@ -1254,7 +1275,7 @@ final class AICredentialsManager {
         get { _aiCommitMessageEnabled }
         set {
             _aiCommitMessageEnabled = newValue
-            UserDefaults.standard.set(newValue, forKey: aiCommitMessageEnabledKey)
+            SettingsStore.shared.set(Settings.AI.commitMessageEnabled, newValue)
         }
     }
 
@@ -1263,7 +1284,7 @@ final class AICredentialsManager {
         get { _aiCommitMessageModelID }
         set {
             _aiCommitMessageModelID = newValue
-            UserDefaults.standard.set(newValue, forKey: aiCommitMessageModelKey)
+            SettingsStore.shared.set(Settings.AI.commitMessageModel, newValue)
         }
     }
 
@@ -1274,7 +1295,7 @@ final class AICredentialsManager {
         get { _aiAgentPresentationMode }
         set {
             _aiAgentPresentationMode = newValue
-            UserDefaults.standard.set(newValue.rawValue, forKey: aiAgentPresentationModeKey)
+            SettingsStore.shared.set(Settings.AI.presentationMode, newValue)
             Self.logger.debug("AI Agent presentation mode: \(newValue.rawValue)")
         }
     }
@@ -1285,7 +1306,7 @@ final class AICredentialsManager {
         set {
             let clampedWidth = max(280, newValue)  // Minimum 280
             _aiAgentSidebarWidth = clampedWidth
-            UserDefaults.standard.set(Double(clampedWidth), forKey: aiAgentSidebarWidthKey)
+            SettingsStore.shared.set(Settings.AI.sidebarWidth, Double(clampedWidth))
         }
     }
 

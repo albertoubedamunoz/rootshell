@@ -10,14 +10,8 @@
 import SwiftUI
 
 struct SSHTransportSettingsView: View {
-    @AppStorage("sshHealthMonitoringEnabled") private var sshHealthMonitoringEnabled: Bool = true
-    @AppStorage("sshHealthProbeInterval") private var sshHealthProbeInterval: Int = 15
-    @AppStorage("hideNonPQKexWarning") private var hideNonPQKexWarning: Bool = false
-    @AppStorage("sshPublicKeyAuthProbeEnabled") private var sshPublicKeyAuthProbeEnabled: Bool = false
-    @AppStorage("sshForceIPv4Enabled") private var sshForceIPv4Enabled: Bool = false
-    #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @AppStorage(UserPreferences.backgroundSessionKeepaliveEnabledKey) private var backgroundSessionKeepaliveEnabled: Bool = true
-    #endif
+    @Setting(Settings.Connections.healthMonitoring) private var sshHealthMonitoringEnabled
+    @Setting(Settings.Connections.healthProbeInterval) private var sshHealthProbeInterval
 
     private var networkFooterText: String {
         #if !targetEnvironment(macCatalyst) && !os(visionOS)
@@ -30,45 +24,26 @@ struct SSHTransportSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: $sshForceIPv4Enabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "network")
-                        Text("Force IPv4")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Connections.forceIPv4, title: "Force IPv4", icon: "network")
+                    .themedRow()
 
                 #if !targetEnvironment(macCatalyst) && !os(visionOS)
-                Toggle(isOn: $backgroundSessionKeepaliveEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "bolt.horizontal")
-                        Text("Keep TCP SSH Alive in Background")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Connections.backgroundKeepalive, title: "Keep TCP SSH Alive in Background", icon: "bolt.horizontal")
+                    .themedRow()
                 #endif
             } header: {
-                Text("Network")
+                SettingGroupHeader("Network", group: .connections)
             } footer: {
                 Text(networkFooterText)
             }
 
             Section {
-                Toggle(isOn: Binding(
-                    get: { sshHealthMonitoringEnabled },
-                    set: { newValue in
-                        sshHealthMonitoringEnabled = newValue
-                        NotificationCenter.default.post(
-                            name: .sshHealthMonitoringToggled,
-                            object: nil,
-                            userInfo: ["enabled": newValue]
-                        )
-                    }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "heart.text.square")
-                        Text("Connection Health Monitoring")
-                    }
+                SettingToggle(Settings.Connections.healthMonitoring, title: "Connection Health Monitoring", icon: "heart.text.square") { newValue in
+                    NotificationCenter.default.post(
+                        name: .sshHealthMonitoringToggled,
+                        object: nil,
+                        userInfo: ["enabled": newValue]
+                    )
                 }
                 .themedRow()
 
@@ -95,42 +70,30 @@ struct SSHTransportSettingsView: View {
                             SettingsIcon(systemName: "timer")
                             Text("Probe Interval")
                         }
+                        .settingRow(Settings.Connections.healthProbeInterval)
                     }
                     .themedRow()
                 }
             } header: {
-                Text("Health Monitoring")
+                SettingGroupHeader("Health Monitoring", group: .connections)
             } footer: {
                 Text("Periodically pings the SSH server to track round-trip time and packet loss. Shorter intervals react faster to network changes but use more data.")
             }
 
             Section {
-                Toggle(isOn: $sshPublicKeyAuthProbeEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "key")
-                        Text("OpenSSH Public Key Compatibility")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Connections.publicKeyAuthProbe, title: "OpenSSH Public Key Compatibility", icon: "key")
+                    .themedRow()
             } header: {
-                Text("Authentication")
+                SettingGroupHeader("Authentication", group: .connections)
             } footer: {
                 Text("When enabled, SSH connections use the OpenSSH/libssh2 public-key flow: offer the public key first, then sign after the server accepts it. This can improve compatibility with some routers and embedded SSH servers, but adds one authentication round trip.")
             }
 
             Section {
-                Toggle(isOn: Binding(
-                    get: { !hideNonPQKexWarning },
-                    set: { hideNonPQKexWarning = !$0 }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "shield.lefthalf.filled")
-                        Text("Post-Quantum Warning")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.Connections.hideNonPQKexWarning, title: "Post-Quantum Warning", icon: "shield.lefthalf.filled", inverted: true)
+                    .themedRow()
             } header: {
-                Text("Security Warnings")
+                SettingGroupHeader("Security Warnings", group: .connections)
             } footer: {
                 Text("Shows a banner after connecting when the SSH session negotiated a classical (non post-quantum) key exchange, which is vulnerable to harvest-now-decrypt-later attacks. See openssh.com/pq.html.")
             }

@@ -96,7 +96,7 @@ private struct TabSidebarUIKitOverlay<SidebarContent: View>: UIViewControllerRep
     /// Glass look: the panel fills with a material instead of the opaque
     /// theme background. The backdrop sits BEHIND the panel too, so it must
     /// dim far less or the blurred terminal reads as black.
-    @AppStorage("tabSidebarTranslucent") private var tabSidebarTranslucent: Bool = true
+    @Setting(Settings.Sidebar.translucent) private var tabSidebarTranslucent
 
     private func makeOnCloseAction() -> () -> Void {
         let showSidebar = $showSidebar
@@ -503,9 +503,9 @@ private struct TabSidebarPanelView<SidebarContent: View>: View {
     /// Liquid-glass look (Settings > Appearance > Window > Tab Bar): a
     /// material panel with a light theme tint, so the terminal shows
     /// through behind the tab list.
-    @AppStorage("tabSidebarTranslucent") private var tabSidebarTranslucent: Bool = true
+    @Setting(Settings.Sidebar.translucent) private var tabSidebarTranslucent
 
-    @AppStorage("hideWindowTitleBar") private var hideWindowTitleBar: Bool = false
+    @Setting(Settings.Window.hideTitleBar) private var hideWindowTitleBar
 
     /// With the title bar hidden the OS may still report a top safe-area
     /// inset for chrome that isn't there, leaving a gap above the panel;

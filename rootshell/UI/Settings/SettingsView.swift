@@ -92,6 +92,9 @@ enum SettingsSearchDestination: Hashable {
     case mcpServer
     case voiceAgent
     case iCloudSync
+    case syncedGroups
+    case pinnedSettings
+    case configFile
     case locationDiary
     case liveActivity
     case clipboardManager
@@ -671,6 +674,33 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 systemImage: "arrow.triangle.2.circlepath.icloud",
                 action: .destination(.iCloudSync),
                 keywords: ["sync", "cloudkit", "backup"],
+                isSuggested: false
+            ),
+            .init(
+                id: "synced-groups",
+                title: String(localized: "Synced Groups"),
+                subtitle: String(localized: "Privacy & Data"),
+                systemImage: "square.grid.2x2",
+                action: .destination(.syncedGroups),
+                keywords: ["sync", "group", "groups", "icloud", "pin", "local", "device"],
+                isSuggested: false
+            ),
+            .init(
+                id: "pinned-settings",
+                title: String(localized: "Pinned Settings"),
+                subtitle: String(localized: "Privacy & Data"),
+                systemImage: "pin",
+                action: .destination(.pinnedSettings),
+                keywords: ["pin", "pinned", "local", "device", "sync", "icloud"],
+                isSuggested: false
+            ),
+            .init(
+                id: "config-file",
+                title: String(localized: "Config File"),
+                subtitle: String(localized: "Privacy & Data"),
+                systemImage: "doc.text",
+                action: .destination(.configFile),
+                keywords: ["config", "dotfile", "text", "file", "ghostty", "rootshell.conf", "editor"],
                 isSuggested: false
             ),
             .init(
@@ -1435,6 +1465,12 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         #endif
     case .iCloudSync:
         CloudSyncSettingsView()
+    case .syncedGroups:
+        SyncedGroupsView()
+    case .pinnedSettings:
+        PinnedSettingsView()
+    case .configFile:
+        ConfigFileSettingsView()
     case .locationDiary:
         #if !targetEnvironment(macCatalyst)
         LocationDiaryView()

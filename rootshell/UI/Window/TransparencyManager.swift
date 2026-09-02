@@ -54,11 +54,11 @@ final class TransparencyManager {
         return false
     }
 
-    private static let backgroundOpacityKey = "backgroundOpacity"
-    private static let backgroundBlurRadiusKey = "backgroundBlurRadius"
-    private static let blurEnabledKey = "blurEnabled"
-    private static let blurStyleKey = "blurStyle"
-    private static let pinnedSidebarTransparencyEnabledKey = "pinnedSidebarTransparencyEnabled"
+    private static let ownedKeys: Set<String> = [
+        Settings.Transparency.backgroundOpacity.name, Settings.Transparency.backgroundBlurRadius.name,
+        Settings.Transparency.blurEnabled.name, Settings.Transparency.blurStyle.name,
+        Settings.Transparency.pinnedSidebarTransparency.name,
+    ]
     private static let defaultBackgroundOpacity: Double = 0.92
     private static let defaultBackgroundBlurRadius: Double = 30.0
     private static let defaultBlurEnabled: Bool = true
@@ -97,7 +97,7 @@ final class TransparencyManager {
     var blurStyle: BlurStyle {
         didSet {
             guard blurStyle != oldValue else { return }
-            UserDefaults.standard.set(blurStyle.rawValue, forKey: Self.blurStyleKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Transparency.blurStyle, blurStyle) }
             transparencyDidChange.send()
         }
     }
@@ -113,13 +113,13 @@ final class TransparencyManager {
     /// opacity instead of its normal opaque fill.
     var pinnedSidebarTransparencyEnabled: Bool {
         didSet {
-            guard pinnedSidebarTransparencyEnabled != oldValue else { return }
-            UserDefaults.standard.set(
-                pinnedSidebarTransparencyEnabled,
-                forKey: Self.pinnedSidebarTransparencyEnabledKey
-            )
+            guard pinnedSidebarTransparencyEnabled != oldValue, !isReloading else { return }
+            SettingsStore.shared.set(Settings.Transparency.pinnedSidebarTransparency, pinnedSidebarTransparencyEnabled)
         }
     }
+
+    /// Set while `reload(keys:)` re-assigns properties so didSet skips the store write.
+    @ObservationIgnored private var isReloading = false
 
     /// Whether transparency is currently disabled (forced to 1.0)
     /// Used by toggle transparency keyboard shortcut
@@ -132,54 +132,56 @@ final class TransparencyManager {
     @ObservationIgnored let transparencyDidChange = PassthroughSubject<Void, Never>()
 
     private init() {
-        // Load saved opacity or default to 0.92
-        let savedOpacity = UserDefaults.standard.double(forKey: Self.backgroundOpacityKey)
-        if savedOpacity > 0 {
-            self.backgroundOpacity = savedOpacity
-        } else {
-            self.backgroundOpacity = Self.defaultBackgroundOpacity
-        }
-
-        // Load saved blur radius or default to 30
-        // Note: Must check if key exists, since double(forKey:) returns 0 when key is missing
-        if UserDefaults.standard.object(forKey: Self.backgroundBlurRadiusKey) != nil {
-            self.backgroundBlurRadius = UserDefaults.standard.double(forKey: Self.backgroundBlurRadiusKey)
-        } else {
-            self.backgroundBlurRadius = Self.defaultBackgroundBlurRadius
-        }
-
-        // Load saved blur enabled state or default to true
-        if UserDefaults.standard.object(forKey: Self.blurEnabledKey) != nil {
-            self.blurEnabled = UserDefaults.standard.bool(forKey: Self.blurEnabledKey)
-        } else {
-            self.blurEnabled = Self.defaultBlurEnabled
-        }
-
-        self.blurStyle = UserDefaults.standard.string(forKey: Self.blurStyleKey)
-            .flatMap(BlurStyle.init(rawValue:)) ?? Self.defaultBlurStyle
-
-        if UserDefaults.standard.object(forKey: Self.pinnedSidebarTransparencyEnabledKey) != nil {
-            self.pinnedSidebarTransparencyEnabled = UserDefaults.standard.bool(
-                forKey: Self.pinnedSidebarTransparencyEnabledKey
-            )
-        } else {
-            self.pinnedSidebarTransparencyEnabled = Self.defaultPinnedSidebarTransparencyEnabled
+        self.backgroundOpacity = Self.storedBackgroundOpacity()
+        self.backgroundBlurRadius = SettingsStore.shared.get(Settings.Transparency.backgroundBlurRadius)
+        self.blurEnabled = SettingsStore.shared.get(Settings.Transparency.blurEnabled)
+        self.blurStyle = SettingsStore.shared.get(Settings.Transparency.blurStyle)
+        self.pinnedSidebarTransparencyEnabled = SettingsStore.shared.get(Settings.Transparency.pinnedSidebarTransparency)
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
         }
     }
 
-    /// Save current background opacity to UserDefaults
+    /// A stored opacity of 0 (or less) falls back to the default.
+    private static func storedBackgroundOpacity() -> Double {
+        let saved = SettingsStore.shared.get(Settings.Transparency.backgroundOpacity)
+        return saved > 0 ? saved : defaultBackgroundOpacity
+    }
+
+    /// Re-read owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Transparency.backgroundOpacity.name) {
+            backgroundOpacity = Self.storedBackgroundOpacity()
+        }
+        if keys.contains(Settings.Transparency.backgroundBlurRadius.name) {
+            backgroundBlurRadius = SettingsStore.shared.get(Settings.Transparency.backgroundBlurRadius)
+        }
+        if keys.contains(Settings.Transparency.blurEnabled.name) {
+            blurEnabled = SettingsStore.shared.get(Settings.Transparency.blurEnabled)
+        }
+        if keys.contains(Settings.Transparency.blurStyle.name) {
+            blurStyle = SettingsStore.shared.get(Settings.Transparency.blurStyle)
+        }
+        if keys.contains(Settings.Transparency.pinnedSidebarTransparency.name) {
+            pinnedSidebarTransparencyEnabled = SettingsStore.shared.get(Settings.Transparency.pinnedSidebarTransparency)
+        }
+    }
+
     private func saveBackgroundOpacity() {
-        UserDefaults.standard.set(backgroundOpacity, forKey: Self.backgroundOpacityKey)
+        guard !isReloading else { return }
+        SettingsStore.shared.set(Settings.Transparency.backgroundOpacity, backgroundOpacity)
     }
 
-    /// Save current background blur radius to UserDefaults
     private func saveBackgroundBlurRadius() {
-        UserDefaults.standard.set(backgroundBlurRadius, forKey: Self.backgroundBlurRadiusKey)
+        guard !isReloading else { return }
+        SettingsStore.shared.set(Settings.Transparency.backgroundBlurRadius, backgroundBlurRadius)
     }
 
-    /// Save current blur enabled state to UserDefaults
     private func saveBlurEnabled() {
-        UserDefaults.standard.set(blurEnabled, forKey: Self.blurEnabledKey)
+        guard !isReloading else { return }
+        SettingsStore.shared.set(Settings.Transparency.blurEnabled, blurEnabled)
     }
 
     /// Reset to default transparency settings

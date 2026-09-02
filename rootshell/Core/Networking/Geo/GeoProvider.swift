@@ -64,19 +64,28 @@ final class GeoResolver {
 
     var providerType: GeoProviderType {
         didSet {
-            UserDefaults.standard.set(providerType.rawValue, forKey: "geoProviderType")
+            if !isReloading { SettingsStore.shared.set(Settings.Privacy.geoProviderType, providerType) }
         }
     }
+
+    /// True while `reload(keys:)` re-assigns `providerType` from the store.
+    @ObservationIgnored private var isReloading = false
 
     private let cache = GeoCache()
     private(set) var cacheEntryCount: Int = 0
 
     private init() {
-        let stored = UserDefaults.standard.string(forKey: "geoProviderType") ?? ""
+        // Unset resolves to the dynamic `defaultProvider`, not the registry default, so presence is checked raw
+        let key = Settings.Privacy.geoProviderType
+        let stored = UserDefaults.standard.object(forKey: key.name) == nil ? "" : SettingsStore.shared.get(key).rawValue
         let provider = GeoProviderType.availableProvider(for: stored)
         self.providerType = provider
         if stored != provider.rawValue {
-            UserDefaults.standard.set(provider.rawValue, forKey: "geoProviderType")
+            SettingsStore.shared.set(key, provider)
+        }
+
+        SettingsRefreshHub.shared.register(keys: [key.name]) { [weak self] keys in
+            self?.reload(keys: keys)
         }
         // Cache size is loaded asynchronously — first read fires a background
         // task that updates the @Observable property when ready. Avoids the
@@ -85,6 +94,15 @@ final class GeoResolver {
             guard let self else { return }
             self.cacheEntryCount = await self.cache.count
         }
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        guard keys.contains(Settings.Privacy.geoProviderType.name) else { return }
+        isReloading = true
+        defer { isReloading = false }
+        let stored = SettingsStore.shared.get(Settings.Privacy.geoProviderType)
+        providerType = GeoProviderType.availableProvider(for: stored.rawValue)
     }
 
     func resolve(ip: String) async -> GeoInfo? {

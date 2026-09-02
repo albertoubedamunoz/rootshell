@@ -43,11 +43,16 @@ enum CloudKitSyncError: LocalizedError, Sendable {
     /// Request rate limited by CloudKit
     case rateLimited(retryAfter: TimeInterval)
 
+    /// A per-type toggle was used while master sync is off
+    case notEnabled
+
     /// Unknown error
     case unknown(Error)
 
     var errorDescription: String? {
         switch self {
+        case .notEnabled:
+            return "Enable iCloud Sync first."
         case .accountNotAvailable:
             return "iCloud account not available. Please sign in to iCloud in Settings."
         case .networkUnavailable:
@@ -77,6 +82,8 @@ enum CloudKitSyncError: LocalizedError, Sendable {
 
     var recoverySuggestion: String? {
         switch self {
+        case .notEnabled:
+            return "Turn on the iCloud Sync switch, then try again."
         case .accountNotAvailable:
             return "Go to Settings > Apple Account > iCloud and sign in."
         case .networkUnavailable:
@@ -111,7 +118,7 @@ enum CloudKitSyncError: LocalizedError, Sendable {
             return true
         case .accountNotAvailable, .quotaExceeded, .serverRejected,
              .migrationRequired, .permissionDenied, .containerNotFound,
-             .subscriptionFailed, .invalidPayload:
+             .subscriptionFailed, .invalidPayload, .notEnabled:
             return false
         }
     }

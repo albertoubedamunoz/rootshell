@@ -28,6 +28,9 @@ enum UserDefaultsBackup {
         return dir.appendingPathComponent("defaults_backup.json")
     }
 
+    /// Written on the first unlocked activation, so its absence means a fresh install.
+    static var hasBackup: Bool { FileManager.default.fileExists(atPath: backupURL.path) }
+
     /// Save current sentinel values to disk. Call when the app becomes active (device is unlocked).
     static func saveSnapshot() {
         let defaults = UserDefaults.standard

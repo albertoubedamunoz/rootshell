@@ -35,6 +35,7 @@ struct FontFeatureSettingsView: View {
         .listStyle(.plain)
         .themedList()
         .navigationTitle("Stylistic Sets")
+        .toolbar { SettingsScreenPinMenu(groups: [.font]) }
         .onAppear { refreshFeatures() }
         .onChange(of: fontManager.currentFontFamily) { refreshFeatures() }
     }

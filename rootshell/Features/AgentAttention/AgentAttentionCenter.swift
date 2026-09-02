@@ -40,26 +40,26 @@ nonisolated enum AgentAttentionSettings {
     static let notificationPromptEnabledKey = "agentNotificationIncludePrompt"
 
     nonisolated static var detectionEnabled: Bool {
-        UserDefaults.standard.object(forKey: detectionEnabledKey) as? Bool ?? true
+        SettingsStore.shared.value(Settings.CodingAgents.detectionEnabled)
     }
 
     nonisolated static var badgesEnabled: Bool {
-        UserDefaults.standard.object(forKey: badgesEnabledKey) as? Bool ?? true
+        SettingsStore.shared.value(Settings.CodingAgents.attentionBadges)
     }
 
     /// The sidebar's inbox sort is set to project grouping. Read by TabsModel
     /// so the tab bar can scope to the selected tab's project even before the
     /// sidebar has ever been opened this launch. (id=agent-project)
     nonisolated static var projectGroupingSelected: Bool {
-        UserDefaults.standard.string(forKey: sortKey) == "project" && badgesEnabled
+        SettingsStore.shared.value(Settings.CodingAgents.inboxSort) == "project" && badgesEnabled
     }
 
     nonisolated static var projectProbesEnabled: Bool {
-        UserDefaults.standard.object(forKey: projectProbesEnabledKey) as? Bool ?? true
+        SettingsStore.shared.value(Settings.CodingAgents.projectProbes)
     }
 
     nonisolated static var notificationPromptEnabled: Bool {
-        UserDefaults.standard.object(forKey: notificationPromptEnabledKey) as? Bool ?? true
+        SettingsStore.shared.value(Settings.Notifications.agentIncludePrompt)
     }
 
     /// The scan engine runs when EITHER detection category is on; each
@@ -77,22 +77,22 @@ nonisolated enum AgentAttentionSettings {
 nonisolated enum TaskDetectionSettings {
     static let enabledKey = "taskDetectionEnabled"
 
-    static func familyKey(_ family: TaskFamily) -> String {
+    static func familyKey(_ family: TaskFamily) -> SettingKey<Bool> {
         switch family {
-        case .prompts: return "taskDetectPrompts"
-        case .tests: return "taskDetectTests"
-        case .builds: return "taskDetectBuilds"
-        case .infra: return "taskDetectInfra"
-        case .transfers: return "taskDetectTransfers"
+        case .prompts: return Settings.Notifications.taskDetectPrompts
+        case .tests: return Settings.Notifications.taskDetectTests
+        case .builds: return Settings.Notifications.taskDetectBuilds
+        case .infra: return Settings.Notifications.taskDetectInfra
+        case .transfers: return Settings.Notifications.taskDetectTransfers
         }
     }
 
     nonisolated static var enabled: Bool {
-        UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? false
+        SettingsStore.shared.value(Settings.Notifications.taskDetection)
     }
 
     nonisolated static func familyEnabled(_ family: TaskFamily) -> Bool {
-        UserDefaults.standard.object(forKey: familyKey(family)) as? Bool ?? true
+        SettingsStore.shared.value(familyKey(family))
     }
 
     nonisolated static var enabledFamilies: Set<TaskFamily> {

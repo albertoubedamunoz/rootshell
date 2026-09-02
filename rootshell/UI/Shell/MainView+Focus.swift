@@ -340,7 +340,7 @@ extension MainView {
         settling.translationX = state.direction == .left ? -max(state.width, 1) : max(state.width, 1)
         settling.isSettling = true
 
-        let animationsDisabled = UserDefaults.standard.bool(forKey: "tabBarAnimationsDisabled")
+        let animationsDisabled = SettingsStore.shared.value(Settings.Tabs.barAnimationsDisabled)
             || UIAccessibility.isReduceMotionEnabled
 
         // Commit the selection the instant the swipe is committed — not when the
@@ -422,7 +422,7 @@ extension MainView {
         settling.translationX = 0
         settling.isSettling = true
 
-        let animationsDisabled = UserDefaults.standard.bool(forKey: "tabBarAnimationsDisabled")
+        let animationsDisabled = SettingsStore.shared.value(Settings.Tabs.barAnimationsDisabled)
             || UIAccessibility.isReduceMotionEnabled
         // Guarded so it runs at most once across the completion handler and the
         // fallback timer below (see commitAppTabSwipe for why both exist).

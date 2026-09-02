@@ -49,11 +49,13 @@ struct CloudSyncSettingsView: View {
                         set: { syncManager.setProfilesSyncEnabled($0) }
                     ))
                     .themedRow()
+
+                    SettingsSyncRows()
                 }
             } header: {
                 Text("iCloud Sync")
             } footer: {
-                Text("Sync your SSH connection history, known hosts, and connection profiles across your devices using iCloud.")
+                Text("Sync your SSH connection history, known hosts, connection profiles, and app settings across your devices using iCloud. Touch and hold a setting (right-click on Mac) to keep it on this device only.")
             }
 
             if syncManager.isSyncEnabled {
@@ -137,7 +139,7 @@ struct CloudSyncSettingsView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Your SSH connection history and known hosts will be synced to iCloud and available on your other devices.")
+            Text("Your SSH connection history, known hosts, and connection profiles will be synced to iCloud and available on your other devices. App settings sync is a separate switch.")
         }
         .alert("Disable iCloud Sync?", isPresented: $showingDisableAlert) {
             Button("Disable", role: .destructive) {

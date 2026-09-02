@@ -239,19 +239,24 @@ final class AppIconManager: ObservableObject {
         didSet {
             guard oldValue != selectedVariant else { return }
             guard ProtectedDataGuard.isAvailable else { return }
-            persist(selectedVariant)
+            if isReloading {
+                mirrorToAppGroup(selectedVariant)
+            } else {
+                persist(selectedVariant)
+            }
             applyToSystem(selectedVariant)
             notifyLiveActivity()
         }
     }
+
+    private var isReloading = false
 
     private init() {
         // Prefer the system's current alternate icon name so we stay in sync if
         // the user swapped it through the iOS Settings app while rootshell was
         // suspended. Mac Catalyst uses a runtime-only dock icon that doesn't
         // persist, so there the stored value is authoritative.
-        let storedRaw = UserDefaults.standard.string(forKey: Self.storageKey) ?? ""
-        let storedVariant = AppIconVariant(rawValue: storedRaw) ?? .defaultIcon
+        let storedVariant = SettingsStore.shared.get(Settings.Theme.appIconVariant)
 
         #if targetEnvironment(macCatalyst)
         let initial = storedVariant
@@ -274,6 +279,10 @@ final class AppIconManager: ObservableObject {
         // Sync UserDefaults back to the system value if they drifted.
         if initial != storedVariant, ProtectedDataGuard.isAvailable {
             persist(initial)
+        }
+
+        SettingsRefreshHub.shared.register(keys: [Settings.Theme.appIconVariant.name]) { [weak self] keys in
+            self?.reload(keys: keys)
         }
 
         #if targetEnvironment(macCatalyst)
@@ -348,10 +357,21 @@ final class AppIconManager: ObservableObject {
     // MARK: - Persistence
 
     private func persist(_ variant: AppIconVariant) {
-        UserDefaults.standard.set(variant.rawValue, forKey: Self.storageKey)
+        SettingsStore.shared.set(Settings.Theme.appIconVariant, variant)
+        mirrorToAppGroup(variant)
+    }
+
+    /// App-group copy read by the App Intent process; kept raw on purpose.
+    private func mirrorToAppGroup(_ variant: AppIconVariant) {
         if let groupDefaults = UserDefaults(suiteName: Self.appGroupIdentifier) {
             groupDefaults.set(variant.rawValue, forKey: Self.storageKey)
         }
+    }
+
+    func reload(keys: Set<String>) {
+        isReloading = true
+        selectedVariant = SettingsStore.shared.get(Settings.Theme.appIconVariant)
+        isReloading = false
     }
 
     // MARK: - System Icon

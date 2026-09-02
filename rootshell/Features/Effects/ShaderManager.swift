@@ -49,7 +49,6 @@ class ShaderManager {
     // MARK: - UserDefaults Keys
 
     private static let enabledCustomKey = "enabledCustomShaders"
-    private static let animationModeKey = "shaderAnimationMode"
     private static let customShadersKey = "customShadersList"
 
     // MARK: - Observable Properties
@@ -69,10 +68,12 @@ class ShaderManager {
 
     var animationMode: AnimationMode = .whenFocused {
         didSet {
-            saveAnimationMode()
+            if !isReloading { saveAnimationMode() }
             notifyConfigChanged()
         }
     }
+
+    @ObservationIgnored private var isReloading = false
 
     // MARK: - Initialization
 
@@ -80,6 +81,15 @@ class ShaderManager {
         loadEnabledCustomShaders()
         loadCustomShaders()
         loadAnimationMode()
+        SettingsRefreshHub.shared.register(keys: [Settings.Shaders.animationMode.name]) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    private func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        animationMode = SettingsStore.shared.get(Settings.Shaders.animationMode)
     }
 
     // MARK: - Path Resolution
@@ -221,14 +231,11 @@ class ShaderManager {
     }
 
     private func saveAnimationMode() {
-        UserDefaults.standard.set(animationMode.rawValue, forKey: Self.animationModeKey)
+        SettingsStore.shared.set(Settings.Shaders.animationMode, animationMode)
     }
 
     private func loadAnimationMode() {
-        if let rawValue = UserDefaults.standard.string(forKey: Self.animationModeKey),
-           let mode = AnimationMode(rawValue: rawValue) {
-            animationMode = mode
-        }
+        animationMode = SettingsStore.shared.get(Settings.Shaders.animationMode)
     }
 
     private func saveCustomShaders() {

@@ -19,8 +19,6 @@ extension Notification.Name {
 final class BrightnessManager {
     static let shared = BrightnessManager()
 
-    private static let gainKey = "brightnessGain"
-
     /// The neutral (SDR) gain.
     static let defaultGain: Double = 1.0
 
@@ -39,10 +37,12 @@ final class BrightnessManager {
                 return
             }
             guard gain != oldValue else { return }
-            UserDefaults.standard.set(gain, forKey: Self.gainKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Power.brightnessGain, gain) }
             NotificationCenter.default.post(name: .brightnessDidChange, object: nil)
         }
     }
+
+    @ObservationIgnored private var isReloading = false
 
     /// Whether a boost is currently active (gain above SDR).
     var isBoosted: Bool { gain > 1.0 }
@@ -67,11 +67,22 @@ final class BrightnessManager {
     }
 
     private init() {
-        if UserDefaults.standard.object(forKey: Self.gainKey) != nil {
-            let saved = UserDefaults.standard.double(forKey: Self.gainKey)
-            gain = min(max(saved, 1.0), Self.maxGainCap)
-        } else {
-            gain = Self.defaultGain
+        gain = Self.storedGain()
+        SettingsRefreshHub.shared.register(keys: [Settings.Power.brightnessGain.name]) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    private static func storedGain() -> Double {
+        min(max(SettingsStore.shared.get(Settings.Power.brightnessGain), 1.0), maxGainCap)
+    }
+
+    /// Re-read the gain after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Power.brightnessGain.name) {
+            gain = Self.storedGain()
         }
     }
 

@@ -474,18 +474,34 @@ extension LocalShellSession {
         Task { @MainActor [weak self] in
             guard let self else { return }
 
-            guard KeybindManager.shared.externalConfigPath != nil else {
-                self.onOutput?(self.normalizeLineEndings("reloadconfig: no imported Ghostty config file loaded\n"))
-                self.displayPrompt()
-                return
+            // The settings config file reloads whenever it exists; keybinds when imported.
+            let overlay = ConfigOverlayManager.shared
+            var reloadedAnything = false
+            if overlay.fileExists {
+                overlay.reload()
+                reloadedAnything = true
+                if case .active(let count) = overlay.status {
+                    let suffix = count == 1 ? "" : "s"
+                    self.onOutput?(self.normalizeLineEndings("Reloaded \(overlay.shellDisplayPath) (\(count) setting\(suffix) applied)\n"))
+                }
+                for diag in overlay.diagnostics where diag.severity >= .warning {
+                    let location = diag.location.map { "\($0): " } ?? ""
+                    self.onOutput?(self.normalizeLineEndings("  \(location)\(diag.message)\n"))
+                }
             }
 
-            KeybindManager.shared.reloadExternalConfig()
+            if KeybindManager.shared.externalConfigPath != nil {
+                KeybindManager.shared.reloadExternalConfig()
+                reloadedAnything = true
+                let count = KeybindManager.shared.externalConfigBindings.count
+                let suffix = count == 1 ? "" : "s"
+                let message = "Reloaded \(KeybindManager.shared.externalConfigShellPath) (\(count) keybind\(suffix) loaded)\n"
+                self.onOutput?(self.normalizeLineEndings(message))
+            }
 
-            let count = KeybindManager.shared.externalConfigBindings.count
-            let suffix = count == 1 ? "" : "s"
-            let message = "Reloaded \(KeybindManager.shared.externalConfigShellPath) (\(count) keybind\(suffix) loaded)\n"
-            self.onOutput?(self.normalizeLineEndings(message))
+            if !reloadedAnything {
+                self.onOutput?(self.normalizeLineEndings("reloadconfig: no config file at \(overlay.shellDisplayPath) and no imported Ghostty config\n"))
+            }
             self.displayPrompt()
         }
     }

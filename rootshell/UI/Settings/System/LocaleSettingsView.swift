@@ -8,21 +8,18 @@
 import SwiftUI
 
 struct LocaleSettingsView: View {
-    @AppStorage("localeMode") private var localeMode: String = "auto"
-    @AppStorage("customLocale") private var customLocale: String = "en_US.UTF-8"
-    @AppStorage("forceASCIIKeyboard") private var forceASCIIKeyboard: Bool = false
+    @Setting(Settings.Locale.mode) private var localeMode
+    @Setting(Settings.Locale.custom) private var customLocale
     @FocusState private var isTextFieldFocused: Bool
 
-    private var mode: LocaleHelper.LocaleMode {
-        LocaleHelper.LocaleMode(rawValue: localeMode) ?? .auto
-    }
+    private var mode: LocaleHelper.LocaleMode { localeMode }
 
     var body: some View {
         Form {
             Section {
                 // Checkmark-style list instead of Picker to avoid the "Mode" label
                 Button {
-                    localeMode = "auto"
+                    localeMode = .auto
                 } label: {
                     HStack {
                         VStack(alignment: .leading) {
@@ -43,7 +40,7 @@ struct LocaleSettingsView: View {
                 .themedRow()
 
                 Button {
-                    localeMode = "none"
+                    localeMode = .none
                 } label: {
                     HStack {
                         Text("Don't Send")
@@ -59,7 +56,7 @@ struct LocaleSettingsView: View {
                 .themedRow()
 
                 Button {
-                    localeMode = "custom"
+                    localeMode = .custom
                 } label: {
                     HStack {
                         Text("Custom")
@@ -90,12 +87,15 @@ struct LocaleSettingsView: View {
 
             if mode == .custom {
                 Section {
-                    TextField("en_US.UTF-8", text: $customLocale)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .submitLabel(.done)
-                        .focused($isTextFieldFocused)
-                        .themedRow()
+                    HStack(spacing: 6) {
+                        TextField("en_US.UTF-8", text: $customLocale)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .submitLabel(.done)
+                            .focused($isTextFieldFocused)
+                        SettingPinTag(Settings.Locale.custom.erased)
+                    }
+                    .themedRow()
                 } footer: {
                     if let warning = LocaleHelper.validate(customLocale).warning {
                         Label(warning, systemImage: "exclamationmark.triangle.fill")
@@ -106,13 +106,9 @@ struct LocaleSettingsView: View {
             }
             #if !targetEnvironment(macCatalyst)
             Section {
-                Toggle("Force ASCII Keyboard", isOn: Binding(
-                    get: { forceASCIIKeyboard },
-                    set: { newValue in
-                        forceASCIIKeyboard = newValue
-                        NotificationCenter.default.post(name: .forceASCIIKeyboardChanged, object: nil)
-                    }
-                ))
+                SettingToggle(Settings.Keyboard.forceASCIIKeyboard, title: "Force ASCII Keyboard") { _ in
+                    NotificationCenter.default.post(name: .forceASCIIKeyboardChanged, object: nil)
+                }
                 .themedRow()
             } footer: {
                 Text("Restricts the software keyboard to ASCII layout, preventing input methods from substituting terminal characters like | and ~.")
@@ -121,5 +117,6 @@ struct LocaleSettingsView: View {
         }
         .themedList()
         .navigationTitle("Locale")
+        .toolbar { SettingsScreenPinMenu(groups: [.locale]) }
     }
 }

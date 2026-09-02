@@ -1309,12 +1309,12 @@ final class CitadelSSHSession: SSHTerminalSession {
     /// Start connection health monitoring
     private func startHealthMonitoring() {
         // Check if health monitoring is enabled in settings (defaults to true)
-        let healthMonitoringEnabled = UserDefaults.standard.object(forKey: "sshHealthMonitoringEnabled") as? Bool ?? true
+        let healthMonitoringEnabled = SettingsStore.shared.value(Settings.Connections.healthMonitoring)
         guard healthMonitoringEnabled else { return }
         guard let client = client else { return }
 
         // Get configured probe interval (defaults to 15 seconds)
-        let probeInterval = TimeInterval(UserDefaults.standard.object(forKey: "sshHealthProbeInterval") as? Int ?? 15)
+        let probeInterval = TimeInterval(SettingsStore.shared.value(Settings.Connections.healthProbeInterval))
 
         let monitor = ConnectionHealthMonitor(client: client, pingInterval: probeInterval)
         monitor.onHealthUpdate = { [weak self] health in

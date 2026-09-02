@@ -6,8 +6,8 @@
 import SwiftUI
 
 struct ZmxAutoStartCommandView: View {
-    @AppStorage("zmxSessionName") private var sessionName = ""
-    @AppStorage("zmxCustomCommand") private var customCommand = ""
+    @Setting(Settings.Multiplexer.zmxSessionName) private var sessionName
+    @Setting(Settings.Multiplexer.zmxCustomCommand) private var customCommand
     @State private var copied = false
     @FocusState private var isEditorFocused: Bool
 
@@ -25,6 +25,7 @@ struct ZmxAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .disabled(hasCustomCommand)
                     .foregroundStyle(hasCustomCommand ? .secondary : .primary)
+                    .settingRow(Settings.Multiplexer.zmxSessionName)
                     .themedRow()
             } header: {
                 Text("Session Name")
@@ -43,6 +44,7 @@ struct ZmxAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .focused($isEditorFocused)
                     .frame(minHeight: 80)
+                    .settingRow(Settings.Multiplexer.zmxCustomCommand)
                     .themedRow()
 
                 if hasCustomCommand {

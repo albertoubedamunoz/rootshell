@@ -171,35 +171,41 @@ struct MainView: View {
     // Theme-Aware UI toggle. Read by the sheet-theme helpers in
     // MainViewSheetTheme.swift; `private` would hide it from extensions
     // in other files.
-    @AppStorage("themedUI") var themedUIEnabled: Bool = true
+    @Setting(Settings.Theme.themedUI) var themedUIEnabled
 
     /// Extend the active background effect through the docked vertical tab
     /// sidebar. Enabled by default so the content area reads as one canvas.
-    @AppStorage(UserPreferences.backgroundEffectIncludesPinnedSidebarKey)
-    var backgroundEffectIncludesPinnedSidebar: Bool = true
+    @Setting(Settings.Shaders.effectIncludesPinnedSidebar)
+    var backgroundEffectIncludesPinnedSidebar
 
     // SSH settings
-    @AppStorage("sshHealthMonitoringEnabled") var sshHealthMonitoringEnabled: Bool = true
+    @Setting(Settings.Connections.healthMonitoring) var sshHealthMonitoringEnabled
 #if targetEnvironment(macCatalyst)
-    @AppStorage("tabsInTitlebarEnabled") var tabsInTitlebarEnabled: Bool = true
-    @AppStorage("hideWindowTitleBar") var hideWindowTitleBar: Bool = false
+    @Setting(Settings.Window.tabsInTitlebar) var tabsInTitlebarEnabled
+    @Setting(Settings.Window.hideTitleBar) var hideWindowTitleBar
 #endif
-    
-    // Tab bar visibility
-    @AppStorage("tabBarHidden") var tabBarHidden: Bool = false
-    @AppStorage("showTabShortcutIndicators") var showTabShortcutIndicators: Bool = false
-    @AppStorage("tabBarAnimationsDisabled") var tabBarAnimationsDisabled: Bool = false
-    @AppStorage(TopTabStyle.storageKey) var topTabStyleRawValue: String = TopTabStyle.pills.rawValue
-    @AppStorage(UserPreferences.compactPillTabSpacingKey) var compactPillTabSpacing: Bool = false
-    @AppStorage(UserPreferences.showTabScopeMenuKey) var showTabScopeMenu: Bool = true
 
-    var topTabStyle: TopTabStyle { TopTabStyle.resolve(topTabStyleRawValue) }
+    // Tab bar visibility
+    @Setting(Settings.Tabs.barHidden) var tabBarHidden
+    @Setting(Settings.Tabs.showShortcutIndicators) var showTabShortcutIndicators
+    @Setting(Settings.Tabs.barAnimationsDisabled) var tabBarAnimationsDisabled
+    @Setting(Settings.Tabs.topTabStyle) var topTabStyle
+    @Setting(Settings.Tabs.compactPillSpacing) var compactPillTabSpacing
+    @Setting(Settings.Tabs.showScopeMenu) var showTabScopeMenu
+
+    /// Raw-value bridge for the shared tab components that still take `Binding<String>`.
+    var topTabStyleRawValueBinding: Binding<String> {
+        Binding(
+            get: { topTabStyle.rawValue },
+            set: { topTabStyle = TopTabStyle.resolve($0) }
+        )
+    }
     var usesCompactTabSpacing: Bool {
         topTabStyle.usesEqualWidthTabs || compactPillTabSpacing
     }
 
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @AppStorage("fullScreenModeEnabled") var fullScreenModeEnabled: Bool = false
+    @Setting(Settings.Window.fullScreenMode) var fullScreenModeEnabled
 #endif
 
 #if os(visionOS)
@@ -280,19 +286,17 @@ struct MainView: View {
     /// When pinned, the sidebar renders as a docked left column that shrinks
     /// the terminal (instead of a floating overlay over it). Routes
     /// `showingTabSwitcher` to docked vs floating — see `tabSidebarIsDocked`.
-    @AppStorage("tabSidebarPinned") var tabSidebarPinned: Bool = false
+    @Setting(Settings.Sidebar.pinned) var tabSidebarPinned
 
     /// When the floating (non-pinned) sidebar is open, auto-close it after the
     /// user selects a tab. Off by default (sidebar stays open until dismissed).
     /// No effect on phone/visionOS (those always dismiss) or in pinned/docked mode.
-    @AppStorage("tabSidebarAutoHideOnSelect") var tabSidebarAutoHideOnSelect: Bool = false
+    @Setting(Settings.Sidebar.autoHideOnSelect) var tabSidebarAutoHideOnSelect
 
     /// Mirror of the tab sidebar's control-density setting so the docked
     /// column's resize floor (`TabSidebarLayout.dockedMinWidth`) widens when the
-    /// user switches to large controls. Default must match VerticalTabSidebar's
-    /// own @AppStorage("tabSidebarLargeControls") (large on phone, compact else).
-    @AppStorage("tabSidebarLargeControls") var tabSidebarLargeControls: Bool =
-        UIDevice.current.userInterfaceIdiom == .phone
+    /// user switches to large controls (default: large on phone, compact else).
+    @Setting(Settings.Sidebar.largeControls) var tabSidebarLargeControls
 
     /// User-resizable width of the docked (pinned) tab sidebar column. Local
     /// `@State` drives layout live during a divider drag; the value is
@@ -444,7 +448,7 @@ struct MainView: View {
                                 tabBarSettingsButton(theme: resolvedTheme)
                             } else {
                                 TabStyleContextMenuRegion(
-                                    selectedStyleRawValue: $topTabStyleRawValue
+                                    selectedStyleRawValue: topTabStyleRawValueBinding
                                 )
                                 .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
                                 .layoutPriority(-1)

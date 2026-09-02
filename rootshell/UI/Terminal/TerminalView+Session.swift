@@ -636,21 +636,17 @@ extension Ghostty.TerminalView {
     /// Called after the session reports it is ready for input.
     func discoverSessionsIfConfigured() {
         // Check which discoveries are enabled (default to true for all)
-        let tmuxEnabled = UserDefaults.standard.object(forKey: "tmuxSessionDiscoveryEnabled") == nil
-            || UserDefaults.standard.bool(forKey: "tmuxSessionDiscoveryEnabled")
-        let zellijEnabled = UserDefaults.standard.object(forKey: "zellijSessionDiscoveryEnabled") == nil
-            || UserDefaults.standard.bool(forKey: "zellijSessionDiscoveryEnabled")
-        let herdrEnabled = UserDefaults.standard.object(forKey: "herdrSessionDiscoveryEnabled") == nil
-            || UserDefaults.standard.bool(forKey: "herdrSessionDiscoveryEnabled")
-        let zmxEnabled = UserDefaults.standard.object(forKey: "zmxSessionDiscoveryEnabled") == nil
-            || UserDefaults.standard.bool(forKey: "zmxSessionDiscoveryEnabled")
+        let store = SettingsStore.shared
+        let tmuxEnabled = store.value(Settings.Multiplexer.tmuxSessionDiscovery)
+        let zellijEnabled = store.value(Settings.Multiplexer.zellijSessionDiscovery)
+        let herdrEnabled = store.value(Settings.Multiplexer.herdrSessionDiscovery)
+        let zmxEnabled = store.value(Settings.Multiplexer.zmxSessionDiscovery)
 
         guard tmuxEnabled || zellijEnabled || herdrEnabled || zmxEnabled else { return }
 
         #if STANDALONE && targetEnvironment(macCatalyst)
         if session is CatalystLocalShellSession, case .local = connectionConfig {
-            let localEnabled = UserDefaults.standard.object(forKey: "localSessionDiscoveryEnabled") == nil
-                || UserDefaults.standard.bool(forKey: "localSessionDiscoveryEnabled")
+            let localEnabled = store.value(Settings.Multiplexer.localSessionDiscovery)
             guard localEnabled else { return }
 
             let allowSessionPickerOverlay = true

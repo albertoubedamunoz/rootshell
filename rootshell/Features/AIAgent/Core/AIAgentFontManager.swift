@@ -18,7 +18,6 @@ class AIAgentFontManager: ObservableObject {
 
     // MARK: - Keys
 
-    private static let textSizeKey = "aiAgentTextSize"
     private static let defaultTextSize: Double = 14.0
     private static let minTextSize: Double = 10.0
     private static let maxTextSize: Double = 24.0
@@ -28,10 +27,12 @@ class AIAgentFontManager: ObservableObject {
     /// Currently selected text size for AI Agent chat
     @Published var textSize: Double {
         didSet {
-            saveTextSize()
+            if !isReloading { saveTextSize() }
             textSizeDidChange.send(textSize)
         }
     }
+
+    private var isReloading = false
 
     // MARK: - Publishers
 
@@ -58,14 +59,27 @@ class AIAgentFontManager: ObservableObject {
     // MARK: - Initialization
 
     private init() {
-        let savedSize = UserDefaults.standard.double(forKey: Self.textSizeKey)
-        self.textSize = savedSize > 0 ? savedSize : Self.defaultTextSize
+        self.textSize = Self.storedTextSize
+        SettingsRefreshHub.shared.register(keys: [Settings.AI.textSize.name]) { [weak self] _ in
+            self?.reload()
+        }
     }
 
     // MARK: - Persistence
 
+    private static var storedTextSize: Double {
+        let savedSize = SettingsStore.shared.get(Settings.AI.textSize)
+        return savedSize > 0 ? savedSize : defaultTextSize
+    }
+
     private func saveTextSize() {
-        UserDefaults.standard.set(textSize, forKey: Self.textSizeKey)
+        SettingsStore.shared.set(Settings.AI.textSize, textSize)
+    }
+
+    private func reload() {
+        isReloading = true
+        defer { isReloading = false }
+        textSize = Self.storedTextSize
     }
 
     // MARK: - Actions

@@ -120,10 +120,14 @@ final class AlwaysOnDisplayManager {
     var duration: AlwaysOnDisplayDuration {
         didSet {
             guard duration != oldValue else { return }
-            UserDefaults.standard.set(duration.rawValue, forKey: Self.storageKey)
+            if !isReloading {
+                SettingsStore.shared.set(Settings.Power.alwaysOnDisplayMinutes, duration.rawValue)
+            }
             armHold() // synchronous -> instant effect
         }
     }
+
+    @ObservationIgnored private var isReloading = false
 
     /// Bridge for `Slider`, which works in `Double` while the setting is a
     /// discrete step. Reads `duration`, so @Observable still tracks it.
@@ -157,6 +161,17 @@ final class AlwaysOnDisplayManager {
         // re-reads the real value once protected data is available, so a
         // persisted duration is never masked for the process lifetime.
         self.duration = Self.persistedDuration()
+        SettingsRefreshHub.shared.register(keys: [Self.storageKey]) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Re-read the duration after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        guard keys.contains(Self.storageKey) else { return }
+        isReloading = true
+        defer { isReloading = false }
+        duration = Self.persistedDuration() // didSet arms the hold
     }
 
     /// Idempotent. Loads and applies the persisted state once protected data is
@@ -293,11 +308,11 @@ final class AlwaysOnDisplayManager {
     // MARK: - Persistence
 
     private static func persistedDuration() -> AlwaysOnDisplayDuration {
-        let defaults = UserDefaults.standard
-        if let raw = defaults.object(forKey: storageKey) as? Int {
-            return AlwaysOnDisplayDuration(rawValue: raw)
+        // Presence check stays raw: the legacy toggle only applies while the key is unset.
+        guard UserDefaults.standard.object(forKey: storageKey) != nil else {
+            return UserDefaults.standard.bool(forKey: legacyToggleKey) ? .always : .off
         }
-        return defaults.bool(forKey: legacyToggleKey) ? .always : .off
+        return AlwaysOnDisplayDuration(rawValue: SettingsStore.shared.get(Settings.Power.alwaysOnDisplayMinutes))
     }
 
     /// Fold a pre-slider "on" switch into the duration setting. Only ever runs

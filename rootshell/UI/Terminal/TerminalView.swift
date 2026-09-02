@@ -1022,7 +1022,7 @@ extension Ghostty {
         #if !targetEnvironment(macCatalyst)
         /// Whether touch scroll mode is enabled (single finger scrolls, long press selects)
         var isTouchScrollMode: Bool {
-            UserDefaults.standard.bool(forKey: "scrollModeEnabled")
+            SettingsStore.shared.value(Settings.Gestures.scrollMode)
         }
         #endif
 
@@ -1910,7 +1910,7 @@ extension Ghostty {
         #endif
 
         private func applyASCIIKeyboardSetting() {
-            let forceASCII = UserDefaults.standard.bool(forKey: "forceASCIIKeyboard")
+            let forceASCII = SettingsStore.shared.value(Settings.Keyboard.forceASCIIKeyboard)
             keyboardType = forceASCII ? .asciiCapable : .default
             if isFirstResponder {
                 reloadInputViews()
@@ -3870,7 +3870,7 @@ extension Ghostty {
             // Double-space-for-period: when enabled, two rapid spaces become ". "
             #if !targetEnvironment(macCatalyst)
             if finalText == " ",
-               UserDefaults.standard.bool(forKey: "doubleSpaceForPeriod"),
+               SettingsStore.shared.value(Settings.Keyboard.doubleSpaceForPeriod),
                let lastSpace = lastSpaceInsertTime,
                Date().timeIntervalSince(lastSpace) < 0.3 {
                 lastSpaceInsertTime = nil

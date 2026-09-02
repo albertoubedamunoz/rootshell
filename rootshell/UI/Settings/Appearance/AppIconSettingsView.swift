@@ -73,6 +73,7 @@ struct AppIconSettingsView: View {
         .themedList()
         .navigationTitle(String(localized: "App Icon", comment: "Settings navigation title: app icon picker"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.theme]) }
     }
 }
 
@@ -96,6 +97,7 @@ private struct AppIconCollectionSettingsView: View {
         .themedList()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.theme]) }
     }
 }
 

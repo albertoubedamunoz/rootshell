@@ -106,7 +106,7 @@ private struct ConnectionSidebarPanelView<SidebarContent: View>: View {
     private let sidebarCornerRadius: CGFloat = 20
     private let sidebarVerticalContentPadding: CGFloat = 6
 
-    @AppStorage("hideWindowTitleBar") private var hideWindowTitleBar: Bool = false
+    @Setting(Settings.Window.hideTitleBar) private var hideWindowTitleBar
 
     /// With the title bar hidden the OS may still report a top safe-area
     /// inset for chrome that isn't there, leaving a gap above the panel;

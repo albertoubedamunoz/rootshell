@@ -36,17 +36,24 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
 
     @Published var isEnabled: Bool = false {
         didSet {
-            guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(isEnabled, forKey: "ssh_notification_enabled")
+            guard ProtectedDataGuard.isAvailable, !isReloading else { return }
+            SettingsStore.shared.set(Settings.Notifications.sshReminders, isEnabled)
         }
     }
 
     @Published var terminalNotificationsEnabled: Bool = false {
         didSet {
-            guard ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(terminalNotificationsEnabled, forKey: "terminal_notification_enabled")
+            guard ProtectedDataGuard.isAvailable, !isReloading else { return }
+            SettingsStore.shared.set(Settings.Notifications.terminalNotifications, terminalNotificationsEnabled)
         }
     }
+
+    private static let ownedKeys: Set<String> = [
+        Settings.Notifications.sshReminders.name, Settings.Notifications.terminalNotifications.name,
+    ]
+
+    /// True while `reload(keys:)` re-assigns properties from the store.
+    private var isReloading = false
 
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
@@ -70,15 +77,30 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     private override init() {
         super.init()
 
-        // Load saved preferences from UserDefaults
-        self.isEnabled = UserDefaults.standard.bool(forKey: "ssh_notification_enabled")
-        self.terminalNotificationsEnabled = UserDefaults.standard.bool(forKey: "terminal_notification_enabled")
+        self.isEnabled = SettingsStore.shared.get(Settings.Notifications.sshReminders)
+        self.terminalNotificationsEnabled = SettingsStore.shared.get(Settings.Notifications.terminalNotifications)
 
         // Set self as delegate for notification center
         notificationCenter.delegate = self
 
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+
         // Note: We don't request permission here - we wait for the user to enable the toggle
         // This also avoids a race condition where init Task might overwrite authorizationStatus
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        isReloading = true
+        defer { isReloading = false }
+        if keys.contains(Settings.Notifications.sshReminders.name) {
+            isEnabled = SettingsStore.shared.get(Settings.Notifications.sshReminders)
+        }
+        if keys.contains(Settings.Notifications.terminalNotifications.name) {
+            terminalNotificationsEnabled = SettingsStore.shared.get(Settings.Notifications.terminalNotifications)
+        }
     }
 
     /// Request notification permissions from the user

@@ -18,7 +18,7 @@ struct SwipeGesturesSettingsView: View {
     @State private var showingResetConfirmation = false
     @State private var swapTrigger = 0
     #if !targetEnvironment(macCatalyst)
-    @AppStorage("scrollModeEnabled") private var scrollModeEnabled: Bool = true
+    @Setting(Settings.Gestures.scrollMode) private var scrollModeEnabled
     #endif
 
     // Built-in pair presets shown in the Quick Setup section. Tapping a row
@@ -87,6 +87,7 @@ struct SwipeGesturesSettingsView: View {
                 Button("Done") { dismiss() }
             }
             #endif
+            SettingsScreenPinMenu(groups: [.gestures])
         }
         .confirmationDialog("Reset to Defaults?", isPresented: $showingResetConfirmation) {
             Button("Reset", role: .destructive) {
@@ -157,8 +158,11 @@ struct SwipeGesturesSettingsView: View {
                 .font(.title3)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Scroll Mode is off")
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text("Scroll Mode is off")
+                        .foregroundStyle(.primary)
+                    SettingPinTag(Settings.Gestures.scrollMode.erased)
+                }
                 Text("Single-finger horizontal swipes need Scroll Mode to fire.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -169,6 +173,7 @@ struct SwipeGesturesSettingsView: View {
                 .labelsHidden()
         }
         .themedRow()
+        .settingContextMenu(Settings.Gestures.scrollMode)
     }
     #endif
 
@@ -211,8 +216,11 @@ struct SwipeGesturesSettingsView: View {
             HStack(spacing: 12) {
                 SettingsIcon(systemName: direction == .left ? "arrow.left" : "arrow.right")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(direction == .left ? "Left Swipe" : "Right Swipe")
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 6) {
+                        Text(direction == .left ? "Left Swipe" : "Right Swipe")
+                            .foregroundStyle(.primary)
+                        SettingPinTag(Settings.Gestures.swipeBindings.erased)
+                    }
                     Text(manager.binding(for: direction).displaySummary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -221,6 +229,7 @@ struct SwipeGesturesSettingsView: View {
             }
         }
         .themedRow()
+        .settingContextMenu(Settings.Gestures.swipeBindings)
     }
 
     private var captureModeNoteSection: some View {

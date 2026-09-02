@@ -222,7 +222,7 @@ enum PushNotificationRouter {
         }
         guard let (header, decryptedLocally) = decryptedHeader(from: content.userInfo) else { return [.banner, .list] }
         // willPresent only runs while the app is foreground, so this is the "device can already alert" case.
-        if header.kind == "agent", UserDefaults.standard.bool(forKey: PushRegistrationManager.backgroundOnlyKey) {
+        if header.kind == "agent", SettingsStore.shared.value(Settings.Notifications.pushAgentBackgroundOnly) {
             logger.info("suppressed: background-only and app is foreground")
             return []
         }

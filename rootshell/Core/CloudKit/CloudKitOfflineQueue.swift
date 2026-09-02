@@ -113,6 +113,12 @@ final class CloudKitOfflineQueue {
         }
     }
 
+    /// Drop every queued change of one record type
+    func removeAll(recordType: String) {
+        pendingChanges.removeAll { $0.recordType == recordType }
+        persist()
+    }
+
     /// Clear all pending changes
     func clearAll() {
         pendingChanges.removeAll()

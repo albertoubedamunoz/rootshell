@@ -33,7 +33,7 @@ struct RootShellApp: App {
     #endif
 
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @AppStorage("fullScreenModeEnabled") private var fullScreenModeEnabled: Bool = false
+    @Setting(Settings.Window.fullScreenMode) private var fullScreenModeEnabled
     #endif
 
     #if targetEnvironment(macCatalyst)

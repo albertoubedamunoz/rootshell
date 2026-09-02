@@ -40,6 +40,7 @@ struct AIAgentFontSettingsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Text Size")
+                            .settingRow(Settings.AI.textSize)
                         Spacer()
                         Text("\(Int(fontManager.textSize))pt")
                             .foregroundColor(.secondary)
@@ -123,7 +124,7 @@ struct AppearanceModeSettingsView: View {
             }
 
             Section {
-                Toggle("Theme-Aware UI", isOn: $appearanceManager.themedUIEnabled)
+                SettingToggle(Settings.Theme.themedUI, isOn: $appearanceManager.themedUIEnabled, title: "Theme-Aware UI")
                     .themedRow()
             } footer: {
                 Text("Apply terminal theme colors to sheets and settings.")
@@ -133,6 +134,7 @@ struct AppearanceModeSettingsView: View {
         .themedList()
         .navigationTitle("Appearance Mode")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.theme]) }
     }
 }
 
@@ -150,6 +152,7 @@ struct TransparencySettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Opacity")
+                            .settingRow(Settings.Transparency.backgroundOpacity)
                         Spacer()
                         Text(transparencyManager.backgroundOpacity, format: .wholePercent)
                             .foregroundColor(.secondary)
@@ -162,10 +165,13 @@ struct TransparencySettingsView: View {
                 .themedRow()
 
                 if TransparencyManager.isGlassAvailable {
-                    Picker("Blur Style", selection: $transparencyManager.blurStyle) {
+                    Picker(selection: $transparencyManager.blurStyle) {
                         ForEach(TransparencyManager.BlurStyle.allCases) { style in
                             Text(style.title).tag(style)
                         }
+                    } label: {
+                        Text("Blur Style")
+                            .settingRow(Settings.Transparency.blurStyle)
                     }
                     .padding(.vertical, 4)
                     .themedRow()
@@ -176,7 +182,7 @@ struct TransparencySettingsView: View {
                     EmptyView()
                 } else if TransparencyManager.useSandboxBlur {
                     // Sandbox mode: simple toggle (NSVisualEffectView doesn't support custom radius)
-                    Toggle("Background Blur", isOn: $transparencyManager.blurEnabled)
+                    SettingToggle(Settings.Transparency.blurEnabled, isOn: $transparencyManager.blurEnabled, title: "Background Blur")
                         .padding(.vertical, 4)
                         .themedRow()
                 } else {
@@ -184,6 +190,7 @@ struct TransparencySettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Blur Radius")
+                                .settingRow(Settings.Transparency.backgroundBlurRadius)
                             Spacer()
                             Text("\(Int(transparencyManager.backgroundBlurRadius))")
                                 .foregroundColor(.secondary)
@@ -196,14 +203,15 @@ struct TransparencySettingsView: View {
                     .themedRow()
                 }
 
-                DescribedToggle(
+                SettingDescribedToggle(
+                    Settings.Transparency.pinnedSidebarTransparency,
+                    isOn: $transparencyManager.pinnedSidebarTransparencyEnabled,
                     title: "Transparent Pinned Sidebar",
-                    description: "Apply the same opacity to the pinned vertical tab sidebar.",
-                    isOn: $transparencyManager.pinnedSidebarTransparencyEnabled
+                    description: "Apply the same opacity to the pinned vertical tab sidebar."
                 )
                 .themedRow()
             } header: {
-                Text("Window Transparency")
+                SettingGroupHeader("Window Transparency", group: .transparency)
             } footer: {
                 if transparencyManager.usesGlass {
                     Text("Controls window transparency. Liquid Glass renders the desktop behind the window through a glass material tinted with the theme background.")
@@ -233,32 +241,19 @@ struct TransparencySettingsView: View {
 // MARK: - Window Settings
 
 struct WindowSettingsView: View {
-    @AppStorage("tabBarHidden") private var tabBarHidden: Bool = false
-    @AppStorage("showTabShortcutIndicators") private var showTabShortcutIndicators: Bool = false
-    @AppStorage(UserPreferences.showTabScopeMenuKey) private var showTabScopeMenu: Bool = true
-    @AppStorage("tabBarAnimationsDisabled") private var tabBarAnimationsDisabled: Bool = false
-    @AppStorage(TopTabStyle.storageKey) private var topTabStyleRawValue: String = TopTabStyle.pills.rawValue
-    @AppStorage(UserPreferences.compactPillTabSpacingKey) private var compactPillTabSpacing: Bool = false
-    @AppStorage(TabExposeSettings.showsCaptionsKey) private var tabExposeShowsCaptions: Bool = true
-    @AppStorage("tabSidebarTranslucent") private var tabSidebarTranslucent: Bool = true
-    @AppStorage("tabSidebarAutoHideOnSelect") private var tabSidebarAutoHideOnSelect: Bool = false
-    @AppStorage("tabSidebarRowLines") private var tabSidebarRowLines: Int = 1
-    @AppStorage(SplitFocusBorderStyle.storageKey) private var splitFocusBorderStyle: String = SplitFocusBorderStyle.standard.rawValue
-    @AppStorage(SplitFocusBorderColor.storageKey) private var splitFocusBorderColor: String = SplitFocusBorderColor.accent.rawValue
-    @AppStorage(SplitFocusBorderColor.customHexKey) private var splitFocusBorderCustomHex: String = "007AFF"
-    @AppStorage("copyOnSelect") private var copyOnSelect: Bool = true
-    #if os(iOS) && !targetEnvironment(macCatalyst)
-    @AppStorage(UserPreferences.useNativeSelectionLoupeKey) private var useNativeSelectionLoupe: Bool = false
-    #endif
+    @Setting(Settings.Tabs.topTabStyle) private var topTabStyle
+    @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
+    @Setting(Settings.Sidebar.translucent) private var tabSidebarTranslucent
+    @Setting(Settings.Sidebar.rowLines) private var tabSidebarRowLines
+    @Setting(Settings.Window.splitFocusBorderStyle) private var splitFocusBorderStyle
+    @Setting(Settings.Window.splitFocusBorderColor) private var splitFocusBorderColor
+    @Setting(Settings.Window.splitFocusBorderCustomColor) private var splitFocusBorderCustomHex
+    @Setting(Settings.Selection.copyOnSelect) private var copyOnSelect
     @Bindable private var selectionManager = SelectionManager.shared
     @Bindable private var paddingManager = PaddingManager.shared
     // HDR "brightness boost" — the same global gain the floating brightness HUD
     // drives, surfaced here so it can be set without summoning the overlay.
     @Bindable private var brightnessManager = BrightnessManager.shared
-    #if targetEnvironment(macCatalyst)
-    @AppStorage("tabsInTitlebarEnabled") private var tabsInTitlebarEnabled: Bool = true
-    @AppStorage("hideWindowTitleBar") private var hideWindowTitleBar: Bool = false
-    #endif
 
     /// The display's maximum potential EDR headroom (peak EDR white ÷ SDR white).
     /// 1.0 means no EDR (SDR panel, visionOS, or already at full brightness). We
@@ -307,12 +302,12 @@ struct WindowSettingsView: View {
         Binding(
             get: {
                 TopTabLayout.resolve(
-                    style: TopTabStyle.resolve(topTabStyleRawValue),
+                    style: topTabStyle,
                     compactPills: compactPillTabSpacing
                 )
             },
             set: { layout in
-                topTabStyleRawValue = layout.style.rawValue
+                topTabStyle = layout.style
                 if layout.style == .pills {
                     compactPillTabSpacing = layout.usesCompactPillSpacing
                 }
@@ -320,7 +315,6 @@ struct WindowSettingsView: View {
         )
     }
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @AppStorage("fullScreenModeEnabled") private var fullScreenModeEnabled: Bool = false
     @Bindable private var alwaysOnDisplayManager = AlwaysOnDisplayManager.shared
 
     /// Whether this device has a home indicator (a non-zero bottom safe area).
@@ -337,60 +331,63 @@ struct WindowSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle("Show Top Tab Bar", isOn: Binding(
-                    get: { !tabBarHidden },
-                    set: { tabBarHidden = !$0 }
-                ))
-                .themedRow()
+                SettingToggle(Settings.Tabs.barHidden, title: "Show Top Tab Bar", inverted: true)
+                    .themedRow()
 
-                Picker("Tab Style", selection: topTabLayout) {
+                Picker(selection: topTabLayout) {
                     ForEach(TopTabLayout.allCases) { layout in
                         Text(layout.displayName).tag(layout)
                     }
+                } label: {
+                    Text("Tab Style")
+                        .settingRow(Settings.Tabs.topTabStyle)
                 }
                 .pickerStyle(.menu)
                 .themedRow()
 
-                DescribedToggle(
+                SettingDescribedToggle(
+                    Settings.Tabs.showShortcutIndicators,
                     title: "Show Tab Shortcuts",
-                    description: "Display ⌘1–9 indicators on tabs for quick keyboard navigation.",
-                    isOn: $showTabShortcutIndicators
+                    description: "Display ⌘1–9 indicators on tabs for quick keyboard navigation."
                 )
                 .themedRow()
 
-                DescribedToggle(
+                SettingDescribedToggle(
+                    Settings.Tabs.showScopeMenu,
                     title: "Show Group Menu",
-                    description: "Show the active group or project switcher in the top tab bar while tabs are grouped.",
-                    isOn: $showTabScopeMenu
+                    description: "Show the active group or project switcher in the top tab bar while tabs are grouped."
                 )
                 .themedRow()
 
-                Toggle("Disable Tab Animations", isOn: $tabBarAnimationsDisabled)
+                SettingToggle(Settings.Tabs.barAnimationsDisabled, title: "Disable Tab Animations")
                     .themedRow()
 
-                DescribedToggle(
+                SettingDescribedToggle(
+                    Settings.Tabs.exposeShowsCaptions,
                     title: "Tab Exposé Captions",
-                    description: "Show tab titles and badges under each live preview in Tab Exposé.",
-                    isOn: $tabExposeShowsCaptions
+                    description: "Show tab titles and badges under each live preview in Tab Exposé."
                 )
                 .themedRow()
 
                 #if !os(visionOS)
-                Toggle(
-                    UIDevice.current.userInterfaceIdiom == .phone
-                        ? String(localized: "Translucent Tab Switcher")
-                        : String(localized: "Translucent Tab Sidebar"),
-                    isOn: $tabSidebarTranslucent
-                )
+                Toggle(isOn: $tabSidebarTranslucent) {
+                    HStack(spacing: 6) {
+                        Text(UIDevice.current.userInterfaceIdiom == .phone
+                            ? String(localized: "Translucent Tab Switcher")
+                            : String(localized: "Translucent Tab Sidebar"))
+                        SettingPinTag(Settings.Sidebar.translucent.erased)
+                    }
+                }
                 .themedRow()
+                .settingContextMenu(Settings.Sidebar.translucent)
 
                 // Pinned/non-pinned only exists on iPad/Catalyst; on phone the
                 // switcher always dismisses on select, so the toggle is a no-op.
                 if UIDevice.current.userInterfaceIdiom != .phone {
-                    DescribedToggle(
+                    SettingDescribedToggle(
+                        Settings.Sidebar.autoHideOnSelect,
                         title: "Auto-Hide Sidebar After Selection",
-                        description: "Closes the floating (non-pinned) sidebar after you pick a tab. The pinned sidebar always stays open.",
-                        isOn: $tabSidebarAutoHideOnSelect
+                        description: "Closes the floating (non-pinned) sidebar after you pick a tab. The pinned sidebar always stays open."
                     )
                     .themedRow()
                 }
@@ -403,6 +400,7 @@ struct WindowSettingsView: View {
                         Text(UIDevice.current.userInterfaceIdiom == .phone
                             ? String(localized: "Tab Switcher Title Lines")
                             : String(localized: "Sidebar Title Lines"))
+                            .settingRow(Settings.Sidebar.rowLines)
                         Spacer()
                         Text("\(tabSidebarRowLines)")
                             .foregroundColor(.secondary)
@@ -416,17 +414,17 @@ struct WindowSettingsView: View {
 
             #if targetEnvironment(macCatalyst)
             Section {
-                Toggle("Tabs in Title Bar", isOn: $tabsInTitlebarEnabled)
+                SettingToggle(Settings.Window.tabsInTitlebar, title: "Tabs in Title Bar")
                     .themedRow()
 
-                DescribedToggle(
+                SettingDescribedToggle(
+                    Settings.Window.hideTitleBar,
                     title: "Hide Title Bar",
-                    description: "Removes the macOS title bar and window controls so content reaches the top edge. Close the window with ⌘W and enter full screen with the View menu.",
-                    isOn: $hideWindowTitleBar
+                    description: "Removes the macOS title bar and window controls so content reaches the top edge. Close the window with ⌘W and enter full screen with the View menu."
                 )
                 .themedRow()
             } header: {
-                Text("Title Bar")
+                SettingGroupHeader("Title Bar", group: .window)
             } footer: {
                 Text("Moves the tab bar into the macOS title bar area to remove the extra top row.")
                     .font(.caption)
@@ -440,6 +438,7 @@ struct WindowSettingsView: View {
                 ), in: 0...32) {
                     HStack {
                         Text("Horizontal")
+                            .settingRow(Settings.Terminal.paddingXOverride)
                         Spacer()
                         Text("\(paddingManager.effectivePaddingX) pt")
                             .foregroundColor(.secondary)
@@ -454,6 +453,7 @@ struct WindowSettingsView: View {
                 ), in: 0...32) {
                     HStack {
                         Text("Vertical")
+                            .settingRow(Settings.Terminal.paddingYOverride)
                         Spacer()
                         Text("\(paddingManager.effectivePaddingY) pt")
                             .foregroundColor(.secondary)
@@ -470,7 +470,7 @@ struct WindowSettingsView: View {
                     .themedRow()
                 }
             } header: {
-                Text("Window Padding")
+                SettingGroupHeader("Window Padding", group: .terminal)
             } footer: {
                 Text(paddingManager.isCustom
                      ? "Custom padding active. Reset to restore the platform default."
@@ -479,33 +479,42 @@ struct WindowSettingsView: View {
             }
 
             Section {
-                Picker("Split Focus Border", selection: $splitFocusBorderStyle) {
+                Picker(selection: $splitFocusBorderStyle) {
                     ForEach(SplitFocusBorderStyle.allCases, id: \.rawValue) { style in
-                        Text(style.displayName).tag(style.rawValue)
+                        Text(style.displayName).tag(style)
                     }
+                } label: {
+                    Text("Split Focus Border")
+                        .settingRow(Settings.Window.splitFocusBorderStyle)
                 }
                 .themedRow()
 
-                Picker("Border Color", selection: $splitFocusBorderColor) {
+                Picker(selection: $splitFocusBorderColor) {
                     ForEach(SplitFocusBorderColor.allCases, id: \.rawValue) { color in
-                        Text(color.displayName).tag(color.rawValue)
+                        Text(color.displayName).tag(color)
                     }
+                } label: {
+                    Text("Border Color")
+                        .settingRow(Settings.Window.splitFocusBorderColor)
                 }
                 .themedRow()
 
-                if splitFocusBorderColor == SplitFocusBorderColor.custom.rawValue {
-                    ColorPicker("Custom Color", selection: Binding(
+                if splitFocusBorderColor == .custom {
+                    ColorPicker(selection: Binding(
                         get: {
                             Color(hex: splitFocusBorderCustomHex) ?? .blue
                         },
                         set: { newColor in
                             splitFocusBorderCustomHex = UIColor(newColor).hexString
                         }
-                    ))
+                    )) {
+                        Text("Custom Color")
+                            .settingRow(Settings.Window.splitFocusBorderCustomColor)
+                    }
                     .themedRow()
                 }
             } header: {
-                Text("Split Panes")
+                SettingGroupHeader("Split Panes", group: .window)
             } footer: {
                 Text("Controls the border shown around the focused pane when using split terminals.")
                     .font(.caption)
@@ -523,16 +532,17 @@ struct WindowSettingsView: View {
             if showDisplaySection {
             Section {
                 #if !targetEnvironment(macCatalyst)
-                DescribedToggle(
+                SettingDescribedToggle(
+                    Settings.Window.fullScreenMode,
                     title: "Full Screen",
-                    description: "Hides the status bar and iPadOS window resize handle for a distraction-free terminal.",
-                    isOn: $fullScreenModeEnabled
+                    description: "Hides the status bar and iPadOS window resize handle for a distraction-free terminal."
                 )
                 .themedRow()
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Always On Display")
+                            .settingRow(Settings.Power.alwaysOnDisplayMinutes)
                         Spacer()
                         Text(alwaysOnDisplayManager.duration.displayValue)
                             .foregroundColor(.secondary)
@@ -568,10 +578,11 @@ struct WindowSettingsView: View {
                 .themedRow()
 
                 if deviceHasHomeIndicator {
-                    DescribedToggle(
+                    SettingDescribedToggle(
+                        Settings.Window.extendUnderHomeIndicator,
+                        isOn: $paddingManager.extendUnderHomeIndicator,
                         title: "Extend Under Home Indicator",
-                        description: "Run the terminal and its keyboard toolbar edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with taps and text selection near the bottom.",
-                        isOn: $paddingManager.extendUnderHomeIndicator
+                        description: "Run the terminal and its keyboard toolbar edge-to-edge under the home indicator. Off keeps a small gap so the home-swipe gesture doesn't interfere with taps and text selection near the bottom."
                     )
                     .themedRow()
                 }
@@ -581,6 +592,7 @@ struct WindowSettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Brightness Boost")
+                                .settingRow(Settings.Power.brightnessGain)
                             Spacer()
                             Text(String(format: "%.2f×", brightnessManager.gain))
                                 .foregroundColor(.secondary)
@@ -618,45 +630,54 @@ struct WindowSettingsView: View {
             #endif
 
             Section {
-                Picker("Selection Style", selection: $selectionManager.selectionMode) {
+                Picker(selection: $selectionManager.selectionMode) {
                     ForEach(SelectionAppearanceMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
+                } label: {
+                    Text("Selection Style")
+                        .settingRow(Settings.Selection.appearanceMode)
                 }
                 .themedRow()
 
                 if selectionManager.selectionMode == .custom {
-                    ColorPicker("Foreground", selection: Binding(
+                    ColorPicker(selection: Binding(
                         get: {
                             Color(hex: selectionManager.customForegroundHex) ?? .white
                         },
                         set: { newColor in
                             selectionManager.customForegroundHex = UIColor(newColor).hexString
                         }
-                    ))
+                    )) {
+                        Text("Foreground")
+                            .settingRow(Settings.Selection.foregroundHex)
+                    }
                     .themedRow()
 
-                    ColorPicker("Background", selection: Binding(
+                    ColorPicker(selection: Binding(
                         get: {
                             Color(hex: selectionManager.customBackgroundHex) ?? .blue
                         },
                         set: { newColor in
                             selectionManager.customBackgroundHex = UIColor(newColor).hexString
                         }
-                    ))
+                    )) {
+                        Text("Background")
+                            .settingRow(Settings.Selection.backgroundHex)
+                    }
                     .themedRow()
                 }
-                Toggle("Copy on Select", isOn: $copyOnSelect)
+                SettingToggle(Settings.Selection.copyOnSelect, title: "Copy on Select")
                     .padding(.vertical, 4)
                     .themedRow()
 
                 #if os(iOS) && !targetEnvironment(macCatalyst)
-                Toggle("Use Native Selection Loupe", isOn: $useNativeSelectionLoupe)
+                SettingToggle(Settings.Selection.useNativeLoupe, title: "Use Native Selection Loupe")
                     .padding(.vertical, 4)
                     .themedRow()
                 #endif
             } header: {
-                Text("Text Selection")
+                SettingGroupHeader("Text Selection", group: .selection)
             } footer: {
                 Text(copyOnSelect
                     ? String(localized: "Selected text is automatically copied to the clipboard.")

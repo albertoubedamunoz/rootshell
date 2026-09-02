@@ -11,27 +11,13 @@
 import SwiftUI
 
 struct CodingAgentSettingsView: View {
-    @AppStorage(AgentAttentionSettings.detectionEnabledKey)
-    private var agentDetectionEnabled = true
-    @AppStorage(AgentAttentionSettings.badgesEnabledKey)
-    private var attentionBadgesEnabled = true
-    @AppStorage(AgentAttentionSettings.projectProbesEnabledKey)
-    private var projectProbesEnabled = true
-    @AppStorage(AgentUsageSettings.enabledKey)
-    private var usageTrackingEnabled = true
-    @AppStorage(AgentNotificationPolicy.storageKey)
-    private var agentNotificationPolicy = AgentNotificationPolicy.blockedOnly.rawValue
+    @Setting(Settings.CodingAgents.detectionEnabled) private var agentDetectionEnabled
+    @Setting(Settings.Notifications.agentPolicy) private var agentNotificationPolicy
 
     var body: some View {
         List {
             Section {
-                Toggle(isOn: $agentDetectionEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "sparkles.rectangle.stack")
-                        Text("Detect Coding Agents")
-                    }
-                }
-                .onChange(of: agentDetectionEnabled) { _, enabled in
+                SettingToggle(Settings.CodingAgents.detectionEnabled, title: "Detect Coding Agents", icon: "sparkles.rectangle.stack") { enabled in
                     AgentAttentionCenter.shared.setDetectionEnabled(enabled)
                 }
                 .themedRow()
@@ -47,13 +33,8 @@ struct CodingAgentSettingsView: View {
             }
 
             Section {
-                Toggle(isOn: $attentionBadgesEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "circlebadge.fill")
-                        Text("Show Attention Badges")
-                    }
-                }
-                .themedRow()
+                SettingToggle(Settings.CodingAgents.attentionBadges, title: "Show Attention Badges", icon: "circlebadge.fill")
+                    .themedRow()
 
                 NavigationLink {
                     AgentNotificationPolicyPickerView()
@@ -61,14 +42,16 @@ struct CodingAgentSettingsView: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "bell.and.waves.left.and.right")
                         Text("Agent Notifications")
+                        SettingPinTag(Settings.Notifications.agentPolicy.erased)
                         Spacer()
-                        Text((AgentNotificationPolicy(rawValue: agentNotificationPolicy) ?? .blockedOnly).displayName)
+                        Text(agentNotificationPolicy.displayName)
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
                 }
                 .disabled(!agentDetectionEnabled)
                 .themedRow()
+                .settingContextMenu(Settings.Notifications.agentPolicy)
             } header: {
                 Text("Attention & Notifications")
             } footer: {
@@ -76,37 +59,25 @@ struct CodingAgentSettingsView: View {
             }
 
             Section {
-                Toggle(isOn: $projectProbesEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "folder.badge.questionmark")
-                        Text("Look Up Project Details")
-                    }
-                }
-                .disabled(!agentDetectionEnabled)
-                .onChange(of: projectProbesEnabled) { _, enabled in
+                SettingToggle(Settings.CodingAgents.projectProbes, title: "Look Up Project Details", icon: "folder.badge.questionmark") { enabled in
                     AgentAttentionCenter.shared.setProjectProbesEnabled(enabled)
                 }
+                .disabled(!agentDetectionEnabled)
                 .themedRow()
             } header: {
-                Text("Project Details")
+                SettingGroupHeader("Project Details", group: .codingAgents)
             } footer: {
                 Text("Shows each agent's project and branch by running a short read-only command on the connected host, only for tabs where an agent was detected. When off, nothing is sent; the branch is hidden and the project appears only when the shell reports it on its own.")
             }
 
             Section {
-                Toggle(isOn: $usageTrackingEnabled) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "gauge.with.needle")
-                        Text("Show Subscription Usage")
-                    }
-                }
-                .disabled(!agentDetectionEnabled)
-                .onChange(of: usageTrackingEnabled) { _, enabled in
+                SettingToggle(Settings.CodingAgents.usageTracking, title: "Show Subscription Usage", icon: "gauge.with.needle") { enabled in
                     AgentUsageCenter.shared.setEnabled(enabled)
                 }
+                .disabled(!agentDetectionEnabled)
                 .themedRow()
             } header: {
-                Text("Subscription Usage")
+                SettingGroupHeader("Subscription Usage", group: .codingAgents)
             } footer: {
                 Text("Shows how much of your Claude, Codex, or GitHub Copilot subscription allowance is used, at the bottom of the tab sidebar, for agents currently running in a tab. Reads the agent's own sign-in from the connected host and checks usage with its provider from this device, no more than once every 5 to 15 minutes per account depending on the provider. An oh-my-pi session is different: it is signed in to several providers at once, so it is asked for its own usage summary instead and every account it reports appears, including providers listed here. Nothing is written to the host, and an oh-my-pi sign-in is never read at all. Your sign-in is never saved on this device; only the usage figures, plan name, account label and their timestamps are kept, so the sidebar can fill in immediately at launch.")
             }
@@ -120,13 +91,10 @@ struct CodingAgentSettingsView: View {
 // MARK: - Agent Notification Policy Picker (id=agent-attention)
 
 struct AgentNotificationPolicyPickerView: View {
-    @AppStorage(AgentNotificationPolicy.storageKey)
-    private var policy = AgentNotificationPolicy.blockedOnly.rawValue
-    @AppStorage(AgentAttentionSettings.notificationPromptEnabledKey)
-    private var includePrompt = true
+    @Setting(Settings.Notifications.agentPolicy) private var policy
 
     private var notificationsOff: Bool {
-        (AgentNotificationPolicy(rawValue: policy) ?? .blockedOnly) == .off
+        policy == .off
     }
 
     var body: some View {
@@ -134,7 +102,7 @@ struct AgentNotificationPolicyPickerView: View {
             Section {
                 ForEach(AgentNotificationPolicy.allCases, id: \.rawValue) { option in
                     Button {
-                        policy = option.rawValue
+                        policy = option
                         // Selecting a live policy is the consent moment;
                         // without authorization nothing would ever fire.
                         if option != .off {
@@ -154,7 +122,7 @@ struct AgentNotificationPolicyPickerView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer()
-                            if policy == option.rawValue {
+                            if policy == option {
                                 Image(systemName: "checkmark")
                                     .foregroundColor(.accentColor)
                             }
@@ -170,16 +138,11 @@ struct AgentNotificationPolicyPickerView: View {
             }
 
             Section {
-                Toggle(isOn: $includePrompt) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "text.bubble")
-                        Text("Include the Question")
-                    }
-                }
-                .disabled(notificationsOff)
-                .themedRow()
+                SettingToggle(Settings.Notifications.agentIncludePrompt, title: "Include the Question", icon: "text.bubble")
+                    .disabled(notificationsOff)
+                    .themedRow()
             } header: {
-                Text("Detail")
+                SettingGroupHeader("Detail", group: .notifications)
             } footer: {
                 Text("Quotes what the agent is asking (\"Do you want to make this edit to …?\") in the notification. Turn this off to keep terminal text off the Lock Screen; notifications then show the project, branch, and how long the run took.")
             }
@@ -187,5 +150,6 @@ struct AgentNotificationPolicyPickerView: View {
         .themedList()
         .navigationTitle("Agent Notifications")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.notifications]) }
     }
 }

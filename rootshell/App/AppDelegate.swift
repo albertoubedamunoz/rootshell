@@ -95,6 +95,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             Self.logger.warning("Failed to configure audio session: \(error.localizedDescription)")
         }
 
+        SettingsRegistry.shared.assertInvariants()
+
         // All UserDefaults-dependent initialization must wait until the device is unlocked.
         // Background launches (VPN reconnect, Live Activities, CloudKit push) can start
         // the app process before protected data is available, causing UserDefaults to return
@@ -102,6 +104,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ProtectedDataGuard.whenAvailable {
             UserDefaultsBackup.detectAndRecover()
             UserDefaultsMigration.migrateIfNeeded()
+            SettingsStore.shared.bootstrap()
+            SettingsSyncCoordinator.shared.start()
+            ConfigOverlayManager.shared.start()
+            // Interim until every manager registers its own reload(keys:).
+            SettingsRefreshHub.shared.register(
+                groups: [.theme, .font, .cursor, .transparency, .selection, .sounds, .notifications]
+            ) { _ in BackupImporter.refreshAllManagers() }
             RootshellShortcuts.updateAppShortcutParameters()
             application.registerForRemoteNotifications()
             // Instantiate eagerly so the battery / Low Power Mode / thermal /

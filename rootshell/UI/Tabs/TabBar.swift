@@ -336,8 +336,8 @@ struct TabBar: View {
 
     // MARK: - User preferences
 
-    @AppStorage("tabBarAnimationsDisabled") private var tabBarAnimationsDisabled: Bool = false
-    @AppStorage(UserPreferences.showTabScopeMenuKey) private var showTabScopeMenu: Bool = true
+    @Setting(Settings.Tabs.barAnimationsDisabled) private var tabBarAnimationsDisabled
+    @Setting(Settings.Tabs.showScopeMenu) private var showTabScopeMenu
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Dialog state
@@ -348,7 +348,7 @@ struct TabBar: View {
     @State private var tmuxDialogs = TmuxTabDialogCoordinator()
 
     /// Gates the attention dot on tabs. (id=agent-attention)
-    @AppStorage(AgentAttentionSettings.badgesEnabledKey) private var attentionBadgesEnabled = true
+    @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
 
     // MARK: - Body
 

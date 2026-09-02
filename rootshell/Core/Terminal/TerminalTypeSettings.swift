@@ -93,12 +93,12 @@ enum TerminalTypeSettings: Sendable {
     /// `TERM` for the local shell: ios_system, the Catalyst process
     /// environment, and helper-spawned PTYs.
     nonisolated static var local: String {
-        resolved(UserDefaults.standard.string(forKey: localKey), fallingBackTo: localFallback)
+        resolved(SettingsStore.shared.value(Settings.Terminal.terminalTypeLocal), fallingBackTo: localFallback)
     }
 
     /// Default `TERM` for remote sessions, absent a per-connection override.
     nonisolated static var remote: String {
-        resolved(UserDefaults.standard.string(forKey: remoteKey))
+        resolved(SettingsStore.shared.value(Settings.Terminal.terminalTypeRemote))
     }
 
     /// What a stored value actually resolves to. Trims, validates, and falls

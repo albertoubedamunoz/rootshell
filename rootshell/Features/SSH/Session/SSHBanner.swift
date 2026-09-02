@@ -26,7 +26,7 @@ nonisolated enum SSHBanner {
     /// the banner.
     @MainActor
     static func postConnectionWarning(for session: SSHTerminalSession) -> String? {
-        guard !UserDefaults.standard.bool(forKey: "hideNonPQKexWarning") else { return nil }
+        guard !SettingsStore.shared.get(Settings.Connections.hideNonPQKexWarning) else { return nil }
         guard case let .ssh(info)? = session.connectionInfo else { return nil }
         guard !info.isPostQuantumKeyExchange else { return nil }
         let cols = Int(session.pty.windowSize.cols)

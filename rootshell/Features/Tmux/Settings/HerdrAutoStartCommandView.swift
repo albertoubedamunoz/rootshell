@@ -10,8 +10,8 @@
 import SwiftUI
 
 struct HerdrAutoStartCommandView: View {
-    @AppStorage("herdrSessionName") private var sessionName = ""
-    @AppStorage("herdrCustomCommand") private var customCommand = ""
+    @Setting(Settings.Multiplexer.herdrSessionName) private var sessionName
+    @Setting(Settings.Multiplexer.herdrCustomCommand) private var customCommand
     @State private var copied = false
     @FocusState private var isEditorFocused: Bool
 
@@ -27,6 +27,7 @@ struct HerdrAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .disabled(hasCustomCommand)
                     .foregroundStyle(hasCustomCommand ? .secondary : .primary)
+                    .settingRow(Settings.Multiplexer.herdrSessionName)
                     .themedRow()
             } header: {
                 Text("Session Name")
@@ -45,6 +46,7 @@ struct HerdrAutoStartCommandView: View {
                     .textInputAutocapitalization(.never)
                     .focused($isEditorFocused)
                     .frame(minHeight: 80)
+                    .settingRow(Settings.Multiplexer.herdrCustomCommand)
                     .themedRow()
 
                 if hasCustomCommand {

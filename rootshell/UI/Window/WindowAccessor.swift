@@ -271,8 +271,17 @@ private class TransparentWindowView: UIView {
             }
             .store(in: &cancellables)
 
-        // Listen for "tabs in titlebar" setting changes
+        // Listen for "tabs in titlebar" setting changes. Skipped during an
+        // external settings batch; `.settingsDidChange` fires once afterwards.
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard !SettingsStore.shared.isApplyingBatch else { return }
+                self?.configureWindow()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .settingsDidChange)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.configureWindow()
@@ -286,7 +295,7 @@ private class TransparentWindowView: UIView {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 guard let self,
-                      UserDefaults.standard.bool(forKey: "hideWindowTitleBar"),
+                      SettingsStore.shared.get(Settings.Window.hideTitleBar),
                       let nsWindow = notification.object as? NSObject,
                       let sceneSessionId = self.window?.windowScene?.session.persistentIdentifier,
                       WindowAccessor.sceneSessionId(for: nsWindow) == sceneSessionId else {
@@ -325,7 +334,7 @@ private class TransparentWindowView: UIView {
 
         // Setting the title can resurrect native title UI (macOS 15+); keep
         // the hidden-titlebar style asserted.
-        if UserDefaults.standard.bool(forKey: "hideWindowTitleBar") {
+        if SettingsStore.shared.get(Settings.Window.hideTitleBar) {
             setStandardWindowButtonsHidden(true, for: nsWindow)
             setTitlebarChromeHidden(true, for: nsWindow)
         }
@@ -439,21 +448,17 @@ private class TransparentWindowView: UIView {
         let sceneSessionId = uiWindow.windowScene?.session.persistentIdentifier ?? ""
         let hasActiveSurfaces = Ghostty.App.shared?.hasActiveSurfaces ?? false
         let opacity = TransparencyManager.shared.backgroundOpacity
-        // Mirror configureTitleBar()'s default: absent key means enabled.
-        let tabsInTitlebar = UserDefaults.standard.object(forKey: "tabsInTitlebarEnabled") == nil
-            ? true : UserDefaults.standard.bool(forKey: "tabsInTitlebarEnabled")
+        let store = SettingsStore.shared
         return WindowConfigSignature(
             shouldApplyTransparency: hasActiveSurfaces && opacity < 1.0,
             opacity: opacity,
             usesGlass: TransparencyManager.shared.usesGlass,
             themeBackgroundHex: ThemeManager.shared.currentThemeInfo?.colors.background ?? "",
             tabCount: SessionTracker.shared.tabCount(forSceneSessionId: sceneSessionId),
-            tabsInTitlebar: tabsInTitlebar,
-            tabBarHidden: UserDefaults.standard.bool(forKey: "tabBarHidden"),
-            hideTitleBar: UserDefaults.standard.bool(forKey: "hideWindowTitleBar"),
-            topTabStyle: TopTabStyle.resolve(
-                UserDefaults.standard.string(forKey: TopTabStyle.storageKey) ?? TopTabStyle.pills.rawValue
-            )
+            tabsInTitlebar: store.get(Settings.Window.tabsInTitlebar),
+            tabBarHidden: store.get(Settings.Tabs.barHidden),
+            hideTitleBar: store.get(Settings.Window.hideTitleBar),
+            topTabStyle: store.get(Settings.Tabs.topTabStyle)
         )
     }
 
@@ -701,7 +706,7 @@ private class TransparentWindowView: UIView {
 
         // With the titlebar hidden the buttons can't be measured; keep the
         // persisted inset warm for restore and cancel the retry loop.
-        let hideTitleBar = UserDefaults.standard.bool(forKey: "hideWindowTitleBar")
+        let hideTitleBar = SettingsStore.shared.get(Settings.Window.hideTitleBar)
         if hideTitleBar {
             scheduleTitlebarInsetRetryIfNeeded(hasInset: true, hasWindows: true)
         } else {
@@ -1352,21 +1357,15 @@ private class TransparentWindowView: UIView {
         // chrome entirely. The .titled styleMask bit is left alone —
         // toggling it forces AppKit to rebuild the frame view (see the
         // VisorWindowAccessor warning).
-        let hideTitleBar = UserDefaults.standard.bool(forKey: "hideWindowTitleBar")
+        let store = SettingsStore.shared
+        let hideTitleBar = store.get(Settings.Window.hideTitleBar)
         setStandardWindowButtonsHidden(hideTitleBar, for: window)
         setTitlebarChromeHidden(hideTitleBar, for: window)
 
         // Configure window dragging behavior
-        // The intended default for `tabsInTitlebarEnabled` is true. Direct `bool(forKey:)`
-        // returns false when the key is absent (fresh install before the user has toggled
-        // it), which would disagree with the UI toggle's @AppStorage default. Check
-        // explicitly for nil and fall back to the intended default.
-        let tabsInTitlebar = UserDefaults.standard.object(forKey: "tabsInTitlebarEnabled") == nil
-            ? true : UserDefaults.standard.bool(forKey: "tabsInTitlebarEnabled")
-        let tabBarHidden = UserDefaults.standard.bool(forKey: "tabBarHidden")
-        let topTabStyle = TopTabStyle.resolve(
-            UserDefaults.standard.string(forKey: TopTabStyle.storageKey) ?? TopTabStyle.pills.rawValue
-        )
+        let tabsInTitlebar = store.get(Settings.Window.tabsInTitlebar)
+        let tabBarHidden = store.get(Settings.Tabs.barHidden)
+        let topTabStyle = store.get(Settings.Tabs.topTabStyle)
         configureTitlebarSeparator(
             for: window,
             hidden: topTabStyle.usesStripLayout && tabsInTitlebar && !tabBarHidden

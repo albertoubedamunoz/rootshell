@@ -65,7 +65,7 @@ extension MainView {
         let palette = TmuxTabBadgePalette(theme: theme)
         let textColor = theme.tabText
         let compact = UIDevice.current.userInterfaceIdiom == .phone
-        let attentionDots = UserDefaults.standard.object(forKey: AgentAttentionSettings.badgesEnabledKey) as? Bool ?? true
+        let attentionDots = SettingsStore.shared.get(Settings.CodingAgents.attentionBadges)
         appearance.captionProvider = { tab, index in
             AnyView(
                 TabTitleLine(
@@ -110,7 +110,7 @@ extension MainView {
             return tab?.focusedPane?.asTerminal ?? tab?.splitTree.terminalLeaves.first
         }
         tabExpose.reduceMotion = {
-            UserDefaults.standard.bool(forKey: "tabBarAnimationsDisabled") || UIAccessibility.isReduceMotionEnabled
+            SettingsStore.shared.value(Settings.Tabs.barAnimationsDisabled) || UIAccessibility.isReduceMotionEnabled
         }
         tabExpose.onWillPresent = { ids in
             // Wake every scope tab's renderer so the mirrors are live. The

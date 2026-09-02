@@ -33,8 +33,7 @@ enum TmuxTabCloseAction: String, CaseIterable, Codable, Sendable {
 
     /// The user's current preference, defaulting to `.closeWindow`.
     static var current: TmuxTabCloseAction {
-        UserDefaults.standard.string(forKey: storageKey)
-            .flatMap(TmuxTabCloseAction.init(rawValue:)) ?? .closeWindow
+        SettingsStore.shared.value(Settings.Multiplexer.tmuxTabCloseAction)
     }
 
     var displayName: String {

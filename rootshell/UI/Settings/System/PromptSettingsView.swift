@@ -11,14 +11,14 @@ import SwiftUI
 // MARK: - Prompt & Username Settings (combined view)
 
 struct PromptSettingsView: View {
-    @AppStorage("customUsername") private var customUsername: String = ""
-    @AppStorage("useStarshipPrompt") private var useStarshipPrompt: Bool = true
-    @AppStorage("showGitInPrompt") private var showGitInPrompt: Bool = true
-    @AppStorage("starshipTheme") private var starshipTheme: String = "catppuccin"
-    @AppStorage("clockFormat") private var clockFormat: String = "system"
-    @AppStorage("useTransientPrompt") private var useTransientPrompt: Bool = false
-    @AppStorage("useRightPrompt") private var useRightPrompt: Bool = false
-    @AppStorage("promptAddNewline") private var promptAddNewline: Bool = true
+    @Setting(Settings.Prompt.customUsername) private var customUsername
+    @Setting(Settings.Prompt.useStarship) private var useStarshipPrompt
+    @Setting(Settings.Prompt.showGit) private var showGitInPrompt
+    @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
+    @Setting(Settings.Locale.clockFormat) private var clockFormat
+    @Setting(Settings.Prompt.useTransientPrompt) private var useTransientPrompt
+    @Setting(Settings.Prompt.useRightPrompt) private var useRightPrompt
+    @Setting(Settings.Prompt.addNewline) private var promptAddNewline
 
     #if !targetEnvironment(macCatalyst)
     @State private var customConfigStatus: PromptConfigStatus = .none
@@ -31,6 +31,7 @@ struct PromptSettingsView: View {
             Section {
                 HStack {
                     Text("Username")
+                        .settingRow(Settings.Prompt.customUsername)
                     Spacer()
                     TextField("mobile", text: $customUsername)
                         .multilineTextAlignment(.trailing)
@@ -98,7 +99,7 @@ struct PromptSettingsView: View {
             #endif
 
             Section {
-                Toggle("Starship-style Prompt", isOn: $useStarshipPrompt)
+                SettingToggle(Settings.Prompt.useStarship, title: "Starship-style Prompt")
                     .themedRow()
                     #if !targetEnvironment(macCatalyst)
                     .disabled(hasCustomConfig && customConfigIsActive)
@@ -110,29 +111,34 @@ struct PromptSettingsView: View {
                     } label: {
                         HStack {
                             Text("Theme")
+                            SettingPinTag(Settings.Prompt.starshipTheme.erased)
                             Spacer()
-                            PromptThemePreview(theme: StarshipTheme(rawValue: starshipTheme) ?? .catppuccin, compact: true)
-                            Text(StarshipTheme(rawValue: starshipTheme)?.displayName ?? "Catppuccin Powerline")
+                            PromptThemePreview(theme: starshipTheme, compact: true)
+                            Text(starshipTheme.displayName)
                                 .foregroundColor(.secondary)
                                 .font(.subheadline)
                         }
                     }
                     .themedRow()
+                    .settingContextMenu(Settings.Prompt.starshipTheme)
                     #if !targetEnvironment(macCatalyst)
                     .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                     #endif
 
-                    Picker("Clock Format", selection: $clockFormat) {
+                    Picker(selection: $clockFormat) {
                         ForEach(UserPreferences.ClockFormat.allCases, id: \.rawValue) { format in
-                            Text(format.displayName).tag(format.rawValue)
+                            Text(format.displayName).tag(format)
                         }
+                    } label: {
+                        Text("Clock Format")
+                            .settingRow(Settings.Locale.clockFormat)
                     }
                     .themedRow()
                     #if !targetEnvironment(macCatalyst)
                     .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                     #endif
 
-                    Toggle("Show Git Status", isOn: $showGitInPrompt)
+                    SettingToggle(Settings.Prompt.showGit, title: "Show Git Status")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
@@ -165,21 +171,21 @@ struct PromptSettingsView: View {
 
             if useStarshipPrompt {
                 Section {
-                    Toggle("Transient Prompt", isOn: $useTransientPrompt)
+                    SettingToggle(Settings.Prompt.useTransientPrompt, title: "Transient Prompt")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .disabled(hasCustomConfig && customConfigIsActive)
                         .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                         #endif
 
-                    Toggle("Right Prompt", isOn: $useRightPrompt)
+                    SettingToggle(Settings.Prompt.useRightPrompt, title: "Right Prompt")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .disabled(hasCustomConfig && customConfigIsActive)
                         .opacity(hasCustomConfig && customConfigIsActive ? 0.5 : 1.0)
                         #endif
 
-                    Toggle("Blank Line Before Prompt", isOn: $promptAddNewline)
+                    SettingToggle(Settings.Prompt.addNewline, title: "Blank Line Before Prompt")
                         .themedRow()
                         #if !targetEnvironment(macCatalyst)
                         .disabled(hasCustomConfig && customConfigIsActive)
@@ -260,13 +266,13 @@ struct PromptSettingsView: View {
 // MARK: - Prompt Theme Picker
 
 struct PromptThemePickerView: View {
-    @AppStorage("starshipTheme") private var starshipTheme: String = "catppuccin"
+    @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
 
     var body: some View {
         List {
             ForEach(StarshipTheme.allCases, id: \.self) { theme in
                 Button(action: {
-                    starshipTheme = theme.rawValue
+                    starshipTheme = theme
                 }) {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
@@ -281,7 +287,7 @@ struct PromptThemePickerView: View {
 
                         Spacer()
 
-                        if starshipTheme == theme.rawValue {
+                        if starshipTheme == theme {
                             Image(systemName: "checkmark")
                                 .foregroundColor(.blue)
                         }
@@ -296,6 +302,7 @@ struct PromptThemePickerView: View {
         .themedList()
         .navigationTitle("Prompt Theme")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { SettingsScreenPinMenu(groups: [.prompt]) }
     }
 }
 

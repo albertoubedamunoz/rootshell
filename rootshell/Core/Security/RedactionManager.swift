@@ -39,7 +39,8 @@ final class RedactionManager {
 
     private nonisolated static let logger = Logger(subsystem: "com.rootshell", category: "RedactionManager")
 
-    private static let enabledKey = "autoRedactEnabled"
+    /// True while `reload(keys:)` re-assigns `isEnabled` from the store.
+    @ObservationIgnored private var isReloading = false
 
     /// Matching is case-insensitive in the renderer; entries shorter than
     /// this are rejected in the UI because single characters would mask
@@ -70,7 +71,7 @@ final class RedactionManager {
         didSet {
             guard isEnabled != oldValue else { return }
             guard loaded, ProtectedDataGuard.isAvailable else { return }
-            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            if !isReloading { SettingsStore.shared.set(Settings.Privacy.autoRedact, isEnabled) }
             notifyChanged()
         }
     }
@@ -94,6 +95,10 @@ final class RedactionManager {
         isEnabled = false
         ProtectedDataGuard.whenAvailable { [weak self] in
             self?.load()
+        }
+
+        SettingsRefreshHub.shared.register(keys: [Settings.Privacy.autoRedact.name]) { [weak self] keys in
+            self?.reload(keys: keys)
         }
 
         // The list syncs via iCloud Keychain; re-read on foreground so
@@ -130,8 +135,16 @@ final class RedactionManager {
         notifyChanged()
     }
 
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        guard keys.contains(Settings.Privacy.autoRedact.name) else { return }
+        isReloading = true
+        defer { isReloading = false }
+        isEnabled = SettingsStore.shared.get(Settings.Privacy.autoRedact)
+    }
+
     private func load() {
-        isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
+        isEnabled = SettingsStore.shared.get(Settings.Privacy.autoRedact)
         do {
             let data = try KeychainManager.shared.loadRedactionItems()
             items = try JSONDecoder().decode([RedactionItem].self, from: data)

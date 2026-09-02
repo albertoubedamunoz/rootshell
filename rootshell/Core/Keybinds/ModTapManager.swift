@@ -483,10 +483,11 @@ class ModTapManager {
     static let shared = ModTapManager()
 
     private nonisolated static let logger = Logger(subsystem: "com.rootshell", category: "ModTapManager")
-    private static let rulesKey = "modTapRules"
+    /// True while `reload(keys:)` re-assigns `rules` from the store.
+    @ObservationIgnored private var isReloading = false
 
     var rules: [ModTapRule] {
-        didSet { save() }
+        didSet { if !isReloading { save() } }
     }
 
     /// O(1) lookup of active rules by HID usage code
@@ -515,19 +516,30 @@ class ModTapManager {
 
     private init() {
         rules = Self.load()
+        SettingsRefreshHub.shared.register(keys: [Settings.Keybinds.modTapRules.name]) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Re-reads owned keys after an external batch (iCloud, restore, config file).
+    func reload(keys: Set<String>) {
+        guard keys.contains(Settings.Keybinds.modTapRules.name) else { return }
+        isReloading = true
+        defer { isReloading = false }
+        rules = Self.load()
     }
 
     private func save() {
         do {
             let data = try JSONEncoder().encode(rules)
-            UserDefaults.standard.set(data, forKey: Self.rulesKey)
+            SettingsStore.shared.set(Settings.Keybinds.modTapRules, data)
         } catch {
             Self.logger.error("Failed to save mod-tap rules: \(error.localizedDescription)")
         }
     }
 
     private static func load() -> [ModTapRule] {
-        guard let data = UserDefaults.standard.data(forKey: rulesKey) else { return [] }
+        guard let data = SettingsStore.shared.get(Settings.Keybinds.modTapRules) else { return [] }
         do {
             return try JSONDecoder().decode([ModTapRule].self, from: data)
         } catch {

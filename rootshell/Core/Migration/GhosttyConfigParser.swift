@@ -14,7 +14,7 @@
 
 import Foundation
 
-enum GhosttyConfigParser {
+nonisolated enum GhosttyConfigParser {
     static func parse(_ contents: String, sourceFile: URL) -> [ParsedConfigEntry] {
         var entries: [ParsedConfigEntry] = []
 

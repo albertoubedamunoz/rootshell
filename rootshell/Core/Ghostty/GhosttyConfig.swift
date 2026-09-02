@@ -314,17 +314,16 @@ extension Ghostty {
             configLines.append("clipboard-write = allow")
 
             // Auto-copy selected text to clipboard (default on, matches macOS Ghostty)
-            let copyOnSelect = UserDefaults.standard.object(forKey: "copyOnSelect") == nil
-                ? true : UserDefaults.standard.bool(forKey: "copyOnSelect")
+            let copyOnSelect = SettingsStore.shared.value(Settings.Selection.copyOnSelect)
             configLines.append("copy-on-select = \(copyOnSelect)")
 
             // Option key as Alt setting (matches Ghostty's macos-option-as-alt)
-            let optionAsAlt = UserDefaults.standard.string(forKey: "optionKeyAsAlt") ?? "off"
-            if optionAsAlt == "on" {
+            let optionAsAlt = SettingsStore.shared.value(Settings.Keyboard.optionKeyAsAlt)
+            if optionAsAlt == .on {
                 configLines.append("macos-option-as-alt = true")
-            } else if optionAsAlt == "left" {
+            } else if optionAsAlt == .left {
                 configLines.append("macos-option-as-alt = left")
-            } else if optionAsAlt == "right" {
+            } else if optionAsAlt == .right {
                 configLines.append("macos-option-as-alt = right")
             } else {
                 configLines.append("macos-option-as-alt = false")
@@ -481,17 +480,16 @@ extension Ghostty {
             configLines.append("clipboard-write = allow")
 
             // Auto-copy selected text to clipboard (default on, matches macOS Ghostty)
-            let copyOnSelect = UserDefaults.standard.object(forKey: "copyOnSelect") == nil
-                ? true : UserDefaults.standard.bool(forKey: "copyOnSelect")
+            let copyOnSelect = SettingsStore.shared.value(Settings.Selection.copyOnSelect)
             configLines.append("copy-on-select = \(copyOnSelect)")
 
             // Option key as Alt setting (matches Ghostty's macos-option-as-alt)
-            let optionAsAlt = UserDefaults.standard.string(forKey: "optionKeyAsAlt") ?? "off"
-            if optionAsAlt == "on" {
+            let optionAsAlt = SettingsStore.shared.value(Settings.Keyboard.optionKeyAsAlt)
+            if optionAsAlt == .on {
                 configLines.append("macos-option-as-alt = true")
-            } else if optionAsAlt == "left" {
+            } else if optionAsAlt == .left {
                 configLines.append("macos-option-as-alt = left")
-            } else if optionAsAlt == "right" {
+            } else if optionAsAlt == .right {
                 configLines.append("macos-option-as-alt = right")
             } else {
                 configLines.append("macos-option-as-alt = false")

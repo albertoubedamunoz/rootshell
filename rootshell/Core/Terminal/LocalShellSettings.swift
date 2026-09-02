@@ -23,7 +23,7 @@ enum LocalShellSettings: Sendable {
 
     /// nil means "use the login shell".
     nonisolated static var command: String? {
-        resolved(UserDefaults.standard.string(forKey: commandKey))
+        resolved(SettingsStore.shared.value(Settings.Terminal.localShellCommand))
     }
 
     /// What a stored value actually launches. Empty means the account login
@@ -192,11 +192,10 @@ enum LocalShellSettings: Sendable {
     /// A configured command is used verbatim: `-l` cannot be appended to a
     /// command line that already carries its own arguments.
     nonisolated static var ghosttyConfigCommand: String {
-        if let raw = UserDefaults.standard.string(forKey: commandKey) {
-            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                return isValid(trimmed) ? trimmed : "\(fallbackCommand) -l"
-            }
+        let raw = SettingsStore.shared.value(Settings.Terminal.localShellCommand)
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return isValid(trimmed) ? trimmed : "\(fallbackCommand) -l"
         }
 
         if let shellEnv = getenv("SHELL"), let path = String(validatingUTF8: shellEnv) {

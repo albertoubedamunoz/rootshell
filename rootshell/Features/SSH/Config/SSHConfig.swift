@@ -16,10 +16,10 @@ extension TmuxAutoMode {
 
     static var persistedDiscoveryAttachMode: TmuxAutoMode {
         get {
-            UserDefaults.standard.string(forKey: discoveryAttachStorageKey)
-                .flatMap(TmuxAutoMode.init(rawValue:)) ?? .regular
+            SettingsStore.shared.value(Settings.Multiplexer.tmuxDiscoveryAttachMode)
         }
         set {
+            // Nonisolated setter; the store's local-change observer picks the write up.
             UserDefaults.standard.set(newValue.rawValue, forKey: discoveryAttachStorageKey)
         }
     }
@@ -643,17 +643,28 @@ struct SSHConfig: Codable, Hashable {
     /// falls back to $SHELL if tmux is not installed.
     /// Reads "tmuxCustomCommand" and "tmuxSessionName" from UserDefaults.
     static var tmuxExecCommand: String {
-        if let custom = UserDefaults.standard.string(forKey: "tmuxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = tmuxGlobalCustomCommand {
             return custom
         }
         return tmuxExecCommandLine(sessionName: tmuxGlobalSessionName, controlMode: false)
     }
 
+    /// Non-empty "tmuxCustomCommand" setting, else nil.
+    static var tmuxGlobalCustomCommand: String? {
+        let custom = SettingsStore.shared.value(Settings.Multiplexer.tmuxCustomCommand)
+        return custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : custom
+    }
+
+    /// Non-empty "herdrCustomCommand" setting, else nil.
+    static var herdrGlobalCustomCommand: String? {
+        let custom = SettingsStore.shared.value(Settings.Multiplexer.herdrCustomCommand)
+        return custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : custom
+    }
+
     /// Globally-configured default tmux session name ("main" when unset).
     static var tmuxGlobalSessionName: String {
-        if let name = UserDefaults.standard.string(forKey: "tmuxSessionName"),
-           !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let name = SettingsStore.shared.value(Settings.Multiplexer.tmuxSessionName)
+        if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return name
         }
         return "main"
@@ -697,8 +708,7 @@ struct SSHConfig: Codable, Hashable {
     /// session name and the connection's `tmuxAutoMode` (regular vs `-CC`
     /// control mode). A custom "tmuxCustomCommand" still wins.
     var tmuxExecCommandForConnection: String {
-        if let custom = UserDefaults.standard.string(forKey: "tmuxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = Self.tmuxGlobalCustomCommand {
             return custom
         }
         return Self.tmuxExecCommandLine(sessionName: tmuxSessionNameForConnection,
@@ -708,8 +718,8 @@ struct SSHConfig: Codable, Hashable {
     /// Globally-configured herdr session name. Empty means the default
     /// (unnamed) session — bare `herdr` with no `--session` flag.
     static var herdrGlobalSessionName: String {
-        UserDefaults.standard.string(forKey: "herdrSessionName")?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        SettingsStore.shared.value(Settings.Multiplexer.herdrSessionName)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func isEmbeddableHerdrSessionName(_ name: String) -> Bool {
@@ -746,8 +756,7 @@ struct SSHConfig: Codable, Hashable {
     /// Shared herdr exec command used by all session types.
     /// Reads "herdrCustomCommand" and "herdrSessionName" from UserDefaults.
     static var herdrExecCommand: String {
-        if let custom = UserDefaults.standard.string(forKey: "herdrCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = herdrGlobalCustomCommand {
             return custom
         }
         return herdrExecCommandLine(sessionName: herdrGlobalSessionName)
@@ -777,8 +786,7 @@ struct SSHConfig: Codable, Hashable {
     /// Per-connection variant of `herdrExecCommand`. A custom
     /// "herdrCustomCommand" still wins.
     var herdrExecCommandForConnection: String {
-        if let custom = UserDefaults.standard.string(forKey: "herdrCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = Self.herdrGlobalCustomCommand {
             return custom
         }
         return Self.herdrExecCommandLine(sessionName: herdrRawSessionNameForConnection)
@@ -792,9 +800,15 @@ struct SSHConfig: Codable, Hashable {
 
     /// Globally-configured zmx session name, falling back to `main`.
     static var zmxGlobalSessionName: String {
-        let raw = UserDefaults.standard.string(forKey: "zmxSessionName")?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let raw = SettingsStore.shared.value(Settings.Multiplexer.zmxSessionName)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         return raw.isEmpty ? zmxDefaultSessionName : raw
+    }
+
+    /// Globally-configured zmx custom command, nil when empty.
+    static var zmxGlobalCustomCommand: String? {
+        let custom = SettingsStore.shared.value(Settings.Multiplexer.zmxCustomCommand)
+        return custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : custom
     }
 
     /// Builds the attach-or-create command, falling back to `$SHELL`.
@@ -807,10 +821,8 @@ struct SSHConfig: Codable, Hashable {
     }
 
     /// Shared zmx exec command used by all session types.
-    /// Reads "zmxCustomCommand" and "zmxSessionName" from UserDefaults.
     static var zmxExecCommand: String {
-        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = zmxGlobalCustomCommand {
             return custom
         }
         return zmxExecCommandLine(sessionName: zmxGlobalSessionName)
@@ -818,8 +830,7 @@ struct SSHConfig: Codable, Hashable {
 
     /// The auto-start session, or nil when a custom command makes it unknowable.
     var zmxSessionNameForConnection: String? {
-        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if Self.zmxGlobalCustomCommand != nil {
             return nil
         }
         let raw = multiplexerSessionNameOverride ?? Self.zmxGlobalSessionName
@@ -829,8 +840,7 @@ struct SSHConfig: Codable, Hashable {
     /// Per-connection variant of `zmxExecCommand`. A custom "zmxCustomCommand"
     /// still wins.
     var zmxExecCommandForConnection: String {
-        if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let custom = Self.zmxGlobalCustomCommand {
             return custom
         }
         return Self.zmxExecCommandLine(sessionName: multiplexerSessionNameOverride ?? Self.zmxGlobalSessionName)
@@ -848,8 +858,7 @@ struct SSHConfig: Codable, Hashable {
         case .off:
             return ""
         case .regular, .control:
-            if let custom = UserDefaults.standard.string(forKey: "tmuxCustomCommand"),
-               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if tmuxGlobalCustomCommand != nil {
                 return "custom"
             }
             if let pinned, TmuxControlModeParser.isEmbeddableSessionName(pinned) {
@@ -857,15 +866,13 @@ struct SSHConfig: Codable, Hashable {
             }
             return tmuxGlobalSessionName
         case .herdr:
-            if let custom = UserDefaults.standard.string(forKey: "herdrCustomCommand"),
-               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if herdrGlobalCustomCommand != nil {
                 return "custom"
             }
             let raw = pinned ?? herdrGlobalSessionName
             return isEmbeddableHerdrSessionName(raw) ? raw : "default"
         case .zmx:
-            if let custom = UserDefaults.standard.string(forKey: "zmxCustomCommand"),
-               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if zmxGlobalCustomCommand != nil {
                 return "custom"
             }
             let raw = pinned ?? zmxGlobalSessionName
@@ -940,8 +947,7 @@ struct SSHConfig: Codable, Hashable {
         if tmuxAutoEnable {
             // Control mode (`-CC`) can't survive Mosh's state-sync transport, so
             // always launch a regular session here regardless of the stored mode.
-            if let custom = UserDefaults.standard.string(forKey: "tmuxCustomCommand"),
-               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let custom = Self.tmuxGlobalCustomCommand {
                 return custom
             }
             return Self.tmuxExecCommandLine(sessionName: tmuxSessionNameForConnection, controlMode: false)

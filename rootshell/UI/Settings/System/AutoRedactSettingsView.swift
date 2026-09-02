@@ -22,15 +22,15 @@ struct AutoRedactSettingsView: View {
     var body: some View {
         List {
             Section {
-                Toggle(isOn: Binding(
-                    get: { manager.isEnabled },
-                    set: { manager.isEnabled = $0 }
-                )) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: "eye.slash")
-                        Text("Redact Sensitive Text")
-                    }
-                }
+                SettingToggle(
+                    Settings.Privacy.autoRedact,
+                    isOn: Binding(
+                        get: { manager.isEnabled },
+                        set: { manager.isEnabled = $0 }
+                    ),
+                    title: "Redact Sensitive Text",
+                    icon: "eye.slash"
+                )
                 .themedRow()
             } footer: {
                 Text("Matched text is drawn as bullets at the same width, so the layout never shifts. Redaction is display-only: screenshots and recordings are protected while selection and copy still use the real text. Matching ignores letter case. Redaction takes effect once at least one string is added below.")
@@ -96,9 +96,11 @@ struct AutoRedactSettingsView: View {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "keyboard")
                         Text("Keyboard Shortcuts")
+                        SettingPinTag(group: .keybinds)
                     }
                 }
                 .themedRow()
+                .settingGroupContextMenu(.keybinds)
             } footer: {
                 Text("Once strings are added, toggle redaction anywhere with ⌃⌘R (customizable), or from the View menu.")
             }

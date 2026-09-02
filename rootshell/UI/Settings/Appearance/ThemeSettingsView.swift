@@ -91,6 +91,7 @@ struct ThemeSettingsView: View {
                     dayNightMenu
                 }
             }
+            SettingsScreenPinMenu(groups: [.theme])
         }
         .sheet(item: $activeEditorMode) { mode in
             ThemeEditorView(mode: mode)
