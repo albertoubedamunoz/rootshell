@@ -100,9 +100,13 @@ struct SettingGroupPinActions: View {
     @State private var coordinator = SettingsSyncCoordinator.shared
     @State private var confirmAdopt = false
 
+    /// Whether the group is pinnable at all, independent of the sync switch.
+    static func hasSyncableKeys(_ group: SettingGroup) -> Bool {
+        SettingsRegistry.shared.keys(in: group).contains(where: \.isSyncable)
+    }
+
     static func hasActions(for group: SettingGroup) -> Bool {
-        CloudKitSyncManager.shared.isAppSettingsSyncEnabled
-            && SettingsRegistry.shared.keys(in: group).contains(where: \.isSyncable)
+        CloudKitSyncManager.shared.isAppSettingsSyncEnabled && hasSyncableKeys(group)
     }
 
     var body: some View {

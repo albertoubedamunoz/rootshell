@@ -493,6 +493,13 @@ final class SettingsSyncCoordinator {
         sidecar.meta[key]?.shadowCloud
     }
 
+    /// True when any syncable key in the group has an iCloud value shadowed behind a pin,
+    /// i.e. unpinning the group is a real choice between the two sides.
+    func hasCloudShadow(in group: SettingGroup) -> Bool {
+        _ = pinGeneration
+        return syncableKeyNames(in: group).contains { sidecar.meta[$0]?.shadowCloud != nil }
+    }
+
     func setPinned(_ key: String, _ pinned: Bool, resolution: UnpinResolution = .adoptCloud) {
         guard let def = registry.definition(for: key), def.policy != .deviceOnly else { return }
         // Group members read the sidecar, so resolve them before mutate takes exclusive access.

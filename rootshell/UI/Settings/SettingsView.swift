@@ -92,6 +92,7 @@ enum SettingsSearchDestination: Hashable {
     case mcpServer
     case voiceAgent
     case iCloudSync
+    case syncedGroups
     case pinnedSettings
     case configFile
     case locationDiary
@@ -673,6 +674,15 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 systemImage: "arrow.triangle.2.circlepath.icloud",
                 action: .destination(.iCloudSync),
                 keywords: ["sync", "cloudkit", "backup"],
+                isSuggested: false
+            ),
+            .init(
+                id: "synced-groups",
+                title: String(localized: "Synced Groups"),
+                subtitle: String(localized: "Privacy & Data"),
+                systemImage: "square.grid.2x2",
+                action: .destination(.syncedGroups),
+                keywords: ["sync", "group", "groups", "icloud", "pin", "local", "device"],
                 isSuggested: false
             ),
             .init(
@@ -1455,6 +1465,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         #endif
     case .iCloudSync:
         CloudSyncSettingsView()
+    case .syncedGroups:
+        SyncedGroupsView()
     case .pinnedSettings:
         PinnedSettingsView()
     case .configFile:

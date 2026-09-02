@@ -40,6 +40,21 @@ struct SettingsSyncRows: View {
         }
 
         if isEnabled {
+            let pinnable = SyncedGroups.pinnable
+            NavigationLink {
+                SyncedGroupsView()
+            } label: {
+                HStack(spacing: 12) {
+                    SettingsIcon(systemName: "square.grid.2x2")
+                    Text("Synced Groups")
+                    Spacer()
+                    Text("\(SyncedGroups.syncedCount(of: pinnable)) of \(pinnable.count)")
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                }
+            }
+            .themedRow()
+
             NavigationLink {
                 PinnedSettingsView()
             } label: {
