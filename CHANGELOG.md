@@ -3,6 +3,40 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-141 - September 2, 2026
+
+### Settings Sync
+
+- **App Settings in iCloud:** App settings can now sync through iCloud alongside profiles, known hosts and history. Turn on Settings -> Privacy & Data -> iCloud Sync -> Sync Settings, then choose whether this device or iCloud wins when both have values. Changes are merged per setting rather than replacing one device's complete setup.
+- **Local Exceptions and Sync Controls:** Keep exceptions local without turning sync off: touch and hold a setting (right-click on Mac) and choose Keep on This Device. New Synced Groups and Pinned Settings screens show exactly what follows iCloud, let whole groups opt in or out and make conflicts explicit before replacing either value.
+- **File-Based Configuration:** A new rootshell config file uses key-value pairs to provide a text and dotfile-friendly way to manage app settings. Create or choose a file under Settings -> Privacy & Data -> Config File, use `key = value` pairs and comments, view diagnostics, reload or edit it in rootshell, or export current settings. Active pairs override the UI and stay local; optional write-back updates only the changed pair while preserving comments.
+
+### Multiplexers
+
+- **First-Class zmx Integration:** rootshell now discovers zmx sessions in the standalone macOS local shell and over SSH and tssh, shows running sessions in the picker, renders live history previews in Tab Exposé and switches an attached client directly from a preview. zmx can auto-start with a global or per-profile session name or custom command, matching the existing tmux and herdr workflow.
+
+### Tabs and Appearance
+
+- **Ledger and Trough Tab Styles:** Ledger uses a clean text row with an animated underline; Trough places tabs in a shared segmented well with the selected tab riding above it. Choose either in Settings -> Appearance -> Window or the tab bar's context menu.
+- **Improved Tab Exposé:** Tab Exposé gains page indicators, improved VoiceOver labels and actions, and reliable pull and sideways gestures when a pinned sidebar is visible.
+- **Background Effects and Faster Theme Loading:** Background effects can optionally extend beneath a pinned sidebar. Effects no longer cover Screen Sharing panes, including mixed terminal/VNC split layouts, and themes are parsed on demand instead of loading all 451 at launch.
+- **Copy Host Addresses:** Host addresses can be copied from active tabs, the vertical sidebar, connection profiles, SSH hosts, known hosts, tunnels and VPN entries, with host-only, user@host and port-aware forms where available.
+
+### Screen Sharing
+
+- **Password-Only High Performance Connections:** Fixed High Performance Screen Sharing to Macs that offer password-only authentication. rootshell now supports this flow, which is less secure than user-based authentication.
+
+### Terminal and Git
+
+- **Paste Without Unnecessary Clipboard Prompts:** Command-V and paste buttons now use Apple's privacy-authorized paste path. Text, URLs, files, images and PDFs keep their appropriate paste or SSH upload behavior, and voice-agent insertion no longer temporarily replaces the clipboard.
+- **Correct Local Git Output:** Local Git clone, fetch, pull and push now keep progress, errors and command output on the correct streams. Progress updates no longer leave stray output or make the terminal caret flicker.
+
+### Reliability
+
+- **Reliable macOS File and Folder Opening:** Opening folders or files with standalone rootshell on macOS through AppleScript `open`, Finder, Dock drops or `open -a` now reliably opens a window when needed and starts a shell in the folder or the file's parent directory. Duplicate Apple event and LaunchServices deliveries are ignored without losing separate requests.
+- **Reliable Push-Notification Retries:** Push-notification retries no longer replace decrypted content with an encrypted placeholder, and the pairing/install command UI is clearer and easier to copy.
+- **Fixed Lock-Transition Crash:** Fixed a lock-transition crash by preserving the terminal's responder state while protected drawing is suspended.
+
 ## 1.0.11-140 - August 30, 2026
 
 ### Push Notifications
