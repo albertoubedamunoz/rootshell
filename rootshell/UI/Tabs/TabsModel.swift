@@ -734,6 +734,8 @@ final class TabModel: Identifiable {
         guard let pending = pendingPublishedTitle else { return }
         pendingPublishedTitle = nil
         lastTitlePublicationUptime = ProcessInfo.processInfo.systemUptime
+        let signpost = TmuxPipelineSignposts.begin("tab.title.publish")
+        defer { TmuxPipelineSignposts.end("tab.title.publish", signpost) }
         if title != pending { title = pending }
     }
 

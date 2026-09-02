@@ -127,6 +127,8 @@ extension TmuxController {
     /// Deliver a GHOSTTY_ACTION_TMUX_COMMAND_RESPONSE to its waiting request.
     /// Unknown tags (timed-out requests answering late) are dropped.
     func handleCommandReply(_ reply: TmuxCommandReply) {
+        let signpost = TmuxPipelineSignposts.begin("tmux.reply")
+        defer { TmuxPipelineSignposts.end("tmux.reply", signpost) }
         replyTimeouts.removeValue(forKey: reply.tag)?.cancel()
         guard let continuation = pendingReplies.removeValue(forKey: reply.tag) else {
             TmuxDebugLogger.shared.event("REPLY", "late/unknown tag=\(reply.tag) err=\(reply.isError)")

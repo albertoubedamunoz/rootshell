@@ -111,6 +111,11 @@ private class TransparentWindowView: UIView {
     /// Scene title to apply once the view is in a window (iPad/iPhone)
     var pendingSceneTitle: String?
 
+    /// Title last handed to the OS for the current window. `updateUIView`
+    /// runs on every SwiftUI update of the accessor, and the OS-side write
+    /// (FrontBoard scene settings / AppKit titlebar) is far from free.
+    private var lastAppliedTitle: String?
+
     #if targetEnvironment(macCatalyst)
     /// Window title to apply once the view is in a window (macCatalyst)
     var pendingWindowTitle: String?
@@ -144,12 +149,16 @@ private class TransparentWindowView: UIView {
     #if !targetEnvironment(macCatalyst)
     func applySceneTitle() {
         guard let title = pendingSceneTitle, let windowScene = window?.windowScene else { return }
+        guard title != lastAppliedTitle else { return }
         windowScene.title = title
+        lastAppliedTitle = title
     }
     #endif
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        // A different window knows nothing of the last title we applied.
+        lastAppliedTitle = nil
 
         #if targetEnvironment(macCatalyst)
         guard self.window != nil else { return }
@@ -294,6 +303,7 @@ private class TransparentWindowView: UIView {
     func updateWindowTitle(_ title: String) {
         pendingWindowTitle = title
         guard let uiWindow = self.window else { return }
+        guard title != lastAppliedTitle else { return }
 
         let sceneSessionId = uiWindow.windowScene?.session.persistentIdentifier ?? ""
         guard !sceneSessionId.isEmpty else { return }
@@ -311,6 +321,7 @@ private class TransparentWindowView: UIView {
         }
 
         nsWindow.setValue(title, forKey: "title")
+        lastAppliedTitle = title
 
         // Setting the title can resurrect native title UI (macOS 15+); keep
         // the hidden-titlebar style asserted.
@@ -603,6 +614,11 @@ private class TransparentWindowView: UIView {
 
         // Track the resolved window so the dedup guard can detect it being
         // replaced or externally reset (see claimedWindowStateMatches).
+        if claimedNSWindow !== nsWindow {
+            // A replacement NSWindow starts with its default title.
+            lastAppliedTitle = nil
+            if let pending = pendingWindowTitle { updateWindowTitle(pending) }
+        }
         claimedNSWindow = nsWindow
 
         // Fast path: if this exact configuration was already applied, don't

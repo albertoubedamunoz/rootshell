@@ -169,8 +169,13 @@ final class SplitTreeHostingView: UIView {
     }
 
     func update(tree: SplitTree<SplitPaneView>, focusedPane: SplitPaneView?) {
+        // SwiftUI calls this on every MainView body evaluation. Only a real
+        // tree or focus change may relayout every attached pane.
+        let treeChanged = self.tree?.root != tree.root || self.tree?.zoomed != tree.zoomed
+        let focusChanged = self.focusedPane !== focusedPane
         self.tree = tree
         self.focusedPane = focusedPane
+        guard treeChanged || focusChanged else { return }
         updateTerminalEffectsEligibility()
         recomputeBorderEligibility()
         refreshProgressBarRouting()

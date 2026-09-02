@@ -751,6 +751,8 @@ final class TmuxController {
     }
 
     func apply(_ ops: [TmuxReconcileOp]) {
+        let signpost = TmuxPipelineSignposts.begin("tmux.apply")
+        defer { TmuxPipelineSignposts.end("tmux.apply", signpost) }
         // The reconcile owner is retained across an async hop (the GhosttyApp
         // action callback Task), so this can run just after the scene released
         // the TabsModel. That ref is weak; applying topology into a released
@@ -758,6 +760,26 @@ final class TmuxController {
         // cleanly instead of crashing. ROOTSHELL-TMUX (id=tmux-apply-tabsmodel-guard)
         guard weakTabsModel != nil else {
             TmuxDebugLogger.shared.event("RECONCILE", "tabsModel released; skip apply ops=\(ops.count)")
+            return
+        }
+
+        // Title-only batches arrive once per OSC title frame and need none of
+        // the topology bookkeeping below. ROOTSHELL-TMUX (id=tmux-title-only-fast-path)
+        let isTitleOnly = !ops.isEmpty && ops.allSatisfy { op in
+            switch op {
+            case .setTabTitle, .setWindowTitle: return true
+            default: return false
+            }
+        }
+        if isTitleOnly {
+            lastReconcileAt = Date()
+            reconcileCount += 1
+            if TmuxDebugLogger.shared.isEnabled {
+                TmuxDebugLogger.shared.event("RECONCILE", "apply title-only ops=\(ops.count)")
+            }
+            for case let .setTabTitle(windowId, title) in ops {
+                windowTabs[windowId]?.applyResolvedTitle(title)
+            }
             return
         }
 
@@ -864,19 +886,13 @@ final class TmuxController {
                     allowFocus: false)
             }
         }
-        // A live #T subscription emits one setTabTitle op for every OSC title
-        // frame. Pane identity still has to follow metadata-only changes such
-        // as `select-pane -T`, but querying every 150 ms rewrites observable
-        // PanePresentationState titles throughout the split/sidebar UI. Keep
-        // topology refresh prompt and put title-driven refreshes through the
-        // same low-rate path used for terminal content.
+        // Pane identity follows topology changes here and terminal content via
+        // notePaneContentChanged. Title ops never schedule it: the #T
+        // subscription already carries the active pane's title, and
+        // `select-pane -T` changes #{pane_title}, which fires that same
+        // subscription. ROOTSHELL-TMUX (id=tmux-title-only-fast-path)
         if isFullTopology {
             schedulePaneIdentityRefresh(after: .milliseconds(150))
-        } else if ops.contains(where: {
-            if case .setTabTitle = $0 { return true }
-            return false
-        }) {
-            schedulePaneIdentityRefresh(after: .seconds(2))
         }
     }
 
@@ -3716,6 +3732,9 @@ extension Ghostty.TerminalView {
     /// `TmuxController` the first time, wiring it to this window's tabs.
     @MainActor
     func applyTmuxReconcile(_ ops: [TmuxReconcileOp]) {
+        let signposter = TmuxPipelineSignposts.signposter
+        let signpost = signposter.beginInterval("tmux.reconcile", "ops=\(ops.count)")
+        defer { signposter.endInterval("tmux.reconcile", signpost) }
         // An empty / prune-only batch with no controller yet (e.g. a `%exit` or a
         // resume-abort teardown that beat any window projection) has nothing to
         // project. Do NOT create a controller for it: a windowless controller
@@ -3837,6 +3856,16 @@ extension Ghostty.TerminalView {
                 return false
             }
         }
+        // Title-only batches arrive once per OSC title frame. Once the live
+        // session object below has been rebound, they need only the apply.
+        // ROOTSHELL-TMUX (id=tmux-title-only-fast-path)
+        if !createdController, isTitleOnly,
+           let session, tmuxReboundSession === session {
+            // connectionConfig can change under the same session object.
+            controller.updateGatewaySource(from: connectionConfig)
+            controller.apply(ops)
+            return
+        }
         // A reconcile with windows arrived and we accepted it: control mode is
         // live. If this gateway was being RESUMED after restore, cancel the
         // resume watchdog so it doesn't abort the now-successful resume.
@@ -3901,6 +3930,7 @@ extension Ghostty.TerminalView {
         // controller. This is deliberately after onOutputDiscarded wiring and
         // keep-pending-input reassertion so replacement tssh sessions remain
         // recoverable even when their first subsequent batch is title-only.
+        tmuxReboundSession = session
         if !createdController, isTitleOnly {
             return
         }

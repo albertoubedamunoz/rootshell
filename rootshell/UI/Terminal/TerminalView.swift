@@ -476,6 +476,12 @@ extension Ghostty {
         /// reconcile. nil for pane views and non-tmux sessions.
         var tmuxController: TmuxController?
 
+        /// Gateway session object the transport rebinding in
+        /// `applyTmuxReconcile` last ran for. A title-only batch on the same
+        /// live object skips that rebinding. Weak, so a replaced session can
+        /// never compare equal. ROOTSHELL-TMUX (id=tmux-title-only-fast-path)
+        weak var tmuxReboundSession: AnyObject?
+
         /// Attached-session identity (GHOSTTY_ACTION_TMUX_SESSION_CHANGED)
         /// that arrived BEFORE the first reconcile created `tmuxController`
         /// (startup emits it alongside the first command, well before the
@@ -4524,6 +4530,8 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             // Timer fires on the run loop that scheduled it (main).
             MainActor.assumeIsolated {
                 guard let self = self else { return }
+                let signpost = TmuxPipelineSignposts.begin("osc.title")
+                defer { TmuxPipelineSignposts.end("osc.title", signpost) }
                 if self.suppressesTitleUpdate() {
                     Ghostty.logger.debug("Swallowed transient mid-switch title: \(title)")
                     return

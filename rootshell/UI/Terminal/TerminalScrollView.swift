@@ -1478,6 +1478,9 @@ extension Ghostty {
             return
         }
 
+        // Steady-state scrolling reports the same total/len every frame; a
+        // forced layout pass for an unchanged height is pure cost.
+        guard heightConstraint.constant != documentHeight else { return }
         heightConstraint.constant = documentHeight
 
         // Force layout update

@@ -522,6 +522,8 @@ extension Ghostty {
             #else
             guard let app = self.app, !isInBackground else { return }
             #endif
+            let signpost = TmuxPipelineSignposts.begin("app.tick")
+            defer { TmuxPipelineSignposts.end("app.tick", signpost) }
             ghostty_app_tick(app)
         }
 
