@@ -2,7 +2,7 @@ name: Sync upstream
 
 on:
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -20,3 +20,24 @@ jobs:
             --method POST \
             "repos/${{ github.repository }}/merge-upstream" \
             -f branch='main'
+
+      - name: Check out the synchronized fork
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Keep scheduled workflow active after long upstream inactivity
+        run: |
+          LAST_COMMIT=$(git log -1 --format=%ct)
+          NOW=$(date +%s)
+          AGE_DAYS=$(( (NOW - LAST_COMMIT) / 86400 ))
+
+          if [ "$AGE_DAYS" -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "chore: keep upstream sync active"
+            git push origin main
+          else
+            echo "Repository activity is recent (${AGE_DAYS} days); no keepalive commit needed."
+          fi
