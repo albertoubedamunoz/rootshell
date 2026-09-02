@@ -90,6 +90,7 @@ extension MainView {
                     // Helper is active - create local shell directly
                     Ghostty.logger.info("Helper is running, creating local shell on launch")
                     self.createLocalShellTab()
+                    self.markPlaceholderShell()
                 } else {
                     // Helper not available - show connection sheet
                     Ghostty.logger.info("Helper not available, showing connection sheet on launch")

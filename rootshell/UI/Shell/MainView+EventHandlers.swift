@@ -218,7 +218,9 @@ extension MainView {
                 // createLocalShellTab() runs synchronously now: performLocalShellAction()
                 // takes its fast path when the helper is already confirmed up.
                 createLocalShellTab()
+                markPlaceholderShell()
             } else {
+                restorationInFlight = pendingState != nil
                 Task { @MainActor in
                     _ = await HelperConnection.shared.ensureHelperRunning()
 
@@ -227,6 +229,10 @@ extension MainView {
                         RestorationHealthTracker.shared.markRestorationStarted()
                         Ghostty.logger.info("Restoring window state: \(savedState.tabs.count) tabs")
                         self.restoreWindowState(savedState)
+                        self.restorationInFlight = false
+                        // A folder open that arrived during the restore was
+                        // held back; it follows the restored tabs.
+                        self.adoptPendingIntentRequestsAsFirstContent()
                     } else if self.adoptPendingIntentRequestsAsFirstContent() {
                         // On cold launch the URL often lands during the helper
                         // await above, after the synchronous claim missed it.

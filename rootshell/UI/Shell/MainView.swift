@@ -55,6 +55,13 @@ struct MainView: View {
     var isVisorWindow: Bool { windowId == "visor" }
     @State var isWindowFocused: Bool = false
     @State var windowIsKeyWindow: Bool = false
+    /// The default shell a fresh window opened before any request reached it.
+    /// A URL open landing right after (SwiftUI spawns the scene first, then
+    /// delivers onOpenURL) replaces it instead of trailing it.
+    @State var placeholderShell: (tabID: UUID, createdAt: Date)?
+    /// True while saved tabs are being restored; a URL open that lands
+    /// meanwhile waits so it follows the restored tabs instead of preceding them.
+    @State var restorationInFlight = false
     @State var lifecycleScenePhase: ScenePhase = {
         switch UIApplication.shared.applicationState {
         case .active:
@@ -535,6 +542,9 @@ struct MainView: View {
                             // which case onAppear's own call will apply it).
                             if newID != nil {
                                 tryApplyPendingGeometry()
+                                // A URL open targeted at this scene may have
+                                // been deposited before the link resolved.
+                                consumePendingIntentRequests()
                             }
                             #endif
                         }

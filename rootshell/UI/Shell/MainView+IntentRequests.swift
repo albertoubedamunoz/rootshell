@@ -22,7 +22,18 @@ extension MainView {
         // A request claimed here would open its tab off-screen; the visor's
         // terminal comes from VisorController alone.
         guard !isVisorWindow else { return }
-        guard AppIntentCoordinator.shared.hasPending else { return }
+        guard AppIntentCoordinator.shared.hasPending(forScene: windowSceneSessionID) else { return }
+        // Saved tabs come first; the post-restore adopt claims this request.
+        guard !restorationInFlight else {
+            Ghostty.logger.info("[urlopen] deferred until restore completes window=\(windowId, privacy: .public)")
+            return
+        }
+
+        // A request targeted at this scene is ours regardless of key state.
+        if AppIntentCoordinator.shared.hasTargetedPending(forScene: windowSceneSessionID) {
+            dispatchIntentRequests(retriesRemaining: retriesRemaining)
+            return
+        }
 
         // The hidden visor scene stays connected once summoned. Counting it
         // would push a lone visible window into the deferred branch below and
@@ -37,7 +48,7 @@ extension MainView {
         if windowScenes.count > 1 && !windowIsKeyWindow {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 700_000_000)
-                guard AppIntentCoordinator.shared.hasPending else { return }
+                guard AppIntentCoordinator.shared.hasPending(forScene: windowSceneSessionID) else { return }
                 dispatchIntentRequests(retriesRemaining: retriesRemaining)
             }
             return
@@ -62,9 +73,9 @@ extension MainView {
             return
         }
 
-        let claimed = AppIntentCoordinator.shared.consumeAll()
+        let claimed = AppIntentCoordinator.shared.consume(forScene: windowSceneSessionID)
         guard !claimed.isEmpty else { return }
-        Ghostty.logger.info("[urlopen] claim window=\(windowId, privacy: .public) key=\(windowIsKeyWindow) count=\(claimed.count)")
+        Ghostty.logger.info("[urlopen] claim window=\(windowId, privacy: .public) scene=\(windowSceneSessionID ?? "-", privacy: .public) key=\(windowIsKeyWindow) count=\(claimed.count) helper=\(HelperConnection.shared.isKnownRunning) \(AppIntentCoordinator.sceneSnapshot(), privacy: .public)")
         dispatchClaimedIntentRequests(claimed)
     }
 
@@ -75,8 +86,8 @@ extension MainView {
     /// fall back to its default shell.
     @discardableResult
     func adoptPendingIntentRequestsAsFirstContent() -> Bool {
-        guard !isVisorWindow, AppIntentCoordinator.shared.hasPending else { return false }
-        let requests = AppIntentCoordinator.shared.consumeAll()
+        guard !isVisorWindow, AppIntentCoordinator.shared.hasPending(forScene: windowSceneSessionID) else { return false }
+        let requests = AppIntentCoordinator.shared.consume(forScene: windowSceneSessionID)
         guard !requests.isEmpty else { return false }
         Ghostty.logger.info("[urlopen] adopt-as-first window=\(windowId, privacy: .public) count=\(requests.count)")
         dispatchClaimedIntentRequests(requests)
@@ -113,5 +124,24 @@ extension MainView {
                 handleMoshURL(components)
             }
         }
+        replacePlaceholderShellIfFresh()
+    }
+
+    /// Remembers the default shell a fresh window just opened.
+    func markPlaceholderShell() {
+        guard terminals.count == 1, let tab = terminals.first else { return }
+        placeholderShell = (tab.id, Date())
+    }
+
+    /// The window was spawned for an external event and its default shell
+    /// is a placeholder: once the requested tab exists, drop the shell.
+    private func replacePlaceholderShellIfFresh() {
+        defer { placeholderShell = nil }
+        guard let placeholderShell,
+              Date().timeIntervalSince(placeholderShell.createdAt) < 2,
+              terminals.count > 1,
+              let index = terminals.firstIndex(where: { $0.id == placeholderShell.tabID }) else { return }
+        Ghostty.logger.info("[urlopen] replacing placeholder shell window=\(windowId, privacy: .public)")
+        closeTab(at: index)
     }
 }
