@@ -317,37 +317,20 @@ struct PushCommandSection: View {
 
     var body: some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(previewCommand == nil ? "Shell Command" : "Command Preview")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    CopyButton(
-                        text: command,
-                        label: String(localized: "Copy", comment: "Copy button"),
-                        isBordered: true
-                    )
-                }
-
-                Text(previewCommand ?? command)
-                    .font(.system(.footnote, design: .monospaced))
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-                    .lineSpacing(3)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(sheetThemeColors?.rowBackground ?? Color(uiColor: .secondarySystemGroupedBackground))
-                    .cornerRadius(6)
-
+            CopyableValueBlock(
+                title: previewCommand == nil
+                    ? String(localized: "Shell Command", comment: "Push command block header")
+                    : String(localized: "Command Preview", comment: "Push command block header"),
+                value: previewCommand ?? command,
+                copyText: command,
+                font: .system(.footnote, design: .monospaced)
+            ) {
                 if previewCommand != nil {
                     Label("Preview shortened; actions use the complete command.", systemImage: "eye.slash")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
-            .padding(.vertical, 4)
             .themedRow()
 
             if let terminal = Self.focusedTerminal {

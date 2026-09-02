@@ -121,66 +121,34 @@ struct SSHKeyDetailView: View {
 
             // Fingerprint section
             Section("Fingerprint") {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("SHA256")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        CopyButton(
-                            text: "SHA256:\(key.colonFormattedFingerprint)",
-                            label: String(localized: "Copy", comment: "Copy button"),
-                            isBordered: true
-                        )
-                    }
-
-                    Text(key.colonFormattedFingerprint)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .lineLimit(nil)
-                }
-                .padding(.vertical, 4)
+                CopyableValueBlock(
+                    title: "SHA256",
+                    value: key.colonFormattedFingerprint,
+                    copyText: "SHA256:\(key.colonFormattedFingerprint)"
+                )
                 .themedRow()
             }
 
             // Public Key section
             Section("Public Key") {
-                VStack(alignment: .leading, spacing: 8) {
+                if isLoadingPublicKey {
                     HStack {
-                        Text("OpenSSH Format")
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Loading public key...")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Spacer()
-                        CopyButton(
-                            text: publicKeyString,
-                            label: String(localized: "Copy", comment: "Copy button"),
-                            isBordered: true
-                        )
-                        .disabled(publicKeyString.isEmpty || publicKeyString.hasPrefix("#"))
                     }
-
-                    if isLoadingPublicKey {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Loading public key...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(8)
-                    } else {
-                        Text(publicKeyString)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                            .lineLimit(nil)
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(sheetThemeColors?.rowBackground ?? Color(uiColor: .secondarySystemGroupedBackground))
-                            .cornerRadius(6)
-                    }
+                    .padding(.vertical, 4)
+                    .themedRow()
+                } else {
+                    CopyableValueBlock(
+                        title: String(localized: "OpenSSH Format", comment: "Public key format label"),
+                        value: publicKeyString,
+                        isCopyDisabled: publicKeyString.isEmpty || publicKeyString.hasPrefix("#")
+                    )
+                    .themedRow()
                 }
-                .padding(.vertical, 4)
-                .themedRow()
             }
 
             // OpenPubkey identity section
