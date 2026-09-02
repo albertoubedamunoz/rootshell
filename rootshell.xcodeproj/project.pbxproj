@@ -6463,7 +6463,7 @@
 			repositoryURL = "https://github.com/kitknox/curl_ios-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.1.0;
+				version = 0.2.0;
 			};
 		};
 		47HLX0002FD00000AABB0000 /* XCRemoteSwiftPackageReference "helix-rootshell" */ = {
