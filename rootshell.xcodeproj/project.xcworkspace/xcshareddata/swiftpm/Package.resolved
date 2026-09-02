@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/ghosttykit-rootshell.git",
       "state" : {
-        "revision" : "43b7f080a155752dce357390e537a0f868f80a4e",
-        "version" : "0.2.4"
+        "revision" : "a3fdd67a82ee3b18e63154ac0c9cd893abded36a",
+        "version" : "0.2.5"
       }
     },
     {
