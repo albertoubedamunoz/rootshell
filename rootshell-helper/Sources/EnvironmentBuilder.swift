@@ -181,10 +181,11 @@ class EnvironmentBuilder {
             env["GHOSTTY_RESOURCES_DIR"] = resourcesDir
         }
 
-        // GHOSTTY_SHELL_FEATURES: Comma-separated list of enabled features
-        // Controls which shell integration features are active
+        // GHOSTTY_SHELL_FEATURES: Comma-separated list of enabled features.
+        // `cursor` is left out: the script would override the app's cursor
+        // style with its own prompt/command shapes.
         if config.enableShellIntegration {
-            env["GHOSTTY_SHELL_FEATURES"] = "cursor,path,sudo,title"
+            env["GHOSTTY_SHELL_FEATURES"] = "path,sudo,title"
         }
 
         // GHOSTTY_BIN_DIR: Path to binaries (for shell integration)
@@ -250,48 +251,25 @@ class EnvironmentBuilder {
         }
         #endif
 
-        // Shell integration environment
-        if config.enableShellIntegration, let shellPath = config.shellIntegrationPath {
+        // Shell integration environment. ProcessSpawner does the per-shell
+        // injection (ZDOTDIR, bash --posix/ENV, XDG_DATA_DIRS) from this dir.
+        if config.enableShellIntegration,
+           let shellPath = config.shellIntegrationPath
+               ?? Self.shellIntegrationDirectory(resourcesDir: config.resourcesDir) {
             env["GHOSTTY_SHELL_INTEGRATION_DIR"] = shellPath
         }
 
         return env
     }
 
-    /// Detects shell type from shell path
-    static func detectShellType(from shellPath: String) -> ShellType {
-        let shell = (shellPath as NSString).lastPathComponent
-
-        switch shell {
-        case "bash":
-            return .bash
-        case "zsh":
-            return .zsh
-        case "fish":
-            return .fish
-        case "elvish":
-            return .elvish
-        default:
-            return .unknown
+    /// `<resources>/shell-integration` when the app bundle ships it.
+    static func shellIntegrationDirectory(resourcesDir: String?) -> String? {
+        guard let resourcesDir else { return nil }
+        let path = (resourcesDir as NSString).appendingPathComponent("shell-integration")
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
+            return nil
         }
-    }
-}
-
-/// Supported shell types for integration
-enum ShellType {
-    case bash
-    case zsh
-    case fish
-    case elvish
-    case unknown
-
-    var integrationScriptName: String? {
-        switch self {
-        case .bash: return "bash.sh"
-        case .zsh: return "zsh.sh"
-        case .fish: return "fish.fish"
-        case .elvish: return "elvish.elv"
-        case .unknown: return nil
-        }
+        return path
     }
 }

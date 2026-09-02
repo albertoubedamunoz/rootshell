@@ -1,55 +1,26 @@
 {
-  fn restore-xdg-dirs {
-    use str
-    var integration-dir = $E:GHOSTTY_SHELL_INTEGRATION_XDG_DIR
-    var xdg-dirs = [(str:split ':' $E:XDG_DATA_DIRS)]
-    var len = (count $xdg-dirs)
+  use platform
+  use str
 
-    var index = $nil
-    range $len | each {|dir-index|
-      if (eq $xdg-dirs[$dir-index] $integration-dir) {
-        set index = $dir-index
-        break
-      }
-    }
-    if (eq $nil $index) { return } # will appear as an error
-
-    if (== 0 $index) {
-      set xdg-dirs = $xdg-dirs[1..]
-    } elif (== (- $len 1) $index) {
-      set xdg-dirs = $xdg-dirs[0..(- $len 1)]
-    } else {
-      # no builtin function for this : )
-      set xdg-dirs = [ (take $index $xdg-dirs) (drop (+ 1 $index) $xdg-dirs) ]
-    }
-
-    if (== 0 (count $xdg-dirs)) {
-      unset-env XDG_DATA_DIRS
-    } else {
-      set-env XDG_DATA_DIRS (str:join ':' $xdg-dirs)
-    }
+  # Clean up XDG_DATA_DIRS by removing GHOSTTY_SHELL_INTEGRATION_XDG_DIR
+  if (and (has-env GHOSTTY_SHELL_INTEGRATION_XDG_DIR) (has-env XDG_DATA_DIRS)) {
+    set-env XDG_DATA_DIRS (str:replace $E:GHOSTTY_SHELL_INTEGRATION_XDG_DIR":" "" $E:XDG_DATA_DIRS)
     unset-env GHOSTTY_SHELL_INTEGRATION_XDG_DIR
   }
-  if (and (has-env GHOSTTY_SHELL_INTEGRATION_XDG_DIR) (has-env XDG_DATA_DIRS)) {
-    restore-xdg-dirs
-  }
-}
-
-{
-  use str
 
   # List of enabled shell integration features
   var features = [(str:split ',' $E:GHOSTTY_SHELL_FEATURES)]
 
-  # helper used by `mark-*` functions
+  # State tracking for semantic prompt sequences
+  # Values: 'prompt-start', 'pre-exec', 'post-exec'
   fn set-prompt-state {|new| set-env __ghostty_prompt_state $new }
 
   fn mark-prompt-start {
-    if (not-eq prompt-start (constantly $E:__ghostty_prompt_state)) {
-      printf "\e]133;D\a"
+    if (not-eq $E:__ghostty_prompt_state 'prompt-start') {
+      printf "\e]133;D;aid="$pid"\a"
     }
     set-prompt-state 'prompt-start'
-    printf "\e]133;A\a"
+    printf "\e]133;A;aid="$pid"\a"
   }
 
   fn mark-output-start {|_|
@@ -74,127 +45,71 @@
       }
     }
 
-    printf "\e]133;D;"$exit-status"\a"
+    printf "\e]133;D;"$exit-status";aid="$pid"\a"
   }
 
-  fn report-pwd {
-    use platform
-    printf "\e]7;kitty-shell-cwd://%s%s\a" (platform:hostname) $pwd
-  }
+  # NOTE: OSC 133;B (end of prompt, start of input) cannot be reliably
+  # implemented at the script level in Elvish. The prompt function's output is
+  # escaped, and writing to /dev/tty has timing issues because Elvish renders
+  # its prompts on a background thread. Full semantic prompt support requires a
+  # native implementation: https://github.com/elves/elvish/pull/1917
 
   fn sudo-with-terminfo {|@args|
     var sudoedit = $false
     for arg $args {
-      use str
-      if (str:has-prefix $arg -) {
-        if (has-value [e -edit] $arg[1..]) {
+      if (str:has-prefix $arg --) {
+        if (eq $arg --edit) {
           set sudoedit = $true
           break
         }
-        continue
+      } elif (str:has-prefix $arg -) {
+        if (str:contains (str:trim-prefix $arg -) e) {
+          set sudoedit = $true
+          break
+        }
+      } elif (not (str:contains $arg =)) {
+        break
       }
-
-      if (not (has-value $arg =)) { break }
     }
 
-    if (not $sudoedit) { set args = [ TERMINFO=$E:TERMINFO $@args ] }
+    if (not $sudoedit) { set args = [ --preserve-env=TERMINFO $@args ] }
     (external sudo) $@args
   }
 
+  # SSH Integration
+  #
+  # Wrap `ssh` with `ghostty +ssh` and translate the shell-integration
+  # feature flags into command options.
   fn ssh-integration {|@args|
-    var ssh-term = "xterm-256color"
-    var ssh-opts = []
-
-    # Configure environment variables for remote session
-    if (has-value $features ssh-env) {
-      set ssh-opts = (conj $ssh-opts ^
-        -o "SetEnv COLORTERM=truecolor" ^
-        -o "SendEnv TERM_PROGRAM TERM_PROGRAM_VERSION")
+    var ghostty = $E:GHOSTTY_BIN_DIR/"ghostty"
+    var flags = []
+    if (not (has-value $features ssh-env)) {
+      set flags = (conj $flags --forward-env=false)
     }
-
-    if (has-value $features ssh-terminfo) {
-      var ssh-user = ""
-      var ssh-hostname = ""
-
-      # Parse ssh config
-      for line [((external ssh) -G $@args)] {
-        var parts = [(str:fields $line)]
-        if (> (count $parts) 1) {
-          var ssh-key = $parts[0]
-          var ssh-value = $parts[1]
-          if (eq $ssh-key user) {
-            set ssh-user = $ssh-value
-          } elif (eq $ssh-key hostname) {
-            set ssh-hostname = $ssh-value
-          }
-          if (and (not-eq $ssh-user "") (not-eq $ssh-hostname "")) {
-            break
-          }
-        }
-      }
-
-      if (not-eq $ssh-hostname "") {
-        var ghostty = $E:GHOSTTY_BIN_DIR/"ghostty"
-        var ssh-target = $ssh-user"@"$ssh-hostname
-
-        # Check if terminfo is already cached
-        if (bool ?($ghostty +ssh-cache --host=$ssh-target)) {
-          set ssh-term = "xterm-ghostty"
-        } elif (has-external infocmp) {
-          var ssh-terminfo = ((external infocmp) -0 -x xterm-ghostty 2>/dev/null | slurp)
-
-          if (not-eq $ssh-terminfo "") {
-            echo "Setting up xterm-ghostty terminfo on "$ssh-hostname"..." >&2
-
-            use os
-            var ssh-cpath-dir = (os:temp-dir "ghostty-ssh-"$ssh-user".*")
-            var ssh-cpath = $ssh-cpath-dir"/socket"
-
-            if (bool ?(echo $ssh-terminfo | (external ssh) $@ssh-opts -o ControlMaster=yes -o ControlPath=$ssh-cpath -o ControlPersist=60s $@args '
-                  infocmp xterm-ghostty >/dev/null 2>&1 && exit 0
-                  command -v tic >/dev/null 2>&1 || exit 1
-                  mkdir -p ~/.terminfo 2>/dev/null && tic -x - 2>/dev/null && exit 0
-                  exit 1
-                ' 2>/dev/null)) {
-              set ssh-term = "xterm-ghostty"
-              set ssh-opts = (conj $ssh-opts -o ControlPath=$ssh-cpath)
-
-              # Cache successful installation
-              $ghostty +ssh-cache --add=$ssh-target >/dev/null
-            } else {
-              echo "Warning: Failed to install terminfo." >&2
-            }
-          } else {
-            echo "Warning: Could not generate terminfo data." >&2
-          }
-        } else {
-          echo "Warning: ghostty command not available for cache management." >&2
-        }
-      }
+    if (not (has-value $features ssh-terminfo)) {
+      set flags = (conj $flags --terminfo=false)
     }
-
-    with [E:TERM = $ssh-term] {
-      (external ssh) $@ssh-opts $@args
-    }
+    $ghostty +ssh $@flags -- $@args
   }
 
   defer {
     mark-prompt-start
-    report-pwd
   }
 
   set edit:before-readline = (conj $edit:before-readline $mark-prompt-start~)
   set edit:after-readline  = (conj $edit:after-readline $mark-output-start~)
   set edit:after-command   = (conj $edit:after-command $mark-output-end~)
 
-  if (has-value $features title) {
-    set after-chdir = (conj $after-chdir {|_| report-pwd })
-  }
-  if (has-value $features cursor) {
-    fn beam  { printf "\e[5 q" }
-    fn block { printf "\e[0 q" }
+  if (str:contains $E:GHOSTTY_SHELL_FEATURES "cursor") {
+    var cursor = "5"    # blinking bar
+    if (has-value $features cursor:steady) {
+      set cursor = "6"  # steady bar
+    }
+
+    fn beam  { printf "\e["$cursor" q" }
+    fn reset { printf "\e[0 q" }
     set edit:before-readline = (conj $edit:before-readline $beam~)
-    set edit:after-readline  = (conj $edit:after-readline {|_| block })
+    set edit:after-readline  = (conj $edit:after-readline {|_| reset })
   }
   if (and (has-value $features path) (has-env GHOSTTY_BIN_DIR)) {
     if (not (has-value $paths $E:GHOSTTY_BIN_DIR)) {
@@ -207,4 +122,9 @@
   if (and (str:contains $E:GHOSTTY_SHELL_FEATURES ssh-) (has-external ssh)) {
     edit:add-var ssh~ $ssh-integration~
   }
+
+  # Report changes to the current directory.
+  fn report-pwd { printf "\e]7;kitty-shell-cwd://%s%s\a" (platform:hostname) $pwd }
+  set after-chdir = (conj $after-chdir {|_| report-pwd })
+  report-pwd
 }
