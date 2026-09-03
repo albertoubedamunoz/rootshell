@@ -159,12 +159,13 @@ final class TabExposeTrayView: UIScrollView {
     // MARK: - Layout
 
     /// Lay the header and grid out for a tray of `size` (the hero area).
-    func layoutGrid(size: CGSize, aspect: CGFloat, metrics: TabExposeLayout.Metrics, cornerRadius: CGFloat) {
+    func layoutGrid(size: CGSize, aspect: CGFloat, metrics: TabExposeLayout.Metrics, cornerRadius: CGFloat, zoom: CGFloat = 1) {
         layoutResult = TabExposeLayout.grid(
             in: CGRect(origin: .zero, size: size),
             count: cells.count,
             aspect: aspect,
-            metrics: metrics
+            metrics: metrics,
+            zoom: zoom
         )
         contentSize = CGSize(width: size.width, height: max(layoutResult.contentHeight, size.height))
         isScrollEnabled = !layoutResult.fits

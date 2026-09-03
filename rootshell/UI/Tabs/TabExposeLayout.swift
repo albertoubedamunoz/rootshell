@@ -59,21 +59,31 @@ nonisolated struct TabExposeLayout {
         /// Total height needed; greater than `rect.height` means scroll.
         var contentHeight: CGFloat
         var fits: Bool
+        /// Cell width of the auto-fit grid (zoom 1); zoom scales from here.
+        var baseCellWidth: CGFloat = 0
+        /// Zoom at which the current column count exactly fills the width.
+        var snappedZoom: CGFloat = 1
 
         static let empty = Result(columns: 1, rows: 0, cellSize: .zero, frames: [], headerFrame: .zero, contentHeight: 0, fits: true)
+    }
+
+    /// Cell width at which `columns` cells exactly fill `width`.
+    static func cellWidth(fillingColumns columns: Int, width: CGFloat, metrics m: Metrics) -> CGFloat {
+        (width - 2 * m.margin - CGFloat(max(columns, 1) - 1) * m.gutter) / CGFloat(max(columns, 1))
     }
 
     /// - Parameters:
     ///   - rect: area available for the tray (header + grid), in any coordinate space.
     ///   - count: number of cells.
     ///   - aspect: preview width / height (the terminal area's aspect).
-    static func grid(in rect: CGRect, count: Int, aspect: CGFloat, metrics m: Metrics) -> Result {
+    ///   - zoom: user scale applied to the auto-fit cell width; 1 = auto-fit.
+    static func grid(in rect: CGRect, count: Int, aspect: CGFloat, metrics m: Metrics, zoom: CGFloat = 1) -> Result {
         guard count > 0, rect.width > 0, rect.height > 0 else { return .empty }
         let a = max(aspect, 0.1)
         let maxCellW = rect.width * m.maxCellWidthFraction
 
         func widthBound(_ c: Int) -> CGFloat {
-            (rect.width - 2 * m.margin - CGFloat(c - 1) * m.gutter) / CGFloat(c)
+            cellWidth(fillingColumns: c, width: rect.width, metrics: m)
         }
         func heightBound(_ c: Int) -> CGFloat {
             let rows = CGFloat((count + c - 1) / c)
@@ -113,11 +123,24 @@ nonisolated struct TabExposeLayout {
             cellW = min(widthBound(columns), maxCellW)
         }
 
+        // Zoom scales the auto-fit width and re-derives the column count;
+        // the grid scrolls when the taller result no longer fits.
+        let baseCellW = cellW
+        let z = zoom.isFinite ? max(zoom, 0.05) : 1
+        if z != 1 {
+            let floorW = min(m.minCellWidth * 0.5, baseCellW)
+            cellW = min(max(baseCellW * z, floorW), maxCellW)
+            columns = 1
+            for c in 1...count where widthBound(c) >= cellW { columns = c }
+        }
+        let snappedZoom = baseCellW > 0 ? min(widthBound(columns), maxCellW) / baseCellW : 1
+
         let cellH = cellW / a
         let rows = (count + columns - 1) / columns
         let pitchY = cellH + m.captionHeight + m.gutter
         let contentHeight = 2 * m.margin + m.headerHeight
             + CGFloat(rows) * (cellH + m.captionHeight) + CGFloat(rows - 1) * m.gutter
+        if z != 1 { fits = contentHeight <= rect.height + 0.5 }
         let verticalSlack = fits ? max(0, (rect.height - contentHeight) / 2) : 0
 
         let headerFrame = CGRect(x: rect.minX + m.margin,
@@ -138,6 +161,7 @@ nonisolated struct TabExposeLayout {
         }
 
         return Result(columns: columns, rows: rows, cellSize: CGSize(width: cellW, height: cellH),
-                      frames: frames, headerFrame: headerFrame, contentHeight: contentHeight, fits: fits)
+                      frames: frames, headerFrame: headerFrame, contentHeight: contentHeight, fits: fits,
+                      baseCellWidth: baseCellW, snappedZoom: snappedZoom)
     }
 }

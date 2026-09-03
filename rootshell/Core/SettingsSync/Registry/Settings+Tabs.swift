@@ -36,10 +36,14 @@ nonisolated extension Settings {
         static let exposeShowsCaptions = SettingKey(
             "tabExposeShowsCaptions", default: true, group: .tabs, configKey: "tab-expose-shows-captions",
             title: String(localized: "Tab Exposé Captions", comment: "Setting title"))
+        /// Preview thumbnail scale set by pinching in the exposé; 1 = auto-fit.
+        static let exposeZoom = SettingKey(
+            "tabExposeZoom", default: 1.0, group: .tabs, policy: .localByDefault, configKey: "tab-expose-zoom",
+            title: String(localized: "Tab Exposé Preview Size", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
-            showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased,
+            showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
         ]
     }
 
