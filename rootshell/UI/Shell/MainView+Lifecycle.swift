@@ -458,9 +458,11 @@ extension MainView {
         let exposeVisibleIDs: Set<UUID> = tabExpose.isActive
             ? Set(tabExpose.tabIDs).union(tabExpose.previewTabIDs)
             : []
+        // A hover preview card mirrors one more tab live.
+        let previewedID = tabHoverPreview.previewedTabID
 
         for tab in terminals {
-            if tab.id == selectedID || exposeVisibleIDs.contains(tab.id) {
+            if tab.id == selectedID || tab.id == previewedID || exposeVisibleIDs.contains(tab.id) {
                 for terminal in tab.splitTree { terminal.setOcclusion(true) }
             } else if preserveIDs.contains(tab.id) {
                 continue
@@ -562,8 +564,11 @@ extension MainView {
     }
 
     func handleAppBackgrounded() {
-        // The exposé keeps scope tabs un-occluded; drop it before the sweep.
+        // The exposé and a hover preview keep tabs un-occluded; drop both
+        // before the sweep (a pending hover exit would otherwise leave the
+        // card's tab awake through the next foreground reconcile).
         tabExpose.forceHide(reason: "background")
+        tabHoverPreview.hide(animated: false)
         let totalTerminals = terminals.flatMap { $0.splitTree.terminalLeaves }.count
         let sshCountSnapshot = terminals.flatMap { $0.splitTree.terminalLeaves }.filter {
             if case .ssh = $0.connectionConfig { return true }

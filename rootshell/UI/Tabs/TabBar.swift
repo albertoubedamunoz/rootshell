@@ -313,6 +313,8 @@ struct TabBar: View {
     let onSelectTab: (Int) -> Void
     let keyboardShortcut: (Int) -> String?
     let onTabHover: (UUID, Bool) -> Void
+    /// Where each tab's hover preview card anchors (nil: previews off).
+    let previewAnchors: TabHoverPreviewAnchorRegistry?
     let tabHasThemeOverride: (UUID) -> Bool
     let onClearThemeOverride: (UUID) -> Void
     let onShowConnectionInfo: (TabModel) -> Void
@@ -495,7 +497,8 @@ struct TabBar: View {
             onClose: { onCloseTab(index) },
             onHover: { isHovered in
                 onTabHover(tab.id, isHovered)
-            }
+            },
+            previewAnchors: previewAnchors
         )
     }
 
@@ -1248,6 +1251,7 @@ struct TabBarItem: View, Equatable {
     let onTap: () -> Void
     let onClose: () -> Void
     let onHover: (Bool) -> Void
+    let previewAnchors: TabHoverPreviewAnchorRegistry?
 
     // Equality gates *parent-driven* re-evaluation only (a selection change
     // re-runs the whole ForEach and reconstructs every TabBarItem with fresh
@@ -1312,6 +1316,7 @@ struct TabBarItem: View, Equatable {
                 && tab.connectionHealth?.quality == .poor,
             keyboardShortcut: keyboardShortcut,
             onHoverChange: onHover,
+            previewAnchors: previewAnchors,
             trackFrame: usesTitlebarTabs,
             hasThemeOverride: hasThemeOverride,
             roamProtocol: tab.activeRoamProtocol,

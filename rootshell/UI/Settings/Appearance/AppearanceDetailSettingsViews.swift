@@ -243,6 +243,7 @@ struct TransparencySettingsView: View {
 struct WindowSettingsView: View {
     @Setting(Settings.Tabs.topTabStyle) private var topTabStyle
     @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
+    @Setting(Settings.Tabs.hoverPreviewZoom) private var tabHoverPreviewZoom
     @Setting(Settings.Sidebar.translucent) private var tabSidebarTranslucent
     @Setting(Settings.Sidebar.rowLines) private var tabSidebarRowLines
     @Setting(Settings.Window.splitFocusBorderStyle) private var splitFocusBorderStyle
@@ -368,6 +369,27 @@ struct WindowSettingsView: View {
                     description: "Show tab titles and badges under each live preview in Tab Exposé."
                 )
                 .themedRow()
+
+                // Pointer-only: phones have no hover, visionOS gaze never reports one.
+                #if !os(visionOS)
+                if UIDevice.current.userInterfaceIdiom != .phone {
+                    SettingDescribedToggle(
+                        Settings.Tabs.hoverPreviews,
+                        title: "Tab Hover Previews",
+                        description: "Rest the pointer on a tab in the tab bar or sidebar to see a live preview. Pinch to resize it; click it to open Tab Exposé."
+                    )
+                    .themedRow()
+
+                    if tabHoverPreviewZoom != 1 {
+                        Button {
+                            tabHoverPreviewZoom = 1
+                        } label: {
+                            Text("Reset Tab Preview Size")
+                        }
+                        .themedRow()
+                    }
+                }
+                #endif
 
                 #if !os(visionOS)
                 Toggle(isOn: $tabSidebarTranslucent) {

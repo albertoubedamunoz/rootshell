@@ -330,6 +330,8 @@ struct TabButton: View {
     var showHealthIndicator: Bool = true
     var keyboardShortcut: String? = nil  // e.g., "⌘1" - shown when tab shortcuts setting enabled
     var onHoverChange: ((Bool) -> Void)?
+    /// Registers this tab's frame for the hover preview card (nil: previews off).
+    var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
     var trackFrame: Bool = true  // Whether to report frame via TabFramePreferenceKey
     var hasThemeOverride: Bool = false  // Whether this tab has a theme override
     var roamProtocol: MainView.RoamProtocol = .none  // Whether this is a Mosh/Trzsz roaming connection
@@ -558,6 +560,13 @@ struct TabButton: View {
                             value: [id: geo.frame(in: .global)]
                         )
                     }
+                }
+            }
+        )
+        .background(
+            Group {
+                if let previewAnchors {
+                    TabHoverPreviewAnchor(tabID: id, source: .topBar, registry: previewAnchors)
                 }
             }
         )

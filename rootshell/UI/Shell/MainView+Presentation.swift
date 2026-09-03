@@ -35,13 +35,18 @@ extension MainView {
     /// Returns true if any sheet or overlay is currently presented
     /// Used to prevent focus restoration from showing keyboard over sheets
     var isAnySheetPresented: Bool {
+        // The docked sidebar does NOT cover the terminal or own the
+        // keyboard (the user types in the terminal beside it), so it must
+        // not count as a presented sheet — otherwise the overlay-owns-
+        // keyboard gate would refuse the terminal first responder.
+        (showingTabSwitcher && !tabSidebarIsDocked) || isSheetPresentedBesidesFloatingTabSidebar
+    }
+
+    /// `isAnySheetPresented` without the floating tab sidebar, for things
+    /// that work alongside it (its own rows' hover previews).
+    var isSheetPresentedBesidesFloatingTabSidebar: Bool {
         let baseFlags = showSettings ||
             showToolbarSettings ||
-            // The docked sidebar does NOT cover the terminal or own the
-            // keyboard (the user types in the terminal beside it), so it must
-            // not count as a presented sheet — otherwise the overlay-owns-
-            // keyboard gate would refuse the terminal first responder.
-            (showingTabSwitcher && !tabSidebarIsDocked) ||
             showConnectionSidebar ||
             showPasswordPromptSheet ||
             showKeyboardInteractivePrompt ||

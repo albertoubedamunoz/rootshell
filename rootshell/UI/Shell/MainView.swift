@@ -154,6 +154,8 @@ struct MainView: View {
     @State var wigglingTabIds: Set<UUID> = []
     /// Debounced hover state for the tab health popover (see TabHoverController).
     @State var tabHover = TabHoverController()
+    /// Live thumbnail card while the pointer rests on a tab (see TabHoverPreviewController).
+    @State var tabHoverPreview = TabHoverPreviewController()
     @State var tabFrames: [UUID: CGRect] = [:]
 
     // Namespace for glass effect tab transitions (iOS 26+)
@@ -648,7 +650,8 @@ struct MainView: View {
                     tab: hoveredTab,
                     tabFrame: tabHover.hoveredTabId.flatMap { tabFrames[$0] },
                     geometryWidth: geometry.size.width,
-                    enabled: sshHealthMonitoringEnabled
+                    enabled: sshHealthMonitoringEnabled,
+                    previews: tabHoverPreview
                 )
             }
             .animation(.easeOut(duration: 0.2), value: tabHover.hoveredTabId)

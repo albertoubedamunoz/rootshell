@@ -138,6 +138,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(handleHover(_:)))
         addGestureRecognizer(hover)
         #endif
+
+        controller.previewFrameProvider = { [weak self] id in self?.restingPreview(for: id) }
     }
 
     @available(*, unavailable)
@@ -145,6 +147,25 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
 
     deinit {
         displayLink?.invalidate()
+    }
+
+    /// Where a tab's cell picture rests once fully revealed, in window
+    /// coordinates: the hover preview card flies here when it opens the exposé.
+    func restingPreview(for id: UUID) -> (frame: CGRect, cornerRadius: CGFloat)? {
+        guard controller.isActive, !controller.showsMultiplexer, window != nil,
+              let cell = primary.cells.first(where: { $0.tabID == id }) else { return nil }
+        // Untransformed positions: the highlight scale and the reveal
+        // translation both live in transforms, and the tray's bounds origin
+        // is its scroll offset.
+        let cellOrigin = CGPoint(x: cell.center.x - cell.bounds.width / 2, y: cell.center.y - cell.bounds.height / 2)
+        let trayOrigin = CGPoint(x: primary.center.x - primary.bounds.width / 2, y: primary.center.y - primary.bounds.height / 2)
+        let inSelf = CGRect(
+            x: trayOrigin.x + cellOrigin.x - primary.bounds.origin.x,
+            y: trayOrigin.y + cellOrigin.y - primary.bounds.origin.y,
+            width: primary.layoutResult.cellSize.width,
+            height: primary.layoutResult.cellSize.height
+        )
+        return (convert(inSelf, to: nil), cell.previewCornerRadius)
     }
 
     // MARK: - Hosting
@@ -1124,6 +1145,8 @@ final class TabExposeCellView: UIView {
             captionHost = host
         }
     }
+
+    var previewCornerRadius: CGFloat { preview.layer.cornerRadius }
 
     func layoutContent(previewSize: CGSize, cornerRadius: CGFloat) {
         preview.frame = CGRect(origin: .zero, size: previewSize)

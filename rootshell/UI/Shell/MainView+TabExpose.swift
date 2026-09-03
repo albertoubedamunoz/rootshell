@@ -26,7 +26,10 @@ extension MainView {
         // order. The persistent background-effect layer intentionally rises
         // one level higher while the exposé is active.
         .zIndex(1)
-        .onAppear { installTabExposeHooks() }
+        .onAppear {
+            installTabExposeHooks()
+            installTabHoverPreviewHooks()
+        }
     }
 
     private func tabExposeConfiguration() -> TabExposeView.Configuration {

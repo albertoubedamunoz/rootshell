@@ -40,10 +40,20 @@ nonisolated extension Settings {
         static let exposeZoom = SettingKey(
             "tabExposeZoom", default: 1.0, group: .tabs, policy: .localByDefault, configKey: "tab-expose-zoom",
             title: String(localized: "Tab Exposé Preview Size", comment: "Setting title"))
+        /// Live thumbnail while the pointer rests on a tab (top bar or sidebar).
+        static let hoverPreviews = SettingKey(
+            "tabHoverPreviewsEnabled", default: true, group: .tabs, configKey: "tab-hover-previews",
+            title: String(localized: "Tab Hover Previews", comment: "Setting title"))
+        /// Pinch-set hover preview scale; 1 = the default size.
+        static let hoverPreviewZoom = SettingKey(
+            "tabHoverPreviewZoom", default: 1.0, group: .tabs, policy: .localByDefault,
+            configKey: "tab-hover-preview-zoom",
+            title: String(localized: "Tab Hover Preview Size", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
             showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
+            hoverPreviews.erased, hoverPreviewZoom.erased,
         ]
     }
 
