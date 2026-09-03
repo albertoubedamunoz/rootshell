@@ -112,6 +112,11 @@ struct ThemePickerOverlay: View {
                         overrideInfoSection(overrideInfo)
                     }
 
+                    // Active theme pinned first so it never has to be scrolled to
+                    if searchText.isEmpty, let current = currentThemeInfo {
+                        currentSection(current)
+                    }
+
                     // Favorites section
                     if !favoriteManager.favoriteThemeIds.isEmpty && searchText.isEmpty {
                         favoritesSection
@@ -188,6 +193,35 @@ struct ThemePickerOverlay: View {
             overrideManager.clearTabOverride(tabId: tabId)
         } else if overrideManager.hasWindowOverride(windowId: windowId) {
             overrideManager.clearWindowOverride(windowId: windowId)
+        }
+    }
+
+    // MARK: - Current Section
+
+    private var currentThemeInfo: ThemeManager.ThemeInfo? {
+        let (currentName, _) = overrideManager.resolveTheme(tabId: currentTabId, windowId: windowId)
+        return themeManager.availableThemes.first { $0.name == currentName }
+    }
+
+    @ViewBuilder
+    private func currentSection(_ theme: ThemeManager.ThemeInfo) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.accentColor)
+                Text("Current")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+
+            themeRow(theme, isFavorite: favoriteManager.isFavorite(theme.id))
+
+            Divider()
+                .padding(.vertical, 4)
         }
     }
 
