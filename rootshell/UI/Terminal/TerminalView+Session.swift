@@ -878,8 +878,7 @@ extension Ghostty.TerminalView {
     }
 
     private func multiplexerAttachInputLine(_ attachCommand: String) -> String {
-        let pathPrefix = "PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:/snap/bin\""
-        let script = "\(pathPrefix) \(attachCommand)"
+        let script = "\(SSHConfig.remoteExecPathPrefix)\(attachCommand)"
         return "sh -c '\(shellEscapeForSingleQuotes(script))'\n"
     }
 }

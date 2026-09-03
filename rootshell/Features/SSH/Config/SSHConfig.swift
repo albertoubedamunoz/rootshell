@@ -84,25 +84,44 @@ struct SSHConfig: Codable, Hashable {
         }
     }
 
-    /// Common PATH entries that should be available for non-interactive SSH exec
-    /// requests. This covers Homebrew on macOS, Linuxbrew, Go-installed tools,
-    /// and common system locations without depending on shell startup files.
-    nonisolated static let remoteExecPathEntries = [
+    /// Tool locations for non-interactive SSH exec requests, searched ahead of
+    /// the system directories without depending on shell startup files.
+    nonisolated static let remoteExecToolPathEntries = [
         "/opt/homebrew/bin",
         "/usr/local/bin",
         "$HOME/go/bin",
-        "/usr/local/go/bin",
+        "/usr/local/go/bin"
+    ]
+
+    /// Linux-only tool locations, searched after the ones above. Never even
+    /// stat'd on Darwin: /home is an autofs trigger there, so each lookup costs
+    /// an automountd/opendirectoryd round trip (#391).
+    nonisolated static let remoteExecLinuxPathEntries = [
         "/home/linuxbrew/.linuxbrew/bin",
-        "/snap/bin",
+        "/snap/bin"
+    ]
+
+    nonisolated static let remoteExecSystemPathEntries = [
         "/usr/bin",
         "/bin",
         "/usr/sbin",
         "/sbin"
     ]
 
-    /// Shell snippet that prepends common tool locations while preserving the
-    /// remote host's existing PATH.
-    nonisolated static let remoteExecPathPrefix = "export PATH=\"\(remoteExecPathEntries.joined(separator: ":")):$PATH\"; "
+    /// Shell snippet that prepends the entries above that exist on the target,
+    /// in order, preserving its existing PATH. Existence is checked once here
+    /// so nonexistent directories never reach a child's PATH search.
+    nonisolated static let remoteExecPathPrefix: String = {
+        func words(_ entries: [String]) -> String {
+            entries.map { $0.contains("$") ? "\"\($0)\"" : $0 }.joined(separator: " ")
+        }
+        let linux = remoteExecLinuxPathEntries.joined(separator: " ")
+        let list = "\(words(remoteExecToolPathEntries)) $_rsl \(words(remoteExecSystemPathEntries))"
+        // Absolute path: the incoming PATH is exactly what this snippet fixes.
+        // Darwin always has it; a Linux host without it falls into the Linux branch.
+        return "_rsp=; _rsl=; [ \"$(/usr/bin/uname -s 2>/dev/null)\" = Darwin ] || _rsl=\"\(linux)\"; "
+            + "for _rsd in \(list); do [ -d \"$_rsd\" ] && _rsp=\"$_rsp$_rsd:\"; done; export PATH=\"$_rsp$PATH\"; "
+    }()
 
     /// The hostname or IP address to connect to
     var host: String
