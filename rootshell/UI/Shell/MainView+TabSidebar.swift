@@ -143,7 +143,11 @@ extension MainView {
             onExposeRequested: {
                 if !tabSidebarIsDocked { dismissTabSidebar() }
                 toggleTabExpose()
-            }
+            },
+            onTabHover: { id, isHovered in
+                tabHoverPreview.handleHover(tabID: id, source: .sidebar, isHovered: isHovered)
+            },
+            previewAnchors: tabHoverPreview.anchors
         )
     }
 

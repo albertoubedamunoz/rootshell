@@ -306,6 +306,9 @@ extension MainView {
         // unless it owns the latch) so surviving windows don't stay frozen
         // until the next keyboard event notices the dead owner.
         KeyboardTracker.shared.endOverlayKeyboardPreservation(owner: tabsModel)
+        // The hover card lives in the window, not the view tree; take it down
+        // with the window and release the tab it mirrors.
+        tabHoverPreview.hide(animated: false)
 
         // Clean up observers. The block-based addObserver API returns tokens
         // that the legacy `removeObserver(self)` call would NOT match — those
