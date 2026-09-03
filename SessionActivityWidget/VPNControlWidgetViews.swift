@@ -8,10 +8,90 @@
 import SwiftUI
 import WidgetKit
 
+// MARK: - Status
+
+/// Presentation attributes derived from the raw status string.
+private struct VPNStatusStyle {
+    let color: Color
+    let symbol: String
+    let title: String
+    let isConnected: Bool
+    let isTransitioning: Bool
+
+    init(status: String) {
+        switch status {
+        case "connected":
+            color = .green
+            symbol = "checkmark.shield.fill"
+            title = String(localized: "Connected")
+            isConnected = true
+            isTransitioning = false
+        case "connecting":
+            color = .yellow
+            symbol = "shield.lefthalf.filled"
+            title = String(localized: "Connecting")
+            isConnected = false
+            isTransitioning = true
+        case "reconnecting":
+            color = .yellow
+            symbol = "shield.lefthalf.filled"
+            title = String(localized: "Reconnecting")
+            isConnected = false
+            isTransitioning = true
+        case "disconnecting":
+            color = .orange
+            symbol = "shield.lefthalf.filled"
+            title = String(localized: "Disconnecting")
+            isConnected = false
+            isTransitioning = true
+        default:
+            color = .gray
+            symbol = "shield.slash.fill"
+            title = String(localized: "Disconnected")
+            isConnected = false
+            isTransitioning = false
+        }
+    }
+}
+
+// MARK: - Background
+
+/// Neutral widget fill with a status-tinted wash from the top-leading corner.
+struct VPNControlWidgetBackground: View {
+    let status: String
+
+    var body: some View {
+        let style = VPNStatusStyle(status: status)
+        ZStack {
+            Rectangle().fill(.fill.tertiary)
+            LinearGradient(
+                colors: [style.color.opacity(0.28), style.color.opacity(0.04)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+}
+
+// MARK: - View
+
 struct VPNControlWidgetView: View {
     let entry: VPNControlTimelineEntry
 
-    @Environment(\.widgetFamily) var widgetFamily
+    @Environment(\.widgetFamily) private var widgetFamily
+
+    private var style: VPNStatusStyle { VPNStatusStyle(status: entry.status) }
+
+    private var canConnect: Bool {
+        entry.profileID != nil && entry.profileName != nil && entry.host != nil
+    }
+
+    /// "user@host" when both are known, otherwise whichever exists.
+    private var endpoint: String? {
+        guard let host = entry.host, !host.isEmpty else { return nil }
+        if let user = entry.username, !user.isEmpty { return "\(user)@\(host)" }
+        return host
+    }
 
     var body: some View {
         if !entry.isConfigured {
@@ -26,303 +106,244 @@ struct VPNControlWidgetView: View {
         }
     }
 
-    // MARK: - Status Helpers
+    // MARK: Pieces
 
-    private var isConnected: Bool { entry.status == "connected" }
-    private var isDisconnected: Bool { entry.status == "disconnected" || entry.status.isEmpty }
-    private var isTransitioning: Bool {
-        entry.status == "connecting" || entry.status == "reconnecting" || entry.status == "disconnecting"
+    private func glyph(size: CGFloat) -> some View {
+        Image(systemName: style.symbol)
+            .contentTransition(.symbolEffect(.replace))
+            .font(.system(size: size * 0.5, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(style.color.gradient, in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+            .widgetAccentable()
     }
 
-    private var statusColor: Color {
-        switch entry.status {
-        case "connected": return .green
-        case "connecting", "reconnecting": return .yellow
-        case "disconnecting": return .orange
-        default: return Color(.systemGray)
+    private func title(_ font: Font) -> some View {
+        Text(entry.profileName ?? "VPN")
+            .font(font)
+            .foregroundStyle(.primary)
+            .lineLimit(2)
+            .minimumScaleFactor(0.7)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var transportChip: some View {
+        Group {
+            if let transport = entry.transport {
+                Text(transport)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.quaternary, in: Capsule())
+            }
         }
     }
 
-    private var statusDisplayText: String {
-        switch entry.status {
-        case "connected": return String(localized: "Connected")
-        case "connecting": return String(localized: "Connecting…")
-        case "reconnecting": return String(localized: "Reconnecting…")
-        case "disconnecting": return String(localized: "Disconnecting…")
-        default: return String(localized: "Disconnected")
+    private var statusDot: some View {
+        Circle()
+            .fill(style.color)
+            .frame(width: 7, height: 7)
+            .overlay(Circle().stroke(style.color.opacity(0.35), lineWidth: 3))
+    }
+
+    /// Compact "● Connected 1:02:33" line for the small family.
+    private var statusLine: some View {
+        let titleColor: AnyShapeStyle = style.isConnected
+            ? AnyShapeStyle(style.color)
+            : AnyShapeStyle(HierarchicalShapeStyle.secondary)
+        return Group {
+            if style.isConnected, let since = entry.connectedSince {
+                // Word + timer rarely both fit at small width; fall back to
+                // the timer alone (the dot and tint still read as connected).
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) {
+                        statusDot
+                        Text(style.title).foregroundStyle(titleColor)
+                        Text(since, style: .timer)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        statusDot
+                        Text(since, style: .timer)
+                            .monospacedDigit()
+                            .foregroundStyle(titleColor)
+                    }
+                }
+            } else {
+                HStack(spacing: 6) {
+                    statusDot
+                    Text(style.title).foregroundStyle(titleColor)
+                }
+            }
+        }
+        .font(.caption.weight(.semibold))
+        .lineLimit(1)
+    }
+
+    private func detail(_ label: LocalizedStringKey, _ value: String, mono: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .textCase(.uppercase)
+            Text(value)
+                .font(mono ? .caption.monospaced() : .caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
     }
 
-    private var smallTransitionIndicator: some View {
-        ProgressView()
-            .controlSize(.mini)
-            .tint(.white.opacity(0.7))
-            .scaleEffect(0.72)
-            .frame(width: 12, height: 12)
-    }
-
-    private var mediumTransitionIndicator: some View {
-        ProgressView()
-            .controlSize(.mini)
-            .tint(.white.opacity(0.7))
-            .scaleEffect(0.78)
-            .frame(width: 16, height: 16)
-    }
-
-    // MARK: - Status Orb
-
-    private func statusOrb(size: CGFloat) -> some View {
-        ZStack {
-            Circle()
-                .fill(RadialGradient(
-                    colors: [statusColor.opacity(0.35), statusColor.opacity(0)],
-                    center: .center,
-                    startRadius: size * 0.15,
-                    endRadius: size * 0.5
-                ))
-                .frame(width: size, height: size)
-            Circle()
-                .stroke(statusColor.opacity(0.5), lineWidth: 1.5)
-                .frame(width: size * 0.55, height: size * 0.55)
-            Circle()
-                .fill(statusColor)
-                .frame(width: size * 0.35, height: size * 0.35)
-                .shadow(color: statusColor.opacity(0.6), radius: size * 0.12)
-        }
-    }
-
-    // MARK: - Unconfigured
+    // MARK: Unconfigured
 
     private var unconfiguredView: some View {
-        VStack(spacing: 6) {
-            Image("AppIconImage")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: 9))
+        VStack(spacing: 8) {
+            Image(systemName: "shield.lefthalf.filled")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .widgetAccentable()
             Text("VPN Control")
-                .font(.subheadline.bold())
-                .foregroundStyle(.white)
-            Text("Hold to select profile")
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.5))
+                .font(.headline)
+            Text("Hold to choose a profile")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Small Widget
+    // MARK: Small
 
     private var smallView: some View {
-        VStack(spacing: 0) {
-            // Profile name header
-            HStack(spacing: 4) {
-                Image(systemName: "shield.lefthalf.filled")
-                    .contentTransition(.symbolEffect(.replace))
-                    .font(.caption2)
-                    .foregroundStyle(statusColor)
-                Text(entry.profileName ?? "VPN")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white.opacity(0.7))
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 2)
-
-            // Center: status orb + status text
-            statusOrb(size: 40)
-
-            if isConnected, let since = entry.connectedSince {
-                HStack(spacing: 4) {
-                    Text(statusDisplayText)
-                        .font(.caption.bold())
-                        .foregroundStyle(.white)
-                    Text(since, style: .timer)
-                        .font(.caption.bold())
-                        .monospacedDigit()
-                        .foregroundStyle(statusColor)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 4)
-            } else {
-                Text(statusDisplayText)
-                    .font(.callout.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 4)
-            }
-
-            Spacer(minLength: 2)
-
-            // Full-width button
-            smallToggleButton
-        }
-    }
-
-    // MARK: - Medium Widget
-
-    private var mediumView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack(spacing: 4) {
-                Image(systemName: "shield.lefthalf.filled")
-                    .contentTransition(.symbolEffect(.replace))
-                    .font(.caption)
-                    .foregroundStyle(statusColor)
-                Text(entry.profileName ?? "VPN")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.white.opacity(0.7))
-                    .lineLimit(1)
+            HStack(alignment: .top) {
+                glyph(size: 34)
+                Spacer()
+                transportChip
             }
 
             Spacer(minLength: 6)
 
-            // Content row: orb | info | button
-            HStack(spacing: 10) {
-                statusOrb(size: 36)
+            title(.headline)
+            statusLine
+                .padding(.top, 3)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(statusDisplayText)
-                            .font(.callout.bold())
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
+            Spacer(minLength: 8)
 
-                        if isConnected, let since = entry.connectedSince {
-                            Text(since, style: .timer)
-                                .font(.caption.bold())
-                                .monospacedDigit()
-                                .foregroundStyle(statusColor)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    if let host = entry.host {
-                        Text(host)
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.5))
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                mediumToggleButton
-            }
+            toggleButton(fullWidth: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
-    // MARK: - Small Toggle Button (full-width)
+    // MARK: Medium
 
-    @ViewBuilder
-    private var smallToggleButton: some View {
-        if isTransitioning, let profileID = entry.profileID {
-            // Tappable: re-triggers the same intent which polls for final state
-            Button(intent: ConnectVPNWidgetIntent(profileID: profileID.uuidString)) {
-                HStack(spacing: 4) {
-                    smallTransitionIndicator
-                    Text(statusDisplayText)
-                        .font(.caption.bold())
-                        .invalidatableContent()
+    private var mediumView: some View {
+        HStack(alignment: .top, spacing: 16) {
+            // Identity column
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
+                    glyph(size: 40)
+                    Spacer()
+                    transportChip
                 }
-                .foregroundStyle(.white.opacity(0.6))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(.white.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
-        } else if isConnected {
-            Button(intent: DisconnectVPNWidgetIntent()) {
-                HStack(spacing: 5) {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.callout)
-                    Text("Disconnect")
-                        .font(.callout.bold())
-                        .invalidatableContent()
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color.red.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
-        } else if let profileID = entry.profileID,
-                  entry.profileName != nil,
-                  entry.host != nil {
-            Button(intent: ConnectVPNWidgetIntent(profileID: profileID.uuidString)) {
-                HStack(spacing: 5) {
-                    Image(systemName: "power.circle.fill")
-                        .font(.callout)
-                    Text("Connect")
-                        .font(.callout.bold())
-                        .invalidatableContent()
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color.green.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
-        }
-    }
 
-    // MARK: - Medium Toggle Button (vertical icon + text)
+                Spacer(minLength: 8)
 
-    @ViewBuilder
-    private var mediumToggleButton: some View {
-        if isTransitioning, let profileID = entry.profileID {
-            Button(intent: ConnectVPNWidgetIntent(profileID: profileID.uuidString)) {
-                VStack(spacing: 6) {
-                    mediumTransitionIndicator
-                    Text(statusDisplayText)
-                        .font(.caption2.bold())
+                title(.title3.weight(.bold))
+
+                if let endpoint {
+                    Text(endpoint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .padding(.top, 2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Status column
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 6) {
+                    statusDot
+                    Text(style.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(style.isConnected ? AnyShapeStyle(style.color) : AnyShapeStyle(.primary))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                        .invalidatableContent()
                 }
-                .foregroundStyle(.white.opacity(0.6))
-                .frame(width: 88)
-                .padding(.vertical, 14)
-                .background(.white.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .buttonStyle(.plain)
-        } else if isConnected {
-            Button(intent: DisconnectVPNWidgetIntent()) {
-                VStack(spacing: 6) {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.title2)
-                    Text("Disconnect")
-                        .font(.caption.bold())
-                        .invalidatableContent()
+
+                if style.isConnected, let since = entry.connectedSince {
+                    Text(since, style: .timer)
+                        .font(.system(.title, design: .rounded).weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.top, 2)
+                } else if style.isTransitioning {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(style.color)
+                        .padding(.top, 8)
+                } else if let host = entry.host {
+                    detail("Server", host, mono: true)
+                        .padding(.top, 8)
                 }
-                .foregroundStyle(.white)
-                .frame(width: 88)
-                .padding(.vertical, 14)
-                .background(Color.red.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                Spacer(minLength: 8)
+
+                toggleButton(fullWidth: true)
             }
-            .buttonStyle(.plain)
-        } else if let profileID = entry.profileID,
-                  entry.profileName != nil,
-                  entry.host != nil {
-            Button(intent: ConnectVPNWidgetIntent(profileID: profileID.uuidString)) {
-                VStack(spacing: 6) {
-                    Image(systemName: "power.circle.fill")
-                        .font(.title2)
-                    Text("Connect")
-                        .font(.caption.bold())
-                        .invalidatableContent()
-                }
-                .foregroundStyle(.white)
-                .frame(width: 88)
-                .padding(.vertical, 14)
-                .background(Color.green.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .buttonStyle(.plain)
+            .frame(width: 128, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    // MARK: Button
+
+    @ViewBuilder
+    private func toggleButton(fullWidth: Bool) -> some View {
+        if style.isTransitioning, let profileID = entry.profileID {
+            // Re-triggers the same intent, which polls for the final state.
+            Button(intent: ConnectVPNWidgetIntent(profileID: profileID.uuidString)) {
+                buttonLabel(fullWidth: fullWidth, systemImage: nil, title: style.title + "…")
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .tint(style.color)
+        } else if style.isConnected {
+            Button(intent: DisconnectVPNWidgetIntent()) {
+                buttonLabel(fullWidth: fullWidth, systemImage: "xmark", title: String(localized: "Disconnect"))
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .tint(.red)
+        } else if canConnect, let profileID = entry.profileID {
+            Button(intent: ConnectVPNWidgetIntent(profileID: profileID.uuidString)) {
+                buttonLabel(fullWidth: fullWidth, systemImage: "bolt.fill", title: String(localized: "Connect"))
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .tint(.green)
+        }
+    }
+
+    private func buttonLabel(fullWidth: Bool, systemImage: String?, title: String) -> some View {
+        HStack(spacing: 5) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.bold))
+            }
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .invalidatableContent()
+        }
+        .frame(maxWidth: fullWidth ? .infinity : nil)
+        .padding(.vertical, 3)
     }
 }

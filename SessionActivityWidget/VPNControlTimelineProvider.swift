@@ -14,6 +14,8 @@ struct VPNControlTimelineEntry: TimelineEntry {
     let profileName: String?
     let status: String          // "disconnected", "connecting", "connected", "disconnecting", "reconnecting"
     let host: String?
+    let username: String?
+    let transport: String?      // "SSH" / "tssh", nil when unknown
     let connectedSince: Date?
     let isConfigured: Bool      // Whether user has selected a profile in widget config
 }
@@ -34,7 +36,9 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
             profileID: nil,
             profileName: "VPN",
             status: "disconnected",
-            host: nil,
+            host: "vpn.example.com",
+            username: nil,
+            transport: "SSH",
             connectedSince: nil,
             isConfigured: true
         )
@@ -63,6 +67,8 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
                     profileName: entry.profileName,
                     status: entry.status,
                     host: entry.host,
+                    username: entry.username,
+                    transport: entry.transport,
                     connectedSince: entry.connectedSince,
                     isConfigured: entry.isConfigured
                 )
@@ -97,12 +103,23 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
             effectiveConnectedSince = nil
         }
 
+        let transport: String? = configuredProfileID.flatMap { id in
+            VPNSharedProfileStore.readAll().first { $0.id == id }.map {
+                switch $0.transportType {
+                case .ssh: "SSH"
+                case .tssh: "tssh"
+                }
+            }
+        }
+
         return VPNControlTimelineEntry(
             date: Date(),
             profileID: configuredProfileID,
             profileName: configuration.profile?.name,
             status: effectiveStatus,
             host: effectiveHost,
+            username: configuration.profile?.username,
+            transport: transport,
             connectedSince: effectiveConnectedSince,
             isConfigured: isConfigured
         )
