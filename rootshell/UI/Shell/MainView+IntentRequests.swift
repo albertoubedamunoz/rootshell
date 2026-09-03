@@ -75,7 +75,12 @@ extension MainView {
 
         let claimed = AppIntentCoordinator.shared.consume(forScene: windowSceneSessionID)
         guard !claimed.isEmpty else { return }
-        Ghostty.logger.info("[urlopen] claim window=\(windowId, privacy: .public) scene=\(windowSceneSessionID ?? "-", privacy: .public) key=\(windowIsKeyWindow) count=\(claimed.count) helper=\(HelperConnection.shared.isKnownRunning) \(AppIntentCoordinator.sceneSnapshot(), privacy: .public)")
+        #if targetEnvironment(macCatalyst)
+        let helperRunning = HelperConnection.shared.isKnownRunning
+        #else
+        let helperRunning = false
+        #endif
+        Ghostty.logger.info("[urlopen] claim window=\(windowId, privacy: .public) scene=\(windowSceneSessionID ?? "-", privacy: .public) key=\(windowIsKeyWindow) count=\(claimed.count) helper=\(helperRunning) \(AppIntentCoordinator.sceneSnapshot(), privacy: .public)")
         dispatchClaimedIntentRequests(claimed)
     }
 
