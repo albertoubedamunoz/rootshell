@@ -174,7 +174,11 @@ extension MainView {
                 }
             },
             keyboardShortcut: { index in keyboardShortcut(for: index) },
-            onTabHover: { id, isHovered in tabHover.handleHover(tabId: id, isHovered: isHovered) },
+            onTabHover: { id, isHovered in
+                tabHover.handleHover(tabId: id, isHovered: isHovered)
+                tabHoverPreview.handleHover(tabID: id, source: .topBar, isHovered: isHovered)
+            },
+            previewAnchors: tabHoverPreview.anchors,
             tabHasThemeOverride: { id in tabHasThemeOverride(id) },
             onClearThemeOverride: { id in themeOverrideManager.clearTabOverride(tabId: id) },
             onShowConnectionInfo: { tab in showConnectionInfo(for: tab) },

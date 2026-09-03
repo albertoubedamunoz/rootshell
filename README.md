@@ -84,6 +84,7 @@ brew install --cask rootshell
 - **Move Tabs Between Windows** - Drag a tab or a whole group into another window without disconnecting (iPad and Mac)
 - **Interactive Tab Swipe** - Swipe between tabs with a live carousel; both terminals stay live during the gesture
 - **Tab Exposé** - See live previews of every tab in the current group or project, including Screen Sharing sessions. Pull down from the tab bar or press ⌘⇧A to open it; swipe sideways or use ⌘⌥[ and ⌘⌥] to page between scopes, each of which remembers its last-selected tab. On a tab attached to herdr, tmux, or zellij it opens on that session's own tabs with live, colored previews of every pane; pick one to switch the session, or page over to your app tabs
+- **Tab Hover Previews** - Rest the pointer on a tab in the tab bar or the vertical tab sidebar to see a live thumbnail of it in a glass card that slides along as you move between tabs. Pinch to resize it, and click it to open Tab Exposé with that tab highlighted (iPad and Mac; off in Settings if you prefer)
 - **Pixel-Smooth Scrollback** - Sub-cell scroll offsets with ProMotion 120 Hz rendering on iPhone
 - **HDR Brightness Boost** - Drive the terminal brighter on HDR-capable displays via a floating HUD (⌘⌃B), clamped to display headroom
 - **Visor** - Quake-style drop-down terminal summoned by a global hotkey. Slides from any screen edge, joins all Spaces, and floats above other apps (macOS Standalone)

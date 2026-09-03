@@ -280,6 +280,10 @@ struct VerticalTabSidebar: View {
     let sheetColorScheme: ColorScheme?
     /// Open the tab exposé (shown with the header actions when the top tab bar is hidden).
     var onExposeRequested: () -> Void = {}
+    /// Pointer hover over a tab row (id, entered), for the hover preview card.
+    var onTabHover: ((UUID, Bool) -> Void)? = nil
+    /// Where each row's hover preview anchors (nil: previews off).
+    var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
 
     @Setting(Settings.Tabs.showShortcutIndicators) private var showTabShortcutIndicators
     @Setting(Settings.Tabs.barHidden) private var tabBarHidden
@@ -1377,7 +1381,9 @@ struct VerticalTabSidebar: View {
                     shortcutHint: shortcutHint(for: row),
                     metrics: metrics,
                     accentTint: accentTint,
-                    onClose: { onCloseTab(row.tab.id) }
+                    onClose: { onCloseTab(row.tab.id) },
+                    onHoverChange: onTabHover.map { hover in { hover(row.tab.id, $0) } },
+                    previewAnchors: previewAnchors
                 )
                 .equatable()
                 .opacity(row.isHiddenKind ? 0.55 : 1)
@@ -2356,7 +2362,9 @@ struct VerticalTabSidebar: View {
                 if staysOpenOnSelect && !isDocked {
                     requestSearchFocus()
                 }
-            }
+            },
+            onHoverChange: onTabHover.map { hover in { hover(row.tab.id, $0) } },
+            previewAnchors: previewAnchors
         )
     }
 
@@ -2981,6 +2989,8 @@ private struct SidebarTabRowItem: View, Equatable {
     let metrics: SidebarMetrics
     let accentTint: Color
     let onClose: () -> Void
+    var onHoverChange: ((Bool) -> Void)? = nil
+    var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
 
     // Equality gates *parent-driven* re-evaluation only. It does NOT suppress
     // @Observable-driven invalidation: the body reads `tab.title` /
@@ -3036,7 +3046,10 @@ private struct SidebarTabRowItem: View, Equatable {
             metrics: metrics,
             accentTint: accentTint,
             showsCloseButton: true,
-            onClose: onClose
+            onClose: onClose,
+            onHoverChange: onHoverChange,
+            previewAnchorTabID: previewAnchors == nil ? nil : tab.id,
+            previewAnchors: previewAnchors
         )
     }
 }
@@ -3163,6 +3176,8 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
     let onShowDashboard: () -> Void
     let onClose: () -> Void
     let onTap: () -> Void
+    var onHoverChange: ((Bool) -> Void)? = nil
+    var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
 
     @State private var isHovered = false
     @State private var isCloseHovered = false
@@ -3269,9 +3284,17 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
                 reduceMotion: reduceMotion
             )
         )
+        .background(
+            Group {
+                if let previewAnchors {
+                    TabHoverPreviewAnchor(tabID: tab.id, source: .sidebar, registry: previewAnchors)
+                }
+            }
+        )
         .onHover { hovering in
             isHovered = hovering
             if !hovering { isCloseHovered = false }
+            onHoverChange?(hovering)
         }
         .onTapGesture(perform: onTap)
     }
@@ -3324,6 +3347,10 @@ private struct SidebarTabRow: View {
     let accentTint: Color
     var showsCloseButton: Bool = true
     let onClose: () -> Void
+    var onHoverChange: ((Bool) -> Void)? = nil
+    /// Tab rows register a hover-preview anchor; pane rows don't.
+    var previewAnchorTabID: UUID? = nil
+    var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
 
     @State private var isHovered = false
     @State private var isCloseHovered = false
@@ -3355,9 +3382,17 @@ private struct SidebarTabRow: View {
                 reduceMotion: reduceMotion
             )
         )
+        .background(
+            Group {
+                if let previewAnchors, let previewAnchorTabID {
+                    TabHoverPreviewAnchor(tabID: previewAnchorTabID, source: .sidebar, registry: previewAnchors)
+                }
+            }
+        )
         .onHover { hovering in
             isHovered = hovering
             if !hovering { isCloseHovered = false }
+            onHoverChange?(hovering)
         }
     }
 

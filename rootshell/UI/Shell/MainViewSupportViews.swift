@@ -69,10 +69,15 @@ struct HealthPopoverOverlay: View {
     let tabFrame: CGRect?
     let geometryWidth: CGFloat
     let enabled: Bool
+    /// The hover preview card takes the same spot; the tooltip yields to it.
+    /// Read here, not in MainView.body, so the card's show/hide invalidates
+    /// only this overlay.
+    let previews: TabHoverPreviewController
 
     var body: some View {
         if enabled,
            let tab,
+           previews.previewedTabID != tab.id,
            let health = tab.connectionHealth,
            let tabFrame {
             ConnectionHealthPopover(health: health)

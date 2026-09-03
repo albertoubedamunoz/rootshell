@@ -67,6 +67,9 @@ final class TabExposeController {
     @ObservationIgnored private(set) var multiplexerAttached = false
     /// The app tab whose terminal feeds the multiplexer page.
     @ObservationIgnored private var multiplexerHostTabID: UUID?
+    /// Opened on the app page on purpose (hover-preview hand-off): a
+    /// multiplexer page detected late is attached but not switched to.
+    @ObservationIgnored private var prefersAppPage = false
     /// The tab whose full-size live picture slides in/out with the tray.
     private(set) var heroTabID: UUID?
     var highlightedTabID: UUID? {
@@ -141,6 +144,9 @@ final class TabExposeController {
     /// No terminal to hook keys on (VNC pane focused): the view takes first
     /// responder itself while presented.
     @ObservationIgnored var wantsFirstResponderFallback = false
+    /// Resting preview frame (window coordinates) and corner radius of a
+    /// tab's cell, supplied by the view; the hover preview card flies into it.
+    @ObservationIgnored var previewFrameProvider: ((UUID) -> (frame: CGRect, cornerRadius: CGFloat)?)?
 
     // MARK: - Private
 
@@ -227,6 +233,31 @@ final class TabExposeController {
 
     func present() {
         guard !isActive, activate() else { return }
+        progress = 0
+        settle(to: 1, fast: false)
+    }
+
+    /// Present with `id` highlighted, landing on the app page even when the
+    /// selected tab has a multiplexer page (the hover preview hands off an
+    /// app tab, and that tab's cell is where the card flies).
+    func present(highlighting id: UUID) {
+        // A hidden tmux window is not in any scope and a plain select would
+        // not unhide it; the sidebar's own unhide path owns that.
+        guard let tabsModel, let tab = tabsModel.tab(withID: id), !tab.isHiddenTmuxWindow else { return }
+        if isActive {
+            if tabIDs.contains(id) { highlightedTabID = id }
+            return
+        }
+        // A tab from another group / project (the sidebar lists them all):
+        // select it first so the scope is built around it, the way scope
+        // paging selects into the neighbor scope.
+        if tabsModel.selectedTabID != id, let list = tabsModel.scopeList(),
+           list.scopes.indices.contains(list.activeIndex),
+           !list.scopes[list.activeIndex].tabIDs.contains(id) {
+            onSelect?(id)
+        }
+        guard activate(preferAppPage: true) else { return }
+        if tabIDs.contains(id) { highlightedTabID = id }
         progress = 0
         settle(to: 1, fast: false)
     }
@@ -358,8 +389,8 @@ final class TabExposeController {
             // Detection finished: adopt the page if we're still on the host tab.
             guard isActive, muxFeed.isServing, tabsModel?.selectedTabID == host else { return }
             multiplexerAttached = true
-            showsMultiplexer = true
-            refreshScope()
+            showsMultiplexer = !prefersAppPage
+            refreshScope(force: true)
             return
         }
         if muxFeed.state == .unsupported {
@@ -496,9 +527,13 @@ final class TabExposeController {
     // MARK: - Internals
 
     /// Snapshot the scope and tell the host we're about to show. False if there is nothing to show.
-    private func activate() -> Bool {
+    /// `preferAppPage` keeps an attached multiplexer page reachable by paging
+    /// but opens on the app tabs.
+    private func activate(preferAppPage: Bool = false) -> Bool {
         guard let tabsModel else { return false }
         attachMultiplexer()
+        prefersAppPage = preferAppPage
+        if preferAppPage { showsMultiplexer = false }
         refreshScope(announce: false)
         guard !tabIDs.isEmpty || showsMultiplexer else {
             muxFeed?.stop(grace: 0)
@@ -556,6 +591,7 @@ final class TabExposeController {
         multiplexerAttached = false
         showsMultiplexer = false
         multiplexerHostTabID = nil
+        prefersAppPage = false
         observer?.tabExposeDidChangeActivity(self)
         onDidDismiss?()
     }
