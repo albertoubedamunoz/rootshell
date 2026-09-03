@@ -21,6 +21,9 @@ static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
 + (BOOL)isValidShellCommand:(nullable NSString *)command;
 + (nullable NSString *)executablePathInShellCommand:(NSString *)command;
 + (BOOL)shellQuotesAreBalanced:(NSString *)command;
++ (NSString *)injectShellIntegrationForShell:(NSString *)shell
+                              integrationDir:(NSString *)dir
+                                 environment:(NSMutableDictionary<NSString *, NSString *> *)env;
 @end
 
 @implementation ShellSpawnConfig
@@ -77,6 +80,17 @@ static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
     }
     shell = [self validatedShellOrFallback:shell];
 
+    // Automatic shell integration (ghostty src/shell-integration.zig): the
+    // environment and, for bash, the exec line are adjusted per shell.
+    NSDictionary<NSString *, NSString *> *environment = config.environment;
+    if (config.enableShellIntegration && config.shellIntegrationPath && !config.command) {
+        NSMutableDictionary *env = [environment mutableCopy];
+        shell = [self injectShellIntegrationForShell:shell
+                                      integrationDir:config.shellIntegrationPath
+                                         environment:env];
+        environment = env;
+    }
+
     // Build command arguments
     NSArray<NSString *> *args;
     if (config.command) {
@@ -102,7 +116,7 @@ static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
     }
 
     // Build environment
-    char **envp = [self buildEnvironment:config.environment];
+    char **envp = [self buildEnvironment:environment];
     if (!envp) {
         [self freeCStringArray:argv];
         if (error) {
@@ -275,6 +289,56 @@ static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
     [args addObject:execCmd];
 
     return args;
+}
+
+/// Returns the (possibly modified) shell command. zsh gets a ZDOTDIR whose
+/// .zshenv chains to the user's; bash runs in POSIX mode with ENV pointing at
+/// the script, which replays the login startup files; fish and elvish find
+/// their scripts through XDG_DATA_DIRS.
++ (NSString *)injectShellIntegrationForShell:(NSString *)shell
+                              integrationDir:(NSString *)dir
+                                 environment:(NSMutableDictionary<NSString *, NSString *> *)env {
+    NSString *executable = [self executablePathInShellCommand:shell];
+    NSString *name = executable.lastPathComponent;
+
+    if ([name isEqualToString:@"zsh"]) {
+        NSString *existing = env[@"ZDOTDIR"];
+        if (existing) env[@"GHOSTTY_ZSH_ZDOTDIR"] = existing;
+        env[@"ZDOTDIR"] = [dir stringByAppendingPathComponent:@"zsh"];
+        return shell;
+    }
+
+    if ([name isEqualToString:@"bash"]) {
+        // The script needs bash 4+; the system /bin/bash is 3.2.
+        if ([executable isEqualToString:@"/bin/bash"]) return shell;
+        NSString *script = [dir stringByAppendingPathComponent:@"bash/ghostty.bash"];
+        if (![[NSFileManager defaultManager] isReadableFileAtPath:script]) return shell;
+        NSString *existingEnv = env[@"ENV"];
+        if (existingEnv) env[@"GHOSTTY_BASH_ENV"] = existingEnv;
+        env[@"ENV"] = script;
+        env[@"GHOSTTY_BASH_INJECT"] = @"1";
+        // POSIX mode exports HISTFILE; give it the default so history still
+        // lands in the usual file, and let the script un-export it.
+        if (!env[@"HISTFILE"]) {
+            NSString *home = env[@"HOME"] ?: NSHomeDirectory();
+            env[@"HISTFILE"] = [home stringByAppendingPathComponent:@".bash_history"];
+            env[@"GHOSTTY_BASH_UNEXPORT_HISTFILE"] = @"1";
+        }
+        return [shell stringByAppendingString:@" --posix"];
+    }
+
+    if ([name isEqualToString:@"fish"] || [name isEqualToString:@"elvish"]) {
+        // fish: <dir>/fish/vendor_conf.d, elvish: <dir>/elvish/lib. The
+        // scripts remove the dir again and key on the XDG_DIR variable.
+        NSString *existing = env[@"XDG_DATA_DIRS"];
+        env[@"XDG_DATA_DIRS"] = existing.length > 0
+            ? [NSString stringWithFormat:@"%@:%@", dir, existing]
+            : dir;
+        env[@"GHOSTTY_SHELL_INTEGRATION_XDG_DIR"] = dir;
+        return shell;
+    }
+
+    return shell;
 }
 
 + (BOOL)hasHushlogin {

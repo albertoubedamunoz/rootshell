@@ -3164,6 +3164,10 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
     let onClose: () -> Void
     let onTap: () -> Void
 
+    @State private var isHovered = false
+    @State private var isCloseHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Parent-supplied inputs only; the observed reads in `body` keep updating
     // live. See `SidebarTabRowItem.==` for the full rationale.
     static func == (lhs: SidebarGatewayHeaderItem, rhs: SidebarGatewayHeaderItem) -> Bool {
@@ -3244,14 +3248,12 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
                 .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
                 .help("tmux sessions")
 
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: metrics.closeIconSize, weight: .bold))
-                        .foregroundColor(.secondary.opacity(0.7))
-                        .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                SidebarRowCloseButton(
+                    isCloseHovered: $isCloseHovered,
+                    iconSize: metrics.closeIconSize,
+                    target: metrics.rowButtonTarget,
+                    action: onClose
+                )
                 .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
             }
         }
@@ -3261,9 +3263,16 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
         .frame(height: metrics.tabRowHeight)
         .contentShape(Rectangle())
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(backgroundFill)
+            SidebarRowHoverBackground(
+                fill: backgroundFill,
+                isHovered: isHovered && !isActive && !isHighlighted,
+                reduceMotion: reduceMotion
+            )
         )
+        .onHover { hovering in
+            isHovered = hovering
+            if !hovering { isCloseHovered = false }
+        }
         .onTapGesture(perform: onTap)
     }
 
@@ -3316,6 +3325,10 @@ private struct SidebarTabRow: View {
     var showsCloseButton: Bool = true
     let onClose: () -> Void
 
+    @State private var isHovered = false
+    @State private var isCloseHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         Group {
             if let agentRow {
@@ -3336,9 +3349,16 @@ private struct SidebarTabRow: View {
         .frame(height: agentRow != nil ? metrics.agentCardRowHeight : metrics.tabRowHeight)
         .contentShape(Rectangle())
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(backgroundFill)
+            SidebarRowHoverBackground(
+                fill: backgroundFill,
+                isHovered: isHovered && !isSelected && !isHighlighted,
+                reduceMotion: reduceMotion
+            )
         )
+        .onHover { hovering in
+            isHovered = hovering
+            if !hovering { isCloseHovered = false }
+        }
     }
 
     // MARK: Card lines
@@ -3431,14 +3451,12 @@ private struct SidebarTabRow: View {
             }
 
             if showsCloseButton {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: metrics.closeIconSize, weight: .bold))
-                        .foregroundColor(.secondary.opacity(0.7))
-                        .frame(width: metrics.rowButtonTarget, height: metrics.rowButtonTarget)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                SidebarRowCloseButton(
+                    isCloseHovered: $isCloseHovered,
+                    iconSize: metrics.closeIconSize,
+                    target: metrics.rowButtonTarget,
+                    action: onClose
+                )
                 .opacity(recedingOpacity)
                 .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
             } else {
@@ -3484,5 +3502,55 @@ private struct SidebarTabRow: View {
         if isHighlighted { return accentTint.opacity(0.22) }
         if isSelected { return accentTint.opacity(0.12) }
         return .clear
+    }
+}
+
+/// Row fill plus a hover wash for inactive rows, mirroring the integrated
+/// tab strip: the fill itself is static, only the hover layer animates.
+private struct SidebarRowHoverBackground: View {
+    let fill: Color
+    let isHovered: Bool
+    let reduceMotion: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(fill)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+                .opacity(isHovered ? 1 : 0)
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+    }
+}
+
+/// Close glyph with the integrated tab's hover disc behind it.
+private struct SidebarRowCloseButton: View {
+    @Binding var isCloseHovered: Bool
+    let iconSize: CGFloat
+    let target: CGFloat
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(Color.primary.opacity(colorScheme == .light ? 0.10 : 0.14))
+                    .frame(width: 20, height: 20)
+                    .opacity(isCloseHovered ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: isCloseHovered)
+
+                Image(systemName: "xmark")
+                    .font(.system(size: iconSize, weight: .bold))
+                    .foregroundColor(isCloseHovered ? .primary : .secondary.opacity(0.7))
+            }
+            .frame(width: target, height: target)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isCloseHovered = $0 }
     }
 }

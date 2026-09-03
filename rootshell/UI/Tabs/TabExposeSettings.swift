@@ -27,4 +27,21 @@ nonisolated enum TabExposeSettings {
     static func showsCaptions(_ defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: showsCaptionsKey) as? Bool ?? true
     }
+
+    /// Pinch-set preview scale; 1 = the auto-fit grid.
+    static let zoomRange: ClosedRange<CGFloat> = 0.4...3.0
+
+    static func zoom() -> CGFloat {
+        clampZoom(CGFloat(SettingsStore.shared.value(Settings.Tabs.exposeZoom)))
+    }
+
+    @MainActor
+    static func setZoom(_ zoom: CGFloat) {
+        SettingsStore.shared.set(Settings.Tabs.exposeZoom, Double(clampZoom(zoom)))
+    }
+
+    static func clampZoom(_ zoom: CGFloat) -> CGFloat {
+        guard zoom.isFinite else { return 1 }
+        return min(max(zoom, zoomRange.lowerBound), zoomRange.upperBound)
+    }
 }

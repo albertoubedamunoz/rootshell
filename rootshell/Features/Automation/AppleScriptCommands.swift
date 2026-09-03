@@ -127,19 +127,12 @@ final class RootshellOpenCommand: NSScriptCommand {
             return nil
         }
 
+        // Window targeting and surfacing happen in the coordinator, shared
+        // with the UIKit delivery paths.
         MainActor.assumeIsolated {
             logger.info("[urlopen] odoc items=\(urls.count)")
-            var routed = false
             for url in urls {
-                if CatalystAppDelegate.routeAutomationURL(url, source: "applescript.open") {
-                    routed = true
-                }
-            }
-            // No reopen event accompanies a document open, so with zero
-            // regular windows the deposit would sit until Cmd-N. The new
-            // window adopts it as its first tab.
-            if routed {
-                CatalystSceneDelegate.openMainWindowIfNoneConnected()
+                CatalystAppDelegate.routeAutomationURL(url, source: "applescript.open")
             }
         }
         return nil

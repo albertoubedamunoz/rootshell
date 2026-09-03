@@ -94,6 +94,13 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     private lazy var edgePan: InteractiveEdgePanRecognizer = makeEdgePan()
     private lazy var scopePan: InteractiveEdgePanRecognizer = makeScopePan()
 
+    /// Preview scale (1 = auto-fit); loaded on activation, persisted on release.
+    private var zoom: CGFloat = 1
+    private var pinchAnchorZoom: CGFloat = 1
+    private var zoomPinchActive = false
+    private var zoomHUDHost: UIHostingController<TabExposeZoomHUD>?
+    private var zoomHUDHideTask: Task<Void, Never>?
+
     init(controller: TabExposeController) {
         self.controller = controller
         super.init(frame: .zero)
@@ -120,6 +127,12 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         tap.cancelsTouchesInView = false
         addGestureRecognizer(tap)
+
+        // Touch pinch, iPad trackpad pinch, and Catalyst trackpad magnify
+        // all arrive here; the default touch types include indirect input.
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handleZoomPinch(_:)))
+        pinch.delegate = self
+        addGestureRecognizer(pinch)
 
         #if !os(visionOS)
         let hover = UIHoverGestureRecognizer(target: self, action: #selector(handleHover(_:)))
@@ -156,6 +169,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             isHidden = false
             accessibilityViewIsModal = true
             lastAppliedProgress = -1
+            zoom = TabExposeSettings.zoom()
             resetPage()
             rebuildPrimary()
             setNeedsLayout()
@@ -174,6 +188,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             hero.tab = nil
             syncTerminalConcealment()
             resetPage()
+            zoomPinchActive = false
+            hideZoomHUD(animated: false)
             primary.removeAllCells()
         }
     }
@@ -338,7 +354,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         let radius: CGFloat = vision ? 16 : (isCompact ? 8 : 10)
         let aspect = heroRect.width / H
         for tray in [primary, companion].compactMap({ $0 }) {
-            tray.layoutGrid(size: traySize, aspect: aspect, metrics: metrics, cornerRadius: radius)
+            tray.layoutGrid(size: traySize, aspect: aspect, metrics: metrics, cornerRadius: radius, zoom: zoom)
             // bounds/center, not frame: trays carry the reveal/page transform.
             // A scroll view's bounds origin is its content offset; keep it.
             var b = tray.bounds
@@ -364,6 +380,10 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
         backdrop.frame = bounds
         hero.transform = .identity
         hero.frame = heroRect
+        if let hud = zoomHUDHost?.view {
+            hud.bounds = CGRect(origin: .zero, size: hud.intrinsicContentSize)
+            hud.center = CGPoint(x: heroRect.midX, y: heroRect.midY)
+        }
         lastAppliedProgress = -1
         applyProgress()
     }
@@ -469,7 +489,9 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
     // MARK: - Touch / pointer
 
     @objc private func handleTap(_ tap: UITapGestureRecognizer) {
-        guard controller.phase == .presented, !isPageInteracting else { return }
+        guard controller.phase == .presented, !isPageInteracting, !zoomPinchActive else { return }
+        // The zoom HUD's Reset button owns its own taps.
+        if let hud = zoomHUDHost?.view, hud.frame.contains(tap.location(in: self)) { return }
         if let cell = primary.cell(at: tap.location(in: primary)) {
             controller.select(cell.tabID)
         } else {
@@ -538,7 +560,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver {
             return start.y < frame.minY + self.configuration.fallbackBandHeight()
         }
         let shouldBegin: (CGPoint, CGPoint, UIWindow, Int) -> Bool = { [weak self] _, translation, _, touches in
-            guard let self, self.configuration.gestureEnabled() else { return false }
+            guard let self, self.configuration.gestureEnabled(), !self.zoomPinchActive else { return false }
             // One finger competes with horizontal tab scrolling: demand a clearer vertical intent.
             let ratio: CGFloat = touches == 1 ? 2 : 1.25
             let vertical = abs(translation.y) > abs(translation.x) * ratio
@@ -589,8 +611,9 @@ extension TabExposeView {
             guard let self, self.controller.phase == .presented, self.controller.canNavigateScope else { return false }
             return self.convert(self.bounds, to: window).contains(start)
         }
-        let shouldBegin: (CGPoint, CGPoint, UIWindow, Int) -> Bool = { _, translation, _, _ in
-            abs(translation.x) > abs(translation.y) * 1.5
+        let shouldBegin: (CGPoint, CGPoint, UIWindow, Int) -> Bool = { [weak self] _, translation, _, _ in
+            guard let self, !self.zoomPinchActive else { return false }
+            return abs(translation.x) > abs(translation.y) * 1.5
         }
         let callbacks = InteractiveEdgePanRecognizer.Callbacks(
             isInActivationBand: isInBand,
@@ -780,6 +803,189 @@ extension TabExposeView {
         guard abs(shift) > limit else { return shift }
         let over = (abs(shift) - limit) / limit
         return (shift < 0 ? -1 : 1) * limit * (1 + 0.08 * tanh(over * 4))
+    }
+}
+
+// MARK: - Pinch to resize previews
+
+extension TabExposeView: UIGestureRecognizerDelegate {
+    /// Hover and tap may run alongside; pans are cut off in `.began` instead,
+    /// since the window pans are permissive about simultaneity themselves.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        !(other is UIPanGestureRecognizer)
+    }
+
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer is UIPinchGestureRecognizer else {
+            return super.gestureRecognizerShouldBegin(gestureRecognizer)
+        }
+        return controller.phase == .presented && !isPageInteracting
+    }
+
+    @objc private func handleZoomPinch(_ pinch: UIPinchGestureRecognizer) {
+        switch pinch.state {
+        case .began:
+            zoomPinchActive = true
+            // A pan that beat us to recognition (same two fingers translating
+            // while they pinch) is aborted so it can't dismiss, page, or scroll.
+            edgePan.cancelActive()
+            scopePan.cancelActive()
+            if primary.panGestureRecognizer.state == .began || primary.panGestureRecognizer.state == .changed {
+                primary.panGestureRecognizer.isEnabled = false
+                primary.panGestureRecognizer.isEnabled = true
+            }
+            pinchAnchorZoom = zoom
+            zoomHUDHideTask?.cancel()
+            showZoomHUD()
+            updateZoomHUD()
+        case .changed:
+            guard zoomPinchActive else { return }
+            let columnsBefore = primary.layoutResult.columns
+            zoom = TabExposeSettings.clampZoom(pinchAnchorZoom * pinch.scale)
+            relayoutForZoom()
+            if primary.layoutResult.columns != columnsBefore { controller.onCommitHaptic?() }
+            updateZoomHUD()
+        case .ended, .cancelled, .failed:
+            guard zoomPinchActive else { return }
+            zoomPinchActive = false
+            // Snap to whichever is nearer: the auto-fit grid or the current
+            // column count filling the width (the auto-fit can be height-bound).
+            let fill = TabExposeSettings.clampZoom(primary.layoutResult.snappedZoom)
+            commitZoom(abs(zoom - 1) <= abs(zoom - fill) ? 1 : fill)
+        default:
+            break
+        }
+    }
+
+    private func relayoutForZoom() {
+        setNeedsLayout()
+        layoutIfNeeded()
+        // Keep the highlighted tab in view as the rows reflow.
+        primary.scrollCellIntoView(id: controller.highlightedTabID, animated: false)
+    }
+
+    /// Snap so the column count fills the width, persist, and let the HUD fade.
+    private func commitZoom(_ target: CGFloat) {
+        let animate = !controller.reduceMotion()
+        zoom = target
+        if animate {
+            UIView.animate(withDuration: 0.22, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseOut]) {
+                self.relayoutForZoom()
+            }
+        } else {
+            relayoutForZoom()
+        }
+        TabExposeSettings.setZoom(zoom)
+        updateZoomHUD()
+        scheduleZoomHUDHide()
+    }
+
+    private func resetZoom() {
+        guard zoom != 1 else {
+            scheduleZoomHUDHide()
+            return
+        }
+        controller.onCommitHaptic?()
+        commitZoom(1)
+    }
+
+    // MARK: HUD
+
+    private func showZoomHUD() {
+        if let host = zoomHUDHost {
+            host.view.layer.removeAllAnimations()
+            host.view.alpha = 1
+            return
+        }
+        let host = UIHostingController(rootView: TabExposeZoomHUD(text: "", onReset: { [weak self] in self?.resetZoom() }))
+        host.sizingOptions = [.intrinsicContentSize]
+        host.view.backgroundColor = .clear
+        host.view.alpha = 0
+        addSubview(host.view)
+        zoomHUDHost = host
+        setNeedsLayout()
+        layoutIfNeeded()
+        UIView.animate(withDuration: 0.15, delay: 0, options: .curveEaseOut) {
+            host.view.alpha = 1
+        }
+    }
+
+    private func updateZoomHUD() {
+        guard let host = zoomHUDHost else { return }
+        let percent = Int((zoom * 100).rounded())
+        host.rootView = TabExposeZoomHUD(text: "\(percent)%", onReset: { [weak self] in self?.resetZoom() })
+        host.view.invalidateIntrinsicContentSize()
+        host.view.bounds = CGRect(origin: .zero, size: host.view.intrinsicContentSize)
+        host.view.center = CGPoint(x: heroRect.midX, y: heroRect.midY)
+    }
+
+    private func scheduleZoomHUDHide() {
+        zoomHUDHideTask?.cancel()
+        zoomHUDHideTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled else { return }
+            self?.hideZoomHUD(animated: true)
+        }
+    }
+
+    private func hideZoomHUD(animated: Bool) {
+        zoomHUDHideTask?.cancel()
+        zoomHUDHideTask = nil
+        guard let host = zoomHUDHost else { return }
+        zoomHUDHost = nil
+        guard animated else {
+            host.view.removeFromSuperview()
+            return
+        }
+        UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseIn, animations: {
+            host.view.alpha = 0
+        }, completion: { _ in
+            host.view.removeFromSuperview()
+        })
+    }
+}
+
+/// Size readout plus Reset shown while pinching the preview grid, matching
+/// the terminal's font-size overlay. Glass on iOS 26 / Catalyst 26, material before.
+struct TabExposeZoomHUD: View {
+    let text: String
+    let onReset: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(text)
+                .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .modifier(TabExposeZoomHUDBackground())
+            Button(String(localized: "Reset", comment: "Tab exposé zoom HUD: restore the auto-fit preview size"), action: onReset)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .modifier(TabExposeZoomHUDBackground())
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(String(localized: "Preview size \(text)", comment: "Tab exposé zoom HUD accessibility label"))
+    }
+}
+
+private struct TabExposeZoomHUDBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        #if os(visionOS)
+        content.background(.regularMaterial, in: shape)
+        #else
+        if #available(iOS 26.0, macCatalyst 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+        }
+        #endif
     }
 }
 

@@ -118,6 +118,25 @@ final class InteractiveEdgePanRecognizer: NSObject, UIGestureRecognizerDelegate 
 
     /// True for this instance's own recognizers (so two instances on one
     /// window don't require each other to fail).
+    /// Abort an in-flight pan so another gesture (a pinch) can take over;
+    /// the cancel callback fires through the recognizer's normal path.
+    func cancelActive() {
+        guard active, let pan = activePan else { return }
+        if activeIsTrackpad {
+            // The scroll pan's cancel path finishes (commits) the phase; drop
+            // the tracker and cancel directly, leaving the recognizer session
+            // alive so a later scroll can restart the pan.
+            active = false
+            activePan = nil
+            trackpadPhase.reset()
+            if let window = pan.view { pan.setTranslation(.zero, in: window) }
+            callbacks.onCancel()
+        } else {
+            pan.isEnabled = false
+            pan.isEnabled = true
+        }
+    }
+
     func owns(_ recognizer: UIGestureRecognizer) -> Bool {
         touchPans.contains { $0 === recognizer } || trackpadPan === recognizer
     }
