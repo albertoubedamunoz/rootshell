@@ -877,16 +877,16 @@ class CatalystAppDelegate: AppDelegate {
     /// at that folder, or at a file's parent). Returns false for anything else;
     /// true also covers a delivery the coordinator suppressed as a duplicate.
     @discardableResult
-    static func routeAutomationURL(_ url: URL, source: String) -> Bool {
+    static func routeAutomationURL(_ url: URL, source: String, deliveredTo scene: UIWindowScene? = nil) -> Bool {
         if let components = SSHURLParser.parse(url) {
             logger.info("[urlopen] route source=\(source, privacy: .public) kind=ssh")
-            AppIntentCoordinator.shared.depositURLRequest(.openSSH(components), source: source)
+            AppIntentCoordinator.shared.depositURLRequest(.openSSH(components), source: source, deliveredTo: scene)
             return true
         }
 
         if let components = MoshURLParser.parse(url) {
             logger.info("[urlopen] route source=\(source, privacy: .public) kind=mosh")
-            AppIntentCoordinator.shared.depositURLRequest(.openMosh(components), source: source)
+            AppIntentCoordinator.shared.depositURLRequest(.openMosh(components), source: source, deliveredTo: scene)
             return true
         }
 
@@ -894,7 +894,8 @@ class CatalystAppDelegate: AppDelegate {
             logger.info("[urlopen] route source=\(source, privacy: .public) kind=folder path=\(directory, privacy: .private)")
             AppIntentCoordinator.shared.depositURLRequest(
                 .openLocalShell(directory: directory, command: nil),
-                source: source
+                source: source,
+                deliveredTo: scene
             )
             return true
         }
@@ -1672,7 +1673,7 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
     /// is behind us. Distinguishes a cold-launch visor zombie (SwiftUI will
     /// still create the main scene on its own) from a Dock-click reopen that
     /// landed on the visor's session (nothing else will open a window).
-    private static var hasActivatedAnyScene = false
+    private(set) static var hasActivatedAnyScene = false
 
     /// A Dock-click reopen with no visible windows can be consumed by the
     /// visor's live-but-hidden scene session: UIKit either reconnects it
@@ -1685,7 +1686,19 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
             $0 is UIWindowScene && !isVisorScene($0)
         }
         guard !hasRegularScene else { return }
+        logger.info("[urlopen] no regular scene; requesting main window \(AppIntentCoordinator.sceneSnapshot(), privacy: .public)")
         UIApplication.shared.requestSceneSessionActivation(nil, userActivity: nil, options: nil, errorHandler: nil)
+    }
+
+    /// The regular (non-visor) scene an external request should land in:
+    /// key window first, then the active one, then any.
+    static func preferredRegularScene() -> UIWindowScene? {
+        let regularScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { !isVisorScene($0) }
+        return regularScenes.first(where: { $0.keyWindow != nil })
+            ?? regularScenes.first(where: { $0.activationState == .foregroundActive })
+            ?? regularScenes.first
     }
 
     /// Makes a notification or other external event visibly open rootshell.
@@ -1696,14 +1709,8 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
         scene targetScene: UIWindowScene? = nil,
         uiKitActivationAlreadyRequested: Bool = false
     ) {
-        let regularScenes = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .filter { !isVisorScene($0) }
-
         guard let scene = targetScene.flatMap({ isVisorScene($0) ? nil : $0 })
-                ?? regularScenes.first(where: { $0.keyWindow != nil })
-                ?? regularScenes.first(where: { $0.activationState == .foregroundActive })
-                ?? regularScenes.first else {
+                ?? preferredRegularScene() else {
             logger.info("External activation has no regular scene; opening a main window")
             UIApplication.shared.requestSceneSessionActivation(
                 nil,
@@ -1839,7 +1846,7 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
 
         // Handle URLs that launched the app (cold start)
-        handleURLContexts(connectionOptions.urlContexts, source: "scene.willConnect")
+        handleURLContexts(connectionOptions.urlContexts, source: "scene.willConnect", scene: windowScene)
     }
 
     /// Detect the visor's UIScene. SwiftUI's `session.configuration.name`
@@ -1897,12 +1904,12 @@ class CatalystSceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         // Handle URLs opened while app is running
-        handleURLContexts(URLContexts, source: "scene.openURLContexts")
+        handleURLContexts(URLContexts, source: "scene.openURLContexts", scene: scene as? UIWindowScene)
     }
 
-    private func handleURLContexts(_ urlContexts: Set<UIOpenURLContext>, source: String) {
+    private func handleURLContexts(_ urlContexts: Set<UIOpenURLContext>, source: String, scene: UIWindowScene?) {
         for context in urlContexts {
-            CatalystAppDelegate.routeAutomationURL(context.url, source: source)
+            CatalystAppDelegate.routeAutomationURL(context.url, source: source, deliveredTo: scene)
         }
     }
 
