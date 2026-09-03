@@ -468,10 +468,18 @@ struct TabButton: View {
         }
     }
 
+    /// Pills (including the compact-pills layout) share the same close-button
+    /// hover disc as integrated tabs and vertical-sidebar rows. Trough keeps
+    /// its existing bare glyph so the close control does not compete with the
+    /// selected knob inside the well.
+    private var usesCloseHoverDisc: Bool {
+        style.usesStripLayout || style == .pills
+    }
+
     private var closeButton: some View {
         Button(action: onClose) {
             ZStack {
-                if style.usesStripLayout {
+                if usesCloseHoverDisc {
                     Circle()
                         .fill((isSelected ? textColor : secondaryTextColor).opacity(isLightTheme ? 0.10 : 0.14))
                         .frame(width: 20, height: 20)
@@ -487,7 +495,7 @@ struct TabButton: View {
             .offset(y: style == .integrated ? 2 : 0)
         }
         .onHover { hovering in
-            if style.usesStripLayout {
+            if usesCloseHoverDisc {
                 isCloseHovered = hovering
             }
         }
