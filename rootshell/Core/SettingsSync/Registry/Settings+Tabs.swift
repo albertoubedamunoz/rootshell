@@ -7,6 +7,25 @@
 
 import Foundation
 
+enum TabHoverPreviewActivation: String, CaseIterable, Sendable {
+    case always
+    case shift
+    case command
+    case option
+    case control
+
+    var displayName: String {
+        switch self {
+        case .always: return String(localized: "Always", comment: "Tab hover preview activation")
+        case .shift: return String(localized: "Shift", comment: "Tab hover preview activation")
+        case .command: return String(localized: "Command", comment: "Tab hover preview activation")
+        case .option: return String(localized: "Option", comment: "Tab hover preview activation")
+        case .control: return String(localized: "Control", comment: "Tab hover preview activation")
+        }
+    }
+}
+
+extension TabHoverPreviewActivation: SettingValue {}
 extension TopTabStyle: SettingValue {}
 extension SplitFocusBorderStyle: SettingValue {}
 extension SplitFocusBorderColor: SettingValue {}
@@ -44,6 +63,11 @@ nonisolated extension Settings {
         static let hoverPreviews = SettingKey(
             "tabHoverPreviewsEnabled", default: true, group: .tabs, configKey: "tab-hover-previews",
             title: String(localized: "Tab Hover Previews", comment: "Setting title"))
+        /// Whether hover alone is enough, or a hardware modifier must also be held.
+        static let hoverPreviewActivation = SettingKey(
+            "tabHoverPreviewActivation", default: TabHoverPreviewActivation.always, group: .tabs,
+            configKey: "tab-hover-preview-activation",
+            title: String(localized: "Tab Hover Preview Activation", comment: "Setting title"))
         /// Pinch-set hover preview scale; 1 = the default size.
         static let hoverPreviewZoom = SettingKey(
             "tabHoverPreviewZoom", default: 1.0, group: .tabs, policy: .localByDefault,
@@ -53,7 +77,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
             showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
-            hoverPreviews.erased, hoverPreviewZoom.erased,
+            hoverPreviews.erased, hoverPreviewActivation.erased, hoverPreviewZoom.erased,
         ]
     }
 
