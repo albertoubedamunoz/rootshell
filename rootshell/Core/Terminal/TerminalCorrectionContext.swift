@@ -19,6 +19,7 @@ nonisolated struct TerminalCorrectionContext {
         let document: String
         let eligibleUTF16Count: Int
         let generation: UInt64
+        let documentGeneration: UInt64
     }
 
     private(set) var document = ""
@@ -52,11 +53,11 @@ nonisolated struct TerminalCorrectionContext {
         }
     }
 
-    mutating func apply(_ mutation: Mutation) {
+    @discardableResult
+    mutating func apply(_ mutation: Mutation) -> Bool {
         switch mutation {
         case .correction(let replacement):
-            commit(replacement)
-            return
+            return commit(replacement)
         case .invalidate:
             invalidate()
         case .reset:
@@ -97,9 +98,11 @@ nonisolated struct TerminalCorrectionContext {
             }
         }
         boundDocument()
+        return true
     }
 
     private mutating func invalidate() {
+        guard eligibleUTF16Count > 0 else { return }
         eligibleUTF16Count = 0
         generation &+= 1
     }
@@ -138,6 +141,10 @@ nonisolated struct TerminalCorrectionContext {
             guard eligibleUTF16Count > 0,
                   range.location >= document.utf16.count - eligibleUTF16Count,
                   erased.count + replay.count <= 64,
+                  // Remote editors disagree on scalar-vs-grapheme deletion.
+                  // Only rewrite a suffix where both counts agree. Inserting
+                  // complex graphemes is fine; erasing them is not portable.
+                  erased.allSatisfy({ $0.unicodeScalars.count == 1 }),
                   Self.isPrintable(erased), Self.isPrintable(replay) else { return nil }
         }
         var payload = Data(repeating: 0x7F, count: erased.count)
@@ -145,15 +152,18 @@ nonisolated struct TerminalCorrectionContext {
         let updated = String(document[..<indices.lowerBound]) + replay
         return Replacement(payload: payload, document: updated,
                            eligibleUTF16Count: dictation ? 0 : eligibleUTF16Count - erased.utf16.count + replay.utf16.count,
-                           generation: generation)
+                           generation: generation, documentGeneration: documentGeneration)
     }
 
-    mutating func commit(_ replacement: Replacement) {
-        precondition(replacement.generation == generation)
+    @discardableResult
+    mutating func commit(_ replacement: Replacement) -> Bool {
+        guard replacement.generation == generation,
+              replacement.documentGeneration == documentGeneration else { return false }
         document = replacement.document
         documentGeneration &+= 1
         eligibleUTF16Count = replacement.eligibleUTF16Count
         generation &+= 1
         boundDocument()
+        return true
     }
 }

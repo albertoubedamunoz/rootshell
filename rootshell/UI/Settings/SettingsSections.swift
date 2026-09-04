@@ -378,6 +378,7 @@ struct SettingsTerminalSection: View {
         List {
             // MARK: - Keyboard
             Section {
+                #if !targetEnvironment(macCatalyst)
                 Picker(selection: $writingAssistance) {
                     ForEach(TerminalWritingAssistanceMode.allCases, id: \.self) { mode in
                         Text(mode.title).tag(mode)
@@ -393,7 +394,6 @@ struct SettingsTerminalSection: View {
                     .foregroundStyle(.secondary)
                     .themedRow()
 
-                #if !targetEnvironment(macCatalyst)
                 NavigationLink {
                     KeyboardToolbarSettingsView()
                 } label: {

@@ -260,6 +260,36 @@ extension Ghostty.TerminalView {
 
     // MARK: Text reading / writing
 
+    /// A selection is only a correction request while its document positions
+    /// still describe this document. Stale positions must not eat plain typing.
+    func consumeWritingAssistanceSelection(with text: String) -> Bool {
+        guard let selection = writingAssistanceSelection else { return false }
+        writingAssistanceSelection = nil
+        guard let start = selection.start as? TerminalTextPosition,
+              let end = selection.end as? TerminalTextPosition,
+              start.generation == correctionContext.documentGeneration,
+              end.generation == correctionContext.documentGeneration,
+              start.offset >= 0, end.offset > start.offset,
+              end.offset <= documentBuffer.utf16.count,
+              TerminalCorrectionContext.range(NSRange(location: start.offset, length: end.offset - start.offset),
+                                               in: documentBuffer) != nil else { return false }
+        // Invalidation clears pending selections before ordinary insertion.
+        // Explicit replacements still validate their original authority; a
+        // rejected correction must not be retried as appended text.
+        replace(selection, withText: text)
+        return true
+    }
+
+    private func isRecentBulkDictationReplacement(_ range: NSRange) -> Bool {
+        guard let lastBulkTextInputAt, let bulkDictationRange,
+              bulkDictationDocumentGeneration == correctionContext.documentGeneration,
+              range.length > 0,
+              range.location >= bulkDictationRange.location,
+              NSMaxRange(range) <= NSMaxRange(bulkDictationRange) else { return false }
+        let age = Date().timeIntervalSince(lastBulkTextInputAt)
+        return age >= 0 && age < 2
+    }
+
     /// The full "document" iOS sees: committed buffer + any marked/composition text.
     private var fullDocument: String {
         if usesIsolatedKoreanTextInputDocument {
@@ -295,7 +325,7 @@ extension Ghostty.TerminalView {
               rangeStart.generation == correctionContext.documentGeneration,
               rangeEnd.generation == correctionContext.documentGeneration,
               TerminalCorrectionContext.range(NSRange(location: rangeStart.offset, length: rangeEnd.offset - rangeStart.offset), in: fullDocument) != nil else {
-            invalidateWritingAssistance()
+            rejectWritingAssistanceReplacement()
             return
         }
 
@@ -354,22 +384,22 @@ extension Ghostty.TerminalView {
         }
 
         guard rangeEnd.offset <= bufCount else {
-            invalidateWritingAssistance()
+            rejectWritingAssistanceReplacement()
             return
         }
         let committedRange = NSRange(location: rangeStart.offset, length: rangeEnd.offset - rangeStart.offset)
-        if isLikelySystemDictationActive {
+        if isLikelySystemDictationActive || isRecentBulkDictationReplacement(committedRange) {
             guard let replacement = correctionContext.replacement(in: committedRange, with: text,
                                                                  generation: correctionContext.generation,
                                                                  dictation: true) else {
-                invalidateWritingAssistance()
+                rejectWritingAssistanceReplacement()
                 return
             }
             sendUserInput(replacement.payload, documentMutation: .correction(replacement))
         } else {
             guard let generation = rangeStart.assistanceGeneration,
                   generation == rangeEnd.assistanceGeneration else {
-                invalidateWritingAssistance()
+                rejectWritingAssistanceReplacement()
                 return
             }
             applyWritingAssistanceReplacement(committedRange, text: text, generation: generation)

@@ -102,7 +102,7 @@ final class TerminalOutputPipeline {
     }
 
     func writeDirect(_ string: String) {
-        writeDirect(Data(string.utf8))
+        bufferedWriter.write(Data(string.utf8))
     }
 
     func writeSessionOutput(_ data: Data) {

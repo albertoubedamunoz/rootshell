@@ -1503,6 +1503,11 @@ extension Ghostty.TerminalView {
         // Input and UIKit document mutations are serialized on the main actor.
         // Rendering output is not an edit to an application's logical input.
         if let documentMutation {
+            if case .invalidate = documentMutation {
+                // Unlike a UIKit source transition, this mutation accompanies
+                // real terminal bytes (for example an arrow/control sequence).
+                clearBulkDictationFallback()
+            }
             if case .correction(let replacement) = documentMutation {
                 guard replacement.generation == correctionContext.generation,
                       replacement.payload == data else {
@@ -1510,7 +1515,10 @@ extension Ghostty.TerminalView {
                     return
                 }
             }
-            mutateInputDocument(documentMutation)
+            guard mutateInputDocument(documentMutation) else {
+                invalidateWritingAssistance()
+                return
+            }
         } else {
             invalidateWritingAssistance()
         }

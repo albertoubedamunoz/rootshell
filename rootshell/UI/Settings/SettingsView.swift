@@ -931,6 +931,10 @@ struct SettingsSearchEntry: Identifiable, Hashable {
         #endif
         #endif
 
+        #if targetEnvironment(macCatalyst)
+        entries.removeAll { $0.id == "terminal-writing-assistance" }
+        #endif
+
         #if CHINA_BUILD
         // Strip AI Assistant search entries for China builds. We keep them in
         // the array literal above for code readability and filter here; the
