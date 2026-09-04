@@ -673,6 +673,15 @@ extension Ghostty {
         /// in `applyTmuxReconcile`.
         var tmuxResumeWatchdog: Task<Void, Never>?
 
+        /// Keeps restored tssh output behind the scrollback gate until Ghostty
+        /// has actually created its tmux viewer. The hidden gateway's saved ANSI
+        /// replay is skipped; projected panes are rebuilt from tmux. Without
+        /// this handshake, a fast roaming reattach can
+        /// feed raw `%output` records to the ordinary shell parser before the
+        /// asynchronous resume mailbox message is consumed.
+        var tmuxResumeGateReleaseScheduled = false
+        var tmuxResumeGateReleaseTask: Task<Void, Never>?
+
         /// Whether the local shell has an active long-running task (helix, vim, sftp, scp, ping)
         var hasActiveLocalTask: Bool = false
 
@@ -1519,6 +1528,9 @@ extension Ghostty {
             outputMonitorTask = nil
             transferAttachTask?.cancel()
             transferAttachTask = nil
+            tmuxResumeGateReleaseTask?.cancel()
+            tmuxResumeGateReleaseTask = nil
+            tmuxResumeGateReleaseScheduled = false
             outputPipeline.cancel()
             scrollIndicatorHideWorkItem?.cancel()
             scrollIndicatorHideWorkItem = nil

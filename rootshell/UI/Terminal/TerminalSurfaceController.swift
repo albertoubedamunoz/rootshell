@@ -519,9 +519,6 @@ final class TerminalSurfaceController: NSObject {
         }
 
         let needsRestore = host.surfacePendingScrollbackRestoreForLayout
-        if needsRestore {
-            host.surfacePendingScrollbackRestoreForLayout = false
-        }
 
         if previousScale == nil || previousScale != scale {
             setContentScaleAndSize(
@@ -559,7 +556,15 @@ final class TerminalSurfaceController: NSObject {
         Ghostty.TerminalView.ghosttyAPIQueue.async {
             Task { @MainActor in
                 hostRef.surfaceUpdatePTYSize()
-                if needsRestore {
+                if needsRestore && hostRef.surfacePendingScrollbackRestoreForLayout {
+                    // Claim the deferred restore only when this main-actor
+                    // callback actually runs. Clearing it before the IO/main
+                    // queue hops lets a concurrent transport `.running` event
+                    // mistake "queued" for "already restored" and replay at
+                    // stale dimensions; a second queued size callback could
+                    // then replay it again. ROOTSHELL-TMUX
+                    // (id=layout-restore-main-actor-claim)
+                    hostRef.surfacePendingScrollbackRestoreForLayout = false
                     hostRef.surfaceRunLayoutDeferredScrollbackRestore()
                 }
             }
@@ -574,7 +579,8 @@ final class TerminalSurfaceController: NSObject {
             ghostty_surface_set_size(surfacePtr, framebufferWidth, framebufferHeight)
             Task { @MainActor in
                 hostRef.surfaceUpdatePTYSize()
-                if needsRestore {
+                if needsRestore && hostRef.surfacePendingScrollbackRestoreForLayout {
+                    hostRef.surfacePendingScrollbackRestoreForLayout = false
                     hostRef.surfaceRunLayoutDeferredScrollbackRestore()
                 }
             }
@@ -597,7 +603,8 @@ final class TerminalSurfaceController: NSObject {
         Ghostty.TerminalView.ghosttyAPIQueue.async {
             Task { @MainActor in
                 hostRef.surfaceUpdatePTYSize()
-                if needsRestore {
+                if needsRestore && hostRef.surfacePendingScrollbackRestoreForLayout {
+                    hostRef.surfacePendingScrollbackRestoreForLayout = false
                     hostRef.surfaceRunLayoutDeferredScrollbackRestore()
                 }
             }
@@ -611,7 +618,8 @@ final class TerminalSurfaceController: NSObject {
             ghostty_surface_set_size(surfacePtr, framebufferWidth, framebufferHeight)
             Task { @MainActor in
                 hostRef.surfaceUpdatePTYSize()
-                if needsRestore {
+                if needsRestore && hostRef.surfacePendingScrollbackRestoreForLayout {
+                    hostRef.surfacePendingScrollbackRestoreForLayout = false
                     hostRef.surfaceRunLayoutDeferredScrollbackRestore()
                 }
             }
