@@ -196,9 +196,21 @@ extension Ghostty.TerminalView {
     /// their mode-restore sequences. The post-drain render+mouse-capture sync
     /// is also scheduled in that fallback path.
     func restoreScrollbackAfterAnimation(trailer: Data? = nil) {
+        if restoredWasTmuxGateway {
+            // The gateway is hidden while its projected panes are rebuilt from
+            // authoritative tmux captures. Do not replay its saved ANSI or mode
+            // trailer: pipe drain does not acknowledge parser consumption, so
+            // those bytes could cross the asynchronous control-mode boundary.
+            pendingScrollbackRestore = false
+            releaseRestoredTmuxOutputGateWhenViewerIsArmed()
+            return
+        }
         if pendingScrollbackRestore {
             pendingScrollbackRestore = false
-            ScrollbackPersistenceManager.shared.restoreScrollback(for: self, trailer: trailer)
+            ScrollbackPersistenceManager.shared.restoreScrollback(
+                for: self,
+                trailer: trailer
+            )
             return
         }
         if let trailer, !trailer.isEmpty {
@@ -241,6 +253,18 @@ extension Ghostty.TerminalView {
         let trailer = pendingResumeTrailer
         pendingResumeTrailer = nil
 
+        if restoredWasTmuxGateway {
+            // Projected panes own the useful persisted content. Keep remote
+            // control records gated, skip the hidden gateway's ANSI replay,
+            // and arm only once the embedded tssh session is running.
+            if embeddedTrzszReachedRunning {
+                releaseRestoredTmuxOutputGateWhenViewerIsArmed()
+            } else {
+                scrollbackWrittenAwaitingTrailer = true
+            }
+            return
+        }
+
         // Keep the gate open only when we expect a trailer to arrive later
         // (shellLaunchedTrzsz restoration, embedded trzsz hasn't reached
         // `.running` yet). If `.running` already fired, the trailer is in
@@ -274,10 +298,55 @@ extension Ghostty.TerminalView {
     ///
     /// Used by both the top-level `.trzsz` `.running` handler and the embedded
     /// `.shellLaunchedTrzsz` path (via `LocalShellSession.onEmbeddedTrzszReady`).
-    /// Always calls `restoreScrollbackAfterAnimation`, even when
-    /// `trzszSession.wasResumed == false`, so any pending scrollback restore
-    /// still completes for the fresh-attach case.
+    /// When transport resume falls back to a fresh spawn, abandons any restored
+    /// tmux projection and rejoins the ordinary saved-scrollback flow. Layout-
+    /// deferred restores remain deferred until the correctly sized callback.
+    /// A fresh shell must never be armed as a synthetic tmux control stream.
     func applyResumeTrailer(for trzszSession: TrzszSession) {
+        // A restored tmux projection is valid only when tssh actually resumed
+        // the old PTY. On fresh-spawn fallback the bytes already waiting in the
+        // restore gate are a normal shell banner/prompt, not tmux control
+        // records. Clear the gateway identity first so the ordinary restore
+        // path replays saved ANSI and then releases those live shell bytes.
+        // ROOTSHELL-TMUX (id=tmux-fresh-transport-fallback)
+        if restoredWasTmuxGateway && !trzszSession.wasResumed {
+            embeddedTrzszReachedRunning = true
+            tmuxResumeGateReleaseTask?.cancel()
+            tmuxResumeGateReleaseTask = nil
+            tmuxResumeGateReleaseScheduled = false
+            tmuxResumeWatchdog?.cancel()
+            tmuxResumeWatchdog = nil
+            removeAwaitingTmuxPlaceholders()
+            pendingResumeTrailer = nil
+            TmuxDebugLogger.shared.event(
+                "RESUME",
+                "transport fell back to fresh spawn; restoring as plain shell gw=\(uuid.uuidString.prefix(8))")
+
+            // The layout token remains true until a size callback claims it on
+            // the main actor. If `.running` wins that race, leave the gate and
+            // scrollback untouched; the sized callback will now take the normal
+            // (non-tmux) path exactly once. ROOTSHELL-TMUX
+            // (id=tmux-fresh-transport-fallback)
+            if pendingScrollbackRestoreForLayout {
+                scrollbackWrittenAwaitingTrailer = false
+                return
+            }
+
+            if scrollbackWrittenAwaitingTrailer {
+                // Layout already ran while the terminal still looked like a
+                // restored gateway, so it intentionally skipped hidden-gateway
+                // ANSI. We now know this is a fresh shell and can restore at
+                // the established dimensions before releasing its live bytes.
+                scrollbackWrittenAwaitingTrailer = false
+                ScrollbackPersistenceManager.shared.restoreScrollback(for: self)
+            } else {
+                // Top-level `.trzsz` restoration uses the non-layout pending
+                // flag; its ordinary helper atomically clears and finishes it.
+                restoreScrollbackAfterAnimation()
+            }
+            return
+        }
+
         var trailer: Data? = nil
         if trzszSession.wasResumed {
             var bytes = Data()
@@ -322,15 +391,21 @@ extension Ghostty.TerminalView {
             // then. Now we can write the trailer behind the scrollback and
             // finish the gate, producing the desired stream:
             //     saved-scrollback → trailer → buffered-server-output → live
-            if let trailer, !trailer.isEmpty {
+            if !restoredWasTmuxGateway, let trailer, !trailer.isEmpty {
                 outputPipeline.writeDirect(trailer)
             }
-            outputPipeline.finishScrollbackRestoreGate()
-            // Everything the gate buffered while we waited for `.running`
-            // lands now — hold the mute until it has actually drained.
-            TerminalBellSuppressor.suppress(uuid, untilDrained: outputPipeline)
-            didQueueScrollbackRestoreReplay()
             scrollbackWrittenAwaitingTrailer = false
+            if restoredWasTmuxGateway {
+                // The buffered server bytes are tmux control records. The core
+                // viewer must be armed before these records leave the gate.
+                releaseRestoredTmuxOutputGateWhenViewerIsArmed()
+            } else {
+                outputPipeline.finishScrollbackRestoreGate()
+                // Everything the gate buffered while we waited for `.running`
+                // lands now — hold the mute until it has actually drained.
+                TerminalBellSuppressor.suppress(uuid, untilDrained: outputPipeline)
+                didQueueScrollbackRestoreReplay()
+            }
         } else {
             // Top-level `.trzsz` (pendingScrollbackRestore-driven) or any
             // other path where the gate has already been flushed normally.
@@ -346,12 +421,9 @@ extension Ghostty.TerminalView {
         // so it can't race with display output ordering.
         if trzszSession.wasResumed {
             trzszSession.sendInput(Data("\u{1b}[I".utf8))
-            // If this restored terminal was a tmux -CC control-mode gateway,
-            // re-enter control mode now that the live pty is reattached. No-op
-            // unless restoredWasTmuxGateway. This is the single trigger point for
-            // BOTH the direct-trzsz `.running` path and the embedded/
-            // shell-launched trzsz path (onEmbeddedTrzszReady) — all call this.
-            maybeResumeTmuxControlMode()
+            // A restored tmux gateway is armed by the scrollback-gate release
+            // path above, after its saved ANSI bytes drain and before buffered
+            // live control records are allowed into Ghostty.
         }
     }
 
