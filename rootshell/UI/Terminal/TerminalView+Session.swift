@@ -283,18 +283,22 @@ extension Ghostty.TerminalView {
     }
 
     /// Build the mode-restoration trailer for a resumed trzsz session and inject
-    /// it via `restoreScrollbackAfterAnimation(trailer:)`. Also sends focus-in
-    /// to the remote so TUI apps un-grey their cursor.
+    /// it via `restoreScrollbackAfterAnimation(trailer:)`.
     ///
     /// The trailer carries the DECSETs the resumed remote TUI expects to be
-    /// active (alt screen, mouse capture, cursor key mode, bracketed paste,
-    /// cursor shape reset). Appended atomically to the saved scrollback inside
-    /// the restore gate, the byte stream becomes:
+    /// active (alt screen, mouse capture, cursor key mode, focus reporting,
+    /// bracketed paste, cursor shape reset). Appended atomically to the saved
+    /// scrollback inside the restore gate, the byte stream becomes:
     ///
     ///     saved-scrollback → trailer → buffered-live → live
     ///
     /// No live data can race ahead of the mode-set bytes, so by the time the
     /// server's redraw is parsed, ghostty's modes are already correct.
+    ///
+    /// Focus is never injected directly: DECSET 1004 makes ghostty report the
+    /// surface's real focus state to the remote, so a `tail -f` shell (mode
+    /// off) receives nothing. A tmux gateway skips the trailer entirely; tmux
+    /// owns pane focus and raw bytes would corrupt its control channel.
     ///
     /// Used by both the top-level `.trzsz` `.running` handler and the embedded
     /// `.shellLaunchedTrzsz` path (via `LocalShellSession.onEmbeddedTrzszReady`).
@@ -360,6 +364,13 @@ extension Ghostty.TerminalView {
             if ScrollbackPersistenceManager.shared.wasCursorKeyModeActive(for: self.uuid) {
                 bytes.append(Data("\u{1b}[?1h".utf8))
             }
+            // The live surface covers same-process reconnects whose flag was
+            // never persisted. Parsing 1004h makes ghostty emit focus-in/out.
+            let focusReporting = ScrollbackPersistenceManager.shared.wasFocusEventModeActive(for: self.uuid)
+                || (surface.map { ghostty_surface_focus_event_mode($0) } ?? false)
+            if focusReporting {
+                bytes.append(Data("\u{1b}[?1004h".utf8))
+            }
             // Virtually all TUI apps that use alternate screen also enable bracketed paste.
             if wasAltScreen {
                 bytes.append(Data("\u{1b}[?2004h".utf8))
@@ -411,20 +422,9 @@ extension Ghostty.TerminalView {
             // other path where the gate has already been flushed normally.
             restoreScrollbackAfterAnimation(trailer: trailer)
         }
-
-        // Send focus-in (\x1b[I) directly to the remote session. We can't use
-        // ghostty_surface_set_focus because the fresh surface doesn't have mode
-        // 1004 (focus reporting) enabled yet — all terminal modes reset on
-        // surface creation. Sending directly via sendInput bypasses the mode
-        // check and tells apps like Helix the terminal is focused, restoring
-        // their normal cursor. Goes via the input channel, not bufferedWriter,
-        // so it can't race with display output ordering.
-        if trzszSession.wasResumed {
-            trzszSession.sendInput(Data("\u{1b}[I".utf8))
-            // A restored tmux gateway is armed by the scrollback-gate release
-            // path above, after its saved ANSI bytes drain and before buffered
-            // live control records are allowed into Ghostty.
-        }
+        // A restored tmux gateway is armed by the scrollback-gate release path
+        // above, after its saved ANSI bytes drain and before buffered live
+        // control records are allowed into Ghostty.
     }
 
     /// Ensures the restore replay's final cursor positioning is rendered after
