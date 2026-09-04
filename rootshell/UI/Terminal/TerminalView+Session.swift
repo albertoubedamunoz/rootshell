@@ -656,11 +656,11 @@ extension Ghostty.TerminalView {
                     Task { @MainActor [weak self] in
                         try? await Task.sleep(for: .milliseconds(500))
                         Ghostty.logger.info("Sending launch command (\(charCount) chars) after multiplexer delay")
-                        self?.session?.sendInput(data)
+                        self?.sendUserInput(data)
                     }
                 } else {
                     Ghostty.logger.info("Sending launch command (\(charCount) chars)")
-                    session?.sendInput(data)
+                    sendUserInput(data)
                 }
             }
         }

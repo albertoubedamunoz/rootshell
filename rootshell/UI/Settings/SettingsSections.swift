@@ -256,6 +256,7 @@ struct SettingsAppearanceSection: View {
 
 /// Terminal section detail (Toolbar Keys, Keyboard Shortcuts, ModTap, Option Key, Session Restore, etc.)
 struct SettingsTerminalSection: View {
+    @Setting(Settings.Keyboard.writingAssistance) private var writingAssistance
     @Setting(Settings.Prompt.useStarship) private var useStarshipPrompt
     @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
     @Setting(Settings.Prompt.customUsername) private var customUsername
@@ -377,6 +378,21 @@ struct SettingsTerminalSection: View {
         List {
             // MARK: - Keyboard
             Section {
+                Picker(selection: $writingAssistance) {
+                    ForEach(TerminalWritingAssistanceMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                } label: {
+                    Label("Writing Assistance", systemImage: writingAssistance.icon)
+                }
+                .themedRow()
+                .settingContextMenu(Settings.Keyboard.writingAssistance)
+
+                Text("Assists direct typing with Apple's on-screen keyboard. Corrections are applied only while recent input can be safely tracked.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .themedRow()
+
                 #if !targetEnvironment(macCatalyst)
                 NavigationLink {
                     KeyboardToolbarSettingsView()

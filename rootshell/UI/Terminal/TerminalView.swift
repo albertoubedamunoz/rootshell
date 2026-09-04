@@ -365,7 +365,11 @@ extension Ghostty {
         
         // MARK: Session State
 
-        var surface: ghostty_surface_t?
+        var surface: ghostty_surface_t? {
+            didSet {
+                if surface != oldValue { invalidateWritingAssistance(resetDocument: true) }
+            }
+        }
         var ghosttyApp: Ghostty.App?
 
         /// When set, this view renders a tmux control mode PANE rather than
@@ -393,6 +397,7 @@ extension Ghostty {
         }
         var tmuxPaneBinding: TmuxPaneBinding? {
             didSet {
+                invalidateWritingAssistance(resetDocument: true)
                 if tmuxPaneBinding == nil {
                     tmuxReportedPaneTitle = nil
                     tmuxReportedCurrentCommand = nil
@@ -520,7 +525,9 @@ extension Ghostty {
         }
         var session: TerminalSession? {
             get { sessionController.session }
-            set { sessionController.session = newValue }
+            set {
+                sessionController.session = newValue
+            }
         }
         var outputMonitorTask: Task<Void, Never>?
         var activeTransferTicketID: UUID?
@@ -1178,16 +1185,25 @@ extension Ghostty {
 
         /// Tracks what iOS thinks the editable text contains, so UITextInput
         /// position/range queries return correct values during dictation.
-        var documentBuffer = ""
+        var correctionContext = TerminalCorrectionContext()
+        // UIKit may select a committed word before inserting its completion.
+        // This is a local selection, never a remote cursor movement.
+        var writingAssistanceSelection: TerminalTextRange?
+        var documentBuffer: String { correctionContext.document }
+        var writingAssistanceMode = TerminalWritingAssistanceMode.off
+        var writingAssistanceSource: String?
+        var writingAssistanceRequeryPending = false
+        var writingAssistanceNeedsTraitReload = false
+        var writingAssistanceTraitReloadPending = false
+        var lastHardwareTextInputTime: TimeInterval?
+        var writingAssistanceSize: CGSize?
+        var writingAssistanceObservers = Set<AnyCancellable>()
 
-        /// Active placeholder tokens for UIKit dictation sessions.
-        /// Generic keyboard autocorrection must not rewrite previously sent
-        /// terminal bytes; committed text replacement is only trusted while
-        /// UIKit is actively delivering dictation results for this responder.
+        /// Dictation provenance is independent of direct keyboard assistance.
+        /// A generic multi-character insert is never evidence of dictation.
         var pendingDictationPlaceholderTokens = Set<String>()
         var isHandlingDictationResult = false
         var lastDictationActivityAt: Date?
-        var lastBulkTextInputAt: Date?
 
         /// Long-press spacebar trackpad state. iOS reports drag offsets via
         /// `updateFloatingCursor(at:)`; we bucket them into whole-cell steps and
@@ -1789,6 +1805,7 @@ extension Ghostty {
             // Apply initial ASCII keyboard setting and observe changes
             applyASCIIKeyboardSetting()
             setupASCIIKeyboardObserver()
+            setupWritingAssistance()
 
             #if !targetEnvironment(macCatalyst) && !os(visionOS)
             // Re-evaluate the home-indicator bottom inset live when the
@@ -2455,6 +2472,7 @@ extension Ghostty {
             button: ghostty_input_mouse_button_e,
             mods: ghostty_input_mods_e = Ghostty.Input.Mods.none.cMods
         ) {
+            invalidateWritingAssistance()
             guard let surface = surface else { return }
             Self.ghosttyAPIQueue.async {
                 ghostty_surface_mouse_button(surface, action, button, mods)
@@ -2463,6 +2481,7 @@ extension Ghostty {
 
         /// Send mouse scroll event to Ghostty on background queue to avoid blocking main thread.
         func sendMouseScroll(deltaX: Double, deltaY: Double, mods: ghostty_input_scroll_mods_t = Ghostty.Input.ScrollMods.none.cMods) {
+            invalidateWritingAssistance()
             guard let surface = surface else { return }
             Self.ghosttyAPIQueue.async {
                 ghostty_surface_mouse_scroll(surface, deltaX, deltaY, mods)
@@ -2565,6 +2584,7 @@ extension Ghostty {
         /// Dispatch a terminal binding action off the main thread so heavy
         /// mailbox contention doesn't block UI responsiveness.
         func performActionAsync(_ action: String) {
+            invalidateWritingAssistance()
             guard let surface = surface else { return }
             let len = action.utf8CString.count
             if len == 0 { return }
@@ -3474,6 +3494,8 @@ extension Ghostty {
 
         @discardableResult
         override func becomeFirstResponder() -> Bool {
+            if !isFirstResponder { invalidateWritingAssistance(resetDocument: true) }
+            refreshWritingAssistanceTraits()
             // Gate: while a keyboard-owning overlay (tab sidebar, connection
             // sidebar, any sheet) is up in this window, the terminal must not
             // hold first responder — the overlay's own field owns the keyboard.
@@ -3553,6 +3575,7 @@ extension Ghostty {
 
         @discardableResult
         override func resignFirstResponder() -> Bool {
+            invalidateWritingAssistance(resetDocument: true)
             #if !targetEnvironment(macCatalyst)
             if shouldPreserveFirstResponderForSoftwareKeyboardAppTransition() {
                 Ghostty.logger.info("resignFirstResponder() blocked to preserve software keyboard during app transition")
@@ -3785,6 +3808,20 @@ extension Ghostty {
         #endif
         
         func insertText(_ text: String) {
+            if let selection = writingAssistanceSelection {
+                writingAssistanceSelection = nil
+                // Consume even a stale selection through replace's validation;
+                // never turn a rejected correction into an append.
+                replace(selection, withText: text)
+                return
+            }
+            // The dictation grace interval covers its subsequent replacement,
+            // not unrelated keyboard input that arrives after dictation ends.
+            if !hasExplicitDictationSource { lastDictationActivityAt = nil }
+            let assistanceEligible = refreshWritingAssistanceTraits()
+            if !TerminalCorrectionContext.isPrintable(text) || KeyCode.sentinelKey(for: text) != nil {
+                invalidateWritingAssistance()
+            }
             // Software-keyboard and input-method text arrives here, not through
             // `pressesBegan`, and the terminal is not a UITextField, so this is
             // the only path that sees it. It has to restart the always-on-display
@@ -3865,14 +3902,6 @@ extension Ghostty {
             // Apply dictation auto-corrections (e.g., "shell pipe" → "|")
             finalText = applyDictationReplacements(finalText)
 
-            // Dictation often arrives as one multi-character insert and then
-            // follows with committed-text replacement. Track that pattern so
-            // replace(_:withText:) can allow the immediate follow-up without
-            // reopening per-keystroke keyboard autocorrection.
-            if text.count > 1 {
-                lastBulkTextInputAt = Date()
-            }
-
             if activeKeyboardModifiers.isEmpty,
                virtualModTapModifier == nil,
                handleThirdPartyKeyboardInsert(finalText) {
@@ -3909,14 +3938,11 @@ extension Ghostty {
                 lastSpaceInsertTime = nil
                 // Delete the previous space from the terminal
                 if let del = "\u{7F}".data(using: .utf8) {
-                    sendUserInput(del)
+                    sendUserInput(del, documentMutation: .backspace(eligible: false))
                 }
-                // Update document buffer: remove trailing space, add ". "
-                if !documentBuffer.isEmpty { documentBuffer.removeLast() }
-                documentBuffer.append(". ")
                 // Send ". " to the terminal
                 if let data = ". ".data(using: .utf8) {
-                    sendUserInput(data)
+                    sendUserInput(data, documentMutation: .text(". ", eligible: false))
                 }
                 return
             }
@@ -3934,7 +3960,7 @@ extension Ghostty {
             if (finalText == "\n" || finalText == "\r"),
                (!activeKeyboardModifiers.isEmpty || virtualModTapModifier != nil),
                sendEnterKeyViaGhostty(toolbarModifiers: activeKeyboardModifiers, virtualModifier: virtualModTapModifier) {
-                documentBuffer = ""
+                mutateInputDocument(.reset)
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.notifyInputDelegateOfExternalChange { /* buffer already reset */ }
@@ -3943,16 +3969,11 @@ extension Ghostty {
                 return
             }
 
-            documentBuffer.append(finalText)
-            if documentBuffer.count > 4096 {
-                documentBuffer = String(documentBuffer.suffix(2048))
-            }
-
             // Convert newline (\n) to carriage return (\r) for terminal compatibility
             // Virtual keyboard sends \n but terminals expect \r for Enter key
             if finalText == "\n" {
                 finalText = "\r"
-                documentBuffer = ""  // TUI clears input on submission; keep in sync
+                mutateInputDocument(.reset)
                 // iOS thinks we appended "\n" — defer notification so it re-queries
                 // and sees the actual empty state after its own notification cycle completes
                 DispatchQueue.main.async { [weak self] in
@@ -4074,10 +4095,15 @@ extension Ghostty {
             // Send input to Ghostty which will route it appropriately
             guard let data = finalText.data(using: .utf8) else { return }
             //Ghostty.logger.debug("TerminalView.insertText: Sending bytes: \(data.hexDescription)")
-            sendUserInput(data)
+            sendUserInput(data, documentMutation: .text(finalText, eligible: assistanceEligible))
         }
         
         func deleteBackward() {
+            // A UIKit suggestion selection is not a remote terminal selection.
+            // Backspace must always reach the application's input editor, even
+            // after correction expiry or invalidation.
+            writingAssistanceSelection = nil
+            let assistanceEligible = refreshWritingAssistanceTraits()
             if handleKoreanCompositionDeleteIfNeeded() {
                 return
             }
@@ -4092,14 +4118,9 @@ extension Ghostty {
             // Notify that input was received (for scroll-to-bottom behavior)
             NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
 
-            // Track deletion in document buffer
-            if !documentBuffer.isEmpty {
-                documentBuffer.removeLast()
-            }
-
             // Send backspace/delete character (DEL = 0x7F)
             guard let data = "\u{7F}".data(using: .utf8) else { return }
-            sendUserInput(data)
+            sendUserInput(data, documentMutation: .backspace(eligible: assistanceEligible))
 
             // Clear one-shot modifiers (backspace consumes them too)
             activeToolbarView?.clearOneShotModifiers()
@@ -4306,6 +4327,7 @@ extension Ghostty {
             )
 
             do {
+                invalidateWritingAssistance()
                 try session.setSize(ptySize)
                 surfaceController.markPTYSizeSent(gridSize)
                 if Self.logFrequentLayout {
@@ -4364,6 +4386,10 @@ extension Ghostty {
         }
 
         func sizeDidChange(_ size: CGSize) {
+            if size != writingAssistanceSize {
+                writingAssistanceSize = size
+                invalidateWritingAssistance()
+            }
             surfaceController.sizeDidChange(size)
         }
         
@@ -4373,6 +4399,7 @@ extension Ghostty {
         /// `skipResign` is safe when unfocusing the old terminal.
         @discardableResult
         override func focusDidChange(_ focused: Bool, skipResign: Bool = false) -> Bool {
+            invalidateWritingAssistance(resetDocument: true)
             // Update mouse capture state when focus changes to ensure scroll handling
             // has accurate state for this terminal (fixes split view mouse capture scrolling)
             updateMouseCaptureState()
@@ -5065,6 +5092,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     /// - Parameter action: The action string (e.g., "scroll_to_row:100", "select_all")
     /// - Returns: True if the action was performed successfully
     func performAction(_ action: String) -> Bool {
+        invalidateWritingAssistance()
         guard let surface = surface else { return false }
         let len = action.utf8CString.count
         if len == 0 { return false }
@@ -5317,6 +5345,7 @@ extension Ghostty.TerminalView {
         text: String? = nil,
         unshiftedCodepoint: UInt32 = 0
     ) -> Bool {
+        invalidateWritingAssistance()
         guard let surface = surface else { return false }
         guard let nativeKeycode = Ghostty.Input.nativeKeyCode(for: keyCode) else { return false }
 
@@ -5405,7 +5434,7 @@ extension Ghostty.TerminalView: KeyboardButtonDelegate {
            !modifiers.isEmpty,
            sendEnterKeyViaGhostty(toolbarModifiers: modifiers) {
             notifyInputDelegateOfExternalChange {
-                documentBuffer = ""
+                mutateInputDocument(.reset)
             }
             return
         }
