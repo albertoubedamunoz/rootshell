@@ -27,6 +27,7 @@ protocol TerminalSurfaceHost: AnyObject {
     var surfaceTmuxDetachInProgress: Bool { get }
     nonisolated var surfaceTmuxDetachInProgressAtomic: Bool { get }
     var surfaceIsTabVisible: Bool { get set }
+    func surfaceInitialTabVisibility() -> Bool
     var surfacePendingScrollbackRestore: Bool { get set }
     var surfacePendingScrollbackRestoreForLayout: Bool { get set }
     var surfaceRestorationState: Ghostty.TerminalView.RestorationState { get }
@@ -134,7 +135,10 @@ final class TerminalSurfaceController: NSObject {
     }
 
     private func startFirstFramePolling() {
-        guard firstFramePollLink == nil, !hasRenderedFirstFrame else { return }
+        guard firstFramePollLink == nil,
+              !hasRenderedFirstFrame,
+              host.surfaceIsTabVisible,
+              !Ghostty.isSecureDrawProhibitedAtomic else { return }
         firstFramePollStart = CACurrentMediaTime()
         let target = FirstFramePollTarget(controller: self)
         let link = CADisplayLink(target: target, selector: #selector(FirstFramePollTarget.tick(_:)))
@@ -144,6 +148,11 @@ final class TerminalSurfaceController: NSObject {
     }
 
     fileprivate func firstFramePollTick() {
+        guard host.surfaceIsTabVisible,
+              !Ghostty.isSecureDrawProhibitedAtomic else {
+            suspendFirstFramePolling()
+            return
+        }
         if rendererLayer()?.contents != nil {
             markFirstFrameRendered()
         } else if CACurrentMediaTime() - firstFramePollStart > 2.0 {
@@ -152,9 +161,14 @@ final class TerminalSurfaceController: NSObject {
     }
 
     private func markFirstFrameRendered(failOpen: Bool = false) {
-        firstFramePollLink?.invalidate()
-        firstFramePollLink = nil
-        firstFramePollTarget = nil
+        // Visibility can change on the same main-run-loop turn as a poll tick.
+        // Keep first-frame tracking pending when the surface is now hidden so a
+        // later selection can restart it; never promote a hidden pane to visible.
+        if failOpen && (!host.surfaceIsTabVisible || Ghostty.isSecureDrawProhibitedAtomic) {
+            suspendFirstFramePolling()
+            return
+        }
+        suspendFirstFramePolling()
         guard !hasRenderedFirstFrame else { return }
         hasRenderedFirstFrame = true
         if failOpen {
@@ -168,10 +182,14 @@ final class TerminalSurfaceController: NSObject {
         for callback in callbacks { callback() }
     }
 
-    func resetFirstFrameTracking() {
+    private func suspendFirstFramePolling() {
         firstFramePollLink?.invalidate()
         firstFramePollLink = nil
         firstFramePollTarget = nil
+    }
+
+    func resetFirstFrameTracking() {
+        suspendFirstFramePolling()
         hasRenderedFirstFrame = false
         firstFrameCallbacks = []
     }
@@ -232,6 +250,13 @@ final class TerminalSurfaceController: NSObject {
         ))
         surfaceCfg.userdata = Unmanaged.passUnretained(host.surfaceUserdata).toOpaque()
         surfaceCfg.scale_factor = host.surfaceView.contentScaleFactor
+
+        // Ghostty starts its renderer thread before the constructor returns.
+        // Pass the selected-tab state into construction so an inactive regular
+        // or tmux pane never performs the initial full-size Metal draw.
+        let initiallyVisible = host.surfaceInitialTabVisibility()
+        host.surfaceIsTabVisible = initiallyVisible
+        surfaceCfg.initially_visible = initiallyVisible && !Ghostty.isSecureDrawProhibitedAtomic
 
         if let binding = host.surfaceTmuxPaneBinding {
             createTmuxPaneSurface(app: app, cfg: &surfaceCfg, binding: binding)
@@ -375,7 +400,8 @@ final class TerminalSurfaceController: NSObject {
             LifecycleDebugLogger.shared.checkpoint("SECURE.initialOcclusion.forced")
             return
         }
-        let visible = host.surfaceIsTabVisible
+        let visible = host.surfaceInitialTabVisibility()
+        host.surfaceIsTabVisible = visible
         nonisolated(unsafe) let surfacePtr = surface
         Ghostty.TerminalView.ghosttyAPIQueue.async {
             ghostty_surface_set_occlusion(surfacePtr, visible)
@@ -632,9 +658,20 @@ final class TerminalSurfaceController: NSObject {
         Ghostty.logger.info("setOcclusion(\(visible)): terminal=\(terminalID)")
         host.surfaceIsTabVisible = visible
 
+        if !visible {
+            // An occluded surface is not expected to produce a frame. Leaving
+            // its watchdog armed turns that normal state into a timeout and,
+            // for tmux panes, historically woke the hidden renderer again.
+            suspendFirstFramePolling()
+        }
+
         guard surface != nil else {
             Ghostty.logger.debug("setOcclusion(\(visible)): no surface")
             return
+        }
+
+        if visible {
+            startFirstFramePolling()
         }
 
         // Defer the GhosttyKit occlusion call onto a follow-up main-queue tick
@@ -668,6 +705,7 @@ final class TerminalSurfaceController: NSObject {
     @discardableResult
     func pauseRendererForBackground(timeoutNanoseconds: UInt64 = 200_000_000) -> Bool {
         host.surfaceIsTabVisible = false
+        suspendFirstFramePolling()
         guard let surface else {
             Ghostty.logger.debug("pauseRendererForBackground: no surface")
             return true
@@ -680,6 +718,7 @@ final class TerminalSurfaceController: NSObject {
     @discardableResult
     func drainRendererToIdleSync(timeoutNanoseconds: UInt64 = 200_000_000) -> Bool {
         host.surfaceIsTabVisible = false
+        suspendFirstFramePolling()
         guard let surface else { return true }
         return ghostty_surface_drain_renderer_to_idle(surface, timeoutNanoseconds)
     }
@@ -690,6 +729,7 @@ final class TerminalSurfaceController: NSObject {
         timeoutNanoseconds: UInt64 = 200_000_000
     ) {
         host.surfaceIsTabVisible = false
+        suspendFirstFramePolling()
         guard let surface else { return }
         let surfaceAddress = Int(bitPattern: surface)
         DispatchQueue.global(qos: .utility).async {
@@ -789,6 +829,17 @@ extension Ghostty.TerminalView: TerminalSurfaceHost {
         get { isTabVisible }
         set { isTabVisible = newValue }
     }
+    func surfaceInitialTabVisibility() -> Bool {
+        if hasExplicitTabVisibility {
+            return isTabVisible
+        }
+        guard let tabID = containingTabID else {
+            return isTabVisible
+        }
+        let model = TerminalWindowRegistry.tabsModel(for: windowId)
+            ?? TmuxWindowRegistry.tabsModel(for: windowId)
+        return model.map { $0.selectedTabID == tabID } ?? isTabVisible
+    }
     var surfacePendingScrollbackRestore: Bool {
         get { pendingScrollbackRestore }
         set { pendingScrollbackRestore = newValue }
@@ -838,6 +889,10 @@ extension Ghostty.TerminalView: TerminalSurfaceHost {
     }
 
     func surfaceFirstFrameDidFailOpen() {
+        guard isTabVisible else {
+            Ghostty.logger.debug("Ignoring first-frame fail-open for hidden terminal=\(self.surfaceTerminalDebugID)")
+            return
+        }
         _ = reassertVisibleIfNeeded(
             shouldFocus: isLogicallyFocused,
             reason: "first-frame-fail-open"

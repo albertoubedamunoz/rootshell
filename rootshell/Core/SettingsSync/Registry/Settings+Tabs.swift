@@ -65,7 +65,7 @@ nonisolated extension Settings {
             title: String(localized: "Tab Hover Previews", comment: "Setting title"))
         /// Whether hover alone is enough, or a hardware modifier must also be held.
         static let hoverPreviewActivation = SettingKey(
-            "tabHoverPreviewActivation", default: TabHoverPreviewActivation.always, group: .tabs,
+            "tabHoverPreviewActivation", default: TabHoverPreviewActivation.shift, group: .tabs,
             configKey: "tab-hover-preview-activation",
             title: String(localized: "Tab Hover Preview Activation", comment: "Setting title"))
         /// Pinch-set hover preview scale; 1 = the default size.

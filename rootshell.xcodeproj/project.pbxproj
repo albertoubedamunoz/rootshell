@@ -154,14 +154,12 @@
 		47JOE0032FA00000AABB0003 /* joe in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47JOE0012FA00000AABB0001 /* joe */; settings = {ATTRIBUTES = (Weak, ); }; };
 		47JOE0042FA00000AABB0004 /* joe in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47JOE0012FA00000AABB0001 /* joe */; settings = {ATTRIBUTES = (Weak, ); }; };
 		47LA00092F360000AABB0009 /* SessionActivityWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		47LA00182F360000AABB0018 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
 		47LG20012F680000AABB0001 /* libgit2 in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47B617122FF30000AABB0001 /* libgit2 */; };
 		47PKG0112F900000AABB0011 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0012F900000AABB0001 /* RootshellPushKit */; };
 		47PKG0122F900000AABB0012 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0022F900000AABB0002 /* RootshellPushKit */; };
 		47PKG0132F900000AABB0013 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0032F900000AABB0003 /* RootshellPushKit */; };
 		47PKG0142F900000AABB0014 /* RootshellPushKit in Frameworks */ = {isa = PBXBuildFile; productRef = 47PKG0042F900000AABB0004 /* RootshellPushKit */; };
 		47PSH0092F900000AABB0009 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		47PSH0182F900000AABB0018 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
 		47PSH0192F900000AABB0019 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47PSH0292F900000AABB0029 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47RG00012F680000AABB0001 /* ripgrep_ios in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47RGP0012F680000AABB0001 /* ripgrep_ios */; };
@@ -1741,7 +1739,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				47LA00182F360000AABB0018 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1749,7 +1746,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				47PSH0182F900000AABB0018 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -6543,7 +6539,7 @@
 			repositoryURL = "https://github.com/kitknox/ghosttykit-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.7;
+				version = 0.2.8;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
