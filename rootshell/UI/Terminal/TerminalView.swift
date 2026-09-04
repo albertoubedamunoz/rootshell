@@ -164,6 +164,11 @@ extension Ghostty {
         /// Used to set initial occlusion state when surface is created.
         var isTabVisible: Bool = true
 
+        /// Whether tab/window state has explicitly supplied `isTabVisible`.
+        /// Before a surface exists, `setOcclusion` records the desired state
+        /// here so surface creation never has to assume every new tab is visible.
+        var hasExplicitTabVisibility = false
+
         /// Whether MainView is presenting terminal effects for this pane's
         /// rendered split tree. Mixed VNC/terminal layouts disable effects for
         /// the whole visible tree, including effect-owned safe-area behavior.
@@ -2698,6 +2703,7 @@ extension Ghostty {
         /// Also notifies the session for CPU throttling (e.g., Mosh sessions).
         override func setOcclusion(_ visible: Bool) {
             Ghostty.logger.info("setOcclusion(\(visible)): terminal=\(self.uuid.uuidString.prefix(8))")
+            hasExplicitTabVisibility = true
             isTabVisible = visible
             if !visible {
                 cancelMomentumScrolling()
@@ -2734,6 +2740,19 @@ extension Ghostty {
         /// Returns `true` when a first-responder retry was actually attempted.
         @discardableResult
         func reassertVisibleIfNeeded(shouldFocus: Bool, reason: String) -> Bool {
+            // A liveness backstop must never change the tab model's visibility
+            // decision. In particular, hidden tmux panes intentionally render no
+            // first frame; their timeout used to reach this method and wake the
+            // full-size Metal surface until the tab was manually visited.
+            guard isTabVisible else {
+                LifecycleDebugLogger.shared.checkpoint("FG.tabSwitch.reassert.skipped", ms: nil, [
+                    ("reason", "tabHidden"),
+                    ("caller", reason),
+                    ("terminal", String(self.uuid.uuidString.prefix(8))),
+                ])
+                return false
+            }
+
             // Always re-push occlusion=true; only does real work in the freeze case.
             setOcclusion(true)
 
