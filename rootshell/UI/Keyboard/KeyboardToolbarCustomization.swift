@@ -349,7 +349,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
 
     // MARK: - Defaults
 
-    static let currentVersion = 12
+    static let currentVersion = 13
 
     static func defaultConfig(for idiom: UIUserInterfaceIdiom) -> ToolbarLayoutConfig {
         switch idiom {
@@ -367,7 +367,6 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.tabSwitcher),
             .builtIn(.esc),
             .builtIn(.ctrl),
-            .builtIn(.compose),
             .builtIn(.writingAssistance),
             .builtIn(.shift),
             .builtIn(.tab),
@@ -407,6 +406,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.ampersand),
             .builtIn(.asterisk),
             .builtIn(.paste),
+            .builtIn(.compose),
             .builtIn(.voiceAgent),
             .builtIn(.toggleFullScreen),
             .builtIn(.toggleTabBar),
@@ -430,7 +430,6 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.alt),
             .builtIn(.shift),
             .builtIn(.cmd),
-            .builtIn(.compose),
             .builtIn(.writingAssistance),
             .builtIn(.tab),
             .builtIn(.arrowDrawerToggle),
@@ -467,6 +466,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.ampersand),
             .builtIn(.asterisk),
             .builtIn(.paste),
+            .builtIn(.compose),
             .builtIn(.voiceAgent),
             .builtIn(.toggleFullScreen),
             .builtIn(.toggleTabBar),
@@ -492,15 +492,23 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
         var migrated = saved
         if migrated.drawerRows.isEmpty { migrated.drawerRows = [[]] }
 
-        // Insert once, beside the user's Compose placement, rather than letting
-        // the generic new-key migration append this action at the far end.
-        let assistance = KeySlot.builtIn(.writingAssistance)
-        let defaultAssistanceIndex = defaults.mainRow.firstIndex(of: assistance) ?? migrated.mainRow.count
-        ToolbarWritingAssistanceMigration.insert(
-            mainRow: &migrated.mainRow, drawerRows: &migrated.drawerRows,
-            compose: .builtIn(.compose), assistance: assistance,
-            hidden: migrated.hiddenKeys.contains(.writingAssistance),
-            defaultIndex: defaultAssistanceIndex)
+        // Saved defaults (including Reset to Defaults) should follow the new
+        // placement. Compare the complete layout so custom placements stay intact.
+        var previousDefaults = defaults
+        previousDefaults.version = saved.version
+        previousDefaults.mainRow = previousDefaults.mainRow.map {
+            $0 == .builtIn(.writingAssistance) ? .builtIn(.compose) : $0
+        }
+        for row in previousDefaults.drawerRows.indices {
+            previousDefaults.drawerRows[row].removeAll { $0 == .builtIn(.compose) }
+        }
+        if saved.version == 12,
+           let composeIndex = previousDefaults.mainRow.firstIndex(of: .builtIn(.compose)) {
+            previousDefaults.mainRow.insert(.builtIn(.writingAssistance), at: composeIndex + 1)
+        }
+        if (11...12).contains(saved.version), saved == previousDefaults {
+            return defaults
+        }
 
         // v2 → v3: Move toolbar settings from drawer to main row (after drawer toggle)
         if saved.version < 3 && !saved.hiddenKeys.contains(.toolbarSettings) {
