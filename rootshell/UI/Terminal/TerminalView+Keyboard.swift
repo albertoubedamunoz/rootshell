@@ -335,6 +335,9 @@ extension Ghostty.TerminalView {
 extension Ghostty.TerminalView {
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        lastHardwareTextInputTime = ProcessInfo.processInfo.systemUptime
+        lastDictationActivityAt = nil
+        invalidateWritingAssistance()
         // Hardware keys reach the responder chain, not the window-level touch
         // observer, so typing has to restart the always-on-display window here.
         noteAlwaysOnDisplayInteraction()
@@ -391,6 +394,9 @@ extension Ghostty.TerminalView {
     /// Returns whether the press was handled and whether super should be skipped.
     @discardableResult
     func processKeyPress(_ press: UIPress, virtualModifier: ModTapModifier?) -> (handled: Bool, skipSuper: Bool) {
+        lastHardwareTextInputTime = ProcessInfo.processInfo.systemUptime
+        lastDictationActivityAt = nil
+        invalidateWritingAssistance()
         // iOS 13.4+ - use UIPress.key for better key information
         guard let key = press.key else { return (false, false) }
 
@@ -614,7 +620,7 @@ extension Ghostty.TerminalView {
            sendEnterKeyViaGhostty(modifiers: effectiveModifiers) {
             NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
             notifyInputDelegateOfExternalChange {
-                documentBuffer = ""
+                mutateInputDocument(.reset)
             }
             specialKeyPressModifiers[key.keyCode] = effectiveModifiers
             let repeatModifiers = effectiveModifiers
@@ -941,13 +947,8 @@ extension Ghostty.TerminalView {
                 // Notify that input was received (for scroll-to-bottom behavior)
                 NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
 
-                sendUserInput(data)
-
-                // Track backspace in documentBuffer for dictation corrections
-                if sequence == "\u{7F}" && !documentBuffer.isEmpty {
-                    notifyInputDelegateOfExternalChange {
-                        documentBuffer.removeLast()
-                    }
+                notifyInputDelegateOfExternalChange {
+                    sendUserInput(data, documentMutation: sequence == "\u{7F}" ? .backspace(eligible: false) : .invalidate)
                 }
 
                 // Start key repeat for special keys
@@ -1010,18 +1011,8 @@ extension Ghostty.TerminalView {
                 // Notify that input was received (for scroll-to-bottom behavior)
                 NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
 
-                sendUserInput(data)
-
-                // Keep documentBuffer in sync for dictation corrections
                 notifyInputDelegateOfExternalChange {
-                    if characters == "\r" || characters == "\n" {
-                        documentBuffer = ""
-                    } else {
-                        documentBuffer.append(characters)
-                        if documentBuffer.count > 4096 {
-                            documentBuffer = String(documentBuffer.suffix(2048))
-                        }
-                    }
+                    sendUserInput(data, documentMutation: .text(characters, eligible: false))
                 }
 
                 // Start key repeat for regular characters
@@ -1122,20 +1113,13 @@ extension Ghostty.TerminalView {
         let isBackspace = (sequence == "\u{7F}")
         keyRepeatManager.start(for: key, sequence: sequence) { [weak self] data in
             guard let self else { return }
-            self.sendUserInput(data)
             self.notifyInputDelegateOfExternalChange {
                 if isBackspace {
-                    if !self.documentBuffer.isEmpty {
-                        self.documentBuffer.removeLast()
-                    }
-                } else if sequence == "\r" || sequence == "\n" {
-                    self.documentBuffer = ""
+                    self.sendUserInput(data, documentMutation: .backspace(eligible: false))
                 } else if !sequence.hasPrefix("\u{1B}") {
-                    // Only track printable characters, not escape sequences (arrows, etc.)
-                    self.documentBuffer.append(sequence)
-                    if self.documentBuffer.count > 4096 {
-                        self.documentBuffer = String(self.documentBuffer.suffix(2048))
-                    }
+                    self.sendUserInput(data, documentMutation: .text(sequence, eligible: false))
+                } else {
+                    self.sendUserInput(data)
                 }
             }
         }
@@ -1751,7 +1735,7 @@ extension Ghostty.TerminalView {
 
         // Reset documentBuffer — TUI clears input on submission
         notifyInputDelegateOfExternalChange {
-            documentBuffer = ""
+            mutateInputDocument(.reset)
         }
 
         // Send \r (CR, 0x0D) to session
@@ -1784,7 +1768,7 @@ extension Ghostty.TerminalView {
         }
 
         notifyInputDelegateOfExternalChange {
-            documentBuffer = ""
+            mutateInputDocument(.reset)
         }
 
         // UIKeyCommand fires repeatedly while the key is held. Use
