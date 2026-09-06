@@ -50,6 +50,9 @@ struct RootShellApp: App {
     @MainActor private static var didRunAppStartupTasks = false
 
     init() {
+        let appInit = LaunchSignposts.begin("launch.appInit")
+        defer { LaunchSignposts.end("launch.appInit", appInit) }
+
         // AppIconManager is instantiated OUTSIDE the ProtectedDataGuard because
         // on Mac Catalyst the dock icon is a runtime-only assignment that must
         // be reapplied every launch. Its internal UserDefaults reads are
@@ -64,8 +67,8 @@ struct RootShellApp: App {
         // the real settings with zeros/nils.
         guard ProtectedDataGuard.isAvailable else { return }
 
-        // Initialize FontManager early to register bundled fonts
-        // before Ghostty surfaces try to use them
+        // Initialize FontManager early to register the selected font
+        // before Ghostty surfaces try to use it (full catalog loads on a worker)
         _ = FontManager.shared
 
         // Initialize RemoteSessionTracker early to ensure notification observer
@@ -77,22 +80,12 @@ struct RootShellApp: App {
         _ = LiveActivityManager.shared
         #endif
 
-        // Register notification categories for interactive notifications
-        NotificationManager.shared.registerNotificationCategories()
-
         // Initialize DayNightThemeManager early so it can apply the correct
         // theme on launch and begin observing system appearance changes
         _ = DayNightThemeManager.shared
 
-        // Force-instantiate LocationDiaryManager up front. We removed it from
-        // the App's @StateObject list so its per-update @Published mutations
-        // can't invalidate the App's scene list, but the singleton still needs
-        // to be alive at launch to restore persisted auto-mode tracking.
-        // macOS has no location-diary feature (no background keepalive needed),
-        // so don't spin up the singleton and its timers there.
-        #if !targetEnvironment(macCatalyst)
-        _ = LocationDiaryManager.shared
-        #endif
+        // Notification categories and LocationDiaryManager are started from the
+        // once-per-launch WindowGroup `.task` — they are not needed before first paint.
     }
 
     var body: some Scene {
@@ -114,6 +107,19 @@ struct RootShellApp: App {
                     // window open and made new windows slow.
                     guard !Self.didRunAppStartupTasks else { return }
                     Self.didRunAppStartupTasks = true
+                    LaunchSignposts.event("app.startupTask.begin")
+
+                    // Register notification categories (deferred from App.init —
+                    // not required before first paint).
+                    NotificationManager.shared.registerNotificationCategories()
+
+                    // Force-instantiate LocationDiaryManager once the first window
+                    // exists. Kept out of App.init / @StateObject so its per-update
+                    // @Published mutations can't invalidate the App scene list.
+                    // macOS has no location-diary feature.
+                    #if !targetEnvironment(macCatalyst)
+                    _ = LocationDiaryManager.shared
+                    #endif
 
                     // Re-check day/night theme now that the window exists and
                     // Ghostty.App is subscribed to themeDidChange. The initial
@@ -158,6 +164,7 @@ struct RootShellApp: App {
 
                     // Auto-start enabled background tunnels
                     await BackgroundTunnelManager.shared.startEnabledTunnels()
+                    LaunchSignposts.event("app.startupTask.end")
                 }
                 .onOpenURL { url in
                     // Handle rootshell://vpn/connect/<profileID>

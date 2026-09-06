@@ -102,6 +102,7 @@ final class TerminalSessionController {
         // `onReady` is invoked on the main actor by the session, so no hop.
         session.onReady = { [weak self] in
             Ghostty.logger.info("Session ready")
+            LaunchSignposts.markInteractiveIfNeeded()
             self?.host?.sessionDidBecomeReady()
         }
 
