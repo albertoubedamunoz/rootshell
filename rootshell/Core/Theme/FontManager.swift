@@ -21,7 +21,7 @@ class FontManager: ObservableObject {
     static let shared = FontManager()
 
     /// Information about a bundled font family
-    struct FontFamilyInfo: Identifiable, Equatable {
+    nonisolated struct FontFamilyInfo: Identifiable, Equatable, Sendable {
         let id: String
         let displayName: String
         let configName: String  // Name to use in Ghostty config
@@ -47,14 +47,14 @@ class FontManager: ObservableObject {
     static let defaultFontKey = "__default__"
 
     /// A user-imported custom font family with one or more style variants
-    struct CustomFontFamily: Codable, Identifiable, Equatable {
+    nonisolated struct CustomFontFamily: Codable, Identifiable, Equatable, Sendable {
         let id: UUID
         var displayName: String
         let configName: String
         var fontFiles: [FontFile]
         let importDate: Date
 
-        struct FontFile: Codable, Equatable {
+        nonisolated struct FontFile: Codable, Equatable, Sendable {
             let filename: String       // UUID-prefixed filename in Documents
             let originalName: String   // Original filename for display
             let styleName: String?     // "Regular", "Bold", "Italic", etc.
@@ -138,6 +138,7 @@ class FontManager: ObservableObject {
 
     /// Background catalog build kicked off from `init`.
     private var catalogLoadTask: Task<Void, Never>?
+    private var catalogLoad: FontCatalogLoad?
 
     /// Currently selected font size
     @Published var currentFontSize: Double {
@@ -226,8 +227,8 @@ class FontManager: ObservableObject {
 
         // Critical path: register only what the first terminal needs (selected
         // family + UI utility glyphs). Full catalog discovery is expensive
-        // (every bundled file + device-wide monospace scan) and runs after
-        // the first frame — same pattern as ThemeManager's background load.
+        // (every bundled file + device-wide monospace scan) and runs on a
+        // utility queue without occupying MainActor during the first frame.
         let critical = LaunchSignposts.begin("launch.fonts.critical")
         registerCriticalPathFonts()
         LaunchSignposts.end("launch.fonts.critical", critical)
@@ -266,62 +267,51 @@ class FontManager: ObservableObject {
         }
     }
 
-    /// Finish remaining registration + build picker catalogs off the critical path.
+    /// Capture mutable manager state before crossing to the catalog worker.
+    private func makeCatalogLoader() -> FontCatalogLoader {
+        FontCatalogLoader(
+            bundledFontsDirectory: findFontsDirectory(),
+            customFontsDirectory: customFontsDirectory,
+            customFontFamilies: customFontFamilies,
+            hiddenUtilityFontFamilies: Self.hiddenUtilityFontFamilies,
+            replacedBundledFamilies: replacedBundledFamilies
+        )
+    }
+
+    /// Run the entire registration/discovery pass on a utility queue. Merely
+    /// yielding a MainActor task does not let SwiftUI reliably paint first.
     private func startBackgroundCatalogLoad() {
+        let load = FontCatalogLoad(input: makeCatalogLoader())
+        catalogLoad = load
         catalogLoadTask = Task { @MainActor [weak self] in
-            // Yield so SwiftUI can commit the first frame before we burn CPU
-            // on the remaining CTFontManager work and system font scan.
-            await Task.yield()
-            guard let self, !self.isCatalogLoaded, !Task.isCancelled else { return }
-
-            let deferred = LaunchSignposts.begin("launch.fonts.deferred")
-            defer { LaunchSignposts.end("launch.fonts.deferred", deferred) }
-
-            self.registerBundledFonts()
-            let registeredCustomFamilies = self.registerCustomFonts()
-
-            // Reconcile: prune replacement markers where the custom family failed
-            // to register any files (missing files, corruption, incompatible fonts).
-            let staleReplacements = self.replacedBundledFamilies.subtracting(registeredCustomFamilies)
-            if !staleReplacements.isEmpty {
-                for family in staleReplacements {
-                    self.logger.warning("Stale bundled replacement for '\(family)' — restoring bundled font")
-                    self.reregisterBundledFontsForFamily(family)
-                }
-                self.saveReplacedBundledFamilies()
-            }
-
-            self.loadAvailableFamilies()
-            self.loadSystemFonts()
-            self.setupFontRegistrationObserver()
-            self.isCatalogLoaded = true
-            LaunchSignposts.event("fonts.catalogReady")
+            let result = await load.loadInBackground()
+            guard let self, !self.isCatalogLoaded else { return }
+            self.applyCatalog(result)
         }
     }
 
-    /// Finish catalog work immediately when a mutation needs the full set
-    /// (import/delete/reload) before the background task lands.
-    private func completeCatalogLoadIfNeeded() {
-        guard !isCatalogLoaded else { return }
-        catalogLoadTask?.cancel()
-        catalogLoadTask = nil
-
-        registerBundledFonts()
-        let registeredCustomFamilies = registerCustomFonts()
-        let staleReplacements = replacedBundledFamilies.subtracting(registeredCustomFamilies)
-        if !staleReplacements.isEmpty {
-            for family in staleReplacements {
-                logger.warning("Stale bundled replacement for '\(family)' — restoring bundled font")
-                reregisterBundledFontsForFamily(family)
-            }
+    private func applyCatalog(_ result: FontCatalogLoader.Result) {
+        if replacedBundledFamilies != result.replacedBundledFamilies {
+            replacedBundledFamilies = result.replacedBundledFamilies
             saveReplacedBundledFamilies()
         }
-        loadAvailableFamilies()
-        loadSystemFonts()
+        availableFamilies = result.availableFamilies
+        systemFontFamilies = result.systemFontFamilies
         if fontRegistrationObserver == nil {
             setupFontRegistrationObserver()
         }
         isCatalogLoaded = true
+        catalogLoad = nil
+        catalogLoadTask = nil
+        LaunchSignposts.event("fonts.catalogReady")
+    }
+
+    /// Mutations must finish the same load, not cancel it and start another
+    /// registration pass. After this returns the worker can only deliver its
+    /// cached result, which the isCatalogLoaded guard above ignores.
+    private func completeCatalogLoadIfNeeded() {
+        guard !isCatalogLoaded, let catalogLoad else { return }
+        applyCatalog(catalogLoad.load())
     }
 
     /// Re-reads owned keys after an external batch (iCloud, restore, config file).
@@ -371,53 +361,7 @@ class FontManager: ObservableObject {
     /// - Parameter matching: When non-nil, only families in this set are registered.
     ///   Pass `nil` to register every non-replaced bundled font (deferred catalog path).
     private func registerBundledFonts(matching families: Set<String>? = nil) {
-        guard let fontsURL = findFontsDirectory() else {
-            logger.warning("Fonts directory not found in bundle")
-            return
-        }
-
-        let fileManager = FileManager.default
-        var registeredCount = 0
-
-        guard let enumerator = fileManager.enumerator(
-            at: fontsURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            logger.error("Failed to create enumerator for fonts directory")
-            return
-        }
-
-        for case let fileURL as URL in enumerator {
-            // Only process TTF and OTF font files
-            let ext = fileURL.pathExtension.lowercased()
-            guard ext == "ttf" || ext == "otf" else { continue }
-
-            let filename = fileURL.lastPathComponent
-
-            guard let (_, configName) = extractFontInfo(from: fileURL) else { continue }
-
-            // Skip fonts whose family has been replaced by a custom import
-            if replacedBundledFamilies.contains(configName) {
-                logger.debug("Skipping replaced bundled font: \(filename)")
-                continue
-            }
-
-            if let families, !families.contains(configName) {
-                continue
-            }
-
-            var error: Unmanaged<CFError>?
-            if CTFontManagerRegisterFontsForURL(fileURL as CFURL, .process, &error) {
-                registeredCount += 1
-                logger.debug("Registered font: \(filename)")
-            } else if let cfError = error?.takeRetainedValue() {
-                // Font might already be registered - not necessarily an error
-                logger.debug("Font registration note for \(filename): \(cfError)")
-            }
-        }
-
-        logger.info("Registered \(registeredCount) bundled fonts")
+        makeCatalogLoader().registerBundledFonts(matching: families)
     }
 
     /// Find the fonts directory in the app bundle
@@ -482,28 +426,7 @@ class FontManager: ObservableObject {
     /// Register every file belonging to one custom family.
     @discardableResult
     private func registerCustomFontFamilyFiles(_ family: CustomFontFamily) -> Bool {
-        var registeredAny = false
-        for file in family.fontFiles {
-            let fileURL = documentsPathForCustomFont(file.filename)
-            guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                let name = file.originalName
-                logger.warning("Custom font file missing: \(name)")
-                continue
-            }
-
-            var error: Unmanaged<CFError>?
-            if CTFontManagerRegisterFontsForURL(fileURL as CFURL, .process, &error) {
-                registeredAny = true
-            } else if isAlreadyRegisteredError(error) {
-                registeredAny = true
-                let name = file.originalName
-                logger.debug("Custom font already registered: \(name)")
-            } else if let cfError = error?.takeRetainedValue() {
-                let name = file.originalName
-                logger.debug("Custom font registration note for \(name): \(cfError)")
-            }
-        }
-        return registeredAny
+        makeCatalogLoader().registerCustomFontFamilyFiles(family)
     }
 
     /// Register all previously-imported custom fonts with CoreText.
@@ -511,23 +434,7 @@ class FontManager: ObservableObject {
     @discardableResult
     private func registerCustomFonts() -> Set<String> {
         loadCustomFontMetadata()
-        var registeredCount = 0
-        var successfulFamilies: Set<String> = []
-
-        for family in customFontFamilies {
-            let before = successfulFamilies.count
-            if registerCustomFontFamilyFiles(family) {
-                successfulFamilies.insert(family.configName)
-                // Count files roughly for the log (one per successful family is enough signal)
-                if successfulFamilies.count > before {
-                    registeredCount += family.fontFiles.count
-                }
-            }
-        }
-
-        let count = registeredCount
-        logger.info("Registered \(count) custom font files")
-        return successfulFamilies
+        return makeCatalogLoader().registerCustomFonts()
     }
 
     // MARK: - Custom Font Import
@@ -768,179 +675,20 @@ class FontManager: ObservableObject {
 
     /// Scan the fonts directory and build list of available font families
     private func loadAvailableFamilies() {
-        guard let fontsURL = findFontsDirectory() else { return }
-
-        let fileManager = FileManager.default
-        var familyMap: [String: (displayName: String, configName: String, fontURL: URL)] = [:]
-
-        guard let enumerator = fileManager.enumerator(
-            at: fontsURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else { return }
-
-        for case let fileURL as URL in enumerator {
-            let ext = fileURL.pathExtension.lowercased()
-            guard ext == "ttf" || ext == "otf" else { continue }
-
-            let filename = fileURL.lastPathComponent
-
-            // Extract font family name from the font file
-            if let (familyName, configName) = extractFontInfo(from: fileURL) {
-                // Skip UI-only utility fonts and families replaced by custom imports
-                guard !Self.hiddenUtilityFontFamilies.contains(familyName) else { continue }
-                guard !replacedBundledFamilies.contains(configName) else { continue }
-
-                // Prefer Regular weight for preview
-                let isRegular = filename.contains("Regular")
-                if familyMap[familyName] == nil || isRegular {
-                    familyMap[familyName] = (familyName, configName, fileURL)
-                }
-            }
-        }
-
-        // Build FontFamilyInfo array
-        var families: [FontFamilyInfo] = []
-        for (id, info) in familyMap {
-            let sampleFont = createFont(from: info.fontURL, size: 16)
-
-            families.append(FontFamilyInfo(
-                id: id,
-                displayName: info.displayName,
-                configName: info.configName,
-                sampleFont: sampleFont
-            ))
-        }
-
-        // Sort alphabetically
-        families.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
-
-        self.availableFamilies = families
-        logger.info("Loaded \(families.count) font families")
+        var loader = makeCatalogLoader()
+        loader.availableFamilies = availableFamilies
+        loader.loadAvailableFamilies()
+        availableFamilies = loader.availableFamilies
     }
 
     // MARK: - System Font Discovery
 
     /// Discover monospace fonts installed on the device (e.g., via Font Case)
     private func loadSystemFonts() {
-        let bundledConfigNames = Set(availableFamilies.map(\.configName))
-        let customConfigNames = Set(customFontFamilies.map(\.configName))
-
-        var systemFonts: [FontFamilyInfo] = []
-        var seenFamilies = Set<String>()
-
-        // Use UIFontDescriptor matching to discover all monospace fonts system-wide.
-        // This finds fonts from UIFont.familyNames AND user-installed fonts (Font Case etc.)
-        // when the com.apple.developer.user-fonts entitlement is present.
-        let monoDescriptor = UIFontDescriptor(fontAttributes: [
-            .traits: [UIFontDescriptor.TraitKey.symbolic: UIFontDescriptor.SymbolicTraits.traitMonoSpace.rawValue]
-        ])
-        let matchedDescriptors = monoDescriptor.matchingFontDescriptors(withMandatoryKeys: nil)
-        let matchCount = matchedDescriptors.count
-        logger.info("[SystemFonts] UIFontDescriptor monospace matches: \(matchCount)")
-
-        for descriptor in matchedDescriptors {
-            let font = UIFont(descriptor: descriptor, size: 16)
-            let familyName = font.familyName
-
-            guard !seenFamilies.contains(familyName),
-                  !bundledConfigNames.contains(familyName),
-                  !customConfigNames.contains(familyName),
-                  !Self.hiddenUtilityFontFamilies.contains(familyName) else { continue }
-
-            systemFonts.append(FontFamilyInfo(
-                id: familyName,
-                displayName: familyName,
-                configName: familyName,
-                sampleFont: font
-            ))
-            seenFamilies.insert(familyName)
-        }
-
-        let traitCount = systemFonts.count
-        logger.info("[SystemFonts] From trait matching: \(traitCount) monospace families")
-
-        // Also check UIFont.familyNames with glyph-advance fallback for fonts that
-        // don't set the monospace trait but are actually monospace (e.g., Berkeley Mono)
-        for familyName in UIFont.familyNames {
-            guard !seenFamilies.contains(familyName),
-                  !bundledConfigNames.contains(familyName),
-                  !customConfigNames.contains(familyName),
-                  !Self.hiddenUtilityFontFamilies.contains(familyName) else { continue }
-
-            guard let font = UIFont(name: familyName, size: 16) else { continue }
-            guard self.isMonospaceByGlyphAdvance(font) else { continue }
-
-            logger.info("[SystemFonts] Glyph-advance detected mono: '\(familyName)'")
-            systemFonts.append(FontFamilyInfo(
-                id: familyName,
-                displayName: familyName,
-                configName: familyName,
-                sampleFont: font
-            ))
-            seenFamilies.insert(familyName)
-        }
-
-        // Check CoreText registered font descriptors for user-installed fonts
-        // that may not appear in UIFont.familyNames or descriptor matching
-        let descriptors = CTFontManagerCopyRegisteredFontDescriptors(.user, true) as? [CTFontDescriptor] ?? []
-        let ctCount = descriptors.count
-        logger.info("[SystemFonts] CTFontManager .user scope: \(ctCount) descriptors")
-
-        for descriptor in descriptors {
-            guard let familyName = CTFontDescriptorCopyAttribute(descriptor, kCTFontFamilyNameAttribute) as? String else {
-                continue
-            }
-            guard !seenFamilies.contains(familyName),
-                  !bundledConfigNames.contains(familyName),
-                  !customConfigNames.contains(familyName),
-                  !Self.hiddenUtilityFontFamilies.contains(familyName) else { continue }
-
-            let ctFont = CTFontCreateWithFontDescriptor(descriptor, 16, nil)
-            let uiFont = ctFont as UIFont
-            let traits = uiFont.fontDescriptor.symbolicTraits
-            let isMono = traits.contains(.traitMonoSpace) || self.isMonospaceByGlyphAdvance(uiFont)
-
-            logger.info("[SystemFonts] CT user font: '\(familyName)' mono=\(isMono)")
-            guard isMono else { continue }
-
-            systemFonts.append(FontFamilyInfo(
-                id: familyName,
-                displayName: familyName,
-                configName: familyName,
-                sampleFont: uiFont
-            ))
-            seenFamilies.insert(familyName)
-        }
-
-        systemFonts.sort {
-            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
-        }
-
-        self.systemFontFamilies = systemFonts
-        let totalCount = systemFonts.count
-        logger.info("[SystemFonts] Total: \(totalCount) system monospace font families")
-        for sf in systemFonts {
-            let name = sf.displayName
-            logger.info("[SystemFonts]   -> \(name)")
-        }
-    }
-
-    /// Check if a font is monospace by comparing glyph advance widths.
-    /// Some fonts (e.g., Berkeley Mono) don't set the OS/2 isFixedPitch flag,
-    /// so UIFontDescriptor.symbolicTraits won't include .traitMonoSpace.
-    /// This fallback compares advances of characters with typically extreme width differences.
-    private func isMonospaceByGlyphAdvance(_ font: UIFont) -> Bool {
-        let ctFont = font as CTFont
-        var characters: [UniChar] = [0x004D, 0x0069, 0x0057, 0x002E] // M, i, W, .
-        var glyphs = [CGGlyph](repeating: 0, count: characters.count)
-        guard CTFontGetGlyphsForCharacters(ctFont, &characters, &glyphs, characters.count) else { return false }
-        guard glyphs.allSatisfy({ $0 != 0 }) else { return false }
-        var advances = [CGSize](repeating: .zero, count: characters.count)
-        CTFontGetAdvancesForGlyphs(ctFont, .horizontal, glyphs, &advances, characters.count)
-        let ref = advances[0].width
-        guard ref > 0 else { return false }
-        return advances.allSatisfy { abs($0.width - ref) < 0.01 }
+        var loader = makeCatalogLoader()
+        loader.availableFamilies = availableFamilies
+        loader.loadSystemFonts()
+        systemFontFamilies = loader.systemFontFamilies
     }
 
     private func setupFontRegistrationObserver() {
@@ -958,38 +706,17 @@ class FontManager: ObservableObject {
 
     /// Extract font family name and config name from a font file
     private func extractFontInfo(from url: URL) -> (displayName: String, configName: String)? {
-        guard let provider = CGDataProvider(url: url as CFURL),
-              let cgFont = CGFont(provider) else {
-            return nil
-        }
-
-        // Create a CTFont to get the family name
-        let ctFont = CTFontCreateWithGraphicsFont(cgFont, 12, nil, nil)
-        let familyName = CTFontCopyFamilyName(ctFont) as String
-
-        // The config name is the font family name as-is
-        return (familyName, familyName)
+        FontCatalogLoader.extractFontInfo(from: url)
     }
 
     /// Create a UIFont from a TTF file URL
     private func createFont(from url: URL, size: CGFloat) -> UIFont? {
-        guard let provider = CGDataProvider(url: url as CFURL),
-              let cgFont = CGFont(provider) else {
-            return nil
-        }
-
-        let ctFont = CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
-        return ctFont as UIFont
+        FontCatalogLoader.createFont(from: url, size: size)
     }
 
     /// Check if a CTFontManager registration error indicates a duplicate/already-registered font
     private func isAlreadyRegisteredError(_ error: Unmanaged<CFError>?) -> Bool {
-        guard let cfError = error?.takeUnretainedValue() else { return false }
-        let domain = CFErrorGetDomain(cfError) as String
-        let code = CFErrorGetCode(cfError)
-        // CTFontManagerError codes: .alreadyRegistered = 105, .duplicatedName = 106
-        guard domain == kCTFontManagerErrorDomain as String else { return false }
-        return code == 105 || code == 106
+        FontCatalogLoader.isAlreadyRegisteredError(error)
     }
 
     // MARK: - Bundled Font Replacement Helpers
@@ -1047,29 +774,9 @@ class FontManager: ObservableObject {
 
     /// Re-register bundled font files for a family that was previously replaced
     private func reregisterBundledFontsForFamily(_ familyName: String) {
-        guard let fontsURL = findFontsDirectory() else { return }
-        let fileManager = FileManager.default
-
-        guard let enumerator = fileManager.enumerator(
-            at: fontsURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else { return }
-
-        for case let fileURL as URL in enumerator {
-            let ext = fileURL.pathExtension.lowercased()
-            guard ext == "ttf" || ext == "otf" else { continue }
-
-            if let (_, configName) = extractFontInfo(from: fileURL), configName == familyName {
-                var error: Unmanaged<CFError>?
-                if CTFontManagerRegisterFontsForURL(fileURL as CFURL, .process, &error) {
-                    let filename = fileURL.lastPathComponent
-                    logger.debug("Re-registered bundled font: \(filename)")
-                }
-            }
-        }
-
-        replacedBundledFamilies.remove(familyName)
+        var loader = makeCatalogLoader()
+        loader.reregisterBundledFontsForFamily(familyName)
+        replacedBundledFamilies = loader.replacedBundledFamilies
     }
 
     private func saveReplacedBundledFamilies() {

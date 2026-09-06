@@ -68,7 +68,7 @@ struct RootShellApp: App {
         guard ProtectedDataGuard.isAvailable else { return }
 
         // Initialize FontManager early to register the selected font
-        // before Ghostty surfaces try to use it (full catalog loads after first frame)
+        // before Ghostty surfaces try to use it (full catalog loads on a worker)
         _ = FontManager.shared
 
         // Initialize RemoteSessionTracker early to ensure notification observer
