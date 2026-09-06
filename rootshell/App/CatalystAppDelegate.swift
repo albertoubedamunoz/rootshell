@@ -586,6 +586,13 @@ class CatalystAppDelegate: AppDelegate {
         // then falls back to false (treated as a new window), which is harmless.
         if ProtectedDataGuard.isAvailable {
             WindowStateManager.shared.ensureStateLoaded()
+
+            // Overlap helper spawn with Ghostty/UI init so the first local shell
+            // is not serialized behind MainView.onAppear. Concurrent callers share
+            // one in-flight ensure via HelperConnection.
+            Task {
+                _ = await HelperConnection.shared.ensureHelperRunning()
+            }
         }
 
         return true

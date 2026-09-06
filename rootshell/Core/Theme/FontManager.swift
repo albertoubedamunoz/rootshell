@@ -128,8 +128,16 @@ class FontManager: ObservableObject {
     /// System-installed monospace font families (e.g., from Font Case)
     @Published private(set) var systemFontFamilies: [FontFamilyInfo] = []
 
+    /// True once remaining bundled/custom registration and catalog discovery finish.
+    /// Font settings awaits this via `ensureFontsLoaded()`; the terminal only needs
+    /// the selected family, which is registered on the critical path.
+    @Published private(set) var isCatalogLoaded = false
+
     /// Bundled font families that have been replaced by custom imports
     private(set) var replacedBundledFamilies: Set<String> = []
+
+    /// Background catalog build kicked off from `init`.
+    private var catalogLoadTask: Task<Void, Never>?
 
     /// Currently selected font size
     @Published var currentFontSize: Double {
@@ -216,13 +224,90 @@ class FontManager: ObservableObject {
             replacedBundledFamilies = Set(saved)
         }
 
-        // Register bundled fonts with iOS, then custom fonts, then load available families
+        // Critical path: register only what the first terminal needs (selected
+        // family + UI utility glyphs). Full catalog discovery is expensive
+        // (every bundled file + device-wide monospace scan) and runs after
+        // the first frame — same pattern as ThemeManager's background load.
+        let critical = LaunchSignposts.begin("launch.fonts.critical")
+        registerCriticalPathFonts()
+        LaunchSignposts.end("launch.fonts.critical", critical)
+
+        startBackgroundCatalogLoad()
+
+        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
+            self?.reload(keys: keys)
+        }
+    }
+
+    /// Await full font catalog registration/discovery. Font settings uses this;
+    /// terminal launch does not.
+    func ensureFontsLoaded() async {
+        if isCatalogLoaded { return }
+        await catalogLoadTask?.value
+    }
+
+    /// Register the selected family (and utility fonts) so Ghostty can resolve
+    /// the user's font before the deferred catalog finishes.
+    private func registerCriticalPathFonts() {
+        // UI glyph font used by profile icons — small, needed early.
+        registerBundledFonts(matching: Self.hiddenUtilityFontFamilies)
+
+        // Decode custom-font metadata without registering every file yet.
+        loadCustomFontMetadata()
+
+        guard let selected = currentFontFamily else { return }
+
+        if let custom = customFontFamilies.first(where: { $0.configName == selected }) {
+            registerCustomFontFamilyFiles(custom)
+        } else {
+            // Bundled or system-installed. System fonts need no registration;
+            // bundled registration is a no-op when the family isn't in the bundle.
+            registerBundledFonts(matching: Set([selected]))
+        }
+    }
+
+    /// Finish remaining registration + build picker catalogs off the critical path.
+    private func startBackgroundCatalogLoad() {
+        catalogLoadTask = Task { @MainActor [weak self] in
+            // Yield so SwiftUI can commit the first frame before we burn CPU
+            // on the remaining CTFontManager work and system font scan.
+            await Task.yield()
+            guard let self, !self.isCatalogLoaded, !Task.isCancelled else { return }
+
+            let deferred = LaunchSignposts.begin("launch.fonts.deferred")
+            defer { LaunchSignposts.end("launch.fonts.deferred", deferred) }
+
+            self.registerBundledFonts()
+            let registeredCustomFamilies = self.registerCustomFonts()
+
+            // Reconcile: prune replacement markers where the custom family failed
+            // to register any files (missing files, corruption, incompatible fonts).
+            let staleReplacements = self.replacedBundledFamilies.subtracting(registeredCustomFamilies)
+            if !staleReplacements.isEmpty {
+                for family in staleReplacements {
+                    self.logger.warning("Stale bundled replacement for '\(family)' — restoring bundled font")
+                    self.reregisterBundledFontsForFamily(family)
+                }
+                self.saveReplacedBundledFamilies()
+            }
+
+            self.loadAvailableFamilies()
+            self.loadSystemFonts()
+            self.setupFontRegistrationObserver()
+            self.isCatalogLoaded = true
+            LaunchSignposts.event("fonts.catalogReady")
+        }
+    }
+
+    /// Finish catalog work immediately when a mutation needs the full set
+    /// (import/delete/reload) before the background task lands.
+    private func completeCatalogLoadIfNeeded() {
+        guard !isCatalogLoaded else { return }
+        catalogLoadTask?.cancel()
+        catalogLoadTask = nil
+
         registerBundledFonts()
         let registeredCustomFamilies = registerCustomFonts()
-
-        // Reconcile: prune replacement markers where the custom family failed to register
-        // any files (missing files, corruption, incompatible fonts). This recovers bundled
-        // fonts that would otherwise stay permanently suppressed.
         let staleReplacements = replacedBundledFamilies.subtracting(registeredCustomFamilies)
         if !staleReplacements.isEmpty {
             for family in staleReplacements {
@@ -231,14 +316,12 @@ class FontManager: ObservableObject {
             }
             saveReplacedBundledFamilies()
         }
-
         loadAvailableFamilies()
         loadSystemFonts()
-        setupFontRegistrationObserver()
-
-        SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
-            self?.reload(keys: keys)
+        if fontRegistrationObserver == nil {
+            setupFontRegistrationObserver()
         }
+        isCatalogLoaded = true
     }
 
     /// Re-reads owned keys after an external batch (iCloud, restore, config file).
@@ -250,7 +333,17 @@ class FontManager: ObservableObject {
             let savedSize = store.get(Settings.Font.size)
             currentFontSize = savedSize > 0 ? savedSize : Settings.Font.size.defaultValue
         }
-        if keys.contains(Settings.Font.family.name) { currentFontFamily = store.get(Settings.Font.family) }
+        if keys.contains(Settings.Font.family.name) {
+            currentFontFamily = store.get(Settings.Font.family)
+            // External reload can select a family before deferred registration finishes.
+            if !isCatalogLoaded, let family = currentFontFamily {
+                if let custom = customFontFamilies.first(where: { $0.configName == family }) {
+                    registerCustomFontFamilyFiles(custom)
+                } else {
+                    registerBundledFonts(matching: Set([family]))
+                }
+            }
+        }
         if keys.contains(Settings.Font.ligatures.name) { ligaturesEnabled = store.get(Settings.Font.ligatures) }
         if keys.contains(Settings.Font.featurePrefs.name) {
             enabledFontFeatures = Self.decodeFontFeatures(store.get(Settings.Font.featurePrefs))
@@ -274,8 +367,10 @@ class FontManager: ObservableObject {
 
     // MARK: - Font Registration
 
-    /// Register all bundled TTF fonts with iOS so they can be discovered by CoreText
-    private func registerBundledFonts() {
+    /// Register bundled TTF/OTF fonts with CoreText.
+    /// - Parameter matching: When non-nil, only families in this set are registered.
+    ///   Pass `nil` to register every non-replaced bundled font (deferred catalog path).
+    private func registerBundledFonts(matching families: Set<String>? = nil) {
         guard let fontsURL = findFontsDirectory() else {
             logger.warning("Fonts directory not found in bundle")
             return
@@ -300,10 +395,15 @@ class FontManager: ObservableObject {
 
             let filename = fileURL.lastPathComponent
 
+            guard let (_, configName) = extractFontInfo(from: fileURL) else { continue }
+
             // Skip fonts whose family has been replaced by a custom import
-            if let (_, configName) = extractFontInfo(from: fileURL),
-               replacedBundledFamilies.contains(configName) {
+            if replacedBundledFamilies.contains(configName) {
                 logger.debug("Skipping replaced bundled font: \(filename)")
+                continue
+            }
+
+            if let families, !families.contains(configName) {
                 continue
             }
 
@@ -369,41 +469,58 @@ class FontManager: ObservableObject {
         customFontsDirectory.appendingPathComponent(filename)
     }
 
+    /// Decode custom-font metadata from UserDefaults without CoreText registration.
+    private func loadCustomFontMetadata() {
+        guard let data = UserDefaults.standard.data(forKey: Self.customFontFamiliesKey),
+              let families = try? JSONDecoder().decode([CustomFontFamily].self, from: data) else {
+            customFontFamilies = []
+            return
+        }
+        customFontFamilies = families
+    }
+
+    /// Register every file belonging to one custom family.
+    @discardableResult
+    private func registerCustomFontFamilyFiles(_ family: CustomFontFamily) -> Bool {
+        var registeredAny = false
+        for file in family.fontFiles {
+            let fileURL = documentsPathForCustomFont(file.filename)
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                let name = file.originalName
+                logger.warning("Custom font file missing: \(name)")
+                continue
+            }
+
+            var error: Unmanaged<CFError>?
+            if CTFontManagerRegisterFontsForURL(fileURL as CFURL, .process, &error) {
+                registeredAny = true
+            } else if isAlreadyRegisteredError(error) {
+                registeredAny = true
+                let name = file.originalName
+                logger.debug("Custom font already registered: \(name)")
+            } else if let cfError = error?.takeRetainedValue() {
+                let name = file.originalName
+                logger.debug("Custom font registration note for \(name): \(cfError)")
+            }
+        }
+        return registeredAny
+    }
+
     /// Register all previously-imported custom fonts with CoreText.
     /// Returns the set of family configNames that successfully registered at least one file.
     @discardableResult
     private func registerCustomFonts() -> Set<String> {
-        guard let data = UserDefaults.standard.data(forKey: Self.customFontFamiliesKey),
-              let families = try? JSONDecoder().decode([CustomFontFamily].self, from: data) else {
-            return []
-        }
-
-        customFontFamilies = families
+        loadCustomFontMetadata()
         var registeredCount = 0
         var successfulFamilies: Set<String> = []
 
-        for family in families {
-            for file in family.fontFiles {
-                let fileURL = documentsPathForCustomFont(file.filename)
-                guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                    let name = file.originalName
-                    logger.warning("Custom font file missing: \(name)")
-                    continue
-                }
-
-                var error: Unmanaged<CFError>?
-                if CTFontManagerRegisterFontsForURL(fileURL as CFURL, .process, &error) {
-                    registeredCount += 1
-                    successfulFamilies.insert(family.configName)
-                } else if isAlreadyRegisteredError(error) {
-                    // Font is already registered (e.g., also installed via system/Font Case).
-                    // The font is usable — count the family as valid.
-                    successfulFamilies.insert(family.configName)
-                    let name = file.originalName
-                    logger.debug("Custom font already registered: \(name)")
-                } else if let cfError = error?.takeRetainedValue() {
-                    let name = file.originalName
-                    logger.debug("Custom font registration note for \(name): \(cfError)")
+        for family in customFontFamilies {
+            let before = successfulFamilies.count
+            if registerCustomFontFamilyFiles(family) {
+                successfulFamilies.insert(family.configName)
+                // Count files roughly for the log (one per successful family is enough signal)
+                if successfulFamilies.count > before {
+                    registeredCount += family.fontFiles.count
                 }
             }
         }
@@ -418,6 +535,8 @@ class FontManager: ObservableObject {
     /// Import font files, grouping by family name. Returns newly created or updated families.
     @discardableResult
     func importFonts(from urls: [URL]) throws -> [CustomFontFamily] {
+        completeCatalogLoadIfNeeded()
+
         struct ImportedFile {
             let familyName: String
             let styleName: String?
@@ -587,6 +706,8 @@ class FontManager: ObservableObject {
 
     /// Delete a custom font family, unregistering from CoreText and removing files
     func deleteCustomFontFamily(id: UUID) {
+        completeCatalogLoadIfNeeded()
+
         guard let index = customFontFamilies.firstIndex(where: { $0.id == id }) else { return }
 
         let family = customFontFamilies[index]
@@ -625,6 +746,7 @@ class FontManager: ObservableObject {
     /// Re-reads custom font families from UserDefaults, registers any new fonts with CoreText,
     /// and refreshes the available families list. Call after restoring fonts from a backup.
     func reloadCustomFonts() {
+        completeCatalogLoadIfNeeded()
         registerCustomFonts()
         loadAvailableFamilies()
         loadSystemFonts()
@@ -828,7 +950,8 @@ class FontManager: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.loadSystemFonts()
+                guard let self, self.isCatalogLoaded else { return }
+                self.loadSystemFonts()
             }
         }
     }
