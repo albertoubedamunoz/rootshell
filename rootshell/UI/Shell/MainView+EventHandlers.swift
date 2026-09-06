@@ -85,6 +85,7 @@ extension MainView {
     }
 
     func handleOnAppear() {
+        LaunchSignposts.event("mainView.onAppear.\(windowId)")
         updateWindowFocusState()
 
         // Restore the docked sidebar if it was pinned: `tabSidebarPinned`
@@ -227,6 +228,7 @@ extension MainView {
                 // takes its fast path when the helper is already confirmed up.
                 createLocalShellTab()
                 markPlaceholderShell()
+                LaunchSignposts.event("mainView.firstShell.sync")
             } else {
                 restorationInFlight = pendingState != nil
                 Task { @MainActor in
@@ -238,15 +240,18 @@ extension MainView {
                         Ghostty.logger.info("Restoring window state: \(savedState.tabs.count) tabs")
                         self.restoreWindowState(savedState)
                         self.restorationInFlight = false
+                        LaunchSignposts.event("mainView.firstShell.restored")
                         // A folder open that arrived during the restore was
                         // held back; it follows the restored tabs.
                         self.adoptPendingIntentRequestsAsFirstContent()
                     } else if self.adoptPendingIntentRequestsAsFirstContent() {
                         // On cold launch the URL often lands during the helper
                         // await above, after the synchronous claim missed it.
+                        LaunchSignposts.event("mainView.firstShell.intent")
                     } else {
                         // Normal fresh start - helper is already running from above
                         self.checkHelperAndCreateInitialTab()
+                        LaunchSignposts.event("mainView.firstShell.async")
                     }
                 }
             }
@@ -258,13 +263,16 @@ extension MainView {
                 RestorationHealthTracker.shared.markRestorationStarted()
                 Ghostty.logger.info("Restoring window state: \(savedState.tabs.count) tabs")
                 restoreWindowState(savedState)
+                LaunchSignposts.event("mainView.firstShell.restored")
             } else {
                 // iPad: directly open local iOS shell
                 // iPhone/visionOS: show connection sheet
                 if UIDevice.current.userInterfaceIdiom == .pad {
                     createLocalShellTabInternal()
+                    LaunchSignposts.event("mainView.firstShell.local")
                 } else {
                     addNewTab()
+                    LaunchSignposts.event("mainView.firstShell.sheet")
                 }
             }
 #endif

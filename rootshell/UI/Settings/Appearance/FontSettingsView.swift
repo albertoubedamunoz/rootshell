@@ -43,6 +43,15 @@ struct FontSettingsView: View {
                 .buttonStyle(.plain)
                 .themedRow()
 
+                if !fontManager.isCatalogLoaded && fontManager.availableFamilies.isEmpty {
+                    HStack {
+                        ProgressView()
+                        Text("Loading fonts…")
+                            .foregroundColor(.secondary)
+                    }
+                    .themedRow()
+                }
+
                 // Bundled fonts
                 ForEach(fontManager.availableFamilies) { family in
                     Button(action: {
@@ -252,6 +261,9 @@ struct FontSettingsView: View {
         .navigationTitle("Font")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { SettingsScreenPinMenu(groups: [.font]) }
+        .task {
+            await fontManager.ensureFontsLoaded()
+        }
         .fileImporter(
             isPresented: $showingFileImporter,
             allowedContentTypes: [.font, UTType(filenameExtension: "ttf")!, UTType(filenameExtension: "otf")!],

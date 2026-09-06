@@ -394,6 +394,9 @@ extension Ghostty {
         private var lastAppliedCursorThrottle: Bool?
 
         init() {
+            let launch = LaunchSignposts.begin("launch.ghosttyApp")
+            defer { LaunchSignposts.end("launch.ghosttyApp", launch) }
+
             // Initialize ios_system environment variables (iOS/visionOS only) FIRST.
             //
             // IMPORTANT: setenv() calls must complete BEFORE Ghostty's Zig code
@@ -404,16 +407,21 @@ extension Ghostty {
             // ios_system's initializeEnvironment() was still setting XDG_CACHE_HOME /
             // XDG_CONFIG_HOME / XDG_STATE_HOME / XDG_DATA_HOME.
             #if !targetEnvironment(macCatalyst)
+            let envSP = LaunchSignposts.begin("launch.ghostty.env")
             initializeEnvironment()
+            LaunchSignposts.end("launch.ghostty.env", envSP)
             #endif
 
             // Now safe to initialize ghostty (may spawn Zig threads that read env vars).
+            let initSP = LaunchSignposts.begin("launch.ghostty.init")
             Ghostty.initialize()
+            LaunchSignposts.end("launch.ghostty.init", initSP)
 
             // Register ios_system command dictionaries and direct function entry points.
             // These mutate ios_system's commandList global, not environ — safe post-init.
             #if !targetEnvironment(macCatalyst)
 
+            let cmdsSP = LaunchSignposts.begin("launch.ghostty.commands")
             // Load command dictionaries
             if let commandDictPath = Bundle.main.path(forResource: "commandDictionary", ofType: "plist") {
                 if let error = addCommandList(commandDictPath) {
@@ -464,6 +472,7 @@ extension Ghostty {
 
             // Setup curl CA certificates for TLS/HTTPS support (only on iOS/iPadOS)
             CurlResourceManager.shared.setupResources()
+            LaunchSignposts.end("launch.ghostty.commands", cmdsSP)
             #endif
 
             // Initialize the global configuration
@@ -496,12 +505,15 @@ extension Ghostty {
             )
 
             // Create the ghostty app
+            let appSP = LaunchSignposts.begin("launch.ghostty.appNew")
             guard let app = ghostty_app_new(&runtime_cfg, config.config) else {
+                LaunchSignposts.end("launch.ghostty.appNew", appSP)
                 logger.critical("ghostty_app_new returned nil!")
                 readiness = .error
                 return
             }
             self.app = app
+            LaunchSignposts.end("launch.ghostty.appNew", appSP)
 
             // Register this instance for callback access
             // Use raw pointer address as key (not ObjectIdentifier which creates new wrapper each time)
