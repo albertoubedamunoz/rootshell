@@ -3,6 +3,42 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-143 - September 6, 2026
+
+### Writing Assistance
+
+- **Optional Writing Assistance:** Direct terminal typing with Apple's on-screen keyboard now supports Off, Suggestions or Autocorrect. Choose a mode in Settings -> Terminal -> Keyboard -> Writing Assistance, or use the toolbar button. It is off by default; corrections apply only while recent input can be safely tracked, accounting for dictation, composition, navigation and session changes.
+- **Updated Default Toolbars:** Default iPhone and iPad toolbars put Writing Assistance in the main row and Compose beside Voice Agent in the first drawer. iPad starts with the same key order as iPhone, followed by extra keys. Saved defaults update automatically; custom layouts are preserved.
+
+### Split Panes
+
+- **Drag to Rearrange Panes:** Drag a pane's top-center handle to an edge of another pane in the same tab; a highlighted preview shows its new position. Hover near a pane's top to reveal the handle, or tap a split divider on a touchscreen. Escape cancels the drag.
+- **Native and tmux Pane Rearrangement:** Rearrangement works with native splits, including nonterminal panes, and panes in the same tmux control-mode window. Sessions stay open, tmux updates its layout, and focus follows the moved pane. Unzoom before rearranging.
+
+### Profiles and New Tabs
+
+- **Local Shell Profiles and Profile Themes:** Save Local Shell profiles with a starting directory, startup command and platform availability. Open them from Profiles, suggestions or Shortcuts. Profiles also support individual theme overrides that sync through iCloud.
+- **Global New Tab Action:** Choose Local Shell (default), Duplicate Focused or Ask Each Time in Terminal or Multiplexer settings. Cmd-T follows this choice; duplication opens another matching session or a new window in the focused tmux control-mode session. The tab-bar + still opens Connections.
+- **Profile Recovery and Connection Counts:** Profiles hidden by malformed folder paths are recovered automatically. Profile connection counts now include Screen Sharing and avoid counting tmux display panes as separate connections.
+
+### Screen Sharing
+
+- **Remote Shortcut Defaults:** New sessions default to mapping physical Control+Option to remote Command and sending rootshell's reserved shortcuts to the remote computer. Change defaults in Screen Sharing settings or override them per session in its menu. Cmd-Shift-M toggles shortcut routing and always stays local. Disable the mapping to send Control+Option combinations, including Dictate.
+
+### Scrolling and Responsiveness
+
+- **Smoother Terminal Scrolling:** Fixed a terminal engine regression introduced in build 136 that disrupted display-refresh synchronization across all platforms. Terminal frames now follow display refresh timing for smoother scrolling.
+- **Complete Cursor Effects after Focus Changes:** Cursor effects now finish after focus changes, fixing partially rendered trails in tab previews and during split rearrangement.
+- **Faster Tab Switching and Keyboard Input:** Reduced repeated theme processing and keyboard reloads during tab switches, and input-language matching work during typing and held-key input on macOS.
+
+### Fixes
+
+- **Correct Arrow Keys after Focus Loss on macOS:** Fixed arrow keys sending unwanted Ctrl+Arrow input after Control was released while rootshell was inactive. Key repeats now stop when the app loses focus, and Ctrl+Arrow repeats cannot spill into another terminal pane (#417).
+- **Login-Shell Compatibility:** Fixed fish and other login-shell compatibility for remote server startup, AI commands, probes and VPN setup. Shell quoting preserves apostrophes and backslashes, and command search paths apply after login profiles load.
+- **Exact Tab Preview Modifiers:** Tab hover previews require the exact configured modifier, avoiding accidental previews with combinations such as Command-Shift.
+- **Local Shell Alias Handling:** In the iPhone, iPad and Apple Vision Pro local shell, aliases for clear, exit and logout now reach the correct handlers.
+- **SSH Key Security Options:** Fixed stray dividers in expanded SSH key security options.
+
 ## 1.0.11-142 - September 4, 2026
 
 ### Tabs
