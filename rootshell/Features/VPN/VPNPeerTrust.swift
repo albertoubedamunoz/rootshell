@@ -22,16 +22,40 @@ enum VPNPeerTrust {
     /// Apple-anchored chain + our team: matches Developer ID, Apple
     /// Development, and App Store signing (subject.OU carries the team ID in
     /// all three), and nothing an attacker can obtain.
-    private nonisolated static let teamRequirement =
-        "anchor apple generic and certificate leaf[subject.OU] = \"D97ZME3ET2\""
+    ///
+    /// Read our own signed build identity, never a value supplied by the peer.
+    /// Missing or malformed configuration must fail closed.
+    private nonisolated static let teamRequirement: String = {
+        guard let team = Bundle.main.object(forInfoDictionaryKey: "RootshellDevelopmentTeam") as? String,
+              team.count == 10,
+              team.utf8.allSatisfy({ (65...90).contains($0) || (48...57).contains($0) }) else {
+            return "never"
+        }
+        return "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\""
+    }()
+
+    /// This process's own org-identifier prefix, recovered from its own bundle
+    /// identifier by stripping whichever product suffix Xcode appended (see
+    /// Configuration/Identity.xcconfig's PRODUCT_BUNDLE_IDENTIFIER
+    /// derivation). Works whether this code is running inside rootshell or
+    /// rootshellvpn, and needs no Info.plist plumbing of its own -- neither
+    /// target's identifier takes a variant suffix, since the China build
+    /// excludes every VPN source file.
+    private nonisolated static let orgIdentifierPrefix: String = {
+        guard let id = Bundle.main.bundleIdentifier else { return "com.kk2" }
+        for suffix in [".rootshellvpn", ".rootshell"] where id.hasSuffix(suffix) {
+            return String(id.dropLast(suffix.count))
+        }
+        return "com.kk2"
+    }()
 
     /// The Catalyst app — the only legitimate control-socket client.
     nonisolated static let appClientRequirement =
-        "identifier \"com.kk2.rootshell\" and \(teamRequirement)"
+        "identifier \"\(orgIdentifierPrefix).rootshell\" and \(teamRequirement)"
 
     /// The VPN host agent — the only legitimate control-socket server.
     nonisolated static let hostServerRequirement =
-        "identifier \"com.kk2.rootshellvpn\" and \(teamRequirement)"
+        "identifier \"\(orgIdentifierPrefix).rootshellvpn\" and \(teamRequirement)"
 
     /// True when the process on the other end of the connected unix socket
     /// satisfies `requirement`. Works from either end (the kernel caches peer
