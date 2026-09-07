@@ -135,6 +135,18 @@ struct RootShellApp: App {
                     // Note: YubiKey connections are now on-demand with yubikit-swift SDK
                     // No need to start listeners - connections are created when needed
 
+                    #if targetEnvironment(macCatalyst) && STANDALONE
+                    // The first shell may immediately use SSH_AUTH_SOCK.
+                    LocalSSHAgentManager.shared.startIfEnabled()
+                    #endif
+
+                    // SwiftUI's window task runs before the terminal is ready.
+                    // Keep appearance, bookmarks, and notification categories above
+                    // immediate, but let session creation precede cache/network
+                    // maintenance on every platform. The gate has a one-second
+                    // fallback for launches without a successful terminal session.
+                    await LaunchMaintenanceGate.shared.wait()
+
                     // Check current authorization status without requesting
                     await NotificationManager.shared.updateAuthorizationStatus()
                     // Log diagnostic info
@@ -157,10 +169,6 @@ struct RootShellApp: App {
                     if MCPServer.shared.config.isEnabled && !MCPServer.shared.isRunning {
                         _ = try? await MCPServer.shared.start()
                     }
-
-                    #if targetEnvironment(macCatalyst) && STANDALONE
-                    LocalSSHAgentManager.shared.startIfEnabled()
-                    #endif
 
                     // Auto-start enabled background tunnels
                     await BackgroundTunnelManager.shared.startEnabledTunnels()

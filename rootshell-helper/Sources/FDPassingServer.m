@@ -10,6 +10,7 @@
 #import <sys/un.h>
 #import <sys/stat.h>
 #import <unistd.h>
+#import <time.h>
 
 @implementation FDPassingServerImpl
 
@@ -20,8 +21,10 @@
 
     // Retry settings - the Catalyst app may not be listening yet
     // due to race condition between response delivery and socket setup
-    const int maxRetries = 20;
-    const useconds_t retryDelayMicros = 100000;  // 100ms between retries
+    // Preserve the old 19 x 100ms retry window, but don't impose a 100ms
+    // delay when the app binds its socket just after our first connect.
+    const uint64_t deadline = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) + 1900000000ULL;
+    useconds_t retryDelayMicros = 1000;
 
     // Connect to server (created by Catalyst app)
     struct sockaddr_un addr;
@@ -33,7 +36,7 @@
     int sock = -1;
     int lastErrno = 0;
 
-    for (int attempt = 0; attempt < maxRetries; attempt++) {
+    for (int attempt = 0; ; attempt++) {
         // Create socket (fresh for each attempt)
         sock = socket(AF_UNIX, SOCK_STREAM, 0);
         if (sock < 0) {
@@ -69,11 +72,11 @@
             break;  // Non-retryable error
         }
 
-        if (attempt < maxRetries - 1) {
-            NSLog(@"FD sender: connect attempt %d failed (errno=%d), retrying in %dms...",
-                  attempt + 1, lastErrno, retryDelayMicros / 1000);
-            usleep(retryDelayMicros);
-        }
+        uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+        if (now >= deadline) { break; }
+        useconds_t delay = (useconds_t)MIN((deadline - now) / 1000, retryDelayMicros);
+        usleep(delay);
+        retryDelayMicros = MIN(retryDelayMicros * 2, 100000);
     }
 
     if (sock < 0) {

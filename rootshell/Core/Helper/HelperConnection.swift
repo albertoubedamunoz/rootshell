@@ -318,13 +318,19 @@ public class HelperConnection {
             return false
         }
 
-        // Wait for helper to become ready (poll ping for ~2 seconds)
-        for attempt in 1...20 {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        // The helper usually starts in a few milliseconds. Probe promptly,
+        // then back off to avoid busy polling on slow machines. Keep the same
+        // two-second startup allowance, measured with a monotonic clock.
+        let clock = ContinuousClock()
+        let started = clock.now
+        let deadline = started.advanced(by: .seconds(2))
+        var retryDelay: Duration = .milliseconds(5)
+        repeat {
+            try? await Task.sleep(for: min(retryDelay, clock.now.duration(to: deadline)))
 
             do {
                 try await socketConnection.ping()
-                Ghostty.logger.info("Newly launched helper is ready after \(attempt * 100)ms")
+                Ghostty.logger.info("Newly launched helper is ready after \(String(describing: started.duration(to: clock.now)), privacy: .public)")
                 isKnownRunning = true
                 return true
             } catch {
@@ -335,7 +341,8 @@ public class HelperConnection {
                     return false
                 }
             }
-        }
+            retryDelay = min(retryDelay * 2, .milliseconds(100))
+        } while clock.now < deadline
 
         Ghostty.logger.error("Helper launched but not responding after 2s")
         isKnownRunning = false
