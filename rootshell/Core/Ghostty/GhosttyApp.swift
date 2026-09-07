@@ -520,14 +520,13 @@ extension Ghostty {
             let appId = Int(bitPattern: app)
             Self.appInstances[appId] = Weak(value: self)
 
-            // Apply saved theme on startup
-            self.applyCurrentTheme()
-
-            // Apply saved font size on startup
-            self.applyCurrentFontSize()
-
-            // Apply saved font family on startup
-            self.applyCurrentFontFamily()
+            // Every generated config already includes the saved theme, font
+            // size, font family (including nil/default), and other preferences.
+            // Load and deliver it once before creating surfaces instead of
+            // rewriting/reparsing the same file for each appearance setting.
+            let configSP = LaunchSignposts.begin("launch.ghostty.savedConfig")
+            self.reloadGlobalConfig()
+            LaunchSignposts.end("launch.ghostty.savedConfig", configSP)
 
             // Blur is applied per-window by WindowAccessor when it claims each
             // NSWindow, and re-asserted on scene activation — no launch-time

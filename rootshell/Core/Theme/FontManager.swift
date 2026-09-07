@@ -267,10 +267,14 @@ class FontManager: ObservableObject {
         }
     }
 
+    /// Only immutable bundle metadata is cached; custom imports and replacement
+    /// state are captured anew for every loader.
+    private lazy var bundledFontCatalog = FontCatalogLoader.readBundledFonts(at: findFontsDirectory())
+
     /// Capture mutable manager state before crossing to the catalog worker.
     private func makeCatalogLoader() -> FontCatalogLoader {
         FontCatalogLoader(
-            bundledFontsDirectory: findFontsDirectory(),
+            bundledFonts: bundledFontCatalog,
             customFontsDirectory: customFontsDirectory,
             customFontFamilies: customFontFamilies,
             hiddenUtilityFontFamilies: Self.hiddenUtilityFontFamilies,
