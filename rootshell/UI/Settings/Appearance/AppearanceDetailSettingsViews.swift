@@ -130,6 +130,14 @@ struct AppearanceModeSettingsView: View {
                 Text("Apply terminal theme colors to sheets and settings.")
                     .font(.caption)
             }
+
+            Section {
+                SettingToggle(Settings.Theme.imNoFun, title: "I'm no fun")
+                    .themedRow()
+            } footer: {
+                Text("Turn off connection jokes, failure quips, and ASCII failure animations.")
+                    .font(.caption)
+            }
         }
         .themedList()
         .navigationTitle("Appearance Mode")
