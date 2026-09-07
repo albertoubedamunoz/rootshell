@@ -136,7 +136,12 @@ final class VPNAgentBrokerLoop {
         defer { inFlight.remove(challenge.requestID) }
         guard !Task.isCancelled else { return }
 
-        let socketPath = challenge.socketPath
+        // The path was resolved at tunnel start; a tunnel that outlives the
+        // login session then carries a rotated launchd listener.
+        let socketPath = ExternalSSHAgentClient.healedLaunchdListenerPath(challenge.socketPath)
+        if socketPath != challenge.socketPath {
+            log.info("launchd listener rotated; signing via \(socketPath, privacy: .public)")
+        }
         let keyBlob = challenge.keyBlob
         let data = challenge.data
         let flags = challenge.flags

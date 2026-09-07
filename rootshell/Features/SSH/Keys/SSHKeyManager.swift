@@ -639,6 +639,11 @@ class SSHKeyManager: ObservableObject {
         if savedKey.secureEnclaveInfo != nil {
             return try await secureEnclaveVariantAuthenticated(for: savedKey)
         }
+        #if targetEnvironment(macCatalyst) && STANDALONE
+        // Confirms which registered socket serves the key (cached per key
+        // until the registry changes) so the sync resolver below is exact.
+        await ExternalSSHAgentRegistry.shared.verifyAgent(forKeyID: id)
+        #endif
         guard let prep = try preparePrivateKeyLoad(id: id) else {
             return try resolvedHardwareVariant(id: id)
         }
@@ -741,9 +746,9 @@ class SSHKeyManager: ObservableObject {
                 throw LoadError.invalidKeyData
             }
             // Live registry path wins so re-pointing the agent entry fixes
-            // every key imported from it. Stale launchd `$SSH_AUTH_SOCK`
-            // snapshots are healed via the registry resolver.
-            let socketPath = ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo)
+            // every key imported from it; env-backed agents resolve
+            // `$SSH_AUTH_SOCK` at use time.
+            let socketPath = ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo, publicKeyBlob: publicKeyBlob)
             return .externalAgent(ExternalAgentKeyReference(
                 keyID: savedKey.id,
                 socketPath: socketPath,
