@@ -264,6 +264,15 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 isSuggested: false
             ),
             .init(
+                id: "im-no-fun",
+                title: String(localized: "I'm no fun"),
+                subtitle: String(localized: "Appearance Mode"),
+                systemImage: "face.smiling",
+                action: .destination(.appearanceMode),
+                keywords: ["jokes", "quips", "ascii", "animations", "failure", "humor"],
+                isSuggested: false
+            ),
+            .init(
                 id: "background-effect",
                 title: String(localized: "Background Effect"),
                 subtitle: String(localized: "Appearance"),

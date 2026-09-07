@@ -97,6 +97,12 @@ final class InlineFailureAnimator {
     ) {
         stop()
 
+        // Complete immediately so callers still show the error and restore session state.
+        guard !SettingsStore.shared.get(Settings.Theme.imNoFun) else {
+            onComplete()
+            return
+        }
+
         // Refresh theme colors
         themeColors = SpinnerAnimator.ThemeColors.fromThemeManager()
 
