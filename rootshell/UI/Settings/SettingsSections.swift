@@ -1658,6 +1658,8 @@ struct SettingsAboutSection: View {
                 }
                 .themedRow()
 
+                SettingsReviewLink()
+
                 NavigationLink(value: SettingsSearchDestination.acknowledgements) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "doc.text")
