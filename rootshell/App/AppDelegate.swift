@@ -7,7 +7,6 @@
 //
 
 import AppIntents
-import AVFoundation
 import UIKit
 import os.log
 import rootshellVNC
@@ -48,6 +47,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // and must have a valid port the first time it arms.
         MainThreadStackSampler.installOnMainThread()
 
+        // Audio policy has no UserDefaults dependency and can prepare before
+        // unlock. Players join this setup before use; UI startup can continue.
+        AppAudioSession.prepare()
+
         // Register volatile UserDefaults defaults BEFORE any scene/view construction.
         // This is safe before unlock — `register(defaults:)` only writes to the volatile
         // registration domain and never touches disk. The persistent migration below
@@ -77,22 +80,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // sweep miss (secure-mode snapshot protection).
         VNCPresentationPolicy.isPresentationProhibited = {
             Ghostty.isSecureDrawProhibitedAtomic
-        }
-
-        // Configure audio session to not interrupt other apps' audio.
-        // Use .playback category with .mixWithOthers option - this is the pattern used by
-        // Twitter/X for video previews and is more reliable than .ambient for video playback.
-        // This must be configured BEFORE any AVPlayer is created.
-        // (No UserDefaults dependency — safe to run before unlock.)
-        do {
-            try AVAudioSession.sharedInstance().setCategory(
-                .playback,
-                mode: .default,
-                options: [.mixWithOthers]
-            )
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            Self.logger.warning("Failed to configure audio session: \(error.localizedDescription)")
         }
 
         SettingsRegistry.shared.assertInvariants()

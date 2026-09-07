@@ -154,6 +154,7 @@ class VideoBackgroundUIView: UIView {
     }
 
     private func completeSetup(asset: AVURLAsset, composition: AVMutableVideoComposition?) {
+        AppAudioSession.ensureConfigured()
         if seamlessLoop {
             completeSeamlessLoopSetup(asset: asset, composition: composition)
         } else {
