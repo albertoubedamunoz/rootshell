@@ -10,7 +10,15 @@ nonisolated struct FontCatalogLoader: Sendable {
     typealias FontFamilyInfo = FontManager.FontFamilyInfo
     typealias CustomFontFamily = FontManager.CustomFontFamily
 
-    let bundledFontsDirectory: URL?
+    /// Bundle resources do not change during a process lifetime. Share their
+    /// parsed names across critical registration and the background catalog.
+    struct BundledFont: Sendable {
+        let url: URL
+        let displayName: String
+        let configName: String
+    }
+
+    let bundledFonts: [BundledFont]
     let customFontsDirectory: URL
     let customFontFamilies: [CustomFontFamily]
     let hiddenUtilityFontFamilies: Set<String>
@@ -20,13 +28,13 @@ nonisolated struct FontCatalogLoader: Sendable {
     private let logger = Logger(subsystem: "com.rootshell", category: "FontManager")
 
     init(
-        bundledFontsDirectory: URL?,
+        bundledFonts: [BundledFont],
         customFontsDirectory: URL,
         customFontFamilies: [CustomFontFamily],
         hiddenUtilityFontFamilies: Set<String>,
         replacedBundledFamilies: Set<String>
     ) {
-        self.bundledFontsDirectory = bundledFontsDirectory
+        self.bundledFonts = bundledFonts
         self.customFontsDirectory = customFontsDirectory
         self.customFontFamilies = customFontFamilies
         self.hiddenUtilityFontFamilies = hiddenUtilityFontFamilies
@@ -59,32 +67,28 @@ nonisolated struct FontCatalogLoader: Sendable {
         )
     }
 
-    func registerBundledFonts(matching families: Set<String>? = nil) {
-        guard let fontsURL = bundledFontsDirectory else {
-            logger.warning("Fonts directory not found in bundle")
-            return
-        }
-
-        let fileManager = FileManager.default
-        var registeredCount = 0
-
-        guard let enumerator = fileManager.enumerator(
+    static func readBundledFonts(at fontsURL: URL?) -> [BundledFont] {
+        guard let fontsURL, let enumerator = FileManager.default.enumerator(
             at: fontsURL,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
-        ) else {
-            logger.error("Failed to create enumerator for fonts directory")
-            return
-        }
-
+        ) else { return [] }
+        var fonts: [BundledFont] = []
         for case let fileURL as URL in enumerator {
-            // Only process TTF and OTF font files
             let ext = fileURL.pathExtension.lowercased()
             guard ext == "ttf" || ext == "otf" else { continue }
+            guard let (displayName, configName) = extractFontInfo(from: fileURL) else { continue }
+            fonts.append(BundledFont(url: fileURL, displayName: displayName, configName: configName))
+        }
+        return fonts
+    }
 
+    func registerBundledFonts(matching families: Set<String>? = nil) {
+        var registeredCount = 0
+        for font in bundledFonts {
+            let fileURL = font.url
             let filename = fileURL.lastPathComponent
-
-            guard let (_, configName) = Self.extractFontInfo(from: fileURL) else { continue }
+            let configName = font.configName
 
             // Skip fonts whose family has been replaced by a custom import
             if replacedBundledFamilies.contains(configName) {
@@ -155,34 +159,21 @@ nonisolated struct FontCatalogLoader: Sendable {
     }
 
     mutating func loadAvailableFamilies() {
-        guard let fontsURL = bundledFontsDirectory else { return }
-
-        let fileManager = FileManager.default
         var familyMap: [String: (displayName: String, configName: String, fontURL: URL)] = [:]
 
-        guard let enumerator = fileManager.enumerator(
-            at: fontsURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else { return }
-
-        for case let fileURL as URL in enumerator {
-            let ext = fileURL.pathExtension.lowercased()
-            guard ext == "ttf" || ext == "otf" else { continue }
-
+        for font in bundledFonts {
+            let fileURL = font.url
             let filename = fileURL.lastPathComponent
+            let familyName = font.displayName
+            let configName = font.configName
+            // Skip UI-only utility fonts and families replaced by custom imports
+            guard !hiddenUtilityFontFamilies.contains(familyName) else { continue }
+            guard !replacedBundledFamilies.contains(configName) else { continue }
 
-            // Extract font family name from the font file
-            if let (familyName, configName) = Self.extractFontInfo(from: fileURL) {
-                // Skip UI-only utility fonts and families replaced by custom imports
-                guard !hiddenUtilityFontFamilies.contains(familyName) else { continue }
-                guard !replacedBundledFamilies.contains(configName) else { continue }
-
-                // Prefer Regular weight for preview
-                let isRegular = filename.contains("Regular")
-                if familyMap[familyName] == nil || isRegular {
-                    familyMap[familyName] = (familyName, configName, fileURL)
-                }
+            // Prefer Regular weight for preview
+            let isRegular = filename.contains("Regular")
+            if familyMap[familyName] == nil || isRegular {
+                familyMap[familyName] = (familyName, configName, fileURL)
             }
         }
 
@@ -358,25 +349,12 @@ nonisolated struct FontCatalogLoader: Sendable {
     }
 
     mutating func reregisterBundledFontsForFamily(_ familyName: String) {
-        guard let fontsURL = bundledFontsDirectory else { return }
-        let fileManager = FileManager.default
-
-        guard let enumerator = fileManager.enumerator(
-            at: fontsURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else { return }
-
-        for case let fileURL as URL in enumerator {
-            let ext = fileURL.pathExtension.lowercased()
-            guard ext == "ttf" || ext == "otf" else { continue }
-
-            if let (_, configName) = Self.extractFontInfo(from: fileURL), configName == familyName {
-                var error: Unmanaged<CFError>?
-                if CTFontManagerRegisterFontsForURL(fileURL as CFURL, .process, &error) {
-                    let filename = fileURL.lastPathComponent
-                    logger.debug("Re-registered bundled font: \(filename)")
-                }
+        for font in bundledFonts where font.configName == familyName {
+            let fileURL = font.url
+            var error: Unmanaged<CFError>?
+            if CTFontManagerRegisterFontsForURL(fileURL as CFURL, .process, &error) {
+                let filename = fileURL.lastPathComponent
+                logger.debug("Re-registered bundled font: \(filename)")
             }
         }
 

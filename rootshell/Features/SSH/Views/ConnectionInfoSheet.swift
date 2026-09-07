@@ -21,21 +21,28 @@ struct ConnectionInfoSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                switch info {
-                case .ssh(let sshInfo):
-                    sshContent(sshInfo)
-                case .mosh(let sshInfo):
-                    moshContent(sshInfo)
-                case .trzsz(let sshInfo, let transportMode, let transportRef):
-                    trzszContent(sshInfo, transportMode: transportMode, transportRef: transportRef)
-                case .local(let shell, let workingDirectory, _):
-                    localContent(shell: shell, workingDirectory: workingDirectory)
-                case .kubernetes(let cluster, let node, _):
-                    kubernetesContent(cluster: cluster, node: node)
-                case .console(let provider, let instance, _):
-                    consoleContent(provider: provider, instance: instance)
-                case .vnc(let vncInfo):
-                    vncContent(vncInfo)
+                if case .tmux(let request, _) = info {
+                    TmuxConnectionInfoSections(request: request)
+                }
+                if let transport = info.transportInfo {
+                    switch transport {
+                    case .ssh(let sshInfo):
+                        sshContent(sshInfo)
+                    case .mosh(let sshInfo):
+                        moshContent(sshInfo)
+                    case .trzsz(let sshInfo, let transportMode, let transportRef):
+                        trzszContent(sshInfo, transportMode: transportMode, transportRef: transportRef)
+                    case .local(let shell, let workingDirectory, _):
+                        localContent(shell: shell, workingDirectory: workingDirectory)
+                    case .kubernetes(let cluster, let node, _):
+                        kubernetesContent(cluster: cluster, node: node)
+                    case .console(let provider, let instance, _):
+                        consoleContent(provider: provider, instance: instance)
+                    case .vnc(let vncInfo):
+                        vncContent(vncInfo)
+                    case .tmux:
+                        EmptyView() // transportInfo unwraps all multiplexer layers.
+                    }
                 }
             }
             .themedList()
@@ -56,7 +63,7 @@ struct ConnectionInfoSheet: View {
 
     /// Extract the IP from the connection info and resolve geo via configured provider.
     private func resolveGeo() async {
-        let sshInfo: SSHConnectionInfo? = switch info {
+        let sshInfo: SSHConnectionInfo? = switch info.transportInfo {
         case .ssh(let i), .mosh(let i), .trzsz(let i, _, _): i
         default: nil
         }
@@ -79,7 +86,7 @@ struct ConnectionInfoSheet: View {
     /// Match the live session's host/IP against cached cloud instances so we can
     /// show device metadata (OS, mesh path, routes) for Tailscale/NetBird hosts.
     private func resolveDevice() {
-        let sshInfo: SSHConnectionInfo? = switch info {
+        let sshInfo: SSHConnectionInfo? = switch info.transportInfo {
         case .ssh(let i), .mosh(let i), .trzsz(let i, _, _): i
         default: nil
         }
@@ -865,7 +872,7 @@ private struct VNCPerformanceSection: View {
 
 // nonisolated so the formatters can be passed as function values to
 // `Optional.map` from the row builders.
-fileprivate nonisolated enum PerfFormat {
+nonisolated enum PerfFormat {
     static func bitrate(_ kbps: Double) -> String {
         if kbps >= 1_000 {
             return String(format: "%.1f Mbps", kbps / 1_000)

@@ -22,6 +22,13 @@ public class CatalystLocalShellSession: TerminalSession {
 
     private let sessionID: UUID
     private let masterFD: Int32
+    private let connectionStartedAt = Date()
+    private let requestedShell: String?
+
+    var connectionInfo: ConnectionInfo? {
+        .local(shell: requestedShell ?? String(localized: "Login shell"),
+               workingDirectory: nil, connectedAt: connectionStartedAt)
+    }
 
     // TerminalSession protocol requirements
     public let pty: TerminalPTY
@@ -146,7 +153,8 @@ public class CatalystLocalShellSession: TerminalSession {
                         let session = CatalystLocalShellSession(
                             sessionID: createResult.sessionID,
                             masterFD: masterFD,
-                            size: size
+                            size: size,
+                            shell: shell
                         )
 
                         // Output monitoring is started by the caller after callbacks are configured
@@ -161,7 +169,8 @@ public class CatalystLocalShellSession: TerminalSession {
         }
     }
 
-    private init(sessionID: UUID, masterFD: Int32, size: TerminalPTY.TerminalSize) {
+    private init(sessionID: UUID, masterFD: Int32, size: TerminalPTY.TerminalSize, shell: String?) {
+        self.requestedShell = shell
         self.sessionID = sessionID
         self.masterFD = masterFD
 

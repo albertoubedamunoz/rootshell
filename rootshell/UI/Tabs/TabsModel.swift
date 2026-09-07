@@ -373,21 +373,37 @@ final class TabModel: Identifiable {
         set { focusedPane = newValue }
     }
 
-    /// Connection info for the Connection Info sheet: the focused VNC pane's,
-    /// else the focused terminal session's. A tmux window tab has no session
-    /// of its own (its panes ride the gateway's control connection), so it
-    /// resolves to the linked gateway terminal's session.
+    /// Resolve the focused pane first, including tmux's transport-independent
+    /// gateway. Projected windows and restored placeholders have no own session.
     var connectionInfo: ConnectionInfo? {
         if let info = (focusedPane as? VNCPaneView)?.connectionInfo {
             return info
         }
-        if let info = focusedTerminal?.session?.connectionInfo {
-            return info
+        let terminal = focusedTerminal
+        if let binding = terminal?.tmuxPaneBinding {
+            return tmuxConnectionInfo(owner: binding.parentUUID,
+                                      windowID: binding.windowId, paneID: binding.paneId)
         }
+        if let terminal, let controller = terminal.tmuxController,
+           !controller.didEnd {
+            return tmuxConnectionInfo(owner: terminal.uuid, windowID: nil, paneID: nil)
+        }
+        if let info = terminal?.session?.connectionInfo { return info }
         if isTmuxWindow, let owner = owningGatewayTerminalUUID {
-            return TmuxWindowRegistry.gatewayView(ownerTerminalUUID: owner)?.session?.connectionInfo
+            return tmuxConnectionInfo(owner: owner, windowID: tmuxWindowId, paneID: nil)
         }
         return nil
+    }
+
+    private func tmuxConnectionInfo(owner: UUID, windowID: Int?, paneID: Int?) -> ConnectionInfo {
+        let gateway = TmuxWindowRegistry.gatewayView(ownerTerminalUUID: owner)
+        return .tmux(TmuxConnectionInfo(
+            gatewayID: owner,
+            controllerID: gateway?.tmuxController?.connectionInfoID,
+            windowID: windowID,
+            paneID: paneID,
+            openedAt: Date()
+        ), transport: gateway?.session?.connectionInfo)
     }
 
     // MARK: - Mirrored State (driven by the focused terminal's @Published properties)
