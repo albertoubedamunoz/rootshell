@@ -8,8 +8,7 @@ final class KeyboardWritingAssistanceButton: KeyboardSymbolButton {
     private var observation: AnyCancellable?
 
     init(sizes: KeyboardSizes) {
-        // The wide Abc glyph needs more horizontal room to retain its intended height.
-        super.init(key: "__writingAssistance__", display: .icon(TerminalWritingAssistanceMode.toolbarIcon), sizes: sizes, iconWidthFraction: 0.8)
+        super.init(key: "__writingAssistance__", display: .icon(TerminalWritingAssistanceMode.toolbarIcon), sizes: sizes)
         isAccessibilityElement = false
         menuButton.translatesAutoresizingMaskIntoConstraints = false
         menuButton.showsMenuAsPrimaryAction = true

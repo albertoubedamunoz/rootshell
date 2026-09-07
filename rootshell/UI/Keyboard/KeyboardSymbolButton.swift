@@ -44,7 +44,7 @@ class KeyboardSymbolButton: KeyboardButton {
 
     // MARK: - Initialization
 
-    init(key: String, display: DisplayType, isWide: Bool = false, sizes: KeyboardSizes = .current(), iconWidthFraction: CGFloat = 0.6) {
+    init(key: String, display: DisplayType, isWide: Bool = false, sizes: KeyboardSizes = .current()) {
         self.displayType = display
         self.isWideButton = isWide
 
@@ -56,7 +56,7 @@ class KeyboardSymbolButton: KeyboardButton {
 
         super.init(key: key, sizes: sizes)
 
-        setupDisplay(iconWidthFraction: iconWidthFraction)
+        setupDisplay()
 
         // Register for trait changes (iOS 17+ replacement for traitCollectionDidChange)
         registerForTraitChanges([UITraitUserInterfaceStyle.self, UITraitDisplayScale.self]) { (self: KeyboardSymbolButton, _: UITraitCollection) in
@@ -76,13 +76,13 @@ class KeyboardSymbolButton: KeyboardButton {
 
     // MARK: - Setup
 
-    private func setupDisplay(iconWidthFraction: CGFloat) {
+    private func setupDisplay() {
         switch displayType {
         case .text(let text):
             setupTextDisplay(text)
 
         case .icon(let systemName):
-            setupIconDisplay(systemName, widthFraction: iconWidthFraction)
+            setupIconDisplay(systemName)
 
         case .dualText(let primary, let secondary):
             setupDualTextLayerDisplay(primary: primary, secondary: secondary)
@@ -113,7 +113,7 @@ class KeyboardSymbolButton: KeyboardButton {
         iconView.image = UIImage(systemName: systemName, withConfiguration: config)
     }
 
-    private func setupIconDisplay(_ systemName: String, widthFraction: CGFloat) {
+    private func setupIconDisplay(_ systemName: String) {
         let config = UIImage.SymbolConfiguration(pointSize: sizes.button.symbolSize, weight: .medium)
         let imageView = UIImageView(image: UIImage(systemName: systemName, withConfiguration: config))
         imageView.contentMode = .scaleAspectFit
@@ -124,7 +124,7 @@ class KeyboardSymbolButton: KeyboardButton {
         NSLayoutConstraint.activate([
             imageView.centerXAnchor.constraint(equalTo: centerXAnchor),
             imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            imageView.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: widthFraction),
+            imageView.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.6),
             imageView.heightAnchor.constraint(lessThanOrEqualTo: heightAnchor, multiplier: 0.6)
         ])
 
