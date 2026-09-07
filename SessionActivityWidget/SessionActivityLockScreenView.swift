@@ -41,11 +41,6 @@ struct SessionActivityLockScreenView: View {
         isTinted ? AnyShapeStyle(.primary) : AnyShapeStyle(.mint)
     }
 
-    /// Attention accent for agents that need the user.
-    private var attentionAccentStyle: AnyShapeStyle {
-        isTinted ? AnyShapeStyle(.primary) : AnyShapeStyle(.orange)
-    }
-
     /// Frozen agent counts render muted; same tone as the subtitle.
     private var mutedAgentStyle: AnyShapeStyle {
         AnyShapeStyle(subtitleStyle)
@@ -145,17 +140,6 @@ struct SessionActivityLockScreenView: View {
                 Label(AgentCountsText.agents(state.agentTotalCount), systemImage: "sparkles")
                     .font(.caption2)
                     .foregroundStyle(state.agentCountsFrozen ? mutedAgentStyle : agentAccentStyle)
-                if state.agentAttentionCount > 0 {
-                    Label(AgentCountsText.needAttention(state.agentAttentionCount), systemImage: "exclamationmark.bubble.fill")
-                        .font(.caption2)
-                        .foregroundStyle(state.agentCountsFrozen ? mutedAgentStyle : attentionAccentStyle)
-                }
-                if state.agentCountsFrozen {
-                    Text(AgentCountsText.updatesPaused)
-                        .font(.caption2)
-                        .foregroundStyle(mutedAgentStyle)
-                        .lineLimit(1)
-                }
             }
 
             Spacer()
@@ -230,6 +214,14 @@ struct SessionActivityLockScreenView: View {
             // Session type badges + timer
             if hasSessions || hasAgents {
                 sessionBadges(spacing: 8)
+            }
+
+            // Agent detail gets the full width. Keeping the attention and
+            // frozen-state phrases out of the badge row prevents them from
+            // wrapping into several narrow columns beside the timer.
+            if hasAgents {
+                AgentSummaryLine(state: state, mutedStyle: mutedAgentStyle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // VPN section — full width below
@@ -433,6 +425,11 @@ struct SessionActivityLockScreenView: View {
             // Session type badges + timer (tighter spacing)
             if hasSessions || hasAgents {
                 sessionBadges(spacing: 6)
+            }
+
+            if hasAgents {
+                AgentSummaryLine(state: state, font: .caption2, mutedStyle: mutedAgentStyle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // VPN section — condensed to 2 rows (header+host merged, traffic row)

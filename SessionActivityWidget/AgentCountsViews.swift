@@ -62,6 +62,9 @@ struct AgentSummaryLine: View {
         if state.agentIdleCount > 0 {
             parts.append(AgentCountsText.idle(state.agentIdleCount))
         }
+        if state.agentCountsFrozen {
+            parts.append(AgentCountsText.updatesPaused)
+        }
         return parts
     }
 
@@ -81,16 +84,8 @@ struct AgentSummaryLine: View {
                 .font(font)
                 .foregroundStyle(state.agentCountsFrozen ? mutedStyle : AnyShapeStyle(.primary))
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .truncationMode(.tail)
-            if state.agentCountsFrozen {
-                Text("\u{00B7}")
-                    .font(font)
-                    .foregroundStyle(mutedStyle)
-                Text(AgentCountsText.updatesPaused)
-                    .font(font)
-                    .foregroundStyle(mutedStyle)
-                    .lineLimit(1)
-            }
         }
     }
 }

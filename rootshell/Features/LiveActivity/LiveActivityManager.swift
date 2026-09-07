@@ -62,6 +62,9 @@ class LiveActivityManager {
             if !isEnabled {
                 endActivity()
             } else {
+                if isAgentInfoEnabled {
+                    refreshAgentCountsCache()
+                }
                 reconcileActivityLifecycle(reason: "feature enabled")
             }
         }
@@ -309,6 +312,7 @@ class LiveActivityManager {
         } else if let primary = orphans.first(where: { Self.isAdoptableActivityState($0.activityState) }) {
             Self.logger.info("Adopting orphaned Live Activity \(primary.id) from previous launch")
             currentActivity = primary
+            lastPublishedState = primary.content.state
             isActivityActive = true
             // activityStartDate isn't recoverable from ActivityKit; leave it
             // nil so the next updateActivity / startActivity uses Date(). The
@@ -426,6 +430,9 @@ class LiveActivityManager {
     func reconcileAfterActivation() {
         let start = CFAbsoluteTimeGetCurrent()
         LifecycleDebugLogger.shared.checkpoint("LiveActivity.reconcile.enter")
+        if isAgentInfoEnabled {
+            refreshAgentCountsCache()
+        }
         syncVPNStateFromWidgetState(reason: "activation")
         reconcileActivityLifecycle(reason: "app activation")
         LifecycleDebugLogger.shared.checkpoint("LiveActivity.reconcile.exit",
@@ -1098,6 +1105,7 @@ class LiveActivityManager {
 
         Self.logger.info("Adopting existing Live Activity \(primary.id) during lifecycle reconciliation")
         currentActivity = primary
+        lastPublishedState = primary.content.state
         isActivityActive = true
         observeActivityState()
         startInfoPollingDeferred()
@@ -1234,6 +1242,10 @@ class LiveActivityManager {
     /// in `MainView+Lifecycle`). The foreground reconcile clears the flag.
     func handleAppBackgrounded() {
         cancelAgentPublish()
+        // A retry has no activity to freeze yet. Let foreground activation
+        // re-drive the request instead of creating an unfrozen activity after
+        // the one background-edge callback has already passed.
+        cancelStartRetry(resetAttempts: true)
         guard let activity = currentActivity,
               var state = lastPublishedState,
               state.agentTotalCount > 0,
@@ -1373,6 +1385,14 @@ class LiveActivityManager {
             await MainActor.run {
                 guard let self else { return }
                 self.startRetryTask = nil
+
+                // Cancellation can race with this MainActor hop. Re-check the
+                // lifecycle at fire time so a retry can never start from the
+                // background; activation will reconcile cached state again.
+                guard !self.shouldSkipInfoPollingForLifecycle else {
+                    LifecycleDebugLogger.shared.bumpSuppression("liveActivity_startRetry")
+                    return
+                }
 
                 guard self.currentActivity == nil,
                       self.hasEligibleActivityContent,
