@@ -88,6 +88,13 @@ final class RFTab {
     /// Defaults to ~/Documents. Set to nil to allow unrestricted navigation.
     var rootPath: String?
 
+    /// The parent column has no navigable entries at the local home boundary.
+    var isAtRestrictedHome: Bool {
+        guard !dataSource.isRemote, let rootPath else { return false }
+        return (currentDir.path as NSString).standardizingPath
+            == (rootPath as NSString).standardizingPath
+    }
+
     /// Per-tab bookmarks (character key → absolute path).
     var bookmarks: [Character: String] = [:]
 
