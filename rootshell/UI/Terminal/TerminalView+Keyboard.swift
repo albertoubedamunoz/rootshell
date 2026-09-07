@@ -2384,6 +2384,10 @@ extension Ghostty.TerminalView {
         performActionAsync("scroll_to_bottom")
     }
 
+    @objc func menuToggleQuickSettings(_ sender: Any?) {
+        NotificationCenter.default.post(name: .toggleQuickSettings, object: self)
+    }
+
     @objc func menuToggleThemePicker(_ sender: Any?) {
         NotificationCenter.default.post(name: .toggleThemePicker, object: self)
     }

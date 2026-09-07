@@ -314,6 +314,11 @@ extension MainView {
             // tmux -CC window placeholder restored from disk, awaiting reconcile
             tmuxReconnectingOverlay
 
+            if showQuickSettingsOverlay {
+                QuickSettingsHUD(isPresented: $showQuickSettingsOverlay)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
             // Theme picker overlay
             themePickerOverlayView(isPresented: $showThemePickerOverlay)
 
