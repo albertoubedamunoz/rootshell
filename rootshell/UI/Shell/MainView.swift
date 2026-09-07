@@ -279,6 +279,7 @@ struct MainView: View {
     
     // Theme picker overlay state
     @State var showThemePickerOverlay = false
+    @State var showQuickSettingsOverlay = false
 
     // Clipboard manager overlay state
     @State var showClipboardManager = false

@@ -135,6 +135,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     // Shell Operations
     /// Open settings
     case open_settings = "open_settings"
+    case toggle_quick_settings = "toggle_quick_settings"
     /// Open host browser
     case browse_hosts = "browse_hosts"
     /// Open profiles browser
@@ -311,7 +312,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .toggle_auto_redact:
             return .view
 
-        case .open_settings, .browse_hosts, .browse_profiles, .toggle_ai_agent, .toggle_voice_agent:
+        case .open_settings, .toggle_quick_settings, .browse_hosts, .browse_profiles, .toggle_ai_agent, .toggle_voice_agent:
             return .shell
 
         case .select_all, .clear_screen, .reset_terminal,
@@ -374,6 +375,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .toggle_split_zoom: return String(localized: "Toggle Split Zoom", comment: "Keybind action")
         case .equalize_splits: return String(localized: "Equalize Splits", comment: "Keybind action")
 
+        case .toggle_quick_settings: return String(localized: "Quick Settings")
         case .open_settings: return String(localized: "Settings", comment: "Keybind action: open settings")
         case .browse_hosts: return String(localized: "Browse Hosts", comment: "Keybind action")
         case .browse_profiles: return String(localized: "Browse Profiles", comment: "Keybind action")
@@ -461,6 +463,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .equalize_splits: return .equalizeSplits
 
         case .open_settings: return .openSettings
+        case .toggle_quick_settings: return .toggleQuickSettings
         case .browse_hosts: return .browseHosts
         case .browse_profiles: return .browseProfiles
         case .toggle_ai_agent: return .toggleAIAgent
@@ -596,7 +599,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .select_tab_4, .select_tab_5, .select_tab_6, .select_tab_7, .select_tab_8,
              .select_tab_9, .split_right, .split_down, .navigate_split_left,
              .navigate_split_right, .navigate_split_up, .navigate_split_down,
-             .toggle_split_zoom, .equalize_splits, .open_settings, .browse_hosts,
+             .toggle_split_zoom, .equalize_splits, .open_settings, .toggle_quick_settings, .browse_hosts,
              .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_tab_bar, .toggle_group_mode, .toggle_transparency,
              .toggle_titlebar, .toggle_auto_redact,
              .toggle_background_effect, .toggle_tab_switcher, .toggle_tab_expose, .show_tmux_sessions,

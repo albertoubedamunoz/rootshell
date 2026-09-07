@@ -420,8 +420,31 @@ extension MainView {
         }
         #endif
 
+        observerBag.observeOnMainActor(.toggleQuickSettings) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            if self.showQuickSettingsOverlay {
+                self.showQuickSettingsOverlay = false
+            } else {
+                // Avoid presenting through a modal workflow. Floating tools yield
+                // their keyboard ownership before Quick Settings takes focus.
+                self.showThemePickerOverlay = false
+                self.showClipboardManager = false
+                guard !self.isSheetPresentedBesidesFloatingTabSidebar else { return }
+                if !self.tabSidebarIsDocked { self.showingTabSwitcher = false }
+                if self.terminals.indices.contains(self.selectedTabIndex) {
+                    for terminal in self.terminals[self.selectedTabIndex].splitTree.terminalLeaves {
+                        terminal.closeSearch()
+                        terminal.showComposeOverlay = false
+                    }
+                }
+                self.showQuickSettingsOverlay = true
+                self.setOverlayOwnsKeyboardForAllTerminals(true)
+            }
+        }
+
         observerBag.observeOnMainActor(.toggleThemePicker) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
+            self.showQuickSettingsOverlay = false
             self.showThemePickerOverlay.toggle()
         }
 
