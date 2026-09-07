@@ -281,13 +281,13 @@ struct PushPairingView: View {
     }
 
     private static var focusedRemoteHost: String? {
-        guard let connectionInfo = PushCommandSection.focusedConnectionInfo else { return nil }
+        guard let connectionInfo = PushCommandSection.focusedConnectionInfo?.transportInfo else { return nil }
         switch connectionInfo {
         case .ssh(let info), .mosh(let info):
             return info.host
         case .trzsz(let info, _, _):
             return info.host
-        case .local, .kubernetes, .console, .vnc:
+        case .local, .kubernetes, .console, .vnc, .tmux:
             return nil
         }
     }

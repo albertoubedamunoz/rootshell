@@ -171,6 +171,7 @@ extension TmuxController {
             reloadHiddenWindows(forSessionId: id)
         }
         if changed {
+            invalidateConnectionInfoSession()
             // Mirror onto the gateway tab so the sidebar's gateway header
             // re-renders; TmuxController is not observable. `ownedGatewayTab`
             // (not `resolvedGatewayTab`) so this can never land on ANOTHER

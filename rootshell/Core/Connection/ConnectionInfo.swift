@@ -16,9 +16,12 @@ enum ConnectionInfo: Identifiable, Sendable {
     case mosh(SSHConnectionInfo)
     case trzsz(SSHConnectionInfo, transportMode: String? = nil, transportRef: TSSHTransportRef? = nil)
     case vnc(VNCConnectionInfo)
+    indirect case tmux(TmuxConnectionInfo, transport: ConnectionInfo?)
 
     var id: String {
         switch self {
+        case .tmux(let info, _):
+            return "tmux-\(info.gatewayID)-\(info.controllerID?.uuidString ?? "pending")-\(info.windowID.map(String.init) ?? "gateway")-\(info.paneID.map(String.init) ?? "none")"
         case .local: return "local"
         case .ssh(let info): return "ssh-\(info.host)-\(info.port)"
         case .kubernetes(let cluster, let node, _): return "k8s-\(cluster)-\(node)"
@@ -32,6 +35,7 @@ enum ConnectionInfo: Identifiable, Sendable {
     /// Display name for the connection type
     var typeName: String {
         switch self {
+        case .tmux: return "tmux Control Mode"
         case .local: return "Local Shell"
         case .ssh: return "SSH"
         case .kubernetes: return "Kubernetes"
@@ -45,6 +49,7 @@ enum ConnectionInfo: Identifiable, Sendable {
     /// The connection start time
     var connectedAt: Date {
         switch self {
+        case .tmux(let info, let transport): return transport?.connectedAt ?? info.openedAt
         case .local(_, _, let date): return date
         case .ssh(let info): return info.connectedAt
         case .kubernetes(_, _, let date): return date
@@ -55,9 +60,16 @@ enum ConnectionInfo: Identifiable, Sendable {
         }
     }
 
+    /// The actual transport beneath any multiplexer layer.
+    var transportInfo: ConnectionInfo? {
+        if case .tmux(_, let transport) = self { return transport?.transportInfo }
+        return self
+    }
+
     /// User-entered or provider-supplied host suitable for clipboard actions.
     var copyableHostname: String? {
         switch self {
+        case .tmux(_, let transport): return transport?.copyableHostname
         case .ssh(let info), .mosh(let info), .trzsz(let info, _, _):
             return info.host
         case .vnc(let info):
@@ -70,6 +82,7 @@ enum ConnectionInfo: Identifiable, Sendable {
     /// Resolved address for live SSH-family sessions, when available.
     var copyableIPAddress: String? {
         switch self {
+        case .tmux(_, let transport): return transport?.copyableIPAddress
         case .ssh(let info), .mosh(let info), .trzsz(let info, _, _):
             return info.resolvedIP
         case .local, .kubernetes, .console, .vnc:

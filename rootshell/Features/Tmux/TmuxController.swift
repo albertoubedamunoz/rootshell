@@ -247,6 +247,24 @@ import UIKit
 /// because the op batch carries live viewer pointers.
 @MainActor
 final class TmuxController {
+    /// Identifies this live gateway generation, even if its terminal UUID is reused.
+    let connectionInfoID = UUID()
+    private(set) var connectionInfoSessionRevision: UInt64 = 0
+
+    func invalidateConnectionInfoSession() {
+        connectionInfoSessionRevision &+= 1
+    }
+
+    /// Guard the native surface immediately before sampling; a sheet can outlive it.
+    func connectionInfoCounters() -> TmuxConnectionSnapshot.Counters? {
+        guard !didEnd, !isDetaching, !ownerSurfaceFreed else { return nil }
+        var snapshot = ghostty_tmux_debug_snapshot_s()
+        guard ghostty_surface_tmux_debug_snapshot(ownerSurface, &snapshot) else { return nil }
+        return .init(receivedBytes: snapshot.abi_version >= 2 ? snapshot.gw_tmux_put_bytes : nil,
+                     outputEvents: snapshot.total_output_events,
+                     notifications: snapshot.total_notifications)
+    }
+
     private final class WeakController {
         weak var controller: TmuxController?
         init(_ controller: TmuxController) { self.controller = controller }
