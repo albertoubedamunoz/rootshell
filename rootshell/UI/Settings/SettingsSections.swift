@@ -384,8 +384,14 @@ struct SettingsTerminalSection: View {
                         Text(mode.title).tag(mode)
                     }
                 } label: {
-                    Label("Writing Assistance", systemImage: writingAssistance.icon)
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: TerminalWritingAssistanceMode.toolbarIcon)
+                        Text("Writing Assistance")
+                            .layoutPriority(1)
+                        SettingPinTag(Settings.Keyboard.writingAssistance.erased)
+                    }
                 }
+                .pickerStyle(.menu)
                 .themedRow()
                 .settingContextMenu(Settings.Keyboard.writingAssistance)
 
