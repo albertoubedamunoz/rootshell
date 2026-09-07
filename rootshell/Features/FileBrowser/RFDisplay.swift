@@ -556,6 +556,48 @@ final class RFDisplay {
         }
     }
 
+    /// Draw messages in priority order, wrapping within the column's cell width.
+    /// Short regions retain the headline and first hint before secondary actions.
+    func drawCenteredMessages(_ messages: [String], region: TUIRegion) {
+        guard region.width > 0, region.height > 0 else { return }
+        buffer.fill(row: region.row, col: region.col, width: region.width, height: region.height)
+        var lines: [String] = []
+        for message in messages {
+            var line = ""
+            for word in message.split(whereSeparator: { $0.isWhitespace }) {
+                let candidate = line.isEmpty ? String(word) : line + " " + word
+                if RFWidth.width(of: candidate) <= region.width {
+                    line = candidate
+                    continue
+                }
+                if !line.isEmpty {
+                    lines.append(line)
+                    line = ""
+                }
+                // Also handle a word wider than the region without splitting a glyph.
+                for character in word {
+                    if RFWidth.width(of: line) + RFWidth.width(of: character) > region.width {
+                        if !line.isEmpty { lines.append(line) }
+                        line = ""
+                    }
+                    if RFWidth.width(of: character) <= region.width {
+                        line.append(character)
+                    }
+                }
+            }
+            if !line.isEmpty { lines.append(line) }
+        }
+
+        let visibleLines = lines.prefix(region.height)
+        let startRow = region.row + (region.height - visibleLines.count) / 2
+        let style = TUIStyle(fg: theme.dimmed)
+        for (offset, line) in visibleLines.enumerated() {
+            let col = region.col + max(0, (region.width - RFWidth.width(of: line)) / 2)
+            buffer.writeTruncated(row: startRow + offset, col: col, line, style: style,
+                                  maxWidth: region.width)
+        }
+    }
+
     /// Draw a centered message in a region (for empty/binary/loading states).
     func drawCenteredMessage(_ message: String, region: TUIRegion) {
         buffer.fill(row: region.row, col: region.col, width: region.width, height: region.height)
