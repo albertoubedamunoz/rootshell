@@ -33,7 +33,7 @@ enum VPNCredentialResolverError: LocalizedError {
 enum VPNCredentialResolver {
     private static let logger = Logger(subsystem: "com.rootshell", category: "VPNCredentialResolver")
 
-    private static let accessGroup = "D97ZME3ET2.com.kk2.ghostty-ios"
+    private static let accessGroup = AppIdentifiers.keychainAccessGroup
     private static let privateKeyService = "com.ghostty.ssh.privatekey"
     private static let passphraseService = "com.ghostty.ssh.passphrase"
     private static let passwordService = "com.ghostty.ssh.password"
@@ -96,8 +96,7 @@ enum VPNCredentialResolver {
                 guard let publicKeyBlob = savedKey.publicKeyBlob else {
                     throw VPNCredentialResolverError.agentKeyBlobMissing
                 }
-                let socketPath = ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agentInfo.agentID)
-                    ?? agentInfo.socketPath
+                let socketPath = ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo, publicKeyBlob: publicKeyBlob)
                 return .agentKey(
                     publicKeyBlob: publicKeyBlob,
                     algorithm: agentInfo.algorithm,

@@ -18,7 +18,7 @@ import os.log
 @MainActor
 final class VPNTunnelController {
     static let shared = VPNTunnelController()
-    static let providerBundleID = "com.kk2.rootshellvpn.tunnel"
+    static let providerBundleID = SystemExtensionController.extensionBundleID
     static let serverAddress = "rootshell VPN"
 
     private let log = Logger(subsystem: "com.kk2.rootshellvpn.host", category: "manager")

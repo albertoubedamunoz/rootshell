@@ -143,9 +143,13 @@ nonisolated extension Settings {
             "live_activity_wifi_info_enabled", default: false, group: .liveActivity,
             configKey: "live-activity-wifi-info-enabled",
             title: String(localized: "Live Activity WiFi Info", comment: "Setting title"))
+        static let agents = SettingKey(
+            "live_activity_agents_enabled", default: false, group: .liveActivity,
+            configKey: "live-activity-agents-enabled",
+            title: String(localized: "Live Activity Coding Agents", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
-            enabled.erased, sessionFilter.erased, networkInfo.erased, wifiInfo.erased,
+            enabled.erased, sessionFilter.erased, networkInfo.erased, wifiInfo.erased, agents.erased,
         ]
     }
 

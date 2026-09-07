@@ -221,6 +221,14 @@ final class MacVPNController {
             jump.trustedCAKeys = jumpCAKeys.isEmpty ? nil : jumpCAKeys
             snapshot.jumpHost = jump
         }
+        // Agent keys resolve exactly only after a verification probe; the
+        // credential resolver itself is synchronous.
+        let keyIDs = [snapshot.auth.keyID, snapshot.jumpHost?.auth.keyID].compactMap { $0 }
+        await withTaskGroup(of: Void.self) { group in
+            for keyID in keyIDs {
+                group.addTask { await ExternalSSHAgentRegistry.shared.verifyAgent(forKeyID: keyID) }
+            }
+        }
         let resolved = try VPNCredentialResolver.resolve(snapshot: snapshot)
         let payload = try VPNCredentialResolver.encode(resolved)
 

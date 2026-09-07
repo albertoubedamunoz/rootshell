@@ -173,6 +173,37 @@ nonisolated final class ExternalSSHAgentClient: Sendable {
         return (try? client.listIdentities(timeout: timeout)) != nil
     }
 
+    /// True if a live agent at `socketPath` advertises `publicKeyBlob`.
+    static func serves(publicKeyBlob: Data, socketPath: String, timeout: TimeInterval = 1.5) -> Bool {
+        let client = ExternalSSHAgentClient(socketPath: socketPath)
+        guard let identities = try? client.listIdentities(timeout: timeout) else { return false }
+        return identities.contains { $0.publicKeyBlob == publicKeyBlob }
+    }
+
+    // MARK: - launchd listener
+
+    /// launchd's per-login `$SSH_AUTH_SOCK` listener path, which rotates on
+    /// every login while always fronting the same system ssh-agent.
+    static func isLaunchdListenerPath(_ path: String) -> Bool {
+        path.contains("/com.apple.launchd.") && path.hasSuffix("/Listeners")
+    }
+
+    /// Prefer the variable's current launchd listener when it exists: same
+    /// agent, new address. The stored listener may still exist as a dead
+    /// socket file, so its presence must not prevent rotation. Stable,
+    /// non-launchd paths on either side are never substituted.
+    static func healedLaunchdListenerPath(
+        _ path: String,
+        environmentVariable: String = "SSH_AUTH_SOCK",
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> String {
+        guard isLaunchdListenerPath(path),
+              let live = environment[environmentVariable],
+              isLaunchdListenerPath(live),
+              FileManager.default.fileExists(atPath: live) else { return path }
+        return live
+    }
+
     // MARK: - Transport
 
     private func roundTrip(

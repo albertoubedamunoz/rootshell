@@ -307,9 +307,10 @@ final class AgentAttentionCenter {
         }
         setCoreEventsEnabled(true)
         burstScansRemaining = Tuning.initialBurstScans
-        reconcile(scheduleInitialScans: true)
+        let topologyChanged = reconcile(scheduleInitialScans: true)
         seenPass()
         publish(now: Date())
+        if topologyChanged { notifyAggregateConsumers() }
         rescheduleTimer()
     }
 
@@ -361,9 +362,13 @@ final class AgentAttentionCenter {
             publishPresentationRollups(now: Date())
             return
         }
-        reconcile(scheduleInitialScans: true)
+        let topologyChanged = reconcile(scheduleInitialScans: true)
         seenPass()
         publish(now: Date())
+        // Removing a whole tab/window drops its monitors before `publish`, so
+        // no surviving presentation row necessarily changes. Still refresh
+        // consumers whose census is derived from the live tab registry.
+        if topologyChanged { notifyAggregateConsumers() }
         rescheduleTimer()
         // Panes appearing or closing changes which hosts hold live agents,
         // even when no display state moved in the publish above.
@@ -397,7 +402,7 @@ final class AgentAttentionCenter {
         wasEnabled = true
         setCoreEventsEnabled(true)
         burstScansRemaining = Tuning.initialBurstScans
-        reconcile(scheduleInitialScans: false)
+        let topologyChanged = reconcile(scheduleInitialScans: false)
         let now = Date()
         for paneUUID in monitors.keys {
             scanDeadlines.schedule(paneUUID, at: now)
@@ -405,6 +410,7 @@ final class AgentAttentionCenter {
         refreshRelevantRepositoryFacts(now: now)
         seenPass()
         publish(now: now)
+        if topologyChanged { notifyAggregateConsumers() }
         rescheduleTimer()
     }
 
@@ -1332,6 +1338,29 @@ final class AgentAttentionCenter {
         return counts
     }
 
+    /// Strict coding-agent census for the Live Activity. Unlike
+    /// `globalAgentCounts`, which rolls up every attention card, this counts
+    /// only panes whose detector identified an agent (`detectedAgentRow`,
+    /// category `.agent`): task rows and OSC-only Activity rows are skipped.
+    /// The bucket comes from the composed `agentRow` status so an OSC
+    /// progress overlay counts the way the sidebar shows it. One entry per
+    /// pane; Claude fleet sub-agents ride along with their session.
+    func codingAgentCounts() -> CodingAgentCounts {
+        var counts = CodingAgentCounts()
+        for model in TmuxWindowRegistry.allTabsModels() {
+            for tab in model.tabs {
+                for pane in tab.splitTree {
+                    guard let detected = pane.presentation.detectedAgentRow,
+                          detected.category == .agent,
+                          let row = pane.presentation.agentRow
+                    else { continue }
+                    counts.add(row.status)
+                }
+            }
+        }
+        return counts
+    }
+
     /// Live agent providers and the terminal that OWNS each one's connection
     /// (a tmux -CC pane resolves to its gateway). Feeds the usage tracker;
     /// providers without usage support simply do not map.
@@ -1550,9 +1579,13 @@ final class AgentAttentionCenter {
     // MARK: - Reconcile
 
     /// Monitor lifetime is a pure function of the live tab tree.
-    private func reconcile(scheduleInitialScans: Bool) {
+    /// Returns true when panes entered or left the monitored topology. That
+    /// structural change can alter aggregate censuses even if no surviving
+    /// pane's presentation state changes during the following publish pass.
+    private func reconcile(scheduleInitialScans: Bool) -> Bool {
         var live: Set<UUID> = []
         let now = Date()
+        var topologyChanged = false
         for model in TmuxWindowRegistry.allTabsModels() {
             for tab in model.tabs {
                 // tmux -CC gateway tabs render control-mode chrome,
@@ -1563,6 +1596,7 @@ final class AgentAttentionCenter {
                     if let monitor = monitors[terminal.uuid] {
                         monitor.updateOwners(tab: tab, tabsModel: model)
                     } else {
+                        topologyChanged = true
                         monitors[terminal.uuid] = AgentPaneMonitor(
                             paneUUID: terminal.uuid,
                             terminal: terminal,
@@ -1577,11 +1611,13 @@ final class AgentAttentionCenter {
             }
         }
         for uuid in monitors.keys where !live.contains(uuid) {
+            topologyChanged = true
             monitors.removeValue(forKey: uuid)
             scanDeadlines.cancel(uuid)
             livenessDeadlines.cancel(uuid)
             AgentAttentionNotificationRouter.paneRemoved(uuid)
         }
+        return topologyChanged
     }
 
     // MARK: - Heavy scan (terminal mutex, budgeted)
@@ -2072,6 +2108,7 @@ final class AgentAttentionCenter {
             // Agent identities may have appeared or moved hosts; the usage
             // center debounces, so this is a cheap no-op at steady state.
             AgentUsageCenter.shared.presenceMayHaveChanged()
+            notifyAggregateConsumers()
         }
     }
 
@@ -2082,6 +2119,16 @@ final class AgentAttentionCenter {
         guard !Ghostty.isAppBackgroundedAtomic else { return }
         guard updatePresentationRollups(now: now) else { return }
         revision &+= 1
+        notifyAggregateConsumers()
+    }
+
+    /// Consumers that read the census instead of observing per-tab models.
+    /// Runs on the main actor after the presentation rollups have settled and
+    /// only reads them, so nothing here can re-enter the publish pass.
+    private func notifyAggregateConsumers() {
+        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+        LiveActivityManager.shared.agentCountsMayHaveChanged()
+        #endif
     }
 
     /// Compare-and-write pass shared by the full detector publisher and the
