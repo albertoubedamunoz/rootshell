@@ -90,6 +90,7 @@ class SoundManager: ObservableObject {
     // MARK: - Audio Session
 
     private func configurAudioSession() {
+        AppAudioSession.ensureConfigured()
         #if !targetEnvironment(macCatalyst)
         do {
             let session = AVAudioSession.sharedInstance()

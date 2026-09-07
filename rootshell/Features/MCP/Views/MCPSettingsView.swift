@@ -81,7 +81,7 @@ struct MCPSettingsView: View {
         } header: {
             SettingGroupHeader("Server", group: .ai)
         } footer: {
-            Text("The MCP server allows AI tools like Claude Code, Codex, and Gemini CLI to execute SSH commands and access cloud resources. New connections require your approval.")
+            Text("The MCP server allows AI tools like Claude Code and Codex to execute SSH commands and access cloud resources. New connections require your approval.")
         }
     }
 
@@ -186,11 +186,6 @@ struct MCPSettingsView: View {
                     cliCommand(
                         title: "OpenAI Codex",
                         command: "codex mcp add rootshell -- nc localhost \(port)"
-                    )
-
-                    cliCommand(
-                        title: "Gemini CLI",
-                        command: "gemini mcp add rootshell nc localhost \(port)"
                     )
                 }
                 .themedRow()

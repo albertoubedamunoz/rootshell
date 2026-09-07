@@ -1,6 +1,6 @@
 # MCP Server Integration
 
-The Model Context Protocol (MCP) server in Rootshell allows AI tools like Claude Code, Codex CLI, and Gemini CLI to execute SSH commands and access cloud/Kubernetes resources on your iOS device.
+The Model Context Protocol (MCP) server in Rootshell allows AI tools like Claude Code and Codex CLI to execute SSH commands and access cloud/Kubernetes resources on your iOS device.
 
 ## Quick Start
 
@@ -51,21 +51,6 @@ Edit `~/.codex/config.toml`:
 [mcp_servers.rootshell]
 command = "nc"
 args = ["localhost", "{PORT}"]
-```
-
-### Gemini CLI
-
-Edit `~/.gemini/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "rootshell": {
-      "command": "nc",
-      "args": ["localhost", "{PORT}"]
-    }
-  }
-}
 ```
 
 ## Available Tools

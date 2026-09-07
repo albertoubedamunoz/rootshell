@@ -103,6 +103,7 @@ final class TerminalSessionController {
         session.onReady = { [weak self] in
             Ghostty.logger.info("Session ready")
             LaunchSignposts.markInteractiveIfNeeded()
+            LaunchMaintenanceGate.shared.release()
             self?.host?.sessionDidBecomeReady()
         }
 

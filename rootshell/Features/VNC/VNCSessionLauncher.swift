@@ -48,6 +48,8 @@ enum VNCSessionLauncher {
         onHostKeyValidation: (@Sendable (HostKeyValidationRequest) async -> HostKeyValidationResult)?,
         onCertificateValidation: VNCConfiguration.CertificateValidationHandler?
     ) async throws -> (credentials: VNCCredentials, configuration: VNCConfiguration) {
+        // Finish the initial policy before the package activates remote audio.
+        AppAudioSession.ensureConfigured()
         let credentials = config.toCredentials(password: password)
         var configuration = config.toPackageConfiguration()
         configuration.certificateValidationHandler = onCertificateValidation

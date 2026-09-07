@@ -27,6 +27,7 @@ final class AudioSessionManager {
     /// Activate audio session for voice agent (mic + speaker).
     func activateForVoice() throws {
         #if os(iOS) || os(visionOS)
+        AppAudioSession.ensureConfigured()
         let session = AVAudioSession.sharedInstance()
 
         // Save current state for restoration
