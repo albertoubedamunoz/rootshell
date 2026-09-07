@@ -939,6 +939,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["wifi", "ssid", "live activity"]),
             row("live-activity-network", String(localized: "Network Info"), in: .liveActivity, icon: "network",
                 keywords: ["network", "ip", "live activity"]),
+            row("live-activity-agents", String(localized: "Coding Agents"), in: .liveActivity, icon: "sparkles",
+                keywords: ["agents", "claude", "codex", "coding", "attention", "live activity"]),
 
             // MARK: Clipboard Manager
             row("clipboard-biometrics", String(localized: "Require Face ID / Touch ID to Open"), in: .clipboardManager, icon: "faceid",

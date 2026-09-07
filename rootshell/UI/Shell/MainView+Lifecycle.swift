@@ -617,6 +617,14 @@ extension MainView {
         )
         #endif
 
+        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+        // Agent detection stops with this transition, so the Live Activity's
+        // agent counts become a snapshot: mark them frozen from cached state.
+        // No ActivityKit lookup and no state rebuild here (see the deferral
+        // notes in handleAppForegrounded).
+        LiveActivityManager.shared.handleAppBackgrounded()
+        #endif
+
         // SYNCHRONOUS prelude — these atomic flags are the canonical
         // "skip MainActor work" gates consulted by output handlers, the
         // Trzsz health monitor, the Citadel heartbeat, and the action-callback
