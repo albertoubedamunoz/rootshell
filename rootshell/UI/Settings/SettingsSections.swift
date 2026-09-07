@@ -27,9 +27,7 @@ struct SettingsAppearanceSection: View {
         List {
             Section {
                 if AppIconManager.isSupported {
-                    NavigationLink {
-                        AppIconSettingsView()
-                    } label: {
+                    NavigationLink(value: SettingsSearchDestination.appIcon) {
                         HStack(spacing: 12) {
                             SettingsIcon(systemName: "app.badge")
                             Text(String(localized: "App Icon", comment: "Settings row: app icon picker"))
@@ -48,9 +46,7 @@ struct SettingsAppearanceSection: View {
                     .settingContextMenu(Settings.Theme.appIconVariant)
                 }
 
-                NavigationLink {
-                    ThemeSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.theme) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "paintpalette")
                         VStack(alignment: .leading, spacing: 2) {
@@ -76,9 +72,7 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.theme)
 
-                NavigationLink {
-                    PaletteSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.palette) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "swatchpalette")
                         Text("Colors")
@@ -94,9 +88,7 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.palette)
 
-                NavigationLink {
-                    FontSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.font) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "textformat")
                         Text("Font")
@@ -111,9 +103,7 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.font)
 
-                NavigationLink {
-                    CursorSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.cursor) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "character.cursor.ibeam")
                         Text("Cursor")
@@ -127,9 +117,7 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.cursor)
 
-                NavigationLink {
-                    AppearanceModeSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.appearanceMode) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "circle.lefthalf.filled")
                         Text("Appearance Mode")
@@ -143,9 +131,7 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.theme)
 
-                NavigationLink {
-                    EffectSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.backgroundEffect) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "sparkles")
                         Text("Background Effect")
@@ -159,9 +145,7 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.shaders)
 
-                NavigationLink {
-                    ShaderSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.customShaders) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "cpu")
                         Text("Custom Shaders")
@@ -182,9 +166,7 @@ struct SettingsAppearanceSection: View {
                 .settingGroupContextMenu(.shaders)
 
                 #if targetEnvironment(macCatalyst)
-                NavigationLink {
-                    TransparencySettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.transparency) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "slider.horizontal.below.rectangle")
                         Text("Transparency")
@@ -199,9 +181,7 @@ struct SettingsAppearanceSection: View {
                 .settingGroupContextMenu(.transparency)
                 #endif
 
-                NavigationLink {
-                    WindowSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.window) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "macwindow")
                         Text("Window")
@@ -213,9 +193,7 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.window)
 
-                NavigationLink {
-                    BatterySettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.battery) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "battery.25percent")
                         Text("Battery")
@@ -230,9 +208,7 @@ struct SettingsAppearanceSection: View {
                 .settingGroupContextMenu(.power)
 
                 #if STANDALONE && targetEnvironment(macCatalyst)
-                NavigationLink {
-                    VisorSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.visor) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "rectangle.topthird.inset.filled")
                         Text("Visor")
@@ -312,9 +288,7 @@ struct SettingsTerminalSection: View {
     }
 
     private var terminalTypeRow: some View {
-        NavigationLink {
-            TerminalTypeSettingsView()
-        } label: {
+        NavigationLink(value: SettingsSearchDestination.terminalType) {
             HStack(spacing: 12) {
                 SettingsIcon(systemName: "character.cursor.ibeam")
                 Text("Terminal Type")
@@ -340,9 +314,7 @@ struct SettingsTerminalSection: View {
     }
 
     private var localShellRow: some View {
-        NavigationLink {
-            LocalShellSettingsView()
-        } label: {
+        NavigationLink(value: SettingsSearchDestination.localShell) {
             HStack(spacing: 12) {
                 SettingsIcon(systemName: "apple.terminal")
                 Text("Local Shell")
@@ -400,9 +372,7 @@ struct SettingsTerminalSection: View {
                     .foregroundStyle(.secondary)
                     .themedRow()
 
-                NavigationLink {
-                    KeyboardToolbarSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.toolbarKeys) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "keyboard")
                         Text("Toolbar Keys")
@@ -449,9 +419,7 @@ struct SettingsTerminalSection: View {
 
                 NewTabActionSettingsRow()
 
-                NavigationLink {
-                    KeyboardShortcutsSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.keyboardShortcuts) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "command")
                         Text("Keyboard Shortcuts")
@@ -465,9 +433,7 @@ struct SettingsTerminalSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.keybinds)
 
-                NavigationLink {
-                    ModTapSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.modTap) {
                     ModTapSettingsLabel()
                 }
                 .themedRow()
@@ -481,9 +447,7 @@ struct SettingsTerminalSection: View {
 
             // MARK: - Gestures
             Section {
-                NavigationLink {
-                    SwipeGesturesSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.swipeGestures) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "hand.draw")
                         Text("Swipe Gestures")
@@ -559,9 +523,7 @@ struct SettingsTerminalSection: View {
             // Detection covers every tab type, so this belongs with the
             // terminal settings rather than with the multiplexers.
             Section("Agents & Commands") {
-                NavigationLink {
-                    CodingAgentSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.codingAgents) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "sparkles.rectangle.stack")
                         Text("Coding Agents")
@@ -577,9 +539,7 @@ struct SettingsTerminalSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.codingAgents)
 
-                NavigationLink {
-                    TaskDetectionSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.taskDetection) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "clock.badge.checkmark")
                         Text("Command Detection")
@@ -599,9 +559,7 @@ struct SettingsTerminalSection: View {
 #if !targetEnvironment(macCatalyst)
             // MARK: - Shell
             Section {
-                NavigationLink {
-                    PromptSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.promptAndUsername) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "person.text.rectangle")
                         Text("Prompt & Username")
@@ -619,9 +577,7 @@ struct SettingsTerminalSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.prompt)
 
-                NavigationLink {
-                    BookmarkedLocationsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.bookmarkedLocations) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "bookmark")
                         Text("Bookmarked Locations")
@@ -633,9 +589,7 @@ struct SettingsTerminalSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    LocaleSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.locale) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "globe")
                         Text("Locale")
@@ -652,9 +606,7 @@ struct SettingsTerminalSection: View {
 
                 terminalTypeRow
 
-                NavigationLink {
-                    GeoProviderSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.ipGeolocation) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "location")
                         Text("IP Geolocation")
@@ -701,9 +653,7 @@ struct SettingsTerminalSection: View {
                     rubberBandScrollingToggle
                 }
 
-                NavigationLink {
-                    LocaleSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.locale) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "globe")
                         Text("Locale")
@@ -724,9 +674,7 @@ struct SettingsTerminalSection: View {
                 localShellRow
                 #endif
 
-                NavigationLink {
-                    GeoProviderSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.ipGeolocation) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "location")
                         Text("IP Geolocation")
@@ -776,9 +724,7 @@ struct SettingsConnectionsSection: View {
     var body: some View {
         List {
             Section {
-                NavigationLink {
-                    SSHKeyManagementView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.sshKeys) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "key")
                         Text("SSH Keys")
@@ -796,9 +742,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    GPGKeyManagementView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.gpgKeys) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "lock.shield")
                         Text("GPG Keys")
@@ -817,9 +761,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    SavedPasswordsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.savedPasswords) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "lock")
                         Text("Saved Passwords")
@@ -837,9 +779,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    KnownHostsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.knownHosts) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "checkmark.shield")
                         Text("Known Hosts")
@@ -851,9 +791,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    HostCertificateAuthoritiesView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.hostCertificateAuthorities) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "checkmark.seal")
                         Text("Certificate Authorities")
@@ -865,9 +803,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    HSSConfigSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.sshShortcuts) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "bolt.horizontal")
                         Text("SSH Shortcuts")
@@ -878,9 +814,7 @@ struct SettingsConnectionsSection: View {
                 .themedRow()
 
                 #if targetEnvironment(macCatalyst) && STANDALONE
-                NavigationLink {
-                    LocalSSHAgentSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.localSSHAgent) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "point.3.connected.trianglepath.dotted")
                         Text(String(localized: "Local SSH Agent", comment: "Settings row: local SSH agent"))
@@ -894,9 +828,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    ExternalSSHAgentsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.externalSSHAgents) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "key.radiowaves.forward")
                         Text(String(localized: "SSH Agents", comment: "Settings row: external SSH agents"))
@@ -916,9 +848,7 @@ struct SettingsConnectionsSection: View {
                 .themedRow()
                 #endif
 
-                NavigationLink {
-                    CloudProvidersSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.cloudProviders) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "cloud")
                         Text("Cloud Providers")
@@ -936,9 +866,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    WiFiAPProvidersSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.wifiAPProviders) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "wifi.router")
                         Text("WiFi AP Providers")
@@ -956,9 +884,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    KubernetesSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.kubernetesClusters) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "helm")
                         Text("Kubernetes Clusters")
@@ -976,9 +902,7 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    TunnelSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.backgroundTunnels) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "arrow.triangle.swap")
                         Text("Background Tunnels")
@@ -1002,9 +926,7 @@ struct SettingsConnectionsSection: View {
                 .themedRow()
 
                 #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
-                NavigationLink {
-                    VPNSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.vpn) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "network.badge.shield.half.filled")
                         Text("VPN")
@@ -1028,9 +950,7 @@ struct SettingsConnectionsSection: View {
                 .themedRow()
                 #endif
 
-                NavigationLink {
-                    RoamSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.roam) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "antenna.radiowaves.left.and.right")
                         Text("Roam")
@@ -1044,9 +964,7 @@ struct SettingsConnectionsSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.roam)
 
-                NavigationLink {
-                    ScreenSharingSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.screenSharing) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "display.2")
                         Text("Screen Sharing")
@@ -1056,9 +974,7 @@ struct SettingsConnectionsSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.screenSharing)
 
-                NavigationLink {
-                    SSHTransportSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.sshTransport) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "shield.lefthalf.filled")
                         Text("SSH Transport")
@@ -1068,9 +984,7 @@ struct SettingsConnectionsSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.connections)
 
-                NavigationLink {
-                    MultiplexerSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.multiplexers) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "rectangle.split.2x1")
                         Text("Multiplexers")
@@ -1132,9 +1046,7 @@ struct SettingsAISection: View {
         List {
             Section {
                 #if !CHINA_BUILD
-                NavigationLink {
-                    AIAgentSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.aiConfiguration) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "gearshape")
                         Text("Configuration")
@@ -1154,9 +1066,7 @@ struct SettingsAISection: View {
                 .themedRow()
                 .settingGroupContextMenu(.ai)
 
-                NavigationLink {
-                    AIAgentFontSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.aiTextSize) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "textformat.size")
                         Text("Text Size")
@@ -1170,9 +1080,7 @@ struct SettingsAISection: View {
                 .themedRow()
                 .settingContextMenu(Settings.AI.textSize)
 
-                NavigationLink {
-                    VoiceAgentSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.voiceAgent) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "waveform")
                         Text("Voice Agent")
@@ -1181,9 +1089,7 @@ struct SettingsAISection: View {
                 .themedRow()
                 #endif
 
-                NavigationLink {
-                    MCPSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.mcpServer) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "server.rack")
                         Text("MCP Server")
@@ -1242,9 +1148,7 @@ struct SettingsPrivacySection: View {
     var body: some View {
         List {
             Section {
-                NavigationLink {
-                    CloudSyncSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.iCloudSync) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "arrow.triangle.2.circlepath.icloud")
                         Text("iCloud Sync")
@@ -1262,9 +1166,7 @@ struct SettingsPrivacySection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    BackupRestoreView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.backupRestore) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "archivebox")
                         Text("Backup & Restore")
@@ -1272,9 +1174,7 @@ struct SettingsPrivacySection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    ConfigFileSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.configFile) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "doc.text")
                         Text("Config File")
@@ -1286,9 +1186,7 @@ struct SettingsPrivacySection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    GhosttyConfigImportView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.ghosttyConfigImport) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "square.and.arrow.down.on.square")
                         Text("Import from Ghostty Config")
@@ -1296,9 +1194,7 @@ struct SettingsPrivacySection: View {
                 }
                 .themedRow()
 
-                NavigationLink {
-                    OpenSSHImportView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.openSSHImport) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "key.horizontal")
                         Text("Import from OpenSSH")
@@ -1356,9 +1252,7 @@ struct SettingsPrivacySection: View {
                             .themedRow()
                     }
 
-                    NavigationLink {
-                        LocationDiaryView()
-                    } label: {
+                    NavigationLink(value: SettingsSearchDestination.locationDiary) {
                         HStack(spacing: 12) {
                             SettingsIcon(systemName: "book")
                             Text("View Diary")
@@ -1374,9 +1268,7 @@ struct SettingsPrivacySection: View {
                 }
 
     #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-                NavigationLink {
-                    LiveActivitySettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.liveActivity) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "record.circle")
                         Text("Live Activity")
@@ -1392,9 +1284,7 @@ struct SettingsPrivacySection: View {
     #endif
 #endif
 
-                NavigationLink {
-                    ClipboardManagerSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.clipboardManager) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "list.clipboard")
                         Text("Clipboard Manager")
@@ -1408,9 +1298,7 @@ struct SettingsPrivacySection: View {
                 .themedRow()
                 .settingGroupContextMenu(.clipboard)
 
-                NavigationLink {
-                    AutoRedactSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.autoRedact) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "eye.slash")
                         Text("Auto-Redact")
@@ -1511,9 +1399,7 @@ struct SettingsNotificationsSection: View {
                     .themedRow()
 #endif
 
-                NavigationLink {
-                    PushNotificationSettingsView()
-                } label: {
+                NavigationLink(value: SettingsSearchDestination.pushNotifications) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "lock.shield")
                         Text("Push Notifications")
