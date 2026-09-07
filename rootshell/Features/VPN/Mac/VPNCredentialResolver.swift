@@ -96,8 +96,7 @@ enum VPNCredentialResolver {
                 guard let publicKeyBlob = savedKey.publicKeyBlob else {
                     throw VPNCredentialResolverError.agentKeyBlobMissing
                 }
-                let socketPath = ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agentInfo.agentID)
-                    ?? agentInfo.socketPath
+                let socketPath = ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo, publicKeyBlob: publicKeyBlob)
                 return .agentKey(
                     publicKeyBlob: publicKeyBlob,
                     algorithm: agentInfo.algorithm,
