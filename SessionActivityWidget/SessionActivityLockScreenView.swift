@@ -36,12 +36,31 @@ struct SessionActivityLockScreenView: View {
         isTinted ? AnyShapeStyle(.primary) : AnyShapeStyle(.blue)
     }
 
+    /// Agent accent — `.mint` is unreadable on tinted glass.
+    private var agentAccentStyle: AnyShapeStyle {
+        isTinted ? AnyShapeStyle(.primary) : AnyShapeStyle(.mint)
+    }
+
+    /// Attention accent for agents that need the user.
+    private var attentionAccentStyle: AnyShapeStyle {
+        isTinted ? AnyShapeStyle(.primary) : AnyShapeStyle(.orange)
+    }
+
+    /// Frozen agent counts render muted; same tone as the subtitle.
+    private var mutedAgentStyle: AnyShapeStyle {
+        AnyShapeStyle(subtitleStyle)
+    }
+
     private var hasVPN: Bool {
         state.vpnStatus != nil
     }
 
     private var hasSessions: Bool {
         state.sessionCount > 0
+    }
+
+    private var hasAgents: Bool {
+        state.agentTotalCount > 0
     }
 
     private var hasWiFiInfo: Bool {
@@ -78,6 +97,10 @@ struct SessionActivityLockScreenView: View {
             )
             .font(.headline)
             .foregroundStyle(.primary)
+        } else if hasAgents {
+            Text(AgentCountsText.agents(state.agentTotalCount))
+                .font(.headline)
+                .foregroundStyle(.primary)
         } else if hasVPN {
             Text("VPN Connected")
                 .font(.headline)
@@ -117,6 +140,22 @@ struct SessionActivityLockScreenView: View {
                 Label("\(state.roamCount) Roam", systemImage: "antenna.radiowaves.left.and.right")
                     .font(.caption2)
                     .foregroundStyle(vpnAccentStyle)
+            }
+            if hasAgents {
+                Label(AgentCountsText.agents(state.agentTotalCount), systemImage: "sparkles")
+                    .font(.caption2)
+                    .foregroundStyle(state.agentCountsFrozen ? mutedAgentStyle : agentAccentStyle)
+                if state.agentAttentionCount > 0 {
+                    Label(AgentCountsText.needAttention(state.agentAttentionCount), systemImage: "exclamationmark.bubble.fill")
+                        .font(.caption2)
+                        .foregroundStyle(state.agentCountsFrozen ? mutedAgentStyle : attentionAccentStyle)
+                }
+                if state.agentCountsFrozen {
+                    Text(AgentCountsText.updatesPaused)
+                        .font(.caption2)
+                        .foregroundStyle(mutedAgentStyle)
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
@@ -189,13 +228,13 @@ struct SessionActivityLockScreenView: View {
             }
 
             // Session type badges + timer
-            if hasSessions {
+            if hasSessions || hasAgents {
                 sessionBadges(spacing: 8)
             }
 
             // VPN section — full width below
             if hasVPN {
-                if hasSessions {
+                if hasSessions || hasAgents {
                     Divider()
                         .background(.primary.opacity(0.3))
                 }
@@ -227,7 +266,7 @@ struct SessionActivityLockScreenView: View {
 
             // WiFi & Network section
             if hasWiFiInfo || hasNetworkInfo {
-                if hasSessions || hasVPN {
+                if hasSessions || hasAgents || hasVPN {
                     Divider()
                         .background(.primary.opacity(0.3))
                 }
@@ -345,6 +384,14 @@ struct SessionActivityLockScreenView: View {
                         .foregroundStyle(subtitleStyle)
                         .lineLimit(1)
                 }
+
+                // One agent line, only when the tile has room for it.
+                if hasAgents {
+                    ViewThatFits(in: .vertical) {
+                        AgentSummaryLine(state: state, font: .caption2, mutedStyle: mutedAgentStyle)
+                        EmptyView()
+                    }
+                }
             }
 
             Spacer(minLength: 0)
@@ -384,13 +431,13 @@ struct SessionActivityLockScreenView: View {
             }
 
             // Session type badges + timer (tighter spacing)
-            if hasSessions {
+            if hasSessions || hasAgents {
                 sessionBadges(spacing: 6)
             }
 
             // VPN section — condensed to 2 rows (header+host merged, traffic row)
             if hasVPN {
-                if hasSessions {
+                if hasSessions || hasAgents {
                     Divider()
                         .background(.primary.opacity(0.3))
                 }
@@ -425,7 +472,7 @@ struct SessionActivityLockScreenView: View {
 
             // WiFi + Network section
             if hasWiFiInfo || hasNetworkInfo {
-                if hasSessions || hasVPN {
+                if hasSessions || hasAgents || hasVPN {
                     Divider()
                         .background(.primary.opacity(0.3))
                 }

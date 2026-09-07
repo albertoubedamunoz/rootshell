@@ -100,6 +100,17 @@ class LiveActivityManager {
         }
     }
 
+    /// Whether to show detected coding agents (working / need attention / idle)
+    var isAgentInfoEnabled: Bool {
+        didSet {
+            guard ProtectedDataGuard.isAvailable else { return }
+            if !isReloading {
+                SettingsStore.shared.set(Settings.LiveActivity.agents, isAgentInfoEnabled)
+            }
+            handleAgentToggleChanged()
+        }
+    }
+
     @ObservationIgnored
     private var isReloading = false
 
@@ -154,6 +165,32 @@ class LiveActivityManager {
     private var lastRoamCount: Int = 0
     @ObservationIgnored
     private var lastRoamHostNames: [String] = []
+
+    // MARK: - Coding Agent Cached State
+
+    @ObservationIgnored
+    private var lastAgentWorkingCount: Int = 0
+    @ObservationIgnored
+    private var lastAgentAttentionCount: Int = 0
+    @ObservationIgnored
+    private var lastAgentIdleCount: Int = 0
+
+    /// Coalesces bursts of census changes into one publish.
+    @ObservationIgnored
+    private var agentPublishTask: Task<Void, Never>?
+
+    /// The content most recently handed to ActivityKit, so the background
+    /// edge can republish it with `agentCountsFrozen` set without rebuilding
+    /// state (see `handleAppBackgrounded`).
+    @ObservationIgnored
+    private var lastPublishedState: SessionActivityAttributes.ContentState?
+
+    /// Serializes every ActivityKit publish so an older update cannot land
+    /// after a newer one.
+    @ObservationIgnored
+    private var publishChain: Task<Void, Never>?
+
+    private static let agentPublishCoalesceDelay: Duration = .seconds(1)
 
     // MARK: - VPN Cached State
 
@@ -238,9 +275,11 @@ class LiveActivityManager {
         self.sessionFilter = store.get(Settings.LiveActivity.sessionFilter)
         self.isWiFiInfoEnabled = store.get(Settings.LiveActivity.wifiInfo)
         self.isNetworkInfoEnabled = store.get(Settings.LiveActivity.networkInfo)
+        self.isAgentInfoEnabled = store.get(Settings.LiveActivity.agents)
         SettingsRefreshHub.shared.register(keys: [
             Settings.LiveActivity.enabled.name, Settings.LiveActivity.sessionFilter.name,
             Settings.LiveActivity.wifiInfo.name, Settings.LiveActivity.networkInfo.name,
+            Settings.LiveActivity.agents.name,
         ]) { [weak self] keys in self?.reload(keys: keys) }
 
         // Reclaim any orphaned Live Activity from a previous app launch.
@@ -308,6 +347,9 @@ class LiveActivityManager {
         }
         if keys.contains(Settings.LiveActivity.networkInfo.name) {
             isNetworkInfoEnabled = store.get(Settings.LiveActivity.networkInfo)
+        }
+        if keys.contains(Settings.LiveActivity.agents.name) {
+            isAgentInfoEnabled = store.get(Settings.LiveActivity.agents)
         }
     }
 
@@ -780,6 +822,103 @@ class LiveActivityManager {
         }
     }
 
+    // MARK: - Coding Agents
+
+    /// Called by `AgentAttentionCenter` after a publish pass changed the
+    /// aggregate. Re-reads the census and, if a bucket moved, schedules one
+    /// coalesced lifecycle reconcile. Scans run sub-second on the selected
+    /// pane and a permission prompt produces several passes in a row; each
+    /// publish is an XPC to liveactivitiesd and counts against the paired
+    /// Watch's sync budget, so bursts are folded into one update.
+    func agentCountsMayHaveChanged() {
+        guard isEnabled, isAgentInfoEnabled else { return }
+        guard !Ghostty.isAppBackgroundedAtomic else { return }
+        guard refreshAgentCountsCache() else { return }
+        scheduleAgentPublish()
+    }
+
+    /// Detected coding agents shown under the current filter.
+    var displayedAgentCount: Int {
+        guard isAgentInfoEnabled, sessionFilter != .vpnOnly else { return 0 }
+        return lastAgentWorkingCount + lastAgentAttentionCount + lastAgentIdleCount
+    }
+
+    private var shownAgentWorkingCount: Int { isAgentInfoEnabled ? lastAgentWorkingCount : 0 }
+    private var shownAgentAttentionCount: Int { isAgentInfoEnabled ? lastAgentAttentionCount : 0 }
+    private var shownAgentIdleCount: Int { isAgentInfoEnabled ? lastAgentIdleCount : 0 }
+
+    /// Snapshot the census into the cache. Returns true when a bucket changed.
+    @discardableResult
+    private func refreshAgentCountsCache() -> Bool {
+        let counts = AgentAttentionCenter.shared.codingAgentCounts()
+        guard counts.working != lastAgentWorkingCount
+            || counts.attention != lastAgentAttentionCount
+            || counts.idle != lastAgentIdleCount
+        else { return false }
+        lastAgentWorkingCount = counts.working
+        lastAgentAttentionCount = counts.attention
+        lastAgentIdleCount = counts.idle
+        return true
+    }
+
+    private func clearAgentCountsCache() {
+        lastAgentWorkingCount = 0
+        lastAgentAttentionCount = 0
+        lastAgentIdleCount = 0
+    }
+
+    private func scheduleAgentPublish() {
+        guard agentPublishTask == nil else { return }
+        agentPublishTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.agentPublishCoalesceDelay)
+            guard let self, !Task.isCancelled else { return }
+            self.agentPublishTask = nil
+            self.publishAgentCountsNow()
+        }
+    }
+
+    private func cancelAgentPublish() {
+        agentPublishTask?.cancel()
+        agentPublishTask = nil
+    }
+
+    /// Fire-time half of the debounce. The entry guard in
+    /// `agentCountsMayHaveChanged` is not enough: a task scheduled in the
+    /// foreground can fire after the background edge, and
+    /// `reconcileActivityLifecycle` has no gate of its own.
+    private func publishAgentCountsNow() {
+        guard isEnabled, isAgentInfoEnabled else { return }
+        guard !shouldSkipInfoPollingForLifecycle else {
+            // The cache is current; the foreground reconcile republishes it.
+            LifecycleDebugLogger.shared.bumpSuppression("liveActivity_agents")
+            return
+        }
+        // A pending start retry publishes the newest cache when it lands;
+        // requesting again here would burn retry attempts on count churn.
+        if startRetryTask != nil, hasEligibleActivityContent { return }
+        reconcileActivityLifecycle(reason: "agent counts changed")
+    }
+
+    private func handleAgentToggleChanged() {
+        guard isEnabled else { return }
+        cancelAgentPublish()
+        if isAgentInfoEnabled {
+            // Enabling is a meaningful user action, like a filter change:
+            // clear dismiss suppression and start-retry, snapshot the census
+            // now, and reconcile so an agent-only activity can spin up
+            // without waiting for the next status change.
+            userDismissed = false
+            cancelStartRetry(resetAttempts: true)
+            refreshAgentCountsCache()
+            reconcileActivityLifecycle(reason: "agent info enabled")
+        } else {
+            clearAgentCountsCache()
+            // Ends an agent-only activity; a mixed one republishes without
+            // the agent fields.
+            reconcileActivityLifecycle(reason: "agent info disabled")
+        }
+    }
+
     // MARK: - Filter Logic
 
     /// Computed filtered session count based on current filter
@@ -848,6 +987,9 @@ class LiveActivityManager {
                 networkASName: isNetworkInfoEnabled ? lastNetworkASName : nil,
                 networkCountryFlag: isNetworkInfoEnabled ? lastNetworkCountryFlag : nil,
                 networkType: isNetworkInfoEnabled ? lastNetworkType : nil,
+                agentWorkingCount: shownAgentWorkingCount,
+                agentAttentionCount: shownAgentAttentionCount,
+                agentIdleCount: shownAgentIdleCount,
                 appIconVariant: AppIconManager.shared.selectedVariant.rawValue
             )
 
@@ -882,6 +1024,9 @@ class LiveActivityManager {
                 networkASName: isNetworkInfoEnabled ? lastNetworkASName : nil,
                 networkCountryFlag: isNetworkInfoEnabled ? lastNetworkCountryFlag : nil,
                 networkType: isNetworkInfoEnabled ? lastNetworkType : nil,
+                agentWorkingCount: shownAgentWorkingCount,
+                agentAttentionCount: shownAgentAttentionCount,
+                agentIdleCount: shownAgentIdleCount,
                 appIconVariant: AppIconManager.shared.selectedVariant.rawValue
             )
         }
@@ -908,6 +1053,9 @@ class LiveActivityManager {
     private var hasEligibleActivityContent: Bool {
         guard isEnabled else { return false }
         if filteredSessionCount > 0 || hasActiveVPN { return true }
+        // Coding agents keep the activity alive on their own (a tssh-only
+        // user has no diary sessions to do it), except in VPN Only mode.
+        if displayedAgentCount > 0 { return true }
         // Info Only: keep activity alive on WiFi/Network info alone.
         // Require at least one info source enabled to avoid an empty widget.
         if sessionFilter == .infoOnly && (isWiFiInfoEnabled || isNetworkInfoEnabled) {
@@ -985,6 +1133,7 @@ class LiveActivityManager {
         currentActivity = nil
         activityStartDate = nil
         isActivityActive = false
+        lastPublishedState = nil
     }
 
     // MARK: - Activity Lifecycle
@@ -1034,6 +1183,7 @@ class LiveActivityManager {
                 content: content,
                 pushType: nil
             )
+            lastPublishedState = state
             isActivityActive = true
             let count = filteredSessionCount
             cancelStartRetry(resetAttempts: true)
@@ -1052,13 +1202,45 @@ class LiveActivityManager {
         guard let activity = currentActivity else { return }
 
         let state = filteredContentState(at: activityStartDate ?? Date())
-        let content = ActivityContent(state: state, staleDate: nil)
+        publish(state, to: activity, reason: "update")
+    }
 
-        Task {
-            await activity.update(content)
-            let count = self.filteredSessionCount
-            Self.logger.debug("Live Activity updated: \(count) session(s)")
+    /// Hands one content state to ActivityKit behind every publish before it,
+    /// so a slow earlier update cannot overwrite a newer one; the timestamp
+    /// lets the system drop anything that still arrives out of order.
+    private func publish(
+        _ state: SessionActivityAttributes.ContentState,
+        to activity: Activity<SessionActivityAttributes>,
+        reason: String
+    ) {
+        lastPublishedState = state
+        let content = ActivityContent(state: state, staleDate: nil)
+        let stamp = Date()
+        let previous = publishChain
+        publishChain = Task {
+            await previous?.value
+            await activity.update(content, alertConfiguration: nil, timestamp: stamp)
+            Self.logger.debug(
+                "Live Activity updated (\(reason, privacy: .public)): \(state.sessionCount) session(s), \(state.agentTotalCount) agent(s)")
         }
+    }
+
+    /// Called on the background edge, after the grace task is registered.
+    /// Agent detection stops the moment the app leaves the foreground, so the
+    /// counts on the widget become a snapshot: republish the last content
+    /// with `agentCountsFrozen` set so the widget can say so. Cached state
+    /// only: no `Activity.activities` lookup and no state rebuild, both of
+    /// which can stall inside the scene transaction (see the deferral notes
+    /// in `MainView+Lifecycle`). The foreground reconcile clears the flag.
+    func handleAppBackgrounded() {
+        cancelAgentPublish()
+        guard let activity = currentActivity,
+              var state = lastPublishedState,
+              state.agentTotalCount > 0,
+              !state.agentCountsFrozen
+        else { return }
+        state.agentCountsFrozen = true
+        publish(state, to: activity, reason: "background edge")
     }
 
     private func endActivity() {
@@ -1075,6 +1257,8 @@ class LiveActivityManager {
         currentActivity = nil
         activityStartDate = nil
         isActivityActive = false
+        cancelAgentPublish()
+        lastPublishedState = nil
 
         // Stop WiFi polling and network bridge, clean up shared favicons
         stopWiFiPolling()
@@ -1140,6 +1324,8 @@ class LiveActivityManager {
                         self.isActivityActive = false
                         self.stateObserverTask = nil
                         self.userDismissed = true
+                        self.cancelAgentPublish()
+                        self.lastPublishedState = nil
 
                         // Tear down WiFi/network machinery started alongside the activity
                         self.stopWiFiPolling()

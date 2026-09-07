@@ -47,7 +47,10 @@ enum VPNLiveActivityUpdater {
             state.vpnActiveConnections = nil
             state.lastUpdated = Date()
 
+            // Agent counts ride along untouched, including `agentCountsFrozen`,
+            // which only the app may clear; they keep an agent-only activity alive.
             let hasSessionContent = state.sessionCount > 0 || state.roamCount > 0 || state.localTaskCount > 0
+                || state.agentTotalCount > 0
             let hasInfoContent =
                 state.wifiSSID != nil ||
                 state.wifiAPName != nil ||

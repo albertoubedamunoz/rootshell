@@ -1332,6 +1332,29 @@ final class AgentAttentionCenter {
         return counts
     }
 
+    /// Strict coding-agent census for the Live Activity. Unlike
+    /// `globalAgentCounts`, which rolls up every attention card, this counts
+    /// only panes whose detector identified an agent (`detectedAgentRow`,
+    /// category `.agent`): task rows and OSC-only Activity rows are skipped.
+    /// The bucket comes from the composed `agentRow` status so an OSC
+    /// progress overlay counts the way the sidebar shows it. One entry per
+    /// pane; Claude fleet sub-agents ride along with their session.
+    func codingAgentCounts() -> CodingAgentCounts {
+        var counts = CodingAgentCounts()
+        for model in TmuxWindowRegistry.allTabsModels() {
+            for tab in model.tabs {
+                for pane in tab.splitTree {
+                    guard let detected = pane.presentation.detectedAgentRow,
+                          detected.category == .agent,
+                          let row = pane.presentation.agentRow
+                    else { continue }
+                    counts.add(row.status)
+                }
+            }
+        }
+        return counts
+    }
+
     /// Live agent providers and the terminal that OWNS each one's connection
     /// (a tmux -CC pane resolves to its gateway). Feeds the usage tracker;
     /// providers without usage support simply do not map.
@@ -2072,6 +2095,7 @@ final class AgentAttentionCenter {
             // Agent identities may have appeared or moved hosts; the usage
             // center debounces, so this is a cheap no-op at steady state.
             AgentUsageCenter.shared.presenceMayHaveChanged()
+            notifyAggregateConsumers()
         }
     }
 
@@ -2082,6 +2106,16 @@ final class AgentAttentionCenter {
         guard !Ghostty.isAppBackgroundedAtomic else { return }
         guard updatePresentationRollups(now: now) else { return }
         revision &+= 1
+        notifyAggregateConsumers()
+    }
+
+    /// Consumers that read the census instead of observing per-tab models.
+    /// Runs on the main actor after the presentation rollups have settled and
+    /// only reads them, so nothing here can re-enter the publish pass.
+    private func notifyAggregateConsumers() {
+        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+        LiveActivityManager.shared.agentCountsMayHaveChanged()
+        #endif
     }
 
     /// Compare-and-write pass shared by the full detector publisher and the

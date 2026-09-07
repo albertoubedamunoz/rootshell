@@ -104,16 +104,45 @@ struct LiveActivitySettingsView: View {
                     }
                     .themedRow()
                     .settingContextMenu(Settings.LiveActivity.networkInfo)
+
+                    Toggle(isOn: Bindable(liveActivityManager).isAgentInfoEnabled) {
+                        HStack(spacing: 12) {
+                            SettingsIcon(systemName: "sparkles")
+                            VStack(alignment: .leading) {
+                                HStack(spacing: 6) {
+                                    Text("Coding Agents")
+                                    SettingPinTag(Settings.LiveActivity.agents.erased)
+                                }
+                                Text("Show detected agents and how many need you on Lock Screen")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .themedRow()
+                    .settingContextMenu(Settings.LiveActivity.agents)
+
+                    if liveActivityManager.isAgentInfoEnabled && !AgentAttentionSettings.detectionEnabled {
+                        Text("Coding Agents requires agent detection. Enable it in Settings > Agents & Commands.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .themedRow()
+                    }
                 } footer: {
-                    if liveActivityManager.sessionFilter == .infoOnly
-                        && !liveActivityManager.isWiFiInfoEnabled
-                        && !liveActivityManager.isNetworkInfoEnabled {
-                        Text("Info Only mode requires at least WiFi Info or Network Info to be enabled.")
-                            .foregroundColor(.orange)
-                    } else if !LocationDiaryManager.shared.isTrackingActive
-                        && (liveActivityManager.isWiFiInfoEnabled || liveActivityManager.isNetworkInfoEnabled) {
-                        Text("Background updates require Location Diary to be active. Without it, data only refreshes while the app is in the foreground.")
-                            .foregroundColor(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if liveActivityManager.sessionFilter == .infoOnly
+                            && !liveActivityManager.isWiFiInfoEnabled
+                            && !liveActivityManager.isNetworkInfoEnabled {
+                            Text("Info Only mode requires at least WiFi Info or Network Info to be enabled.")
+                                .foregroundColor(.orange)
+                        } else if !LocationDiaryManager.shared.isTrackingActive
+                            && (liveActivityManager.isWiFiInfoEnabled || liveActivityManager.isNetworkInfoEnabled) {
+                            Text("Background updates require Location Diary to be active. Without it, data only refreshes while the app is in the foreground.")
+                                .foregroundColor(.orange)
+                        }
+                        if liveActivityManager.isAgentInfoEnabled {
+                            Text("Agent counts come from on-device detection and update only while rootshell is in the foreground. The Lock Screen marks them as paused while rootshell is in the background.")
+                        }
                     }
                 }
 
@@ -124,6 +153,13 @@ struct LiveActivitySettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .themedRow()
+                        let agents = liveActivityManager.displayedAgentCount
+                        if agents > 0 {
+                            Text("Showing \(agents) coding agent\(agents == 1 ? "" : "s") on Lock Screen")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .themedRow()
+                        }
                     }
                 }
             }

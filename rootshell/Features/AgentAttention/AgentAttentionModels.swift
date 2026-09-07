@@ -55,6 +55,27 @@ nonisolated enum AgentAttentionStatus: String, Codable, Sendable, Equatable, Cas
     }
 }
 
+/// Live Activity census of detected coding agents, bucketed by what the
+/// widget can say about them. `attention` folds blocked, failed and unseen
+/// done together: each one needs the user to look. Task rows and OSC-only
+/// Activity rows are never counted.
+nonisolated struct CodingAgentCounts: Equatable, Sendable {
+    var working = 0
+    var attention = 0
+    var idle = 0
+
+    var total: Int { working + attention + idle }
+
+    mutating func add(_ status: AgentAttentionStatus) {
+        switch status {
+        case .working: working += 1
+        case .blocked, .failed, .done: attention += 1
+        case .idle, .paused: idle += 1
+        case .unknown: break
+        }
+    }
+}
+
 // MARK: - Notification event identity
 
 /// Stable identity for one semantic attention event. Repeated scans,
