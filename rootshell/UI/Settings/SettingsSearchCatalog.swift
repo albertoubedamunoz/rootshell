@@ -899,7 +899,7 @@ struct SettingsSearchEntry: Identifiable, Hashable {
             row("mcp-session-mode", String(localized: "Session Mode"), in: .mcpServer, icon: "lock.shield",
                 keywords: ["security", "standard", "cautious", "yolo", "permissions", "confirm"]),
             row("mcp-add-to-tools", String(localized: "Add to AI Tools"), in: .mcpServer, icon: "doc.on.doc",
-                keywords: ["claude code", "codex", "gemini cli", "install", "connect", "command"]),
+                keywords: ["claude code", "codex", "install", "connect", "command"]),
 
             // MARK: iCloud Sync
             row("icloud-enable", String(localized: "Enable iCloud Sync"), in: .iCloudSync,
