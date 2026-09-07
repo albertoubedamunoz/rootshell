@@ -105,7 +105,60 @@ final class ExternalSSHAgentRegistry {
     /// entry (the user may have re-pointed the agent) over the path snapshot
     /// stored on the key.
     func socketPath(forAgentID id: UUID) -> String? {
-        agent(id: id)?.socketPath
+        agent(id: id).map { liveSocketPath(for: $0) }
+    }
+
+    /// Resolve a usable agent socket for an imported external-agent key.
+    ///
+    /// macOS launchd `$SSH_AUTH_SOCK` paths rotate across logins. Keys keep a
+    /// snapshot path + agent ID; if the registry entry was removed or the
+    /// snapshotted path is gone, fall back to a live environment / registry
+    /// socket so connections keep working.
+    func resolveSocketPath(for agentInfo: ExternalAgentKeyInfo) -> String {
+        if let path = socketPath(forAgentID: agentInfo.agentID), Self.socketAppearsPresent(path) {
+            return path
+        }
+        if Self.socketAppearsPresent(agentInfo.socketPath) {
+            return agentInfo.socketPath
+        }
+        if let envPath = Self.currentEnvironmentSocketPath(), Self.socketAppearsPresent(envPath) {
+            Self.logger.info("Healing stale agent socket \(agentInfo.socketPath, privacy: .public) → env \(envPath, privacy: .public)")
+            return envPath
+        }
+        for agent in agents {
+            let path = liveSocketPath(for: agent)
+            if Self.socketAppearsPresent(path) {
+                Self.logger.info("Healing stale agent socket \(agentInfo.socketPath, privacy: .public) → registry \(path, privacy: .public)")
+                return path
+            }
+        }
+        return agentInfo.socketPath
+    }
+
+    /// For `$SSH_AUTH_SOCK` entries, prefer the live environment value when the
+    /// stored launchd path has disappeared.
+    private func liveSocketPath(for agent: ExternalSSHAgent) -> String {
+        guard agent.source == .environment else { return agent.socketPath }
+        if Self.socketAppearsPresent(agent.socketPath) {
+            return agent.socketPath
+        }
+        if let envPath = Self.currentEnvironmentSocketPath(), Self.socketAppearsPresent(envPath) {
+            if envPath != agent.socketPath {
+                updateSocketPath(id: agent.id, to: envPath)
+            }
+            return envPath
+        }
+        return agent.socketPath
+    }
+
+    private nonisolated static func currentEnvironmentSocketPath() -> String? {
+        let env = ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"]
+        guard let env, !env.isEmpty else { return nil }
+        return env
+    }
+
+    private nonisolated static func socketAppearsPresent(_ path: String) -> Bool {
+        !path.isEmpty && FileManager.default.fileExists(atPath: path)
     }
 
     private func persist() {
@@ -117,7 +170,11 @@ final class ExternalSSHAgentRegistry {
     // MARK: - Reachability
 
     func refreshReachability() async {
-        let targets = agents.map { ($0.id, $0.socketPath) }
+        // Heal stale launchd `$SSH_AUTH_SOCK` paths before probing.
+        for agent in agents where agent.source == .environment {
+            _ = liveSocketPath(for: agent)
+        }
+        let targets = agents.map { ($0.id, liveSocketPath(for: $0)) }
         var results: [UUID: Bool] = [:]
         for (id, path) in targets {
             results[id] = await Task.detached(priority: .userInitiated) {

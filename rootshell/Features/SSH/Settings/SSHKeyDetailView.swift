@@ -231,7 +231,7 @@ struct SSHKeyDetailView: View {
                         Text(String(localized: "Socket", comment: "Agent key field: socket path"))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text(ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agentInfo.agentID) ?? agentInfo.socketPath)
+                        Text(ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo))
                             .font(.system(.caption, design: .monospaced))
                             .textSelection(.enabled)
                             .lineLimit(1)
@@ -742,8 +742,7 @@ struct SSHKeyDetailView: View {
     private func checkAgentAvailability() {
         guard let agentInfo = currentKey.externalAgentInfo,
               let publicKeyBlob = currentKey.publicKeyBlob else { return }
-        let socketPath = ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agentInfo.agentID)
-            ?? agentInfo.socketPath
+        let socketPath = ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo)
 
         isCheckingAgentAvailability = true
         agentAvailability = nil

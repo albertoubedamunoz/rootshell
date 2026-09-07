@@ -269,7 +269,10 @@ struct ExternalAgentIdentitiesView: View {
     private func loadIdentities() async {
         isLoading = true
         loadError = nil
-        let socketPath = agent.socketPath
+        // Prefer a healed live path for `$SSH_AUTH_SOCK` agents whose launchd
+        // listener rotated after login.
+        let socketPath = ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agent.id)
+            ?? agent.socketPath
         do {
             identities = try await Task.detached(priority: .userInitiated) {
                 try ExternalSSHAgentClient(socketPath: socketPath).listIdentities()

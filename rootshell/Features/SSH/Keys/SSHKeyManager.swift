@@ -741,9 +741,9 @@ class SSHKeyManager: ObservableObject {
                 throw LoadError.invalidKeyData
             }
             // Live registry path wins so re-pointing the agent entry fixes
-            // every key imported from it.
-            let socketPath = ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agentInfo.agentID)
-                ?? agentInfo.socketPath
+            // every key imported from it. Stale launchd `$SSH_AUTH_SOCK`
+            // snapshots are healed via the registry resolver.
+            let socketPath = ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo)
             return .externalAgent(ExternalAgentKeyReference(
                 keyID: savedKey.id,
                 socketPath: socketPath,
