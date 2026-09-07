@@ -322,6 +322,9 @@ extension MainView {
         if newPhase == .inactive && oldPhase == .active {
             Ghostty.logger.info("Detected device sleep/inactive")
             #if !targetEnvironment(macCatalyst)
+            // Notification observer order is unspecified. Arm the latch and
+            // stop previews here too, before sweeping the real terminal panes.
+            PreviewRenderingLifecycle.suspend()
             // Stop GPU presentation BEFORE iOS captures the locked-screen
             // secure snapshot (this runs synchronously inside willResignActive,
             // which precedes the snapshot). See pauseRenderersForSecureSnapshot.
@@ -564,6 +567,7 @@ extension MainView {
     }
 
     func handleAppBackgrounded() {
+        PreviewRenderingLifecycle.didEnterBackground()
         // The exposé and a hover preview keep tabs un-occluded; drop both
         // before the sweep (a pending hover exit would otherwise leave the
         // card's tab awake through the next foreground reconcile).
@@ -611,6 +615,14 @@ extension MainView {
             locationEnabled: locationEnabled,
             liveActivityActive: liveActivityActive
         )
+        #endif
+
+        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+        // Agent detection stops with this transition, so the Live Activity's
+        // agent counts become a snapshot: mark them frozen from cached state.
+        // No ActivityKit lookup and no state rebuild here (see the deferral
+        // notes in handleAppForegrounded).
+        LiveActivityManager.shared.handleAppBackgrounded()
         #endif
 
         // SYNCHRONOUS prelude — these atomic flags are the canonical

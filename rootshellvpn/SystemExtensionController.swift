@@ -17,7 +17,7 @@ import os.log
 @MainActor
 final class SystemExtensionController: NSObject, OSSystemExtensionRequestDelegate {
     static let shared = SystemExtensionController()
-    static let extensionBundleID = "com.kk2.rootshellvpn.tunnel"
+    static let extensionBundleID = Bundle.main.bundleIdentifier! + ".tunnel"
 
     private let log = Logger(subsystem: "com.kk2.rootshellvpn.host", category: "sysext")
 

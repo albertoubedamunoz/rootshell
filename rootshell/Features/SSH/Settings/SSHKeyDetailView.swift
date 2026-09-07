@@ -222,7 +222,7 @@ struct SSHKeyDetailView: View {
                 Section {
                     LabeledRow(
                         label: String(localized: "Agent", comment: "Agent key field: agent name"),
-                        value: ExternalSSHAgentRegistry.shared.agent(id: agentInfo.agentID)?.name
+                        value: ExternalSSHAgentRegistry.shared.agent(for: agentInfo, publicKeyBlob: currentKey.publicKeyBlob)?.name
                             ?? String(localized: "Removed agent", comment: "Agent key field: agent entry no longer exists")
                     )
                     .themedRow()
@@ -231,7 +231,7 @@ struct SSHKeyDetailView: View {
                         Text(String(localized: "Socket", comment: "Agent key field: socket path"))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text(ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agentInfo.agentID) ?? agentInfo.socketPath)
+                        Text(ExternalSSHAgentRegistry.shared.resolveSocketPath(for: agentInfo, publicKeyBlob: currentKey.publicKeyBlob))
                             .font(.system(.caption, design: .monospaced))
                             .textSelection(.enabled)
                             .lineLimit(1)
@@ -648,6 +648,12 @@ struct SSHKeyDetailView: View {
         .onAppear {
             loadPublicKey()
         }
+        #if targetEnvironment(macCatalyst) && STANDALONE
+        .task {
+            // Makes the Agent/Socket rows show the verified socket.
+            await ExternalSSHAgentRegistry.shared.verifyAgent(forKeyID: key.id)
+        }
+        #endif
     }
 
     // MARK: - Computed Properties
@@ -742,13 +748,16 @@ struct SSHKeyDetailView: View {
     private func checkAgentAvailability() {
         guard let agentInfo = currentKey.externalAgentInfo,
               let publicKeyBlob = currentKey.publicKeyBlob else { return }
-        let socketPath = ExternalSSHAgentRegistry.shared.socketPath(forAgentID: agentInfo.agentID)
-            ?? agentInfo.socketPath
 
         isCheckingAgentAvailability = true
         agentAvailability = nil
         Task {
             defer { isCheckingAgentAvailability = false }
+            let registry = ExternalSSHAgentRegistry.shared
+            // Explicit check: bypass cached results so an agent that just
+            // came back is seen now.
+            await registry.verifyAgent(for: agentInfo, publicKeyBlob: publicKeyBlob, force: true)
+            let socketPath = registry.resolveSocketPath(for: agentInfo, publicKeyBlob: publicKeyBlob)
             let result: (ok: Bool, message: String) = await Task.detached(priority: .userInitiated) {
                 do {
                     let identities = try ExternalSSHAgentClient(socketPath: socketPath).listIdentities()

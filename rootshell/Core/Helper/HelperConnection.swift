@@ -76,6 +76,11 @@ public class HelperConnection {
 
     private let socketConnection = SocketHelperConnection()
 
+    /// Coalesces concurrent `ensureHelperRunning()` callers (launch prewarm +
+    /// first-window onAppear) onto a single spawn/ping sequence.
+    private let ensureLock = NSLock()
+    private var inFlightEnsure: Task<Bool, Never>?
+
     /// PID of helper process if we launched it (non-sandboxed mode)
     private var helperPID: pid_t = 0 {
         didSet {
@@ -271,6 +276,29 @@ public class HelperConnection {
     /// Ensures helper is running, launching it if necessary (non-sandboxed mode only)
     /// Returns true if helper is available (either existing or newly launched)
     public func ensureHelperRunning() async -> Bool {
+        ensureLock.lock()
+        if let inFlightEnsure {
+            ensureLock.unlock()
+            return await inFlightEnsure.value
+        }
+
+        let created = Task {
+            defer {
+                self.ensureLock.lock()
+                self.inFlightEnsure = nil
+                self.ensureLock.unlock()
+            }
+            return await self.performEnsureHelperRunning()
+        }
+        inFlightEnsure = created
+        ensureLock.unlock()
+        return await created.value
+    }
+
+    private func performEnsureHelperRunning() async -> Bool {
+        let sp = LaunchSignposts.begin("launch.helper.ensure")
+        defer { LaunchSignposts.end("launch.helper.ensure", sp) }
+
         // First, check if helper is already running and healthy (reuse orphans)
         do {
             try await socketConnection.ping()

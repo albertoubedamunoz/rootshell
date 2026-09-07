@@ -267,6 +267,13 @@ Run `scripts/setup-dev-signing.sh` and see
 [`docs/contributor-signing.md`](docs/contributor-signing.md); do not edit
 `project.pbxproj` to change the team.
 
+The macOS VPN host is a separate prebuilt artifact. After changing VPN code or
+signing identities, use `scripts/deploy-vpn-host.sh` to rebuild, sign, notarize,
+and refresh `rootshell/Resources/rootshellvpn.app` before rebuilding Standalone.
+See the [VPN build instructions](docs/contributor-signing.md#vpn) for credentials
+and profiles, or use `scripts/deploy-vpn-host.sh --build-only` for an unsigned
+universal compile check.
+
 Use the `rootshell-AppStore` scheme for sandboxed App Store builds or `rootshell-Standalone` for the unsandboxed Mac Catalyst build. For example, build for the iOS Simulator with:
 
 ```bash

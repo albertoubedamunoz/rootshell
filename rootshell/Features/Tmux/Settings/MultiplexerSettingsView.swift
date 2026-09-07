@@ -304,9 +304,7 @@ struct NewTabActionSettingsRow: View {
     @Setting(Settings.Tabs.newTabAction) private var action
 
     var body: some View {
-        NavigationLink {
-            NewTabActionPickerView()
-        } label: {
+        NavigationLink(value: SettingsSearchDestination.newTabAction) {
             HStack(spacing: 12) {
                 SettingsIcon(systemName: "plus.rectangle.on.rectangle")
                 Text("New Tab Action")

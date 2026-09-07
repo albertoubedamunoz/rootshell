@@ -136,26 +136,74 @@ those configurations need no derived file.
 
 ## VPN
 
-Nothing about the VPN is gated. Network Extensions is an ordinary capability
-that automatic signing enables for any paid team, so both paths run under your
-own: `VPNTunnelExtension` on iOS, and on macOS the `rootshellvpn` host app with
-its `tunnel` system extension.
-
-The macOS side is worth knowing about, because no shared scheme builds it.
+The iOS `VPNTunnelExtension` uses the app's automatic signing workflow.
+The macOS VPN requires a separate native host and system extension artifact.
 `rootshellvpn` embeds `tunnel` and owns `NETunnelProviderManager`; the Catalyst
 app is a client that drives it over a Unix socket in the shared App Group
 container (see `rootshell/Features/VPN/VPNControlProtocol.swift`). Building
-`rootshell-Standalone` alone doesn't exercise either target.
+`rootshell-Standalone` copies `rootshell/Resources/rootshellvpn.app` without
+rebuilding it. Refresh the artifact whenever changing VPN host, tunnel, shared
+protocol code, or signing identities. An upstream-signed host cannot communicate
+with a contributor-signed Catalyst app: both must use the same team and App Group.
 
-Building those two directly doesn't currently work, for reasons unrelated to
-signing. `tunnel` compiles app sources through
-`rootshell/rootshell-Bridging-Header.h`, which imports `ghostty.h`; the
-`GhosttyKitStandalone` xcframework ships only an
-`ios-arm64_x86_64-maccatalyst` slice, while `rootshellvpn`'s only build
-destinations are plain macOS. The bridging-header scan fails and every Swift
-package module fails to resolve behind it. This reproduces on a clean checkout
-of upstream with no `DeveloperSettings.xcconfig`, so it is not something these
-overrides introduce.
+The shared `rootshellvpn` scheme builds both native targets. Their build settings
+clear the terminal app's bridging header; no native GhosttyKit slice is needed.
+To check compilation without signing credentials:
+
+```bash
+scripts/deploy-vpn-host.sh --build-only
+```
+
+This builds arm64 and x86_64 Release binaries in
+`build/vpn-host/rootshellvpn.app`. The unsigned result cannot run as a VPN and
+never replaces the bundled artifact. Xcode and Python 3 are required; Xcode
+resolves the project's Swift package dependencies on first use.
+
+To produce a runnable artifact, first run `scripts/setup-dev-signing.sh` for
+your team (maintainers using the default identity can skip this). Create
+Developer ID provisioning profiles for the resolved bundle IDs:
+
+- `<org>.rootshellvpn`: Network Extensions, System Extension installation,
+  and the configured App Group.
+- `<org>.rootshellvpn.tunnel`: Network Extensions and the same App Group.
+
+Both profiles must authorize `packet-tunnel-provider-systemextension`, the
+Developer ID form of the entitlement. Development profiles with
+`packet-tunnel-provider` are not interchangeable with these. Keep profiles
+outside Git; `scripts/*.provisionprofile` is ignored.
+
+Store your notarization credentials once using `xcrun notarytool
+store-credentials <profile-name>`, then run:
+
+```bash
+DEVELOPER_ID='Developer ID Application: Your Organization (YOURTEAMID)' \
+NOTARY_PROFILE='your-notary-profile' \
+HOST_PROFILE='/path/to/host.provisionprofile' \
+SYSEXT_PROFILE='/path/to/tunnel.provisionprofile' \
+scripts/deploy-vpn-host.sh
+```
+
+`DEVELOPER_ID` also accepts the certificate's SHA-1 from
+`security find-identity -v -p codesigning`. Set `SIGNING_KEYCHAIN` to an
+explicit keychain path if the original identity is outside the default search
+list; this does not modify the global keychain search list. There is no default certificate
+or notarization account. Profile paths default to
+`scripts/rootshellvpn.provisionprofile` and
+`scripts/rootshellvpn-tunnel.provisionprofile` if omitted.
+
+The script reads Xcode's resolved identity settings, validates profile expiry,
+team, bundle IDs, capabilities, and the exact signing certificate authorized by
+both profiles before compiling, generates distribution
+entitlements from that identity, signs inside out, notarizes and staples, then
+replaces `rootshell/Resources/rootshellvpn.app`. Failed builds or notarization
+leave the existing artifact intact. Replaced artifacts are backed up under
+`build/vpn-host/backups`. Use `--output /path/to/rootshellvpn.app` to stage a
+signed artifact elsewhere. Build versions use a UTC timestamp and must increase
+when replacing an existing artifact; `VPN_BUNDLE_VERSION` overrides it.
+
+Rebuild `rootshell-Standalone` afterward. The script does not install anything
+in `/Applications` or activate a system extension. The app handles installation
+and macOS may require approval of the new extension in System Settings.
 
 Shipping a VPN app is a separate matter: App Review guideline 5.4 allows that
 only from an organization account. That restricts distribution; an individual
@@ -169,15 +217,32 @@ for a device requires.
   the grant.
 - **Push and associated domains** — the entitlements name `push.rootshell.com`
   and `beta.rootshell.com`, which are upstream's domains.
-- **`rootshellvpn` and `tunnel`** — they don't build at all, for the
-  `ghostty.h` reason under VPN above.
 
 ## For maintainers
 
-With no `DeveloperSettings.xcconfig` present, every resolved build setting is
-identical to before this existed — compared with `-alltargets -showBuildSettings`
-across all 8 configurations, nothing removed and nothing changed. Checkout needs
-no extra steps.
+With no `DeveloperSettings.xcconfig` present, signing identifiers retain
+upstream's defaults. The native VPN targets additionally have isolated bridging
+header settings and their own host Info.plist.
+
+When signing with existing provisioning profiles, select the certificate they
+authorize. If its identity lives outside your default keychain search list,
+specify that keychain explicitly:
+
+```bash
+DEVELOPER_ID='<authorized-certificate-sha1>' \
+SIGNING_KEYCHAIN='/path/to/signing.keychain-db' \
+NOTARY_PROFILE='your-notary-profile' \
+HOST_PROFILE='/path/to/host.provisionprofile' \
+SYSEXT_PROFILE='/path/to/tunnel.provisionprofile' \
+scripts/deploy-vpn-host.sh
+```
+
+Use `security find-identity -v -p codesigning /path/to/signing.keychain-db`
+to list valid identities in that keychain. A newer certificate for the same
+team is not interchangeable unless the profiles also authorize it. The script
+checks the actual certificate again after signing, before notarizing. Do not
+commit private keys, certificate exports containing private keys, credentials,
+or account-specific provisioning profiles.
 
 If a build ever signs under an unexpected team, check for a stray
 `Configuration/DeveloperSettings.xcconfig`.

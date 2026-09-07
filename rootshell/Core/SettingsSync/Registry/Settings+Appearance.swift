@@ -28,6 +28,9 @@ nonisolated extension Settings {
         static let themedUI = SettingKey(
             "themedUI", default: true, group: .theme, configKey: "themed-ui",
             title: String(localized: "Theme-Aware UI", comment: "Setting title"))
+        static let imNoFun = SettingKey(
+            "imNoFun", default: false, group: .theme, configKey: "im-no-fun",
+            title: String(localized: "I'm no fun", comment: "Setting title"))
         static let uiOverrides = SettingKey<Data?>(
             "themeUIOverrides.v1", default: nil, group: .theme,
             title: String(localized: "Theme UI Color Overrides", comment: "Setting title"))
@@ -54,7 +57,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             selected.erased, appearanceMode.erased, themedUI.erased, uiOverrides.erased, favoriteIds.erased,
             dayNightEnabled.erased, dayNightDay.erased, dayNightNight.erased, dayNightDefault.erased,
-            appIconVariant.erased,
+            appIconVariant.erased, imNoFun.erased,
         ]
     }
 

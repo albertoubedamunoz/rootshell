@@ -45,8 +45,9 @@ org identifier or team, and shouldn't go into a PR.
 ## Building
 
 Shared schemes: `rootshell-AppStore` (iOS/iPadOS/visionOS, sandboxed),
-`rootshell-Standalone` (unsandboxed Mac Catalyst), `rootshell-China`, and
-`rootshell-helper` (the macOS background helper).
+`rootshell-Standalone` (unsandboxed Mac Catalyst), `rootshell-China`,
+`rootshell-helper` (the macOS background helper), and `rootshellvpn`
+(the native macOS VPN host and system extension).
 
 Build for a simulator by device id rather than
 `-destination 'generic/platform=iOS Simulator'`; the generic destination builds
@@ -65,14 +66,13 @@ Xcode → Settings → Accounts. Note that a `No Accounts` error line is not
 diagnostic on its own — Xcode emits it alongside unrelated capability failures
 even with an account signed in and a valid team profile in use.
 
-`rootshellvpn` and its embedded `tunnel` system extension do not build, on this
-branch or upstream. `tunnel` compiles app sources through
-`rootshell/rootshell-Bridging-Header.h`, which imports `ghostty.h`, but the
-`GhosttyKitStandalone` xcframework ships only an `ios-arm64_x86_64-maccatalyst`
-slice while those targets' only destinations are plain macOS; the bridging
-header scan fails and every Swift package module fails to resolve behind it.
-Don't read that cascade as a broken checkout or stale DerivedData. Nothing in
-`rootshell-Standalone` depends on them, so it builds fine.
+`rootshellvpn` has a shared native macOS scheme and embeds the `tunnel` system
+extension. Both targets explicitly clear the terminal app's bridging header.
+`rootshell-Standalone` bundles the prebuilt app in `rootshell/Resources`; it
+does not rebuild these targets. Use `scripts/deploy-vpn-host.sh --build-only`
+for an unsigned universal compile check, or the signed workflow in
+[docs/contributor-signing.md](docs/contributor-signing.md) to refresh that
+artifact. The latter requires Developer ID profiles and notarization.
 
 To compare resolved build settings across configurations, pass `-alltargets`
 rather than looping over targets — one invocation per configuration instead of

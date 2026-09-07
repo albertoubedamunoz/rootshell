@@ -102,6 +102,7 @@ final class TerminalSessionController {
         // `onReady` is invoked on the main actor by the session, so no hop.
         session.onReady = { [weak self] in
             Ghostty.logger.info("Session ready")
+            LaunchSignposts.markInteractiveIfNeeded()
             self?.host?.sessionDidBecomeReady()
         }
 
@@ -1041,6 +1042,13 @@ final class TerminalSessionController {
                     }
                 } else {
                     try await session.start()
+                }
+                if case .local = connectionConfig {
+                    let command = host.terminalPendingStartupCommand
+                    host.terminalPendingStartupCommand = nil
+                    if let command, !command.isEmpty {
+                        session.sendInput(Data((command + "\n").utf8))
+                    }
                 }
                 Ghostty.logger.info("Session started successfully")
 

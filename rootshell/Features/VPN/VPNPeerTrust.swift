@@ -23,15 +23,16 @@ enum VPNPeerTrust {
     /// Development, and App Store signing (subject.OU carries the team ID in
     /// all three), and nothing an attacker can obtain.
     ///
-    /// Left as a literal: unlike the bundle identifier, a contributor's team
-    /// can't be recovered from this process without reading its own signature.
-    /// Under a signing override the pair this gates -- a team-signed rootshell
-    /// talking to a team-signed rootshellvpn -- would fail this check, but
-    /// rootshellvpn doesn't build at all (see docs/contributor-signing.md), so
-    /// nothing reaches it today. Worth revisiting alongside the rest of the
-    /// VPN feature.
-    private nonisolated static let teamRequirement =
-        "anchor apple generic and certificate leaf[subject.OU] = \"D97ZME3ET2\""
+    /// Read our own signed build identity, never a value supplied by the peer.
+    /// Missing or malformed configuration must fail closed.
+    private nonisolated static let teamRequirement: String = {
+        guard let team = Bundle.main.object(forInfoDictionaryKey: "RootshellDevelopmentTeam") as? String,
+              team.count == 10,
+              team.utf8.allSatisfy({ (65...90).contains($0) || (48...57).contains($0) }) else {
+            return "never"
+        }
+        return "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\""
+    }()
 
     /// This process's own org-identifier prefix, recovered from its own bundle
     /// identifier by stripping whichever product suffix Xcode appended (see

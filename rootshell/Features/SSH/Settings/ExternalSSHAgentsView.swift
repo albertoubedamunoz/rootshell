@@ -82,7 +82,7 @@ struct ExternalSSHAgentsView: View {
                 .frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 2) {
                 Text(agent.name)
-                Text(agent.socketPath)
+                Text(registry.effectiveSocketPath(for: agent))
                     .font(.caption.monospaced())
                     .foregroundColor(.secondary)
                     .lineLimit(1)
@@ -135,6 +135,8 @@ struct ExternalSSHAgentsView: View {
                         }
                         Spacer()
                         Button(String(localized: "Add", comment: "External SSH agents add discovered agent button")) {
+                            // A refused add means the candidate matched a row
+                            // since the scan; refresh drops it from the list.
                             registry.add(candidate.agent)
                             Task { await refresh() }
                         }
@@ -187,6 +189,13 @@ struct ExternalSSHAgentsView: View {
     private func addManualAgent() {
         let path = (manualPath.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
         manualPathError = nil
+        if registry.isOwnAgentSocket(path) {
+            manualPathError = String(
+                localized: "That is rootshell's own SSH agent socket.",
+                comment: "External SSH agents manual add error: path is the app's local agent"
+            )
+            return
+        }
 
         // Validate by doing a real list round-trip so typos fail here, not
         // at connect time.
@@ -204,11 +213,18 @@ struct ExternalSSHAgentsView: View {
                 manualPathError = error
                 return
             }
-            registry.add(ExternalSSHAgent(
+            let added = registry.add(ExternalSSHAgent(
                 name: (path as NSString).lastPathComponent,
                 socketPath: path,
                 source: .manual
             ))
+            guard added else {
+                manualPathError = String(
+                    localized: "That agent is already registered.",
+                    comment: "External SSH agents manual add error: duplicate socket path"
+                )
+                return
+            }
             manualPath = ""
             await refresh()
         }
@@ -225,6 +241,13 @@ struct ExternalAgentIdentitiesView: View {
     @State private var loadError: String?
     @State private var isLoading = true
     @State private var importError: String?
+
+    /// Registry row wins over the pushed copy; env-backed rows resolve live.
+    /// Identities are listed from here and imports snapshot the same path.
+    private var resolvedSocketPath: String {
+        let registry = ExternalSSHAgentRegistry.shared
+        return registry.socketPath(forAgentID: agent.id) ?? registry.effectiveSocketPath(for: agent)
+    }
 
     var body: some View {
         List {
@@ -269,7 +292,7 @@ struct ExternalAgentIdentitiesView: View {
     private func loadIdentities() async {
         isLoading = true
         loadError = nil
-        let socketPath = agent.socketPath
+        let socketPath = resolvedSocketPath
         do {
             identities = try await Task.detached(priority: .userInitiated) {
                 try ExternalSSHAgentClient(socketPath: socketPath).listIdentities()
@@ -348,7 +371,7 @@ struct ExternalAgentIdentitiesView: View {
         key.publicKeyBlob = identity.publicKeyBlob
         key.externalAgentInfo = ExternalAgentKeyInfo(
             agentID: agent.id,
-            socketPath: agent.socketPath,
+            socketPath: resolvedSocketPath,
             comment: identity.comment,
             algorithm: identity.algorithm,
             addedDate: Date()

@@ -52,6 +52,10 @@ struct SessionActivityWidget: Widget {
                             )
                             .font(.headline)
                             .foregroundStyle(.white)
+                        } else if context.state.agentTotalCount > 0 {
+                            Text(AgentCountsText.agents(context.state.agentTotalCount))
+                                .font(.headline)
+                                .foregroundStyle(.white)
                         }
 
                         if !context.state.hostNames.isEmpty {
@@ -59,6 +63,11 @@ struct SessionActivityWidget: Widget {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                        }
+
+                        // Coding agents in expanded center
+                        if context.state.agentTotalCount > 0 {
+                            AgentSummaryLine(state: context.state)
                         }
 
                         // VPN info in expanded center
@@ -144,6 +153,11 @@ struct SessionActivityWidget: Widget {
                                 .font(.caption2)
                                 .foregroundStyle(.green)
                         }
+                        if context.state.agentTotalCount > 0 {
+                            Label("\(context.state.agentTotalCount)", systemImage: "sparkles")
+                                .font(.caption2)
+                                .foregroundStyle(context.state.agentCountsFrozen ? AnyShapeStyle(.secondary) : AnyShapeStyle(.mint))
+                        }
                     }
                 }
 
@@ -191,6 +205,14 @@ struct SessionActivityWidget: Widget {
                     .clipShape(RoundedRectangle(cornerRadius: 4))
             } compactTrailing: {
                 HStack(spacing: 2) {
+                    if context.state.agentAttentionCount > 0 {
+                        Image(systemName: "exclamationmark.bubble.fill")
+                            .font(.caption2)
+                            .foregroundStyle(context.state.agentCountsFrozen ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
+                        Text("\(context.state.agentAttentionCount)")
+                            .font(.caption)
+                            .foregroundStyle(context.state.agentCountsFrozen ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
+                    }
                     if context.state.wifiSSID != nil {
                         Image(systemName: "wifi")
                             .font(.caption2)

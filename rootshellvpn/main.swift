@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // so stale agents don't accumulate and fight over the control socket.
         // (On update the app kills the old host first, so this new one wins.)
         let others = NSRunningApplication
-            .runningApplications(withBundleIdentifier: "com.kk2.rootshellvpn")
+            .runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier!)
             .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
         if !others.isEmpty {
             log.info("another VPN host is already running; exiting")

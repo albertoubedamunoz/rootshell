@@ -144,7 +144,8 @@ final class InlineSpinnerAnimator {
 
         currentMessage = message
         colorStyle = style
-        self.jokeCategory = jokeCategory
+        // Snapshot the preference for this display; active displays keep their behavior.
+        self.jokeCategory = SettingsStore.shared.get(Settings.Theme.imNoFun) ? nil : jokeCategory
         self.terminalWidth = max(40, terminalWidth)
         frameIndex = 0
         self.onFrame = onFrame
@@ -153,7 +154,7 @@ final class InlineSpinnerAnimator {
         lastLineCount = 0
 
         // Pick initial joke if category is set
-        if let category = jokeCategory {
+        if let category = self.jokeCategory {
             currentJoke = ConnectionJokes.random(for: category)
         } else {
             currentJoke = ""
@@ -171,7 +172,7 @@ final class InlineSpinnerAnimator {
         }
 
         // Start joke rotation timer (7 seconds) if jokes are enabled
-        if jokeCategory != nil {
+        if self.jokeCategory != nil {
             jokeTimer = Timer.scheduledTimer(withTimeInterval: 7.0, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
                 Task { @MainActor [weak self] in
