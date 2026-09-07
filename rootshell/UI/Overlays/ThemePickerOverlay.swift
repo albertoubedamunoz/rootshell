@@ -20,7 +20,15 @@ struct ThemePickerOverlay: View {
 
     @State private var scope: ThemePickerScope = .global
     @State private var searchText = ""
-    @FocusState private var isSearchFocused: Bool
+    @State private var isSearchFocused = false
+    @State private var keyboardSelection: ScrollTarget?
+    @State private var arrowKeyRepeatManager = ArrowKeyRepeatManager()
+
+    private enum ScrollTarget: Hashable {
+        case current(String)
+        case favorite(String)
+        case theme(String)
+    }
 
     enum ThemePickerScope: String, CaseIterable {
         case tab = "Tab"
@@ -41,8 +49,17 @@ struct ThemePickerOverlay: View {
         // A native UIKit host is required: as a plain SwiftUI overlay the search
         // field's focus made .onKeyPress steal the X-button click on macOS.
         pickerContent
-            .onAppear {
-                isSearchFocused = true
+            .onDisappear {
+                arrowKeyRepeatManager.stop()
+            }
+            .onChange(of: searchText) { _, _ in
+                arrowKeyRepeatManager.stop()
+                keyboardSelection = navigationRows.first?.id
+            }
+            .onChange(of: navigationRows.map(\.id)) { _, ids in
+                if let keyboardSelection, !ids.contains(keyboardSelection) {
+                    self.keyboardSelection = ids.first
+                }
             }
             // Awaits the background parse if the picker is opened before it
             // lands; normally it has already finished and this returns at once.
@@ -85,9 +102,27 @@ struct ThemePickerOverlay: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
-                TextField("Search themes", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .focused($isSearchFocused)
+                SidebarSearchField(
+                    text: $searchText,
+                    placeholder: String(localized: "Search themes"),
+                    fontSize: 17,
+                    canFocus: isPresented,
+                    focusRequestID: 1,
+                    onMoveUpBegan: { beginKeyboardMovement(by: -1, direction: .up) },
+                    onMoveUpEnded: { arrowKeyRepeatManager.stop(direction: .up) },
+                    onMoveDownBegan: { beginKeyboardMovement(by: 1, direction: .down) },
+                    onMoveDownEnded: { arrowKeyRepeatManager.stop(direction: .down) },
+                    onEscape: { isPresented = false },
+                    onSubmit: activateKeyboardSelection,
+                    onFocusChange: { focused in
+                        DispatchQueue.main.async {
+                            isSearchFocused = focused
+                            if !focused { arrowKeyRepeatManager.stop() }
+                        }
+                    }
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: 22)
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -105,29 +140,40 @@ struct ThemePickerOverlay: View {
             Divider()
 
             // Theme list
-            ScrollView {
-                LazyVStack(spacing: 4) {
-                    // Current override info (if any)
-                    if let overrideInfo = currentOverrideInfo {
-                        overrideInfoSection(overrideInfo)
-                    }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        // Current override info (if any)
+                        if let overrideInfo = currentOverrideInfo {
+                            overrideInfoSection(overrideInfo)
+                        }
 
-                    // Active theme pinned first so it never has to be scrolled to
-                    if searchText.isEmpty, let current = currentThemeInfo {
-                        currentSection(current)
-                    }
+                        // Tap the pinned theme to reveal it in the full list.
+                        if searchText.isEmpty, let current = currentThemeInfo {
+                            currentSection(current) {
+                                keyboardSelection = .theme(current.id)
+                                withAnimation {
+                                    proxy.scrollTo(ScrollTarget.theme(current.id), anchor: .center)
+                                }
+                            }
+                        }
 
-                    // Favorites section
-                    if !favoriteManager.favoriteThemeIds.isEmpty && searchText.isEmpty {
-                        favoritesSection
-                    }
+                        // Favorites section
+                        if searchText.isEmpty, !visibleFavoriteThemes.isEmpty {
+                            favoritesSection(visibleFavoriteThemes)
+                        }
 
-                    // All themes (filtered)
-                    themesSection
+                        // All themes (filtered)
+                        themesSection
+                    }
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, 8)
+                .id(searchText)
+                .onChange(of: keyboardSelection) { _, target in
+                    guard let target else { return }
+                    proxy.scrollTo(target, anchor: .center)
+                }
             }
-            .id(searchText)
             // Fixed (not max) height: hosted in a UIHostingController, a ScrollView
             // with only a max height collapses under intrinsic sizing.
             .frame(height: 350)
@@ -204,7 +250,7 @@ struct ThemePickerOverlay: View {
     }
 
     @ViewBuilder
-    private func currentSection(_ theme: ThemeManager.ThemeInfo) -> some View {
+    private func currentSection(_ theme: ThemeManager.ThemeInfo, onTap: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "checkmark.circle.fill")
@@ -218,7 +264,9 @@ struct ThemePickerOverlay: View {
             .padding(.horizontal, 16)
             .padding(.top, 4)
 
-            themeRow(theme, isFavorite: favoriteManager.isFavorite(theme.id))
+            themeRow(theme, isFavorite: favoriteManager.isFavorite(theme.id),
+                     target: .current(theme.id), onTap: onTap)
+                .id(ScrollTarget.current(theme.id))
 
             Divider()
                 .padding(.vertical, 4)
@@ -227,8 +275,13 @@ struct ThemePickerOverlay: View {
 
     // MARK: - Favorites Section
 
+    private var visibleFavoriteThemes: [ThemeManager.ThemeInfo] {
+        let currentThemeId = currentThemeInfo?.id
+        return favoriteManager.favoriteThemes().filter { $0.id != currentThemeId }
+    }
+
     @ViewBuilder
-    private var favoritesSection: some View {
+    private func favoritesSection(_ themes: [ThemeManager.ThemeInfo]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "star.fill")
@@ -242,8 +295,9 @@ struct ThemePickerOverlay: View {
             .padding(.horizontal, 16)
             .padding(.top, 4)
 
-            ForEach(favoriteManager.favoriteThemes()) { theme in
-                themeRow(theme, isFavorite: true)
+            ForEach(themes) { theme in
+                themeRow(theme, isFavorite: true, target: .favorite(theme.id))
+                    .id(ScrollTarget.favorite(theme.id))
             }
 
             Divider()
@@ -273,7 +327,8 @@ struct ThemePickerOverlay: View {
                 .padding()
         } else {
             ForEach(themes) { theme in
-                themeRow(theme, isFavorite: favoriteManager.isFavorite(theme.id))
+                themeRow(theme, isFavorite: favoriteManager.isFavorite(theme.id), target: .theme(theme.id))
+                    .id(ScrollTarget.theme(theme.id))
             }
         }
     }
@@ -281,8 +336,15 @@ struct ThemePickerOverlay: View {
     // MARK: - Theme Row
 
     @ViewBuilder
-    private func themeRow(_ theme: ThemeManager.ThemeInfo, isFavorite: Bool) -> some View {
-        Button(action: { selectTheme(theme) }) {
+    private func themeRow(_ theme: ThemeManager.ThemeInfo, isFavorite: Bool,
+                          target: ScrollTarget, onTap: (() -> Void)? = nil) -> some View {
+        Button(action: {
+            if let onTap {
+                onTap()
+            } else {
+                selectTheme(theme)
+            }
+        }) {
             HStack(spacing: 12) {
                 // Color preview
                 colorPreview(theme)
@@ -319,7 +381,8 @@ struct ThemePickerOverlay: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color.primary.opacity(0.001)) // Make entire row tappable
+            .background(isSearchFocused && keyboardSelection == target
+                        ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.001))
         }
         .buttonStyle(.plain)
     }
@@ -354,6 +417,44 @@ struct ThemePickerOverlay: View {
     }
 
     // MARK: - Actions
+
+    private var navigationRows: [(id: ScrollTarget, theme: ThemeManager.ThemeInfo)] {
+        var rows: [(id: ScrollTarget, theme: ThemeManager.ThemeInfo)] = []
+        if searchText.isEmpty {
+            if let current = currentThemeInfo {
+                rows.append((.current(current.id), current))
+            }
+            rows += visibleFavoriteThemes.map { (.favorite($0.id), $0) }
+        }
+        rows += filteredThemes.map { (.theme($0.id), $0) }
+        return rows
+    }
+
+    private func beginKeyboardMovement(by offset: Int, direction: ArrowKeyRepeatManager.Direction) {
+        moveKeyboardSelection(by: offset)
+        arrowKeyRepeatManager.start(direction: direction) {
+            moveKeyboardSelection(by: offset)
+        }
+    }
+
+    private func moveKeyboardSelection(by offset: Int) {
+        let rows = navigationRows
+        guard !rows.isEmpty else { return }
+        let index = rows.firstIndex { $0.id == keyboardSelection }
+        let nextIndex = index.map { min(max($0 + offset, 0), rows.count - 1) } ?? 0
+        keyboardSelection = rows[nextIndex].id
+    }
+
+    private func activateKeyboardSelection() {
+        let rows = navigationRows
+        guard let row = rows.first(where: { $0.id == keyboardSelection }) ?? rows.first else { return }
+        arrowKeyRepeatManager.stop()
+        if case .current = row.id {
+            keyboardSelection = .theme(row.theme.id)
+        } else {
+            selectTheme(row.theme)
+        }
+    }
 
     private func selectTheme(_ theme: ThemeManager.ThemeInfo) {
         onThemeSelected(theme.name, scope)
