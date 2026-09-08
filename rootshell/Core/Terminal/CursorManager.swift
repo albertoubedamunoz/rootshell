@@ -76,6 +76,7 @@ enum CursorEffect: String, CaseIterable, Codable {
     case teslaCoil
     case neon
     case aurora
+    case silk
 
     var displayName: String {
         switch self {
@@ -87,6 +88,7 @@ enum CursorEffect: String, CaseIterable, Codable {
         case .teslaCoil: return String(localized: "Tesla Coil", comment: "Cursor effect: electric arc")
         case .neon: return String(localized: "Neon", comment: "Cursor effect: glowing neon trail")
         case .aurora: return String(localized: "Aurora", comment: "Cursor effect: theme-aware aurora glow")
+        case .silk: return String(localized: "Silk", comment: "Cursor effect: delicate ribbon of light")
         }
     }
 
@@ -100,6 +102,7 @@ enum CursorEffect: String, CaseIterable, Codable {
         case .teslaCoil: return String(localized: "Electric arc with branching", comment: "Cursor effect description")
         case .neon: return String(localized: "Glowing neon trail with color pulse", comment: "Cursor effect description")
         case .aurora: return String(localized: "Theme-aware glow with color-shifting trail", comment: "Cursor effect description")
+        case .silk: return String(localized: "A delicate ribbon of light that follows your cursor", comment: "Cursor effect description")
         }
     }
 
@@ -114,6 +117,7 @@ enum CursorEffect: String, CaseIterable, Codable {
         case .teslaCoil: return "cursor_tesla_coil.glsl"
         case .neon: return "cursor_neon.glsl"
         case .aurora: return nil // Generated dynamically from theme palette
+        case .silk: return "cursor_silk.glsl"
         }
     }
 }

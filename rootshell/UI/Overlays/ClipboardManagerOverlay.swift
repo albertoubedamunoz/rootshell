@@ -340,7 +340,7 @@ struct ClipboardManagerOverlay: View {
                 .frame(width: 380, height: Self.hudContentHeight)
         }
         .frame(width: 380)
-        .clipboardPanelBackground()
+        .floatingHUDPanelBackground()
         // Normally the HUD opens in passthrough and keyboard mode arrives via
         // onChange; onAppear covers a re-mount while the mode is already on.
         .onAppear {
@@ -1258,26 +1258,5 @@ private struct BoundedMonospacedTextBox: View {
 
         guard truncated else { return (text, false) }
         return (lines.joined(separator: "\n"), true)
-    }
-}
-
-// MARK: - Panel background
-
-private extension View {
-    /// Liquid-glass panel background matching the theme picker's
-    /// `themePickerBackground()` (duplicated because that helper is private).
-    @ViewBuilder
-    func clipboardPanelBackground() -> some View {
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-        #if os(visionOS)
-        self.background(.regularMaterial, in: shape)
-        #else
-        if #available(iOS 26.0, macOS 26.0, *) {
-            self.glassEffect(.regular, in: shape)
-        } else {
-            self.background(.ultraThinMaterial, in: shape)
-                .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
-        }
-        #endif
     }
 }

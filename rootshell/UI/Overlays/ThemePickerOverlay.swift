@@ -179,7 +179,7 @@ struct ThemePickerOverlay: View {
             .frame(height: 350)
         }
         .frame(width: 340)
-        .themePickerBackground()
+        .floatingHUDPanelBackground()
         // Cmd-Shift-T / Escape dismissal is handled by host-level UIKeyCommands in
         // DraggableHUDContainer — a SwiftUI .onKeyPress here is preempted on macOS by
         // the app's registered Cmd-Shift-T menu shortcut.
@@ -465,24 +465,4 @@ struct ThemePickerOverlay: View {
         favoriteManager.toggleFavorite(theme.id)
     }
 
-}
-
-private extension View {
-    /// Liquid-glass panel background matching the find HUD's `searchOverlayBackground()`,
-    /// at the picker's 16pt radius. `glassEffect` supplies its own elevation, so the
-    /// manual shadow is only kept in the pre-26 fallback.
-    @ViewBuilder
-    func themePickerBackground() -> some View {
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-        #if os(visionOS)
-        self.background(.regularMaterial, in: shape)
-        #else
-        if #available(iOS 26.0, macOS 26.0, *) {
-            self.glassEffect(.regular, in: shape)
-        } else {
-            self.background(.ultraThinMaterial, in: shape)
-                .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
-        }
-        #endif
-    }
 }

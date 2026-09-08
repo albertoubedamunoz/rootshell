@@ -432,6 +432,15 @@ class SSHAgentSigner {
 
         switch keyVariant {
         case .nioSSH(let nioKey), .secureEnclaveP256(let nioKey):
+            // Preserve the actual wire type, including legacy hybrid keys.
+            if keyType == .mldsa44Ed25519 {
+                let exported = String(openSSHPublicKey: nioKey.publicKey)
+                if let encoded = exported.split(separator: " ").dropFirst().first,
+                   let bytes = Data(base64Encoded: String(encoded)) {
+                    buffer.writeBytes(bytes)
+                }
+                return buffer
+            }
             // Use NIOSSHPublicKey's write method
             let publicKey = nioKey.publicKey
 
@@ -521,7 +530,7 @@ class SSHAgentSigner {
         case .applePasskey: return "sk-ecdsa-sha2-nistp256@openssh.com"
         case .secureEnclaveP256: return "ecdsa-sha2-nistp256"  // Standard ECDSA P-256 from the Secure Enclave
         case .externalAgent: return "ssh-ed25519"  // Placeholder; agent keys always use their cached blob
-        case .mldsa44Ed25519: return "ssh-mldsa44-ed25519@openssh.com"
+        case .mldsa44Ed25519: return MLDSA44Ed25519SSH.algorithmName
         case .mldsa44: return "ssh-mldsa44"
         case .mldsa65: return "ssh-mldsa65"
         case .mldsa87: return "ssh-mldsa87"
@@ -551,7 +560,7 @@ class SSHAgentSigner {
         case .externalAgent:
             return "ssh-agent"  // Logging only; the agent's blob carries the real algorithm
         case .mldsa44Ed25519:
-            return "ssh-mldsa44-ed25519@openssh.com"
+            return MLDSA44Ed25519SSH.algorithmName
         case .mldsa44:
             return "ssh-mldsa44"
         case .mldsa65:

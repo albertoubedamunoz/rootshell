@@ -279,6 +279,7 @@ struct MainView: View {
     
     // Theme picker overlay state
     @State var showThemePickerOverlay = false
+    @State var showQuickSettingsOverlay = false
 
     // Clipboard manager overlay state
     @State var showClipboardManager = false
@@ -676,6 +677,7 @@ struct MainView: View {
         let overlayContent = applyOverlayChangeHandlers(sheetContent)
         let alertContent = applyAlertModifiers(overlayContent)
         return applyLifecycleHandlers(alertContent)
+            .iPadVisor(ghosttyApp: ghosttyApp, windowID: windowId, modalPresented: isAnySheetPresented)
     }
 
 }

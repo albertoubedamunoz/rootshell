@@ -31,6 +31,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     var inset: CGFloat
     var draggable: Bool
     var dismissShortcuts: [HUDKeyShortcut]
+    var forwardsQuickSettingsToggle: Bool
     var forwardsThemePickerToggle: Bool
     var forwardsFindToggle: Bool
     var forwardsClipboardManagerToggle: Bool
@@ -40,25 +41,30 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     /// first responder before keyboard mode is on (manual tap), and the toggle
     /// must then advance the cycle, not close.
     var onForwardedToggle: (() -> Void)?
+    var onFind: (() -> Void)?
     var onDismiss: (() -> Void)?
     var content: () -> Content
 
     init(inset: CGFloat = 12,
          draggable: Bool = true,
          dismissShortcuts: [HUDKeyShortcut] = [],
+         forwardsQuickSettingsToggle: Bool = false,
          forwardsThemePickerToggle: Bool = false,
          forwardsFindToggle: Bool = false,
          forwardsClipboardManagerToggle: Bool = false,
          onForwardedToggle: (() -> Void)? = nil,
+         onFind: (() -> Void)? = nil,
          onDismiss: (() -> Void)? = nil,
          @ViewBuilder content: @escaping () -> Content) {
         self.inset = inset
         self.draggable = draggable
         self.dismissShortcuts = dismissShortcuts
+        self.forwardsQuickSettingsToggle = forwardsQuickSettingsToggle
         self.forwardsThemePickerToggle = forwardsThemePickerToggle
         self.forwardsFindToggle = forwardsFindToggle
         self.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         self.onForwardedToggle = onForwardedToggle
+        self.onFind = onFind
         self.onDismiss = onDismiss
         self.content = content
     }
@@ -68,10 +74,12 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         view.inset = inset
         view.isDraggable = draggable
         view.dismissShortcuts = dismissShortcuts
+        view.forwardsQuickSettingsToggle = forwardsQuickSettingsToggle
         view.forwardsThemePickerToggle = forwardsThemePickerToggle
         view.forwardsFindToggle = forwardsFindToggle
         view.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         view.onForwardedToggle = onForwardedToggle
+        view.onFind = onFind
         view.onDismiss = onDismiss
 
         let host = UIHostingController(rootView: AnyView(content()))
@@ -92,8 +100,10 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         // Keep the hosted SwiftUI view + dismiss closure/shortcuts in sync. The HUD's
         // position lives on the UIView and is untouched by content updates.
         context.coordinator.host?.rootView = AnyView(content())
+        uiView.onFind = onFind
         uiView.onDismiss = onDismiss
         uiView.dismissShortcuts = dismissShortcuts
+        uiView.forwardsQuickSettingsToggle = forwardsQuickSettingsToggle
         uiView.forwardsThemePickerToggle = forwardsThemePickerToggle
         uiView.forwardsFindToggle = forwardsFindToggle
         uiView.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
@@ -131,10 +141,12 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     var inset: CGFloat = 12
     var isDraggable = true
     var dismissShortcuts: [HUDKeyShortcut] = []
+    var forwardsQuickSettingsToggle = false
     var forwardsThemePickerToggle = false
     var forwardsFindToggle = false
     var forwardsClipboardManagerToggle = false
     var onForwardedToggle: (() -> Void)?
+    var onFind: (() -> Void)?
     var onDismiss: (() -> Void)?
 
     /// Once the user drags the HUD we preserve their chosen position. Before
@@ -153,10 +165,15 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     // chain, so answering the selector lets the existing customizable shortcut dismiss
     // the HUD. Each is gated so only the matching HUD claims it.
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(menuToggleQuickSettings(_:)) { return forwardsQuickSettingsToggle }
         if action == #selector(menuToggleThemePicker(_:)) { return forwardsThemePickerToggle }
         if action == #selector(findInTerminal(_:)) { return forwardsFindToggle }
         if action == #selector(menuToggleClipboardManager(_:)) { return forwardsClipboardManagerToggle }
         return super.canPerformAction(action, withSender: sender)
+    }
+
+    @objc func menuToggleQuickSettings(_ sender: Any?) {
+        (onForwardedToggle ?? onDismiss)?()
     }
 
     @objc func menuToggleThemePicker(_ sender: Any?) {
@@ -168,7 +185,7 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     }
 
     @objc func findInTerminal(_ sender: Any?) {
-        onDismiss?()
+        (onFind ?? onDismiss)?()
     }
 
     // MARK: Key commands
@@ -180,13 +197,26 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     // even with wantsPriorityOverSystemBehavior — so those go through the menu action
     // (see canPerformAction / menuToggleThemePicker) instead.
     override var keyCommands: [UIKeyCommand]? {
-        guard !dismissShortcuts.isEmpty else { return nil }
-        return dismissShortcuts.map {
+        var commands = dismissShortcuts.map {
             let command = UIKeyCommand(input: $0.input, modifierFlags: $0.modifiers,
                                        action: #selector(handleDismissCommand(_:)))
             command.wantsPriorityOverSystemBehavior = true
             return command
         }
+        if forwardsQuickSettingsToggle,
+           let sequence = KeybindManager.shared.sequence(for: .toggle_quick_settings),
+           !sequence.isSequence, let trigger = sequence.first {
+            let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
+                                       action: #selector(menuToggleQuickSettings(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            commands.append(command)
+        }
+        if onFind != nil {
+            let command = UIKeyCommand(input: "f", modifierFlags: .command, action: #selector(findInTerminal(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            commands.append(command)
+        }
+        return commands.isEmpty ? nil : commands
     }
 
     @objc private func handleDismissCommand(_ command: UIKeyCommand) {

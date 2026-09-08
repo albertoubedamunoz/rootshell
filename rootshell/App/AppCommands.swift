@@ -556,6 +556,14 @@ struct ShellCommands: Commands {
                 )
             }
             .modifier(DynamicShortcut(action: .open_settings, shortcuts: shortcutState.shortcuts))
+
+            Button("Quick Settings…") {
+                UIApplication.shared.sendAction(
+                    #selector(UIApplication.menuToggleQuickSettings(_:)),
+                    to: nil, from: nil, for: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .toggle_quick_settings, shortcuts: shortcutState.shortcuts))
         }
     }
 }

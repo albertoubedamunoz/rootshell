@@ -49,6 +49,7 @@ struct SidebarSearchField: UIViewRepresentable {
     /// keyboard-navigable (e.g. the clipboard HUD outside keyboard mode) so the
     /// arrows keep their default text-field caret behavior.
     var capturesNavigationKeys: Bool = true
+    var selectsAllOnFocus: Bool = false
 
     var onMoveUpBegan: () -> Void
     var onMoveUpEnded: () -> Void
@@ -174,10 +175,12 @@ struct SidebarSearchField: UIViewRepresentable {
             // so the request replays on the next update after resume.
             guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
             if field.isFirstResponder {
+                if parent.selectsAllOnFocus { field.selectAll(nil) }
                 lastAppliedFocusRequestID = request
                 return
             }
             if field.becomeFirstResponder() || field.isFirstResponder {
+                if parent.selectsAllOnFocus { field.selectAll(nil) }
                 lastAppliedFocusRequestID = request
             }
         }

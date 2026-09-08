@@ -84,6 +84,10 @@ extension UIApplication {
         }?.session.persistentIdentifier
     }
 
+    @objc func menuToggleQuickSettings(_ sender: Any?) {
+        ghostty_postNotification(.toggleQuickSettings)
+    }
+
     // MARK: - Menu Actions (SwiftUI Commands)
 
     @objc func menuCreateLocalShell(_ sender: Any?) {

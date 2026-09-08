@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import Combine
 import os
 
@@ -163,6 +164,7 @@ final class KeybindManager: ObservableObject {
 
             // Shell Operations
             Keybind(key: .comma, modifiers: .command, action: .open_settings),
+            Keybind(key: .comma, modifiers: [.command, .shift], action: .toggle_quick_settings),
             Keybind(key: .b, modifiers: .command, action: .browse_hosts),
             Keybind(key: .p, modifiers: [.command, .shift], action: .browse_profiles),
             Keybind(key: .i, modifiers: .command, action: .toggle_ai_agent),
@@ -196,13 +198,18 @@ final class KeybindManager: ObservableObject {
             Keybind(key: .y, modifiers: .control, action: .ctrl_y),
             Keybind(key: .z, modifiers: .control, action: .ctrl_z),
         ]
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            defaultBindings.append(Keybind(key: .escape, modifiers: .shift, action: .toggle_visor))
+        }
+        #endif
     }
 
     // MARK: - Binding Lookup
 
     /// Get the action for a given sequence
     func action(for sequence: KeySequence) -> KeybindAction? {
-        activeBindings.first { $0.sequence == sequence }?.action
+        activeBindings.first { $0.sequence == sequence && $0.action.isAvailableForVisorDispatch }?.action
     }
 
     /// Get the action for a single trigger
@@ -222,13 +229,13 @@ final class KeybindManager: ObservableObject {
 
     /// Get bindings that start with a specific trigger (for sequence matching)
     func bindingsStartingWith(trigger: KeyTrigger) -> [Keybind] {
-        activeBindings.filter { $0.sequence.matchesPrefix(trigger) }
+        activeBindings.filter { $0.sequence.matchesPrefix(trigger) && $0.action.isAvailableForVisorDispatch }
     }
 
     /// Check if a trigger is a sequence prefix (has bindings that start with it)
     func isSequencePrefix(_ trigger: KeyTrigger) -> Bool {
         activeBindings.contains { keybind in
-            keybind.sequence.isSequence && keybind.sequence.matchesPrefix(trigger)
+            keybind.action.isAvailableForVisorDispatch && keybind.sequence.isSequence && keybind.sequence.matchesPrefix(trigger)
         }
     }
 
@@ -239,7 +246,7 @@ final class KeybindManager: ObservableObject {
 
     /// Get the keybind for a given sequence (includes action parameter)
     func keybind(for sequence: KeySequence) -> Keybind? {
-        activeBindings.first { $0.sequence == sequence }
+        activeBindings.first { $0.sequence == sequence && $0.action.isAvailableForVisorDispatch }
     }
 
     /// Get the keybind for a single trigger (includes action parameter)
