@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/ghosttykit-rootshell.git",
       "state" : {
-        "revision" : "56c6bc828405e134ec55a02296221afcd4c8122b",
-        "version" : "0.2.11"
+        "revision" : "6fdfffd231af7c23e85d95de5e26f9e78d299c00",
+        "version" : "0.2.12"
       }
     },
     {
@@ -150,7 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/rootshell-vnc.git",
       "state" : {
-        "revision" : "f202e3990bf4ed952fe806937ff419440cb7f961"
+        "revision" : "fd2735557c15a73d63b82763bbb1543f536f546a",
+        "version" : "0.1.3"
       }
     },
     {
