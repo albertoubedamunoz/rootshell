@@ -404,6 +404,17 @@ extension MainView {
             self.showConnectionSidebar = true
         }
 
+        observerBag.observeOnMainActor(.openConnectionProfile) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            guard let rawID = notification.userInfo?["profileID"] as? String,
+                  let profileID = UUID(uuidString: rawID) else { return }
+            // Same connect path as Shortcuts / AppleScript profile open.
+            self.handleProfileIntent(ProfileIntentRequest(
+                profileID: profileID,
+                launchCommandOverride: nil
+            ))
+        }
+
         #if !CHINA_BUILD
         observerBag.observeOnMainActor(.toggleAIAgent) { [self] notification in
             Ghostty.logger.info("toggleAIAgent notification received, object: \(String(describing: notification.object))")

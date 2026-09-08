@@ -173,6 +173,7 @@ struct SSHHostBrowseListContent: View {
                 ProfileEditorSheet(historyEntry: entry, embedded: true)
             }
         }
+        .profileShortcutEditorHost()
     }
 
     // MARK: - Search Section

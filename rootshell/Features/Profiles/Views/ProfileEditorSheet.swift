@@ -7,10 +7,84 @@
 
 import SwiftUI
 
+struct ProfileShortcutEditorRequest: Identifiable {
+    let id = UUID()
+    let actionParameter: String?
+    let title: String
+    let draftSequence: KeySequence?
+    let onOutcome: (KeybindEditorOutcome) -> Void
+}
+
+struct ProfileShortcutEditorPresenter {
+    let present: (ProfileShortcutEditorRequest) -> Void
+
+    func callAsFunction(_ request: ProfileShortcutEditorRequest) {
+        present(request)
+    }
+}
+
+private struct ProfileShortcutEditorPresenterKey: EnvironmentKey {
+    static let defaultValue: ProfileShortcutEditorPresenter? = nil
+}
+
+extension EnvironmentValues {
+    var profileShortcutEditorPresenter: ProfileShortcutEditorPresenter? {
+        get { self[ProfileShortcutEditorPresenterKey.self] }
+        set { self[ProfileShortcutEditorPresenterKey.self] = newValue }
+    }
+}
+
+/// Owns the shortcut sheet above profile navigation destinations. Catalyst
+/// then gives it the same responder isolation as the Settings shortcut sheet.
+private struct ProfileShortcutEditorHostModifier: ViewModifier {
+    @Environment(\.sheetThemeColors) private var sheetThemeColors
+    @State private var request: ProfileShortcutEditorRequest?
+    @State private var pendingOutcome: KeybindEditorOutcome?
+    @State private var outcomeHandler: ((KeybindEditorOutcome) -> Void)?
+
+    func body(content: Content) -> some View {
+        content
+            .environment(
+                \.profileShortcutEditorPresenter,
+                ProfileShortcutEditorPresenter { newRequest in
+                    pendingOutcome = nil
+                    outcomeHandler = newRequest.onOutcome
+                    request = newRequest
+                }
+            )
+            .sheet(item: $request, onDismiss: applyPendingOutcome) { request in
+                KeybindEditorView(
+                    action: .open_profile,
+                    actionParameter: request.actionParameter,
+                    titleOverride: request.title,
+                    allowsRestoreDefault: false,
+                    draftSequence: .some(request.draftSequence),
+                    onOutcome: { pendingOutcome = $0 }
+                )
+                .themedSubSheet(sheetThemeColors)
+            }
+    }
+
+    private func applyPendingOutcome() {
+        if let pendingOutcome {
+            outcomeHandler?(pendingOutcome)
+        }
+        pendingOutcome = nil
+        outcomeHandler = nil
+    }
+}
+
+extension View {
+    func profileShortcutEditorHost() -> some View {
+        modifier(ProfileShortcutEditorHostModifier())
+    }
+}
+
 /// Sheet for creating or editing a connection profile
 struct ProfileEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sheetThemeColors) private var sheetThemeColors
+    @Environment(\.profileShortcutEditorPresenter) private var shortcutEditorPresenter
 
     // Manager
     private var profileManager: ConnectionProfileManager { ConnectionProfileManager.shared }
@@ -130,7 +204,13 @@ struct ProfileEditorSheet: View {
     // UI state
     @State private var showingIconPicker: Bool = false
     @State private var showingFolderPicker: Bool = false
+    @State private var showingShortcutEditor: Bool = false
     @State private var errorMessage: String?
+
+    /// Draft keyboard shortcut for this profile. nil = no shortcut (the default).
+    /// Applied to KeybindManager only when the profile is saved.
+    @State private var draftShortcut: KeySequence?
+    @State private var pendingShortcutOutcome: KeybindEditorOutcome?
 
     // Existing profile (nil for new)
     private let existingProfile: ConnectionProfile?
@@ -320,6 +400,21 @@ struct ProfileEditorSheet: View {
             FolderPickerSheet(selectedPath: $folderPath)
                 .themedSubSheet(sheetThemeColors)
         }
+        .sheet(isPresented: $showingShortcutEditor, onDismiss: applyPendingShortcutOutcome) {
+            KeybindEditorView(
+                action: .open_profile,
+                actionParameter: existingProfile?.id.uuidString,
+                titleOverride: name.isEmpty
+                    ? String(localized: "Profile Shortcut", comment: "Title when editing a profile keyboard shortcut")
+                    : name,
+                allowsRestoreDefault: false,
+                draftSequence: .some(draftShortcut),
+                onOutcome: { outcome in
+                    pendingShortcutOutcome = outcome
+                }
+            )
+            .themedSubSheet(sheetThemeColors)
+        }
         .sheet(isPresented: $showingAddPortForward) {
             AddPortForwardSheet { newForward in
                 let wasEmpty = portForwards.isEmpty
@@ -403,6 +498,25 @@ struct ProfileEditorSheet: View {
                 Spacer()
                 colorPicker
             }
+            .themedRow()
+
+            Button {
+                presentShortcutEditor()
+            } label: {
+                HStack {
+                    Text("Keyboard Shortcut")
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text(draftShortcut?.symbolDescription ?? String(localized: "None"))
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             .themedRow()
         }
     }
@@ -1813,6 +1927,47 @@ struct ProfileEditorSheet: View {
 
     // MARK: - Actions
 
+    private func presentShortcutEditor() {
+        let title = name.isEmpty
+            ? String(localized: "Profile Shortcut", comment: "Title when editing a profile keyboard shortcut")
+            : name
+
+        if let shortcutEditorPresenter {
+            shortcutEditorPresenter(ProfileShortcutEditorRequest(
+                actionParameter: existingProfile?.id.uuidString,
+                title: title,
+                draftSequence: draftShortcut,
+                onOutcome: applyShortcutOutcome
+            ))
+        } else {
+            showingShortcutEditor = true
+        }
+    }
+
+    private func applyPendingShortcutOutcome() {
+        guard let pendingShortcutOutcome else { return }
+        self.pendingShortcutOutcome = nil
+        applyShortcutOutcome(pendingShortcutOutcome)
+    }
+
+    private func applyShortcutOutcome(_ outcome: KeybindEditorOutcome) {
+        switch outcome {
+        case .captured(let sequence):
+            draftShortcut = sequence
+        case .restoreDefault, .unbind:
+            draftShortcut = nil
+        }
+    }
+
+    /// Persist the draft keyboard shortcut for a profile after create/update.
+    private func persistDraftShortcut(for profileID: UUID) {
+        if let draftShortcut {
+            KeybindManager.shared.setProfileShortcut(sequence: draftShortcut, profileID: profileID)
+        } else {
+            KeybindManager.shared.clearProfileShortcut(profileID: profileID)
+        }
+    }
+
     private func loadExistingProfile() {
         guard !didLoadProfile else { return }
         didLoadProfile = true
@@ -1825,6 +1980,7 @@ struct ProfileEditorSheet: View {
             colorTag = profile.colorTag
             folderPath = profile.folderPath
             tags = profile.tags
+            draftShortcut = KeybindManager.shared.keybind(forProfileID: profile.id)?.sequence
 
             // Load connection protocol and transport mode
             connectionProtocol = profile.connectionProtocol
@@ -2297,9 +2453,10 @@ struct ProfileEditorSheet: View {
                 updated.localConfig = nil
                 updated.themeName = profileThemeName.isEmpty ? nil : profileThemeName
                 try profileManager.updateProfile(updated)
+                persistDraftShortcut(for: updated.id)
             } else {
                 // Create new profile
-                try profileManager.createProfile(
+                let created = try profileManager.createProfile(
                     name: trimmedName,
                     sshConfig: finalConfig,
                     connectionProtocol: connectionProtocol,
@@ -2322,6 +2479,7 @@ struct ProfileEditorSheet: View {
                     vpnBlockQUIC: vpnBlockQUIC,
                     extensionPayload: ProfileExtensionPayload(themeName: profileThemeName.isEmpty ? nil : profileThemeName)
                 )
+                persistDraftShortcut(for: created.id)
             }
             dismiss()
         } catch {
@@ -2353,14 +2511,16 @@ struct ProfileEditorSheet: View {
                     useCount: existing.useCount, extensionPayload: payload
                 )
                 try profileManager.updateProfile(updated)
+                persistDraftShortcut(for: updated.id)
             } else {
-                try profileManager.createProfile(
+                let created = try profileManager.createProfile(
                     name: trimmedName, sshConfig: ConnectionProfile.localPlaceholderSSHConfig(),
                     connectionProtocol: .local,
                     notes: notes.isEmpty ? nil : notes, iconName: iconName,
                     colorTag: colorTag, folderPath: folderPath, tags: tags,
                     extensionPayload: payload
                 )
+                persistDraftShortcut(for: created.id)
             }
             dismiss()
         } catch {
@@ -2410,8 +2570,9 @@ struct ProfileEditorSheet: View {
                 updated.themeName = profileThemeName.isEmpty ? nil : profileThemeName
                 updated.sshConfig = ConnectionProfile.vncPlaceholderSSHConfig(for: config)
                 try profileManager.updateProfile(updated)
+                persistDraftShortcut(for: updated.id)
             } else {
-                try profileManager.createProfile(
+                let created = try profileManager.createProfile(
                     name: trimmedName,
                     sshConfig: ConnectionProfile.vncPlaceholderSSHConfig(for: config),
                     connectionProtocol: .vnc,
@@ -2422,6 +2583,7 @@ struct ProfileEditorSheet: View {
                     tags: tags,
                     extensionPayload: ProfileExtensionPayload(vncConfig: config, themeName: profileThemeName.isEmpty ? nil : profileThemeName)
                 )
+                persistDraftShortcut(for: created.id)
             }
             dismiss()
         } catch {

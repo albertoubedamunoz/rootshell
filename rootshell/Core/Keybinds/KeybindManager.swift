@@ -244,6 +244,21 @@ final class KeybindManager: ObservableObject {
         activeBindings.first { $0.action == action }
     }
 
+    /// Get the keybind for a parameterized action (e.g. open_profile:<uuid>)
+    func keybind(for action: KeybindAction, parameter: String) -> Keybind? {
+        activeBindings.first { $0.action == action && $0.actionParameter == parameter }
+    }
+
+    /// Shortcut sequence currently bound to a connection profile, if any
+    func keybind(forProfileID profileID: UUID) -> Keybind? {
+        keybind(for: .open_profile, parameter: profileID.uuidString)
+    }
+
+    /// Human-readable shortcut glyphs for a profile (e.g. "⌘⇧1"), or nil when unbound
+    func shortcutDescription(forProfileID profileID: UUID) -> String? {
+        keybind(forProfileID: profileID)?.sequence.symbolDescription
+    }
+
     /// Get the keybind for a given sequence (includes action parameter)
     func keybind(for sequence: KeySequence) -> Keybind? {
         activeBindings.first { $0.sequence == sequence && $0.action.isAvailableForVisorDispatch }
@@ -257,8 +272,9 @@ final class KeybindManager: ObservableObject {
     // MARK: - User Overrides
 
     /// Set a user override for an action
-    func setOverride(sequence: KeySequence, action: KeybindAction) {
-        Self.logger.info("Setting override: \(sequence.ghosttyFormat) -> \(action.rawValue)")
+    func setOverride(sequence: KeySequence, action: KeybindAction, parameter: String? = nil) {
+        let paramLabel = parameter.map { ":\($0)" } ?? ""
+        Self.logger.info("Setting override: \(sequence.ghosttyFormat) -> \(action.rawValue)\(paramLabel)")
 
         if action == .unbind {
             // Unbind is special: multiple actions can be unbound simultaneously.
@@ -266,6 +282,12 @@ final class KeybindManager: ObservableObject {
             // overrides (e.g., custom remaps) — reloadBindings() processes them in
             // order, so the later unbind suppresses the earlier remap.
             userOverrides.removeAll { $0.action == .unbind && $0.sequence == sequence }
+        } else if action.isParameterized, let parameter {
+            // Parameterized actions (open_profile, send_text, …) can have many
+            // bindings that share the same action with different params.
+            userOverrides.removeAll {
+                $0.action == action && $0.actionParameter == parameter
+            }
         } else {
             // Normal action: one key per action, remove old override for this action
             userOverrides.removeAll { $0.action == action }
@@ -279,6 +301,7 @@ final class KeybindManager: ObservableObject {
         let override = Keybind(
             sequence: sequence,
             action: action,
+            actionParameter: parameter,
             isUserOverride: true,
             source: .userOverride
         )
@@ -289,8 +312,18 @@ final class KeybindManager: ObservableObject {
     }
 
     /// Set a user override from a single trigger
-    func setOverride(trigger: KeyTrigger, action: KeybindAction) {
-        setOverride(sequence: KeySequence(trigger: trigger), action: action)
+    func setOverride(trigger: KeyTrigger, action: KeybindAction, parameter: String? = nil) {
+        setOverride(sequence: KeySequence(trigger: trigger), action: action, parameter: parameter)
+    }
+
+    /// Bind or replace the keyboard shortcut for a connection profile
+    func setProfileShortcut(sequence: KeySequence, profileID: UUID) {
+        setOverride(sequence: sequence, action: .open_profile, parameter: profileID.uuidString)
+    }
+
+    /// Remove the keyboard shortcut for a connection profile (default: none)
+    func clearProfileShortcut(profileID: UUID) {
+        removeOverride(for: .open_profile, parameter: profileID.uuidString)
     }
 
     /// Explicitly unbind an action (removes its shortcut entirely)
@@ -332,6 +365,16 @@ final class KeybindManager: ObservableObject {
         // Also remove any unbind override targeting this action
         userOverrides.removeAll {
             $0.action == .unbind && $0.actionParameter == action.rawValue
+        }
+        saveUserOverrides()
+        reloadBindings()
+    }
+
+    /// Remove a parameterized user override (e.g. a single profile shortcut)
+    func removeOverride(for action: KeybindAction, parameter: String) {
+        Self.logger.info("Removing override for: \(action.rawValue):\(parameter)")
+        userOverrides.removeAll {
+            $0.action == action && $0.actionParameter == parameter
         }
         saveUserOverrides()
         reloadBindings()
