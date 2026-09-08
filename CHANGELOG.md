@@ -3,6 +3,48 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-144 - September 8, 2026
+
+### Live Activities
+
+- **Coding Agents in Live Activities:** Live Activities can show detected coding agents and counts for working, idle or needing attention on the Lock Screen, Dynamic Island and Apple Watch. Enable Coding Agents under Settings -> Privacy & Data -> Live Activity. Counts update on-device while rootshell is in the foreground; background snapshots are clearly marked as paused.
+
+### iPad Visor
+
+- **Optional Visor Terminal:** iPad gains a Liquid Glass, Quake-style Visor: a separate local terminal above each window. Enable it under Settings -> Appearance -> Visor; toggle with Shift-Escape by default and drag its bottom edge to resize. Each window preserves its Visor session while hidden, and Search, Compose and window actions target it while open.
+
+### Performance and Size
+
+- **Faster Cold Launch:** rootshell registers only the fonts needed for the first terminal and loads the full catalog away from the main thread, improving launch time especially with many installed fonts. Saved terminal settings load once and font metadata is reused. Terminal readiness takes priority while audio, notification and location setup no longer blocks it. On Standalone Mac, the local SSH agent, helper and PTY handoff start sooner.
+- **Smaller macOS VPN Component:** The VPN component bundled inside rootshell is 13.5 MiB (23%) smaller, down from 59.6 to 46.2 MiB.
+
+### Quick Settings and Appearance
+
+- **Searchable Quick Settings:** Press Cmd-Shift-Comma to change global preferences without leaving the terminal. Navigate and edit toggles, choices, text, numbers and colors with the keyboard; the shortcut is customizable.
+- **Complete Settings Search:** Settings search now reaches every detail screen and previously unindexed controls, including Local Shell, VPN, Location Diary and imports. Results respect the current platform and edition, hiding unavailable Mac, iOS, China or Standalone settings.
+- **Optional Connection Humor:** A new “I’m no fun” toggle under Settings -> Appearance -> Appearance Mode turns off connection jokes, failure quips and ASCII failure animations while preserving progress and error messages.
+- **Silk Cursor Effect:** Added Silk, a subtle theme-colored cursor ribbon.
+
+### Profiles and Sync
+
+- **Hidden Profile Recovery on macOS:** Fixed profiles and per-profile themes disappearing when their files gained a hidden flag, potentially during iCloud document syncing. The records remained on disk; rootshell now loads them regardless of that flag.
+
+### tmux Control Mode
+
+- **Live Connection Diagnostics:** Connection Info now shows live diagnostics for local and remote tmux gateways and tabs, including server, session, client, window and pane details, sizes, attachment counts, control traffic and transport.
+- **Complete Startup Output:** Fixed tmux tabs occasionally opening without login banners, the first shell prompt or other startup output during pane capture and recovery.
+
+### SSH
+
+- **Standardized Hybrid Key Names:** Added OpenSSH's newly standardized ML-DSA-44/Ed25519 hybrid key and certificate names following their IANA allocation. New keys interoperate with current OpenSSH, older rootshell keys using experimental @openssh.com names keep working, and host-key and certificate negotiation order now matches OpenSSH.
+- **Correct AES-CTR Packet Padding:** Fixed incorrect AES-CTR Encrypt-then-MAC packet padding that could break connections or rekeying.
+- **Reliable SSH Agent Locking:** Fixed a local SSH agent lock bug that could allow key use while locked, including during an approval. Locked identity listings now return empty until unlock, matching OpenSSH.
+
+### External SSH Agents (macOS Standalone)
+
+- **Agent Recovery across Login Changes:** Keys imported from SSH_AUTH_SOCK, 1Password and other external agents now survive macOS login changes that rotate launchd's agent socket. rootshell resolves the live listener when a key is used, verifies that the agent actually serves that key and heals stale saved paths without rebinding a working key to the wrong agent.
+- **VPN Signing and Agent Discovery:** The same recovery applies to VPN signing across login-session changes. Discovery avoids duplicates and rootshell's own socket, and key details show the verified socket.
+
 ## 1.0.11-143 - September 6, 2026
 
 ### Writing Assistance
