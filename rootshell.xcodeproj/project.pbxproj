@@ -6507,7 +6507,7 @@
 			repositoryURL = "https://github.com/kitknox/ghosttykit-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.10;
+				version = 0.2.11;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
