@@ -677,6 +677,7 @@ struct MainView: View {
         let overlayContent = applyOverlayChangeHandlers(sheetContent)
         let alertContent = applyAlertModifiers(overlayContent)
         return applyLifecycleHandlers(alertContent)
+            .iPadVisor(ghosttyApp: ghosttyApp, windowID: windowId, modalPresented: isAnySheetPresented)
     }
 
 }

@@ -221,6 +221,14 @@ struct SettingsAppearanceSection: View {
                 }
                 .themedRow()
                 .settingGroupContextMenu(.visor)
+                #elseif os(iOS)
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    NavigationLink(value: SettingsSearchDestination.visor) {
+                        Label("Visor", systemImage: "rectangle.topthird.inset.filled")
+                    }
+                    .themedRow()
+                    .settingGroupContextMenu(.visor)
+                }
                 #endif
             }
         }
