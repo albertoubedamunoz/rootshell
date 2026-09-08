@@ -133,7 +133,7 @@ final class KeybindCommandGenerator: ObservableObject {
              .toggle_full_screen, .toggle_mouse_capture, .cycle_input_source,
              .increase_font_size, .decrease_font_size,
              .reset_font_size, .start_search, .select_all, .toggle_theme_picker,
-             .toggle_clipboard_manager, .brightness_boost:
+             .toggle_clipboard_manager, .brightness_boost, .open_profile:
             return true
 
         // Terminal actions are handled via ghostty_surface_binding_action
@@ -205,7 +205,17 @@ final class KeybindCommandGenerator: ObservableObject {
 
         // Set discoverability title for iPad keyboard shortcuts overlay
         #if !os(visionOS)
-        command.discoverabilityTitle = binding.action.displayName
+        if binding.action == .open_profile,
+           let param = binding.actionParameter,
+           let profileID = UUID(uuidString: param),
+           let profile = ConnectionProfileManager.shared.profile(for: profileID) {
+            command.discoverabilityTitle = String(
+                localized: "Open \(profile.name)",
+                comment: "Keyboard shortcut discoverability title for opening a connection profile"
+            )
+        } else {
+            command.discoverabilityTitle = binding.action.displayName
+        }
         #endif
 
         // User overrides and external config bindings need priority to override

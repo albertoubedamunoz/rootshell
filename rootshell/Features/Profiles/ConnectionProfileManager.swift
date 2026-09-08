@@ -291,6 +291,7 @@ final class ConnectionProfileManager {
 
     /// Delete a profile (soft delete for sync)
     func deleteProfile(id: UUID) throws {
+        KeybindManager.shared.clearProfileShortcut(profileID: id)
         try store.softDelete(id: id)
         updateProfilesFromStore()
 
@@ -657,6 +658,7 @@ final class ConnectionProfileManager {
                 identity: profile.id.uuidString
             )
             if recordNames.contains(recordName) {
+                KeybindManager.shared.clearProfileShortcut(profileID: profile.id)
                 var deleted = profile
                 deleted.isDeleted = true
                 deleted.modifiedAt = Date()

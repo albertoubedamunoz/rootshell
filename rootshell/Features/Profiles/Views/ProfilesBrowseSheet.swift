@@ -715,6 +715,7 @@ struct ProfileRow: View {
     var action: (() -> Void)? = nil
 
     @ObservedObject private var sessionTracker = SessionTracker.shared
+    @ObservedObject private var keybindManager = KeybindManager.shared
 
     var body: some View {
         rowContent
@@ -722,11 +723,11 @@ struct ProfileRow: View {
 
     @ViewBuilder
     private var rowContent: some View {
-        HStack {
+        HStack(alignment: .center, spacing: 12) {
             // Icon
             profileIcon
 
-            // Info
+            // Title + subtitle
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name)
                     .foregroundColor(.primary)
@@ -746,7 +747,17 @@ struct ProfileRow: View {
                     .foregroundColor(.secondary)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
+
+            // Keyboard shortcut — trailing, sized to read clearly beside the text block
+            if let shortcut = keybindManager.shortcutDescription(forProfileID: profile.id) {
+                Text(shortcut)
+                    .font(.system(.title3, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .layoutPriority(1)
+            }
 
             // Key availability warning badge
             ProfileKeyAvailabilityBadge(profile: profile)

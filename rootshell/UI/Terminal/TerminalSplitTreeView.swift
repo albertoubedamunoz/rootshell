@@ -1155,6 +1155,7 @@ extension Notification.Name {
     static let createLocalShell = Notification.Name("com.rootshell.createLocalShell")
     static let browseHosts = Notification.Name("com.rootshell.browseHosts")
     static let browseProfiles = Notification.Name("com.rootshell.browseProfiles")
+    static let openConnectionProfile = Notification.Name("com.rootshell.openConnectionProfile")
     static let ghosttyDidUpdateScrollbar = Notification.Name("com.rootshell.didUpdateScrollbar")
     static let ghosttySelectionScrollIndicatorActivity = Notification.Name("com.rootshell.selectionScrollIndicatorActivity")
     static let ghosttyDidReceiveInput = Notification.Name("com.rootshell.didReceiveInput")

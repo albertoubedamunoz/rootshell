@@ -130,7 +130,13 @@ struct ProfileEditorSheet: View {
     // UI state
     @State private var showingIconPicker: Bool = false
     @State private var showingFolderPicker: Bool = false
+    @State private var showingShortcutEditor: Bool = false
     @State private var errorMessage: String?
+
+    /// Draft keyboard shortcut for this profile. nil = no shortcut (the default).
+    /// Applied to KeybindManager only when the profile is saved.
+    @State private var draftShortcut: KeySequence?
+    @State private var pendingShortcutOutcome: KeybindEditorOutcome?
 
     // Existing profile (nil for new)
     private let existingProfile: ConnectionProfile?
@@ -320,6 +326,21 @@ struct ProfileEditorSheet: View {
             FolderPickerSheet(selectedPath: $folderPath)
                 .themedSubSheet(sheetThemeColors)
         }
+        .sheet(isPresented: $showingShortcutEditor, onDismiss: applyPendingShortcutOutcome) {
+            KeybindEditorView(
+                action: .open_profile,
+                actionParameter: existingProfile?.id.uuidString,
+                titleOverride: name.isEmpty
+                    ? String(localized: "Profile Shortcut", comment: "Title when editing a profile keyboard shortcut")
+                    : name,
+                allowsRestoreDefault: false,
+                draftSequence: .some(draftShortcut),
+                onOutcome: { outcome in
+                    pendingShortcutOutcome = outcome
+                }
+            )
+            .themedSubSheet(sheetThemeColors)
+        }
         .sheet(isPresented: $showingAddPortForward) {
             AddPortForwardSheet { newForward in
                 let wasEmpty = portForwards.isEmpty
@@ -403,6 +424,25 @@ struct ProfileEditorSheet: View {
                 Spacer()
                 colorPicker
             }
+            .themedRow()
+
+            Button {
+                showingShortcutEditor = true
+            } label: {
+                HStack {
+                    Text("Keyboard Shortcut")
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text(draftShortcut?.symbolDescription ?? String(localized: "None"))
+                        .font(.system(.title3, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             .themedRow()
         }
     }
@@ -1813,6 +1853,26 @@ struct ProfileEditorSheet: View {
 
     // MARK: - Actions
 
+    private func applyPendingShortcutOutcome() {
+        guard let outcome = pendingShortcutOutcome else { return }
+        pendingShortcutOutcome = nil
+        switch outcome {
+        case .captured(let sequence):
+            draftShortcut = sequence
+        case .restoreDefault, .unbind:
+            draftShortcut = nil
+        }
+    }
+
+    /// Persist the draft keyboard shortcut for a profile after create/update.
+    private func persistDraftShortcut(for profileID: UUID) {
+        if let draftShortcut {
+            KeybindManager.shared.setProfileShortcut(sequence: draftShortcut, profileID: profileID)
+        } else {
+            KeybindManager.shared.clearProfileShortcut(profileID: profileID)
+        }
+    }
+
     private func loadExistingProfile() {
         guard !didLoadProfile else { return }
         didLoadProfile = true
@@ -1825,6 +1885,7 @@ struct ProfileEditorSheet: View {
             colorTag = profile.colorTag
             folderPath = profile.folderPath
             tags = profile.tags
+            draftShortcut = KeybindManager.shared.keybind(forProfileID: profile.id)?.sequence
 
             // Load connection protocol and transport mode
             connectionProtocol = profile.connectionProtocol
@@ -2297,9 +2358,10 @@ struct ProfileEditorSheet: View {
                 updated.localConfig = nil
                 updated.themeName = profileThemeName.isEmpty ? nil : profileThemeName
                 try profileManager.updateProfile(updated)
+                persistDraftShortcut(for: updated.id)
             } else {
                 // Create new profile
-                try profileManager.createProfile(
+                let created = try profileManager.createProfile(
                     name: trimmedName,
                     sshConfig: finalConfig,
                     connectionProtocol: connectionProtocol,
@@ -2322,6 +2384,7 @@ struct ProfileEditorSheet: View {
                     vpnBlockQUIC: vpnBlockQUIC,
                     extensionPayload: ProfileExtensionPayload(themeName: profileThemeName.isEmpty ? nil : profileThemeName)
                 )
+                persistDraftShortcut(for: created.id)
             }
             dismiss()
         } catch {
@@ -2353,14 +2416,16 @@ struct ProfileEditorSheet: View {
                     useCount: existing.useCount, extensionPayload: payload
                 )
                 try profileManager.updateProfile(updated)
+                persistDraftShortcut(for: updated.id)
             } else {
-                try profileManager.createProfile(
+                let created = try profileManager.createProfile(
                     name: trimmedName, sshConfig: ConnectionProfile.localPlaceholderSSHConfig(),
                     connectionProtocol: .local,
                     notes: notes.isEmpty ? nil : notes, iconName: iconName,
                     colorTag: colorTag, folderPath: folderPath, tags: tags,
                     extensionPayload: payload
                 )
+                persistDraftShortcut(for: created.id)
             }
             dismiss()
         } catch {
@@ -2410,8 +2475,9 @@ struct ProfileEditorSheet: View {
                 updated.themeName = profileThemeName.isEmpty ? nil : profileThemeName
                 updated.sshConfig = ConnectionProfile.vncPlaceholderSSHConfig(for: config)
                 try profileManager.updateProfile(updated)
+                persistDraftShortcut(for: updated.id)
             } else {
-                try profileManager.createProfile(
+                let created = try profileManager.createProfile(
                     name: trimmedName,
                     sshConfig: ConnectionProfile.vncPlaceholderSSHConfig(for: config),
                     connectionProtocol: .vnc,
@@ -2422,6 +2488,7 @@ struct ProfileEditorSheet: View {
                     tags: tags,
                     extensionPayload: ProfileExtensionPayload(vncConfig: config, themeName: profileThemeName.isEmpty ? nil : profileThemeName)
                 )
+                persistDraftShortcut(for: created.id)
             }
             dismiss()
         } catch {
