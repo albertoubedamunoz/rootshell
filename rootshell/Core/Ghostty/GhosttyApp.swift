@@ -691,6 +691,14 @@ extension Ghostty {
                 let (themeName, source) = ThemeOverrideManager.shared.resolveTheme(
                     tabId: surfaceTabMap[surfaceId],
                     windowId: surfaceWindowMap[surfaceId])
+                #if os(iOS) && !targetEnvironment(macCatalyst)
+                if surfaceWindowMap[surfaceId]?.hasPrefix("ipad-visor-") == true,
+                   let visorConfig = Self.makeVisorOverlayConfig(globalConfig) {
+                    overridden += 1
+                    overrideSurfaces.append((surface, visorConfig))
+                    continue
+                }
+                #endif
                 guard source != .global else { continue }
 
                 overridden += 1
@@ -837,6 +845,13 @@ extension Ghostty {
         ///   - tabId: The tab UUID (for tab-level override lookup)
         ///   - windowId: The window ID (for window-level override lookup)
         func refreshSurfaceTheme(_ surface: ghostty_surface_t, tabId: UUID?, windowId: String?) {
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            if windowId?.hasPrefix("ipad-visor-") == true, let base = config.config,
+               let visorConfig = Self.makeVisorOverlayConfig(base) {
+                pushConfig(toSurface: surface, config: visorConfig, owned: true)
+                return
+            }
+            #endif
             let (themeName, source) = ThemeOverrideManager.shared.resolveTheme(tabId: tabId, windowId: windowId)
 
             switch source {
@@ -853,6 +868,27 @@ extension Ghostty {
                 logger.info("Surface theme refreshed to \(sourceStr) override: \(themeName)")
             }
         }
+
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        /// Clone the complete config and override only this surface's backdrop.
+        /// Never write the shared config file or change ordinary terminals.
+        private static func makeVisorOverlayConfig(_ base: ghostty_config_t) -> ghostty_config_t? {
+            guard let result = ghostty_config_clone(base) else { return nil }
+            let file = FileManager.default.temporaryDirectory
+                .appendingPathComponent("visor-\(UUID().uuidString).conf")
+            defer { try? FileManager.default.removeItem(at: file) }
+            do {
+                let opacity = UIAccessibility.isReduceTransparencyEnabled ? 1.0 : 0.72
+                try "background-opacity = \(opacity)\n".write(to: file, atomically: true, encoding: .utf8)
+                file.path.withCString { ghostty_config_load_file(result, $0) }
+                ghostty_config_finalize(result)
+                return result
+            } catch {
+                ghostty_config_free(result)
+                return nil
+            }
+        }
+        #endif
 
         // MARK: - Font Size Management
 

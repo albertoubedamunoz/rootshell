@@ -68,7 +68,7 @@ final class KeybindCommandGenerator: ObservableObject {
 
         for binding in keybindManager.activeBindings {
             // Skip control character actions - these are handled specially in pressesBegan
-            guard !binding.action.isControlCharacter else { continue }
+            guard binding.action.isAvailableForVisorDispatch, !binding.action.isControlCharacter else { continue }
 
             // Skip terminal-only actions that don't need UIKeyCommands
             // (handled directly via ghostty_surface_binding_action)
@@ -121,7 +121,7 @@ final class KeybindCommandGenerator: ObservableObject {
     private func shouldGenerateCommand(for binding: Keybind) -> Bool {
         switch binding.action {
         // App actions need UIKeyCommands to trigger
-        case .new_local_shell, .new_tab, .new_window, .close_tab, .duplicate_ssh_tab,
+        case .toggle_visor, .new_local_shell, .new_tab, .new_window, .close_tab, .duplicate_ssh_tab,
              .previous_tab, .next_tab, .select_tab_1, .select_tab_2, .select_tab_3,
              .select_tab_4, .select_tab_5, .select_tab_6, .select_tab_7, .select_tab_8,
              .select_tab_9, .split_right, .split_down, .navigate_split_left,

@@ -662,6 +662,11 @@ extension MainView {
     /// Check if notification should be handled by this window
     /// Notifications may include a terminal object or a window scene identifier
     func shouldHandleNotification(_ notification: Notification) -> Bool {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        if let handled = iPadVisorController.routeWindowAction(notification, to: windowId) {
+            return handled
+        }
+        #endif
         guard let pane = notification.object as? SplitPaneView else {
             // No terminal view in notification - check for scene ID targeting
             if let targetSceneID = notification.userInfo?[GhosttyCommandRouting.windowSceneSessionIDKey] as? String,

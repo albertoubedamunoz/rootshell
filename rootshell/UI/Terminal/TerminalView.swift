@@ -3494,6 +3494,9 @@ extension Ghostty {
 
         @discardableResult
         override func becomeFirstResponder() -> Bool {
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            guard iPadVisorController.permitsFocus(self) else { return false }
+            #endif
             if !isFirstResponder { invalidateWritingAssistance(resetDocument: true) }
             refreshWritingAssistanceTraits()
             // Gate: while a keyboard-owning overlay (tab sidebar, connection
@@ -4416,6 +4419,9 @@ extension Ghostty {
         /// `skipResign` is safe when unfocusing the old terminal.
         @discardableResult
         override func focusDidChange(_ focused: Bool, skipResign: Bool = false) -> Bool {
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            if focused && !iPadVisorController.permitsFocus(self) { return false }
+            #endif
             invalidateWritingAssistance(resetDocument: true)
             // Update mouse capture state when focus changes to ensure scroll handling
             // has accurate state for this terminal (fixes split view mouse capture scrolling)
