@@ -1,4 +1,5 @@
 import Foundation
+import Citadel
 
 // MARK: - Key Security Options
 
@@ -290,6 +291,16 @@ nonisolated struct SSHKey: Codable, Identifiable, Hashable, Sendable {
         if let yubiKeyInfo = yubiKeyInfo {
             return yubiKeyInfo.algorithm.sshKeyTypeString
         }
+        // Legacy hybrid keys retain their encoded name. In particular, the
+        // authorized_keys text prefix must agree with the cached binary blob.
+        if keyType == .mldsa44Ed25519, let blob = publicKeyBlob, blob.count >= 4 {
+            let length = blob.prefix(4).reduce(0) { ($0 << 8) | Int($1) }
+            if length <= blob.count - 4,
+               let name = String(data: blob.dropFirst(4).prefix(length), encoding: .utf8),
+               name == MLDSA44Ed25519SSH.algorithmName || name == LegacyMLDSA44Ed25519SSH.algorithmName {
+                return name
+            }
+        }
         // For all other key types, use the KeyType's SSH key type string
         return keyType.sshKeyTypeString
     }
@@ -473,7 +484,7 @@ nonisolated struct SSHKey: Codable, Identifiable, Hashable, Sendable {
             case .applePasskey: return "sk-ecdsa-sha2-nistp256@openssh.com"
             case .secureEnclaveP256: return "ecdsa-sha2-nistp256"  // Standard ECDSA P-256; key lives in the Secure Enclave
             case .externalAgent: return "ssh-ed25519"  // Placeholder; agent keys resolve via effectiveSSHKeyTypeString
-            case .mldsa44Ed25519: return "ssh-mldsa44-ed25519@openssh.com"
+            case .mldsa44Ed25519: return MLDSA44Ed25519SSH.algorithmName
             case .mldsa44: return "ssh-mldsa44"
             case .mldsa65: return "ssh-mldsa65"
             case .mldsa87: return "ssh-mldsa87"

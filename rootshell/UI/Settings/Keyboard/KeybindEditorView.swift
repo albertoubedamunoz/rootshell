@@ -151,15 +151,17 @@ struct KeybindEditorView: View {
                         }
                         .buttonStyle(.borderedProminent)
 
-                        Button {
-                            captureError = nil
-                            isCapturing = true
-                            showSequenceCapture = true
-                        } label: {
-                            Label("Record Key Sequence", systemImage: "keyboard.badge.ellipsis")
-                                .frame(maxWidth: .infinity)
+                        if action != .toggle_visor {
+                            Button {
+                                captureError = nil
+                                isCapturing = true
+                                showSequenceCapture = true
+                            } label: {
+                                Label("Record Key Sequence", systemImage: "keyboard.badge.ellipsis")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
 
                         if let captureError {
                             Text(captureError)

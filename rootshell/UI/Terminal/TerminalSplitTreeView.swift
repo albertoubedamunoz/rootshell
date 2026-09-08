@@ -1172,6 +1172,7 @@ extension Notification.Name {
     static let toggleTransparency = Notification.Name("com.rootshell.toggleTransparency")
     static let toggleTitleBar = Notification.Name("com.rootshell.toggleTitleBar")
     static let toggleAutoRedact = Notification.Name("com.rootshell.toggleAutoRedact")
+    static let toggleQuickSettings = Notification.Name("com.rootshell.toggleQuickSettings")
     static let toggleThemePicker = Notification.Name("com.rootshell.toggleThemePicker")
     static let toggleClipboardManager = Notification.Name("com.rootshell.toggleClipboardManager")
     static let toggleBackgroundEffect = Notification.Name("com.rootshell.toggleBackgroundEffect")

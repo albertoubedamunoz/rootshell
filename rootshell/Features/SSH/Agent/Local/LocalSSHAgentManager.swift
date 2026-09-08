@@ -151,6 +151,11 @@ final class LocalSSHAgentManager {
             return LocalAgentHandleResult(frame: SSHAgentWireCodec.successFrame, clientGate: cachedGate)
         }
 
+        if lockDigest != nil, let frame = SSHAgentWireCodec.responseWhileLocked(to: request) {
+            audit(peer: peer, action: action(for: request), destination: destination, outcome: .denied, detail: "agent locked")
+            return LocalAgentHandleResult(frame: frame, clientGate: cachedGate)
+        }
+
         let gate = await clientGate(peer: peer, cached: cachedGate)
         guard gate.allowed else {
             audit(peer: peer, action: action(for: request), destination: destination, outcome: .denied)
@@ -160,6 +165,11 @@ final class LocalSSHAgentManager {
             } else {
                 frame = SSHAgentWireCodec.failureFrame
             }
+            return LocalAgentHandleResult(frame: frame, clientGate: gate)
+        }
+
+        // Approval may suspend while another connection locks the agent.
+        if lockDigest != nil, let frame = SSHAgentWireCodec.responseWhileLocked(to: request) {
             return LocalAgentHandleResult(frame: frame, clientGate: gate)
         }
 
@@ -606,7 +616,14 @@ final class LocalSSHAgentManager {
             let keyVariant: SSHPrivateKeyVariant
             let sshKeyType: SSHKey.KeyType
             switch keyType {
-            case "ssh-mldsa44-ed25519@openssh.com":
+            case LegacyMLDSA44Ed25519SSH.algorithmName:
+                let key = try LegacyMLDSA44Ed25519SSH.PrivateKey(seedRepresentation: seeds)
+                guard key.compositePublicKey.rawRepresentation == publicKey else {
+                    throw LocalAgentError.unsupportedIdentity
+                }
+                keyVariant = .nioSSH(NIOSSHPrivateKey(custom: key))
+                sshKeyType = .mldsa44Ed25519
+            case MLDSA44Ed25519SSH.algorithmName:
                 let key = try MLDSA44Ed25519SSH.PrivateKey(seedRepresentation: seeds)
                 guard key.compositePublicKey.rawRepresentation == publicKey else {
                     throw LocalAgentError.unsupportedIdentity

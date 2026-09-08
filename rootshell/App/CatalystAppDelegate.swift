@@ -1410,17 +1410,31 @@ class CatalystAppDelegate: AppDelegate {
             modifierFlags: [.command]
         )
 
+        let quickSettings: UICommand
+        if let sequence = KeybindManager.shared.sequence(for: .toggle_quick_settings),
+           !sequence.isSequence, let trigger = sequence.first {
+            quickSettings = UIKeyCommand(
+                title: String(localized: "Quick Settings…"),
+                action: #selector(UIApplication.menuToggleQuickSettings(_:)),
+                input: trigger.uiKeyInput,
+                modifierFlags: trigger.uiModifierFlags
+            )
+        } else {
+            quickSettings = UICommand(title: String(localized: "Quick Settings…"),
+                                      action: #selector(UIApplication.menuToggleQuickSettings(_:)))
+        }
+
         #if !CHINA_BUILD
         let shellMenu = UIMenu(
             title: String(localized: "Shell"),
             identifier: UIMenu.Identifier("com.rootshell.shell"),
-            children: [browseHosts, browseProfiles, aiAgent, voiceAgent, settings]
+            children: [browseHosts, browseProfiles, aiAgent, voiceAgent, settings, quickSettings]
         )
         #else
         let shellMenu = UIMenu(
             title: String(localized: "Shell"),
             identifier: UIMenu.Identifier("com.rootshell.shell"),
-            children: [browseHosts, browseProfiles, settings]
+            children: [browseHosts, browseProfiles, settings, quickSettings]
         )
         #endif
 

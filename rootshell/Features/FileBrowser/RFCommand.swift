@@ -1889,6 +1889,7 @@ final class RFCommand {
             return
 
         case .parentColumn:
+            guard !activeTab.isAtRestrictedHome else { return }
             if button == .left {
                 let relRow = display.layout.parentRegion.relativeRow(row)
                 let entryIdx = (activeTab.parentDir?.scrollOffset ?? 0) + relRow
@@ -1966,6 +1967,7 @@ final class RFCommand {
 
         switch hit {
         case .parentColumn:
+            guard !activeTab.isAtRestrictedHome else { return }
             activeTab.parentDir?.scroll(delta: delta, visibleCount: vc)
             renderParentColumn()
 
@@ -2781,6 +2783,10 @@ final class RFCommand {
 
     private func renderParentColumnInner() {
         let tab = activeTab
+        if tab.isAtRestrictedHome {
+            display.drawCenteredMessages(["Home", "Navigation starts here"], region: display.layout.parentRegion)
+            return
+        }
         if let parent = tab.parentDir {
             if tab.isParentLoading && parent.visibleEntries.isEmpty {
                 display.drawCenteredMessage("Loading...", region: display.layout.parentRegion)
@@ -2807,6 +2813,18 @@ final class RFCommand {
     private func renderCurrentColumnInner() {
         let tab = activeTab
         let dir = activeDir
+        if dir.visibleEntries.isEmpty {
+            let messages: [String]
+            if tab.searchResults != nil || !(dir.filterText ?? "").isEmpty {
+                messages = ["No matches"]
+            } else if !dir.showHidden && dir.allEntries.contains(where: { $0.isHidden }) {
+                messages = ["No visible files", "Press . to show hidden files", "a: New file", "A: New folder"]
+            } else {
+                messages = ["No files", "a: New file", "A: New folder"]
+            }
+            display.drawCenteredMessages(messages, region: display.layout.currentRegion)
+            return
+        }
         let yankInfo: (paths: Set<String>, isCut: Bool)? = yankClipboard.map {
             (paths: Set($0.paths), isCut: $0.isCut)
         }

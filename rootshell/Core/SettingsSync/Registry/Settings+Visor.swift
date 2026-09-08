@@ -49,11 +49,11 @@ nonisolated extension Settings {
             configKey: "visor-space-behavior",
             title: String(localized: "Visor Space Behavior", comment: "Setting title"))
         static let hotkeyKeyCode = SettingKey(
-            "visor.hotkeyKeyCode", default: -1, group: .visor, policy: .localByDefault,
+            "visor.hotkeyKeyCode", default: VisorDefaultShortcut.carbonKeyCode, group: .visor, policy: .localByDefault,
             configKey: "visor-hotkey-key-code",
             title: String(localized: "Visor Hotkey", comment: "Setting title"))
         static let hotkeyModifiers = SettingKey(
-            "visor.hotkeyModifiers", default: 0, group: .visor, policy: .localByDefault,
+            "visor.hotkeyModifiers", default: VisorDefaultShortcut.carbonModifiers, group: .visor, policy: .localByDefault,
             configKey: "visor-hotkey-modifiers",
             title: String(localized: "Visor Hotkey Modifiers", comment: "Setting title"))
         static let useEventTap = SettingKey(
@@ -77,7 +77,11 @@ nonisolated extension Settings {
 
 nonisolated extension Settings {
     enum Visor {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        static let all: [AnySettingDefinition] = [Settings.iPadVisor.enabled.erased]
+        #else
         static let all: [AnySettingDefinition] = []
+        #endif
     }
 }
 

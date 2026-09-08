@@ -328,7 +328,13 @@ extension SettingsSearchDestination {
             return !SearchBuild.isCatalyst
         case .liveActivity:
             return SearchBuild.hasActivityKit && !SearchBuild.isCatalyst
-        case .localShell, .visor, .localSSHAgent, .externalSSHAgents:
+        case .visor:
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            return UIDevice.current.userInterfaceIdiom == .pad
+            #else
+            return SearchBuild.isStandalone && SearchBuild.isCatalyst
+            #endif
+        case .localShell, .localSSHAgent, .externalSSHAgents:
             return SearchBuild.isStandalone && SearchBuild.isCatalyst
         case .vpn:
             return !SearchBuild.isChinaBuild && (!SearchBuild.isCatalyst || SearchBuild.isStandalone)
@@ -652,13 +658,13 @@ struct SettingsSearchEntry: Identifiable, Hashable {
             row("visor-hotkey", String(localized: "Visor Hotkey"), in: .visor, icon: "command",
                 keywords: ["combination", "key", "global shortcut", "modifier"]),
             row("visor-position", String(localized: "Visor Position"), in: .visor,
-                keywords: ["edge", "screen", "space"]),
+                keywords: ["edge", "screen", "space"], available: isCatalyst),
             row("visor-size", String(localized: "Visor Size"), in: .visor,
-                keywords: ["slide size", "cross axis", "percent", "pixels"]),
+                keywords: ["slide size", "cross axis", "percent", "pixels"], available: isCatalyst),
             row("visor-auto-hide", String(localized: "Auto-hide when focus moves to another app"), in: .visor,
-                keywords: ["auto hide", "focus"]),
+                keywords: ["auto hide", "focus"], available: isCatalyst),
             row("visor-event-tap", String(localized: "Use event tap"), in: .visor,
-                keywords: ["accessibility", "permission", "event tap"]),
+                keywords: ["accessibility", "permission", "event tap"], available: isCatalyst),
 
             // MARK: Terminal › Keyboard (inline)
             row("terminal-writing-assistance", String(localized: "Writing Assistance"), in: .terminal,
@@ -1017,6 +1023,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
     case .visor:
         #if STANDALONE && targetEnvironment(macCatalyst)
         VisorSettingsView()
+        #elseif os(iOS)
+        iPadVisorSettingsView()
         #else
         EmptyView()
         #endif

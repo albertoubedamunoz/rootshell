@@ -101,9 +101,6 @@ enum SSHUserCertificateParser {
         let certType = String(fields[0])
         let comment = fields.count >= 3 ? String(fields[2]).trimmingCharacters(in: .whitespaces) : nil
 
-        guard certType.contains("-cert-v01@openssh.com") else {
-            throw SSHUserCertificateImportError.notACertificate
-        }
         guard let certificateBlob = Data(base64Encoded: String(fields[1])) else {
             throw SSHUserCertificateImportError.parseFailed(String(localized: "Invalid base64 data", comment: "Cert parse failure reason"))
         }

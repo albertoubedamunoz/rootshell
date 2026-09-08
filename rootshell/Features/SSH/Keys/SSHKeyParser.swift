@@ -569,8 +569,8 @@ nonisolated final class SSHKeyParser {
             return try parseOpenSSHRSA(buffer: &buffer, wasEncrypted: wasEncrypted)
         } else if keyType == "ssh-ed25519" {
             return try parseOpenSSHEd25519Buffer(buffer: &buffer, wasEncrypted: wasEncrypted)
-        } else if keyType == MLDSA44Ed25519SSH.algorithmName {
-            return try parseOpenSSHMLDSA44Ed25519Buffer(buffer: &buffer, wasEncrypted: wasEncrypted)
+        } else if keyType == MLDSA44Ed25519SSH.algorithmName || keyType == LegacyMLDSA44Ed25519SSH.algorithmName {
+            return try parseOpenSSHMLDSA44Ed25519Buffer(buffer: &buffer, keyType: keyType, wasEncrypted: wasEncrypted)
         } else if keyType == "ssh-mldsa44" || keyType == "ssh-mldsa65" || keyType == "ssh-mldsa87" {
             return try parseOpenSSHPureMLDSABuffer(buffer: &buffer, keyType: keyType, wasEncrypted: wasEncrypted)
         } else if keyType.hasPrefix("ecdsa-sha2-") {
@@ -898,10 +898,10 @@ nonisolated final class SSHKeyParser {
         )
     }
 
-    /// ssh-mldsa44-ed25519@openssh.com (OpenSSH 10.4+ hybrid): the private
+    /// Canonical and legacy OpenSSH ML-DSA-44 + Ed25519 hybrid: the private
     /// section carries `string pk(1344)` then `string sk(64)`, where sk is the
     /// two 32-byte seeds — never expanded key material.
-    private static func parseOpenSSHMLDSA44Ed25519Buffer(buffer: inout ByteBuffer, wasEncrypted: Bool) throws -> ParsedKey {
+    private static func parseOpenSSHMLDSA44Ed25519Buffer(buffer: inout ByteBuffer, keyType: String, wasEncrypted: Bool) throws -> ParsedKey {
         guard let publicKeyBuffer = buffer.readSSHBuffer(),
               let publicKeyData = publicKeyBuffer.getData(at: 0, length: publicKeyBuffer.readableBytes) else {
             throw ParserError.parseError("Missing ML-DSA-44+Ed25519 public key")
@@ -930,8 +930,16 @@ nonisolated final class SSHKeyParser {
             throw ParserError.parseError("ML-DSA-44+Ed25519 public key does not match private key seeds")
         }
 
+        // Preserve the encoded identity: changing its name changes the public
+        // blob, host fingerprint, and certificate authentication identity.
+        let nioKey: NIOSSHPrivateKey
+        if keyType == LegacyMLDSA44Ed25519SSH.algorithmName {
+            nioKey = NIOSSHPrivateKey(custom: try LegacyMLDSA44Ed25519SSH.PrivateKey(seedRepresentation: seedData))
+        } else {
+            nioKey = NIOSSHPrivateKey(custom: privateKey)
+        }
         return ParsedKey(
-            nioSSHKey: NIOSSHPrivateKey(custom: privateKey),
+            nioSSHKey: nioKey,
             rsaKey: nil,
             keyType: .mldsa44Ed25519,
             fingerprint: generateFingerprint(publicKeyData: publicKeyData),
