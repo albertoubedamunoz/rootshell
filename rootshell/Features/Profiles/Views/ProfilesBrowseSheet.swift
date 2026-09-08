@@ -106,6 +106,7 @@ struct ProfilesBrowseSheet: View {
                     profileListView(folder: folder)
                 }
         }
+        .profileShortcutEditorHost()
         .overlay {
             // Hidden button to handle Esc at the UIKit key command level,
             // which fires before SwiftUI's .onKeyPress and before the sheet's

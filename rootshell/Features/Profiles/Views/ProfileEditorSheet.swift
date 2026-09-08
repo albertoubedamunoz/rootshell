@@ -7,10 +7,84 @@
 
 import SwiftUI
 
+struct ProfileShortcutEditorRequest: Identifiable {
+    let id = UUID()
+    let actionParameter: String?
+    let title: String
+    let draftSequence: KeySequence?
+    let onOutcome: (KeybindEditorOutcome) -> Void
+}
+
+struct ProfileShortcutEditorPresenter {
+    let present: (ProfileShortcutEditorRequest) -> Void
+
+    func callAsFunction(_ request: ProfileShortcutEditorRequest) {
+        present(request)
+    }
+}
+
+private struct ProfileShortcutEditorPresenterKey: EnvironmentKey {
+    static let defaultValue: ProfileShortcutEditorPresenter? = nil
+}
+
+extension EnvironmentValues {
+    var profileShortcutEditorPresenter: ProfileShortcutEditorPresenter? {
+        get { self[ProfileShortcutEditorPresenterKey.self] }
+        set { self[ProfileShortcutEditorPresenterKey.self] = newValue }
+    }
+}
+
+/// Owns the shortcut sheet above profile navigation destinations. Catalyst
+/// then gives it the same responder isolation as the Settings shortcut sheet.
+private struct ProfileShortcutEditorHostModifier: ViewModifier {
+    @Environment(\.sheetThemeColors) private var sheetThemeColors
+    @State private var request: ProfileShortcutEditorRequest?
+    @State private var pendingOutcome: KeybindEditorOutcome?
+    @State private var outcomeHandler: ((KeybindEditorOutcome) -> Void)?
+
+    func body(content: Content) -> some View {
+        content
+            .environment(
+                \.profileShortcutEditorPresenter,
+                ProfileShortcutEditorPresenter { newRequest in
+                    pendingOutcome = nil
+                    outcomeHandler = newRequest.onOutcome
+                    request = newRequest
+                }
+            )
+            .sheet(item: $request, onDismiss: applyPendingOutcome) { request in
+                KeybindEditorView(
+                    action: .open_profile,
+                    actionParameter: request.actionParameter,
+                    titleOverride: request.title,
+                    allowsRestoreDefault: false,
+                    draftSequence: .some(request.draftSequence),
+                    onOutcome: { pendingOutcome = $0 }
+                )
+                .themedSubSheet(sheetThemeColors)
+            }
+    }
+
+    private func applyPendingOutcome() {
+        if let pendingOutcome {
+            outcomeHandler?(pendingOutcome)
+        }
+        pendingOutcome = nil
+        outcomeHandler = nil
+    }
+}
+
+extension View {
+    func profileShortcutEditorHost() -> some View {
+        modifier(ProfileShortcutEditorHostModifier())
+    }
+}
+
 /// Sheet for creating or editing a connection profile
 struct ProfileEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sheetThemeColors) private var sheetThemeColors
+    @Environment(\.profileShortcutEditorPresenter) private var shortcutEditorPresenter
 
     // Manager
     private var profileManager: ConnectionProfileManager { ConnectionProfileManager.shared }
@@ -427,14 +501,14 @@ struct ProfileEditorSheet: View {
             .themedRow()
 
             Button {
-                showingShortcutEditor = true
+                presentShortcutEditor()
             } label: {
                 HStack {
                     Text("Keyboard Shortcut")
                         .foregroundColor(.primary)
                     Spacer()
                     Text(draftShortcut?.symbolDescription ?? String(localized: "None"))
-                        .font(.system(.title3, design: .monospaced))
+                        .font(.system(.body, design: .monospaced))
                         .foregroundColor(.secondary)
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -1853,9 +1927,30 @@ struct ProfileEditorSheet: View {
 
     // MARK: - Actions
 
+    private func presentShortcutEditor() {
+        let title = name.isEmpty
+            ? String(localized: "Profile Shortcut", comment: "Title when editing a profile keyboard shortcut")
+            : name
+
+        if let shortcutEditorPresenter {
+            shortcutEditorPresenter(ProfileShortcutEditorRequest(
+                actionParameter: existingProfile?.id.uuidString,
+                title: title,
+                draftSequence: draftShortcut,
+                onOutcome: applyShortcutOutcome
+            ))
+        } else {
+            showingShortcutEditor = true
+        }
+    }
+
     private func applyPendingShortcutOutcome() {
-        guard let outcome = pendingShortcutOutcome else { return }
-        pendingShortcutOutcome = nil
+        guard let pendingShortcutOutcome else { return }
+        self.pendingShortcutOutcome = nil
+        applyShortcutOutcome(pendingShortcutOutcome)
+    }
+
+    private func applyShortcutOutcome(_ outcome: KeybindEditorOutcome) {
         switch outcome {
         case .captured(let sequence):
             draftShortcut = sequence
