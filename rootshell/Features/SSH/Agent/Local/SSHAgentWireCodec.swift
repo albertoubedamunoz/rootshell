@@ -60,6 +60,19 @@ nonisolated enum SSHAgentWireCodec {
         case unsupported(UInt8)
     }
 
+    /// The only requests permitted while locked are binding and unlocking.
+    /// Identity enumeration succeeds with an empty list, as in OpenSSH.
+    static func responseWhileLocked(to request: Request) -> Data? {
+        switch request {
+        case .sessionBind, .unlock:
+            return nil
+        case .listIdentities:
+            return identitiesAnswer([])
+        default:
+            return failureFrame
+        }
+    }
+
     struct Identity: Sendable, Equatable, Identifiable {
         var id: Data { publicKeyBlob }
         var publicKeyBlob: Data
@@ -272,7 +285,7 @@ nonisolated enum SSHAgentWireCodec {
                 publicKeyBlob: blob,
                 material: .ecdsa(curve: curve, publicKey: publicKey, scalar: scalar)
             )
-        case "ssh-mldsa44-ed25519@openssh.com", "ssh-mldsa44", "ssh-mldsa65", "ssh-mldsa87":
+        case "ssh-mldsa44-ed25519", "ssh-mldsa44-ed25519@openssh.com", "ssh-mldsa44", "ssh-mldsa65", "ssh-mldsa87":
             // Private serialization: string pk || string sk (seed form —
             // 64 bytes for the hybrid, 32 for pure; matches OpenSSH 10.4's
             // hybrid and this app's pure-key convention).

@@ -29,7 +29,9 @@ nonisolated struct ExternalAgentIdentity: Sendable, Hashable, Identifiable {
         return reader.readString() ?? ""
     }
 
-    var isCertificate: Bool { algorithm.hasSuffix("-cert-v01@openssh.com") }
+    var isCertificate: Bool {
+        algorithm.hasSuffix("-cert-v01@openssh.com") || algorithm == "ssh-mldsa44-ed25519-cert"
+    }
     var isSecurityKey: Bool { algorithm.hasPrefix("sk-") }
 }
 

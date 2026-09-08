@@ -225,7 +225,7 @@ nonisolated enum SSHKeyGenerator {
 
     // MARK: - ML-DSA-44 + Ed25519 hybrid generation
 
-    /// Generate an ssh-mldsa44-ed25519@openssh.com composite key (OpenSSH
+    /// Generate an ssh-mldsa44-ed25519 composite key (OpenSSH
     /// 10.4+). Private material is the two 32-byte seeds; the public key is
     /// mldsaPK(1312) || ed25519PK(32) in a single SSH string.
     static func generateMLDSA44Ed25519(comment: String = "") throws -> GeneratedSSHKey {
