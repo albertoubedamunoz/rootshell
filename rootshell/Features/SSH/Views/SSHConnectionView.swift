@@ -431,6 +431,7 @@ struct SSHConnectionView: View {
         NavigationStack(path: $inlineProfilesPath) {
             navigationStackContent
         }
+        .profileShortcutEditorHost()
         .overlay {
             // Single Esc handler for the entire connection view.
             // Navigates back through profile folders first, then closes.

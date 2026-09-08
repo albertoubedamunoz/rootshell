@@ -24,6 +24,15 @@ struct KeybindEditorView: View {
     @ObservedObject private var keybindManager = KeybindManager.shared
 
     let action: KeybindAction
+    /// Optional parameter for parameterized actions (e.g. profile UUID for `open_profile`)
+    var actionParameter: String? = nil
+    /// Optional title override (e.g. profile name). Falls back to `action.displayName`.
+    var titleOverride: String? = nil
+    /// When false, hide "Restore Default" (used for profile shortcuts whose default is none).
+    var allowsRestoreDefault: Bool = true
+    /// When non-nil, display this sequence instead of looking up the live KeybindManager
+    /// binding. Lets parents (e.g. profile editor) keep a draft until Save.
+    var draftSequence: KeySequence?? = nil
     /// Reports the user's choice to the parent. All paths that mutate
     /// `KeybindManager` route through this callback so the actual write
     /// happens in the parent's sheet-onDismiss closure.
@@ -34,8 +43,28 @@ struct KeybindEditorView: View {
     @State private var captureError: String?
 
     /// Current binding for this action (may be nil if displaced by external config)
-    private var binding: Keybind? {
-        keybindManager.keybind(for: action)
+    private var managerBinding: Keybind? {
+        if let actionParameter {
+            keybindManager.keybind(for: action, parameter: actionParameter)
+        } else {
+            keybindManager.keybind(for: action)
+        }
+    }
+
+    /// Sequence shown in the "Current Shortcut" section
+    private var displayedSequence: KeySequence? {
+        if let draftSequence {
+            return draftSequence
+        }
+        return managerBinding?.sequence
+    }
+
+    private var showsCustomBadge: Bool {
+        draftSequence == nil && (managerBinding?.isUserOverride == true)
+    }
+
+    private var displayTitle: String {
+        titleOverride ?? action.displayName
     }
 
     private var sheetBackground: Color {
@@ -51,7 +80,7 @@ struct KeybindEditorView: View {
             VStack(spacing: 24) {
                 // Action info
                 VStack(spacing: 8) {
-                    Text(action.displayName)
+                    Text(displayTitle)
                         .font(.title2)
                         .fontWeight(.semibold)
 
@@ -73,15 +102,15 @@ struct KeybindEditorView: View {
                         .font(.headline)
                         .foregroundColor(.secondary)
 
-                    if let binding {
-                        Text(binding.sequence.symbolDescription)
+                    if let displayedSequence {
+                        Text(displayedSequence.symbolDescription)
                             .font(.system(size: 28, weight: .medium, design: .monospaced))
                             .padding(.horizontal, 24)
                             .padding(.vertical, 16)
                             .background(rowBackground)
                             .cornerRadius(12)
 
-                        if binding.isUserOverride {
+                        if showsCustomBadge {
                             Label("Custom", systemImage: "star.fill")
                                 .font(.caption)
                                 .foregroundStyle(.tint)
@@ -149,7 +178,9 @@ struct KeybindEditorView: View {
 
                 // Action buttons
                 VStack(spacing: 8) {
-                    if (binding != nil && binding!.isUserOverride) || keybindManager.isActionUnbound(action) {
+                    if allowsRestoreDefault,
+                       draftSequence == nil,
+                       (managerBinding != nil && managerBinding!.isUserOverride) || keybindManager.isActionUnbound(action) {
                         Button("Restore Default") {
                             onOutcome(.restoreDefault)
                             dismiss()
@@ -157,8 +188,8 @@ struct KeybindEditorView: View {
                         .foregroundColor(.orange)
                     }
 
-                    if binding != nil {
-                        Button("Unbind Shortcut") {
+                    if displayedSequence != nil {
+                        Button(allowsRestoreDefault ? "Unbind Shortcut" : "Clear Shortcut") {
                             onOutcome(.unbind)
                             dismiss()
                         }

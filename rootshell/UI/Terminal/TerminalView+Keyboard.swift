@@ -2642,6 +2642,10 @@ extension Ghostty.TerminalView {
             userInfo["tabIndex"] = 9
         case .new_tab, .new_window, .close_tab:
             userInfo["windowId"] = windowId
+        case .open_profile:
+            if let parameter {
+                userInfo["profileID"] = parameter
+            }
         default:
             break
         }

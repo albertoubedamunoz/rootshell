@@ -292,6 +292,7 @@ final class ConnectionProfileManager {
     /// Delete a profile (soft delete for sync)
     func deleteProfile(id: UUID) throws {
         try store.softDelete(id: id)
+        KeybindManager.shared.clearProfileShortcut(profileID: id)
         updateProfilesFromStore()
 
         Self.logger.info("Deleted profile \(id.uuidString)")
@@ -629,6 +630,9 @@ final class ConnectionProfileManager {
 
             do {
                 try persistProfile(remote, updateTimestamp: false, notifySync: false)
+                if remote.isDeleted {
+                    KeybindManager.shared.clearProfileShortcut(profileID: remote.id)
+                }
                 applied += 1
             } catch {
                 failures.append((id: remote.id, error: error))
@@ -660,8 +664,15 @@ final class ConnectionProfileManager {
                 var deleted = profile
                 deleted.isDeleted = true
                 deleted.modifiedAt = Date()
-                try? persistProfile(deleted, updateTimestamp: false, notifySync: false)
-                deletedCount += 1
+                do {
+                    try persistProfile(deleted, updateTimestamp: false, notifySync: false)
+                    KeybindManager.shared.clearProfileShortcut(profileID: profile.id)
+                    deletedCount += 1
+                } catch {
+                    let idString = profile.id.uuidString
+                    let desc = error.localizedDescription
+                    Self.logger.error("Failed to persist remote profile deletion \(idString): \(desc)")
+                }
             }
         }
 
