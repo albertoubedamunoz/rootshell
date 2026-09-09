@@ -537,7 +537,8 @@ class ShortcutCaptureUIView: UIView {
             // delivery dedups via duplicateDeliveryWindow since both produce
             // the identical trigger.
             if (key.keyCode != .keyboardEscape && KeyCode.sentinelKey(for: key.characters) == .escape)
-                || ((key.keyCode == .keyboardPeriod || key.keyCode == .keyboardEscape)
+                || ((KeyCode(uiKey: key) == .period
+                     || key.keyCode == .keyboardEscape)
                     && KeyboardTracker.isSystemCancelChordPhysicallyDown()) {
                 processCapture(trigger: .commandPeriod)
                 return

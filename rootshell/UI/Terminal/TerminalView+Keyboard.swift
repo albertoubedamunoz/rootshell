@@ -461,6 +461,7 @@ extension Ghostty.TerminalView {
         heldHardwareModifiers = ghosttyInputMods(from: effectiveModifiers, virtualModifier: virtualModifier)
 
         let hasOption = effectiveModifiers.contains(.alternate)
+        let logicalKey = KeyCode(uiKey: key, modifiers: effectiveModifiers)
 
         // The reserved Cmd+Period system-cancel chord can arrive translated as
         // plain Escape. Give a cmd+period binding first refusal; a twin of a
@@ -485,7 +486,7 @@ extension Ghostty.TerminalView {
         let isTranslatedCancelChord = key.keyCode != .keyboardEscape
             && KeyCode.sentinelKey(for: key.characters) == .escape
         if isTranslatedCancelChord
-            || (key.keyCode == .keyboardPeriod
+            || (logicalKey == .period
                 && KeybindModifiers(uiModifierFlags: effectiveModifiers) == .command) {
             // Translation only happens with Command physically down, so the
             // snapshot is live again.
@@ -596,7 +597,7 @@ extension Ghostty.TerminalView {
 
         commitKoreanCompositionIfNeeded(external: true)
 
-        let hardwareTrigger = KeyCode(hidUsage: key.keyCode).map {
+        let hardwareTrigger = logicalKey.map {
             KeyTrigger(key: $0, modifiers: KeybindModifiers(uiModifierFlags: effectiveModifiers))
         }
         let bindingTrigger = hardwareTrigger.map { trigger in
@@ -612,7 +613,7 @@ extension Ghostty.TerminalView {
                 }
                 return manager.keybind(for: candidate) != nil || manager.isSequencePrefix(candidate)
             }
-            // Explicit physical-key bindings take precedence over symbol aliases.
+            // Explicit base-key bindings take precedence over symbol aliases.
             return !isClaimed(trigger) && isClaimed(symbolTrigger) ? symbolTrigger : trigger
         }
 
@@ -786,8 +787,6 @@ extension Ghostty.TerminalView {
             }
         }
 
-        // FAST PATH: Handle Ctrl+A-Z directly without KeybindManager lookup
-        // This avoids object creation and linear search overhead
         // Ctrl+key fast path: send raw control bytes for legacy terminal mode.
         // When Shift or Alt is also held, skip this path and let the Ghostty
         // encoder handle it (for correct CSI u / Kitty protocol encoding).
@@ -802,10 +801,7 @@ extension Ghostty.TerminalView {
             }
             #endif
 
-            // Check if this is a letter key (A-Z) or Ctrl+symbol
-            let keyCode = key.keyCode
-
-            if let controlByte = controlCharacterByte(for: keyCode) {
+            if let controlByte = logicalKey?.controlCharacterByte {
                 let controlData = Data([controlByte])
 
                 // Handle Ctrl-C for local shell interrupt (non-Catalyst only)
@@ -849,11 +845,11 @@ extension Ghostty.TerminalView {
         }
 
         // Handle other key combinations via KeybindManager
-        // Note: Ctrl+A-Z are handled via GCKeyboard in KeyboardTracker on all platforms
+        // Ctrl+A-Z use the fast path above or UIKeyCommand on Catalyst.
         if let trigger = bindingTrigger,
            let keybind = KeybindManager.shared.keybind(for: trigger) {
 
-            // Skip control characters - handled by fast path above (iOS) or GCKeyboard (all platforms)
+            // Skip control characters - handled by the fast path or Catalyst UIKeyCommands.
             if keybind.action.isControlCharacter {
                 return (false, false)
             }
@@ -1082,8 +1078,8 @@ extension Ghostty.TerminalView {
 
             guard let key = press.key else { continue }
             // A translated Cmd+Period press can be tracked as Escape by the
-            // overlay handlers but released as physical Period.
-            if key.keyCode == .keyboardPeriod {
+            // overlay handlers but released at the layout's Period position.
+            if KeyCode(uiKey: key, modifiers: .command) == .period {
                 keysConsumedByOverlayAction.remove(.keyboardEscape)
             }
             keyRepeatManager.stopIfMatches(key.keyCode)
@@ -1615,54 +1611,6 @@ extension Ghostty.TerminalView {
         }
 
         return 0
-    }
-
-    /// Fast lookup: Convert UIKeyboardHIDUsage to control character byte (0-31)
-    /// Returns nil if not a recognized control key
-    func controlCharacterByte(for keyCode: UIKeyboardHIDUsage) -> UInt8? {
-        switch keyCode {
-        case .keyboardSpacebar: return 0       // Ctrl+Space = NUL
-        case .keyboardA: return 1
-        case .keyboardB: return 2
-        case .keyboardC: return 3
-        case .keyboardD: return 4
-        case .keyboardE: return 5
-        case .keyboardF: return 6
-        case .keyboardG: return 7
-        case .keyboardH: return 8
-        case .keyboardI: return 9
-        case .keyboardJ: return 10
-        case .keyboardK: return 11
-        case .keyboardL: return 12
-        case .keyboardM: return 13
-        case .keyboardN: return 14
-        case .keyboardO: return 15
-        case .keyboardP: return 16
-        case .keyboardQ: return 17
-        case .keyboardR: return 18
-        case .keyboardS: return 19
-        case .keyboardT: return 20
-        case .keyboardU: return 21
-        case .keyboardV: return 22
-        case .keyboardW: return 23
-        case .keyboardX: return 24
-        case .keyboardY: return 25
-        case .keyboardZ: return 26
-        case .keyboardOpenBracket: return 27   // Ctrl+[ = ESC
-        case .keyboardBackslash: return 28     // Ctrl+\ = FS
-        case .keyboardCloseBracket: return 29  // Ctrl+] = GS
-        case .keyboard2: return 0              // Ctrl+2 = NUL
-        case .keyboard3: return 27             // Ctrl+3 = ESC
-        case .keyboard4: return 28             // Ctrl+4 = FS
-        case .keyboard5: return 29             // Ctrl+5 = GS
-        case .keyboard6: return 30             // Ctrl+6 = RS
-        case .keyboard7: return 31             // Ctrl+7 = US
-        case .keyboard8: return 127            // Ctrl+8 = DEL
-        case .keyboardHyphen: return 31        // Ctrl+- = US
-        case .keyboardSlash: return 31         // Ctrl+/ = US
-        case .keyboardGraveAccentAndTilde: return 0  // Ctrl+` = NUL
-        default: return nil
-        }
     }
 }
 
