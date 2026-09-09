@@ -819,7 +819,8 @@ class KeyboardTracker {
     @MainActor
     private func handleCtrlArrowDown(_ keyCode: GCKeyCode) {
         guard UIApplication.shared.applicationState == .active,
-              let terminalView = focusedTerminalView() else { return }
+              let terminalView = focusedTerminalView(),
+              !terminalView.shouldYieldHardwareInputToEmojiUI else { return }
         sendCtrlArrowSequence(keyCode, to: terminalView)
 
         // Repeat only while the arrow and Control stay down and the terminal
@@ -827,6 +828,7 @@ class KeyboardTracker {
         startTrackedKeyRepeat(for: keyCode, validator: { [weak terminalView] in
             #if !os(visionOS)
             guard let terminalView, terminalView.isFirstResponder,
+                  !terminalView.shouldYieldHardwareInputToEmojiUI,
                   let input = GCKeyboard.coalesced?.keyboardInput,
                   input.button(forKeyCode: keyCode)?.isPressed == true else {
                 return false
