@@ -312,6 +312,7 @@ extension Ghostty.TerminalView {
     // Register key commands for dynamic keybindings
     // Uses cached array to avoid 26+ allocations per keystroke
     override var keyCommands: [UIKeyCommand]? {
+        guard !shouldYieldHardwareInputToEmojiUI else { return nil }
         #if targetEnvironment(macCatalyst)
         let shouldSuppressControlShortcuts = false
         #else
@@ -341,6 +342,12 @@ extension Ghostty.TerminalView {
         // Hardware keys reach the responder chain, not the window-level touch
         // observer, so typing has to restart the always-on-display window here.
         noteAlwaysOnDisplayInteraction()
+
+        if shouldYieldHardwareInputToEmojiUI {
+            resetKeyboardInteractionState(sendSyntheticKeyReleases: true)
+            super.pressesBegan(presses, with: event)
+            return
+        }
 
         var handled = false
         var shouldSkipSuper = false
@@ -405,6 +412,8 @@ extension Ghostty.TerminalView {
     /// Returns whether the press was handled and whether super should be skipped.
     @discardableResult
     func processKeyPress(_ press: UIPress, virtualModifier: ModTapModifier?) -> (handled: Bool, skipSuper: Bool) {
+        // Also cover deferred mod-tap replays, which bypass pressesBegan.
+        guard !shouldYieldHardwareInputToEmojiUI else { return (false, false) }
         lastHardwareTextInputTime = ProcessInfo.processInfo.systemUptime
         lastDictationActivityAt = nil
         invalidateWritingAssistance()
@@ -1056,6 +1065,11 @@ extension Ghostty.TerminalView {
     }
 
     override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        if shouldYieldHardwareInputToEmojiUI {
+            resetKeyboardInteractionState(sendSyntheticKeyReleases: true)
+            super.pressesEnded(presses, with: event)
+            return
+        }
         // Reset OPTION key flag on key release
         didHandleOptionKey = false
 
