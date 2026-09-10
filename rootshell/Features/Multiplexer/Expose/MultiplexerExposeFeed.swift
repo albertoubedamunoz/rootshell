@@ -681,7 +681,7 @@ final class MultiplexerExposeFeed {
         // Exported by the user's own shell where it was used (`HERDR_SESSION=x herdr`).
         body += "; echo \"::MX_ENV::\"; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\";"
         body += " [ -r \"/proc/$_p/environ\" ] && tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
-        body += " | grep -E \"^(HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME|SSH_CONNECTION|\(TerminalIdentity.paneTokenVariable))=\"; done"
+        body += " | grep -E \"^(HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME|ZMX_SESSION_PREFIX|SSH_CONNECTION|\(TerminalIdentity.paneTokenVariable))=\"; done"
         // zellij's server runs as `zellij --server <sock dir>/<session>`.
         body += "; echo \"::MX_SERVERS::\"; ps -xo pid=,ppid=,args= 2>/dev/null | grep -- \"--server\" | grep -v grep"
 
@@ -778,9 +778,14 @@ final class MultiplexerExposeFeed {
                 // fork's socket shows up here, or a host with neither `lsof`
                 // nor `/proc`.
                 var session = Self.zmxSession(in: sockets[pid] ?? [])
-                if session == nil, let index = words.firstIndex(where: { $0 == "attach" || $0 == "a" }),
-                   index + 1 < words.count, !words[index + 1].hasPrefix("-") {
-                    session = words[index + 1]
+                if session == nil, let argument = Self.zmxAttachArgument(in: words) {
+                    // The socket is named for the session; argv is named for
+                    // what the user typed. zmx resolves one to the other by
+                    // prepending `ZMX_SESSION_PREFIX` (`getSeshName`,
+                    // socket.zig), and the census lists resolved names, so a
+                    // pane bound to the typed name matches nothing there and
+                    // reads as a session that has gone away.
+                    session = ((environments[pid] ?? [:])["ZMX_SESSION_PREFIX"] ?? "") + argument
                 }
                 // Nothing to focus or to key the exposé's tab identity by
                 // without a name, and guessing one would risk moving a
@@ -946,6 +951,27 @@ final class MultiplexerExposeFeed {
         }
         guard let highest = hits.values.max() else { return nil }
         return hits.filter { $0.value == highest }.keys.sorted().first
+    }
+
+    /// The session `zmx attach` was pointed at, as typed. Mirrors zmx's own
+    /// `parseAttachArgs`: flags are recognized only ahead of the name, and
+    /// everything past it is the command the session should run.
+    private static func zmxAttachArgument(in words: [String]) -> String? {
+        guard let start = words.firstIndex(where: { $0 == "attach" || $0 == "a" }) else { return nil }
+        var index = words.index(after: start)
+        while index < words.count {
+            let word = words[index]
+            if word == "--labels" {
+                index += 2
+            } else if word.hasPrefix("--labels=") {
+                index += 1
+            } else if word.hasPrefix("-") {
+                return nil
+            } else {
+                return word
+            }
+        }
+        return nil
     }
 
     /// The session name when the host runs exactly one; nil leaves the feed
