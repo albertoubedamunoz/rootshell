@@ -59523,7 +59523,7 @@
       }
     },
     "Always" : {
-      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -117912,6 +117912,160 @@
         }
       }
     },
+    "Clear Shortcut" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مسح الاختصار"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esborrar drecera"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vymazat zkratku"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ryd genvej"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kurzbefehl löschen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar atajo"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tyhjennä pikanäppäin"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer le raccourci"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נקה קיצור"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Billentyűparancs törlése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella scorciatoia"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ショートカットをクリア"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키 지우기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tøm snarvei"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sneltoets wissen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyczyść skrót"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limpar atalho"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limpar atalho"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Șterge scurtătura"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Počisti bližnjico"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rensa genväg"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистити комбінацію клавіш"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xóa phím tắt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除快捷键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除快捷鍵"
+          }
+        }
+      }
+    },
     "Clear the screen (Ctrl-L)" : {
       "comment" : "Help: clear command description",
       "localizations" : {
@@ -144957,7 +145111,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -176934,7 +177088,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -203384,6 +203538,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輸入內容為空"
+          }
+        }
+      }
+    },
+    "Empty port fields inherit from Settings → Roam. Both hops use the session’s transport mode." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ترث حقول المنافذ الفارغة قيمها من الإعدادات > التجوال. يستخدم كلا المقطعين وضع النقل الخاص بالجلسة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Els camps de port buits hereten de Configuració → Roam. Tots dos salts utilitzen el mode de transport de la sessió."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prázdná pole portů se dědí z Nastavení → Roam. Oba skoky používají režim přenosu relace."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomme portfelter arves fra Indstillinger → Roam. Begge hop bruger sessionens transporttilstand."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leere Portfelder erben von Einstellungen → Roam. Beide Hops verwenden den Transportmodus der Sitzung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los campos de puerto vacíos heredan de Ajustes → Roam. Ambos saltos usan el modo de transporte de la sesión."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tyhjät porttikentät peritään asetuksista: Asetukset → Roam. Molemmat hypyt käyttävät istunnon siirtotapaa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les champs de port vides héritent de Réglages → Roam. Les deux sauts utilisent le mode de transport de la session."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שדות פורט ריקים יורשים מהגדרות > נדידה. שתי הקפיצות משתמשות במצב התעבורה של ההפעלה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az üres portmezők a Beállítások → Roam értékeit öröklik. Mindkét ugrás a munkamenet átviteli módját használja."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I campi porta vuoti ereditano da Impostazioni → Roam. Entrambi gli hop usano la modalità di trasporto della sessione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空のポートフィールドは設定 → Roam から継承されます。どちらのホップもセッションのトランスポートモードを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비어 있는 포트 필드는 설정 → Roam에서 상속됩니다. 두 홉 모두 세션의 전송 모드를 사용합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomme portfelt arver fra Innstillinger → Roam. Begge hoppene bruker øktens transportmodus."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lege poortvelden nemen de instellingen over van Instellingen → Roam. Beide hops gebruiken de transportmodus van de sessie."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puste pola portów dziedziczą z Ustawienia → Roam. Oba przeskoki używają trybu transportu sesji."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Campos de porta vazios herdam de Ajustes → Roam. Ambos os saltos usam o modo de transporte da sessão."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os campos de porta vazios herdam de Definições → Roam. Ambos os saltos utilizam o modo de transporte da sessão."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Câmpurile de port goale moștenesc din Setări → Roam. Ambele salturi folosesc modul de transport al sesiunii."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prazna polja vrat podedujejo iz Nastavitve → Roam. Oba skoka uporabljata način prenosa seje."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomma portfält ärver från Inställningar → Roam. Båda hoppen använder sessionens transportläge."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Порожні поля портів успадковуються з Налаштування → Роумінг. Обидва переходи використовують режим транспорту сеансу."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Các trường cổng để trống sẽ kế thừa từ Cài đặt → Roam. Cả hai chặng đều dùng chế độ truyền tải của phiên."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "留空的端口字段将继承“设置 → Roam”中的值。两跳都使用会话的传输模式。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "留空的連接埠欄位將繼承「設定 → Roam」中的值。兩段跳躍皆使用工作階段的傳輸模式。"
           }
         }
       }
@@ -273368,7 +273676,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -289902,6 +290210,160 @@
         }
       }
     },
+    "Install tsshd on both hosts. Allow UDP from this device to the jump host, and from the jump host to the target. The target does not need to be reachable directly from this device." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ثبّت tsshd على كلا المضيفين. اسمح بحركة UDP من هذا الجهاز إلى مضيف القفز، ومن مضيف القفز إلى الهدف. لا يلزم أن يكون الهدف قابلاً للوصول مباشرة من هذا الجهاز."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instal·la tsshd als dos amfitrions. Permet UDP des d'aquest dispositiu a l'amfitrió de salt, i des de l'amfitrió de salt al destí. El destí no cal que sigui accessible directament des d'aquest dispositiu."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nainstalujte tsshd na oba hostitele. Povolte UDP z tohoto zařízení na Jump Host a z Jump Hostu na cíl. Cíl nemusí být přímo dostupný z tohoto zařízení."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer tsshd på begge værter. Tillad UDP fra denne enhed til Jump Host og fra Jump Host til målet. Målet behøver ikke at kunne nås direkte fra denne enhed."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installiere tsshd auf beiden Hosts. Erlaube UDP von diesem Gerät zum Jump-Host und vom Jump-Host zum Ziel. Das Ziel muss von diesem Gerät aus nicht direkt erreichbar sein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala tsshd en ambos hosts. Permite UDP desde este dispositivo al host de salto y desde el host de salto al destino. El destino no necesita ser accesible directamente desde este dispositivo."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asenna tsshd molempiin isäntiin. Salli UDP tästä laitteesta hyppyisäntään ja hyppyisännästä kohteeseen. Kohteen ei tarvitse olla suoraan tavoitettavissa tästä laitteesta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installez tsshd sur les deux hôtes. Autorisez l'UDP de cet appareil vers le jump host, et du jump host vers la cible. La cible n'a pas besoin d'être joignable directement depuis cet appareil."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התקינו את tsshd בשני המארחים. אפשרו UDP ממכשיר זה אל מארח ה-Jump, וממארח ה-Jump אל היעד. אין צורך שהיעד יהיה נגיש ישירות ממכשיר זה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Telepítsd a tsshd-t mindkét gazdagépre. Engedélyezd az UDP-t erről az eszközről a Jump gazdagépre, és a Jump gazdagépről a célgépre. A célgépnek nem kell közvetlenül elérhetőnek lennie erről az eszközről."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installa tsshd su entrambi gli host. Consenti UDP da questo dispositivo al jump host e dal jump host alla destinazione. Non è necessario che la destinazione sia raggiungibile direttamente da questo dispositivo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "両方のホストに tsshd をインストールしてください。このデバイスからジャンプホストへ、およびジャンプホストからターゲットへの UDP を許可します。ターゲットにこのデバイスから直接到達できる必要はありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "두 호스트 모두에 tsshd를 설치하세요. 이 기기에서 점프 호스트로, 점프 호스트에서 대상으로의 UDP를 허용해야 합니다. 대상이 이 기기에서 직접 연결될 필요는 없습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer tsshd på begge verter. Tillat UDP fra denne enheten til mellomtjeneren, og fra mellomtjeneren til målet. Målet trenger ikke å være direkte tilgjengelig fra denne enheten."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installeer tsshd op beide hosts. Sta UDP toe van dit apparaat naar de Jump Host en van de Jump Host naar het doel. Het doel hoeft niet rechtstreeks bereikbaar te zijn vanaf dit apparaat."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zainstaluj tsshd na obu hostach. Zezwól na UDP z tego urządzenia do hosta pośredniego oraz z hosta pośredniego do celu. Cel nie musi być osiągalny bezpośrednio z tego urządzenia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instale o tsshd em ambos os hosts. Permita UDP deste dispositivo para o jump host e do jump host para o destino. O destino não precisa ser acessível diretamente deste dispositivo."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instale o tsshd em ambos os anfitriões. Permita UDP deste dispositivo para o anfitrião de salto e do anfitrião de salto para o destino. O destino não precisa de ser acessível diretamente a partir deste dispositivo."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalează tsshd pe ambele gazde. Permite UDP de la acest dispozitiv către Jump Host și de la Jump Host către țintă. Ținta nu trebuie să fie accesibilă direct de pe acest dispozitiv."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Namestite tsshd na obeh gostiteljih. Dovolite UDP s te naprave do Jump gostitelja in z Jump gostitelja do cilja. Cilj ni nujno neposredno dosegljiv s te naprave."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installera tsshd på båda värdarna. Tillåt UDP från den här enheten till Jump Host och från Jump Host till målet. Målet behöver inte vara direkt nåbart från den här enheten."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Установіть tsshd на обох хостах. Дозвольте UDP із цього пристрою до проміжного хоста та з проміжного хоста до цілі. Ціль не обов'язково має бути доступною безпосередньо з цього пристрою."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cài đặt tsshd trên cả hai máy chủ. Cho phép UDP từ thiết bị này đến Jump Host, và từ Jump Host đến máy đích. Máy đích không cần kết nối trực tiếp được từ thiết bị này."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在两台主机上都安装 tsshd。允许从本设备到跳板机、以及从跳板机到目标主机的 UDP 流量。目标主机无需可从本设备直接访问。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在兩台主機上都安裝 tsshd。允許從本裝置到跳板機、以及從跳板機到目標主機的 UDP 流量。目標主機不需要能從本裝置直接連線。"
+          }
+        }
+      }
+    },
     "Installing..." : {
       "localizations" : {
         "ar" : {
@@ -296856,6 +297318,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "跳板機認證"
+          }
+        }
+      }
+    },
+    "Jump Connection" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اتصال القفز"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexió de salt"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Připojení Jump Host"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump-forbindelse"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump-Verbindung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexión de salto"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hyppy-yhteys"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion jump host"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חיבור Jump"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump kapcsolat"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione jump"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジャンプ接続"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "점프 연결"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mellomtjener-tilkobling"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump-verbinding"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Połączenie pośrednie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexão do Jump Host"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligação de Salto"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexiune Jump Host"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump povezava"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump Host-anslutning"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "З'єднання через проміжний хост"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kết nối Jump Host"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳板机连接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳板機連線"
           }
         }
       }
@@ -329292,7 +329908,7 @@
       }
     },
     "Local SSH Agent" : {
-      "comment" : "Setting title",
+      "comment" : "Local SSH agent settings title\nSetting title\nSettings row: local SSH agent",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -378220,7 +378836,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -387036,7 +387652,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings status: disabled\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -387500,7 +388116,7 @@
       }
     },
     "On" : {
-      "comment" : "Setting value display\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Setting value display\nSettings status: enabled\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -389963,6 +390579,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開啟"
+          }
+        }
+      }
+    },
+    "Open %@" : {
+      "comment" : "Keyboard shortcut discoverability title for opening a connection profile",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrir %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevřít %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åbn %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ öffnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaa %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פתח %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ megnyitása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ を開く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 열기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpne %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ openen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deschide %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpri %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppna %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟 %@"
           }
         }
       }
@@ -392586,6 +393357,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開啟 NetBird 控制面板"
+          }
+        }
+      }
+    },
+    "Open Profile" : {
+      "comment" : "Keybind action: connect to a saved connection profile",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح الملف الشخصي"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrir perfil"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevřít profil"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åbn profil"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil öffnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir perfil"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaa profiili"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir le profil"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פתח פרופיל"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil megnyitása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri profilo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロファイルを開く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프로필 열기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpne profil"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profiel openen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz profil"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Perfil"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Perfil"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deschide profilul"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpri profil"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppna profil"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити профіль"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở hồ sơ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开配置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟設定檔"
           }
         }
       }
@@ -426413,6 +427339,161 @@
         }
       }
     },
+    "Profile Shortcut" : {
+      "comment" : "Title when editing a profile keyboard shortcut",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختصار الملف الشخصي"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drecera del perfil"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zkratka profilu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profilgenvej"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil-Kurzbefehl"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atajo del perfil"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profiilin pikanäppäin"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raccourci du profil"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קיצור הפרופיל"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil billentyűparancsa"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scorciatoia del profilo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロファイルのショートカット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프로필 단축키"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profilsnarvei"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profielsneltoets"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skrót profilu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atalho do Perfil"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atalho do Perfil"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scurtătura profilului"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bližnjica profila"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profilgenväg"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Комбінація клавіш профілю"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phím tắt hồ sơ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置快捷键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定檔快捷鍵"
+          }
+        }
+      }
+    },
     "Profile Unavailable" : {
       "localizations" : {
         "ar" : {
@@ -440781,6 +441862,160 @@
         }
       }
     },
+    "Rebuild Jump Connection" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة بناء اتصال القفز"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconstruir la connexió de salt"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obnovit připojení Jump Host"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genopbyg Jump-forbindelse"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump-Verbindung neu aufbauen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconstruir conexión de salto"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muodosta hyppy-yhteys uudelleen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconstruire la connexion jump host"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "בנה מחדש את חיבור ה-Jump"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump kapcsolat újraépítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricostruisci la connessione jump"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジャンプ接続を再構築"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "점프 연결 재구성"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gjenoppbygg mellomtjener-tilkobling"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump-verbinding opnieuw opbouwen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odbuduj połączenie pośrednie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconstruir Conexão do Jump Host"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconstruir Ligação de Salto"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconstruiește conexiunea Jump Host"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znova vzpostavi Jump povezavo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Återskapa Jump Host-anslutning"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перебудувати з'єднання через проміжний хост"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo lại kết nối Jump Host"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重建跳板机连接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重建跳板機連線"
+          }
+        }
+      }
+    },
     "Receive encrypted alerts from coding agents on your paired computers." : {
       "localizations" : {
         "ar" : {
@@ -448494,6 +449729,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "寬鬆（250ms）"
+          }
+        }
+      }
+    },
+    "Relay full session" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ترحيل الجلسة كاملة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retransmetre la sessió completa"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přenášet celou relaci"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Videresend hele sessionen"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesamte Sitzung weiterleiten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retransmitir la sesión completa"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välitä koko istunto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relayer toute la session"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "העברת ההפעלה המלאה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teljes munkamenet továbbítása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inoltra l'intera sessione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セッション全体を中継"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전체 세션 중계"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Videresend hele økten"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volledige sessie doorsturen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przekazuj całą sesję"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retransmitir a sessão inteira"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retransmitir a sessão completa"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retransmite întreaga sesiune"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posreduj celotno sejo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reläa hela sessionen"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ретранслювати весь сеанс"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chuyển tiếp toàn bộ phiên"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中继整个会话"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中繼整個工作階段"
           }
         }
       }
@@ -534267,7 +535656,7 @@
       }
     },
     "SSH Agent" : {
-      "comment" : "Setting group title",
+      "comment" : "Agent key section header\nSetting group title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -534727,6 +536116,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SSH 代理"
+          }
+        }
+      }
+    },
+    "SSH bootstrap only" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تمهيد SSH فقط"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Només arrencada SSH"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pouze zavedení přes SSH"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kun SSH-opstart"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur SSH-Bootstrap"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo arranque SSH"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vain SSH-käynnistys"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amorçage SSH uniquement"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אתחול SSH בלבד"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Csak SSH-indítás"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo avvio SSH"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH での起動のみ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH 부트스트랩만"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bare SSH-oppstart"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alleen SSH-bootstrap"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko uruchomienie przez SSH"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas inicialização SSH"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas arranque SSH"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doar inițializare SSH"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Samo zagon prek SSH"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endast SSH-uppstart"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лише запуск через SSH"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chỉ khởi tạo qua SSH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅通过 SSH 引导"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅透過 SSH 啟動"
           }
         }
       }
@@ -573797,6 +575340,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "跳板連線的 SSH 金鑰在此裝置上無法使用（%@）。"
+          }
+        }
+      }
+    },
+    "The jump host starts tsshd over SSH. This device must then reach the target directly over UDP." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يشغّل مضيف القفز tsshd عبر SSH. ويجب أن يصل هذا الجهاز بعد ذلك إلى الهدف مباشرة عبر UDP."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'amfitrió de salt inicia tsshd mitjançant SSH. Aquest dispositiu ha d'arribar després al destí directament per UDP."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump Host spustí tsshd přes SSH. Toto zařízení pak musí dosáhnout na cíl přímo přes UDP."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump Host starter tsshd via SSH. Denne enhed skal derefter nå målet direkte via UDP."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Jump-Host startet tsshd über SSH. Dieses Gerät muss das Ziel anschließend direkt über UDP erreichen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El host de salto inicia tsshd por SSH. Este dispositivo debe entonces alcanzar el destino directamente por UDP."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hyppyisäntä käynnistää tsshd:n SSH:n kautta. Tämän laitteen on sitten tavoitettava kohde suoraan UDP:llä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le jump host démarre tsshd via SSH. Cet appareil doit ensuite joindre la cible directement en UDP."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מארח ה-Jump מפעיל את tsshd דרך SSH. מכשיר זה חייב אז להגיע ליעד ישירות דרך UDP."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Jump gazdagép SSH-n keresztül indítja a tsshd-t. Ezután ennek az eszköznek közvetlenül, UDP-n kell elérnie a célgépet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il jump host avvia tsshd tramite SSH. Questo dispositivo deve poi raggiungere la destinazione direttamente via UDP."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジャンプホストが SSH 経由で tsshd を起動します。その後、このデバイスは UDP でターゲットに直接到達する必要があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "점프 호스트가 SSH를 통해 tsshd를 시작합니다. 그런 다음 이 기기가 UDP로 대상에 직접 연결할 수 있어야 합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mellomtjeneren starter tsshd over SSH. Denne enheten må deretter nå målet direkte over UDP."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De Jump Host start tsshd via SSH. Dit apparaat moet het doel vervolgens rechtstreeks via UDP bereiken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host pośredni uruchamia tsshd przez SSH. To urządzenie musi następnie osiągnąć cel bezpośrednio przez UDP."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O jump host inicia o tsshd por SSH. Este dispositivo precisa então alcançar o destino diretamente por UDP."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O anfitrião de salto inicia o tsshd através de SSH. Este dispositivo tem então de alcançar o destino diretamente por UDP."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump Host-ul pornește tsshd prin SSH. Acest dispozitiv trebuie apoi să ajungă la țintă direct prin UDP."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump gostitelj zažene tsshd prek SSH. Ta naprava mora nato doseči cilj neposredno prek UDP."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump Host startar tsshd via SSH. Den här enheten måste sedan nå målet direkt via UDP."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проміжний хост запускає tsshd через SSH. Після цього цей пристрій має досягати цілі безпосередньо через UDP."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump Host khởi động tsshd qua SSH. Sau đó thiết bị này phải kết nối trực tiếp tới máy đích qua UDP."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳板机通过 SSH 启动 tsshd。之后本设备必须通过 UDP 直接连接到目标主机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳板機會透過 SSH 啟動 tsshd。之後本裝置必須透過 UDP 直接連線到目標主機。"
           }
         }
       }
@@ -613179,7 +614876,162 @@
         }
       }
     },
+    "tsshd uses QUIC or KCP over UDP. Allow the configured UDP port range (by default 61000–61999) on the host reached by this device. With Relay full session enabled, that is the jump host; it must also reach the target’s SSH and UDP ports." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم tsshd بروتوكول QUIC أو KCP عبر UDP. اسمح بنطاق منافذ UDP المُهيأ (61000–61999 افتراضياً) على المضيف الذي يصل إليه هذا الجهاز. عند تفعيل «ترحيل الجلسة كاملة»، يكون ذلك مضيف القفز؛ ويجب أن يصل أيضاً إلى منفذي SSH وUDP على الهدف."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd utilitza QUIC o KCP sobre UDP. Permet l'interval de ports UDP configurat (61000–61999 per defecte) a l'amfitrió al qual arriba aquest dispositiu. Amb «Retransmetre la sessió completa» activat, aquest és l'amfitrió de salt; també ha de poder arribar als ports SSH i UDP del destí."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd používá QUIC nebo KCP přes UDP. Povolte nakonfigurovaný rozsah UDP portů (ve výchozím nastavení 61000–61999) na hostiteli, na kterého toto zařízení dosáhne. Je-li zapnuto „Přenášet celou relaci“, je to Jump Host; ten musí navíc dosáhnout na SSH a UDP porty cíle."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd bruger QUIC eller KCP over UDP. Tillad det konfigurerede UDP-portinterval (som standard 61000–61999) på den vært, som denne enhed når. Når “Videresend hele sessionen” er slået til, er det Jump Host; den skal også kunne nå målets SSH- og UDP-porte."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd verwendet QUIC oder KCP über UDP. Gib den konfigurierten UDP-Portbereich (standardmäßig 61000–61999) auf dem Host frei, den dieses Gerät erreicht. Wenn „Gesamte Sitzung weiterleiten“ aktiviert ist, ist das der Jump-Host; er muss außerdem die SSH- und UDP-Ports des Ziels erreichen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd usa QUIC o KCP sobre UDP. Permite el rango de puertos UDP configurado (61000–61999 por omisión) en el host que alcanza este dispositivo. Con «Retransmitir la sesión completa» activado, ese es el host de salto; además debe poder alcanzar los puertos SSH y UDP del destino."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd käyttää QUIC- tai KCP-yhteyttä UDP:n päällä. Salli määritetty UDP-porttialue (oletuksena 61000–61999) siinä isännässä, johon tämä laite ottaa yhteyden. Kun ”Välitä koko istunto” on käytössä, se on hyppyisäntä; sen on lisäksi tavoitettava kohteen SSH- ja UDP-portit."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd utilise QUIC ou KCP sur UDP. Autorisez la plage de ports UDP configurée (61000–61999 par défaut) sur l'hôte joint par cet appareil. Avec « Relayer toute la session » activé, il s'agit du jump host ; celui-ci doit également joindre les ports SSH et UDP de la cible."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd משתמש ב-QUIC או KCP מעל UDP. אפשרו את טווח פורטי ה-UDP המוגדר (כברירת מחדל 61000–61999) במארח שאליו מגיע מכשיר זה. כאשר ״העברת ההפעלה המלאה״ מופעלת, זהו מארח ה-Jump; עליו גם להגיע לפורטי ה-SSH וה-UDP של היעד."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tsshd QUIC vagy KCP protokollt használ UDP felett. Engedélyezd a beállított UDP-porttartományt (alapértelmezés szerint 61000–61999) azon a gazdagépen, amelyet ez az eszköz elér. Ha a „Teljes munkamenet továbbítása” be van kapcsolva, ez a Jump gazdagép; annak a célgép SSH- és UDP-portjait is el kell érnie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd usa QUIC o KCP su UDP. Consenti l'intervallo di porte UDP configurato (per impostazione predefinita 61000–61999) sull'host raggiunto da questo dispositivo. Con «Inoltra l'intera sessione» attivo, si tratta del jump host, che deve inoltre raggiungere le porte SSH e UDP della destinazione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd は UDP 上で QUIC または KCP を使用します。このデバイスが到達するホストで、設定された UDP ポート範囲（デフォルトは 61000–61999）を許可してください。「セッション全体を中継」が有効な場合、それはジャンプホストです。ジャンプホストはターゲットの SSH ポートと UDP ポートにも到達できる必要があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd는 UDP 위에서 QUIC 또는 KCP를 사용합니다. 이 기기가 연결하는 호스트에서 설정된 UDP 포트 범위(기본값 61000–61999)를 허용하세요. ‘전체 세션 중계’가 켜져 있으면 그 호스트는 점프 호스트이며, 점프 호스트는 대상의 SSH 및 UDP 포트에도 연결할 수 있어야 합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd bruker QUIC eller KCP over UDP. Tillat det konfigurerte UDP-portområdet (61000–61999 som standard) på verten denne enheten når. Når «Videresend hele økten» er på, er det mellomtjeneren; den må også nå målets SSH- og UDP-porter."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd gebruikt QUIC of KCP over UDP. Sta het geconfigureerde UDP-poortbereik toe (standaard 61000–61999) op de host die dit apparaat bereikt. Als ‘Volledige sessie doorsturen’ is ingeschakeld, is dat de Jump Host; die moet ook de SSH- en UDP-poorten van het doel kunnen bereiken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd używa QUIC lub KCP przez UDP. Zezwól na skonfigurowany zakres portów UDP (domyślnie 61000–61999) na hoście, do którego łączy się to urządzenie. Przy włączonej opcji „Przekazuj całą sesję” jest to host pośredni; musi on także osiągać porty SSH i UDP celu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O tsshd usa QUIC ou KCP sobre UDP. Libere o intervalo de portas UDP configurado (por padrão 61000–61999) no host alcançado por este dispositivo. Com “Retransmitir a sessão inteira” ativado, esse é o jump host; ele também precisa alcançar as portas SSH e UDP do destino."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O tsshd utiliza QUIC ou KCP sobre UDP. Permita o intervalo de portas UDP configurado (por predefinição 61000–61999) no anfitrião alcançado por este dispositivo. Com “Retransmitir a sessão completa” ativado, esse é o anfitrião de salto; este tem também de alcançar as portas SSH e UDP do destino."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd folosește QUIC sau KCP peste UDP. Permite intervalul de porturi UDP configurat (implicit 61000–61999) pe gazda la care ajunge acest dispozitiv. Cu „Retransmite întreaga sesiune” activat, aceasta este Jump Host-ul; el trebuie să ajungă și la porturile SSH și UDP ale țintei."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd uporablja QUIC ali KCP prek UDP. Dovolite nastavljen obseg vrat UDP (privzeto 61000–61999) na gostitelju, ki ga doseže ta naprava. Ko je vklopljeno »Posreduj celotno sejo«, je to Jump gostitelj; ta mora doseči tudi vrata SSH in UDP na cilju."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd använder QUIC eller KCP över UDP. Tillåt det konfigurerade UDP-portintervallet (som standard 61000–61999) på den värd som den här enheten når. När ”Reläa hela sessionen” är på är det Jump Host; den måste också nå målets SSH- och UDP-portar."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd використовує QUIC або KCP поверх UDP. Дозвольте налаштований діапазон портів UDP (типово 61000–61999) на хості, до якого під'єднується цей пристрій. Якщо ввімкнено «Ретранслювати весь сеанс», це проміжний хост; він також має мати доступ до портів SSH і UDP цілі."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd sử dụng QUIC hoặc KCP trên UDP. Hãy mở dải cổng UDP đã cấu hình (mặc định 61000–61999) trên máy chủ mà thiết bị này kết nối tới. Khi bật “Chuyển tiếp toàn bộ phiên”, đó là Jump Host; máy này cũng phải kết nối được tới cổng SSH và UDP của máy đích."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd 通过 UDP 使用 QUIC 或 KCP。请在本设备所连接的主机上放行已配置的 UDP 端口范围（默认为 61000–61999）。启用“中继整个会话”时，该主机即为跳板机；跳板机还必须能访问目标主机的 SSH 和 UDP 端口。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tsshd 透過 UDP 使用 QUIC 或 KCP。請在本裝置所連線的主機上開放已設定的 UDP 連接埠範圍（預設為 61000–61999）。啟用「中繼整個工作階段」時，該主機即為跳板機；跳板機還必須能連線到目標主機的 SSH 與 UDP 連接埠。"
+          }
+        }
+      }
+    },
     "tsshd uses QUIC or KCP transport. No additional firewall configuration is required as both protocols handle NAT traversal automatically." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -656912,7 +658764,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
