@@ -92,8 +92,9 @@ final class CatalystKeyboardLayout {
     /// - Parameters:
     ///   - keyCode: Native macOS CGKeyCode (NOT HID usage code)
     ///   - shift: Whether Shift is held
+    ///   - command: Whether to use the layout's Command-specific mapping
     /// - Returns: The character the key produces, or nil if translation fails.
-    func translateKey(cgKeyCode: UInt16, shift: Bool) -> String? {
+    func translateKey(cgKeyCode: UInt16, shift: Bool, command: Bool = false) -> String? {
         guard let tisGetSource, let tisGetProperty, let ucKeyTranslate,
               let lmGetKbdType, let kTISPropertyUnicodeKeyLayoutData else {
             return nil
@@ -109,10 +110,9 @@ final class CatalystKeyboardLayout {
         let layoutData = dataRef.takeUnretainedValue() as CFData
         let layoutPtr = CFDataGetBytePtr(layoutData)!
 
-        // Build modifier state: bit 9 = Shift (matching Carbon modifier bit layout)
-        let modifierState: UInt32 = shift ? (0x0200 >> 8) : 0
-        // Shift bit is at position 9 in the event flags, but UCKeyTranslate
-        // expects modifiers >> 8, so Shift = 0x02
+        // Carbon has Command at bit 8 and Shift at bit 9. UCKeyTranslate
+        // expects the event modifier bits shifted right by 8.
+        let modifierState: UInt32 = (command ? 0x01 : 0) | (shift ? 0x02 : 0)
 
         let kbdType = UInt32(lmGetKbdType())
         let kUCKeyActionDown: UInt16 = 0
