@@ -117,12 +117,17 @@ final class MultiplexerExposeFeed {
     }
 
     /// Returns the adapter for a supported multiplexer type.
-    static func adapter(for type: MultiplexerType) -> (any MultiplexerExposeAdapter)? {
+    /// `paneToken` is what lets a zmx switch act on this pane's own client;
+    /// callers testing only whether a type is supported can leave it out.
+    static func adapter(
+        for type: MultiplexerType,
+        paneToken: String? = nil
+    ) -> (any MultiplexerExposeAdapter)? {
         switch type {
         case .herdr: HerdrExposeAdapter()
         case .tmux: TmuxExposeAdapter()
         case .zellij: ZellijExposeAdapter()
-        case .zmx: ZmxExposeAdapter()
+        case .zmx: ZmxExposeAdapter(paneToken: paneToken)
         }
     }
 
@@ -226,7 +231,9 @@ final class MultiplexerExposeFeed {
         let sameMultiplexer = type == binding.type && adapter != nil
         type = binding.type
         sessionName = binding.sessionName
-        if !sameMultiplexer { adapter = Self.adapter(for: binding.type) }
+        if !sameMultiplexer {
+            adapter = Self.adapter(for: binding.type, paneToken: terminal?.uuid.uuidString)
+        }
         interval = floorInterval
         if let terminal, let cache, cache.owner == ObjectIdentifier(terminal),
            cache.session == "\(binding.type.rawValue):\(binding.sessionName ?? "")",
@@ -322,6 +329,7 @@ final class MultiplexerExposeFeed {
             return
         }
 
+        claimZmxLeadershipIfShared(on: terminal, session: session)
         guard adapter.canFocus(session: session, tabID: tabID) else {
             Self.logger.info("focus declined by the adapter; leaving the pane where it is")
             return
@@ -366,6 +374,26 @@ final class MultiplexerExposeFeed {
         "echo \"::SESSIONS::\"; ZMX_SESSION= zmx list 2>/dev/null",
         nonce: "detach-census"
     )
+
+    /// Makes this pane's client the session's leader when another client
+    /// currently is.
+    ///
+    /// zmx sends a switch to the leader alone, so on a session held by several
+    /// terminals the tapped tab moves only if it happens to be the leader, and
+    /// leadership does not rotate on its own. An older client keeps it
+    /// indefinitely while this pane is only ever renamed. User input is the one
+    /// thing that transfers it, and the sequence still reaches the running
+    /// program, so it is sent only where it buys something: a session this pane
+    /// holds alone has no one to lose the switch to, and when no client is
+    /// leader the adapter's resize already covers it at no cost.
+    private func claimZmxLeadershipIfShared(on terminal: Ghostty.TerminalView, session: String?) {
+        guard let session, !session.isEmpty,
+              let zmxAdapter = adapter as? ZmxExposeAdapter,
+              let clients = zmxAdapter.clientCount(for: session), clients > 1
+        else { return }
+        Self.logger.info("claiming zmx leadership before switching; \(clients, privacy: .public) clients on \(session, privacy: .public)")
+        terminal.sendUserInput(ZmxExposeAdapter.leadershipClaim)
+    }
 
     /// Move a detachable zmx pane by typing into its own PTY.
     private func performZmxDetachSwitch(

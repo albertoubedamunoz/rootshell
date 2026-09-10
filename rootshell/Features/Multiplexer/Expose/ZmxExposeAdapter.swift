@@ -8,6 +8,14 @@ import Foundation
 nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
     var type: MultiplexerType { .zmx }
 
+    /// Identifies this pane's own processes on the host, so a switch can act
+    /// on the client belonging to it rather than any other attached terminal.
+    let paneToken: String?
+
+    init(paneToken: String? = nil) {
+        self.paneToken = paneToken
+    }
+
     /// `zmx list` probes session sockets serially, so use a slower tick rate.
     var minInterval: TimeInterval { 1.5 }
 
@@ -46,22 +54,27 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         return MuxScript.wrap(body, nonce: nonce)
     }
 
-    /// Exec-channel switching targets zmx's leader client, not necessarily this
-    /// pane. Only use it when this pane is the session's sole client; detachable
-    /// panes use their own PTY instead.
-    func canFocus(session: String?, tabID: String) -> Bool {
-        guard let session, !session.isEmpty, session != tabID else { return true }
-        // The before/after census still verifies a switch when no count exists.
-        guard let clients = census.clients[session] else { return true }
-        return clients <= 1
-    }
-
+    /// Switching is deliberately not gated on the session's client count.
+    /// Several clients on one session is a supported setup, and declining the
+    /// switch left a pane on a shared session unable to move at all. What zmx
+    /// will not do is pick the pane that asked: it sends the switch to the
+    /// session's leader client. So the caller takes leadership first, by
+    /// resize when no client holds it and by `leadershipClaim` when one does.
     func focusScript(session: String?, tabID: String) -> String {
         guard let session, !session.isEmpty, session != tabID else {
             return MuxScript.wrap("true", nonce: Self.focusNonce)
         }
         var body = "echo \(MuxScript.dq(MuxScript.topology(Self.focusNonce)))"
         body += "; echo \(MuxScript.dq(Self.focusBeforeMarker)); \(Self.prefix)zmx list 2>/dev/null"
+        if let paneToken, !paneToken.isEmpty {
+            // Nothing in the protocol orders these, so the margin is wall
+            // clock: the signalled client has to have sent its size before
+            // `zmx attach` opens its own connection. Both hops are local to
+            // the host and the switch still has a process to fork, so the
+            // margin is wide. Losing the race costs only the switch, which
+            // is what happened before any of this ran.
+            body += "; \(Self.claimLeadershipBody(paneToken: paneToken)); sleep 0.15"
+        }
         body += "; ZMX_SESSION=\(MuxScript.dq(session)) \(Self.prefix)zmx attach \(MuxScript.dq(tabID)) >/dev/null 2>&1"
         // The switch is fire-and-forget; wait before collecting confirmation.
         body += "; sleep 0.3"
@@ -69,7 +82,60 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         return MuxScript.wrap(body, nonce: Self.focusNonce)
     }
 
-    /// Confirms the fire-and-forget switch by comparing client counts.
+    /// A kitty-protocol tap of the left Shift key: press, then release.
+    ///
+    /// zmx switches whichever client is the session's leader, and transfers
+    /// leadership on user input and nothing else. A resize only fills a
+    /// vacancy, so leadership already held stays held however long this pane
+    /// sits idle. Input is the only way to ask zmx to move this pane, and it
+    /// reaches the running program whether or not it wins leadership, so the
+    /// sequence has to be one the program can receive without acting on it.
+    ///
+    /// A bare modifier is the closest thing to that. Programs speaking the
+    /// kitty protocol read what tapping Shift on a real keyboard sends, which
+    /// is why the release is included: a press on its own would leave them
+    /// believing Shift is held down. Programs that do not speak it see one
+    /// unrecognized CSI ending in `u` and discard it, the same way they
+    /// discard a stray device-status reply. Neither is true of every program,
+    /// so this is sent only when it decides whether the tapped tab moves or
+    /// some other terminal does.
+    static let leadershipClaim = Data("\u{1B}[57441;2:1u\u{1B}[57441;1:3u".utf8)
+
+    /// Makes this pane's client the session's leader when no client is.
+    ///
+    /// zmx clears the leader when that client disconnects, and only user input
+    /// sets it again, so a session routinely outlives its leader with none. A
+    /// switch sent in that state is fatal: the daemon answers with an
+    /// unhandled error and takes the session down, along with every terminal
+    /// still attached to it.
+    ///
+    /// SIGWINCH makes a client resend its size, and a size takes leadership
+    /// when no client holds it. It puts no bytes into the running program the
+    /// way a synthesized keystroke does, and zmx ignores it outright while
+    /// another client is leader, so it can never pull a session out from under
+    /// somebody else's terminal.
+    ///
+    /// Only the pane's own zmx processes are signalled. Its forked daemon
+    /// carries the same token and installs no handler, so reaching that one
+    /// costs nothing. Hosts without `/proc` cannot narrow the search to this
+    /// pane and are left alone.
+    private static func claimLeadershipBody(paneToken: String) -> String {
+        let needle = MuxScript.dq("\(TerminalIdentity.paneTokenVariable)=\(paneToken)")
+        var body = "if [ -r /proc/self/environ ]; then"
+        body += " for _p in $(ps -xo pid=,comm= 2>/dev/null | grep -E \"[ /]zmx$\""
+        body += " | awk \"{print \\$1}\"); do"
+        body += " tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
+        body += " | grep -qxF \(needle) || continue;"
+        body += " kill -WINCH \"$_p\" 2>/dev/null;"
+        body += " done; fi"
+        return body
+    }
+
+    /// Confirms the fire-and-forget switch by comparing client counts. The
+    /// deltas cannot say which client moved, so on a session held by several
+    /// clients a switch zmx applied to a different terminal still reads as
+    /// success. Telling them apart needs a switch addressed to one client,
+    /// which zmx has no way to express.
     func parseFocusResult(output: String, session: String?, tabID: String) -> Bool {
         guard let session, !session.isEmpty, session != tabID else {
             return true
@@ -110,7 +176,8 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         census.sessions = Set(sessions.map(\.name))
         guard !sessions.isEmpty else { return nil }
 
-        // Feeds `focusScript`'s leader guard from the listing already in hand.
+        // Feeds the detach switch's confirmation and the bound-session
+        // liveness check from the listing already in hand.
         census.clients = sessions.reduce(into: [:]) { counts, info in
             if let clients = info.clientCount { counts[info.name] = clients }
         }
