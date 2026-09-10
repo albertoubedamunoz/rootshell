@@ -18,6 +18,8 @@ enum TrzszTransferActivity {
     /// Schema version for the userInfo + bootstrap payload. Receivers reject
     /// activities with a higher version than they understand.
     nonisolated static let payloadVersion = 1
+    nonisolated static let relayPayloadVersion = 2
+    nonisolated static func supports(_ version: Int) -> Bool { version == 1 || version == 2 }
 
     /// Keys for the activity's userInfo dictionary. Stored as plain strings
     /// rather than an enum because NSUserActivity userInfo values must be

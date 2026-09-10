@@ -366,8 +366,10 @@ struct SSHConfig: Codable, Hashable {
 
         // MARK: - Codable (backward-compatible)
 
+        var tsshRelay: TSSHRelaySettings? = nil
+
         private enum CodingKeys: String, CodingKey {
-            case host, port, username, authMethod, fallbackKeyIDs, keyResolutionHints
+            case host, port, username, authMethod, fallbackKeyIDs, keyResolutionHints, tsshRelay
         }
 
         init(host: String, port: Int = 22, username: String, authMethod: AuthMethod, fallbackKeyIDs: [UUID]? = nil, keyResolutionHints: [String: KeyResolutionHint]? = nil) {
@@ -387,6 +389,7 @@ struct SSHConfig: Codable, Hashable {
             authMethod = try container.decode(AuthMethod.self, forKey: .authMethod)
             fallbackKeyIDs = try container.decodeIfPresent([UUID].self, forKey: .fallbackKeyIDs)
             keyResolutionHints = try container.decodeIfPresent([String: KeyResolutionHint].self, forKey: .keyResolutionHints)
+            tsshRelay = try container.decodeIfPresent(TSSHRelaySettings.self, forKey: .tsshRelay)
         }
 
         /// Display name for the jump host

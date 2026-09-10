@@ -103,6 +103,7 @@ struct VPNStartRequest: Codable, Sendable {
 /// the bundle under a still-running host). Older hosts reply without a
 /// payload — treated as stale.
 nonisolated struct VPNHostInfoResponse: Codable, Sendable {
+    var supportsTSSHRelay: Bool? = nil
     let version: String
     let bundlePath: String
 }

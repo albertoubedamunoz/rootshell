@@ -36,7 +36,7 @@ import Foundation
 ///   "ServerID": 789012
 /// }
 /// ```
-struct TrzszServerInfo: Sendable {
+struct TrzszServerInfo: Codable, Sendable {
     /// Server version string
     let serverVersion: String
 

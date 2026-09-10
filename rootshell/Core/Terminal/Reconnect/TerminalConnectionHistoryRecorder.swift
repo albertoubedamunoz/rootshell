@@ -93,6 +93,7 @@ final class TerminalConnectionHistoryRecorder {
                 jumpPort: sshConfig.jumpHost?.port,
                 jumpUsername: sshConfig.jumpHost?.username,
                 jumpAuthType: jumpAuthType,
+                tsshRelay: sshConfig.jumpHost?.tsshRelay,
                 resolvedIP: resolvedIP,
                 hssShorthand: sshConfig.hssShorthand,
                 agentConfig: sshConfig.agentConfig,

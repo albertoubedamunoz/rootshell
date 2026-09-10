@@ -130,6 +130,7 @@ struct ProfileEditorSheet: View {
     @State private var newPassword: String = ""
 
     // Jump host state
+    @State private var tsshRelay: TSSHRelaySettings?
     @State private var useJumpHost: Bool = false
     @State private var jumpHost: String = ""
     @State private var jumpPort: String = "22"
@@ -1001,6 +1002,7 @@ struct ProfileEditorSheet: View {
                 .themedRow()
 
             if useJumpHost {
+                if connectionProtocol == .trzsz { TSSHRelayForm(settings: $tsshRelay) }
                 TextField("Jump Hostname", text: $jumpHost)
                     .autocapitalization(.none)
                     .autocorrectionDisabled()
@@ -1085,6 +1087,10 @@ struct ProfileEditorSheet: View {
                         }
                         .themedRow()
                     }
+                }
+
+                if connectionProtocol == .trzsz {
+                    TSSHRelayAdvancedForm(settings: $tsshRelay)
                 }
             }
         } header: {
@@ -2042,6 +2048,7 @@ struct ProfileEditorSheet: View {
                 authMethod = .none  // Newer app's auth type; shown as None (re-pick to change)
             }
 
+            tsshRelay = config.jumpHost?.tsshRelay
             if let jump = config.jumpHost {
                 useJumpHost = true
                 jumpHost = jump.host
@@ -2130,6 +2137,7 @@ struct ProfileEditorSheet: View {
 
             // Load connection protocol from history
             connectionProtocol = entry.connectionProtocol ?? .ssh
+            tsshRelay = entry.tsshRelay
 
             switch entry.authType {
             case .password:
@@ -2386,6 +2394,15 @@ struct ProfileEditorSheet: View {
 
         // Update auth method after init
         var finalConfig = sshConfig
+        if connectionProtocol == .trzsz, let jump = finalConfig.jumpHost {
+            var relay = tsshRelay
+            relay?.boundJump = TSSHRelayIdentity(host: jump.host, port: jump.port, username: jump.username)
+            do {
+                try relay?.validate(host: jump.host, port: jump.port, username: jump.username,
+                    defaultPortMin: TrzszConfig.preferredUDPPortMin, defaultPortMax: TrzszConfig.preferredUDPPortMax)
+            } catch { errorMessage = error.localizedDescription; return }
+            finalConfig.jumpHost?.tsshRelay = relay
+        }
         finalConfig.authMethod = sshAuthMethod
         finalConfig.herdrAutoEnable = enableHerdr
         finalConfig.zmxAutoEnable = enableZmx

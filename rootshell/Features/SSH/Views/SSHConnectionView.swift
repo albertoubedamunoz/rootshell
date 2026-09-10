@@ -55,6 +55,7 @@ struct SSHConnectionView: View {
     @State private var isTerminalOptionsExpanded: Bool = false
     
     // Jump host fields
+    @State private var tsshRelay: TSSHRelaySettings?
     @State private var useJumpHost: Bool = false
     @State private var jumpHostname: String = ""
     @State private var jumpPort: String = "22"
@@ -813,6 +814,10 @@ struct SSHConnectionView: View {
                 savePassword: $saveJumpPassword,
                 selectedKeyID: $jumpSelectedKeyID
             )
+            if useJumpHost && connectionProtocol == .trzsz {
+                TSSHRelayForm(settings: $tsshRelay)
+                TSSHRelayAdvancedForm(settings: $tsshRelay)
+            }
         } label: {
             advancedSectionLabel(
                 title: String(localized: "Jump Host"),
@@ -1892,7 +1897,7 @@ struct SSHConnectionView: View {
         if let jumpKeyID = jumpAuthType?.keyID { keyIDs.append(jumpKeyID) }
         let hints = keyIDs.isEmpty ? nil : KeyResolutionHint.hintsDict(forKeyIDs: keyIDs)
 
-        return SSHConnectionHistoryEntry(
+        var entry = SSHConnectionHistoryEntry(
             username: username.trimmingCharacters(in: .whitespacesAndNewlines),
             host: hostname.trimmingCharacters(in: .whitespacesAndNewlines),
             port: Int(port) ?? 22,
@@ -1922,6 +1927,8 @@ struct SSHConnectionView: View {
                 port: Int(port) ?? 22),
             keyResolutionHints: hints
         )
+        entry.tsshRelay = useJumpHost && connectionProtocol == .trzsz ? tsshRelay : nil
+        return entry
     }
     
     // MARK: - Actions
@@ -1995,7 +2002,7 @@ struct SSHConnectionView: View {
         
         // Build jump host config if enabled (shared builder — same fields
         // and validation messages as the extracted jump form section)
-        let jumpConfig: SSHConfig.JumpHostConfig?
+        var jumpConfig: SSHConfig.JumpHostConfig?
         do {
             jumpConfig = try JumpHostFormSection.buildJumpHostConfig(
                 useJumpHost: useJumpHost,
@@ -2007,6 +2014,13 @@ struct SSHConnectionView: View {
                 selectedKeyID: jumpSelectedKeyID,
                 sshKeyManager: sshKeyManager
             )
+            if connectionProtocol == .trzsz, let jump = jumpConfig {
+                var relay = tsshRelay
+                relay?.boundJump = TSSHRelayIdentity(host: jump.host, port: jump.port, username: jump.username)
+                try relay?.validate(host: jump.host, port: jump.port, username: jump.username,
+                    defaultPortMin: TrzszConfig.preferredUDPPortMin, defaultPortMax: TrzszConfig.preferredUDPPortMax)
+                jumpConfig?.tsshRelay = relay
+            }
         } catch {
             errorMessage = (error as? JumpHostFormSection.BuildError)?.message ?? error.localizedDescription
             return
@@ -2512,6 +2526,7 @@ struct SSHConnectionView: View {
             jumpUsername = entry.jumpUsername ?? ""
             
             // Restore jump host auth method
+            tsshRelay = entry.tsshRelay
             if let jumpAuth = entry.jumpAuthType {
                 switch jumpAuth {
                 case .password, .savedPassword:
@@ -2662,6 +2677,7 @@ struct SSHConnectionView: View {
         }
         
         // Set jump host settings if present
+        tsshRelay = config.jumpHost?.tsshRelay
         if let jumpConfig = config.jumpHost {
             useJumpHost = true
             jumpHostname = jumpConfig.host

@@ -44,6 +44,7 @@ nonisolated struct VPNPinnedHostKey: Codable, Sendable, Hashable {
 }
 
 nonisolated struct VPNSharedJumpHostSnapshot: Codable, Sendable, Hashable {
+    var tsshRelay: TSSHRelaySettings? = nil
     var host: String
     var port: Int
     var username: String

@@ -1002,6 +1002,11 @@ extension Ghostty {
                     )
                 }
                 self?.updateRoamBanner(state: moshState)
+                if trzszSession.canRebuildJumpConnection {
+                    self?.roamBannerHostView?.rebuildJumpConnection = { [weak trzszSession] in
+                        trzszSession?.rebuildJumpConnection()
+                    }
+                }
             }
     }
 

@@ -161,6 +161,7 @@ final class VPNControlServer: @unchecked Sendable {
         case .ping:
             // Identify this build so the app can spot a stale running host.
             let info = VPNHostInfoResponse(
+                supportsTSSHRelay: true,
                 version: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
                 bundlePath: Bundle.main.bundlePath
             )

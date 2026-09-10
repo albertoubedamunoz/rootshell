@@ -491,9 +491,14 @@ final class TrzszGoTransport: NSObject {
 
     /// Builds a port-forward manager bound to this transport's gate handle.
     /// Returns nil if the transport is not connected.
-    func makePortForwardManager(config: PortForwardConfig) -> TrzszPortForwardManager? {
+    func makePortForwardManager(
+        config: PortForwardConfig,
+        recoveringRemoteForwards: Set<UUID> = []
+    ) -> TrzszPortForwardManager? {
         guard let ref = transportRef else { return nil }
-        return TrzszPortForwardManager(transportRef: ref, config: config)
+        return TrzszPortForwardManager(
+            transportRef: ref, config: config, recoveringRemoteForwards: recoveringRemoteForwards
+        )
     }
 
     /// Debug label for this transport (e.g., "S1 user@host")
@@ -520,7 +525,8 @@ final class TrzszGoTransport: NSObject {
     private var sendWriterTask: Task<Void, Never>?
     private var cachedSessionID: UInt64?
     private let serverInfo: TrzszServerInfo
-    private let mtu: Int
+    let mtu: Int
+    private let relayTransport: TrzszGoTransport?
     private var keepPendingInput: Bool
     /// Value the SERVER last accepted, so `applyKeepPendingInput` can skip
     /// redundant pushes and, crucially, RETRY a failed one. nil = never applied.
@@ -561,7 +567,8 @@ final class TrzszGoTransport: NSObject {
         keepPendingOutput: Bool = false,
         displayName: String = "",
         terminalUUID: UUID? = nil,
-        terminalType: String = TerminalTypeSettings.fallback
+        terminalType: String = TerminalTypeSettings.fallback,
+        relayTransport: TrzszGoTransport? = nil
     ) throws {
         let num = Self.nextSessionNumber
         Self.nextSessionNumber += 1
@@ -571,12 +578,18 @@ final class TrzszGoTransport: NSObject {
         self.serverInfo = serverInfo
         self.mode = serverInfo.mode
         self.mtu = mtu
+        self.relayTransport = relayTransport
         self.keepPendingInput = keepPendingInput
         self.keepPendingOutput = keepPendingOutput
         self.terminalUUID = terminalUUID
         self.terminalType = terminalType
 
         super.init()
+    }
+
+    func effectiveRelayMTU(requested: Int, mode: String) async throws -> Int {
+        guard let ref = activeTransportRef else { throw TrzszError.connectionFailed("Jump transport is unavailable") }
+        return try await TSSHCallGate.shared.effectiveRelayMTU(ref, requested: requested, mode: mode)
     }
 
     // MARK: - Public API
@@ -624,7 +637,11 @@ final class TrzszGoTransport: NSObject {
 
         let ref: TSSHTransportRef
         do {
-            ref = try await TSSHCallGate.shared.connect(params)
+            let proxyRef = relayTransport?.activeTransportRef
+            if relayTransport != nil && proxyRef == nil {
+                throw TrzszError.connectionFailed("Jump transport is unavailable; direct fallback is disabled.")
+            }
+            ref = try await TSSHCallGate.shared.connect(params, via: proxyRef)
             self.transportRef = ref
         } catch {
             ResumeDebugLogger.shared.log("[\(debugLabel)] TSSH connect FAILED: \(error.localizedDescription)")

@@ -19,8 +19,12 @@ final class TrzszPortForwardManager {
 
     private let transportRef: TSSHTransportRef
     private let config: PortForwardConfig
+    private let recoveringRemoteForwards: Set<UUID>
     private var forwarderRef: TSSHForwarderRef?
     private var callbackBridge: TrzszGoForwardCallbackBridge?
+    private var isStopped = false
+    /// A stopped callback does not prove that a deployed server released -R.
+    private var boundRemoteForwards: Set<UUID> = []
 
     /// Status of each forward
     private var forwardStatus: [UUID: PortForwardStatus] = [:]
@@ -47,9 +51,10 @@ final class TrzszPortForwardManager {
 
     // MARK: - Init
 
-    init(transportRef: TSSHTransportRef, config: PortForwardConfig) {
+    init(transportRef: TSSHTransportRef, config: PortForwardConfig, recoveringRemoteForwards: Set<UUID> = []) {
         self.transportRef = transportRef
         self.config = config
+        self.recoveringRemoteForwards = recoveringRemoteForwards
 
         // Build lookup maps
         for forward in config.forwards where forward.enabled {
@@ -62,6 +67,7 @@ final class TrzszPortForwardManager {
     // MARK: - Public Methods
 
     func startAllForwards() async {
+        guard !isStopped else { return }
         Self.logger.info("Starting \(self.config.forwards.count) port forwards via TSSH")
 
         let bridge = TrzszGoForwardCallbackBridge(manager: self)
@@ -78,9 +84,14 @@ final class TrzszPortForwardManager {
             }
             return
         }
+        guard !isStopped, !Task.isCancelled else {
+            await TSSHCallGate.shared.close(fRef)
+            return
+        }
         self.forwarderRef = fRef
 
         for forward in config.forwards where forward.enabled {
+            guard !isStopped, !Task.isCancelled else { return }
             updateStatus(forward, .pending)
 
             // For dynamic forwards, check port registry first
@@ -103,7 +114,8 @@ final class TrzszPortForwardManager {
                 bindAddress: forward.bindAddress,
                 bindPort: forward.bindPort,
                 targetHost: forward.targetHost,
-                targetPort: forward.targetPort
+                targetPort: forward.targetPort,
+                recoverRemoteListener: forward.direction == .remote && recoveringRemoteForwards.contains(forward.id)
             )
 
             do {
@@ -121,26 +133,43 @@ final class TrzszPortForwardManager {
     }
 
     func stopAllForwards() {
-        Self.logger.info("Stopping all TSSH port forwards")
+        // Use the gate's emergency close path so a wedged transport call on
+        // the serial executor cannot prevent the forwarder from being torn
+        // down. PortForwarder.Close() is documented as safe to call
+        // independently of any in-flight transport call.
+        if let priorForwarder = detachForwarder() {
+            TSSHCallGate.shared.emergencyClosePortForwarder(priorForwarder)
+        }
+    }
 
+    /// Wait for client listeners to close and remember remote listeners that
+    /// may still be bound on deployed servers. The replacement forwarder must
+    /// wake those listeners and receive a successful remote bind acknowledgment.
+    func stopAllForwardsAndWait() async -> Set<UUID> {
+        let remoteIDs = Set(config.forwards.compactMap { forward -> UUID? in
+            guard forward.enabled, forward.direction == .remote else { return nil }
+            return boundRemoteForwards.contains(forward.id) || forwardStatus[forward.id] == .pending
+                ? forward.id : nil
+        })
+        if let priorForwarder = detachForwarder() {
+            await TSSHCallGate.shared.close(priorForwarder)
+        }
+        return remoteIDs
+    }
+
+    private func detachForwarder() -> TSSHForwarderRef? {
+        Self.logger.info("Stopping all TSSH port forwards")
+        isStopped = true
         let priorForwarder = forwarderRef
         forwarderRef = nil
         callbackBridge = nil
-
         for forward in config.forwards {
             updateStatus(forward, .stopped)
             if forward.direction == .dynamic {
                 SOCKSPortRegistry.shared.release(port: forward.bindPort, forwardID: forward.id)
             }
         }
-
-        // Use the gate's emergency close path so a wedged transport call on
-        // the serial executor cannot prevent the forwarder from being torn
-        // down. PortForwarder.Close() is documented as safe to call
-        // independently of any in-flight transport call.
-        if let priorForwarder {
-            TSSHCallGate.shared.emergencyClosePortForwarder(priorForwarder)
-        }
+        return priorForwarder
     }
 
     func status(for forward: PortForwardConfig.PortForward) -> PortForwardStatus {
@@ -150,6 +179,7 @@ final class TrzszPortForwardManager {
     // MARK: - Callback Routing (called from TrzszGoForwardCallbackBridge)
 
     func handleCallbackEvent(_ event: ForwardCallbackEvent) {
+        guard !isStopped else { return }
         switch event {
         case .ready(let idString, let actualPort):
             handleForwardReady(idString: idString, actualPort: actualPort)
@@ -168,6 +198,7 @@ final class TrzszPortForwardManager {
         guard let uuid = forwardIDMap[idString],
               let forward = forwardConfigMap[uuid] else { return }
         consecutiveErrors = 0
+        if forward.direction == .remote { boundRemoteForwards.insert(forward.id) }
         let portInfo = actualPort
         Self.logger.info("Forward ready: \(forward.displayString) on port \(portInfo)")
         updateStatus(forward, .active)
@@ -233,4 +264,3 @@ final class TrzszPortForwardManager {
         onForwardStatusChange?(forward, status)
     }
 }
-

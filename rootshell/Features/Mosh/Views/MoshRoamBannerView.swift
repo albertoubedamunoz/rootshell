@@ -18,6 +18,7 @@ import SwiftUI
 /// - Graceful text wrapping for long messages
 struct MoshRoamBannerView: View {
     let state: MoshRoamBannerState
+    var rebuildJumpConnection: (() -> Void)? = nil
 
     /// Maximum width for the banner (leaves margin on sides)
     private let maxWidth: CGFloat = 400
@@ -40,6 +41,11 @@ struct MoshRoamBannerView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if let rebuildJumpConnection {
+                    Button("Rebuild Jump Connection", action: rebuildJumpConnection)
+                        .font(.system(size: 12))
+                }
 
                 // Hole-punch indicator on its own line if present
                 if state.holePunchInProgress {

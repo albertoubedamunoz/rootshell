@@ -70,13 +70,32 @@ struct TrzszCommandParser {
         // Extract Trzsz-specific flags before delegating to SSH parser
         var transportMode: TrzszConfig.TransportMode = .auto
         var serverPath: String?
+        var relay: TSSHRelaySettings?
+        var relayEnabled = false
         var filteredTokens: [String] = [tokens[0]]
 
         var i = 1
         while i < tokens.count {
             let token = tokens[i]
 
-            if token == "--quic" {
+            if token == "--jump-relay" {
+                relayEnabled = true
+                if relay == nil { relay = TSSHRelaySettings() }
+            } else if token == "--jump-server" || token == "--jump-udp-port" {
+                i += 1
+                guard i < tokens.count else { return .error("Missing argument after \(token)") }
+                if relay == nil { relay = TSSHRelaySettings() }
+                if token == "--jump-server" { relay?.serverPath = tokens[i] }
+                else {
+                    let parts = tokens[i].split(separator: "-", omittingEmptySubsequences: false)
+                    guard (1...2).contains(parts.count), let low = Int(parts[0]),
+                          let high = Int(parts.last!), (1...65535).contains(low),
+                          (1...65535).contains(high), low <= high else {
+                        return .error("Invalid jump UDP range; use PORT or MIN-MAX within 1–65535")
+                    }
+                    relay?.udpPortMin = low; relay?.udpPortMax = high
+                }
+            } else if token == "--quic" {
                 transportMode = .quic
             } else if token == "--kcp" {
                 transportMode = .kcp
@@ -98,6 +117,8 @@ struct TrzszCommandParser {
             i += 1
         }
 
+        if relay != nil && !relayEnabled { return .error("Jump tsshd options require --jump-relay") }
+
         // Normalize command name to "ssh" for SSHCommandParser
         filteredTokens[0] = "ssh"
         let normalizedCommand = filteredTokens.joined(separator: " ")
@@ -106,7 +127,11 @@ struct TrzszCommandParser {
         let sshResult = SSHCommandParser.parse(command: normalizedCommand)
 
         switch sshResult {
-        case .success(let sshConfig):
+        case .success(var sshConfig):
+            if relayEnabled {
+                guard sshConfig.jumpHost != nil else { return .error("--jump-relay requires -J / a jump host") }
+                sshConfig.jumpHost?.tsshRelay = relay
+            }
             // Wrap SSH config in Trzsz config
             let trzszConfig = TrzszConfig(
                 sshConfig: sshConfig,
@@ -115,7 +140,11 @@ struct TrzszCommandParser {
             )
             return .success(trzszConfig)
 
-        case .needsPassword(let partialSSHConfig):
+        case .needsPassword(var partialSSHConfig):
+            if relayEnabled {
+                guard partialSSHConfig.jumpHost != nil else { return .error("--jump-relay requires -J / a jump host") }
+                partialSSHConfig.jumpHost?.tsshRelay = relay
+            }
             // Need password - return partial Trzsz config
             let partialTrzsz = PartialTrzszConfig(
                 sshPartialConfig: partialSSHConfig,

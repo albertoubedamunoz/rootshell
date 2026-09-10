@@ -176,6 +176,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
 
         /// Jump host config without password
         nonisolated struct JumpHostConfigSafe: Codable, Equatable, Sendable {
+            var tsshRelay: TSSHRelaySettings? = nil
             let host: String
             let port: Int
             let username: String
@@ -233,6 +234,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
                     jumpAuth = .passwordRequired
                 }
                 self.jumpHost = JumpHostConfigSafe(
+                    tsshRelay: jump.tsshRelay,
                     host: jump.host,
                     port: jump.port,
                     username: jump.username,
@@ -309,6 +311,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
                     authMethod: jumpAuth,
                     fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
                 )
+                config.jumpHost?.tsshRelay = jump.tsshRelay
             }
 
             return config
