@@ -3,6 +3,31 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-145 - September 10, 2026
+
+### tssh Jump Relays
+
+- **Configurable Jump Relays:** tssh jump hosts can now handle only SSH bootstrap or relay the full UDP transport, reaching targets that are not directly accessible from your device. In a saved profile or Quick Connect, add a jump host and choose Relay full session. Install tsshd on both hosts and allow UDP for each hop; advanced controls can override the jump host's tsshd path and UDP range.
+- **Resumable Full-Relay Connections:** Full-relay connections keep tssh's resume behavior across network changes. If the jump connection alone is lost, Rebuild Jump Connection authenticates to the jump host again while preserving the target shell. Remote forwards are restored after recovery, and relay routing also works with VPN connections and encrypted session transfer between your devices.
+- **Synced Relay Preferences and Command-Line Controls:** Relay preferences are retained with profiles and connection history and follow iCloud sync. The `tssh` command also accepts `--jump-relay`, with optional `--jump-server` and `--jump-udp-port` controls.
+
+### Profiles and Shortcuts
+
+- **Profile Keyboard Shortcuts:** Assign an optional keyboard shortcut to any connection profile for one-step access from the terminal. Record it in the profile editor; rootshell shows the shortcut beside the profile and uses the normal profile connection path, including saved authentication and multiplexer settings.
+
+### tmux Control Mode
+
+- **Faster Heavy Output:** Heavy tmux output is substantially faster and smoother. rootshell now parses control records in bulk and batches pane updates per read, cutting renderer locks, wakeups and allocations while preserving output order across resizes, snapshots and passthrough sequences.
+
+### Screen Sharing
+
+- **Faster Adaptive DCT Decoding:** Standard Screen Sharing decodes Adaptive DCT frames faster by reusing buffers and accelerating common transforms and color conversion, reducing CPU work during active remote sessions.
+
+### Keyboard and Input
+
+- **Layout-Aware Hardware Keyboard Shortcuts:** Fixed Control input with Colemak and other alternate hardware keyboard layouts, where shortcuts could follow the physical QWERTY key instead of the character being typed (#435). Command shortcuts and shortcut recording are layout-aware too, including Dvorak-QWERTY Command mappings; special keys keep their physical behavior, and Command-Period can be recorded reliably.
+- **Hardware Keyboard Input in the Emoji Picker:** Fixed the system emoji picker when using a hardware keyboard on Mac and iPad. Hardware keyboard input now reaches the emoji search field, then returns correctly to the terminal when the picker closes (#434).
+
 ## 1.0.11-144 - September 8, 2026
 
 ### Live Activities
