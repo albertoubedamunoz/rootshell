@@ -288,68 +288,70 @@ enum KeyCode: String, Codable, CaseIterable, Hashable, Sendable {
     /// (for example Dvorak–QWERTY ⌘). Ctrl input still uses unmodified text.
     @MainActor
     init?(uiKey: UIKey, modifiers: UIKeyModifierFlags? = nil) {
+        let physicalKey = KeyCode(hidUsage: uiKey.keyCode)
+        guard physicalKey?.isPrintable == true
+                || uiKey.keyCode == .keyboardNonUSPound
+                || uiKey.keyCode == .keyboardNonUSBackslash else {
+            // Special and modifier-only keys need no layout translation.
+            guard let physicalKey else { return nil }
+            self = physicalKey
+            return
+        }
+
         let modifiers = modifiers ?? uiKey.modifierFlags
-        var text = uiKey.charactersIgnoringModifiers
+        var logicalKey = Self.printableKey(for: uiKey.charactersIgnoringModifiers)
         if modifiers.contains(.command) {
             // UIKey.characters preserves Command, but can also contain an
             // Option-composed character or a Control byte. Use it only when
             // those modifiers are absent. Shifted letters normalize safely;
-            // shifted punctuation needs the base-key identity instead.
+            // shifted punctuation needs a Command-only layout translation.
+            // UIKit has no API for removing just Shift/Option/Control, so if
+            // Carbon is unavailable these chords retain the base-layout
+            // fallback; do not guess a US key from a composed character.
             let characters = uiKey.characters
-            if uiKey.modifierFlags.contains(.command),
-               uiKey.modifierFlags.intersection([.control, .alternate]).isEmpty,
-               characters.unicodeScalars.count == 1,
-               let scalar = characters.unicodeScalars.first,
-               (0x20..<0x7F).contains(scalar.value),
-               !uiKey.modifierFlags.contains(.shift) || characters.first?.isLetter == true {
-                text = characters
+            if modifiers.intersection([.control, .alternate]).isEmpty,
+               let characterKey = Self.printableKey(for: characters),
+               !modifiers.contains(.shift) || characters.first?.isLetter == true {
+                logicalKey = characterKey
             }
 
             #if targetEnvironment(macCatalyst)
             // Ask the active layout for Command alone, dropping Shift/Option/
             // Control without losing its Command-specific key map. This also
             // handles virtual Command from mod-tap and combined modifiers.
-            if let nativeKeyCode = Ghostty.Input.nativeKeyCode(for: uiKey.keyCode),
-               let translated = CatalystKeyboardLayout.shared.translateKey(
+            let layout = CatalystKeyboardLayout.shared
+            if layout.isAvailable,
+               let nativeKeyCode = Ghostty.Input.nativeKeyCode(for: uiKey.keyCode),
+               let translated = layout.translateKey(
                    cgKeyCode: UInt16(nativeKeyCode), shift: false, command: true
-               ), !translated.isEmpty {
-                text = translated
+               ), let translatedKey = Self.printableKey(for: translated) {
+                // An unusable translation must not discard valid UIKit text.
+                logicalKey = translatedKey
             }
             #endif
         }
-        self.init(hidUsage: uiKey.keyCode, charactersIgnoringModifiers: text)
+        guard let resolvedKey = logicalKey ?? physicalKey else { return nil }
+        self = resolvedKey
     }
 
-    /// Resolve a named key from layout text with Shift/Option/Control removed.
-    /// Keep special keys physical: their UIKit text may be a control byte or a
-    /// sentinel, and must not turn (for example) Forward Delete into Backspace.
-    /// Missing/unsupported layout text retains the physical fallback for IMEs.
-    init?(hidUsage: UIKeyboardHIDUsage, charactersIgnoringModifiers: String) {
-        let physicalKey = KeyCode(hidUsage: hidUsage)
-        switch hidUsage {
-        case .keyboardNonUSPound, .keyboardNonUSBackslash:
-            // ISO printable positions have no US KeyCode, but UIKit can still
-            // provide a supported character for them.
-            break
-        default:
-            guard let text = physicalKey?.literalKeyInput,
-                  text.unicodeScalars.count == 1,
-                  let scalar = text.unicodeScalars.first,
-                  (0x20..<0x7F).contains(scalar.value) else {
-                self.init(hidUsage: hidUsage)
-                return
-            }
+    private var isPrintable: Bool {
+        switch self {
+        case .tab, .escape, .enter, .backspace, .delete,
+             .up, .down, .left, .right, .home, .end, .pageUp, .pageDown,
+             .f1, .f2, .f3, .f4, .f5, .f6, .f7, .f8, .f9, .f10, .f11, .f12:
+            return false
+        default: return true
         }
+    }
 
-        let text = charactersIgnoringModifiers.precomposedStringWithCanonicalMapping
-        if text.unicodeScalars.count == 1,
-           let scalar = text.unicodeScalars.first,
-           (0x20..<0x7F).contains(scalar.value),
-           let logicalKey = KeyCode(uiKeyInput: text) {
-            self = logicalKey
-        } else {
-            self.init(hidUsage: hidUsage)
-        }
+    /// A translation is usable only when it names a supported printable key.
+    /// In particular, non-ASCII, multi-scalar, and sentinel text cannot replace
+    /// a valid key that was already resolved from another source.
+    private static func printableKey(for text: String) -> KeyCode? {
+        guard text.utf8.count == 1,
+              let ascii = text.utf8.first,
+              (0x20..<0x7F).contains(ascii) else { return nil }
+        return KeyCode(uiKeyInput: text)
     }
 
     /// Legacy terminal Ctrl encoding for a resolved logical key. Do not retry

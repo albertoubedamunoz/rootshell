@@ -95,8 +95,8 @@ final class CatalystKeyboardLayout {
     ///   - command: Whether to use the layout's Command-specific mapping
     /// - Returns: The character the key produces, or nil if translation fails.
     func translateKey(cgKeyCode: UInt16, shift: Bool, command: Bool = false) -> String? {
-        guard let tisGetSource, let tisGetProperty,
-              let kTISPropertyUnicodeKeyLayoutData else {
+        guard let tisGetSource, let tisGetProperty, let ucKeyTranslate,
+              let lmGetKbdType, let kTISPropertyUnicodeKeyLayoutData else {
             return nil
         }
 
@@ -107,14 +107,7 @@ final class CatalystKeyboardLayout {
         guard let dataRef = tisGetProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
             return nil
         }
-        return translateKey(cgKeyCode: cgKeyCode, shift: shift, command: command,
-                            layoutData: dataRef.takeUnretainedValue() as CFData)
-    }
-
-    /// Translate against resolved layout data, preserving the same modifier
-    /// semantics as the current-input-source entry point above.
-    func translateKey(cgKeyCode: UInt16, shift: Bool, command: Bool, layoutData: CFData) -> String? {
-        guard let ucKeyTranslate, let lmGetKbdType else { return nil }
+        let layoutData = dataRef.takeUnretainedValue() as CFData
         let layoutPtr = CFDataGetBytePtr(layoutData)!
 
         // Carbon has Command at bit 8 and Shift at bit 9. UCKeyTranslate

@@ -461,7 +461,7 @@ extension Ghostty.TerminalView {
         heldHardwareModifiers = ghosttyInputMods(from: effectiveModifiers, virtualModifier: virtualModifier)
 
         let hasOption = effectiveModifiers.contains(.alternate)
-        let logicalKey = KeyCode(uiKey: key, modifiers: effectiveModifiers)
+        lazy var logicalKey = KeyCode(uiKey: key, modifiers: effectiveModifiers)
 
         // The reserved Cmd+Period system-cancel chord can arrive translated as
         // plain Escape. Give a cmd+period binding first refusal; a twin of a
@@ -486,8 +486,8 @@ extension Ghostty.TerminalView {
         let isTranslatedCancelChord = key.keyCode != .keyboardEscape
             && KeyCode.sentinelKey(for: key.characters) == .escape
         if isTranslatedCancelChord
-            || (logicalKey == .period
-                && KeybindModifiers(uiModifierFlags: effectiveModifiers) == .command) {
+            || (KeybindModifiers(uiModifierFlags: effectiveModifiers) == .command
+                && logicalKey == .period) {
             // Translation only happens with Command physically down, so the
             // snapshot is live again.
             if isTranslatedCancelChord {
@@ -1079,7 +1079,8 @@ extension Ghostty.TerminalView {
             guard let key = press.key else { continue }
             // A translated Cmd+Period press can be tracked as Escape by the
             // overlay handlers but released at the layout's Period position.
-            if KeyCode(uiKey: key, modifiers: .command) == .period {
+            if keysConsumedByOverlayAction.contains(.keyboardEscape),
+               KeyCode(uiKey: key, modifiers: .command) == .period {
                 keysConsumedByOverlayAction.remove(.keyboardEscape)
             }
             keyRepeatManager.stopIfMatches(key.keyCode)
