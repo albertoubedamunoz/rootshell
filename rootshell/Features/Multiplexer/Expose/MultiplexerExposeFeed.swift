@@ -538,7 +538,49 @@ final class MultiplexerExposeFeed {
         onChange?()
     }
 
+    private enum DetectOutcome {
+        case superseded
+        case nothingAttached
+        case configured
+    }
+
+    /// Probe the pane, adopt what it is really attached to, and write that
+    /// identity back to the terminal. Shared with the cached-binding fallback.
+    private func detectAndConfigure(generation: UInt64) async -> DetectOutcome {
+        let detected = await detect()
+        guard isCurrent(generation) else {
+            Self.logger.debug("detect superseded by a newer run")
+            return .superseded
+        }
+        guard let detected else { return .nothingAttached }
+        Self.logger.debug("detected \(detected.type.rawValue, privacy: .public), session named=\(detected.sessionName != nil)")
+        let identityChanged = type != detected.type || sessionName != detected.sessionName
+        if identityChanged { resetSession() }
+        configure(detected)
+        if let terminal, !detected.type.ownsAlternateScreen, let name = detected.sessionName {
+            // Process inspection cannot distinguish an interactive attach
+            // from an exec takeover, but the connection configuration can.
+            let canDetachSwitch = terminal.connectionConfig.sshConfigForHistory
+                .map { !$0.hasExecTakeoverCommand } ?? true
+            if terminal.passthroughMultiplexer?.type == detected.type {
+                // Validation may discover that an in-place/session change
+                // updated the socket-backed name while the old slot was
+                // cached. Refresh the exact identity before serving it.
+                terminal.passthroughMultiplexer = .init(
+                    type: detected.type,
+                    sessionName: name,
+                    canDetachSwitch: canDetachSwitch
+                )
+            } else {
+                terminal.bindPassthroughMultiplexer(detected.type, sessionName: name, canDetachSwitch: canDetachSwitch)
+            }
+        }
+        onChange?()
+        return .configured
+    }
+
     private func run(generation: UInt64) async {
+        var skippedDetectForCachedBinding = false
         if validatingZmxBinding, adapter != nil, sessionName != nil {
             // The cached name is already known, so detect()'s only job here
             // is revalidation. `tickScript` runs `zmx list` every tick and
@@ -546,41 +588,19 @@ final class MultiplexerExposeFeed {
             // (`boundSessionIsUnavailable`), so the first tick can prove that
             // instead, saving a round trip.
             validatingZmxBinding = false
+            skippedDetectForCachedBinding = true
         } else if adapter == nil || validatingZmxBinding {
-            defer { validatingZmxBinding = false }
-            let detected = await detect()
-            guard isCurrent(generation) else {
-                Self.logger.debug("detect superseded by a newer run")
+            validatingZmxBinding = false
+            switch await detectAndConfigure(generation: generation) {
+            case .superseded:
                 return
-            }
-            guard let detected else {
+            case .nothingAttached:
                 if detectionWasConclusive { clearCurrentPassthroughBinding() }
                 giveUp("detect: nothing attached on this tty")
                 return
+            case .configured:
+                break
             }
-            Self.logger.debug("detected \(detected.type.rawValue, privacy: .public), session named=\(detected.sessionName != nil)")
-            let identityChanged = type != detected.type || sessionName != detected.sessionName
-            if identityChanged { resetSession() }
-            configure(detected)
-            if let terminal, !detected.type.ownsAlternateScreen, let name = detected.sessionName {
-                // Process inspection cannot distinguish an interactive attach
-                // from an exec takeover, but the connection configuration can.
-                let canDetachSwitch = terminal.connectionConfig.sshConfigForHistory
-                    .map { !$0.hasExecTakeoverCommand } ?? true
-                if terminal.passthroughMultiplexer?.type == detected.type {
-                    // Validation may discover that an in-place/session change
-                    // updated the socket-backed name while the old slot was
-                    // cached. Refresh the exact identity before serving it.
-                    terminal.passthroughMultiplexer = .init(
-                        type: detected.type,
-                        sessionName: name,
-                        canDetachSwitch: canDetachSwitch
-                    )
-                } else {
-                    terminal.bindPassthroughMultiplexer(detected.type, sessionName: name, canDetachSwitch: canDetachSwitch)
-                }
-            }
-            onChange?()
         }
         if sessionName == nil {
             let resolved = await resolveSession()
@@ -601,6 +621,26 @@ final class MultiplexerExposeFeed {
             case .unsupported:
                 giveUp("tick: session no longer usable")
                 return
+            case .boundSessionGone:
+                // The listing says which sessions exist, not which owns this
+                // pane's tty, so a rejected name is not proof the pane is
+                // empty. When this run skipped detect(), pay it now. Only on
+                // the first tick: later rejections are real mid-life detaches.
+                guard skippedDetectForCachedBinding, tickCount == 0 else {
+                    giveUp("tick: session no longer usable")
+                    return
+                }
+                skippedDetectForCachedBinding = false
+                Self.logger.debug("cached binding rejected by first tick; falling back to detect")
+                switch await detectAndConfigure(generation: generation) {
+                case .superseded:
+                    return
+                case .nothingAttached:
+                    giveUp("detect after rejected binding: nothing attached on this tty")
+                    return
+                case .configured:
+                    continue
+                }
             case .immediate:
                 continue
             case .wait(let seconds):
@@ -973,6 +1013,9 @@ final class MultiplexerExposeFeed {
         /// This run was superseded while awaiting: touch nothing, just stop.
         case cancelled
         case unsupported
+        /// The bound name is no longer attached here. Narrower than
+        /// `unsupported`, and recoverable -- see `run(generation:)`.
+        case boundSessionGone
         case immediate
         case wait(TimeInterval)
     }
@@ -1014,7 +1057,7 @@ final class MultiplexerExposeFeed {
                zmx.boundSessionIsUnavailable(sessionName) {
                 Self.logger.debug("zmx bound session is no longer attached")
                 clearCurrentPassthroughBinding()
-                return .unsupported
+                return .boundSessionGone
             }
             Self.logger.debug("tick: unparseable reply, \(output.count) bytes")
             if snapshot == nil, failures >= 2 { return .unsupported }
