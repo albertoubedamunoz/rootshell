@@ -539,7 +539,14 @@ final class MultiplexerExposeFeed {
     }
 
     private func run(generation: UInt64) async {
-        if adapter == nil || validatingZmxBinding {
+        if validatingZmxBinding, adapter != nil, sessionName != nil {
+            // The cached name is already known, so detect()'s only job here
+            // is revalidation. `tickScript` runs `zmx list` every tick and
+            // `parseTick` already treats it as authoritative for liveness
+            // (`boundSessionIsUnavailable`), so the first tick can prove that
+            // instead, saving a round trip.
+            validatingZmxBinding = false
+        } else if adapter == nil || validatingZmxBinding {
             defer { validatingZmxBinding = false }
             let detected = await detect()
             guard isCurrent(generation) else {
@@ -973,7 +980,10 @@ final class MultiplexerExposeFeed {
     private func tick(generation: UInt64) async -> Outcome {
         guard let terminal, let adapter else { return .unsupported }
         let now = CACurrentMediaTime()
-        let request = MuxTickRequest(fetch: fetchList(now: now), knownRevisions: frames.mapValues(\.revision))
+        let fetch = MuxZmxBootstrap.seededFetch(
+            normallyComputed: fetchList(now: now), snapshot: snapshot, type: type, sessionName: sessionName
+        )
+        let request = MuxTickRequest(fetch: fetch, knownRevisions: frames.mapValues(\.revision))
         let nonce = Self.nonce()
         let script = adapter.tickScript(session: sessionName, request: request, nonce: nonce)
         let output: String
@@ -1054,8 +1064,11 @@ final class MultiplexerExposeFeed {
             }
         }
 
-        // First topology lands with no frames: fetch the visible set right away.
-        if tickCount == 1 { return .immediate }
+        // First topology lands with no frames: fetch the visible set right
+        // away, unless zmx's seeded first tick already covered it.
+        if tickCount == 1, MuxZmxBootstrap.needsImmediateFollowUp(type: type, snapshot: result.snapshot, frames: frames) {
+            return .immediate
+        }
         if changed {
             interval = floorInterval
         } else {
