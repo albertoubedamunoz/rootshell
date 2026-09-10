@@ -24,7 +24,7 @@ struct TsshdSetupGuideView: View {
             } header: {
                 Text("tsshd Setup")
             } footer: {
-                Text("tsshd uses QUIC or KCP transport. No additional firewall configuration is required as both protocols handle NAT traversal automatically.")
+                Text("tsshd uses QUIC or KCP over UDP. Allow the configured UDP port range (by default 61000–61999) on the host reached by this device. With Relay full session enabled, that is the jump host; it must also reach the target’s SSH and UDP ports.")
             }
 
             // MARK: - Advantages
@@ -32,8 +32,8 @@ struct TsshdSetupGuideView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     howItWorksRow(
                         icon: "bolt.shield",
-                        title: "Built-in NAT Traversal",
-                        description: "QUIC and KCP handle NAT hole-punching automatically, no hping3 setup required"
+                        title: "UDP Connectivity",
+                        description: "Client NAT can allow reply traffic, but firewalls, private networks, and server NAT still require suitable routing or port forwarding."
                     )
 
                     Divider()

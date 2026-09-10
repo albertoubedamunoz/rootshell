@@ -26,6 +26,12 @@ final class MoshRoamBannerHostView: UIView {
 
     /// Current banner state (readable for cleanup checks)
     private(set) var currentState: MoshRoamBannerState?
+    var rebuildJumpConnection: (() -> Void)? {
+        didSet {
+            isUserInteractionEnabled = rebuildJumpConnection != nil
+            if let currentState { showBanner(with: currentState) }
+        }
+    }
 
     // MARK: - Initialization
 
@@ -68,11 +74,11 @@ final class MoshRoamBannerHostView: UIView {
     private func showBanner(with state: MoshRoamBannerState) {
         if let hc = hostingController {
             // Update existing hosting controller's root view
-            hc.rootView = MoshRoamBannerView(state: state)
+            hc.rootView = MoshRoamBannerView(state: state, rebuildJumpConnection: rebuildJumpConnection)
             hc.view.invalidateIntrinsicContentSize()
         } else {
             // Create new hosting controller
-            let swiftUIView = MoshRoamBannerView(state: state)
+            let swiftUIView = MoshRoamBannerView(state: state, rebuildJumpConnection: rebuildJumpConnection)
             let hc = UIHostingController(rootView: swiftUIView)
             hc.view.backgroundColor = .clear
             hc.view.translatesAutoresizingMaskIntoConstraints = false

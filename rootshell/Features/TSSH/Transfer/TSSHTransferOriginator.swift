@@ -96,7 +96,7 @@ final class TrzszTransferOriginator: NSObject, ObservableObject {
             comment: "Handoff title shown on nearby devices when a tssh session is being transferred"
         )
         activity.userInfo = [
-            TrzszTransferActivity.UserInfoKey.version: TrzszTransferActivity.payloadVersion,
+            TrzszTransferActivity.UserInfoKey.version: payload.version,
             TrzszTransferActivity.UserInfoKey.originPubKey: privateKey.publicKey.rawRepresentation,
             TrzszTransferActivity.UserInfoKey.originDeviceName: payload.originDeviceName,
             TrzszTransferActivity.UserInfoKey.displayName: payload.displayName,
@@ -125,6 +125,7 @@ final class TrzszTransferOriginator: NSObject, ObservableObject {
         }
         Self.logger.info("Trzsz transfer cancelled by originator")
         status = .cancelled
+        if channel != nil { session?.recoverAfterFailedRelayTransfer() }
         shutdownActivity()
     }
 
@@ -244,10 +245,10 @@ final class TrzszTransferOriginator: NSObject, ObservableObject {
         let helloDeadline = Date().addingTimeInterval(30)
         let helloFrame = try channel.receiveFrame(deadline: helloDeadline)
         let hello = try JSONDecoder().decode(TrzszTransferHello.self, from: helloFrame)
-        guard hello.version == TrzszTransferActivity.payloadVersion else {
+        guard hello.version == payload.version else {
             throw TrzszTransferError.versionMismatch(
                 received: hello.version,
-                expected: TrzszTransferActivity.payloadVersion
+                expected: payload.version
             )
         }
 
@@ -324,12 +325,14 @@ final class TrzszTransferOriginator: NSObject, ObservableObject {
                     session?.advanceTransferClientIdAfterFailedAttempt(attemptedClientId)
                 }
                 status = .failed(message: msg)
+                session?.recoverAfterFailedRelayTransfer()
                 shutdownActivity()
             }
         case .failure(let error):
             let msg = error.trzszTransferDisplayDescription
             Self.logger.error("Trzsz transfer protocol error: \(msg, privacy: .public)")
             status = .failed(message: msg)
+            session?.recoverAfterFailedRelayTransfer()
             shutdownActivity()
         }
     }
@@ -420,7 +423,7 @@ extension TrzszTransferOriginator {
         let primary = TrzszTransferPayload.truncatedScrollback(snapshot.primaryScrollback)
 
         return TrzszTransferPayload(
-            version: TrzszTransferActivity.payloadVersion,
+            version: creds.relay == nil ? TrzszTransferActivity.payloadVersion : TrzszTransferActivity.relayPayloadVersion,
             credentials: creds,
             sshConfig: session.config.sshConfig,
             transportMode: session.config.transportMode,

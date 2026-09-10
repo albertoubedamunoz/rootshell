@@ -30,6 +30,9 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     private let sshStateLock = NSLock()
     private nonisolated(unsafe) var sshClient: SSHClient?
     private nonisolated(unsafe) var jumpClient: SSHClient?
+    // Protected by sshStateLock until ownership passes to Go netstack.
+    private nonisolated(unsafe) var preparedRelay: VpntunnelRelay?
+    private var relayEndpoint: String?
     private nonisolated(unsafe) var socksProxy: VPNSOCKS5Proxy?
     private nonisolated(unsafe) var sshEventLoopGroup: MultiThreadedEventLoopGroup?
     private nonisolated(unsafe) var socksEventLoopGroup: MultiThreadedEventLoopGroup?
@@ -204,7 +207,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         debugLog.beginPhase("loadProfile", "Decoding host-provided config...")
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        guard let resolvedData = options?["resolvedConfig"] as? Data,
+        guard let resolvedData = (options?["relayResolvedConfig"] ?? options?["resolvedConfig"]) as? Data,
               let resolved = try? decoder.decode(VPNResolvedConfig.self, from: resolvedData) else {
             debugLog.endPhase("loadProfile", "FAILED: no resolved config in start options")
             throw VPNError.configNotFound
@@ -242,6 +245,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             stopRequested = false
         }
 
+        relayEndpoint = nil
         let host = config.sshHost
         let transport = config.transportType.rawValue
         Self.logger.info("VPN config loaded: transport=\(transport), host=\(host)")
@@ -262,13 +266,27 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         debugLog.beginPhase("goNetstack", "Starting Go tunnel...")
         let callback = TunnelCallbackImpl(provider: self)
         var startError: NSError?
-        let started = VpntunnelStartTunnel(goConfigJSON, callback, &startError)
-        if !started, let error = startError {
+        if runningStateLock.withLock({ stopRequested }) {
+            closePreparedRelay()
+            await cleanupSSH()
+            throw CancellationError()
+        }
+        let relay = sshStateLock.withLock { preparedRelay }
+        let started = VpntunnelStartTunnelWithRelay(goConfigJSON, callback, relay, &startError)
+        if !started {
+            closePreparedRelay()
+            let error = startError ?? NSError(domain: "TSSHRelay", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to start VPN transport."])
             let errorMsg = error.localizedDescription
             Self.logger.error("Go tunnel start failed: \(errorMsg)")
             debugLog.logError("goNetstack", error)
             await cleanupSSH()
             throw error
+        }
+        sshStateLock.withLock { preparedRelay = nil } // Go owns target and relay now.
+        if runningStateLock.withLock({ stopRequested }) {
+            VpntunnelStopTunnel(nil)
+            await cleanupSSH()
+            throw CancellationError()
         }
         debugLog.endPhase("goNetstack", "OK")
 
@@ -284,7 +302,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
         // Resolve server IP for route exclusion (NEIPv4Route requires IP literal)
         debugLog.beginPhase("routeDNS", "Resolving \(config.sshHost) for route exclusion...")
-        let serverIP = await resolveHostToIP(config.sshHost)
+        let serverIP = await resolveHostToIP(relayEndpoint ?? config.sshHost)
         debugLog.endPhase("routeDNS", "OK → \(serverIP)")
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: serverIP)
@@ -429,6 +447,8 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             let msg = error.localizedDescription
             Self.logger.error("Go tunnel stop error: \(msg)")
         }
+
+        closePreparedRelay()
 
         // Clear Go debug logger to release Swift bridge object
         VpntunnelSetDebugLogger(nil)
@@ -654,6 +674,11 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     }
 
     // MARK: - SSH Cleanup
+
+    nonisolated private func closePreparedRelay() {
+        let relay = sshStateLock.withLock { let value = preparedRelay; preparedRelay = nil; return value }
+        relay?.close()
+    }
 
     nonisolated private func cleanupSSH() async {
         let (monitor, proxy, client, jump, sshGroup, socksGroup) = sshStateLock.withLock {
@@ -1083,7 +1108,15 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         // universally supported and avoids IPv4/IPv6 mismatch between SSH and UDP.
         let host = config.sshHost
         debugLog.beginPhase("dnsResolution", "Resolving \(host) (IPv4 preferred)...")
-        let resolvedHost = await resolveHostPreferIPv4(host)
+        let relaySettings = config.jumpHostConfig?.tsshRelay
+        let resolvedHost = relaySettings == nil ? await resolveHostPreferIPv4(host) : host
+        let resolvedJump: String?
+        if let jump = config.jumpHostConfig, let relaySettings {
+            try relaySettings.validate(host: jump.host, port: jump.port, username: jump.username,
+                                       defaultPortMin: 61000, defaultPortMax: 61999)
+            resolvedJump = await resolveHostPreferIPv4(jump.host)
+            relayEndpoint = resolvedJump
+        } else { resolvedJump = nil }
         debugLog.endPhase("dnsResolution", "OK → \(resolvedHost)")
         Self.logger.info("Resolved \(host) to \(resolvedHost) for TSSH")
 
@@ -1108,6 +1141,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
                 return try await VPNSSHConnector.connect(
                     config: config,
                     resolvedHost: resolvedHost,
+                    resolvedJumpHost: resolvedJump,
                     loginTimeout: timeout
                 )
             }
@@ -1147,7 +1181,28 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
         // Step 2: Execute tsshd command and parse JSON output
         let serverInfo: VPNTunnelConfig.TSSHServerInfo
+        var targetMTU = config.trzszMTU ?? 1400
         do {
+            if let jump = connResult.jumpClient, let relaySettings, let resolvedJump {
+                let outer = try await spawnTsshd(
+                    sshClient: jump, mode: config.trzszMode ?? "KCP",
+                    udpPortMin: relaySettings.udpPortMin ?? 61000,
+                    udpPortMax: relaySettings.udpPortMax ?? 61999,
+                    mtu: config.trzszMTU, serverPath: relaySettings.serverPath,
+                    attachable: true
+                )
+                let json = try config.toGoConfigJSON(tsshServerInfo: outer, resolvedHost: resolvedJump, relayRequired: false)
+                var relayError: NSError?
+                guard let relay = VpntunnelPrepareRelay(json, &relayError) else {
+                    throw relayError ?? NSError(domain: "TSSHRelay", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot connect UDP to the jump host. Check its tsshd installation and UDP range."])
+                }
+                // Retain immediately so all following failures close it.
+                sshStateLock.withLock { preparedRelay = relay }
+                try relay.effectiveMTU(targetMTU, mode: config.trzszMode ?? "KCP", ret0_: &targetMTU)
+            } else if relaySettings != nil {
+                throw TSSHRelayConfigurationError("The tssh jump relay was requested but no jump SSH connection is available.")
+            }
+            if runningStateLock.withLock({ stopRequested }) { throw CancellationError() }
             let mode = config.trzszMode ?? "KCP"
             let udpPortMin = config.trzszUDPPortMin ?? 61000
             let udpPortMax = config.trzszUDPPortMax ?? 61999
@@ -1159,13 +1214,14 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
                 mode: mode,
                 udpPortMin: udpPortMin,
                 udpPortMax: udpPortMax,
-                mtu: config.trzszMTU,
+                mtu: targetMTU,
                 serverPath: config.trzszServerPath
             )
             let tsshMTUVal = config.trzszMTU ?? 1400
             debugLog.endPhase("tsshdSpawn", "OK → port=\(serverInfo.port) mode=\(serverInfo.mode) tsshMTU=\(tsshMTUVal)")
         } catch {
             debugLog.logError("tsshdSpawn", error)
+            closePreparedRelay()
             await cleanupSSH()
             throw error
         }
@@ -1178,12 +1234,12 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         runningStateLock.withLock {
             tsshPort = serverInfo.port
             tsshMode = serverInfo.mode
-            tsshMTU = config.trzszMTU ?? 0
+            tsshMTU = targetMTU
         }
 
         // Step 3: Build Go config JSON with server info, using resolved IP for tsshHost
         // SSH stays alive — cleanupTSSHSpawnConnection() is called after Go connects
-        return try config.toGoConfigJSON(tsshServerInfo: serverInfo, resolvedHost: resolvedHost)
+        return try config.toGoConfigJSON(tsshServerInfo: serverInfo, resolvedHost: resolvedHost, transportMTU: targetMTU)
     }
 
     /// Spawn tsshd on the remote server via SSH and parse the JSON server info.
@@ -1193,7 +1249,8 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         udpPortMin: Int = 61000,
         udpPortMax: Int = 61999,
         mtu: Int? = nil,
-        serverPath: String? = nil
+        serverPath: String? = nil,
+        attachable: Bool = false
     ) async throws -> VPNTunnelConfig.TSSHServerInfo {
         let modeFlag = mode.lowercased() == "quic" ? "--quic" : "--kcp"
         let mtuArg = mtu.map { " --mtu \($0)" } ?? ""
@@ -1204,7 +1261,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             portMax: udpPortMax,
             mtu: mtu,
             quic: mode.lowercased() == "quic",
-            attachable: false,
+            attachable: attachable,
             debug: VPNConnectionDebugLogger.shared.isEnabled
         )
 

@@ -274,6 +274,7 @@ extension LocalShellSession {
             jumpPort: config.jumpHost?.port,
             jumpUsername: config.jumpHost?.username,
             jumpAuthType: jumpAuthType,
+                tsshRelay: config.jumpHost?.tsshRelay,
             resolvedIP: config.cachedIP,
             agentConfig: config.agentConfig,
             portForwardConfig: config.portForwardConfig,

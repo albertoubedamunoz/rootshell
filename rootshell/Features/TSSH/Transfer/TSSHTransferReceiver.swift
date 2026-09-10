@@ -31,6 +31,7 @@ final class TrzszTransferReceiver {
         let displayName: String
         let host: String
         let originPubKey: Data
+        let version: Int
 
         init?(activity: NSUserActivity) {
             guard activity.activityType == TrzszTransferActivity.activityType else {
@@ -41,7 +42,7 @@ final class TrzszTransferReceiver {
             }
             guard let info = activity.userInfo else { return nil }
             guard let version = info[TrzszTransferActivity.UserInfoKey.version] as? Int,
-                  version == TrzszTransferActivity.payloadVersion else {
+                  TrzszTransferActivity.supports(version) else {
                 return nil
             }
             guard let pub = info[TrzszTransferActivity.UserInfoKey.originPubKey] as? Data,
@@ -53,6 +54,7 @@ final class TrzszTransferReceiver {
                 return nil
             }
             let host = info[TrzszTransferActivity.UserInfoKey.host] as? String ?? displayName
+            self.version = version
             self.activity = activity
             self.originDeviceName = originDeviceName
             self.displayName = displayName
@@ -190,6 +192,7 @@ final class TrzszTransferReceiver {
 
         let privateKey = self.privateKey
         let originPubKey = offer.originPubKey
+        let version = offer.version
         let deviceName = TrzszTransferActivity.currentDeviceName()
 
         // The pump body MUST run off the main thread. With this project's
@@ -215,7 +218,8 @@ final class TrzszTransferReceiver {
                 originPubKey: originPubKey,
                 deviceName: deviceName,
                 requestedCols: cols,
-                requestedRows: rows
+                requestedRows: rows,
+                version: version
             )
             await handleResult(result)
         }
@@ -230,7 +234,8 @@ final class TrzszTransferReceiver {
         originPubKey: Data,
         deviceName: String,
         requestedCols: UInt16,
-        requestedRows: UInt16
+        requestedRows: UInt16,
+        version: Int
     ) async -> Result<TrzszTransferPayload, Error> {
         channel.open()
         do {
@@ -240,7 +245,8 @@ final class TrzszTransferReceiver {
                 originPubKey: originPubKey,
                 deviceName: deviceName,
                 requestedCols: requestedCols,
-                requestedRows: requestedRows
+                requestedRows: requestedRows,
+                version: version
             )
             return .success(payload)
         } catch {
@@ -255,10 +261,11 @@ final class TrzszTransferReceiver {
         originPubKey: Data,
         deviceName: String,
         requestedCols: UInt16,
-        requestedRows: UInt16
+        requestedRows: UInt16,
+        version: Int
     ) async throws -> TrzszTransferPayload {
         let hello = TrzszTransferHello(
-            version: TrzszTransferActivity.payloadVersion,
+            version: version,
             receiverPubKey: privateKey.publicKey.rawRepresentation,
             receiverDeviceName: deviceName,
             requestedCols: requestedCols,
@@ -281,10 +288,10 @@ final class TrzszTransferReceiver {
         )
         let plaintext = try TrzszTransferCrypto.open(bootstrap.ciphertext, using: key)
         let payload = try JSONDecoder().decode(TrzszTransferPayload.self, from: plaintext)
-        guard payload.version == TrzszTransferActivity.payloadVersion else {
+        guard payload.version == version && (payload.credentials.relay == nil || version == TrzszTransferActivity.relayPayloadVersion) else {
             throw TrzszTransferError.versionMismatch(
                 received: payload.version,
-                expected: TrzszTransferActivity.payloadVersion
+                expected: version
             )
         }
         return payload

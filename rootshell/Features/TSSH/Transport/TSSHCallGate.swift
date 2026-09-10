@@ -152,6 +152,7 @@ struct TSSHForwardParams: Sendable {
     let bindPort: Int
     let targetHost: String
     let targetPort: Int
+    let recoverRemoteListener: Bool
 }
 
 // MARK: - Registry storage
@@ -162,6 +163,7 @@ struct TSSHForwardParams: Sendable {
 
 private nonisolated final class TSSHRegistryStorage: @unchecked Sendable {
     var transports: [TSSHTransportRef: IosbridgeTransport] = [:]
+    var relayParents: [TSSHTransportRef: TSSHTransportRef] = [:]
     var sessions:   [TSSHSessionRef:   IosbridgeTransportSession] = [:]
     var forwarders: [TSSHForwarderRef: IosbridgePortForwarder] = [:]
 }
@@ -231,7 +233,7 @@ actor TSSHCallGate {
 
     // MARK: - Transport lifecycle
 
-    func connect(_ params: TSSHTransportParams) async throws -> TSSHTransportRef {
+    func connect(_ params: TSSHTransportParams, via proxyRef: TSSHTransportRef? = nil) async throws -> TSSHTransportRef {
         guard let config = IosbridgeNewTransportConfig() else {
             throw TSSHCallGateError.configCreationFailed
         }
@@ -264,10 +266,20 @@ actor TSSHCallGate {
         // The actual handshake runs on the worker queue, releasing the
         // actor for other gate methods (writes/resizes/health polls on
         // existing transports proceed concurrently).
+        nonisolated(unsafe) let proxy: IosbridgeTransport? = proxyRef.flatMap { ref in
+            registry.withLock { $0.transports[ref] }
+        }
+        if proxyRef != nil && proxy == nil { throw TSSHCallGateError.unknownTransport }
         nonisolated(unsafe) let connectConfig = config
         let transport: IosbridgeTransport = try await runOnWorker {
             var connectError: NSError?
-            guard let transport = IosbridgeConnectTransport(connectConfig, &connectError) else {
+            let connected: IosbridgeTransport?
+            if let proxy {
+                connected = IosbridgeConnectTransportViaProxy(connectConfig, proxy, &connectError)
+            } else {
+                connected = IosbridgeConnectTransport(connectConfig, &connectError)
+            }
+            guard let transport = connected else {
                 throw TSSHCallGateError.connectFailed(
                     connectError?.localizedDescription ?? "unknown error"
                 )
@@ -276,7 +288,14 @@ actor TSSHCallGate {
         }
 
         let ref = TSSHTransportRef(id: UUID())
-        registry.withLock { $0.transports[ref] = transport }
+        registry.withLock {
+            $0.transports[ref] = transport
+            $0.relayParents[ref] = proxyRef
+        }
+        if Task.isCancelled {
+            emergencyAbandon(ref)
+            throw CancellationError()
+        }
         return ref
     }
 
@@ -293,7 +312,26 @@ actor TSSHCallGate {
         defer {
             registry.withLock { _ = $0.transports.removeValue(forKey: ref) }
         }
-        try await runOnWorker { try t.close() }
+        do { try await runOnWorker { try t.close() } }
+        catch {
+            if let parent = registry.withLock({ $0.relayParents.removeValue(forKey: ref) }) {
+                emergencyAbandon(parent)
+            }
+            throw error
+        }
+        if let parent = registry.withLock({ $0.relayParents.removeValue(forKey: ref) }) {
+            try await close(parent)
+        }
+    }
+
+    func effectiveRelayMTU(_ ref: TSSHTransportRef, requested: Int, mode: String) async throws -> Int {
+        guard let transport = registry.withLock({ $0.transports[ref] }) else { throw TSSHCallGateError.unknownTransport }
+        nonisolated(unsafe) let t = transport
+        return try await runOnWorker {
+            var result = 0
+            try t.effectiveRelayMTU(requested, mode: mode, ret0_: &result)
+            return result
+        }
     }
 
     func lastActiveTimeMs(_ ref: TSSHTransportRef) -> Int64 {
@@ -701,6 +739,7 @@ actor TSSHCallGate {
             goConfig.bindPort    = params.bindPort
             goConfig.targetHost  = params.targetHost
             goConfig.targetPort  = params.targetPort
+            goConfig.recoverRemoteListener = params.recoverRemoteListener
             try f.startForward(goConfig)
         }
     }
@@ -746,11 +785,17 @@ actor TSSHCallGate {
     /// Forcefully abandons a transport, bypassing the actor.
     /// Idempotent. Safe to call concurrently with a wedged transport call.
     nonisolated func emergencyAbandon(_ ref: TSSHTransportRef) {
-        let transport = registry.withLock { $0.transports.removeValue(forKey: ref) }
-        guard let transport else { return }
-        Self.logger.info("emergencyAbandon: dispatching Go Abandon on worker queue")
+        let transports: [IosbridgeTransport] = registry.withLock { storage in
+            var result: [IosbridgeTransport] = []
+            var current: TSSHTransportRef? = ref
+            while let id = current {
+                if let transport = storage.transports.removeValue(forKey: id) { result.append(transport) }
+                current = storage.relayParents.removeValue(forKey: id)
+            }
+            return result
+        }
         workerQueue.async {
-            transport.abandon()
+            for transport in transports { transport.abandon() }
         }
     }
 

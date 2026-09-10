@@ -133,6 +133,10 @@ final class CloudKitSyncManager {
             self?.recordLocalChange(profile, operation: operation)
         }
 
+        TSSHRelayStore.shared.onLocalChange = { [weak self] record, operation in
+            self?.recordLocalChange(record, operation: operation)
+        }
+
         // App settings: batched by the coordinator, pushed here
         let coordinator = SettingsSyncCoordinator.shared
         coordinator.isEnabled = isSyncEnabled && isAppSettingsSyncEnabled
@@ -809,7 +813,9 @@ final class CloudKitSyncManager {
         case KnownHost.recordType:
             guard isKnownHostsSyncEnabled else { return }
         case ConnectionProfile.recordType:
-            guard isProfilesSyncEnabled else { return }
+            if let relay = record as? TSSHRelayRecord {
+                guard relaySyncEnabled(relay) else { return }
+            } else { guard isProfilesSyncEnabled else { return } }
         case AppSettingRecord.recordType:
             guard isAppSettingsSyncEnabled else { return }
         default:
@@ -1142,6 +1148,13 @@ final class CloudKitSyncManager {
                 saveChangeToken()
             }
         }
+        for record in records {
+            if let relay = TSSHRelayRecord.from(record), relaySyncEnabled(relay) {
+                try TSSHRelayStore.shared.applyRemote(relay)
+            }
+        }
+        ConnectionProfileManager.shared.refreshRelaySettings()
+        SSHConnectionHistoryManager.shared.refreshRelaySettings()
         // Settings are merged as one batch so managers reload and the terminal
         // config rewrites once, not once per key.
         var settingRecords: [AppSettingRecord] = []
@@ -1164,6 +1177,7 @@ final class CloudKitSyncManager {
                     try applyRemoteRecords([host], type: KnownHost.self)
                 }
             case ConnectionProfile.recordType:
+                if TSSHRelayRecord.from(record) != nil { continue }
                 guard isProfilesSyncEnabled else { continue }
                 if let theme = ProfileThemeRecord.from(record) {
                     try ConnectionProfileManager.shared.applyRemoteTheme(theme)
@@ -1255,6 +1269,10 @@ final class CloudKitSyncManager {
                 if let failure = result.failures.first { throw failure.error }
             } else if let themes = records as? [ProfileThemeRecord] {
                 for theme in themes { try ConnectionProfileManager.shared.applyRemoteTheme(theme) }
+            } else if let relays = records as? [TSSHRelayRecord] {
+                for relay in relays { try TSSHRelayStore.shared.applyRemote(relay) }
+                ConnectionProfileManager.shared.refreshRelaySettings()
+                SSHConnectionHistoryManager.shared.refreshRelaySettings()
             }
         case AppSettingRecord.recordType:
             if let settings = records as? [AppSettingRecord] {
@@ -1293,7 +1311,18 @@ final class CloudKitSyncManager {
     }
 
     /// Save a record with conflict resolution
+    private func relaySyncEnabled(_ record: TSSHRelayRecord) -> Bool {
+        record.owner == .profile ? isProfilesSyncEnabled : isHistorySyncEnabled
+    }
+
     private func saveRecord<T: CloudKitSyncable>(_ record: T) async throws {
+        let relay: TSSHRelayRecord?
+        if let profile = record as? ConnectionProfile {
+            relay = TSSHRelayStore.shared.record(owner: .profile, key: profile.id.uuidString)
+        } else if let entry = record as? SSHConnectionHistoryEntry {
+            relay = TSSHRelayStore.shared.record(owner: .history, key: entry.connectionIdentity)
+        } else { relay = nil }
+        if let relay, relaySyncEnabled(relay) { try await saveRecord(relay) }
         // Write the companion first. Failure queues the original profile, so
         // retries and initial pushes always include both records.
         if let profile = record as? ConnectionProfile,
@@ -1306,7 +1335,7 @@ final class CloudKitSyncManager {
             let (saveResults, _) = try await database.modifyRecords(
                 saving: [ckRecord],
                 deleting: [],
-                savePolicy: record is ProfileThemeRecord ? .ifServerRecordUnchanged : .allKeys
+                savePolicy: (record is ProfileThemeRecord || record is TSSHRelayRecord) ? .ifServerRecordUnchanged : .allKeys
             )
             for (_, result) in saveResults {
                 if case .failure(let error) = result {
@@ -1319,6 +1348,7 @@ final class CloudKitSyncManager {
         if let theme = record as? ProfileThemeRecord {
             try ConnectionProfileManager.shared.markThemeSynced(theme)
         }
+        if let relay = record as? TSSHRelayRecord { try TSSHRelayStore.shared.markSynced(relay) }
     }
 
     /// Resolve server record conflicts using server modification dates
@@ -1337,7 +1367,7 @@ final class CloudKitSyncManager {
             let (saveResults, _) = try await database.modifyRecords(
                 saving: [serverRecord],
                 deleting: [],
-                savePolicy: localRecord is ProfileThemeRecord ? .ifServerRecordUnchanged : .allKeys
+                savePolicy: (localRecord is ProfileThemeRecord || localRecord is TSSHRelayRecord) ? .ifServerRecordUnchanged : .allKeys
             )
             for (_, result) in saveResults {
                 if case .failure(let error) = result {
@@ -1352,6 +1382,9 @@ final class CloudKitSyncManager {
 
     /// Push all pending changes from offline queue
     private func pushPendingChanges() async throws {
+        for relay in TSSHRelayStore.shared.pending where relaySyncEnabled(relay) {
+            try await saveRecord(relay)
+        }
         // Includes themes recovered from local profiles or legacy envelopes,
         // even when there has been no profile edit and the offline queue is empty.
         if isProfilesSyncEnabled {
@@ -1429,6 +1462,10 @@ final class CloudKitSyncManager {
             }
             try await saveRecord(host)
         case ConnectionProfile.recordType:
+            if let relay = try? payloadDecoder.decode(TSSHRelayRecord.self, from: change.payload) {
+                if relaySyncEnabled(relay) { try await saveRecord(relay) }
+                return
+            }
             guard let profile = try? payloadDecoder.decode(ConnectionProfile.self, from: change.payload) else {
                 throw CloudKitSyncError.invalidPayload("ConnectionProfile payload decode failed")
             }

@@ -43,7 +43,9 @@ final class VPNTunnelController {
         if status == .connected || status == .connecting || status == .reasserting {
             let activeProfile = (manager.protocolConfiguration as? NETunnelProviderProtocol)?
                 .providerConfiguration?["profileID"] as? String
-            if activeProfile == profileID.uuidString {
+            let activeTransport = (manager.protocolConfiguration as? NETunnelProviderProtocol)?
+                .providerConfiguration?["transportType"] as? String
+            if activeProfile == profileID.uuidString && activeTransport == transportType {
                 log.info("start: tunnel already \(String(describing: status.rawValue), privacy: .public) for this profile; no-op")
                 // Still reconcile the signing broker: the loop may have
                 // exited (e.g. host launched while the tunnel looked down,
@@ -84,10 +86,14 @@ final class VPNTunnelController {
         try await manager.loadFromPreferences()
 
         // Secrets travel through options (not persisted), unlike providerConfiguration.
+        // Old extensions require "resolvedConfig". Withhold that key for a
+        // relay start, so they fail closed instead of ignoring unknown routing
+        // fields and dialing the target directly.
+        let configKey = transportType == "tssh-relay" ? "relayResolvedConfig" : "resolvedConfig"
         try manager.connection.startVPNTunnel(options: [
             "profileID": profileID.uuidString as NSString,
             "transportType": transportType as NSString,
-            "resolvedConfig": resolvedConfig as NSData,
+            configKey: resolvedConfig as NSData,
         ])
         log.info("startVPNTunnel issued for profile \(profileID.uuidString.prefix(8), privacy: .public)")
 

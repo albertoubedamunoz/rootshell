@@ -111,6 +111,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     var jumpPort: Int?
     var jumpUsername: String?
     var jumpAuthType: SSHAuthType?
+    var tsshRelay: TSSHRelaySettings? = nil
 
     // HSS shorthand (optional) - the original !alias used
     var hssShorthand: String?
@@ -257,7 +258,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
 
     private enum CodingKeys: String, CodingKey {
         case id, username, host, port, authType, lastUsed, cachedIP
-        case jumpHost, jumpPort, jumpUsername, jumpAuthType
+        case jumpHost, jumpPort, jumpUsername, jumpAuthType, tsshRelay
         case hssShorthand, agentConfig, gpgAgentConfig, portForwardConfig, tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, zmxAutoEnable, launchCommand, launchCommandMode
         case connectionProtocol, keyResolutionHints
         case terminalType, multiplexerSessionName
@@ -281,6 +282,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         jumpPort = try container.decodeIfPresent(Int.self, forKey: .jumpPort)
         jumpUsername = try container.decodeIfPresent(String.self, forKey: .jumpUsername)
         jumpAuthType = try container.decodeIfPresent(SSHAuthType.self, forKey: .jumpAuthType)
+        tsshRelay = try container.decodeIfPresent(TSSHRelaySettings.self, forKey: .tsshRelay)
 
         hssShorthand = try container.decodeIfPresent(String.self, forKey: .hssShorthand)
         agentConfig = try container.decodeIfPresent(SSHAgentConfig.self, forKey: .agentConfig)
@@ -437,6 +439,7 @@ class SSHConnectionHistoryManager: ObservableObject {
     /// Update the entries array from the store
     private func updateEntriesFromStore() {
         entries = store.activeRecords
+            .map { TSSHRelayStore.shared.applying(to: $0) }
             .sorted { $0.lastUsed > $1.lastUsed }
     }
 
@@ -449,8 +452,10 @@ class SSHConnectionHistoryManager: ObservableObject {
 
     /// Get an entry by ID
     func entry(for id: UUID) -> SSHConnectionHistoryEntry? {
-        store.record(for: id)
+        store.record(for: id).map { TSSHRelayStore.shared.applying(to: $0) }
     }
+
+    func refreshRelaySettings() { updateEntriesFromStore() }
 
     /// Add or update a connection in history
     func recordConnection(
@@ -463,6 +468,7 @@ class SSHConnectionHistoryManager: ObservableObject {
         jumpPort: Int? = nil,
         jumpUsername: String? = nil,
         jumpAuthType: SSHAuthType? = nil,
+        tsshRelay: TSSHRelaySettings? = nil,
         resolvedIP: String? = nil,
         hssShorthand: String? = nil,
         agentConfig: SSHAgentConfig? = nil,
@@ -526,6 +532,8 @@ class SSHConnectionHistoryManager: ObservableObject {
             if let keyResolutionHints = keyResolutionHints {
                 updated.keyResolutionHints = keyResolutionHints
             }
+            updated.tsshRelay = tsshRelay
+            try? TSSHRelayStore.shared.update(owner: .history, key: updated.connectionIdentity, settings: tsshRelay)
             try? store.save(updated)
             updateEntriesFromStore()
             return
@@ -583,10 +591,12 @@ class SSHConnectionHistoryManager: ObservableObject {
             if let keyResolutionHints = keyResolutionHints {
                 updated.keyResolutionHints = keyResolutionHints
             }
+            updated.tsshRelay = tsshRelay
+            try? TSSHRelayStore.shared.update(owner: .history, key: updated.connectionIdentity, settings: tsshRelay)
             try? store.save(updated)
         } else {
             // Add new entry
-            let newEntry = SSHConnectionHistoryEntry(
+            var newEntry = SSHConnectionHistoryEntry(
                 username: username,
                 host: host,
                 port: port,
@@ -611,6 +621,8 @@ class SSHConnectionHistoryManager: ObservableObject {
                 multiplexerSessionName: multiplexerSessionName,
                 keyResolutionHints: keyResolutionHints
             )
+            newEntry.tsshRelay = tsshRelay
+            try? TSSHRelayStore.shared.update(owner: .history, key: newEntry.connectionIdentity, settings: tsshRelay)
             try? store.save(newEntry)
             identityToUUID[newEntry.connectionIdentity] = newEntry.id
         }
@@ -689,6 +701,13 @@ class SSHConnectionHistoryManager: ObservableObject {
         var failures: [(id: UUID, error: Error)] = []
 
         for remote in remoteEntries {
+            do {
+                try TSSHRelayStore.shared.seed(owner: .history, key: remote.connectionIdentity,
+                    settings: remote.tsshRelay, modifiedAt: remote.modifiedAt)
+            } catch {
+                failures.append((id: remote.id, error: error))
+                continue
+            }
             // Check by logical identity (connection string), not just UUID
             if let existingUUID = identityToUUID[remote.connectionIdentity],
                let existing = store.record(for: existingUUID) {

@@ -79,6 +79,7 @@ struct VPNTunnelConfig: Codable, Sendable {
 
     /// Jump host config subset needed by the extension
     struct JumpHostTunnelConfig: Codable, Sendable {
+        var tsshRelay: TSSHRelaySettings? = nil
         let host: String
         let port: Int
         let username: String
@@ -110,10 +111,11 @@ struct VPNTunnelConfig: Codable, Sendable {
     ///   - socks5Address: SOCKS5 proxy address for SSH mode
     ///   - tsshServerInfo: Server info from tsshd spawn for TSSH mode
     ///   - resolvedHost: Pre-resolved IP address to use as tsshHost (overrides sshHost)
-    func toGoConfigJSON(socks5Address: String? = nil, tsshServerInfo: TSSHServerInfo? = nil, resolvedHost: String? = nil) throws -> String {
+    func toGoConfigJSON(socks5Address: String? = nil, tsshServerInfo: TSSHServerInfo? = nil, resolvedHost: String? = nil, transportMTU: Int? = nil, relayRequired: Bool? = nil) throws -> String {
         struct GoConfig: Codable {
             let transportType: String
             // TSSH fields
+            let tsshRelayRequired: Bool?
             let tsshHost: String?
             let tsshPort: Int?
             let tsshMode: String?
@@ -139,6 +141,7 @@ struct VPNTunnelConfig: Codable, Sendable {
 
         let goConfig = GoConfig(
             transportType: transportType.rawValue,
+            tsshRelayRequired: relayRequired ?? (jumpHostConfig?.tsshRelay != nil ? true : nil),
             tsshHost: tsshServerInfo != nil ? (resolvedHost ?? sshHost) : nil,
             tsshPort: tsshServerInfo?.port,
             tsshMode: tsshServerInfo?.mode,
@@ -152,7 +155,7 @@ struct VPNTunnelConfig: Codable, Sendable {
             tsshClientID: tsshServerInfo?.clientID,
             tsshServerID: tsshServerInfo?.serverID,
             socks5Address: socks5Address,
-            trzszMTU: trzszMTU,
+            trzszMTU: transportMTU ?? trzszMTU,
             dnsServers: dnsServers.isEmpty ? nil : dnsServers,
             excludedRoutes: excludedRoutes.isEmpty ? nil : excludedRoutes,
             mtu: mtu,
@@ -182,6 +185,7 @@ extension VPNTunnelConfig {
         self.sshAuth = snapshot.auth
         self.jumpHostConfig = snapshot.jumpHost.map { jumpHost in
             JumpHostTunnelConfig(
+                tsshRelay: jumpHost.tsshRelay,
                 host: jumpHost.host,
                 port: jumpHost.port,
                 username: jumpHost.username,

@@ -80,6 +80,9 @@ struct TrzszSessionCredentials: Codable, Sendable {
     /// Session ID for Attach() — saved after Shell() succeeds
     var sessionID: UInt64?
 
+    var relay: TrzszRelayCredentials? = nil
+    var transportMTU: Int? = nil
+
     // MARK: - TTL Configuration
 
     /// Maximum gap since the last successful connection before credentials
@@ -283,4 +286,12 @@ private extension Data {
     var hexString: String {
         map { String(format: "%02x", $0) }.joined()
     }
+}
+
+/// The outer server has no PTY; reconnect it with a fresh attachable client ID.
+struct TrzszRelayCredentials: Codable, Sendable {
+    let host: String
+    var serverInfo: TrzszServerInfo
+    let mtu: Int
+    let targetMTU: Int
 }

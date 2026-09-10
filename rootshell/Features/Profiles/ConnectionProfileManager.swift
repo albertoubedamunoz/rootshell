@@ -237,6 +237,7 @@ final class ConnectionProfileManager {
                 authMethod: jumpAuthMethod,
                 fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
             )
+            jumpHostConfig?.tsshRelay = historyEntry.tsshRelay
         }
 
         var sshConfig = SSHConfig(
@@ -612,6 +613,13 @@ final class ConnectionProfileManager {
         var failures: [(id: UUID, error: Error)] = []
 
         for remote in remoteProfiles {
+            do {
+                try TSSHRelayStore.shared.seed(owner: .profile, key: remote.id.uuidString,
+                    settings: remote.sshConfig.jumpHost?.tsshRelay, modifiedAt: remote.modifiedAt)
+            } catch {
+                failures.append((id: remote.id, error: error))
+                continue
+            }
             if let theme = ProfileThemeRecord(profile: remote) {
                 do {
                     try applyRemoteTheme(theme)
@@ -770,8 +778,9 @@ final class ConnectionProfileManager {
     // MARK: - Private Helpers
 
     private func profileWithTheme(_ profile: ConnectionProfile) -> ConnectionProfile {
-        guard let theme = themeStore.record(for: profile.id) else { return profile }
-        return theme.applying(to: profile)
+        let routed = TSSHRelayStore.shared.applying(to: profile)
+        guard let theme = themeStore.record(for: profile.id) else { return routed }
+        return theme.applying(to: routed)
     }
 
     /// Seed the companion cache from local JSON/backups made before companion
@@ -789,6 +798,8 @@ final class ConnectionProfileManager {
     }
 
     /// Update the profiles array from the store
+    func refreshRelaySettings() { updateProfilesFromStore() }
+
     private func updateProfilesFromStore() {
         profiles = store.activeRecords
             .map(profileWithTheme)
@@ -802,6 +813,14 @@ final class ConnectionProfileManager {
         notifySync: Bool = true
     ) throws {
         var sanitized = sanitizeProfileForPersistence(profile)
+        if notifySync {
+            var relay = sanitized.sshConfig.jumpHost?.tsshRelay
+            if let jump = sanitized.sshConfig.jumpHost, relay != nil, relay?.boundJump == nil {
+                relay?.boundJump = TSSHRelayIdentity(host: jump.host, port: jump.port, username: jump.username)
+            }
+            try TSSHRelayStore.shared.update(owner: .profile, key: profile.id.uuidString, settings: relay)
+        }
+        sanitized = TSSHRelayStore.shared.applying(to: sanitized)
         if notifySync {
             let existing = store.record(for: profile.id).map(profileWithTheme)
             if sanitized.themeName != existing?.themeName {
@@ -931,7 +950,14 @@ final class ConnectionProfileManager {
         )
 
         let jumpHost = profile.sshConfig.jumpHost.map { jumpHost in
-            VPNSharedJumpHostSnapshot(
+            var relay = jumpHost.tsshRelay
+            if var resolved = relay {
+                resolved.udpPortMin = resolved.udpPortMin ?? TrzszConfig.preferredUDPPortMin
+                resolved.udpPortMax = resolved.udpPortMax ?? TrzszConfig.preferredUDPPortMax
+                relay = resolved
+            }
+            return VPNSharedJumpHostSnapshot(
+                tsshRelay: relay,
                 host: jumpHost.host,
                 port: jumpHost.port,
                 username: jumpHost.username,

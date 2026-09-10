@@ -238,13 +238,17 @@ final class MacVPNController {
         }
         let request = VPNStartRequest(
             profileID: profileID,
-            transportType: snapshot.transportType.rawValue,
+            transportType: snapshot.transportType == .tssh && snapshot.jumpHost?.tsshRelay != nil ? "tssh-relay" : snapshot.transportType.rawValue,
             resolvedConfig: payload,
             usesAgentSigning: isAgentKey(resolved.credential) || isAgentKey(resolved.jumpCredential)
         )
         let body = try JSONEncoder().encode(request)
 
         try await ensureHostRunning()
+        if snapshot.transportType == .tssh, snapshot.jumpHost?.tsshRelay != nil,
+           await hostInfo()?.supportsTSSHRelay != true {
+            throw VPNHostConnectionError.requestFailed("Update the rootshell VPN host and system extension before using tssh jump relay.")
+        }
         let response = try await send(VPNControlRequest(command: .startVPN, payload: body))
         if !response.success {
             throw VPNHostConnectionError.requestFailed(response.error ?? "start failed")

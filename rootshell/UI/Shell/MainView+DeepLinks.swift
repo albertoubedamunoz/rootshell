@@ -54,7 +54,7 @@ extension MainView {
             switch entry.authType {
             case .key(let keyID, _):
                 // Key-based auth - connect directly
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .key(keyID)
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -65,6 +65,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -90,7 +91,7 @@ extension MainView {
             case .password:
                 // Password auth - need to show connection sheet pre-filled
                 // We can't store passwords, so user needs to enter it
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .password("")
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -101,6 +102,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -122,7 +124,7 @@ extension MainView {
 
             case .savedPassword:
                 // Saved password - try to load from keychain and connect
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .savedPassword
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -133,6 +135,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -153,7 +156,7 @@ extension MainView {
 
             case .none:
                 // None auth (Tailscale/WireGuard) - connect directly
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .none
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -164,6 +167,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -185,7 +189,7 @@ extension MainView {
             case .keyboardInteractive:
                 // Server-driven prompts (2FA/OTP/PAM) — connect directly; the
                 // keyboard-interactive UI handles the challenge.
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .keyboardInteractive
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -196,6 +200,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -283,7 +288,7 @@ extension MainView {
             switch entry.authType {
             case .key(let keyID, _):
                 // Key-based auth - connect directly via Mosh
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .key(keyID)
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -294,6 +299,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -333,7 +339,7 @@ extension MainView {
 
             case .savedPassword:
                 // Saved password - build config and connect via Mosh
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .savedPassword
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -344,6 +350,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -365,7 +372,7 @@ extension MainView {
 
             case .none:
                 // None auth (Tailscale/WireGuard) - connect directly via Mosh
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .none
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -376,6 +383,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }
@@ -398,7 +406,7 @@ extension MainView {
             case .keyboardInteractive:
                 // Server-driven prompts — connect via Mosh; the keyboard-interactive
                 // UI handles the challenge during the bootstrap SSH connection.
-                let jumpConfig: SSHConfig.JumpHostConfig?
+                var jumpConfig: SSHConfig.JumpHostConfig?
                 if entry.hasJumpHost {
                     let jumpAuthMethod = convertAuthType(entry.jumpAuthType) ?? .keyboardInteractive
                     let jumpFallbackIDs = buildJumpFallbackKeys(for: jumpAuthMethod)
@@ -409,6 +417,7 @@ extension MainView {
                         authMethod: jumpAuthMethod,
                         fallbackKeyIDs: jumpFallbackIDs
                     )
+                    jumpConfig?.tsshRelay = entry.tsshRelay
                 } else {
                     jumpConfig = nil
                 }

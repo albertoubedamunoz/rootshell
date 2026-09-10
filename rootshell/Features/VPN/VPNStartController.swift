@@ -60,7 +60,10 @@ enum VPNStartController {
         let currentStatus = manager.connection.status
         let currentProfileID = activeProfileID(from: manager)
 
-        if currentProfileID == snapshot.id,
+        let requestedRelay = snapshot.transportType == .tssh && snapshot.jumpHost?.tsshRelay != nil
+        let activeRelay = ((manager.protocolConfiguration as? NETunnelProviderProtocol)?
+            .providerConfiguration?["tsshRelay"] as? Bool) ?? false
+        if currentProfileID == snapshot.id, activeRelay == requestedRelay,
            (currentStatus == .connecting || currentStatus == .connected || currentStatus == .reasserting) {
             writeWidgetState(for: snapshot, status: currentStatus)
             reloadWidgetTimelines()
@@ -130,6 +133,7 @@ enum VPNStartController {
     ) async throws -> Bool {
         let proto = (manager.protocolConfiguration as? NETunnelProviderProtocol) ?? NETunnelProviderProtocol()
         let desiredProviderConfig: [String: NSObject] = [
+            "tsshRelay": NSNumber(value: snapshot.transportType == .tssh && snapshot.jumpHost?.tsshRelay != nil),
             "profileID": snapshot.id.uuidString as NSString,
             "transportType": snapshot.transportType.rawValue as NSString,
         ]

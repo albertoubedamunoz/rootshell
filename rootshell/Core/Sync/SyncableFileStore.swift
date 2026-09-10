@@ -60,11 +60,11 @@ struct SyncableFileStore<T: SyncableRecord> {
 
     /// Initialize a new file store
     /// - Parameter storeName: Name of the store (used for directory name)
-    init(storeName: String) {
+    init(storeName: String, directoryURL: URL? = nil) {
         self.storeName = storeName
 
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        self.directoryURL = documentsURL
+        self.directoryURL = directoryURL ?? documentsURL
             .appendingPathComponent(".ghostty", isDirectory: true)
             .appendingPathComponent("sync", isDirectory: true)
             .appendingPathComponent(storeName, isDirectory: true)

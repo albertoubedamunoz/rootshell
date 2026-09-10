@@ -77,6 +77,7 @@ nonisolated enum VPNSSHConnector {
     static func connect(
         config: VPNTunnelConfig,
         resolvedHost: String? = nil,
+        resolvedJumpHost: String? = nil,
         group: MultiThreadedEventLoopGroup = .singleton,
         loginTimeout: TimeAmount = .seconds(30)
     ) async throws -> ConnectionResult {
@@ -138,7 +139,7 @@ nonisolated enum VPNSSHConnector {
             let jumpClient: SSHClient
             do {
                 jumpClient = try await SSHClient.connect(
-                    host: jump.host,
+                    host: resolvedJumpHost ?? jump.host,
                     port: jump.port,
                     authenticationMethod: jumpAuth,
                     hostKeyValidator: jumpValidator,
