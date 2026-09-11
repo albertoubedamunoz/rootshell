@@ -31,6 +31,8 @@ final class MultiplexerExposeFeed {
     var ghosttyApp: Ghostty.App? { terminal?.ghosttyApp }
 
     private var adapter: (any MultiplexerExposeAdapter)?
+    /// Pane the current `adapter` was built for; see `configure(_:)`.
+    private var adapterPaneToken: String?
     private var frames: [String: MuxPaneFrame] = [:]
     private var loop: Task<Void, Never>?
     private var focusTask: Task<Void, Never>?
@@ -117,12 +119,17 @@ final class MultiplexerExposeFeed {
     }
 
     /// Returns the adapter for a supported multiplexer type.
-    static func adapter(for type: MultiplexerType) -> (any MultiplexerExposeAdapter)? {
+    /// `paneToken` is what lets a zmx switch act on this pane's own client;
+    /// callers testing only whether a type is supported can leave it out.
+    static func adapter(
+        for type: MultiplexerType,
+        paneToken: String? = nil
+    ) -> (any MultiplexerExposeAdapter)? {
         switch type {
         case .herdr: HerdrExposeAdapter()
         case .tmux: TmuxExposeAdapter()
         case .zellij: ZellijExposeAdapter()
-        case .zmx: ZmxExposeAdapter()
+        case .zmx: ZmxExposeAdapter(paneToken: paneToken)
         }
     }
 
@@ -195,6 +202,7 @@ final class MultiplexerExposeFeed {
             type = nil
             sessionName = nil
             adapter = nil
+            adapterPaneToken = nil
             state = .detecting
         }
         onChange?()
@@ -223,10 +231,20 @@ final class MultiplexerExposeFeed {
     }
 
     private func configure(_ binding: Ghostty.TerminalView.RawMultiplexerBinding) {
+        // The adapter carries the pane's own token, which a zmx switch uses to
+        // pick this pane's client out of the session's others. One feed serves
+        // every pane in the window, so an adapter held across a change of pane
+        // would go looking for the previous pane's processes: identity belongs
+        // in the test alongside the multiplexer type.
+        let paneToken = terminal?.uuid.uuidString
         let sameMultiplexer = type == binding.type && adapter != nil
+            && adapterPaneToken == paneToken
         type = binding.type
         sessionName = binding.sessionName
-        if !sameMultiplexer { adapter = Self.adapter(for: binding.type) }
+        if !sameMultiplexer {
+            adapter = Self.adapter(for: binding.type, paneToken: paneToken)
+            adapterPaneToken = paneToken
+        }
         interval = floorInterval
         if let terminal, let cache, cache.owner == ObjectIdentifier(terminal),
            cache.session == "\(binding.type.rawValue):\(binding.sessionName ?? "")",
@@ -726,9 +744,29 @@ final class MultiplexerExposeFeed {
         body += " awk -v i=\"$_i\" \"\\$7==i && \\$8 ~ /^\\// {print \\$8}\" /proc/net/unix 2>/dev/null;"
         body += " done; fi; done; done"
         // Exported by the user's own shell where it was used (`HERDR_SESSION=x herdr`).
-        body += "; echo \"::MX_ENV::\"; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\";"
-        body += " [ -r \"/proc/$_p/environ\" ] && tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
-        body += " | grep -E \"^(HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME|SSH_CONNECTION|\(TerminalIdentity.paneTokenVariable))=\"; done"
+        //
+        // `/proc` gives one NUL-separated variable per line. macOS has none, so
+        // `ps -E` stands in: it appends the environment to the argument line,
+        // flattened on spaces. A value containing a space cannot be recovered
+        // from that, which is why SSH_CONNECTION is read from `/proc` alone --
+        // absent, its readers fall back to other evidence, where a value
+        // truncated at the first space would instead never match anything.
+        // One scan is taken, narrowed to lines that carry a variable worth
+        // having, and re-read per candidate from the pid each line starts
+        // with, rather than spawning a `ps` for every candidate.
+        let envKeys = "HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME|ZMX_SESSION_PREFIX"
+            + "|\(TerminalIdentity.paneTokenVariable)"
+        body += "; echo \"::MX_ENV::\""
+        body += "; _mxenv=\"\"; [ -r /proc/self/environ ]"
+        body += " || _mxenv=$(ps -xEo pid=,command= 2>/dev/null | grep -E \" (\(envKeys))=\")"
+        body += "; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\";"
+        body += " if [ -r \"/proc/$_p/environ\" ]; then"
+        body += " tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
+        body += " | grep -E \"^(\(envKeys)|SSH_CONNECTION)=\";"
+        body += " else"
+        body += " printf \"%s\\n\" \"$_mxenv\" | awk -v p=\"$_p\" \"\\$1==p\""
+        body += " | tr \" \" \"\\n\" | grep -E \"^(\(envKeys))=\";"
+        body += " fi; done"
         // zellij's server runs as `zellij --server <sock dir>/<session>`.
         body += "; echo \"::MX_SERVERS::\"; ps -xo pid=,ppid=,args= 2>/dev/null | grep -- \"--server\" | grep -v grep"
 
@@ -825,9 +863,14 @@ final class MultiplexerExposeFeed {
                 // fork's socket shows up here, or a host with neither `lsof`
                 // nor `/proc`.
                 var session = Self.zmxSession(in: sockets[pid] ?? [])
-                if session == nil, let index = words.firstIndex(where: { $0 == "attach" || $0 == "a" }),
-                   index + 1 < words.count, !words[index + 1].hasPrefix("-") {
-                    session = words[index + 1]
+                if session == nil, let argument = Self.zmxAttachArgument(in: words) {
+                    // The socket is named for the session; argv is named for
+                    // what the user typed. zmx resolves one to the other by
+                    // prepending `ZMX_SESSION_PREFIX` (`getSeshName`,
+                    // socket.zig), and the census lists resolved names, so a
+                    // pane bound to the typed name matches nothing there and
+                    // reads as a session that has gone away.
+                    session = ((environments[pid] ?? [:])["ZMX_SESSION_PREFIX"] ?? "") + argument
                 }
                 // Nothing to focus or to key the exposé's tab identity by
                 // without a name, and guessing one would risk moving a
@@ -993,6 +1036,45 @@ final class MultiplexerExposeFeed {
         }
         guard let highest = hits.values.max() else { return nil }
         return hits.filter { $0.value == highest }.keys.sorted().first
+    }
+
+    /// The session `zmx attach` was pointed at, as typed. Mirrors zmx's own
+    /// `parseAttachArgs`: flags are recognized only ahead of the name, and
+    /// everything past it is the command the session should run.
+    private static func zmxAttachArgument(in words: [String]) -> String? {
+        guard let start = words.firstIndex(where: { $0 == "attach" || $0 == "a" }) else { return nil }
+        var index = words.index(after: start)
+        while index < words.count {
+            let word = words[index]
+            if word == "--labels" {
+                index += 2
+                if Self.holdsAnotherLabel(words, at: index) { return nil }
+            } else if word.hasPrefix("--labels=") {
+                index += 1
+                if Self.holdsAnotherLabel(words, at: index) { return nil }
+            } else if word.hasPrefix("-") {
+                return nil
+            } else {
+                return word
+            }
+        }
+        return nil
+    }
+
+    /// Whether the word at `index` is a second label rather than the session
+    /// name, which means the name cannot be recovered at all.
+    ///
+    /// `ps` output has already lost the shell's quoting, so the single word
+    /// `--labels "project=x env=prod"` arrives split exactly like a one-word
+    /// label followed by a session called `env=prod`. Nothing distinguishes
+    /// them. An unknown name leaves the feed to other evidence; a wrong one
+    /// binds the pane to a session that does not exist, and the feed shuts
+    /// down on a pane that is still attached.
+    private static func holdsAnotherLabel(_ words: [String], at index: Int) -> Bool {
+        guard index < words.count else { return false }
+        let word = words[index]
+        guard !word.hasPrefix("-"), let equals = word.firstIndex(of: "=") else { return false }
+        return equals != word.startIndex
     }
 
     /// The session name when the host runs exactly one; nil leaves the feed
