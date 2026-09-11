@@ -86,6 +86,10 @@ nonisolated final class ShellTokenizer: @unchecked Sendable {
     /// Current line number (for error messages).
     var currentLine: Int { line }
 
+    /// Raw scan position for callers that need to preserve source spelling.
+    /// `peek()` can advance this position without consuming its cached token.
+    var sourceIndex: String.Index { index }
+
     // MARK: - Character Helpers
 
     private var isAtEnd: Bool { index >= chars.endIndex }
