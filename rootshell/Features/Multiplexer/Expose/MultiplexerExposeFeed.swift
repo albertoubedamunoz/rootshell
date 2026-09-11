@@ -31,6 +31,8 @@ final class MultiplexerExposeFeed {
     var ghosttyApp: Ghostty.App? { terminal?.ghosttyApp }
 
     private var adapter: (any MultiplexerExposeAdapter)?
+    /// Pane the current `adapter` was built for; see `configure(_:)`.
+    private var adapterPaneToken: String?
     private var frames: [String: MuxPaneFrame] = [:]
     private var loop: Task<Void, Never>?
     private var focusTask: Task<Void, Never>?
@@ -200,6 +202,7 @@ final class MultiplexerExposeFeed {
             type = nil
             sessionName = nil
             adapter = nil
+            adapterPaneToken = nil
             state = .detecting
         }
         onChange?()
@@ -228,11 +231,19 @@ final class MultiplexerExposeFeed {
     }
 
     private func configure(_ binding: Ghostty.TerminalView.RawMultiplexerBinding) {
+        // The adapter carries the pane's own token, which a zmx switch uses to
+        // pick this pane's client out of the session's others. One feed serves
+        // every pane in the window, so an adapter held across a change of pane
+        // would go looking for the previous pane's processes: identity belongs
+        // in the test alongside the multiplexer type.
+        let paneToken = terminal?.uuid.uuidString
         let sameMultiplexer = type == binding.type && adapter != nil
+            && adapterPaneToken == paneToken
         type = binding.type
         sessionName = binding.sessionName
         if !sameMultiplexer {
-            adapter = Self.adapter(for: binding.type, paneToken: terminal?.uuid.uuidString)
+            adapter = Self.adapter(for: binding.type, paneToken: paneToken)
+            adapterPaneToken = paneToken
         }
         interval = floorInterval
         if let terminal, let cache, cache.owner == ObjectIdentifier(terminal),
