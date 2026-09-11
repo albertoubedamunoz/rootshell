@@ -448,7 +448,7 @@ struct VerticalTabSidebar: View {
 
     // MARK: Row Model
 
-    private enum RowKind {
+    private enum RowKind: Equatable {
         case groupHeader(groupID: TabGroupID, title: String, count: Int, isActive: Bool, collapsed: Bool)
         case flat
         case gatewayHeader(collapsed: Bool, windowCount: Int, ownerID: UUID)
@@ -1282,6 +1282,46 @@ struct VerticalTabSidebar: View {
         searchFocusRequestID += 1
     }
 
+    /// Only parent-supplied presentation and routing inputs belong in the
+    /// menu owner's equality check. Live tab/menu state is read by children.
+    /// In particular, omit flatIndex: drag/drop stays outside this boundary
+    /// and row actions address tabs by identity.
+    private struct SidebarMenuRowIdentity<Presentation: Equatable>: Equatable {
+        let tab: ObjectIdentifier
+        let kind: RowKind
+        let tabsModel: ObjectIdentifier
+        let windowId: String
+        let isDocked: Bool
+        let staysOpenOnSelect: Bool
+        let tmuxDialogs: ObjectIdentifier
+        let presentation: Presentation
+    }
+
+    private func menuRowIdentity<Presentation: Equatable>(
+        for row: SidebarRow,
+        presentation: Presentation
+    ) -> SidebarMenuRowIdentity<Presentation> {
+        SidebarMenuRowIdentity(
+            tab: ObjectIdentifier(row.tab),
+            kind: row.kind,
+            tabsModel: ObjectIdentifier(tabsModel),
+            windowId: windowId,
+            isDocked: isDocked,
+            staysOpenOnSelect: staysOpenOnSelect,
+            tmuxDialogs: ObjectIdentifier(tmuxDialogs),
+            presentation: presentation
+        )
+    }
+
+    /// Header text/count/collapse state lives in RowKind. These are the
+    /// remaining inputs used by group header labels.
+    private struct SidebarHeaderMenuPresentation: Equatable {
+        let indentLevel: Int
+        let isHighlighted: Bool
+        let metrics: SidebarMetrics
+        let accentTint: Color
+    }
+
     @ViewBuilder
     private func rowView(row: SidebarRow, rows: [SidebarRow], gatewayOwnerIDs: [UUID]) -> some View {
         let isDraggingTab = draggingRowID == row.tab.id && row.isDraggable
@@ -1303,20 +1343,29 @@ struct VerticalTabSidebar: View {
         Group {
             switch row.kind {
             case .groupHeader(let groupID, let title, let count, let isActive, let collapsed):
-                groupHeaderRow(
-                    row: row,
-                    groupID: groupID,
-                    title: title,
-                    count: count,
-                    isActive: isActive,
-                    collapsed: collapsed,
-                    isHighlighted: isHighlighted
-                )
-                .contextMenu {
+                SidebarContextMenuRow(
+                    identity: menuRowIdentity(for: row, presentation: SidebarHeaderMenuPresentation(
+                        indentLevel: row.visualIndentLevel,
+                        isHighlighted: isHighlighted,
+                        metrics: metrics,
+                        accentTint: accentTint
+                    ))
+                ) {
+                    groupHeaderRow(
+                        row: row,
+                        groupID: groupID,
+                        title: title,
+                        count: count,
+                        isActive: isActive,
+                        collapsed: collapsed,
+                        isHighlighted: isHighlighted
+                    )
+                } menu: {
                     moveGroupToWindowItems(for: groupID, isGateway: false)
                 }
+                .equatable()
             case .gatewayHeader(let collapsed, let windowCount, let ownerID):
-                gatewayHeaderRow(
+                let header = gatewayHeaderRow(
                     row: row,
                     isSelected: isSelected,
                     isHighlighted: isHighlighted,
@@ -1325,12 +1374,12 @@ struct VerticalTabSidebar: View {
                     ownerID: ownerID,
                     gatewayOwnerIDs: gatewayOwnerIDs
                 )
-                .equatable()
-                // Attached out here, not inside the row — see the tab row's
-                // .contextMenu note.
-                .contextMenu {
+                SidebarContextMenuRow(identity: menuRowIdentity(for: row, presentation: header)) {
+                    header
+                } menu: {
                     gatewayHeaderMenu(for: row.tab, ownerID: ownerID)
                 }
+                .equatable()
             case .hiddenHeader(let ownerID, let count, let expanded):
                 hiddenGroupHeaderRow(
                     isHighlighted: isHighlighted,
@@ -1368,10 +1417,9 @@ struct VerticalTabSidebar: View {
                     }
                 }
             case .flat, .windowRow, .hiddenWindowRow:
-                // `.equatable()` gates parent-driven rebuilds; the row's own
-                // observed reads live inside SidebarTabRowItem. The modifiers
-                // below stay OUT here on purpose — see the .contextMenu note.
-                SidebarTabRowItem(
+                // The owner uses the row item's presentation equality without
+                // reading its live title, agent state, or hover state.
+                let item = SidebarTabRowItem(
                     tab: row.tab,
                     tmuxBadge: TmuxTabBadgeResolver.badge(for: row.tab, gatewayOwnerIDs: gatewayOwnerIDs),
                     attentionBadgesEnabled: attentionBadgesEnabled,
@@ -1385,6 +1433,20 @@ struct VerticalTabSidebar: View {
                     onHoverChange: onTabHover.map { hover in { hover(row.tab.id, $0) } },
                     previewAnchors: previewAnchors
                 )
+                SidebarContextMenuRow(identity: menuRowIdentity(for: row, presentation: item)) {
+                    item
+                } menu: {
+                    // Reconciling tmux rows retain Connection Info and Close;
+                    // the shared menu items gate their own window actions.
+                    switch row.kind {
+                    case .windowRow:
+                        windowRowMenu(for: row.tab)
+                    case .hiddenWindowRow:
+                        hiddenWindowRowMenu(for: row.tab)
+                    default:
+                        flatRowMenu(for: row.tab)
+                    }
+                }
                 .equatable()
                 .opacity(row.isHiddenKind ? 0.55 : 1)
                 .onTapGesture {
@@ -1399,29 +1461,6 @@ struct VerticalTabSidebar: View {
                     // sidebar space to drive arrow-key navigation instead.
                     if staysOpenOnSelect && !isDocked {
                         requestSearchFocus()
-                    }
-                }
-                // Deliberately attached HERE, outside `.equatable()`, rather
-                // than inside SidebarTabRowItem. SwiftUI rebuilds a menu's
-                // content closure whenever the view it is attached to is
-                // re-evaluated, and the row item is invalidated by `tab.title`
-                // at agent-spinner rate — so moving the menu inside would keep
-                // rebuilding it under the user's finger. Out here it is rebuilt
-                // once per parent-body render, and the parent no longer
-                // observes any tab's title or agent state.
-                //
-                // tmux-specific items self-gate on tmuxWindowId /
-                // awaitingTmuxReconcile inside TmuxTabMenuItems, so a
-                // reconciling window row still gets Connection Info and
-                // Close. (id=tmux-hidden-windows)
-                .contextMenu {
-                    switch row.kind {
-                    case .windowRow:
-                        windowRowMenu(for: row.tab)
-                    case .hiddenWindowRow:
-                        hiddenWindowRowMenu(for: row.tab)
-                    default:
-                        flatRowMenu(for: row.tab)
                     }
                 }
             }
@@ -2338,12 +2377,12 @@ struct VerticalTabSidebar: View {
             indentLevel: row.indentLevel,
             metrics: metrics,
             accentTint: accentTint,
+            isDocked: isDocked,
+            staysOpenOnSelect: staysOpenOnSelect,
             onToggleCollapse: { toggleGatewayCollapse(ownerID) },
             onNewWindow: { onNewTmuxWindow(row.tab) },
             onShowDashboard: {
-                if let controller {
-                    dashboardRequest = TmuxDashboardRequest(controller: controller)
-                }
+                showTmuxSessionsLocally(row.tab)
             },
             onClose: { onCloseTab(row.tab.id) },
             onTap: {
@@ -2951,22 +2990,66 @@ private struct SidebarContainerDropDelegate: DropDelegate {
     }
 }
 
+// MARK: - Sidebar Context Menu Isolation
+
+/// The menu modifier belongs to an equatable owner, not to the frequently
+/// updating row label or directly to VerticalTabSidebar.rowView. Parent
+/// renders with unchanged presentation/routing inputs leave this body alone.
+/// `content` is a view value: its body (and its Observation reads) still runs
+/// in its own child scope, so live titles and hover effects keep updating.
+private struct SidebarContextMenuRow<Identity: Equatable, RowContent: View, MenuContent: View>: View, Equatable {
+    let identity: Identity
+    let content: RowContent
+    let menu: () -> MenuContent
+
+    init(
+        identity: Identity,
+        @ViewBuilder content: () -> RowContent,
+        @ViewBuilder menu: @escaping () -> MenuContent
+    ) {
+        self.identity = identity
+        self.content = content()
+        self.menu = menu
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.identity == rhs.identity
+    }
+
+    var body: some View {
+        content.contextMenu {
+            SidebarContextMenuContents(build: menu)
+        }
+    }
+}
+
+/// Evaluate availability in a separate body, rather than eagerly building
+/// the menu while evaluating its owner. Keep this view non-equatable and
+/// retain the builder: model reads stay live and each presentation can read
+/// current controller/session/window state instead of an initial snapshot.
+private struct SidebarContextMenuContents<Content: View>: View {
+    @ViewBuilder let build: () -> Content
+
+    var body: some View {
+        build()
+    }
+}
+
 // MARK: - Sidebar Tab Row
 //
 // One `SidebarTabRowItem` is rendered per tab inside the sidebar's `ForEach`.
 // Per-tab reads on the `@Observable TabModel` (`title`, `activeRoamProtocol`,
 // `agentRow`, `attentionBadge`) happen HERE, so SwiftUI scopes their
-// Observation to this single instance. A title or agent-state update on tab N
-// invalidates only `SidebarTabRowItem(tab: N).body` — its siblings and, more
-// importantly, `VerticalTabSidebar.body` itself stay stable.
+// Observation to this single instance. These display reads do not invalidate
+// siblings or the menu owner. Grouping and attention sorting can separately
+// invalidate VerticalTabSidebar, which is why the menu also needs an outer
+// equality boundary.
 //
-// That parent stability is the whole point: the row's `.contextMenu` is
-// attached in the parent's `rowView`, so a parent render recreates the menu's
-// content closure. Agent TUIs animate a braille spinner in their OSC 0/2
-// title, which used to re-evaluate the entire sidebar body several times a
-// second and rebuild every menu underneath a presented one — the context menu
-// visibly pulsed in step with the agent. Mirrors `TabBarItem` in TabBar.swift,
-// which fixed the same problem for the top tab bar.
+// SidebarContextMenuRow adds a second boundary around this live label:
+// unrelated sidebar renders are equality-gated there, and title/agent/hover
+// updates stay here below the menu modifier. Putting `.contextMenu` inside
+// this body would bring spinner-rate menu rebuilds back; putting it outside
+// the equatable owner would let parent renders rebuild it again.
 private struct SidebarTabRowItem: View, Equatable {
     let tab: TabModel
     /// Resolved tmux gateway/window badge, precomputed at parent scope from the
@@ -3018,6 +3101,8 @@ private struct SidebarTabRowItem: View, Equatable {
             && lhs.shortcutHint == rhs.shortcutHint
             && lhs.metrics == rhs.metrics
             && lhs.accentTint == rhs.accentTint
+            && lhs.previewAnchors === rhs.previewAnchors
+            && (lhs.onHoverChange != nil) == (rhs.onHoverChange != nil)
     }
 
     var body: some View {
@@ -3152,8 +3237,7 @@ private struct SidebarAgentSummaryBar: View {
 /// The tmux gateway group header. Same isolation contract as
 /// `SidebarTabRowItem`: `tab.title`, `tab.tmuxSessionName` and
 /// `tab.isHiddenTmuxWindow` are read HERE so a tmux session rename or gateway
-/// title change re-renders this row alone instead of the whole sidebar (which
-/// would rebuild every row's context menu, including a presented one).
+/// title change re-renders this row alone, below its stable menu owner.
 private struct SidebarGatewayHeaderItem: View, Equatable {
     let tab: TabModel
     /// Precomputed from the shared per-render gateway ordering — see the note
@@ -3171,6 +3255,10 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
     let indentLevel: Int
     let metrics: SidebarMetrics
     let accentTint: Color
+    /// Included in equality because the tap callback's focus routing captures
+    /// these values, even when the header's appearance is otherwise identical.
+    let isDocked: Bool
+    let staysOpenOnSelect: Bool
     let onToggleCollapse: () -> Void
     let onNewWindow: () -> Void
     let onShowDashboard: () -> Void
@@ -3197,6 +3285,10 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
             && lhs.indentLevel == rhs.indentLevel
             && lhs.metrics == rhs.metrics
             && lhs.accentTint == rhs.accentTint
+            && lhs.isDocked == rhs.isDocked
+            && lhs.staysOpenOnSelect == rhs.staysOpenOnSelect
+            && lhs.previewAnchors === rhs.previewAnchors
+            && (lhs.onHoverChange != nil) == (rhs.onHoverChange != nil)
     }
 
     var body: some View {
