@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/curl_ios-rootshell.git",
       "state" : {
-        "revision" : "2c864074bf7daa53dd920e99ecbf647279884a90",
-        "version" : "0.2.0"
+        "revision" : "be242207461c50e427933f289b0c3f4b6f95f0e1",
+        "version" : "0.2.1"
       }
     },
     {
