@@ -67,6 +67,33 @@ nonisolated enum MuxZmxDetachTransfer {
     }
 }
 
+/// zmx-only first-tick shortcuts. zmx tabs are 1:1 with its sessions, so a
+/// known session name is also the id of the one pane it is safe to request
+/// before topology arrives; tmux/zellij/herdr pane ids are not addressable
+/// that way, so both helpers below are no-ops for them.
+nonisolated enum MuxZmxBootstrap {
+    /// Only ever applies to the first, topology-less tick of a zmx session.
+    static func seededFetch(
+        normallyComputed fetch: [String],
+        snapshot: MuxExposeSnapshot?,
+        type: MultiplexerType?,
+        sessionName: String?
+    ) -> [String] {
+        guard fetch.isEmpty, snapshot == nil, type == .zmx, let sessionName else { return fetch }
+        return [sessionName]
+    }
+
+    /// Everything but zmx always forces the tick after the first, unchanged.
+    /// zmx forces it only while a previewable pane still lacks a frame.
+    static func needsImmediateFollowUp(
+        type: MultiplexerType?,
+        snapshot: MuxExposeSnapshot,
+        frames: [String: MuxPaneFrame]
+    ) -> Bool {
+        type != .zmx || snapshot.allPanes.contains { $0.isPreviewable && frames[$0.id] == nil }
+    }
+}
+
 nonisolated protocol MultiplexerExposeAdapter: Sendable {
     var type: MultiplexerType { get }
 
