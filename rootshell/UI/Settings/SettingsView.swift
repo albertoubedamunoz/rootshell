@@ -182,21 +182,19 @@ struct SettingsFloatingSearchChrome: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .padding(.horizontal, chromeHorizontalPadding)
                         .padding(.bottom, 12)
+                        .ignoresSafeArea(.container, edges: .bottom)
                 } else {
+                    // Let layout use the pill's intrinsic height immediately.
+                    // Positioning from its preference measurement required a
+                    // second pass and made the bar jump during presentation.
                     collapsedPill
                         .frame(width: collapsedPillWidth(for: proxy.size.width))
-                        .position(
-                            x: proxy.size.width / 2,
-                            y: collapsedPillCenterY(
-                                containerHeight: proxy.size.height,
-                                bottomSafeArea: proxy.safeAreaInsets.bottom
-                            )
-                        )
+                        .padding(.bottom, collapsedPillBottomInset(for: proxy.safeAreaInsets.bottom))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .ignoresSafeArea(.container, edges: .bottom)
             .animation(.spring(response: 0.34, dampingFraction: 0.9), value: isPresented)
             .onAppear {
                 updateReservedHeight(bottomSafeArea: proxy.safeAreaInsets.bottom)
@@ -204,10 +202,16 @@ struct SettingsFloatingSearchChrome: View {
             .onChange(of: collapsedPillHeight) { _, _ in
                 updateReservedHeight(bottomSafeArea: proxy.safeAreaInsets.bottom)
             }
+            .onChange(of: proxy.safeAreaInsets.bottom) { _, bottomSafeArea in
+                updateReservedHeight(bottomSafeArea: bottomSafeArea)
+            }
             .onChange(of: isPresented) { _, _ in
                 updateReservedHeight(bottomSafeArea: proxy.safeAreaInsets.bottom)
             }
         }
+        // Terminal keyboard dismissal must not move the collapsed bar. Once
+        // search opens, its panel follows the search field's keyboard normally.
+        .ignoresSafeArea(isPresented ? [] : .keyboard, edges: .bottom)
         .onChange(of: isPresented) { _, newValue in
             if newValue {
                 DispatchQueue.main.async {
@@ -256,6 +260,7 @@ struct SettingsFloatingSearchChrome: View {
             }
         }
         .onPreferenceChange(SettingsFloatingSearchBarHeightPreferenceKey.self) { height in
+            guard height > 0 else { return }
             collapsedPillHeight = height
         }
     }
@@ -378,14 +383,9 @@ struct SettingsFloatingSearchChrome: View {
         #endif
     }
 
-    private func collapsedPillCenterY(containerHeight: CGFloat, bottomSafeArea: CGFloat) -> CGFloat {
-        let pillHeight = max(collapsedPillHeight, 1)
-        let centerY = containerHeight - collapsedPillBottomInset(for: bottomSafeArea) - (pillHeight / 2)
-        return min(max(pillHeight / 2, centerY), containerHeight - (pillHeight / 2))
-    }
-
     private func updateReservedHeight(bottomSafeArea: CGFloat) {
-        guard !isPresented else { return }
+        // Measurement only reserves list clearance; it never positions the bar.
+        guard !isPresented, collapsedPillHeight > 0 else { return }
         let height = collapsedPillHeight + max(8, collapsedPillBottomInset(for: bottomSafeArea))
         if abs(reservedHeight - height) > 0.5 {
             reservedHeight = height
