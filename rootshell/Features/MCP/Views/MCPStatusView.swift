@@ -142,16 +142,19 @@ struct MCPStatusDetailView: View {
 
                 Spacer()
 
+                #if !CHINA_BUILD
                 Button("Settings") {
                     showSettings = true
                 }
                 .buttonStyle(.bordered)
+                #endif
             }
         }
         .padding()
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(radius: 2)
+        #if !CHINA_BUILD
         .sheet(isPresented: $showSettings) {
             NavigationStack {
                 MCPSettingsView()
@@ -164,6 +167,7 @@ struct MCPStatusDetailView: View {
                     }
             }
         }
+        #endif
     }
 }
 

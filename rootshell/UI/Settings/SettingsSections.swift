@@ -1095,7 +1095,6 @@ struct SettingsAISection: View {
                     }
                 }
                 .themedRow()
-                #endif
 
                 NavigationLink(value: SettingsSearchDestination.mcpServer) {
                     HStack(spacing: 12) {
@@ -1121,6 +1120,7 @@ struct SettingsAISection: View {
                 }
                 .themedRow()
                 .settingContextMenu(Settings.AI.mcpServerConfig)
+                #endif
             } footer: {
                 Text("AI providers and tool integration for external AI assistants")
                     .font(.caption)

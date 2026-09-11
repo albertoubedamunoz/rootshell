@@ -1,3 +1,4 @@
+#if !CHINA_BUILD
 //
 //  MCPSettingsView.swift
 //  rootshell
@@ -265,3 +266,4 @@ private struct MCPSessionRow: View {
         MCPSettingsView()
     }
 }
+#endif // !CHINA_BUILD
