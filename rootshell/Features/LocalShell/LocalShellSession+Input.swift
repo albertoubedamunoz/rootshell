@@ -592,6 +592,12 @@ extension LocalShellSession {
             return
         }
 
+        // Route user-defined shell functions to interpreter (invisible to ios_system)
+        if sharedShellEnvironment.getFunction(firstWord) != nil {
+            executeInteractiveScript(trimmedCommand)
+            return
+        }
+
         // Update tab title to show running command (truncate to 30 chars)
         let truncatedCommand = String(command.prefix(30))
         onTitleChange?(truncatedCommand)
