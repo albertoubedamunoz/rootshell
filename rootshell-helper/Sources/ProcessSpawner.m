@@ -13,6 +13,9 @@
 #import <pwd.h>
 #import <signal.h>
 #import <unistd.h>
+#import <libproc.h>
+#import <sys/sysctl.h>
+#import <sys/un.h>
 
 static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
 
@@ -100,6 +103,15 @@ static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
         // Use /usr/bin/login to get proper login shell behavior
         // This matches macOS Ghostty and ensures proper session/foreground setup
         args = [self buildLoginCommandWithUsername:username shell:shell];
+        if (config.recoveryCommand.length > 0) {
+            NSMutableArray *recoveryArgs = [args mutableCopy];
+            // login establishes the controlling terminal before this wrapper.
+            // Keep the shell integration environment for the eventual shell,
+            // but let the attachment command use its own scoped environment.
+            recoveryArgs[recoveryArgs.count - 1] = [NSString stringWithFormat:
+                @"%@\n%@", config.recoveryCommand, args.lastObject];
+            args = recoveryArgs;
+        }
         NSLog(@"Launching via /usr/bin/login: %@", shell);
     }
 
@@ -504,6 +516,97 @@ static NSString * const RootShellFallbackShell = @"/bin/zsh -f";
 }
 
 #pragma mark - Helper Methods
+
++ (NSArray<NSDictionary<NSString *, id> *> *)localMultiplexerProcesses:(NSArray<NSString *> *)namespaceKeys {
+    int bytes = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
+    if (bytes <= 0) return @[];
+    NSMutableData *pids = [NSMutableData dataWithLength:(NSUInteger)bytes + 4096];
+    bytes = proc_listpids(PROC_ALL_PIDS, 0, pids.mutableBytes, (int)pids.length);
+    NSMutableArray *result = [NSMutableArray array];
+    NSSet *kinds = [NSSet setWithArray:@[@"tmux", @"zellij", @"herdr", @"zmx"]];
+    NSSet *allowed = [NSSet setWithArray:namespaceKeys];
+    for (int index = 0; index < bytes / sizeof(pid_t); index++) {
+        pid_t pid = ((pid_t *)pids.bytes)[index];
+        struct proc_bsdinfo info = {0};
+        if (pid <= 0 || proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, sizeof(info)) != sizeof(info)) continue;
+        // login retains a privileged parent above the user's shell. Keep its
+        // ancestry/TTY record even when we cannot inspect its executable.
+        NSMutableDictionary *record = [@{
+            @"pid": @(pid), @"ppid": @(info.pbi_ppid), @"pgid": @(info.pbi_pgid),
+            @"tty": @(info.e_tdev), @"foreground": @(info.e_tpgid),
+            @"startedAt": @(info.pbi_start_tvsec * 1000000 + info.pbi_start_tvusec)
+        } mutableCopy];
+        // Ownership gates executable, environment, and socket inspection,
+        // independently of the ancestry records needed to find local clients.
+        NSString *executable = nil;
+        if (info.pbi_uid == getuid()) {
+            char path[PROC_PIDPATHINFO_MAXSIZE] = {0};
+            if (proc_pidpath(pid, path, sizeof(path)) > 0) {
+                executable = [NSString stringWithUTF8String:path];
+                if (executable) record[@"executable"] = executable;
+            }
+        }
+        if (executable && [kinds containsObject:executable.lastPathComponent]) {
+            // KERN_PROCARGS2 preserves argument boundaries (ps does not).
+            int mib[] = {CTL_KERN, KERN_PROCARGS2, pid};
+            size_t length = 1024 * 1024;
+            NSMutableData *buffer = [NSMutableData dataWithLength:length];
+            NSMutableDictionary *environment = [NSMutableDictionary dictionary];
+            if (sysctl(mib, 3, buffer.mutableBytes, &length, NULL, 0) == 0 && length > sizeof(int)) {
+                const char *cursor = buffer.bytes, *end = cursor + length;
+                int argc = 0; memcpy(&argc, cursor, sizeof(argc)); cursor += sizeof(argc);
+                size_t count = strnlen(cursor, end - cursor); cursor += count;
+                while (cursor < end && *cursor == '\0') cursor++;
+                for (int arg = 0; arg < argc && cursor < end; arg++) {
+                    count = strnlen(cursor, end - cursor);
+                    if (cursor + count >= end) break;
+                    cursor += count + 1;
+                }
+                while (cursor < end) {
+                    count = strnlen(cursor, end - cursor);
+                    if (cursor + count >= end) break;
+                    NSString *value = [[NSString alloc] initWithBytes:cursor length:count encoding:NSUTF8StringEncoding];
+                    NSRange equals = [value rangeOfString:@"="];
+                    if (value && equals.location != NSNotFound) {
+                        NSString *key = [value substringToIndex:equals.location];
+                        if ([allowed containsObject:key]) environment[key] = [value substringFromIndex:equals.location + 1];
+                    }
+                    cursor += count + 1;
+                }
+            }
+            record[@"environment"] = environment;
+            NSMutableSet *sockets = [NSMutableSet set];
+            NSMutableSet *listeners = [NSMutableSet set];
+            int fdBytes = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, NULL, 0);
+            if (fdBytes > 0 && fdBytes < 16 * 1024 * 1024) {
+                NSMutableData *fds = [NSMutableData dataWithLength:fdBytes + 1024];
+                fdBytes = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, fds.mutableBytes, (int)fds.length);
+                for (int fdIndex = 0; fdIndex < fdBytes / sizeof(struct proc_fdinfo); fdIndex++) {
+                    struct proc_fdinfo fd = ((struct proc_fdinfo *)fds.bytes)[fdIndex];
+                    if (fd.proc_fdtype != PROX_FDTYPE_SOCKET) continue;
+                    struct socket_fdinfo socket = {0};
+                    if (proc_pidfdinfo(pid, fd.proc_fd, PROC_PIDFDSOCKETINFO, &socket, sizeof(socket)) != sizeof(socket)
+                        || socket.psi.soi_kind != SOCKINFO_UN) continue;
+                    struct un_sockinfo un = socket.psi.soi_proto.pri_un;
+                    const char *paths[] = {un.unsi_addr.ua_sun.sun_path, un.unsi_caddr.ua_sun.sun_path};
+                    for (int p = 0; p < 2; p++) {
+                        size_t n = strnlen(paths[p], sizeof(un.unsi_addr.ua_sun.sun_path));
+                        if (n == 0 || paths[p][0] != '/' || n == sizeof(un.unsi_addr.ua_sun.sun_path)) continue;
+                        NSString *name = [[NSString alloc] initWithBytes:paths[p] length:n encoding:NSUTF8StringEncoding];
+                        if (name) {
+                            if (p == 1) [sockets addObject:name];
+                            if (p == 0 && (socket.psi.soi_options & SO_ACCEPTCONN)) [listeners addObject:name];
+                        }
+                    }
+                }
+            }
+            record[@"sockets"] = sockets.allObjects;
+            record[@"listeners"] = listeners.allObjects;
+        }
+        [result addObject:record];
+    }
+    return result;
+}
 
 + (char **)convertToCStringArray:(NSArray<NSString *> *)strings {
     if (!strings) return NULL;

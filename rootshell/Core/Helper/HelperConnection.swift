@@ -18,10 +18,14 @@ import os
 public struct ShellCreateResult {
     public let sessionID: UUID
     public let socketPath: String
+    public let recoverySupported: Bool
+    public let recoveryAccepted: Bool
 
-    public init(sessionID: UUID, socketPath: String) {
+    public init(sessionID: UUID, socketPath: String, recoverySupported: Bool = false, recoveryAccepted: Bool = false) {
         self.sessionID = sessionID
         self.socketPath = socketPath
+        self.recoverySupported = recoverySupported
+        self.recoveryAccepted = recoveryAccepted
     }
 }
 
@@ -113,6 +117,7 @@ public class HelperConnection {
         shell: String? = nil,
         enableShellIntegration: Bool = true,
         paneToken: String? = nil,
+        recoveryAttachment: LocalMultiplexerAttachment? = nil,
         completion: @escaping (Result<ShellCreateResult, Error>) -> Void
     ) {
         Task {
@@ -126,7 +131,7 @@ public class HelperConnection {
                 let sshAuthSock: String? = nil
                 #endif
 
-                let (sessionID, socketPath) = try await socketConnection.createShell(
+                let response = try await socketConnection.createShell(
                     rows: rows,
                     cols: cols,
                     cwd: workingDirectory,
@@ -134,15 +139,21 @@ public class HelperConnection {
                     resourcesDir: resourcesDir,
                     enableShellIntegration: enableShellIntegration,
                     sshAuthSock: sshAuthSock,
-                    paneToken: paneToken
+                    paneToken: paneToken,
+                    recoveryAttachment: recoveryAttachment
                 )
 
-                let result = ShellCreateResult(sessionID: sessionID, socketPath: socketPath)
+                let result = ShellCreateResult(sessionID: response.sessionID, socketPath: response.socketPath,
+                    recoverySupported: response.recoverySupported ?? false, recoveryAccepted: response.recoveryAccepted ?? false)
                 completion(.success(result))
             } catch {
                 completion(.failure(error))
             }
         }
+    }
+
+    func inspectLocalMultiplexers() async throws -> [String: LocalMultiplexerAttachment?] {
+        try await socketConnection.inspectLocalMultiplexers()
     }
 
     /// Resizes a shell session
