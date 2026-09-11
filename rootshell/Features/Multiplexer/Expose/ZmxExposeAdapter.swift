@@ -58,8 +58,13 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
     /// Several clients on one session is a supported setup, and declining the
     /// switch left a pane on a shared session unable to move at all. What zmx
     /// will not do is pick the pane that asked: it sends the switch to the
-    /// session's leader client. So the caller takes leadership first, by
-    /// resize when no client holds it and by `leadershipClaim` when one does.
+    /// session's leader client. A vacant leadership is taken by resize, which
+    /// costs the running program nothing. One another client already holds is
+    /// left alone: the only way to move it is to write bytes into the pty, and
+    /// no byte sequence is inert for every program. The switch then lands on
+    /// that other client instead, which the client-count deltas cannot tell
+    /// apart from success (neurosnap/zmx#260 asks for a switch addressed to
+    /// one client, which would settle both halves of this).
     func focusScript(session: String?, tabID: String) -> String {
         guard let session, !session.isEmpty, session != tabID else {
             return MuxScript.wrap("true", nonce: Self.focusNonce)
@@ -81,25 +86,6 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         body += "; echo \(MuxScript.dq(Self.focusAfterMarker)); \(Self.prefix)zmx list 2>/dev/null"
         return MuxScript.wrap(body, nonce: Self.focusNonce)
     }
-
-    /// A kitty-protocol tap of the left Shift key: press, then release.
-    ///
-    /// zmx switches whichever client is the session's leader, and transfers
-    /// leadership on user input and nothing else. A resize only fills a
-    /// vacancy, so leadership already held stays held however long this pane
-    /// sits idle. Input is the only way to ask zmx to move this pane, and it
-    /// reaches the running program whether or not it wins leadership, so the
-    /// sequence has to be one the program can receive without acting on it.
-    ///
-    /// A bare modifier is the closest thing to that. Programs speaking the
-    /// kitty protocol read what tapping Shift on a real keyboard sends, which
-    /// is why the release is included: a press on its own would leave them
-    /// believing Shift is held down. Programs that do not speak it see one
-    /// unrecognized CSI ending in `u` and discard it, the same way they
-    /// discard a stray device-status reply. Neither is true of every program,
-    /// so this is sent only when it decides whether the tapped tab moves or
-    /// some other terminal does.
-    static let leadershipClaim = Data("\u{1B}[57441;2:1u\u{1B}[57441;1:3u".utf8)
 
     /// Makes this pane's client the session's leader when no client is.
     ///
