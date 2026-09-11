@@ -257,6 +257,22 @@ class SocketCommandServer {
             return handleResizeShell(request)
         case .killShell:
             return handleKillShell(request)
+        case .inspectLocalMultiplexers:
+            let records = LocalMultiplexerRecovery.processes()
+            let cache = LocalMultiplexerRecovery.ProbeCache()
+            let deadline = Date().addingTimeInterval(6)
+            var attachments: [String: LocalMultiplexerAttachment?] = [:]
+            // A single process census serves all this app's local PTYs.
+            for id in SessionManager.shared.listSessions() {
+                guard let session = SessionManager.shared.getSession(id), session.clientPID == clientPID else { continue }
+                guard Date() < deadline, !records.isEmpty else { continue }
+                let attachment = LocalMultiplexerRecovery.inspect(
+                    shellPID: session.pid, pty: session.pty, records: records, deadline: deadline, cache: cache)
+                // Missing key means unobserved (deadline/failed census); an
+                // explicit null means this PTY has no verified attachment.
+                if Date() < deadline { attachments.updateValue(attachment, forKey: id.uuidString) }
+            }
+            return SocketResponse(success: true, payload: try? JSONEncoder().encode(attachments))
         case .ping:
             return SocketResponse(success: true)
         case .executeCommand:
@@ -314,6 +330,20 @@ class SocketCommandServer {
                 resourcesDir: createRequest.resourcesDir
             )
 
+            let recoveryAccepted = createRequest.recoveryAttachment.map(LocalMultiplexerRecovery.isAvailable) ?? false
+            if let attachment = createRequest.recoveryAttachment, recoveryAccepted {
+                spawnConfig.recoveryCommand = attachment.attachCommand
+                    + " || /usr/bin/printf '%s\\n' 'Could not restore the multiplexer session; returned to shell.'"
+            }
+            if createRequest.recoveryAttachment != nil {
+                // A deleted old CWD must not prevent the recovery/fallback PTY.
+                var isDirectory: ObjCBool = false
+                if let cwd = spawnConfig.workingDirectory,
+                   !FileManager.default.fileExists(atPath: cwd, isDirectory: &isDirectory) || !isDirectory.boolValue {
+                    spawnConfig.workingDirectory = nil
+                }
+            }
+
             // Spawn shell process (creates PTY internally)
             let spawnResult = try ProcessSpawner.spawnShell(with: spawnConfig)
             let pid = spawnResult.pid
@@ -325,7 +355,8 @@ class SocketCommandServer {
             // Send response immediately with socket path
             // Catalyst app will create a server socket and wait for us to connect
             NSLog("Sending response to client with socket path: \(socketPath)")
-            let response = CreateShellResponse(sessionID: sessionID, socketPath: socketPath)
+            let response = CreateShellResponse(sessionID: sessionID, socketPath: socketPath,
+                recoverySupported: true, recoveryAccepted: recoveryAccepted)
             let responseData = try JSONEncoder().encode(response)
 
             // Send the PTY FD to the Catalyst app asynchronously

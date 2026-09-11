@@ -670,6 +670,23 @@ final class WindowStateManager {
         return AppWindowState(windows: windows)
     }
 
+    /// Projected tabs can restore before their gateway's scene is created.
+    /// Only unclaimed windows count; a live gateway that failed recovery must
+    /// not remain eligible because it appeared in the original launch snapshot.
+    var pendingTmuxGatewayUUIDs: Set<UUID> {
+        guard let state = unrestoredPendingState() else { return [] }
+        return Set(state.windows.flatMap(\.tabs).flatMap { $0.splitTree.allLeaves }.compactMap { leaf in
+            let type = leaf.connectionConfig.type
+            if (type == .trzsz || type == .shellLaunchedTrzsz), leaf.wasTmuxGateway == true {
+                return leaf.terminalId
+            }
+            #if targetEnvironment(macCatalyst)
+            if type == .local, leaf.localMultiplexerAttachment?.controlMode == true { return leaf.terminalId }
+            #endif
+            return nil
+        })
+    }
+
     /// Whether any REGULAR (non-visor) saved window is still awaiting restoration.
     /// Distinct from `hasPendingRestoration`, which also counts the visor entry —
     /// the visor is claimed only when summoned (and never on App Store builds), so

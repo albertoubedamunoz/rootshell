@@ -4028,6 +4028,13 @@ extension Ghostty.TerminalView {
             TmuxDebugLogger.shared.marker("CONTROL MODE END gw=\(uuid.uuidString.prefix(8))")
         }
 
+        #if targetEnvironment(macCatalyst)
+        if createdController || controller.didEnd {
+            if controller.didEnd { localMultiplexerAttachment = nil }
+            LocalMultiplexerTracker.shared.refresh()
+        }
+        #endif
+
         // A fresh controller (initial attach OR a resume rebuild) starts with an
         // empty per-window size map, and the resync re-sends only the stale
         // gateway-grid global size (stream_handler re-inits the viewer from the
@@ -4240,6 +4247,12 @@ extension Ghostty.TerminalView {
     /// gateway and drops every still-awaiting projected window.
     @MainActor
     func cancelTmuxRestoreRecovery() {
+        #if targetEnvironment(macCatalyst)
+        if isRestoringLocalTmux {
+            cancelLocalMultiplexerRecovery()
+            return
+        }
+        #endif
         tmuxResumeCancelRequested = true
         if tmuxResumeRequested, let surface {
             TmuxDebugLogger.shared.event("RESUME", "cancelled by user gw=\(uuid.uuidString.prefix(8))")

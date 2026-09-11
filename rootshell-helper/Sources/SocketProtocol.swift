@@ -13,6 +13,7 @@ enum SocketCommand: String, Codable {
     case killShell
     case ping
     case executeCommand
+    case inspectLocalMultiplexers
 }
 
 // MARK: - Request/Response Messages
@@ -62,11 +63,14 @@ struct CreateShellRequest: Codable {
     /// Stable TerminalView UUID exported as LC_ROOTSHELL_PANE. Optional for
     /// compatibility with older app builds.
     let paneToken: String?
+    var recoveryAttachment: LocalMultiplexerAttachment? = nil
 }
 
 struct CreateShellResponse: Codable {
     let sessionID: UUID
     let socketPath: String
+    var recoverySupported: Bool? = nil
+    var recoveryAccepted: Bool? = nil
 }
 
 struct ResizeShellRequest: Codable {

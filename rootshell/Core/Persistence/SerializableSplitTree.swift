@@ -62,6 +62,8 @@ nonisolated struct SerializableSplitTree: Codable, Equatable, Sendable {
             /// the gateway still enters tmux-resume handling, then aborts
             /// immediately so raw control-mode output is not exposed.
             let tmuxResumeCancelRequested: Bool?
+
+            @LossyLocalMultiplexerAttachment var localMultiplexerAttachment: LocalMultiplexerAttachment? = nil
         }
 
         nonisolated struct SplitData: Codable, Equatable, Sendable {
@@ -212,28 +214,16 @@ extension SplitTree where ViewType == SplitPaneView {
                 sourceProfileID: view.sourceProfileID,
                 fontSizeOverride: view.fontSizeOverride,
                 trzszLastConnectedAt: trzszLastConnectedAt,
-                // A non-nil tmuxController means this leaf is the live tmux -CC
-                // control-mode gateway. Only a trzsz/tssh gateway survives an app
-                // restart (it keeps the remote pty + tmux -CC process alive across a
-                // reconnect, then re-enters control mode in maybeResumeTmuxControlMode).
-                // A local-shell or plain-SSH gateway's control stream dies with the
-                // connection, so never flag it for resume — its projected window tabs
-                // are dropped at serialize time too (see serializeWindowState).
-                //
-                // Also persist the flag for a RESTORED gateway that hasn't resumed
-                // yet (controller still nil during the reconnect window): the
-                // placeholder window tabs can be persisted during the reconnect
-                // window, so without this resume-pending state an autosave there
-                // would save placeholders WITHOUT their gateway resume flag —
-                // stranding them as "Reconnecting tmux…" tabs forever on the next
-                // launch. (id=tmux-resume-flag-symmetric)
+                // This flag remains specific to tssh's surviving control stream.
+                // Local clients use a fresh attach described separately below.
                 wasTmuxGateway: (
                     view.tmuxController != nil
                     || view.restoredWasTmuxGateway
                     || view.tmuxResumeRequested
                     || view.tmuxResumeCancelRequested
                 ) && view.connectionConfig.isTrzsz,
-                tmuxResumeCancelRequested: view.tmuxResumeCancelRequested ? true : nil
+                tmuxResumeCancelRequested: view.tmuxResumeCancelRequested ? true : nil,
+                localMultiplexerAttachment: view.localMultiplexerAttachmentForPersistence
             )
             return .leaf(leafData)
 

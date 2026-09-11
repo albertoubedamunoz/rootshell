@@ -55,6 +55,8 @@ protocol TerminalSessionControllerHost: TerminalSessionHost, TerminalResponsePip
     var terminalRestorationState: Ghostty.TerminalView.RestorationState { get set }
     var terminalRestoredTrzszLastConnectedAt: Date? { get }
     var terminalRestoredWasTmuxGateway: Bool { get }
+    var terminalLocalMultiplexerRecovery: LocalMultiplexerAttachment? { get }
+    func terminalLocalMultiplexerSessionCreated(supported: Bool, accepted: Bool)
     var terminalHasTmuxController: Bool { get }
     var terminalSurfaceAvailable: Bool { get }
     var terminalSurfaceGridSize: (rows: UInt16, cols: UInt16)? { get }
