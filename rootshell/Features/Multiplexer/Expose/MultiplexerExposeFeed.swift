@@ -1001,8 +1001,10 @@ final class MultiplexerExposeFeed {
             let word = words[index]
             if word == "--labels" {
                 index += 2
+                if Self.holdsAnotherLabel(words, at: index) { return nil }
             } else if word.hasPrefix("--labels=") {
                 index += 1
+                if Self.holdsAnotherLabel(words, at: index) { return nil }
             } else if word.hasPrefix("-") {
                 return nil
             } else {
@@ -1010,6 +1012,22 @@ final class MultiplexerExposeFeed {
             }
         }
         return nil
+    }
+
+    /// Whether the word at `index` is a second label rather than the session
+    /// name, which means the name cannot be recovered at all.
+    ///
+    /// `ps` output has already lost the shell's quoting, so the single word
+    /// `--labels "project=x env=prod"` arrives split exactly like a one-word
+    /// label followed by a session called `env=prod`. Nothing distinguishes
+    /// them. An unknown name leaves the feed to other evidence; a wrong one
+    /// binds the pane to a session that does not exist, and the feed shuts
+    /// down on a pane that is still attached.
+    private static func holdsAnotherLabel(_ words: [String], at index: Int) -> Bool {
+        guard index < words.count else { return false }
+        let word = words[index]
+        guard !word.hasPrefix("-"), let equals = word.firstIndex(of: "=") else { return false }
+        return equals != word.startIndex
     }
 
     /// The session name when the host runs exactly one; nil leaves the feed
