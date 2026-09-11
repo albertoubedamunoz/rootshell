@@ -62,9 +62,10 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
     /// costs the running program nothing. One another client already holds is
     /// left alone: the only way to move it is to write bytes into the pty, and
     /// no byte sequence is inert for every program. The switch then lands on
-    /// that other client instead, which the client-count deltas cannot tell
-    /// apart from success (neurosnap/zmx#260 asks for a switch addressed to
-    /// one client, which would settle both halves of this).
+    /// that other client instead, and `parseFocusResult` declines to confirm a
+    /// switch on a session other clients are attached to for that reason
+    /// (neurosnap/zmx#260 asks for a switch addressed to one client, which
+    /// would settle both halves of this).
     func focusScript(session: String?, tabID: String) -> String {
         guard let session, !session.isEmpty, session != tabID else {
             return MuxScript.wrap("true", nonce: Self.focusNonce)
@@ -136,11 +137,17 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         return body
     }
 
-    /// Confirms the fire-and-forget switch by comparing client counts. The
-    /// deltas cannot say which client moved, so on a session held by several
-    /// clients a switch zmx applied to a different terminal still reads as
-    /// success. Telling them apart needs a switch addressed to one client,
-    /// which zmx has no way to express.
+    /// Confirms the fire-and-forget switch by comparing client counts.
+    ///
+    /// The deltas say that a client moved, never which one, and zmx routes the
+    /// switch to whichever client leads the session. Confirmation is therefore
+    /// claimed only for a session this pane holds alone, where the client that
+    /// left can only be ours. With other clients attached, a switch zmx applied
+    /// to somebody else's terminal produces the same deltas, so this declines
+    /// rather than name the pane after a session it may never have entered; the
+    /// feed keeps the name it has until the next detect reads the real one.
+    /// Telling the two apart needs a switch addressed to one client, which zmx
+    /// has no way to express (neurosnap/zmx#260).
     func parseFocusResult(output: String, session: String?, tabID: String) -> Bool {
         guard let session, !session.isEmpty, session != tabID else {
             return true
@@ -157,7 +164,7 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         let after = ZmxDiscoveryParser.parse(output: "::SESSIONS::\n" + afterText)
 
         guard let beforeSessionClients = before.first(where: { $0.name == session })?.clientCount,
-              beforeSessionClients > 0
+              beforeSessionClients == 1
         else { return false }
         guard let afterSessionClients = after.first(where: { $0.name == session })?.clientCount,
               let beforeTargetClients = before.first(where: { $0.name == tabID })?.clientCount,
