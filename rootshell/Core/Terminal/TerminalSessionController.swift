@@ -27,6 +27,7 @@ final class TerminalSessionController {
     private let responsePipeline: TerminalResponsePipeline
     private let reconnectionController: TerminalReconnectionController
     private let historyRecorder = TerminalConnectionHistoryRecorder()
+    private var localSessionCreateGeneration: UInt64 = 0
 
     /// The active session. Settable so existing `TerminalView.session`
     /// forwarders and the transfer-receive path can still assign through the
@@ -479,6 +480,9 @@ final class TerminalSessionController {
             return
         }
 
+        localSessionCreateGeneration &+= 1
+        let generation = localSessionCreateGeneration
+        let recovery = host.terminalLocalMultiplexerRecovery
         let shell = LocalShellSettings.command
         Ghostty.logger.info("Creating Catalyst shell session: \(surfaceSize.cols)x\(surfaceSize.rows), cwd=\(workingDirectory ?? "nil"), shell=\(shell ?? "login")")
 
@@ -488,9 +492,13 @@ final class TerminalSessionController {
             workingDirectory: workingDirectory,
             shell: shell,
             enableShellIntegration: true,
-            paneToken: host.terminalUUID.uuidString
+            paneToken: host.terminalUUID.uuidString,
+            recoveryAttachment: recovery
         ) { [weak self] result in
-            guard let self, let host = self.host else { return }
+            guard let self, let host = self.host, self.localSessionCreateGeneration == generation else {
+                if case .success(let session) = result { session.stop() }
+                return
+            }
 
             switch result {
             case .success(let session):
@@ -499,6 +507,8 @@ final class TerminalSessionController {
                 self.pty = session.pty
                 host.terminalNotifySessionDidChange()
                 self.adopt(session, pty: session.pty)
+                host.terminalLocalMultiplexerSessionCreated(
+                    supported: session.recoverySupported, accepted: session.recoveryAccepted)
                 session.startMonitoring()
                 self.responsePipeline.start(for: session)
                 // Taken now so a later restore/reconnect never re-runs it.
@@ -526,6 +536,7 @@ final class TerminalSessionController {
                 }
 
             case .failure(let error):
+                if recovery != nil { host.terminalLocalMultiplexerSessionCreated(supported: false, accepted: false) }
                 Ghostty.logger.error("Failed to create Catalyst session: \(error)")
                 Task { @MainActor in
                     self.host?.terminalSetError(error)
@@ -1085,6 +1096,7 @@ final class TerminalSessionController {
     /// close: `.sceneTeardown` keeps the server-side session alive so resume
     /// can pick it back up; `.userClose`/`.transferOut` terminate it.
     func teardown(reason: Ghostty.TerminalView.CleanupReason) {
+        localSessionCreateGeneration &+= 1
         responsePipeline.cancel()
         historyRecorder.cancel()
 

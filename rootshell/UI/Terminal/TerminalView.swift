@@ -666,6 +666,14 @@ extension Ghostty {
         /// `maybeResumeTmuxControlMode`.
         var restoredWasTmuxGateway: Bool = false
 
+        var localMultiplexerTrackingRevision: UInt64 = 0
+        var localMultiplexerAttachment: LocalMultiplexerAttachment?
+        var restoredLocalMultiplexerAttachment: LocalMultiplexerAttachment?
+        // Remains set for this fresh PTY so late layout callbacks cannot replay
+        // stale multiplexer ANSI after the new client has already attached.
+        var skipLocalMultiplexerScrollback = false
+        var localMultiplexerRecoveryTask: Task<Void, Never>?
+
         /// True once `ghostty_surface_tmux_resume` has been fired for this
         /// restored gateway, so the resume + watchdog are armed at most once.
         var tmuxResumeRequested: Bool = false
@@ -1404,7 +1412,7 @@ extension Ghostty {
                     if let controller = self.tmuxController {
                         controller.resetForDiscard(outputLines: 0, outputBytes: droppedBytes)
                     } else if self.isTmuxGatewaySurfaceActive
-                                || self.restoredWasTmuxGateway
+                                || self.restoredWasTmuxGateway || self.isRestoringLocalTmux
                                 || self.tmuxResumeRequested {
                         // Live or resuming -CC gateway whose first reconcile
                         // hasn't created the controller yet; stash so the
@@ -1547,6 +1555,8 @@ extension Ghostty {
             activeUploader = nil
             outputMonitorTask?.cancel()
             outputMonitorTask = nil
+            localMultiplexerRecoveryTask?.cancel()
+            localMultiplexerRecoveryTask = nil
             transferAttachTask?.cancel()
             transferAttachTask = nil
             tmuxResumeGateReleaseTask?.cancel()
@@ -4656,6 +4666,13 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func handleCommandFinished(exitCode: Int?, duration: TimeInterval) {
+        #if targetEnvironment(macCatalyst)
+        if session is CatalystLocalShellSession, restoredLocalMultiplexerAttachment == nil {
+            localMultiplexerTrackingRevision &+= 1
+            localMultiplexerAttachment = nil
+            LocalMultiplexerTracker.shared.refresh()
+        }
+        #endif
         // OSC 133 shell integration: exit code + wall time for the agent
         // inbox (failed/done rows, agent-exit identity clearing).
         AgentAttentionCenter.shared.commandFinished(

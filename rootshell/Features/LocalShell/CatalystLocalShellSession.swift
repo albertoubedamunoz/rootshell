@@ -20,7 +20,7 @@ public class CatalystLocalShellSession: TerminalSession {
     private static let logFrequentLayout = ProcessInfo.processInfo.environment["GHOSTTY_LOG_FREQUENT_LAYOUT"] == "1"
     private static let resizeThrottleNs: UInt64 = 50_000_000  // 50ms
 
-    private let sessionID: UUID
+    let sessionID: UUID
     private let masterFD: Int32
     private let connectionStartedAt = Date()
     private let requestedShell: String?
@@ -33,6 +33,8 @@ public class CatalystLocalShellSession: TerminalSession {
     // TerminalSession protocol requirements
     public let pty: TerminalPTY
     public var isRunning = true
+    var recoverySupported = false
+    var recoveryAccepted = false
 
     // Callback-based output pattern (matches SSHSession)
     // NOTE: These callbacks may be called from a background thread (PTY read queue).
@@ -73,6 +75,7 @@ public class CatalystLocalShellSession: TerminalSession {
         shell: String? = nil,
         enableShellIntegration: Bool = true,
         paneToken: String? = nil,
+        recoveryAttachment: LocalMultiplexerAttachment? = nil,
         completion: @escaping (Result<CatalystLocalShellSession, Error>) -> Void
     ) {
         Ghostty.logger.info("Creating Catalyst shell session: \(rows)x\(cols), cwd=\(workingDirectory ?? "nil")")
@@ -83,6 +86,7 @@ public class CatalystLocalShellSession: TerminalSession {
             shell: shell,
             enableShellIntegration: enableShellIntegration,
             paneToken: paneToken,
+            recoveryAttachment: recoveryAttachment,
             retriesRemaining: 1,
             completion: completion
         )
@@ -95,6 +99,7 @@ public class CatalystLocalShellSession: TerminalSession {
         shell: String?,
         enableShellIntegration: Bool,
         paneToken: String?,
+        recoveryAttachment: LocalMultiplexerAttachment?,
         retriesRemaining: Int,
         completion: @escaping (Result<CatalystLocalShellSession, Error>) -> Void
     ) {
@@ -107,7 +112,8 @@ public class CatalystLocalShellSession: TerminalSession {
             workingDirectory: workingDirectory,
             shell: shell,
             enableShellIntegration: enableShellIntegration,
-            paneToken: paneToken
+            paneToken: paneToken,
+            recoveryAttachment: recoveryAttachment
         ) { result in
             switch result {
             case .success(let createResult):
@@ -131,6 +137,7 @@ public class CatalystLocalShellSession: TerminalSession {
                                     shell: shell,
                                     enableShellIntegration: enableShellIntegration,
                                     paneToken: paneToken,
+                                    recoveryAttachment: recoveryAttachment,
                                     retriesRemaining: retriesRemaining - 1,
                                     completion: completion
                                 )
@@ -156,6 +163,9 @@ public class CatalystLocalShellSession: TerminalSession {
                             size: size,
                             shell: shell
                         )
+
+                        session.recoverySupported = createResult.recoverySupported
+                        session.recoveryAccepted = createResult.recoveryAccepted
 
                         // Output monitoring is started by the caller after callbacks are configured
                         completion(.success(session))

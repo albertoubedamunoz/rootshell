@@ -183,6 +183,7 @@ extension Ghostty.TerminalView {
     /// their mode-restore sequences. The post-drain render+mouse-capture sync
     /// is also scheduled in that fallback path.
     func restoreScrollbackAfterAnimation(trailer: Data? = nil) {
+        if releaseLocalMultiplexerScrollbackGate() { return }
         if restoredWasTmuxGateway {
             // The gateway is hidden while its projected panes are rebuilt from
             // authoritative tmux captures. Do not replay its saved ANSI or mode
@@ -233,6 +234,7 @@ extension Ghostty.TerminalView {
     /// even when layout fires before the embedded trzsz session reaches
     /// `.running`. Other restoration paths flush the gate as before.
     func runLayoutDeferredScrollbackRestore() {
+        if releaseLocalMultiplexerScrollbackGate() { return }
         let isShellLaunchedTrzszRestore: Bool = {
             if case .shellLaunchedTrzsz = connectionConfig { return true }
             return false

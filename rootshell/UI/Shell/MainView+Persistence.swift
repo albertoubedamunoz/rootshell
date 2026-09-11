@@ -36,18 +36,11 @@ extension MainView {
 
     private func resumableTmuxGatewayUUIDs() -> Set<UUID> {
         Set(
-            terminals.flatMap { $0.splitTree.terminalLeaves }
-                .filter { view in
-                    view.connectionConfig.isTrzsz
-                    && (
-                        view.tmuxController != nil
-                        || view.restoredWasTmuxGateway
-                        || view.tmuxResumeRequested
-                        || view.tmuxResumeCancelRequested
-                    )
-                }
+            (terminals + TmuxWindowRegistry.allTabsModels().flatMap(\.tabs))
+                .flatMap { $0.splitTree.terminalLeaves }
+                .filter(\.hasPersistableTmuxGateway)
                 .map(\.uuid)
-        )
+        ).union(WindowStateManager.shared.pendingTmuxGatewayUUIDs)
     }
 
     /// Serialize current window state for persistence
@@ -65,13 +58,8 @@ extension MainView {
         // `ensureWindow` stamps them) is excluded rather than restored as a bogus
         // local shell.
         //
-        // Gateways whose tmux -CC session survives an app restart: only trzsz/tssh
-        // keeps the remote pty (and the live tmux -CC process) alive across a
-        // reconnect. A local-shell or plain-SSH gateway's tmux -CC dies with the
-        // app, so its projected window tabs must NOT be persisted — they could never
-        // be re-adopted and would linger as empty, un-closable tabs. Keyed on
-        // live OR pending tmux-gateway state so an autosave during the resume
-        // window keeps placeholders only for the gateway that can adopt them.
+        // tssh can resume its stream; verified local gateways can attach a new
+        // client to the same server/session. Both can re-adopt these placeholders.
         let resumableGatewayUUIDs = resumableTmuxGatewayUUIDs()
 
         var persisted: [(tab: TabModel, serialized: SerializableTab)] = []
@@ -83,7 +71,7 @@ extension MainView {
                 // adopted placeholder only has `pendingTmuxWindowId`. Fall back to
                 // it so an autosave during the reconnect window doesn't silently
                 // drop the placeholder (which would lose its tab position). Only
-                // persist placeholders owned by a resumable (trzsz) gateway.
+                // persist placeholders owned by a recoverable gateway.
                 guard let tmuxWindowId = tab.tmuxWindowId ?? tab.pendingTmuxWindowId,
                       let owner = tab.owningGatewayTerminalUUID,
                       resumableGatewayUUIDs.contains(owner) else { continue }
@@ -107,9 +95,8 @@ extension MainView {
                     windowId: windowId,
                     // A hidden GATEWAY tab persists its flag so the hide
                     // survives an app restart — but only when the gateway can
-                    // actually resume (trzsz, mirroring wasTmuxGateway at
-                    // SerializableSplitTree); otherwise the restored pending
-                    // flag could never be consumed. The pending-restore bit
+                    // actually recover (mirroring leaf serialization); otherwise
+                    // the restored pending flag could never be consumed. The pending-restore bit
                     // counts too: during the reconnect window (restored, not
                     // yet resumed) the live flags are still false, and an
                     // autosave must not drop the preference — the same
@@ -237,14 +224,8 @@ extension MainView {
         )
         tabsModel.clearStaleGroupOverrides()
 
-        // Safety net for state saved by older builds: drop restored tmux window
-        // placeholders whose owning gateway is NOT a resumable (trzsz/tssh) session.
-        // A local-shell or plain-SSH `tmux -CC` gateway is gone after the app quits,
-        // so its projected window tabs can never be re-adopted and would otherwise
-        // linger as empty, never-reconciled tabs the user must close by hand. Current
-        // serialization already omits them, so this fires at most once per upgraded
-        // install. Runs before the selected-index restore below so its bounds check
-        // (and fallback to the gateway / tab 0) absorbs the removals.
+        // Drop orphaned or unverifiable placeholders, but retain those whose
+        // verified gateway belongs to a scene that has not restored yet.
         let resumableOwnerUUIDs = resumableTmuxGatewayUUIDs()
         terminals.removeAll { tab in
             tab.awaitingTmuxReconcile &&
@@ -502,7 +483,13 @@ extension MainView {
             terminalView.restoredTrzszLastConnectedAt = leafData.trzszLastConnectedAt
             // Remember if this leaf was a live tmux -CC gateway so the session
             // resume path can re-enter control mode (maybeResumeTmuxControlMode).
-            terminalView.restoredWasTmuxGateway = leafData.wasTmuxGateway ?? false
+            terminalView.restoredWasTmuxGateway = (leafData.wasTmuxGateway ?? false) && connectionConfig.isTrzsz
+            #if targetEnvironment(macCatalyst)
+            if case .local = connectionConfig {
+                terminalView.restoredLocalMultiplexerAttachment = leafData.localMultiplexerAttachment
+                terminalView.skipLocalMultiplexerScrollback = leafData.localMultiplexerAttachment != nil
+            }
+            #endif
             terminalView.tmuxResumeCancelRequested = leafData.tmuxResumeCancelRequested ?? false
             terminalView.restorationState = Ghostty.TerminalView.RestorationState.pendingReconnection
             terminalView.onAgentApprovalRequired = { @MainActor @Sendable request in

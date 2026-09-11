@@ -26,6 +26,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Custom command to run (nil = launch login shell)
 @property (nonatomic, copy, nullable) NSArray<NSString *> *command;
 
+/// Verified recovery command, executed once before the configured login shell.
+@property (nonatomic, copy, nullable) NSString *recoveryCommand;
+
 /// Environment variables to set
 @property (nonatomic, copy) NSDictionary<NSString *, NSString *> *environment;
 
@@ -74,6 +77,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Sends a signal to a process
 + (BOOL)killProcess:(pid_t)pid signal:(int)signal error:(NSError **)error;
+
+/// Available process ancestry plus same-user multiplexer/socket identities.
+/// Environment output contains only namespaceKeys, never the full environment.
++ (NSArray<NSDictionary<NSString *, id> *> *)localMultiplexerProcesses:(NSArray<NSString *> *)namespaceKeys;
 
 @end
 
