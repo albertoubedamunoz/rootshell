@@ -686,9 +686,29 @@ final class MultiplexerExposeFeed {
         body += " awk -v i=\"$_i\" \"\\$7==i && \\$8 ~ /^\\// {print \\$8}\" /proc/net/unix 2>/dev/null;"
         body += " done; fi; done; done"
         // Exported by the user's own shell where it was used (`HERDR_SESSION=x herdr`).
-        body += "; echo \"::MX_ENV::\"; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\";"
-        body += " [ -r \"/proc/$_p/environ\" ] && tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
-        body += " | grep -E \"^(HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME|ZMX_SESSION_PREFIX|SSH_CONNECTION|\(TerminalIdentity.paneTokenVariable))=\"; done"
+        //
+        // `/proc` gives one NUL-separated variable per line. macOS has none, so
+        // `ps -E` stands in: it appends the environment to the argument line,
+        // flattened on spaces. A value containing a space cannot be recovered
+        // from that, which is why SSH_CONNECTION is read from `/proc` alone --
+        // absent, its readers fall back to other evidence, where a value
+        // truncated at the first space would instead never match anything.
+        // One scan is taken, narrowed to lines that carry a variable worth
+        // having, and re-read per candidate from the pid each line starts
+        // with, rather than spawning a `ps` for every candidate.
+        let envKeys = "HERDR_SESSION|HERDR_SOCKET_PATH|ZELLIJ_SESSION_NAME|ZMX_SESSION_PREFIX"
+            + "|\(TerminalIdentity.paneTokenVariable)"
+        body += "; echo \"::MX_ENV::\""
+        body += "; _mxenv=\"\"; [ -r /proc/self/environ ]"
+        body += " || _mxenv=$(ps -xEo pid=,command= 2>/dev/null | grep -E \" (\(envKeys))=\")"
+        body += "; for _p in \(candidatePIDs); do echo \"::MX_PID:$_p::\";"
+        body += " if [ -r \"/proc/$_p/environ\" ]; then"
+        body += " tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
+        body += " | grep -E \"^(\(envKeys)|SSH_CONNECTION)=\";"
+        body += " else"
+        body += " printf \"%s\\n\" \"$_mxenv\" | awk -v p=\"$_p\" \"\\$1==p\""
+        body += " | tr \" \" \"\\n\" | grep -E \"^(\(envKeys))=\";"
+        body += " fi; done"
         // zellij's server runs as `zellij --server <sock dir>/<session>`.
         body += "; echo \"::MX_SERVERS::\"; ps -xo pid=,ppid=,args= 2>/dev/null | grep -- \"--server\" | grep -v grep"
 

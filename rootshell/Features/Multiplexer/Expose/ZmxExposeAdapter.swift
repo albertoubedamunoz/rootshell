@@ -90,30 +90,49 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
     /// Makes this pane's client the session's leader when no client is.
     ///
     /// zmx clears the leader when that client disconnects, and only user input
-    /// sets it again, so a session routinely outlives its leader with none. A
-    /// switch sent in that state is fatal: the daemon answers with an
-    /// unhandled error and takes the session down, along with every terminal
-    /// still attached to it.
+    /// sets it again, so a session routinely outlives its leader with none.
+    /// Through zmx 0.8.1 a switch sent in that state is fatal: the daemon
+    /// answers with an unhandled error and takes the session down, along with
+    /// every terminal still attached to it. Fixed upstream in `fca1964d`, where
+    /// the switch becomes a no-op instead, so this also stops mattering on
+    /// hosts running a newer zmx (neurosnap/zmx#259).
     ///
     /// SIGWINCH makes a client resend its size, and a size takes leadership
-    /// when no client holds it. It puts no bytes into the running program the
-    /// way a synthesized keystroke does, and zmx ignores it outright while
-    /// another client is leader, so it can never pull a session out from under
-    /// somebody else's terminal.
+    /// when no client holds it. It puts no bytes into the running program, and
+    /// zmx ignores it outright while another client is leader, so it can never
+    /// pull a session out from under somebody else's terminal.
     ///
     /// Only the pane's own zmx processes are signalled. Its forked daemon
     /// carries the same token and installs no handler, so reaching that one
-    /// costs nothing. Hosts without `/proc` cannot narrow the search to this
-    /// pane and are left alone.
+    /// costs nothing.
+    ///
+    /// The token lives in the client's environment, which `/proc` exposes
+    /// directly and macOS does not. There `ps -E` prints each process's
+    /// environment after its arguments, flattened onto one line, so the match
+    /// is against a whitespace-split token rather than a whole line. One scan
+    /// is taken and reused, rather than a `ps` per candidate.
+    ///
+    /// macOS hides the environment of platform binaries, so this reads a zmx
+    /// the user installed and would come back empty for one shipped with the
+    /// system. zmx is not, and the pane simply keeps its leadership alone if
+    /// that ever changes.
     private static func claimLeadershipBody(paneToken: String) -> String {
         let needle = MuxScript.dq("\(TerminalIdentity.paneTokenVariable)=\(paneToken)")
-        var body = "if [ -r /proc/self/environ ]; then"
-        body += " for _p in $(ps -xo pid=,comm= 2>/dev/null | grep -E \"[ /]zmx$\""
+        // Only scanned when /proc is absent, and narrowed to lines carrying the
+        // token so the environments of unrelated processes are never held.
+        var body = "_mxenv=\"\"; [ -r /proc/self/environ ]"
+        body += " || _mxenv=$(ps -xEo pid=,command= 2>/dev/null | grep -F \(needle))"
+        body += "; for _p in $(ps -xo pid=,comm= 2>/dev/null | grep -E \"[ /]zmx$\""
         body += " | awk \"{print \\$1}\"); do"
+        body += " if [ -r \"/proc/$_p/environ\" ]; then"
         body += " tr \"\\0\" \"\\n\" < \"/proc/$_p/environ\" 2>/dev/null"
         body += " | grep -qxF \(needle) || continue;"
+        body += " else"
+        body += " printf \"%s\\n\" \"$_mxenv\" | awk -v p=\"$_p\" \"\\$1==p\""
+        body += " | tr \" \" \"\\n\" | grep -qxF \(needle) || continue;"
+        body += " fi;"
         body += " kill -WINCH \"$_p\" 2>/dev/null;"
-        body += " done; fi"
+        body += " done"
         return body
     }
 
