@@ -125,17 +125,23 @@ struct MCPServerConfig: Codable, Sendable {
     // MARK: - Persistence
 
     static func load() -> MCPServerConfig {
+        #if CHINA_BUILD
+        return .default
+        #else
         guard let data = SettingsStore.shared.value(Settings.AI.mcpServerConfig),
               let config = try? JSONDecoder().decode(MCPServerConfig.self, from: data) else {
             return .default
         }
         return config
+        #endif
     }
 
     @MainActor
     func save() {
+        #if !CHINA_BUILD
         if let data = try? JSONEncoder().encode(self) {
             SettingsStore.shared.set(Settings.AI.mcpServerConfig, data)
         }
+        #endif
     }
 }

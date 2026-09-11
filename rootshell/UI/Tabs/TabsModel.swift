@@ -1423,6 +1423,15 @@ final class TabsModel {
         return tabs.first(where: { $0.id == id })
     }
 
+    /// An initial multiplexer attach may replace its selected gateway, but
+    /// must preserve any other valid selection, including an empty restored
+    /// tmux placeholder. Read this when the reply arrives so a background
+    /// reconnect cannot override restoration or a newer user tab choice.
+    func maySelectInitialMultiplexerTab(gatewayTabID: UUID?) -> Bool {
+        guard let selectedTab else { return true }
+        return selectedTab.id == gatewayTabID
+    }
+
     /// Tabs the user can see and navigate to: everything except hidden tmux
     /// window tabs. The tab strip, Cmd+N shortcuts, and next/prev navigation
     /// all operate on this view of `tabs`. (id=tmux-hidden-windows)

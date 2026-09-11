@@ -1131,7 +1131,11 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         EmptyView()
         #endif
     case .mcpServer:
+        #if !CHINA_BUILD
         MCPSettingsView()
+        #else
+        EmptyView()
+        #endif
     case .voiceAgent:
         #if !CHINA_BUILD
         VoiceAgentSettingsView()

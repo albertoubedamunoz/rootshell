@@ -342,8 +342,8 @@ final class TmuxController {
     /// which a teardown/resume cycle can clear, and which is ambiguous when more
     /// than one `tmux -CC` gateway is open in the same window.
     private var gatewayTabID: UUID?
-    /// The first tmux focus op is part of initial attach and must still select
-    /// the tmux window, even if the app happened to activate at the same time.
+    /// Consume the initial attach focus once; it may select a window only
+    /// while this gateway is selected (or no valid selection exists).
     private var hasProcessedInitialFocus = false
 
     // MARK: - Session dashboard state (see TmuxController+Sessions.swift)
@@ -1436,6 +1436,13 @@ final class TmuxController {
     /// terminal. This routes keyboard input to this pane's surface, whose
     /// tmux backend emits `send-keys` for this pane id.
     private func focusPane(_ view: Ghostty.TerminalView, in tab: TabModel) {
+        // Background layouts also initialize their remembered focused pane.
+        // Do not clear the selected restored tab's focus while filling them.
+        let hostModel = modelContainingTab(id: tab.id) ?? tabsModel
+        guard hostModel.selectedTabID == tab.id else {
+            recordRemoteFocusPane(view, in: tab)
+            return
+        }
         let previous = tab.focusedTerminal
         for other in paneViews.values where other !== view {
             other.isLogicallyFocused = false
@@ -1458,15 +1465,10 @@ final class TmuxController {
         view.shouldBecomeFirstResponderWhenReady = true
         tab.focusedTerminal = view
 
-        // Active focus drive — mirrors MainView.setFocusedTerminal. Gated on
-        // the tab being the visible one: setLayout also routes here for
-        // background windows, and EVERY tab's panes are in the UIWindow (the
-        // tab ForEach renders them all at opacity 0), so an ungated
-        // becomeFirstResponder would steal the user's keyboard.
+        // Active focus drive — mirrors MainView.setFocusedTerminal. The
+        // selection guard above also protects logical focus from background
+        // layouts; every tab's panes can be attached to the same UIWindow.
         // ROOTSHELL-TMUX (id=tmux-focus-active)
-        let hostModel = modelContainingTab(id: tab.id) ?? tabsModel
-        guard hostModel.selectedTabID == tab.id else { return }
-
         var acquired = false
         if view.window != nil {
             // Existing pane (e.g. %window-pane-changed between attached
@@ -1836,7 +1838,11 @@ final class TmuxController {
         let isSessionSwitchFocus = pendingSessionSwitchWindowSelection == nil
             ? consumePendingSessionSwitch()
             : false
-        let isInitialFocus = !hasProcessedInitialFocus || isSessionSwitchFocus
+        // markGatewayTab runs after the first reconcile, so resolve the owner
+        // directly when its cached tab ID has not been stamped yet.
+        let isInitialFocus = !hasProcessedInitialFocus && hostModel.maySelectInitialMultiplexerTab(
+            gatewayTabID: gatewayTabID ?? ownGatewayTab()?.id
+        )
         hasProcessedInitialFocus = true
 
         // A HIDDEN window never takes selection — not even on initial attach
@@ -1861,7 +1867,8 @@ final class TmuxController {
         // tab jump on its own and chase the active window across other devices
         // attached to the same session. We honor a focus op for tab selection
         // only on:
-        //   - initial attach (land on the session's current window once), or
+        //   - initial attach from the selected gateway (or no selection), or
+        //   - a session switch THIS device requested, or
         //   - the target tab already being selected (an intra-tab pane focus
         //     change for the window the user is already viewing), or
         //   - a split THIS device just requested (pendingSplitFocus).
@@ -1872,7 +1879,7 @@ final class TmuxController {
             guard let pending = pendingSplitFocus[windowId] else { return false }
             return !pending.existingPaneIds.contains(paneId)
         }()
-        let mayChangeSelection = isInitialFocus || targetIsSelected || isLocalSplitFocus
+        let mayChangeSelection = isInitialFocus || isSessionSwitchFocus || targetIsSelected || isLocalSplitFocus
 
         if !mayChangeSelection {
             if let view = paneViews[paneId] {

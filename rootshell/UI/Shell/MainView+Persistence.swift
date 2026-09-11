@@ -233,15 +233,15 @@ extension MainView {
         }
         tabsModel.clearStaleGroupOverrides()
 
-        // Restore selected tab index. Assignment is outside any
-        // `withAnimation`, so the restored index snaps in without animating
-        // from tab 0.
-        if state.selectedTabIndex >= 0 && state.selectedTabIndex < terminals.count {
-            selectedTabIndex = state.selectedTabIndex
+        // Resolve the saved selection by identity after filtering skipped
+        // tabs. The saved index indexes state.tabs, not the shorter live list.
+        if state.tabs.indices.contains(state.selectedTabIndex),
+           let restoredID = restoredTabIDsBySavedID[state.tabs[state.selectedTabIndex].id],
+           tabsModel.tab(withID: restoredID) != nil {
+            tabsModel.selectedTabID = restoredID
         }
 
-        // The placeholder filtering above may have invalidated the saved
-        // index, leaving `selectedTabID` nil even though tabs exist. Repair
+        // The saved selected tab may no longer be restorable. Repair
         // so the displayed-tab reveal has a valid selection to follow
         // (a nil selection would keep every tab at opacity 0).
         tabsModel.repairSelectionIfNeeded()
