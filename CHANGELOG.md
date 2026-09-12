@@ -3,6 +3,36 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.11-146 - September 11, 2026
+
+### Local Session Recovery (macOS)
+
+- **Restore Local Multiplexer Sessions:** With session persistence enabled, rootshell now restores tmux, zellij, herdr and zmx sessions launched from a local shell when you reopen the app. It verifies that the original session is still available before reattaching; if recovery fails, it returns to your configured shell.
+- **Restore tmux Layouts:** Local tmux control-mode sessions also recover their tab positions, split layouts and hidden gateway state.
+
+### zmx Tab Exposé
+
+- **Faster, More Reliable Previews:** Opening Exposé on a known zmx session is faster, with fewer SSH round trips before the first previews appear. If the saved session name is out of date, rootshell checks again instead of closing Exposé on a session that is still running.
+- **Improved Session Detection:** Improved detection for `ZMX_SESSION_PREFIX` and labeled attachments, including on macOS hosts. Moving between panes or tabs while Exposé is open now refreshes the connection context for the selected pane.
+- **More Reliable Session Switching:** Improved switching after a zmx session's active client disconnects, including a workaround for older zmx versions that could terminate the session. Shared sessions no longer incorrectly rename this pane when a switch moves another attached client; zmx can still direct switches to that other client.
+
+### tmux and Tab Restoration
+
+- **Preserve Focus during Background Reconnects:** Background tmux reconnects no longer steal the active tab or keyboard focus. Explicit session switches and newly created splits still receive focus.
+- **Restore the Correct Selected Tab:** Reopening a window now restores the correct selected tab even when other saved tabs cannot be restored.
+
+### Local Shell (iPhone, iPad and Apple Vision Pro)
+
+- **Interactive Shell Functions:** Fixed shell functions defined in `~/.rootshellrc` or at the prompt failing with "command not found" when called interactively. Quoted or escaped function names and pipelines without spaces now work too.
+- **Correct Alias Arguments:** Fixed alias argument handling around pipelines and redirections. Aliases retain precedence over functions, self-referential aliases expand only once, and argument placeholders preserve trailing options and file arguments.
+
+### Fixes
+
+- **Stable Settings Search on iOS 27:** Fixed the Settings search bar jumping when opening Settings or dismissing the terminal keyboard on iOS 27. Expanded search continues to stay above the keyboard.
+- **Responsive Sidebar Context Menus:** Fixed freezes when opening context menus in the vertical tab sidebar. Menu actions remain up to date as tabs change.
+- **curl Compatibility on Older iPads:** Fixed a curl startup crash on older iPads running iOS 18 caused by unsupported CPU instructions in the bundled OpenSSL library.
+- **Native Connection Picker:** Restored the native connection picker on iPhone and iPad now that the iOS/iPadOS 27 beta 5 tap-handling bug is fixed.
+
 ## 1.0.11-145 - September 10, 2026
 
 ### tssh Jump Relays
