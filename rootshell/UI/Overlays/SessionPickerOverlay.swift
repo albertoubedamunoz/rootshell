@@ -241,7 +241,9 @@ struct SessionPickerOverlay: View {
                     }
                 }
                 .scrollBounceBehavior(.basedOnSize)
+                #if !os(visionOS)
                 .scrollDismissesKeyboard(.never)
+                #endif
                 .onChange(of: selectedIndex) { _, index in
                     withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo(index, anchor: .top)
