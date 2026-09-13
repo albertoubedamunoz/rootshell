@@ -292,9 +292,19 @@ extension MainView {
             self.selectTab(at: tabIndex)
         }
 
+        observerBag.observeOnMainActor(.showHerdrWorkspaces) { [self] notification in
+            guard let controller = notification.object as? HerdrController, controller.hostWindowId == windowId else { return }
+            herdrDashboardRequest = HerdrWorkspaceDashboardRequest(controller: controller, action: notification.userInfo?["action"] as? HerdrManagementAction)
+        }
+
         observerBag.observeOnMainActor(.showTmuxSessions) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
             self.showTmuxSessionsForSelectedTab()
+        }
+
+        observerBag.observeOnMainActor(.discoverSessions) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            self.discoverSessionsForSelectedTab(origin: notification.object as? Ghostty.TerminalView)
         }
 
         observerBag.observeOnMainActor(.detachOtherClients) { [self] notification in
@@ -508,9 +518,15 @@ extension MainView {
         }
 
         observerBag.observeOnMainActor(.tmuxPaneBindingsChanged) { _ in
-            PushNotificationRouter.retryPending()
+            PushNotificationRouter.bindingsDidChange()
         }
-        PushNotificationRouter.retryPending()
+        observerBag.observeOnMainActor(.herdrPaneBindingsChanged) { _ in
+            PushNotificationRouter.bindingsDidChange()
+        }
+        observerBag.observeOnMainActor(.herdrControlStateDidChange) { _ in
+            PushNotificationRouter.bindingsDidChange()
+        }
+        PushNotificationRouter.bindingsDidChange()
 
         observerBag.observeOnMainActor(.showTabSwitcher) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
