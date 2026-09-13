@@ -137,6 +137,24 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #endif
     }
 
+    /// Actual accessory placement; each host gates this with its own toolbar
+    /// presentation policy (VNC also has a per-connection visibility override).
+    var keyboardAccessoryFrameInScreen: CGRect? {
+        #if os(visionOS) || targetEnvironment(macCatalyst)
+        return nil
+        #else
+        guard UIDevice.current.userInterfaceIdiom == .phone,
+              let host, host.keyboardIsFirstResponder,
+              let window = host.keyboardHostView.window,
+              let accessory = keyboardAccessory,
+              let accessoryWindow = accessory.window,
+              accessoryWindow.screen === window.screen,
+              !accessoryWindow.isHidden, !accessory.isHidden,
+              accessory.alpha > 0, !accessory.bounds.isEmpty else { return nil }
+        return accessoryWindow.convert(accessory.convert(accessory.bounds, to: accessoryWindow), to: nil)
+        #endif
+    }
+
     var reservesKeyboardToolbarAtBottom: Bool {
         #if os(visionOS) || targetEnvironment(macCatalyst)
         return false

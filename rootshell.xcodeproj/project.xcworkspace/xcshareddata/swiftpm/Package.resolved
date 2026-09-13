@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/Citadel-rootshell.git",
       "state" : {
-        "revision" : "705322ad551cff91d46e55e84ad90faf39d40deb",
-        "version" : "0.12.4"
+        "revision" : "dba270d56e62a9a6b2d3c25f5730ba432e7e749f",
+        "version" : "0.12.5"
       }
     },
     {
@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/rootshell-vnc.git",
       "state" : {
-        "revision" : "fd2735557c15a73d63b82763bbb1543f536f546a",
-        "version" : "0.1.3"
+        "revision" : "1e452c5d8bc1a2447dae308f66d4aff193115b57",
+        "version" : "0.1.4"
       }
     },
     {
@@ -303,8 +303,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/swift-nio-ssh-rootshell.git",
       "state" : {
-        "revision" : "1f25be7463319bcc539ec27efce565a3530a61ef",
-        "version" : "0.1.2"
+        "revision" : "4f1c1b69f9db4dfe7e263dc1ed1d96d0024c114e",
+        "version" : "0.1.3"
       }
     },
     {

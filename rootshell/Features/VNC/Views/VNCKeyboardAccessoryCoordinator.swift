@@ -181,6 +181,11 @@ final class VNCKeyboardAccessoryCoordinator {
         EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
     }
 
+    var keyboardAccessoryFrameInScreen: CGRect? {
+        guard presentation != .hidden else { return nil }
+        return controller.keyboardAccessoryFrameInScreen
+    }
+
     /// Bottom inset the pane must reserve whenever the toolbar is visible.
     /// The outer terminal layout ignores this in favor of the keyboard's full
     /// coverage while the software keyboard is docked. When that keyboard is

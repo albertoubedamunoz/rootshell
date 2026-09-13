@@ -113,9 +113,13 @@ nonisolated final class KeyboardInteractiveAuthDelegate: NIOSSHClientUserAuthent
     ) {
         guard let inner = inner else {
             // Explicit keyboard-interactive: no primary method, offer it directly.
-            offerKeyboardInteractiveOrFinish(promise: nextChallengePromise)
+            offerKeyboardInteractiveOrFinish(promise: nextChallengePromise, serverOffersIt: true)
             return
         }
+
+        // As a fallback, only offer what the server actually advertised. The `none`
+        // probe means this list is the server's own, not NIOSSH's initial placeholder.
+        let serverOffersIt = availableMethods.contains(.keyboardInteractive)
 
         let eventLoop = nextChallengePromise.futureResult.eventLoop
         let wrapper = eventLoop.makePromise(of: NIOSSHUserAuthenticationOffer?.self)
@@ -127,13 +131,13 @@ nonisolated final class KeyboardInteractiveAuthDelegate: NIOSSHClientUserAuthent
                     nextChallengePromise.succeed(offer)
                 } else {
                     // Inner delegate exhausted — fall back to keyboard-interactive.
-                    self.offerKeyboardInteractiveOrFinish(promise: nextChallengePromise)
+                    self.offerKeyboardInteractiveOrFinish(promise: nextChallengePromise, serverOffersIt: serverOffersIt)
                 }
             case .failure(let error):
                 // Inner delegate failed hard. Try keyboard-interactive once before
                 // giving up, then propagate the original error.
                 if !self.triedKeyboardInteractive {
-                    self.offerKeyboardInteractiveOrFinish(promise: nextChallengePromise)
+                    self.offerKeyboardInteractiveOrFinish(promise: nextChallengePromise, serverOffersIt: serverOffersIt)
                 } else {
                     nextChallengePromise.fail(error)
                 }
@@ -146,9 +150,12 @@ nonisolated final class KeyboardInteractiveAuthDelegate: NIOSSHClientUserAuthent
         inner?.serverSignatureAlgorithmsReceived(algorithms)
     }
 
-    private func offerKeyboardInteractiveOrFinish(promise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>) {
-        guard !triedKeyboardInteractive else {
-            // Already attempted; nothing left to offer.
+    private func offerKeyboardInteractiveOrFinish(
+        promise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>,
+        serverOffersIt: Bool
+    ) {
+        guard !triedKeyboardInteractive, serverOffersIt else {
+            // Already attempted, or the server never advertised it.
             promise.succeed(nil)
             return
         }

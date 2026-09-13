@@ -172,8 +172,10 @@ final class ConnectionHealthMonitor {
             // Check if this is a "request refused" error - this still proves connection is alive!
             // SSH servers are allowed to refuse unknown global requests, but the refusal
             // is itself a valid response that confirms the connection is working.
+            // RouterOS answers SSH_MSG_UNIMPLEMENTED instead of refusing; same proof.
             let errorString = String(describing: error)
-            if errorString.contains("globalRequestRefused") || errorString.contains("RequestRefused") {
+            if errorString.contains("globalRequestRefused") || errorString.contains("RequestRefused")
+                || errorString.contains("remotePeerDoesNotSupportMessage") {
                 let rttMs = Self.calculateRTT(from: startTime)
                 return PingResult(timestamp: Date(), rttMilliseconds: rttMs)
             }

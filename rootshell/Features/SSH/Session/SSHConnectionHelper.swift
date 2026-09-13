@@ -96,6 +96,26 @@ enum SSHConnectionHelper {
         sessionName: String = "",
         onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)? = nil
     ) async throws -> SSHAuthenticationMethod {
+        let configured = try await makeConfiguredAuthMethod(
+            username: username,
+            authMethod: authMethod,
+            sessionName: sessionName,
+            onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge
+        )
+
+        // `.none` already opens with the none method; wrapping would offer it twice.
+        if case .none = authMethod {
+            return configured
+        }
+        return .custom(NoneProbeAuthDelegate(username: username, inner: configured))
+    }
+
+    private static func makeConfiguredAuthMethod(
+        username: String,
+        authMethod: SSHConfig.AuthMethod,
+        sessionName: String,
+        onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)?
+    ) async throws -> SSHAuthenticationMethod {
         // When an interactive UI is wired, route every method through a single
         // composing delegate so keyboard-interactive (2FA/OTP/PAM) is reachable
         // even under password/key auth.
