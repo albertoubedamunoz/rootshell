@@ -108,13 +108,16 @@ extension HerdrController {
         queueAttaches(priorityTab: tabsModel.selectedTabID)
         pushGeometryForHostedTabs()
         autoHideGatewayIfWanted()
+        if isInitialSnapshot, snapshot.tabs.isEmpty, !isLocalRecovery,
+           requestNewTab(workspaceID: nil, isAutomatic: true) {
+            // The automatic tab's arrival or failure reveals the card.
+        } else {
+            hasProcessedInitialReveal = true
+        }
         publishSessionState()
         #if targetEnvironment(macCatalyst)
         if let attachment = localControlAttachment { recordLocalControlAttachment(attachment) }
         #endif
-        if isInitialSnapshot, snapshot.tabs.isEmpty, !isLocalRecovery {
-            requestNewTab(workspaceID: nil, isAutomatic: true)
-        }
     }
 
     /// Publish free directory/checkout metadata independently of agent

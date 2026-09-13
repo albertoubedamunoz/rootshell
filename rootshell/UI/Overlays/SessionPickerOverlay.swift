@@ -32,6 +32,9 @@ struct SessionPickerOverlay: View {
     let hasUserTyped: Bool
     /// Set when the card is up with no rows, saying why. Nil once rows exist.
     let placeholder: SessionDiscoveryPlaceholder?
+    /// Keyboard/accessory coverage in this overlay's coordinate space. The
+    /// terminal host owns keyboard avoidance, including toolbar-only layouts.
+    let bottomClearance: CGFloat
     @Binding var tmuxAttachMode: TmuxAutoMode
     let allowsTmuxControlAttach: Bool
     @Binding var herdrAttachMode: HerdrAutoMode
@@ -42,6 +45,12 @@ struct SessionPickerOverlay: View {
 
     @State private var showAttachConfirmation = false
     @State private var pendingSession: MultiplexerSession?
+    // List height excluding the selected preview, so growing that preview
+    // cannot feed back into its own available-space calculation.
+    @State private var listDetailsHeight: CGFloat?
+    @State private var fixedHeaderHeight: CGFloat = 0
+    @State private var fixedFooterHeight: CGFloat = 0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var title: String {
         if sessionTypes.count == 1, let type = sessionTypes.first {
@@ -66,8 +75,13 @@ struct SessionPickerOverlay: View {
 
     private var isMixed: Bool { sessionTypes.count > 1 }
 
-    private var showsTmuxAttachModeToggle: Bool {
-        allowsTmuxControlAttach && sessionTypes.contains(.tmux)
+    private var selectedSession: MultiplexerSession? {
+        guard sessions.indices.contains(selectedIndex) else { return nil }
+        return sessions[selectedIndex]
+    }
+
+    private var hasSelectedPreview: Bool {
+        selectedSession?.capturedContent?.isEmpty == false
     }
 
     private var tmuxControlModeBinding: Binding<Bool> {
@@ -75,10 +89,6 @@ struct SessionPickerOverlay: View {
             get: { tmuxAttachMode == .control },
             set: { tmuxAttachMode = $0 ? .control : .regular }
         )
-    }
-
-    private var showsHerdrAttachModeToggle: Bool {
-        allowsHerdrControlAttach && sessionTypes.contains(.herdr)
     }
 
     private var herdrControlModeBinding: Binding<Bool> {
@@ -90,122 +100,65 @@ struct SessionPickerOverlay: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let isCompact = geometry.size.width < 500
-            let horizontalPadding: CGFloat = isCompact ? 12 : 32
-            let maxCardWidth: CGFloat = isCompact ? .infinity : 540
+            let availableHeight = max(0, geometry.size.height - bottomClearance)
+            let isNarrow = geometry.size.width < 500
+            let isCompact = isNarrow || availableHeight < 300
+            let cardHeight = min(isNarrow ? .infinity : 700, max(0, availableHeight - 16))
+            let isShort = cardHeight < 300 || dynamicTypeSize.isAccessibilitySize
+            // Results use the full viewport. Only placeholder messages hug
+            // their contents; extra room belongs to browsing and the preview.
+            let placeholderHeight = listDetailsHeight.map {
+                $0 + (isShort ? 0 : fixedHeaderHeight) + fixedFooterHeight
+            }
+            let fittedCardHeight = isPlaceholder
+                ? min(cardHeight, placeholderHeight ?? cardHeight)
+                : cardHeight
 
-            ZStack(alignment: isCompact ? .top : .center) {
-                // Tap-to-dismiss background
+            ZStack(alignment: .top) {
+                // Keep the dismissal backdrop full size; only the card avoids
+                // the keyboard, which this terminal container ignores globally.
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
                     .onTapGesture { onDismiss() }
 
                 VStack(alignment: .leading, spacing: 0) {
-                    // Header
-                    HStack(spacing: 10) {
-                        Image(systemName: headerIcon)
-                            .font(.system(size: isCompact ? 14 : 20, weight: .medium))
-                            .foregroundStyle(.secondary)
-
-                        Text(title)
-                            .font(.system(size: isCompact ? 14 : 18, weight: .semibold))
-
-                        Spacer()
-
-                        if isSearching {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Text("\(sessions.count)")
-                                .font(.system(size: isCompact ? 12 : 14, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.fill.tertiary, in: Capsule())
+                    if !isShort {
+                        VStack(spacing: 0) {
+                            header(compact: isCompact)
+                            Divider().padding(.horizontal, 12)
                         }
-                    }
-                    .padding(.horizontal, isCompact ? 16 : 20)
-                    .padding(.top, isCompact ? 14 : 18)
-                    .padding(.bottom, isCompact ? 10 : 14)
-
-                    Divider()
-                        .padding(.horizontal, 12)
-
-                    // Session list
-                    if isPlaceholder {
-                        placeholderBody(compact: isCompact)
-                    } else {
-                        ScrollViewReader { proxy in
-                            ScrollView(.vertical, showsIndicators: false) {
-                                VStack(spacing: 2) {
-                                    ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
-                                        sessionRow(session: session, index: index, isSelected: index == selectedIndex, compact: isCompact)
-                                            .id(index)
-                                            .onTapGesture { handleRowTap(session: session, index: index) }
-                                    }
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                            }
-                            .frame(maxHeight: isCompact ? 300 : 500)
-                            .onChange(of: selectedIndex) { _, newIndex in
-                                withAnimation(.easeOut(duration: 0.15)) {
-                                    proxy.scrollTo(newIndex, anchor: .center)
-                                }
-                            }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                            fixedHeaderHeight = $0
                         }
                     }
 
-                    Divider()
-                        .padding(.horizontal, 12)
+                    sessionList(compact: isCompact, includesHeader: isShort)
 
-                    if showsTmuxAttachModeToggle, !isPlaceholder {
-                        tmuxAttachModeToggle(compact: isCompact)
-
-                        Divider()
-                            .padding(.horizontal, 12)
-                    }
-
-                    if showsHerdrAttachModeToggle, !isPlaceholder {
-                        herdrAttachModeToggle(compact: isCompact)
-
-                        Divider()
-                            .padding(.horizontal, 12)
-                    }
-
-                    // Footer
-                    if KeyboardTracker.shared.isHardwareKeyboard {
-                        // Hardware keyboard hints. With no rows there is nothing
-                        // to navigate or attach to, so only dismiss applies.
-                        HStack(spacing: isCompact ? 8 : 16) {
-                            hintBadge("Esc", label: "dismiss", compact: isCompact)
-                            if !isPlaceholder {
-                                hintBadge("\u{2191}\u{2193}", label: "navigate", compact: isCompact)
-                                hintBadge("\u{21A9}", label: "attach", compact: isCompact)
-                                if let jumpKeys = digitJumpKeys {
-                                    hintBadge(jumpKeys, label: "jump", compact: isCompact)
-                                }
-                            }
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let session = selectedSession {
+                            Divider().padding(.horizontal, 12)
+                            attachBar(for: session, compact: isCompact)
                         }
-                        .padding(.horizontal, isCompact ? 16 : 20)
-                        .padding(.vertical, isCompact ? 10 : 14)
-                    } else {
-                        // Touch-only hint
-                        HStack {
-                            Text(isPlaceholder
-                                 ? "Tap outside to dismiss"
-                                 : "Tap a session to select, tap Attach to connect")
-                                .font(.system(size: isCompact ? 10 : 12))
-                                .foregroundStyle(.tertiary)
+
+                        if !isShort, !isCompact || isPlaceholder || KeyboardTracker.shared.isHardwareKeyboard {
+                            footerHints(compact: isCompact)
                         }
-                        .padding(.horizontal, isCompact ? 16 : 20)
-                        .padding(.vertical, isCompact ? 8 : 10)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                        fixedFooterHeight = $0
                     }
                 }
+                .frame(maxWidth: isNarrow ? .infinity : 540)
+                .frame(height: fittedCardHeight)
                 .overlayCardBackground()
-                .frame(maxWidth: maxCardWidth)
-                .padding(.horizontal, horizontalPadding)
-                .padding(.top, isCompact ? 8 : 0)
+                .padding(.horizontal, isNarrow ? 12 : 32)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .frame(height: availableHeight, alignment: isCompact ? .top : .center)
+                .clipped()
             }
         }
         .alert("Attach to Session?", isPresented: $showAttachConfirmation) {
@@ -225,6 +178,120 @@ struct SessionPickerOverlay: View {
         }
     }
 
+    private func header(compact: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: headerIcon)
+                .foregroundStyle(.secondary)
+            Text(title)
+                .font(.headline)
+            Spacer(minLength: 8)
+            if isSearching {
+                ProgressView().controlSize(.small)
+            } else {
+                Text("\(sessions.count)")
+                    .font(.system(.caption, design: .monospaced).weight(.medium))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.fill.tertiary, in: Capsule())
+            }
+        }
+        .padding(.horizontal, compact ? 16 : 20)
+        .padding(.top, compact ? 14 : 18)
+        .padding(.bottom, compact ? 10 : 14)
+    }
+
+    private func sessionList(compact: Bool, includesHeader: Bool) -> some View {
+        GeometryReader { viewport in
+            let minimumPreviewHeight: CGFloat = sessions.count == 1
+                ? (compact ? 140 : 280)
+                : (compact ? 100 : 150)
+            // First reserve all session metadata and list padding. The selected
+            // preview takes the remaining room; longer lists still scroll with
+            // a usable minimum preview instead of squeezing the other rows.
+            let previewHeight = hasSelectedPreview
+                ? max(minimumPreviewHeight, viewport.size.height - (listDetailsHeight ?? viewport.size.height))
+                : 0
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(spacing: 0) {
+                        if includesHeader {
+                            header(compact: compact)
+                            Divider().padding(.horizontal, 12)
+                        }
+                        if isPlaceholder {
+                            placeholderBody(compact: compact)
+                        } else {
+                            VStack(spacing: 2) {
+                                ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
+                                    sessionRow(session: session, isSelected: index == selectedIndex, compact: compact, previewHeight: previewHeight)
+                                        .id(index)
+                                        .onTapGesture { handleRowTap(session: session, index: index) }
+                                        .accessibilityAddTraits(index == selectedIndex ? [.isSelected] : [])
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                        }
+                    }
+                    .onGeometryChange(for: CGFloat.self) {
+                        max(0, $0.size.height - previewHeight)
+                    } action: {
+                        listDetailsHeight = $0
+                    }
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.never)
+                .onChange(of: selectedIndex) { _, index in
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(index, anchor: .top)
+                    }
+                }
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { _ in
+                    // Rotation, keyboard/toolbar changes and text sizing can all
+                    // shrink the viewport. Keep metadata above a tall preview.
+                    proxy.scrollTo(selectedIndex, anchor: .top)
+                }
+            }
+        }
+        .frame(minHeight: 0, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func footerHints(compact: Bool) -> some View {
+        if KeyboardTracker.shared.isHardwareKeyboard {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: compact ? 8 : 16) {
+                    hintBadge("Esc", label: "dismiss", compact: compact)
+                    if !isPlaceholder {
+                        hintBadge("\u{2191}\u{2193}", label: "navigate", compact: compact)
+                        hintBadge("\u{21A9}", label: "attach", compact: compact)
+                        if let jumpKeys = digitJumpKeys {
+                            hintBadge(jumpKeys, label: "jump", compact: compact)
+                        }
+                    }
+                }
+                HStack(spacing: 8) {
+                    hintBadge("Esc", label: "dismiss", compact: compact)
+                    if !isPlaceholder {
+                        hintBadge("\u{21A9}", label: "attach", compact: compact)
+                    }
+                }
+            }
+            .padding(.horizontal, compact ? 16 : 20)
+            .padding(.vertical, compact ? 8 : 10)
+        } else {
+            Text(isPlaceholder
+                 ? "Tap outside to dismiss"
+                 : "Tap a session to select, tap Attach to connect")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, compact ? 16 : 20)
+                .padding(.bottom, 8)
+                .padding(.top, isPlaceholder ? 8 : 0)
+        }
+    }
+
     /// Stands in for the session list on a user-invoked run with no rows.
     @ViewBuilder
     private func placeholderBody(compact: Bool) -> some View {
@@ -233,17 +300,17 @@ struct SessionPickerOverlay: View {
                 ProgressView()
                     .controlSize(.regular)
                 Text("Searching for sessions…")
-                    .font(.system(size: compact ? 12 : 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             } else {
                 Image(systemName: placeholderIcon)
                     .font(.system(size: compact ? 18 : 24, weight: .light))
                     .foregroundStyle(.tertiary)
                 Text(placeholderTitle)
-                    .font(.system(size: compact ? 12 : 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
                 Text(placeholderDetail)
-                    .font(.system(size: compact ? 10 : 12))
+                    .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
             }
@@ -296,61 +363,107 @@ struct SessionPickerOverlay: View {
         }
     }
 
-    @ViewBuilder
-    private func tmuxAttachModeToggle(compact: Bool) -> some View {
-        Toggle(isOn: tmuxControlModeBinding) {
-            Label {
-                Text(isMixed ? "tmux control mode" : "Control mode")
-                    .font(.system(size: compact ? 12 : 14, weight: .medium))
-            } icon: {
-                Image(systemName: "rectangle.split.3x1")
-                    .font(.system(size: compact ? 11 : 13, weight: .medium))
+    private func controlModeBinding(for session: MultiplexerSession) -> Binding<Bool>? {
+        switch session.type {
+        case .tmux where allowsTmuxControlAttach: return tmuxControlModeBinding
+        case .herdr where allowsHerdrControlAttach: return herdrControlModeBinding
+        default: return nil
+        }
+    }
+
+    private func attachBar(for session: MultiplexerSession, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if !compact {
+                selectedSessionLabel(session)
+            }
+
+            if let binding = controlModeBinding(for: session) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        controlModeToggle(binding, session: session)
+                            .fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: 0)
+                        attachButton(for: session)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        controlModeToggle(binding, session: session)
+                        attachButton(for: session)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+            } else {
+                HStack(spacing: 12) {
+                    if compact {
+                        selectedSessionLabel(session)
+                    }
+                    Spacer(minLength: 0)
+                    attachButton(for: session)
+                }
             }
         }
-        .toggleStyle(.switch)
-        .controlSize(compact ? .small : .regular)
         .padding(.horizontal, compact ? 16 : 20)
-        .padding(.vertical, compact ? 8 : 10)
+        .padding(.vertical, compact ? 4 : 8)
     }
 
-    /// The host's herdr lacks control streams: control mode still works,
-    /// but with server-rendered panes and polled topology.
-    private var herdrControlIsDegraded: Bool {
-        sessions.contains { $0.type == .herdr && $0.supportsControlStream == false }
-    }
-
-    @ViewBuilder
-    private func herdrAttachModeToggle(compact: Bool) -> some View {
-        Toggle(isOn: herdrControlModeBinding) {
-            Label {
-                let base = isMixed ? "herdr control mode" : "Control mode"
-                Text(herdrControlIsDegraded ? "\(base) (degraded, upgrade herdr)" : base)
-                    .font(.system(size: compact ? 12 : 14, weight: .medium))
-            } icon: {
-                Image(systemName: MultiplexerType.herdr.iconName)
-                    .font(.system(size: compact ? 11 : 13, weight: .medium))
-            }
+    private func selectedSessionLabel(_ session: MultiplexerSession) -> some View {
+        Label {
+            Text(session.name)
+                .font(.system(.caption, design: .monospaced).weight(.semibold))
+                .lineLimit(1)
+        } icon: {
+            Image(systemName: session.type.iconName)
         }
-        .toggleStyle(.switch)
-        .controlSize(compact ? .small : .regular)
-        .padding(.horizontal, compact ? 16 : 20)
-        .padding(.vertical, compact ? 8 : 10)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Selected session: \(session.type.rawValue) \(session.name)")
+    }
+
+    private func controlModeToggle(_ binding: Binding<Bool>, session: MultiplexerSession) -> some View {
+        Toggle("Control mode", isOn: binding)
+            .font(.subheadline.weight(.medium))
+            .toggleStyle(.switch)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(minHeight: 44)
+            .accessibilityLabel("\(session.type.rawValue) control mode")
+    }
+
+    private func attachButton(for session: MultiplexerSession) -> some View {
+        Button { handleAttach(session) } label: {
+            Text("Attach")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12)
+                .frame(minWidth: 44, minHeight: 32)
+                .background(.green, in: Capsule())
+                .foregroundStyle(.white)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .accessibilityLabel("Attach to \(session.name)")
     }
 
     @ViewBuilder
-    private func sessionRow(session: MultiplexerSession, index: Int, isSelected: Bool, compact: Bool) -> some View {
+    private func sessionRow(session: MultiplexerSession, isSelected: Bool, compact: Bool, previewHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
             // Metadata row
             sessionRowMetadata(session: session, isSelected: isSelected, compact: compact)
 
+            if isSelected, session.type == .herdr, allowsHerdrControlAttach,
+               session.supportsControlStream == false {
+                Text("Control mode is degraded. Upgrade herdr on the host.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, compact ? 20 : 28)
+                    .padding(.top, 4)
+            }
+
             // Preview (only for selected row with captured content)
             if isSelected, let content = session.capturedContent, !content.isEmpty {
                 let previewScale: CGFloat = 0.45
-                let isSingle = sessions.count == 1
-                let displayHeight: CGFloat = isSingle
-                    ? (compact ? 140 : 280)
-                    : (compact ? 100 : 150)
-                let virtualHeight = displayHeight / previewScale
+                let virtualHeight = previewHeight / previewScale
 
                 GeometryReader { geo in
                     let virtualWidth = geo.size.width / previewScale
@@ -363,28 +476,17 @@ struct SessionPickerOverlay: View {
                     .frame(width: virtualWidth, height: virtualHeight)
                     .scaleEffect(previewScale, anchor: .topLeading)
                 }
-                .frame(height: displayHeight)
+                .frame(height: previewHeight)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .padding(.horizontal, compact ? 8 : 14)
                 .padding(.top, 6)
                 .padding(.bottom, 4)
-                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
-            }
-
-            // Touch-only attach button for selected row
-            if isSelected && !KeyboardTracker.shared.isHardwareKeyboard {
-                Button("Attach") { handleAttach(session) }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
-                    .controlSize(.small)
-                    .padding(.top, 6)
-                    .padding(.bottom, 2)
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
         .padding(.horizontal, compact ? 8 : 14)
         .padding(.vertical, compact ? 6 : 10)
+        .frame(minHeight: 44)
         .background(
             isSelected
                 ? AnyShapeStyle(.tint.opacity(0.12))
@@ -403,49 +505,66 @@ struct SessionPickerOverlay: View {
                 .foregroundStyle(.tint)
                 .frame(width: compact ? 12 : 16)
 
-            // Session info
+            // Keep short metadata on one line. Long names and larger text
+            // put status/detail below the identity instead of crushing it.
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(session.name)
-                        .font(.system(size: compact ? 13 : 16, weight: .semibold, design: .monospaced))
-                        .lineLimit(1)
-
-                    // Type badge (only in mixed-type lists)
-                    if isMixed {
-                        Text(session.type.rawValue)
-                            .font(.system(size: compact ? 9 : 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(.fill.tertiary, in: Capsule())
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) {
+                        sessionIdentity(session, compact: compact)
+                        sessionStatus(session)
                     }
+                    .fixedSize(horizontal: true, vertical: false)
 
-                    // Status pill
-                    Text(statusText(for: session))
-                        .font(.system(size: compact ? 10 : 12, weight: .medium))
-                        .foregroundStyle(statusColor(for: session))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(
-                            statusColor(for: session).opacity(0.15),
-                            in: Capsule()
-                        )
-
-                    Text(session.detail)
-                        .font(.system(size: compact ? 11 : 13, design: .monospaced))
-                        .foregroundStyle(.tertiary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        sessionIdentity(session, compact: compact)
+                        sessionStatus(session)
+                    }
                 }
 
-                // Subtitle: active command + path (tmux) or empty (zellij)
                 if let subtitle = session.subtitle {
                     Text(subtitle)
-                        .font(.system(size: compact ? 11 : 14, design: .monospaced))
+                        .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
 
             Spacer(minLength: 0)
+        }
+    }
+
+    private func sessionIdentity(_ session: MultiplexerSession, compact: Bool) -> some View {
+        HStack(spacing: 6) {
+            Text(session.name)
+                .font(.system(compact ? .subheadline : .body, design: .monospaced).weight(.semibold))
+                .lineLimit(1)
+                .layoutPriority(1)
+
+            if isMixed {
+                Text(session.type.rawValue)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(.fill.tertiary, in: Capsule())
+                    .fixedSize()
+            }
+        }
+    }
+
+    private func sessionStatus(_ session: MultiplexerSession) -> some View {
+        HStack(spacing: 6) {
+            Text(statusText(for: session))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(statusColor(for: session))
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(statusColor(for: session).opacity(0.15), in: Capsule())
+                .fixedSize()
+            Text(session.detail)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
         }
     }
 

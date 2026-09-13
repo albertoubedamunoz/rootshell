@@ -7,6 +7,12 @@ extension HerdrController {
     /// The gateway stays covered until detaching returns it to its shell.
     var showsGatewayStatus: Bool { !didEnd }
 
+    /// A connecting card would only flash on the way to the initial tab.
+    /// A connect error reveals it so Retry is reachable.
+    var holdsGatewayCardForInitialReveal: Bool {
+        !didEnd && !hasProcessedInitialReveal && connectionError == nil
+    }
+
     func publishSessionState() {
         publishManagementState()
         gateway?.updateHerdrGatewayOverlay()

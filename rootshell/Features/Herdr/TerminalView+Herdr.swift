@@ -16,7 +16,8 @@ extension Ghostty.TerminalView {
 
     /// The card is a plain hosted subview: the gateway terminal keeps first
     /// responder, its keyboard, and its gestures. Installed lazily so a
-    /// gateway restored into a hidden tab never lays out until it is shown.
+    /// gateway restored into a hidden tab never lays out until it is shown,
+    /// and never before the initial attach has chosen its tab.
     func updateHerdrGatewayOverlay() {
         guard let controller = herdrController, controller.showsGatewayStatus else {
             herdrGatewayHost?.willMove(toParent: nil)
@@ -26,7 +27,11 @@ extension Ghostty.TerminalView {
             return
         }
         if herdrGatewayHost == nil {
-            guard isTabVisible, window != nil, !bounds.isEmpty else { return }
+            // Occlusion trails selection by a SwiftUI pass; the selected-tab
+            // check keeps the card off a gateway that was just left.
+            guard isTabVisible, window != nil, !bounds.isEmpty,
+                  !controller.holdsGatewayCardForInitialReveal,
+                  controller.tabsModel.selectedTabID == containingTabID else { return }
         }
         #if targetEnvironment(macCatalyst)
         // Installing the overlay need not produce a hover exit. Release any

@@ -188,6 +188,7 @@ extension HerdrController {
             defer {
                 self.newTabTasks.removeValue(forKey: requestID)
                 if self.emptySessionCreationID == requestID { self.emptySessionCreationID = nil }
+                if isAutomatic { self.hasProcessedInitialReveal = true }
                 if self.streamGeneration == generation, !self.didEnd { self.publishSessionState() }
             }
             guard self.creationIsCurrent(generation) else { return }

@@ -158,6 +158,9 @@ final class HerdrController {
     /// Set once the first snapshot applied, so later reconnects do not steal
     /// the selected tab.
     var hasProcessedInitialFocus = false
+    /// Set once the first snapshot chose the initial tab, or the empty-session
+    /// bootstrap finished. The gateway card is not installed before this.
+    var hasProcessedInitialReveal = false
 
     // MARK: - Topology state (mutated by the +Topology and +Panes extensions)
 
