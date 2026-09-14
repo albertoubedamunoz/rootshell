@@ -20,6 +20,18 @@ extension Ghostty.TerminalView {
            controller.paneInfos.values.filter({ $0.tab_id == tabID }).count > 1 {
             items.append(action(.swapPane, image: "rectangle.2.swap"))
         }
+        if let tabID = controller.paneInfos[paneID]?.tab_id, let tab = controller.tabs[tabID] {
+            if controller.tabIsControlledElsewhere(tab) {
+                items.append(UIAction(title: String(localized: "Take Control"), image: UIImage(systemName: "person.2")) { [weak controller] _ in
+                    controller?.requestTakeControl(tabId: tabID)
+                })
+            } else if controller.capabilities.supportsSharedViewing, controller.ownership(of: tabID) != .mine {
+                items.append(UIAction(title: String(localized: "Fit to This Window"),
+                                      image: UIImage(systemName: "arrow.up.left.and.arrow.down.right")) { [weak controller] _ in
+                    controller?.requestFitToWindow(tab)
+                })
+            }
+        }
         return UIMenu(title: "herdr", children: items)
     }
 }

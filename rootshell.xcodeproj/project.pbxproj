@@ -103,10 +103,17 @@
 		47AABB012FF40000AABB0001 /* rootshell-helper.app in Embed Helper */ = {isa = PBXBuildFile; fileRef = 47AABB072FF40000AABB0007 /* rootshell-helper.app */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		47ABC10F2FF50000AABB000F /* rootshell-helper/Sources/PTYManagerImpl.m in Sources */ = {isa = PBXBuildFile; fileRef = 47ABC10D2FF50000AABB000D /* rootshell-helper/Sources/PTYManagerImpl.m */; };
 		47ABC1102FF50000AABB0010 /* rootshell-helper/Sources/ProcessSpawner.m in Sources */ = {isa = PBXBuildFile; fileRef = 47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */; };
+		47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */; };
+		47AC7E5700000000000000A1 /* rootshell/Features/Herdr/HerdrVersionRequirement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B1 /* rootshell/Features/Herdr/HerdrVersionRequirement.swift */; };
+		47AC7E5700000000000000A2 /* rootshell/Features/Herdr/HerdrGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B2 /* rootshell/Features/Herdr/HerdrGeometry.swift */; };
+		47AC7E5700000000000000A3 /* rootshell/Features/Herdr/HerdrControlProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B3 /* rootshell/Features/Herdr/HerdrControlProtocol.swift */; };
+		47AC7E5700000000000000A4 /* rootshell/Features/Herdr/HerdrServerCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B4 /* rootshell/Features/Herdr/HerdrServerCapabilities.swift */; };
+		47AC7E5700000000000000A5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift */; };
+		47AC7E5700000000000000A6 /* rootshell/Features/Herdr/HerdrManagementModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */; };
+		47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */; };
 		47AE8FBE2F4BBBAA0032A651 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
 		47AEC0010000000000000001 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */; };
 		47AEC0010000000000000002 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */; };
-		47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */; };
 		47AEC0010000000000000003 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000011 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift */; };
 		47AEC0010000000000000004 /* rootshell-helper/Sources/EnvironmentBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000014 /* rootshell-helper/Sources/EnvironmentBuilder.swift */; };
 		47AEC0010000000000000005 /* rootshell-helper/Sources/LocaleHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000015 /* rootshell-helper/Sources/LocaleHelper.swift */; };
@@ -535,11 +542,18 @@
 		47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "rootshell-helper/Sources/ProcessSpawner.m"; sourceTree = SOURCE_ROOT; };
 		47ABC1172FF50000AABB0017 /* Helper.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Helper.xcconfig; sourceTree = "<group>"; };
 		47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = HelperTests.xcconfig; sourceTree = "<group>"; };
-		47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Persistence/LocalMultiplexerAttachment.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalCorrectionContext.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E570000000000000011 /* AppTests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppTests.xcconfig; sourceTree = "<group>"; };
 		47AC7E570000000000000012 /* rootshellTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rootshellTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		47AC7E5700000000000000B1 /* rootshell/Features/Herdr/HerdrVersionRequirement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrVersionRequirement.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E5700000000000000B2 /* rootshell/Features/Herdr/HerdrGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrGeometry.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E5700000000000000B3 /* rootshell/Features/Herdr/HerdrControlProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrControlProtocol.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E5700000000000000B4 /* rootshell/Features/Herdr/HerdrServerCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrServerCapabilities.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E5700000000000000B5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrUpgradePrompt.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrManagementModels.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrReplyFilter.swift; sourceTree = SOURCE_ROOT; };
+		47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Persistence/LocalMultiplexerAttachment.swift; sourceTree = SOURCE_ROOT; };
 		47AEC0010000000000000011 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "rootshell-helper/Sources/LocalMultiplexerRecovery.swift"; sourceTree = SOURCE_ROOT; };
 		47AEC0010000000000000014 /* rootshell-helper/Sources/EnvironmentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "rootshell-helper/Sources/EnvironmentBuilder.swift"; sourceTree = SOURCE_ROOT; };
 		47AEC0010000000000000015 /* rootshell-helper/Sources/LocaleHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "rootshell-helper/Sources/LocaleHelper.swift"; sourceTree = SOURCE_ROOT; };
@@ -737,11 +751,6 @@
 			path = rootshellvpnTests;
 			sourceTree = "<group>";
 		};
-		47AC7E570000000000000020 /* rootshellTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = rootshellTests;
-			sourceTree = "<group>";
-		};
 		473118D82FFC2B1700FB3C83 /* rootshellvpnUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = rootshellvpnUITests;
@@ -766,6 +775,11 @@
 		47ABC1042FF50000AABB0004 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Tests;
+			sourceTree = "<group>";
+		};
+		47AC7E570000000000000020 /* rootshellTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = rootshellTests;
 			sourceTree = "<group>";
 		};
 		47CWP0062F560000DDEE0006 /* CoreWLANPlugin */ = {
@@ -895,6 +909,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47AC7E570000000000000031 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		47CD00000600000000000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -987,13 +1008,6 @@
 			files = (
 				47VPN0412F460000BBCC0041 /* VPNTunnel in Frameworks */,
 				47VPN0512F460000BBCC0051 /* Citadel in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		47AC7E570000000000000031 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1135,6 +1149,13 @@
 				47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */,
 				47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */,
 				47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */,
+				47AC7E5700000000000000B1 /* rootshell/Features/Herdr/HerdrVersionRequirement.swift */,
+				47AC7E5700000000000000B2 /* rootshell/Features/Herdr/HerdrGeometry.swift */,
+				47AC7E5700000000000000B3 /* rootshell/Features/Herdr/HerdrControlProtocol.swift */,
+				47AC7E5700000000000000B4 /* rootshell/Features/Herdr/HerdrServerCapabilities.swift */,
+				47AC7E5700000000000000B5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift */,
+				47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */,
+				47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */,
 				47AEC0010000000000000011 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift */,
 				47AEC0010000000000000015 /* rootshell-helper/Sources/LocaleHelper.swift */,
 				47AEC0010000000000000014 /* rootshell-helper/Sources/EnvironmentBuilder.swift */,
@@ -1271,6 +1292,26 @@
 			name = "rootshell-helperTests";
 			productName = "rootshell-helperTests";
 			productReference = 47ABC1022FF50000AABB0002 /* rootshell-helperTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		47AC7E570000000000000040 /* rootshellTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47AC7E570000000000000050 /* Build configuration list for PBXNativeTarget "rootshellTests" */;
+			buildPhases = (
+				47AC7E570000000000000030 /* Sources */,
+				47AC7E570000000000000031 /* Frameworks */,
+				47AC7E570000000000000032 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47AC7E570000000000000020 /* rootshellTests */,
+			);
+			name = rootshellTests;
+			productName = rootshellTests;
+			productReference = 47AC7E570000000000000012 /* rootshellTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		47CD00000100000000000000 /* rootshell-china */ = {
@@ -1524,26 +1565,6 @@
 			productReference = DD1249A5776E91521A4BEA8A /* rootshell.app */;
 			productType = "com.apple.product-type.application";
 		};
-		47AC7E570000000000000040 /* rootshellTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 47AC7E570000000000000050 /* Build configuration list for PBXNativeTarget "rootshellTests" */;
-			buildPhases = (
-				47AC7E570000000000000030 /* Sources */,
-				47AC7E570000000000000031 /* Frameworks */,
-				47AC7E570000000000000032 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				47AC7E570000000000000020 /* rootshellTests */,
-			);
-			name = rootshellTests;
-			productName = rootshellTests;
-			productReference = 47AC7E570000000000000012 /* rootshellTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1732,6 +1753,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47AC7E570000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		47CD00000700000000000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1877,13 +1905,6 @@
 				5C28DA23DDA19BB1EBBB266C /* AppIconRadicalSolarizedDark.icon in Resources */,
 				06641C55E10A388BA59C6B87 /* AppIconRadicalSolarizedLight.icon in Resources */,
 				3B3903EC78C639818770DF57 /* AppIconRadicalTokyoNight.icon in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		47AC7E570000000000000032 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2082,6 +2103,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47AC7E570000000000000030 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */,
+				47AC7E5700000000000000A1 /* rootshell/Features/Herdr/HerdrVersionRequirement.swift in Sources */,
+				47AC7E5700000000000000A2 /* rootshell/Features/Herdr/HerdrGeometry.swift in Sources */,
+				47AC7E5700000000000000A3 /* rootshell/Features/Herdr/HerdrControlProtocol.swift in Sources */,
+				47AC7E5700000000000000A4 /* rootshell/Features/Herdr/HerdrServerCapabilities.swift in Sources */,
+				47AC7E5700000000000000A5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift in Sources */,
+				47AC7E5700000000000000A6 /* rootshell/Features/Herdr/HerdrManagementModels.swift in Sources */,
+				47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		47CD00000500000000000000 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -2128,14 +2164,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		47AC7E570000000000000030 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4011,6 +4039,62 @@
 		47ABC12A2FF50000AABB002A /* ReleaseChina */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 47ABC1182FF50000AABB0018 /* HelperTests.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseChina;
+		};
+		47AC7E570000000000000061 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		47AC7E570000000000000062 /* DebugStandalone */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugStandalone;
+		};
+		47AC7E570000000000000063 /* DebugAppStore */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugAppStore;
+		};
+		47AC7E570000000000000064 /* DebugChina */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = DebugChina;
+		};
+		47AC7E570000000000000065 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		47AC7E570000000000000066 /* ReleaseStandalone */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseStandalone;
+		};
+		47AC7E570000000000000067 /* ReleaseAppStore */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = ReleaseAppStore;
+		};
+		47AC7E570000000000000068 /* ReleaseChina */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
 			buildSettings = {
 			};
 			name = ReleaseChina;
@@ -6197,62 +6281,6 @@
 			};
 			name = ReleaseChina;
 		};
-		47AC7E570000000000000061 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = Debug;
-		};
-		47AC7E570000000000000062 /* DebugStandalone */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugStandalone;
-		};
-		47AC7E570000000000000063 /* DebugAppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugAppStore;
-		};
-		47AC7E570000000000000064 /* DebugChina */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = DebugChina;
-		};
-		47AC7E570000000000000065 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = Release;
-		};
-		47AC7E570000000000000066 /* ReleaseStandalone */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseStandalone;
-		};
-		47AC7E570000000000000067 /* ReleaseAppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseAppStore;
-		};
-		47AC7E570000000000000068 /* ReleaseChina */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 47AC7E570000000000000011 /* AppTests.xcconfig */;
-			buildSettings = {
-			};
-			name = ReleaseChina;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -6342,6 +6370,21 @@
 				47ABC1282FF50000AABB0028 /* ReleaseStandalone */,
 				47ABC1292FF50000AABB0029 /* ReleaseAppStore */,
 				47ABC12A2FF50000AABB002A /* ReleaseChina */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		47AC7E570000000000000050 /* Build configuration list for PBXNativeTarget "rootshellTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47AC7E570000000000000061 /* Debug */,
+				47AC7E570000000000000062 /* DebugStandalone */,
+				47AC7E570000000000000063 /* DebugAppStore */,
+				47AC7E570000000000000064 /* DebugChina */,
+				47AC7E570000000000000065 /* Release */,
+				47AC7E570000000000000066 /* ReleaseStandalone */,
+				47AC7E570000000000000067 /* ReleaseAppStore */,
+				47AC7E570000000000000068 /* ReleaseChina */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -6465,21 +6508,6 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = ReleaseStandalone;
-		};
-		47AC7E570000000000000050 /* Build configuration list for PBXNativeTarget "rootshellTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				47AC7E570000000000000061 /* Debug */,
-				47AC7E570000000000000062 /* DebugStandalone */,
-				47AC7E570000000000000063 /* DebugAppStore */,
-				47AC7E570000000000000064 /* DebugChina */,
-				47AC7E570000000000000065 /* Release */,
-				47AC7E570000000000000066 /* ReleaseStandalone */,
-				47AC7E570000000000000067 /* ReleaseAppStore */,
-				47AC7E570000000000000068 /* ReleaseChina */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 

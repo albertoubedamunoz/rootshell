@@ -15,7 +15,10 @@ extension HerdrController {
             socketPath: attachment?.socketPath,
             startedAt: attachment.flatMap { Self.epochDate($0.serverStartedAt) },
             controlStreamVersion: controlOpened?.capabilities?.terminal_control_stream,
-            liveHandoff: controlOpened?.capabilities?.live_handoff)
+            liveHandoff: controlOpened?.capabilities?.live_handoff,
+            controlFeatures: controlOpened == nil ? nil : capabilities.sortedFeatures,
+            sharedViewing: controlOpened == nil ? nil : capabilities.supportsSharedViewing,
+            upgradeAdvice: upgradePrompt?.cardHeadline)
         let session = HerdrConnectionSnapshot.Session(
             name: sessionName ?? "default",
             workspaces: workspaces.count,
@@ -35,7 +38,8 @@ extension HerdrController {
             isActive: isActive,
             isReconnecting: isReconnectPending,
             reconnectAttempt: reconnectAttempt,
-            endpointOverlay: endpointOverlay)
+            endpointOverlay: endpointOverlay,
+            otherClients: otherConnections.map(\.displayLabel))
         return HerdrConnectionSnapshot(
             server: server, session: session, client: client,
             tab: request.tabID.flatMap(tabSnapshot),
@@ -56,7 +60,8 @@ extension HerdrController {
             panes: tab.pane_count,
             columns: size?.cols,
             rows: size?.rows,
-            worktreePath: workspace?.worktree?.checkout_path)
+            worktreePath: workspace?.worktree?.checkout_path,
+            geometryOwner: geometryOwnerDescription(tabID))
     }
 
     private func paneSnapshot(_ terminalID: String) -> HerdrConnectionSnapshot.Pane? {
@@ -74,7 +79,8 @@ extension HerdrController {
             workingDirectory: info?.foreground_cwd ?? info?.cwd,
             width: rect?.width,
             height: rect?.height,
-            focused: focusedPaneId == paneID)
+            focused: focusedPaneId == paneID,
+            answersQueries: paneSession.attachId.flatMap { attachAnswersQueries[$0] })
     }
 
     /// Helper-reported process times are Unix seconds; reject anything that

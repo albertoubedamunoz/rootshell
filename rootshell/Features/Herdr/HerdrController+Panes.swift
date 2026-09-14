@@ -60,6 +60,7 @@ extension HerdrController {
         attachQueue.removeAll { $0 == session.terminalId }
         if let attachId = attachIds.removeValue(forKey: session.terminalId) {
             terminalByAttach.removeValue(forKey: attachId)
+            attachAnswersQueries.removeValue(forKey: attachId)
             router.unregister(attachId: attachId)
             if let channel {
                 Task { try? await channel.request("terminal.detach", HerdrControl.AttachTarget(attach_id: attachId)) }
@@ -67,18 +68,22 @@ extension HerdrController {
         }
     }
 
-    func sendInput(from session: HerdrPaneSession, _ data: Data) {
+    func sendInput(from session: HerdrPaneSession, _ data: Data, automaticReply: Bool = false) {
         if mode == .legacy {
             legacyInput(session, data)
             return
         }
         guard let attachId = session.attachId, let channel else { return }
-        Task { await channel.sendInput(attachId: attachId, bytes: data) }
+        // Only the query authority answers, but the server decides: a reply
+        // to a query that predates an authority hand-off is still wanted,
+        // and only the server knows its grace window. Never drop here.
+        let auto: Bool? = automaticReply && capabilities.supports(.autoInput) ? true : nil
+        Task { await channel.sendInput(attachId: attachId, bytes: data, auto: auto) }
     }
 
     // MARK: - Attach queue
 
-    private func isVisible(terminalId: String) -> Bool {
+    func isVisible(terminalId: String) -> Bool {
         guard let view = paneViews[terminalId], let tabID = view.containingTabID else { return false }
         return tabsModel.selectedTabID == tabID
     }
@@ -109,7 +114,7 @@ extension HerdrController {
         pumpAttachQueue()
     }
 
-    private func enqueueAttach(_ terminalId: String, front: Bool) {
+    func enqueueAttach(_ terminalId: String, front: Bool) {
         guard attachesInFlight[terminalId] == nil, !attachQueue.contains(terminalId) else { return }
         if front {
             attachQueue.insert(terminalId, at: 0)
@@ -119,9 +124,10 @@ extension HerdrController {
         pumpAttachQueue()
     }
 
-    private func pumpAttachQueue() {
+    func pumpAttachQueue() {
         guard let channel, isActive, mode == .raw, !Ghostty.isAppBackgroundedAtomic else { return }
-        attachQueue.removeAll { paneSessions[$0] == nil || attachIds[$0] != nil }
+        // Panes another client holds wait for Take Control, not for a retry.
+        attachQueue.removeAll { paneSessions[$0] == nil || attachIds[$0] != nil || paneControlStates[$0] != nil }
         while attachesInFlight.count < Self.maxAttachesInFlight,
               let index = attachQueue.firstIndex(where: { attachesInFlight[$0] == nil && paneGeometryIsReady($0) }) {
             let terminalId = attachQueue.remove(at: index)
@@ -140,14 +146,21 @@ extension HerdrController {
     /// from session.snapshot. The raw layout and its native surface must agree.
     func paneGeometryIsReady(_ terminalId: String) -> Bool {
         guard let view = paneViews[terminalId], let binding = view.herdrPaneBinding,
-              let geometry = tabGeometryStates[binding.tabId], geometry.isConfirmed,
-              let measured = tabGeometry(from: view), geometry.desired == measured,
-              let layout = controlLayouts[binding.tabId],
-              layout.area.width == measured.cols, layout.area.height == measured.rows,
               let target = view.herdrTargetGrid, let size = view.surfaceSize,
               let parsed = paneSessions[terminalId]?.parserGrid else { return false }
-        return Int(size.columns) == target.cols && Int(size.rows) == target.rows
+        let surfaceMatches = Int(size.columns) == target.cols && Int(size.rows) == target.rows
             && parsed.cols == target.cols && parsed.rows == target.rows
+        guard let geometry = tabGeometryStates[binding.tabId], let layout = controlLayouts[binding.tabId] else { return false }
+        if geometry.isOwnedElsewhere {
+            // Another client sized the tab: our surfaces follow its layout,
+            // whatever our container measures.
+            return surfaceMatches && layout.panes.contains { $0.pane_id == view.herdrPaneBinding?.paneId
+                && $0.rect.width == target.cols && $0.rect.height == target.rows }
+        }
+        guard geometry.isConfirmed,
+              let measured = tabGeometry(from: view), geometry.desired == measured,
+              layout.area.width == measured.cols, layout.area.height == measured.rows else { return false }
+        return surfaceMatches
     }
 
     private func updateRouterGrid(terminalId: String) {
@@ -166,10 +179,12 @@ extension HerdrController {
             return
         }
         TerminalBellSuppressor.suppressRebuild(view.uuid)
+        // Never evict another client on our own; only a user's Take Control does.
+        let tabId = view.herdrPaneBinding?.tabId
         let params = HerdrControl.AttachParams(
             target: terminalId,
             history_limit_bytes: SettingsStore.shared.value(Settings.Multiplexer.herdrControlHistoryLimitBytes),
-            takeover: true
+            takeover: tabId.map { takeoverRequested.contains($0) } ?? false
         )
         do {
             let attached = try await channel.request(
@@ -196,9 +211,14 @@ extension HerdrController {
                 panesNeedingSnapshot.insert(terminalId)
                 requestSnapshotsForReadyPanes()
             }
+            paneDidAttach(terminalId: terminalId, tabId: tabId)
         } catch {
             guard self.channel === channel, paneSessions[terminalId] === session else { return }
             Self.logger.error("herdr attach \(terminalId) failed: \(error.localizedDescription)")
+            if case HerdrChannelError.remote(let code, _) = error, code == "terminal_attached" {
+                paneHeldByOther(terminalId: terminalId, tabId: tabId)
+                return
+            }
             refreshTopology()
             attachRetries[terminalId]?.cancel()
             attachRetries[terminalId] = Task { [weak self] in
@@ -266,14 +286,9 @@ extension HerdrController {
 
     func attachDidDetach(_ detached: HerdrControl.DetachedRecord) {
         guard !didEnd else { return }
-        // The response continuation may not have registered this attach yet.
-        // Ownership loss ends this whole raw stream, regardless of pane lookup.
-        if mode == .raw, detached.reason == "takeover" {
-            detachAfterTakeover()
-            return
-        }
         guard let terminalId = terminalByAttach.removeValue(forKey: detached.attach_id) else { return }
         attachIds.removeValue(forKey: terminalId)
+        attachAnswersQueries.removeValue(forKey: detached.attach_id)
         router.unregister(attachId: detached.attach_id)
         paneViews[terminalId]?.endHerdrTitleAttachment()
         paneSessions[terminalId]?.attachId = nil
@@ -286,6 +301,10 @@ extension HerdrController {
             } else {
                 refreshTopology()
             }
+        case "takeover":
+            // Per pane: the surface keeps its last screen and waits for the
+            // user. No re-attach, or two clients would evict each other forever.
+            paneTakenOver(terminalId: terminalId)
         default:
             refreshTopology()
         }
@@ -373,12 +392,14 @@ extension HerdrController {
         }
     }
 
-    private func scheduleGeometryPush(from view: Ghostty.TerminalView) {
+    func scheduleGeometryPush(from view: Ghostty.TerminalView) {
         guard let binding = view.herdrPaneBinding, let tab = tabs[binding.tabId],
               let channel, let size = tabGeometry(from: view) else { return }
         let tabId = binding.tabId
         tabGeometryStates[tabId, default: .init()].update(size)
         guard geometryTasks[tabId] == nil, tabGeometryStates[tabId]?.isConfirmed == false else { return }
+        // A protocol 1 server always claims; only send its size when we may.
+        guard capabilities.supportsSharedViewing || tabGeometryStates[tabId]?.mayClaim != false else { return }
         let generation = streamGeneration
         geometryTasks[tabId] = Task { @MainActor [weak self, weak tab] in
             guard let self, let tab else { return }
@@ -417,10 +438,15 @@ extension HerdrController {
                 if current != desired, !overdue { continue }
                 guard let request = self.tabGeometryStates[tabId]?.beginRequest() else { return }
                 let size = request.size
-                let params = HerdrControl.TabGeometryParams(
+                // While another client owns the tab this only stores our size,
+                // so the server can apply it the moment we interact.
+                let claims = self.tabGeometryStates[tabId]?.mayClaim ?? true
+                var params = HerdrControl.TabGeometryParams(
                     tab_id: tabId, cols: size.cols, rows: size.rows,
                     cell_width_px: size.cellWidth, cell_height_px: size.cellHeight
                 )
+                if self.capabilities.supportsSharedViewing { params.claim = claims }
+                Self.logger.info("herdr tab.set_geometry \(tabId) \(size.cols)x\(size.rows) claim=\(claims)")
                 do {
                     try await channel.request("tab.set_geometry", params)
                     guard !Task.isCancelled, self.streamGeneration == generation,
@@ -569,7 +595,7 @@ extension HerdrController {
         }
     }
 
-    private func requestSnapshotsForReadyPanes() {
+    func requestSnapshotsForReadyPanes() {
         for terminalId in panesNeedingSnapshot where paneGeometryIsReady(terminalId) {
             guard let attachId = attachIds[terminalId],
                   !snapshotRequestsInFlight.contains(attachId) else { continue }

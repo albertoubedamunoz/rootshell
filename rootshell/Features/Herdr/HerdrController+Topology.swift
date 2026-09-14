@@ -50,8 +50,12 @@ extension HerdrController {
             } else if mode == .raw, let controlled = controlLayouts[layout.tab_id],
                controlled.zoomed == layout.zoomed,
                Set(controlled.panes.map(\.pane_id)) == Set(layout.panes.map(\.pane_id)) {
+                applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
                 applyLayout(controlled)
             } else {
+                // A protocol 2 snapshot layout is the tab's real geometry.
+                if mode == .raw, layout.carriesRealGeometry { controlLayouts[layout.tab_id] = layout }
+                applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
                 applyLayout(layout)
             }
         }
@@ -400,6 +404,8 @@ extension HerdrController {
             endpointLayouts.removeValue(forKey: tabId)
             tabGeometryStates.removeValue(forKey: tabId)
             geometryTasks.removeValue(forKey: tabId)?.cancel()
+            takeoverRequested.remove(tabId)
+            takeControlPromptedTabs.remove(tabId)
         }
         if let focusedPaneId, !paneIds.contains(focusedPaneId) { self.focusedPaneId = nil }
         if tabs.isEmpty {
@@ -437,6 +443,7 @@ extension HerdrController {
         view.herdrEndpointPane?.disconnect()
         view.herdrEndpointPane = nil
         view.endHerdrTitleAttachment()
+        if paneControlStates.removeValue(forKey: terminalId) != nil { view.updateHerdrPaneControlOverlay() }
         attachQueue.removeAll { $0 == terminalId }
         attachRetries.removeValue(forKey: terminalId)?.cancel()
         attachesInFlight.removeValue(forKey: terminalId)
@@ -476,6 +483,25 @@ extension HerdrController {
 
     // MARK: - Layout
 
+    /// Initial topology can build ratios before any surface has cell metrics.
+    /// Rebuild from the current raw layout once they exist; a store-only size
+    /// push by a viewer will not elicit another layout from the server.
+    func refreshLayoutForSurfaceMetrics(from view: Ghostty.TerminalView) {
+        guard mode == .raw, isActive, !didEnd,
+              let binding = view.herdrPaneBinding, binding.gatewayUUID == gatewayUUID,
+              paneViews[binding.terminalId] === view,
+              let tab = tabs[binding.tabId], tab.id == view.containingTabID,
+              let layout = controlLayouts[binding.tabId],
+              let node = HerdrLayoutTree.build(layout),
+              let root = buildSplitNode(node) else { return }
+        let tree = SplitTree<SplitPaneView>(root: root, zoomed: tab.splitTree.zoomed)
+        // This is only a metric refresh. Preserve local focus and zoom, and
+        // never restore an old pane set while a topology change is arriving.
+        guard tree.structuralIdentity == tab.splitTree.structuralIdentity,
+              tree.root != tab.splitTree.root else { return }
+        tab.splitTree = tree
+    }
+
     func applyLayout(_ layout: HerdrControl.LayoutSnapshot, barrier: UInt64? = nil) {
         lastLayouts[layout.tab_id] = layout
         guard let tab = tabs[layout.tab_id] else { return }
@@ -499,8 +525,10 @@ extension HerdrController {
             // A generic snapshot describes the server TUI's viewport. Let
             // the initial native host use its full space until our raw layout
             // arrives; clamping to the TUI first causes a shrink/grow bounce.
-            view.herdrTargetGrid = (mode == .raw && tabGeometryStates[layout.tab_id]?.hasRequested == true
-                && controlLayouts[layout.tab_id] != nil) || endpointLayouts[layout.tab_id] == layout
+            let ownedElsewhere = tabGeometryStates[layout.tab_id]?.isOwnedElsewhere == true
+            view.herdrTargetGrid = (mode == .raw && controlLayouts[layout.tab_id] != nil
+                && (tabGeometryStates[layout.tab_id]?.hasRequested == true || ownedElsewhere || layout.carriesRealGeometry))
+                || endpointLayouts[layout.tab_id] == layout
                 ? (cols: pane.rect.width, rows: pane.rect.height) : nil
         }
         var zoomed: SplitTree<SplitPaneView>.Node?
@@ -722,6 +750,11 @@ extension HerdrController {
             var updated = pane
             updated.focused = pane.pane_id == paneId
             paneInfos[pane.pane_id] = updated
+        }
+        // Someone else drives a tab they own; their pane focus stays theirs.
+        guard tabGeometryStates[info.tab_id]?.isOwnedElsewhere != true else {
+            refreshTitle(of: tab)
+            return
         }
         if tab.focusedPane !== view || (tabsModel.selectedTabID == tab.id &&
             (!view.isLogicallyFocused || !view.isFirstResponder)) {

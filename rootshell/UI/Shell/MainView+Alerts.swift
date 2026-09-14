@@ -36,6 +36,10 @@ extension MainView {
             return alerts.validationData?.alertTitle ?? "⚠️ WARNING: Host Key Changed"
         case .helperMissing:
             return String(localized: "Rootshell Helper Required", comment: "Standalone helper alert title")
+        case .herdrUpgrade:
+            return alerts.herdrUpgradePrompt?.title ?? ""
+        case .herdrTakeControl:
+            return String(localized: "Tab Controlled by Another Client", comment: "herdr take-control alert title")
         case .profileUnavailable:
             return String(localized: "Profile Unavailable")
         case .vncProfileInvalid:
@@ -153,6 +157,36 @@ extension MainView {
                     Button("OK", role: .cancel) {
                         alerts.dismissActive()
                     }
+                case .herdrUpgrade:
+                    Button("OK", role: .cancel) {
+                        alerts.dismissActive()
+                    }
+                    Button("Copy Command") {
+                        copyHerdrInstallCommand()
+                        alerts.dismissActive()
+                    }
+                    Button("Show Instructions") {
+                        alerts.dismissActive()
+                        showHerdrInstallInstructions = true
+                    }
+                    .keyboardShortcut(.defaultAction)
+                case .herdrTakeControl:
+                    Button("Not Now", role: .cancel) {
+                        alerts.dismissActive()
+                    }
+                    if alerts.herdrTakeControlRequest?.evictsOtherClient == true {
+                        Button("Copy Upgrade Command") {
+                            copyHerdrInstallCommand()
+                            alerts.dismissActive()
+                        }
+                    }
+                    Button("Take Control") {
+                        if let request = alerts.herdrTakeControlRequest {
+                            HerdrController.controller(forGateway: request.gatewayUUID)?.requestTakeControl(tabId: request.tabId)
+                        }
+                        alerts.dismissActive()
+                    }
+                    .keyboardShortcut(.defaultAction)
                 case .profileUnavailable, .vncProfileInvalid:
                     Button("OK", role: .cancel) {
                         alerts.dismissActive()
@@ -245,6 +279,14 @@ extension MainView {
                     }
                 case .helperMissing:
                     Text("Local shells on Mac require the separate Rootshell Helper app. Launch the helper and try again.")
+                case .herdrUpgrade:
+                    if let prompt = alerts.herdrUpgradePrompt {
+                        Text(prompt.message)
+                    }
+                case .herdrTakeControl:
+                    if let request = alerts.herdrTakeControlRequest {
+                        Text(herdrTakeControlMessage(request))
+                    }
                 case .profileUnavailable:
                     Text("This local profile is unavailable on this device. Enable Show All Platforms in Profiles to edit its platform or repair its settings.")
                 case .vncProfileInvalid:
@@ -286,6 +328,19 @@ extension MainView {
                     EmptyView()
                 }
             }
+    }
+
+    private func copyHerdrInstallCommand() {
+        UIPasteboard.general.string = HerdrUpgradePrompt.installCommand
+        ClipboardHistoryManager.shared.record(HerdrUpgradePrompt.installCommand, source: .explicitCopy)
+    }
+
+    private func herdrTakeControlMessage(_ request: MainAlertController.HerdrTakeControlRequest) -> String {
+        var text = String(localized: "“\(request.tabTitle)” is being viewed by another herdr client. Taking control sizes it to this window.", comment: "herdr take-control alert message")
+        if request.evictsOtherClient {
+            text += "\n\n" + String(localized: "This host’s herdr allows one client per tab, so the other client is disconnected from it. Upgrade herdr on the host to view a tab from several devices at once.", comment: "herdr take-control alert message, single-owner server")
+        }
+        return text
     }
 
     #if targetEnvironment(macCatalyst) && STANDALONE

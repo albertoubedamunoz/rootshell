@@ -29,6 +29,10 @@ struct TabTitleLine: View {
                     TmuxTabBadgeView(badge: tmuxBadge, palette: tmuxBadgePalette)
                 }
 
+                if tab.herdrIsControlledElsewhere {
+                    HerdrControlledElsewhereBadge()
+                }
+
                 if showsAttentionDot, let status = tab.attentionBadge {
                     AttentionStatusDotView(status: status, size: 7)
                 }

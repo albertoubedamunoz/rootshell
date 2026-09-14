@@ -549,6 +549,8 @@ extension Ghostty {
         /// control mode. nil for pane views and non-herdr sessions.
         var herdrController: HerdrController?
         var herdrGatewayHost: UIHostingController<HerdrGatewayView>?
+        /// Covers a projected pane another herdr client holds (single-owner servers).
+        var herdrPaneControlHost: UIHostingController<HerdrPaneControlOverlay>?
 
         /// A takeover leaves this gateway at its shell until an explicit attach.
         /// Retained across transport reconnects for the lifetime of this view.
@@ -4904,6 +4906,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
     
     func handleCellSizeChange(width: CGFloat, height: CGFloat) {
+        let metricsChanged = cellSize != CGSize(width: width, height: height)
         self.cellSize = CGSize(width: width, height: height)
         Ghostty.logger.info("Cell size changed: \(width)x\(height)")
         // The grid's whole-row remainder (terminalTopGridAlignmentPadding)
@@ -4927,6 +4930,11 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         // cell-size change (keyboard, pinch, and the Settings font path).
         if isTmuxPane {
             NotificationCenter.default.post(name: .terminalLayoutInvalidation, object: nil)
+        } else if isHerdrPane, !usesHerdrFallbackScrolling, metricsChanged {
+            // Resizing this view alone preserves the provisional frame that
+            // was chosen before its surface existed. The host must recompute
+            // the frame (and split ratios) using the new cell dimensions.
+            enclosingSplitHost?.herdrSurfaceMetricsDidChange()
         }
     }
     

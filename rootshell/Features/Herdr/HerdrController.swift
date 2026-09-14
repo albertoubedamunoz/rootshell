@@ -83,6 +83,13 @@ final class HerdrController {
     /// Facts from the current stream's `control.open`; nil between streams.
     private(set) var controlOpened: HerdrControl.ControlOpened?
     private(set) var controlOpenedAt: Date?
+    /// What the current server can do; `.none` between streams.
+    private(set) var capabilities = HerdrServerCapabilities.none
+    /// Why the host's herdr should be installed or upgraded, if it should.
+    /// Set through `setUpgradePrompt` outside the connect path.
+    var upgradePrompt: HerdrUpgradePrompt?
+    /// Other control streams on this session (protocol 2 servers only).
+    var otherConnections: [HerdrControl.ControlConnection] = []
     /// Identifies this controller generation to Connection Info sheets.
     let connectionInfoID = UUID()
     var pushRouteServerIdentity: String?
@@ -106,6 +113,9 @@ final class HerdrController {
     // Vanilla 0.9.0 endpoint; independent of our fork's raw control channel.
     var endpoint: HerdrEndpointChannel?
     var endpointOpening: Task<Void, Never>?
+    /// Backoff reopen after the bridge closes; the 2 s poll is the fallback.
+    var endpointReopenTask: Task<Void, Never>?
+    var endpointReconnectAttempt = 0
     var endpointUnsupported = false
     var endpointProbed = false
     var endpointActive = true
@@ -185,6 +195,9 @@ final class HerdrController {
     var paneSessions: [String: HerdrPaneSession] = [:]
     var attachIds: [String: String] = [:]
     var terminalByAttach: [String: String] = [:]
+    /// Per attach, whether this client is the terminal's query authority
+    /// (`terminal.authority`); absent means yes, as on protocol 1 servers.
+    var attachAnswersQueries: [String: Bool] = [:]
     var attachQueue: [String] = []
     var attachesInFlight: [String: UUID] = [:]
     var attachRetries: [String: Task<Void, Never>] = [:]
@@ -203,6 +216,12 @@ final class HerdrController {
     /// lost server-side, so no redraw is guaranteed to restore them.
     var clientDetourMinimums: [String: (cols: Int, rows: Int)] = [:]
     var geometryTasks: [String: Task<Void, Never>] = [:]
+    /// Panes another client holds (terminal id), waiting on Take Control.
+    var paneControlStates: [String: HerdrPaneControlState] = [:]
+    /// Tabs whose next attaches may evict the other client (user asked).
+    var takeoverRequested: Set<String> = []
+    /// Tabs already prompted for Take Control on this stream.
+    var takeControlPromptedTabs: Set<String> = []
     var focusedPaneId: String?
     var agentStatuses: [String: HerdrControl.AgentStatusChangedData] = [:]
     var agentStatusRevision: UInt64 = 0
@@ -447,8 +466,10 @@ final class HerdrController {
             serverPid = opened.capabilities?.server_pid
             controlOpened = opened
             controlOpenedAt = Date()
+            capabilities = HerdrServerCapabilities(opened.capabilities)
             reconnectAttempt = 0
-            Self.logger.info("herdr control open: \(opened.version) boot=\(opened.boot_id) pid=\(opened.capabilities?.server_pid ?? 0)")
+            Self.logger.info("herdr control open: \(opened.version) boot=\(opened.boot_id) pid=\(opened.capabilities?.server_pid ?? 0) stream=\(self.capabilities.streamProtocol) features=\(self.capabilities.sortedFeatures.joined(separator: ","))")
+            setUpgradePrompt(capabilities.supportsSharedViewing ? nil : .sharedViewingNeedsUpgrade)
 
             try await channel.request(
                 "events.subscribe",
@@ -463,6 +484,7 @@ final class HerdrController {
             guard self.channel === channel else { return }
             if let previousBoot, previousBoot != opened.boot_id {
                 tabNames = HerdrTabNames()
+                takeoverRequested.removeAll()
                 Self.logger.info("herdr server restarted (boot \(previousBoot) -> \(opened.boot_id)); rebuilding")
             }
             isActive = true
@@ -472,12 +494,13 @@ final class HerdrController {
             subscribeAgentStatus()
             // Optional additions must not make an older control server fail
             // its otherwise compatible topology subscription handshake.
+            let optionalSubscriptions = ["worktree.created", "worktree.opened", "worktree.removed", "workspace.metadata_updated"]
+                + (capabilities.supports(.geometryOwnership) ? ["tab.geometry_changed"] : [])
             Task {
                 try? await channel.request("events.subscribe", HerdrControl.SubscribeParams(subscriptions:
-                    ["worktree.created", "worktree.opened", "worktree.removed", "workspace.metadata_updated"].map {
-                        HerdrControl.Subscription(type: $0)
-                    }))
+                    optionalSubscriptions.map { HerdrControl.Subscription(type: $0) }))
             }
+            refreshOtherConnections()
             startHealthPing(on: channel)
             NotificationCenter.default.post(name: .herdrControlStateDidChange, object: gatewayUUID)
         } catch {
@@ -496,6 +519,7 @@ final class HerdrController {
             case HerdrChannelError.herdrMissing(let why):
                 gateway.writeToGhostty(string: "\r\n\u{1b}[33mherdr control mode: \(why).\u{1b}[0m\r\n")
                 stop()
+                presentUpgradeAlert(.herdrMissing)
             case HerdrChannelError.unsupportedServer(let why):
                 startLegacyMode(reason: why)
             default:
@@ -513,8 +537,10 @@ final class HerdrController {
         let gateway = self.gateway
         gateway?.herdrAutoAttachSuppressed = true
         Self.logger.error("herdr attachment refused: \(error.localizedDescription)")
+        let prompt = HerdrUpgradePrompt.versionTooOld(reported: error.reported)
         stop()
         gateway?.writeToGhostty(string: "\r\n\(error.localizedDescription)\r\n")
+        presentUpgradeAlert(prompt)
         return true
     }
 
@@ -615,6 +641,8 @@ final class HerdrController {
         isActive = false
         controlOpened = nil
         controlOpenedAt = nil
+        capabilities = .none
+        otherConnections = []
         connectionError = error?.localizedDescription
         detachAllLocally()
         publishSessionState()
@@ -695,18 +723,6 @@ final class HerdrController {
                 userInfo: ["windowId": windowId]
             )
         }
-    }
-
-    /// A raw pane takeover ends this gateway's whole projection. Keep the
-    /// shell available, but don't let its next transport resume take control back.
-    func detachAfterTakeover() {
-        guard mode == .raw, !didEnd else { return }
-        let gatewayView = gateway
-        gatewayView?.herdrAutoAttachSuppressed = true
-        Self.logger.info("herdr control mode detached after another client took control")
-        detach(closeGateway: false)
-        let message = String(localized: "Detached from herdr because another client took control. The session is still running.")
-        gatewayView?.writeToGhostty(string: "\r\n\(message)\r\n")
     }
 
     /// Whether the gateway tab is hidden, manually or by the auto-hide setting.
@@ -816,6 +832,7 @@ final class HerdrController {
             return
         }
         controlLayouts[layout.tab_id] = layout
+        applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
         applyLayout(layout, barrier: barrier)
         if layoutReleases[barrier] == nil {
             router.release(barrier: barrier)
@@ -849,6 +866,7 @@ final class HerdrController {
         router.removeAll()
         attachIds.removeAll()
         terminalByAttach.removeAll()
+        attachAnswersQueries.removeAll()
         attachQueue.removeAll()
         attachesInFlight.removeAll()
         snapshotRequestsInFlight.removeAll()
@@ -857,6 +875,10 @@ final class HerdrController {
         controlLayouts.removeAll()
         panesNeedingSnapshot.removeAll()
         clientDetourMinimums.removeAll()
+        // The other client may be gone by the time we reconnect; the next
+        // attach pass finds out and prompts again if it is not.
+        clearPaneControlStates()
+        takeControlPromptedTabs.removeAll()
         for session in paneSessions.values {
             session.attachId = nil
         }
@@ -889,9 +911,18 @@ final class HerdrController {
                last.zoomed == layout.zoomed,
                last.focused_pane_id == layout.focused_pane_id,
                last.panes.map(\.pane_id) == layout.panes.map(\.pane_id) {
+                applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
                 break
             }
             applyLayout(layout)
+        case .tabGeometryChanged(let change):
+            geometryControllerDidChange(change)
+        case .authority(let record):
+            Self.logger.info("herdr query authority \(record.attach_id): \(record.answers_queries)")
+            attachAnswersQueries[record.attach_id] = record.answers_queries
+        case .eventsGap(let gap):
+            Self.logger.warning("herdr events gap: dropped \(gap.dropped ?? 0)")
+            refreshTopology()
         case .paneCreated(let pane):
             paneDidAppear(pane)
             refreshTopology()

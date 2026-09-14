@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Kit Knox / Rootshell LLC
 import Foundation
+import os
 import UIKit
 
 extension HerdrController {
@@ -64,10 +65,14 @@ extension HerdrController {
                         self.applyEndpointFrame(frame)
                     }
                     candidate.onEffect = { [weak self, weak candidate] bytes in
-                        guard let self, self.endpoint === candidate,
+                        guard let self, self.endpoint === candidate, self.endpointActive,
                               let tabID = self.endpointTabID,
                               let view = self.tabs[tabID]?.focusedTerminal,
                               let terminal = view.herdrPaneBinding?.terminalId else { return }
+                        // Clipboard writes reach every shell client of the tab;
+                        // only the window the user is looking at may take them.
+                        if bytes.starts(with: Data("\u{1b}]52;".utf8)),
+                           Ghostty.isAppBackgroundedAtomic || view.window?.isKeyWindow != true { return }
                         self.paneSessions[terminal]?.outputSink.emit(bytes)
                     }
                     candidate.onClosed = { [weak self, weak candidate] error in
@@ -81,18 +86,32 @@ extension HerdrController {
                         self.endpointSize = nil
                         self.endpointLayouts.removeAll()
                         for view in self.paneViews.values { view.herdrEndpointPane?.disconnect() }
-                        if let error, !self.didEnd { self.legacyNotice(error.localizedDescription) }
-                        // The existing poll retries a lost transport. Never replay
-                        // an ambiguous command on the replacement connection.
+                        if let error, !self.didEnd {
+                            Self.logger.warning("herdr endpoint closed: \(error.localizedDescription)")
+                            self.connectionError = error.localizedDescription
+                            // A restarted server has new ids; re-read the topology.
+                            if error.localizedDescription.contains("restarted") { self.legacySnapshotFingerprint = nil }
+                            self.publishSessionState()
+                        }
+                        // Never replay an ambiguous command on the replacement
+                        // connection; just reopen with backoff.
+                        self.scheduleEndpointReopen()
                     }
                     let size = self.endpointGeometry() ?? .init(cols: 80, rows: 24, cellWidth: 8, cellHeight: 16)
                     self.endpointSize = size
                     try await candidate.start(cols: size.cols, rows: size.rows,
                                               cellWidth: size.cellWidth, cellHeight: size.cellHeight)
                     guard self.endpoint === candidate, !Task.isCancelled else { candidate.close(); return }
+                    self.endpointReconnectAttempt = 0
+                    if self.connectionError != nil { self.connectionError = nil; self.publishSessionState() }
                     self.reconcileEndpoint()
                 } catch {
-                    if !Task.isCancelled, !self.didEnd { self.legacyNotice(error.localizedDescription) }
+                    if !Task.isCancelled, !self.didEnd {
+                        Self.logger.warning("herdr endpoint open failed: \(error.localizedDescription)")
+                        self.connectionError = error.localizedDescription
+                        self.publishSessionState()
+                        self.scheduleEndpointReopen()
+                    }
                 }
             }
             return
@@ -123,6 +142,23 @@ extension HerdrController {
                 cellWidth: size.cellWidth, cellHeight: size.cellHeight))
         }
         if let frame = endpoint.latest { applyEndpointFrame(frame) }
+    }
+
+    /// 0.5 s, 1, 2, 4, 8, then 15 s between reopen attempts; the poll loop
+    /// also reopens, so this only shortens the quiet gap after a drop.
+    private func scheduleEndpointReopen() {
+        guard mode == .legacy, !didEnd, endpointReopenTask == nil else { return }
+        endpointReconnectAttempt += 1
+        let delay = min(15.0, 0.5 * pow(2.0, Double(min(endpointReconnectAttempt - 1, 5))))
+        let generation = streamGeneration
+        endpointReopenTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, !Task.isCancelled else { return }
+            self.endpointReopenTask = nil
+            guard self.mode == .legacy, !self.didEnd, self.streamGeneration == generation,
+                  !self.legacySuspended, !Ghostty.isAppBackgroundedAtomic else { return }
+            self.reconcileEndpoint()
+        }
     }
 
     private func endpointGeometry() -> HerdrTabGeometryState.Size? {
@@ -164,6 +200,10 @@ extension HerdrController {
             endpointLayouts[tabID] = layout
             applyLayout(layout)
         }
+        // Stock herdr sizes the tab to whoever interacted last; a grid that
+        // is not the one we asked for means another client did.
+        let foreign = endpointSize.map { $0.cols != frame.grid.width || $0.rows != frame.grid.height } ?? false
+        if tab.herdrIsControlledElsewhere != foreign { tab.herdrIsControlledElsewhere = foreign }
         for pane in frame.panes {
             guard let terminal = paneInfos[pane.id]?.terminal_id, let view = paneViews[terminal] else { continue }
             if view.herdrEndpointPane == nil { view.herdrEndpointPane = HerdrEndpointPane(view: view, controller: self) }

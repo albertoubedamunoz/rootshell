@@ -405,6 +405,9 @@ final class HerdrPaneSession: TerminalSession {
 
     private(set) var parserGrid: TerminalGridReports.Grid?
     private var wantedParserGrid: TerminalGridReports.Grid?
+    /// Unfinished escape sequence from the last response-pipe read.
+    private var responseCarry = Data()
+    private var responseCarryFlush: Task<Void, Never>?
     private var gridReports = TerminalGridReports()
     private var gridProbeTask: Task<Void, Never>?
 
@@ -450,12 +453,43 @@ final class HerdrPaneSession: TerminalSession {
         isRunning = false
         gridProbeTask?.cancel()
         gridProbeTask = nil
+        responseCarryFlush?.cancel()
+        responseCarryFlush = nil
+        responseCarry = Data()
         controller?.paneSessionDidStop(self)
     }
 
     func sendInput(_ data: Data) {
         controller?.sendInput(from: self, data)
     }
+
+    /// Bytes Ghostty wrote on its own (query replies, pastes), as opposed to
+    /// keystrokes rootshell encoded. Replies are subject to query authority,
+    /// so a reply split across two pipe reads is reassembled before it is
+    /// classified; the unfinished tail waits for the next read or 50 ms.
+    func sendResponse(_ data: Data) {
+        responseCarryFlush?.cancel()
+        responseCarryFlush = nil
+        var pending = responseCarry + data
+        responseCarry = Data()
+        if let start = HerdrReplyFilter.incompleteTailStart([UInt8](pending)),
+           pending.count - start <= Self.maxResponseCarryBytes {
+            responseCarry = pending.subdata(in: start..<pending.count)
+            pending = pending.subdata(in: 0..<start)
+            responseCarryFlush = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(50))
+                guard let self, !Task.isCancelled, !self.responseCarry.isEmpty else { return }
+                // Alone this long it is input (a bare ESC key), never a reply.
+                let held = self.responseCarry
+                self.responseCarry = Data()
+                self.controller?.sendInput(from: self, held, automaticReply: false)
+            }
+        }
+        guard !pending.isEmpty else { return }
+        controller?.sendInput(from: self, pending, automaticReply: HerdrReplyFilter.isAutomaticReply(pending))
+    }
+
+    private static let maxResponseCarryBytes = 64 * 1024
 
     func setSize(_ size: TerminalPTY.TerminalSize) throws {
         controller?.paneGridDidChange(self, rows: Int(size.rows), cols: Int(size.cols))

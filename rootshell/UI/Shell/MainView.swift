@@ -237,6 +237,8 @@ struct MainView: View {
     // approvals, helper-missing, and AI-agent alerts all route through this
     // per-window controller (see MainAlertController).
     @State var alerts = MainAlertController()
+    /// Install sheet reached from the herdr upgrade alert.
+    @State var showHerdrInstallInstructions = false
 
     // In-window full-screen takeover for VNC panes (one per window, like
     // the alert controller; see PaneFullScreenController).

@@ -204,11 +204,11 @@ actor HerdrControlChannel {
 
     /// Fire-and-forget input write: no response wait so typing never blocks
     /// behind slower requests. Errors surface as responses the reader logs.
-    func sendInput(attachId: String, bytes: Data) async {
+    func sendInput(attachId: String, bytes: Data, auto: Bool? = nil) async {
         guard !closed else { return }
         let id = "i\(nextRequestId)"
         nextRequestId += 1
-        let params = HerdrControl.InputParams(attach_id: attachId, bytes: bytes.base64EncodedString())
+        let params = HerdrControl.InputParams(attach_id: attachId, bytes: bytes.base64EncodedString(), auto: auto)
         guard var line = try? JSONEncoder().encode(HerdrControl.Request(id: id, method: "terminal.input", params: params)) else {
             return
         }
@@ -283,18 +283,9 @@ actor HerdrControlChannel {
             }
             return
         }
+        // A takeover detach is per pane: attaches never take ownership back
+        // on their own, so the stream stays up for the other panes.
         if let inbound = HerdrControl.decodeInbound(line) {
-            if case .detached(let record) = inbound, record.reason == "takeover" {
-                // Stop queued attach/input writes before hopping to the main
-                // actor: a delayed attach must not take ownership back. Let the
-                // owner tear down before pending requests resume with errors.
-                closed = true
-                readerTask?.cancel()
-                await onInbound(inbound)
-                failPending(HerdrChannelError.closed)
-                await pipe.close()
-                return
-            }
             await onInbound(inbound)
         }
     }
