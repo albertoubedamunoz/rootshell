@@ -21,12 +21,15 @@ extension Ghostty.TerminalView {
     private var shouldUseKoreanCompositionModel: Bool {
         (isKoreanInputMethodActive || koreanCompositionModel.hasActiveComposition)
             && markedTextString == nil
-            && !isHandlingDictationResult
+            && dictationDeliveryDepth == 0
             && !isLikelyThirdPartyKeyboard
     }
 
+    /// A live dictation session keeps the full document visible to UIKit so
+    /// late corrections still resolve. Isolation resumes once Hangul composes.
     var usesIsolatedKoreanTextInputDocument: Bool {
-        shouldUseKoreanCompositionModel || koreanCompositionModel.hasActiveComposition
+        koreanCompositionModel.hasActiveComposition
+            || (shouldUseKoreanCompositionModel && correctionContext.dictation == nil)
     }
 
     func beginKoreanCompositionInputKey(allowNoActiveDelete: Bool = false) {
@@ -39,6 +42,7 @@ extension Ghostty.TerminalView {
             return
         }
 
+        endDictationSession()
         syncIMEPreedit(nil)
         notifyInputDelegateOfExternalChange { }
     }
@@ -66,6 +70,9 @@ extension Ghostty.TerminalView {
             return false
         }
 
+        // Composition start is a dictation boundary; close before the commit
+        // so UIKit re-reads the isolated preedit document.
+        endDictationSession()
         commitKoreanText(result.committedText, external: false)
         syncIMEPreedit(result.preeditText)
         if let replacementWindowToken = koreanCompositionModel.activeReplacementWindowToken {

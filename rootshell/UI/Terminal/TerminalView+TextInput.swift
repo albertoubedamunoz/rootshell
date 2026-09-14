@@ -18,10 +18,13 @@ class TerminalTextPosition: UITextPosition {
     let offset: Int
     let generation: UInt64?
     let assistanceGeneration: UInt64?
-    init(_ offset: Int, generation: UInt64? = nil, assistanceGeneration: UInt64? = nil) {
+    let dictationSession: UInt64?
+    init(_ offset: Int, generation: UInt64? = nil, assistanceGeneration: UInt64? = nil,
+         dictationSession: UInt64? = nil) {
         self.offset = offset
         self.generation = generation
         self.assistanceGeneration = assistanceGeneration
+        self.dictationSession = dictationSession
     }
 }
 
@@ -38,10 +41,13 @@ class TerminalTextRange: UITextRange {
         _end = end
     }
 
-    init(location: Int, length: Int, generation: UInt64? = nil, assistanceGeneration: UInt64? = nil) {
-        _start = TerminalTextPosition(location, generation: generation, assistanceGeneration: assistanceGeneration)
+    init(location: Int, length: Int, generation: UInt64? = nil, assistanceGeneration: UInt64? = nil,
+         dictationSession: UInt64? = nil) {
+        _start = TerminalTextPosition(location, generation: generation, assistanceGeneration: assistanceGeneration,
+                                      dictationSession: dictationSession)
         let (end, overflow) = location.addingReportingOverflow(length)
-        _end = TerminalTextPosition(overflow ? -1 : end, generation: generation, assistanceGeneration: assistanceGeneration)
+        _end = TerminalTextPosition(overflow ? -1 : end, generation: generation, assistanceGeneration: assistanceGeneration,
+                                    dictationSession: dictationSession)
     }
 }
 
@@ -114,26 +120,58 @@ extension Ghostty.TerminalView {
         return false
     }
 
-    var hasExplicitDictationSource: Bool {
-        if isHandlingDictationResult || !pendingDictationPlaceholderTokens.isEmpty {
+    // MARK: Dictation session
+
+    /// UIKit reports that dictation is expected, not that it has finished.
+    /// Results and corrections keep arriving after every "ended" callback.
+    private var hasLiveDictationSignal: Bool {
+        if !pendingDictationPlaceholderTokens.isEmpty { return true }
+        if textInputMode?.primaryLanguage == "dictation" { return true }
+        if #available(iOS 16.4, visionOS 1.0, *),
+           let context = UITextInputContext.current(), context.isDictationInputExpected {
             return true
-        }
-        if textInputMode?.primaryLanguage == "dictation" {
-            return true
-        }
-        if #available(iOS 16.4, visionOS 1.0, *) {
-            if let context = UITextInputContext.current(),
-               context.isDictationInputExpected {
-                return true
-            }
         }
         return false
     }
 
-    var isLikelySystemDictationActive: Bool {
-        if hasExplicitDictationSource { return true }
-        guard let lastDictationActivityAt else { return false }
-        return Date().timeIntervalSince(lastDictationActivityAt) < 2.0
+    /// Runs at every UITextInput entry. Signals open or re-arm the session;
+    /// their absence only settles it. The settle deadline is liveness, never
+    /// authority: replace validation is stamped, not timed.
+    func syncDictationSessionWithSignals() {
+        let session = correctionContext.dictation
+        if hasLiveDictationSignal {
+            if session?.phase != .receiving { mutateInputDocument(.dictationBegan) }
+            return
+        }
+        guard let session else { return }
+        switch session.phase {
+        case .receiving:
+            settleDictationSession()
+        case .settling:
+            if let deadline = dictationSettleDeadline,
+               ProcessInfo.processInfo.systemUptime >= deadline {
+                endDictationSession()
+            }
+        }
+    }
+
+    func settleDictationSession() {
+        guard correctionContext.dictation != nil else { return }
+        dictationSettleDeadline = ProcessInfo.processInfo.systemUptime + 10
+        mutateInputDocument(.dictationSettling)
+    }
+
+    func touchDictationSession() {
+        guard correctionContext.dictation?.phase == .settling else { return }
+        dictationSettleDeadline = ProcessInfo.processInfo.systemUptime + 10
+    }
+
+    /// Applied even without a session: a boundary must also revoke the
+    /// signal-free adoption candidate left by the latest edit.
+    func endDictationSession() {
+        dictationSettleDeadline = nil
+        pendingDictationPlaceholderTokens.removeAll()
+        mutateInputDocument(.dictationEnded)
     }
 
     // MARK: Preedit (inline composition display)
@@ -157,6 +195,10 @@ extension Ghostty.TerminalView {
 
     func setMarkedText(_ markedText: String?, selectedRange: NSRange) {
         invalidateWritingAssistance()
+        syncDictationSessionWithSignals()
+        // An IME composing after dictation is a boundary. Live dictation may
+        // itself deliver hypotheses as marked text, so receiving stays open.
+        if correctionContext.dictation?.phase == .settling { endDictationSession() }
         #if targetEnvironment(macCatalyst)
         if koreanCompositionModel.hasActiveComposition,
            markedText?.isEmpty != false {
@@ -176,6 +218,7 @@ extension Ghostty.TerminalView {
 
     func unmarkText() {
         defer { refreshWritingAssistanceTraits() }
+        syncDictationSessionWithSignals()
         #if targetEnvironment(macCatalyst)
         // Match macOS Ghostty: marked text is preedit only. Committed text
         // must arrive through insertText; unmarkText just clears preedit.
@@ -201,13 +244,19 @@ extension Ghostty.TerminalView {
         // before clearing, otherwise the candidate is silently dropped.
         if let text = markedTextString, !text.isEmpty {
             if let data = text.data(using: .utf8) {
-                sendUserInput(data, documentMutation: .text(text, eligible: false))
+                sendUserInput(data, documentMutation: committedCompositionMutation(text))
             }
         }
         markedTextString = nil
         markedTextSelectedRange = NSRange(location: NSNotFound, length: 0)
         syncIMEPreedit(nil)
         #endif
+    }
+
+    /// Marked text committed while dictation is receiving belongs to the
+    /// dictation region; any other composition commit is plain ineligible text.
+    private func committedCompositionMutation(_ text: String) -> TerminalCorrectionContext.Mutation {
+        correctionContext.isReceivingDictation ? .dictationText(text) : .text(text, eligible: false)
     }
 
     var markedTextRange: UITextRange? {
@@ -233,6 +282,7 @@ extension Ghostty.TerminalView {
             // QuickType can use selection + insertText instead of replace.
             // Remember the range with its original safety generation, without
             // moving the remote cursor or granting any new rewrite authority.
+            syncDictationSessionWithSignals()
             guard let newValue else {
                 writingAssistanceSelection = nil
                 return
@@ -248,7 +298,12 @@ extension Ghostty.TerminalView {
                 invalidateWritingAssistance()
                 return
             }
-            if writingAssistanceMode != .off, eligibleWritingAssistanceSource != nil,
+            let withinDictationRegion = start.dictationSession != nil
+                && start.dictationSession == correctionContext.dictation?.id
+                && end.dictationSession == start.dictationSession
+                && start.offset >= (correctionContext.dictation?.regionStart ?? Int.max)
+            let assistanceEligible = writingAssistanceMode != .off && eligibleWritingAssistanceSource != nil
+            if (assistanceEligible || withinDictationRegion),
                markedTextString == nil, !usesIsolatedKoreanTextInputDocument,
                start.offset < end.offset, end.offset <= documentBuffer.utf16.count {
                 writingAssistanceSelection = range
@@ -280,16 +335,6 @@ extension Ghostty.TerminalView {
         return true
     }
 
-    private func isRecentBulkDictationReplacement(_ range: NSRange) -> Bool {
-        guard let lastBulkTextInputAt, let bulkDictationRange,
-              bulkDictationDocumentGeneration == correctionContext.documentGeneration,
-              range.length > 0,
-              range.location >= bulkDictationRange.location,
-              NSMaxRange(range) <= NSMaxRange(bulkDictationRange) else { return false }
-        let age = Date().timeIntervalSince(lastBulkTextInputAt)
-        return age >= 0 && age < 2
-    }
-
     /// The full "document" iOS sees: committed buffer + any marked/composition text.
     private var fullDocument: String {
         if usesIsolatedKoreanTextInputDocument {
@@ -315,6 +360,7 @@ extension Ghostty.TerminalView {
 
     func replace(_ range: UITextRange, withText text: String) {
         writingAssistanceSelection = nil
+        syncDictationSessionWithSignals()
         _ = refreshWritingAssistanceTraits()
         let text = text.precomposedStringWithCanonicalMapping
         guard let range = range as? TerminalTextRange,
@@ -377,7 +423,7 @@ extension Ghostty.TerminalView {
             syncIMEPreedit(nil)
             if !text.isEmpty {
                 if let data = text.data(using: .utf8) {
-                    sendUserInput(data, documentMutation: .text(text, eligible: false))
+                    sendUserInput(data, documentMutation: committedCompositionMutation(text))
                 }
             }
             return
@@ -388,49 +434,51 @@ extension Ghostty.TerminalView {
             return
         }
         let committedRange = NSRange(location: rangeStart.offset, length: rangeEnd.offset - rangeStart.offset)
-        if isLikelySystemDictationActive || isRecentBulkDictationReplacement(committedRange) {
-            guard let replacement = correctionContext.replacement(in: committedRange, with: text,
-                                                                 generation: correctionContext.generation,
-                                                                 dictation: true) else {
-                rejectWritingAssistanceReplacement()
-                return
-            }
+        // Dictation authority is the session id stamped into both positions
+        // plus the region bound. Then the QuickType rules. Then a signal-free
+        // live-dictation delivery: a replace of exactly the latest edit.
+        if let session = rangeStart.dictationSession, session == rangeEnd.dictationSession,
+           let replacement = correctionContext.dictationReplacement(in: committedRange, with: text, session: session) {
+            touchDictationSession()
             sendUserInput(replacement.payload, documentMutation: .correction(replacement))
-        } else {
-            guard let generation = rangeStart.assistanceGeneration,
-                  generation == rangeEnd.assistanceGeneration else {
-                rejectWritingAssistanceReplacement()
-                return
-            }
-            applyWritingAssistanceReplacement(committedRange, text: text, generation: generation)
+            return
         }
+        if let generation = rangeStart.assistanceGeneration, generation == rangeEnd.assistanceGeneration,
+           applyWritingAssistanceReplacement(committedRange, text: text, generation: generation) {
+            return
+        }
+        if correctionContext.canAdoptDictation(in: committedRange),
+           mutateInputDocument(.dictationAdopt(committedRange)),
+           let session = correctionContext.dictation?.id,
+           let replacement = correctionContext.dictationReplacement(in: committedRange, with: text, session: session) {
+            sendUserInput(replacement.payload, documentMutation: .correction(replacement))
+            return
+        }
+        rejectWritingAssistanceReplacement()
     }
 
     func insertDictationResult(_ dictationResult: [UIDictationPhrase]) {
         let text = dictationResult.map(\.text).joined()
         guard !text.isEmpty else { return }
-        lastDictationActivityAt = Date()
-        isHandlingDictationResult = true
-        defer { isHandlingDictationResult = false }
+        dictationDeliveryDepth += 1
+        defer { dictationDeliveryDepth -= 1 }
         insertText(text)
     }
 
     func insertText(_ text: String, alternatives: [String], style: UITextAlternativeStyle) {
-        // The flag has to stay set across insertText, so the defer belongs to
-        // the function scope, not the `if` (where it fired immediately).
-        let isDictation = !alternatives.isEmpty || style != .none
-        if isDictation {
-            lastDictationActivityAt = Date()
-            isHandlingDictationResult = true
+        guard !alternatives.isEmpty || style != .none else {
+            insertText(text)
+            return
         }
-        defer { if isDictation { isHandlingDictationResult = false } }
+        dictationDeliveryDepth += 1
+        defer { dictationDeliveryDepth -= 1 }
         insertText(text)
     }
 
     var insertDictationResultPlaceholder: Any {
         let token = UUID().uuidString
-        lastDictationActivityAt = Date()
         pendingDictationPlaceholderTokens.insert(token)
+        mutateInputDocument(.dictationBegan)
         return token as NSString
     }
 
@@ -439,7 +487,6 @@ extension Ghostty.TerminalView {
     }
 
     func removeDictationResultPlaceholder(_ placeholder: Any, willInsertResult: Bool) {
-        lastDictationActivityAt = Date()
         if let token = placeholder as? String {
             pendingDictationPlaceholderTokens.remove(token)
         } else if let token = placeholder as? NSString {
@@ -447,15 +494,17 @@ extension Ghostty.TerminalView {
         } else {
             pendingDictationPlaceholderTokens.removeAll()
         }
+        // The result that follows is an explicit delivery and extends the
+        // region regardless of phase.
+        if pendingDictationPlaceholderTokens.isEmpty { settleDictationSession() }
     }
 
     func dictationRecordingDidEnd() {
-        lastDictationActivityAt = Date()
+        settleDictationSession()
     }
 
     func dictationRecognitionFailed() {
-        lastDictationActivityAt = nil
-        pendingDictationPlaceholderTokens.removeAll()
+        endDictationSession()
     }
 
     // MARK: Position / range arithmetic
@@ -473,7 +522,8 @@ extension Ghostty.TerminalView {
         let (newOffset, overflow) = pos.offset.addingReportingOverflow(offset)
         guard !overflow, pos.generation == correctionContext.documentGeneration,
               newOffset >= 0, newOffset <= fullDocument.utf16.count else { return nil }
-        return TerminalTextPosition(newOffset, generation: pos.generation, assistanceGeneration: pos.assistanceGeneration)
+        return TerminalTextPosition(newOffset, generation: pos.generation, assistanceGeneration: pos.assistanceGeneration,
+                                    dictationSession: pos.dictationSession)
     }
 
     func position(from position: UITextPosition, in direction: UITextLayoutDirection, offset: Int) -> UITextPosition? {
@@ -483,7 +533,8 @@ extension Ghostty.TerminalView {
 
     private func inputDocumentRange(location: Int, length: Int) -> TerminalTextRange {
         TerminalTextRange(location: location, length: length, generation: correctionContext.documentGeneration,
-                          assistanceGeneration: correctionContext.generation)
+                          assistanceGeneration: correctionContext.generation,
+                          dictationSession: correctionContext.dictation?.id)
     }
 
     var beginningOfDocument: UITextPosition { inputDocumentRange(location: 0, length: 0).start }

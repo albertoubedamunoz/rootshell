@@ -337,7 +337,7 @@ extension Ghostty.TerminalView {
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         lastHardwareTextInputTime = ProcessInfo.processInfo.systemUptime
-        lastDictationActivityAt = nil
+        endDictationSession()
         invalidateWritingAssistance()
         // Hardware keys reach the responder chain, not the window-level touch
         // observer, so typing has to restart the always-on-display window here.
@@ -415,7 +415,7 @@ extension Ghostty.TerminalView {
         // Also cover deferred mod-tap replays, which bypass pressesBegan.
         guard !shouldYieldHardwareInputToEmojiUI else { return (false, false) }
         lastHardwareTextInputTime = ProcessInfo.processInfo.systemUptime
-        lastDictationActivityAt = nil
+        endDictationSession()
         invalidateWritingAssistance()
         // iOS 13.4+ - use UIPress.key for better key information
         guard let key = press.key else { return (false, false) }

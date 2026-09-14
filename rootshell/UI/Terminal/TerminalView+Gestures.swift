@@ -1574,7 +1574,7 @@ extension Ghostty.TerminalView {
             if case .invalidate = documentMutation {
                 // Unlike a UIKit source transition, this mutation accompanies
                 // real terminal bytes (for example an arrow/control sequence).
-                clearBulkDictationFallback()
+                endDictationSession()
             }
             if case .correction(let replacement) = documentMutation {
                 guard replacement.generation == correctionContext.generation,
@@ -1588,6 +1588,9 @@ extension Ghostty.TerminalView {
                 return
             }
         } else {
+            // Unattributed bytes moved the application's input; no rewrite
+            // authority survives them.
+            endDictationSession()
             invalidateWritingAssistance()
         }
         forwardUserInput(data)

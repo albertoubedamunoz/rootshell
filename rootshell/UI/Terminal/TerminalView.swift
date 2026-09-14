@@ -1284,14 +1284,11 @@ extension Ghostty {
         var lastHardwareTextInputTime: TimeInterval?
         var writingAssistanceSize: CGSize?
 
-        /// Dictation provenance is independent of direct keyboard assistance.
-        /// A generic multi-character insert is never evidence of dictation.
+        /// Dictation authority lives in `correctionContext.dictation`. These
+        /// only track UIKit's explicit signals and the settle liveness deadline.
         var pendingDictationPlaceholderTokens = Set<String>()
-        var isHandlingDictationResult = false
-        var lastDictationActivityAt: Date?
-        var lastBulkTextInputAt: Date?
-        var bulkDictationRange: NSRange?
-        var bulkDictationDocumentGeneration: UInt64?
+        var dictationDeliveryDepth = 0
+        var dictationSettleDeadline: TimeInterval?
 
         /// Long-press spacebar trackpad state. iOS reports drag offsets via
         /// `updateFloatingCursor(at:)`; we bucket them into whole-cell steps and
@@ -3969,6 +3966,7 @@ extension Ghostty {
             // Sentinel key names are not text. Drop before any flag is consumed.
             if let sentinel = KeyCode.sentinelKey(for: text) {
                 writingAssistanceSelection = nil
+                endDictationSession()
                 invalidateWritingAssistance()
                 if sentinel == .escape {
                     _ = dismissSessionDiscoveryIfPresented()
@@ -3980,6 +3978,7 @@ extension Ghostty {
                 // Return, Tab and Escape are terminal input, never replacement
                 // text for a word UIKit happened to select for QuickType.
                 writingAssistanceSelection = nil
+                endDictationSession()
                 invalidateWritingAssistance()
             }
 
@@ -4016,6 +4015,12 @@ extension Ghostty {
                 dismissSessionDiscovery()
             }
 
+            // Settle or close the session before eligibility is computed so
+            // the first key typed after dictation is QuickType-eligible.
+            syncDictationSessionWithSignals()
+            if dictationDeliveryDepth == 0, correctionContext.plainTextClosesDictation(text) {
+                endDictationSession()
+            }
             let assistanceEligible = refreshWritingAssistanceTraits()
             if consumeWritingAssistanceSelection(with: text) { return }
             var finalText = text.precomposedStringWithCanonicalMapping
@@ -4242,21 +4247,12 @@ extension Ghostty {
             
             // Send input to Ghostty which will route it appropriately
             guard let data = finalText.data(using: .utf8) else { return }
-            //Ghostty.logger.debug("TerminalView.insertText: Sending bytes: \(data.hexDescription)")
-            sendUserInput(data, documentMutation: .text(finalText, eligible: assistanceEligible))
-            // Some dictation deliveries have no placeholder or alternatives.
-            // Retain a narrowly scoped fallback for their immediate replace.
-            if text.count > 1, !isLikelyThirdPartyKeyboard,
-               heldHardwareModifiers == .none,
-               UITextInputContext.current()?.isHardwareKeyboardInputExpected != true,
-               lastHardwareTextInputTime.map({ ProcessInfo.processInfo.systemUptime - $0 >= 0.25 }) ?? true,
-               markedTextString == nil,
-               TerminalCorrectionContext.isPrintable(finalText) {
-                lastBulkTextInputAt = Date()
-                bulkDictationRange = NSRange(location: max(0, documentBuffer.utf16.count - finalText.utf16.count),
-                                             length: min(finalText.utf16.count, documentBuffer.utf16.count))
-                bulkDictationDocumentGeneration = correctionContext.documentGeneration
-            }
+            // Explicit deliveries are dictation text. Plain text that survives
+            // the boundary check above extends an open session's region.
+            let mutation: TerminalCorrectionContext.Mutation = dictationDeliveryDepth > 0
+                ? .dictationText(finalText) : .text(finalText, eligible: assistanceEligible)
+            sendUserInput(data, documentMutation: mutation)
+            touchDictationSession()
         }
         
         func deleteBackward() {
@@ -4264,6 +4260,7 @@ extension Ghostty {
             // Backspace must always reach the application's input editor, even
             // after correction invalidation.
             writingAssistanceSelection = nil
+            syncDictationSessionWithSignals()
             let assistanceEligible = refreshWritingAssistanceTraits()
             if handleKoreanCompositionDeleteIfNeeded() {
                 return
@@ -5541,6 +5538,7 @@ extension Ghostty.TerminalView {
         text: String? = nil,
         unshiftedCodepoint: UInt32 = 0
     ) -> Bool {
+        endDictationSession()
         invalidateWritingAssistance()
         // Covered herdr gateway: Ghostty would encode straight into the hidden
         // shell. Escape already detached upstream; swallow the rest as handled.
