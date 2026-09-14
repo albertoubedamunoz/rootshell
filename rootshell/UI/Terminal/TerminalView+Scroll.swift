@@ -389,8 +389,30 @@ extension Ghostty.TerminalView {
               gesture.view !== host else { return }
         gesture.view?.removeGestureRecognizer(gesture)
         host.addGestureRecognizer(gesture)
+        (host as? Ghostty.TerminalScrollView)?.yieldNativePanToTrackpadTabSwipe { [weak self] pan in
+            self?.trackpadTabSwipeClaims(pan) ?? false
+        }
+    }
+
+    /// Whether a native scroll pan carries the horizontal intent the tab
+    /// swipe would accept, so the scroll view stands aside for it.
+    private func trackpadTabSwipeClaims(_ pan: UIPanGestureRecognizer) -> Bool {
+        guard trackpadTabSwipeGesture?.isEnabled == true,
+              let direction = trackpadSwipeDirection(velocity: pan.velocity(in: self),
+                                                     translation: pan.translation(in: self))
+        else { return false }
+        return !SwipeGestureManager.shared.binding(for: direction).isDisabled
     }
     #endif
+
+    /// Direction of a horizontal trackpad move; nil for vertical or no movement.
+    private func trackpadSwipeDirection(velocity: CGPoint, translation: CGPoint) -> SwipeDirection? {
+        let horizontalIntent = abs(velocity.x) > abs(velocity.y)
+            || abs(translation.x) > abs(translation.y)
+        let x = abs(velocity.x) >= abs(translation.x) ? velocity.x : translation.x
+        guard horizontalIntent, x != 0 else { return nil }
+        return x < 0 ? .left : .right
+    }
 
     /// Re-evaluate the trackpad tab swipe enabled state after a Scroll Mode
     /// or capture-mode change. Called from applyTouchMode() on iOS.
@@ -408,14 +430,15 @@ extension Ghostty.TerminalView {
 
         let velocity = panGesture.velocity(in: self)
         let translation = panGesture.translation(in: self)
-        let horizontalIntent = abs(velocity.x) > abs(velocity.y)
-            || abs(translation.x) > abs(translation.y)
-        guard horizontalIntent else { return false }
+        guard let direction = trackpadSwipeDirection(velocity: velocity, translation: translation) else {
+            return false
+        }
+        #if targetEnvironment(macCatalyst)
+        // A native scroll already in flight owns this trackpad session; a
+        // begin now would be preempted and only churn the app-tab swipe state.
+        if enclosingTerminalScrollView?.isNativeScrollPanActive == true { return false }
+        #endif
 
-        let x = abs(velocity.x) >= abs(translation.x) ? velocity.x : translation.x
-        guard x != 0 else { return false }
-
-        let direction: SwipeDirection = x < 0 ? .left : .right
         let binding = SwipeGestureManager.shared.binding(for: direction)
         guard !binding.isDisabled else { return false }
 

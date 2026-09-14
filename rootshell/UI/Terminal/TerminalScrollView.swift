@@ -206,7 +206,11 @@ extension Ghostty {
 
     init(terminalView: TerminalView) {
         self.terminalView = terminalView
+        #if targetEnvironment(macCatalyst)
+        self.scrollView = TabSwipeYieldingScrollView()
+        #else
         self.scrollView = UIScrollView()
+        #endif
         self.documentView = UIView()
 
         super.init(frame: .zero)
@@ -417,6 +421,17 @@ extension Ghostty {
     #endif
 
     #if targetEnvironment(macCatalyst)
+    /// The native pan is exclusive with the wrapper's tab swipe. Route the
+    /// horizontal-intent decision to the terminal so the pan stands aside.
+    func yieldNativePanToTrackpadTabSwipe(_ shouldYield: @escaping (UIPanGestureRecognizer) -> Bool) {
+        (scrollView as? TabSwipeYieldingScrollView)?.yieldsToTabSwipe = shouldYield
+    }
+
+    var isNativeScrollPanActive: Bool {
+        let state = scrollView.panGestureRecognizer.state
+        return state == .began || state == .changed
+    }
+
     private func isPointInCatalystScrollbarGutter(_ point: CGPoint) -> Bool {
         guard scrollView.isScrollEnabled,
               scrollView.showsVerticalScrollIndicator,
@@ -2398,3 +2413,24 @@ extension Ghostty.TerminalScrollView: UIDropInteractionDelegate {
         terminalView.dropInteraction(interaction, performDrop: session)
     }
 }
+
+#if targetEnvironment(macCatalyst)
+// MARK: - Trackpad Tab-Swipe Yield
+
+/// UIKit asks a recognizer's own view before its delegate, and the built-in
+/// pan ignores `require(toFail:)` for scroll-type events. Once there is
+/// scrollback it begins on any trackpad delta and, being exclusive with the
+/// wrapper's tab swipe, starves it. Yield horizontal intent to the swipe here.
+final class TabSwipeYieldingScrollView: UIScrollView {
+    var yieldsToTabSwipe: ((UIPanGestureRecognizer) -> Bool)?
+
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === panGestureRecognizer,
+           let pan = gestureRecognizer as? UIPanGestureRecognizer,
+           yieldsToTabSwipe?(pan) == true {
+            return false
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+}
+#endif
