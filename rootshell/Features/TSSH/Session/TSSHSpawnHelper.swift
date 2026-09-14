@@ -254,13 +254,13 @@ enum TrzszSpawnHelper {
             var info = try await execute(command: outer.serverCommand(), sshClient: bootstrap.client)
             info.clientId = 0
             let transport = try TrzszGoTransport(host: host, port: info.port, serverInfo: info,
-                                                mtu: config.mtu, displayName: "jump \(jump.displayName)")
+                                                mtu: config.mtu, connectTimeoutSec: config.connectTimeoutSec, displayName: "jump \(jump.displayName)")
             do {
                 try await transport.connect()
                 try Task.checkCancellation()
                 let mtu = try await transport.effectiveRelayMTU(requested: config.mtu, mode: info.mode.rawValue)
                 return (transport, TrzszRelayCredentials(host: host, serverInfo: info,
-                                                       mtu: config.mtu, targetMTU: mtu))
+                                                       mtu: config.mtu, targetMTU: mtu, connectTimeoutSec: config.connectTimeoutSec))
             } catch { transport.disconnect(); throw error }
         } catch {
             throw TrzszError.connectionFailed("Jump host \(jump.host): \(error.localizedDescription). Relay mode requires tsshd and reachable UDP ports on the jump host.")
@@ -271,7 +271,7 @@ enum TrzszSpawnHelper {
         var info = credentials.serverInfo
         info.clientId = 0
         let transport = try TrzszGoTransport(host: credentials.host, port: info.port, serverInfo: info,
-                                            mtu: credentials.mtu, displayName: "jump \(credentials.host)")
+                                            mtu: credentials.mtu, connectTimeoutSec: credentials.connectTimeoutSec, displayName: "jump \(credentials.host)")
         do {
             try await transport.connect()
             try Task.checkCancellation()

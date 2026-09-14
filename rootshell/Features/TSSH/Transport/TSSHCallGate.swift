@@ -111,6 +111,7 @@ struct TSSHTransportParams: Sendable {
     let clientID: Int64
     let serverID: Int64
     let mtu: Int               // 0 = use Go-side default
+    let connectTimeoutSec: Int
     let proxyKeyHex: String?
     let kcpPassHex: String?
     let kcpSaltHex: String?
@@ -249,6 +250,7 @@ actor TSSHCallGate {
         if params.mtu > 0 {
             config.mtu = params.mtu
         }
+        config.connectTimeoutSec = params.connectTimeoutSec
         config.debugLabel = params.debugLabel
 
         if let pass = params.kcpPassHex, let salt = params.kcpSaltHex {

@@ -294,4 +294,5 @@ struct TrzszRelayCredentials: Codable, Sendable {
     var serverInfo: TrzszServerInfo
     let mtu: Int
     let targetMTU: Int
+    var connectTimeoutSec: Int? = nil
 }

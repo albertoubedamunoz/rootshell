@@ -91,6 +91,7 @@ enum VNCSessionLauncher {
             let udpPortMin = profile.trzszPortMin ?? TrzszConfig.preferredUDPPortMin
             let udpPortMax = profile.trzszPortMax ?? TrzszConfig.preferredUDPPortMax
             let mtu = profile.trzszMTU ?? 0
+            let connectTimeoutSec = profile.trzszConnectTimeoutSec
             let serverPath = profile.trzszServerPath
             configuration.transportProvider = { host, port in
                 TSSHTunnelVNCTransport(
@@ -99,6 +100,7 @@ enum VNCSessionLauncher {
                     udpPortMin: udpPortMin,
                     udpPortMax: udpPortMax,
                     mtu: mtu,
+                    connectTimeoutSec: connectTimeoutSec,
                     serverPath: serverPath,
                     vncHost: host,
                     vncPort: port,

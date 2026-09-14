@@ -989,6 +989,7 @@ final class ConnectionProfileManager {
             trzszUDPPortMin: profile.connectionProtocol == .trzsz ? (profile.trzszPortMin ?? TrzszConfig.preferredUDPPortMin) : nil,
             trzszUDPPortMax: profile.connectionProtocol == .trzsz ? (profile.trzszPortMax ?? TrzszConfig.preferredUDPPortMax) : nil,
             trzszMTU: profile.connectionProtocol == .trzsz ? profile.trzszMTU : nil,
+            trzszConnectTimeoutSec: profile.connectionProtocol == .trzsz ? profile.trzszConnectTimeoutSec : nil,
             trzszServerPath: profile.connectionProtocol == .trzsz ? profile.trzszServerPath : nil,
             dnsServers: profile.vpnDNSServers,
             excludedRoutes: profile.vpnExcludedRoutes,

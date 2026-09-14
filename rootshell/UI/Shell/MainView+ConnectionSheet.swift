@@ -468,7 +468,8 @@ extension MainView {
                 udpPortMin: trzszPortMin ?? TrzszConfig.preferredUDPPortMin,
                 udpPortMax: trzszPortMax ?? TrzszConfig.preferredUDPPortMax,
                 serverPath: trzszServerPath,
-                mtu: trzszMTU ?? 0
+                mtu: trzszMTU ?? 0,
+                connectTimeoutSec: sourceProfileID.flatMap { ConnectionProfileManager.shared.profile(for: $0)?.trzszConnectTimeoutSec }
             )
             switch splitOption {
             case .newTab:

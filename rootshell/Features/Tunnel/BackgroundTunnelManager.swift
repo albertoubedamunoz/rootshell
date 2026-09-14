@@ -101,6 +101,7 @@ final class BackgroundTunnelManager {
             connectionProtocol: profile.connectionProtocol,
             trzszTransportMode: profile.trzszTransportMode,
             trzszMTU: profile.trzszMTU,
+            trzszConnectTimeoutSec: profile.trzszConnectTimeoutSec,
             trzszPortMin: profile.trzszPortMin,
             trzszPortMax: profile.trzszPortMax
         )

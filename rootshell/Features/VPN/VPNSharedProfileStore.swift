@@ -70,6 +70,7 @@ nonisolated struct VPNSharedProfileSnapshot: Codable, Identifiable, Sendable, Ha
     var trzszUDPPortMin: Int?
     var trzszUDPPortMax: Int?
     var trzszMTU: Int?
+    var trzszConnectTimeoutSec: Int? = nil
     var trzszServerPath: String?
     var dnsServers: [String]
     var excludedRoutes: [String]

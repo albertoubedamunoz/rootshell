@@ -770,7 +770,7 @@ final class TrzszSession: TerminalSession {
                     }
                     var relay = rebuilt.credentials
                     relay = TrzszRelayCredentials(host: relay.host, serverInfo: relay.serverInfo,
-                                                  mtu: relay.mtu, targetMTU: requiredMTU)
+                                                  mtu: relay.mtu, targetMTU: requiredMTU, connectTimeoutSec: relay.connectTimeoutSec)
                     pendingRelay = rebuilt.transport
                     relayCredentials = relay
                     credentials.relay = relay
@@ -1161,6 +1161,7 @@ final class TrzszSession: TerminalSession {
             port: serverInfo.port,
             serverInfo: serverInfo,
             mtu: effectiveTransportMTU ?? config.mtu,
+            connectTimeoutSec: config.connectTimeoutSec,
             keepPendingInput: effectiveKeepPendingInput,
             displayName: config.sshConfig.displayName,
             terminalUUID: terminalId,
@@ -2223,7 +2224,8 @@ extension TrzszSession {
 
         let trzszConfig = TrzszConfig(
             sshConfig: payload.sshConfig,
-            transportMode: payload.transportMode
+            transportMode: payload.transportMode,
+            connectTimeoutSec: payload.connectTimeoutSec
         )
         let session = TrzszSession(config: trzszConfig, pty: pty, terminalId: terminalId)
         try await session.attachFromTransferPayload(payload)

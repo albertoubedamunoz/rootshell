@@ -31,6 +31,7 @@ actor TSSHTunnelVNCTransport: RFBConnection {
     private let udpPortMin: Int
     private let udpPortMax: Int
     private let mtu: Int
+    private let connectTimeoutSec: Int?
     private let serverPath: String?
     private let vncHost: String
     private let vncPort: UInt16
@@ -60,6 +61,7 @@ actor TSSHTunnelVNCTransport: RFBConnection {
         udpPortMin: Int,
         udpPortMax: Int,
         mtu: Int,
+        connectTimeoutSec: Int? = nil,
         serverPath: String?,
         vncHost: String,
         vncPort: UInt16,
@@ -70,6 +72,7 @@ actor TSSHTunnelVNCTransport: RFBConnection {
         self.udpPortMin = udpPortMin
         self.udpPortMax = udpPortMax
         self.mtu = mtu
+        self.connectTimeoutSec = connectTimeoutSec
         self.serverPath = serverPath
         self.vncHost = vncHost
         self.vncPort = vncPort
@@ -94,6 +97,7 @@ actor TSSHTunnelVNCTransport: RFBConnection {
                 udpPortMin: udpPortMin,
                 udpPortMax: udpPortMax,
                 mtu: mtu,
+                connectTimeoutSec: connectTimeoutSec,
                 serverPath: serverPath,
                 onHostKeyValidation: onHostKeyValidation
             )
@@ -237,6 +241,7 @@ actor TSSHTunnelVNCTransport: RFBConnection {
         udpPortMin: Int,
         udpPortMax: Int,
         mtu: Int,
+        connectTimeoutSec: Int? = nil,
         serverPath: String?,
         onHostKeyValidation: (@Sendable (HostKeyValidationRequest) async -> HostKeyValidationResult)?
     ) async throws -> (transport: TrzszGoTransport, ref: TSSHTransportRef) {
@@ -246,6 +251,7 @@ actor TSSHTunnelVNCTransport: RFBConnection {
             udpPortMin: udpPortMin,
             udpPortMax: udpPortMax,
             mtu: mtu,
+            connectTimeoutSec: connectTimeoutSec,
             serverPath: serverPath,
             displayName: "vnc \(sshConfig.displayName)",
             onHostKeyValidation: onHostKeyValidation
