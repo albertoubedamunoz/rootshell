@@ -29,9 +29,10 @@ extension HerdrController {
         connectionError = nil
         reconnectAttempt = 0
         Self.logger.info("herdr control: degraded mode (\(reason))")
-        let upgradeHint = " Regular herdr supports native text selection with autoscroll; scrollback is less smooth and global scrollback search is unavailable."
+        let upgradeHint = " Upgrade herdr on the host for full control mode."
         gateway?.writeToGhostty(string:
             "\r\n\u{1b}[33mherdr control mode: \(reason). Running with server-rendered panes.\(upgradeHint)\u{1b}[0m\r\n")
+        upgradePrompt = forced ? nil : HerdrUpgradePrompt.controlStreamMissing
         publishSessionState()
         legacyPollTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -51,6 +52,8 @@ extension HerdrController {
         for view in paneViews.values { view.herdrTitleState.endFallback() }
         endpointOpening?.cancel()
         endpointOpening = nil
+        endpointReopenTask?.cancel()
+        endpointReopenTask = nil
         let previousEndpoint = endpoint
         endpoint = nil
         previousEndpoint?.close()
@@ -295,8 +298,8 @@ extension HerdrController {
             resetPushRouteIdentity()
             connectionError = error.localizedDescription
             publishSessionState()
+            // The card shows connectionError; the shell line would only repeat it.
             Self.logger.warning("herdr degraded poll failed: \(error.localizedDescription)")
-            legacyNotice("snapshot poll failed: \(error.localizedDescription)")
         }
     }
 

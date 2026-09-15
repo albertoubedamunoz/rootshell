@@ -266,6 +266,7 @@ final class TrzszTransferOriginator: NSObject, ObservableObject {
             credentials: outgoing.credentials,
             sshConfig: outgoing.sshConfig,
             transportMode: outgoing.transportMode,
+            connectTimeoutSec: outgoing.connectTimeoutSec,
             displayName: outgoing.displayName,
             cols: hello.requestedCols > 0 ? hello.requestedCols : outgoing.cols,
             rows: hello.requestedRows > 0 ? hello.requestedRows : outgoing.rows,
@@ -427,6 +428,7 @@ extension TrzszTransferOriginator {
             credentials: creds,
             sshConfig: session.config.sshConfig,
             transportMode: session.config.transportMode,
+            connectTimeoutSec: session.config.connectTimeoutSec,
             displayName: Self.preferredDisplayName(
                 liveTitle: snapshot.liveTitle,
                 fallback: session.config.sshConfig.displayName

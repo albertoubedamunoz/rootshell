@@ -526,6 +526,7 @@ final class TrzszGoTransport: NSObject {
     private var cachedSessionID: UInt64?
     private let serverInfo: TrzszServerInfo
     let mtu: Int
+    private let connectTimeoutSec: Int
     private let relayTransport: TrzszGoTransport?
     private var keepPendingInput: Bool
     /// Value the SERVER last accepted, so `applyKeepPendingInput` can skip
@@ -563,6 +564,7 @@ final class TrzszGoTransport: NSObject {
         port: Int,
         serverInfo: TrzszServerInfo,
         mtu: Int = 0,
+        connectTimeoutSec: Int? = nil,
         keepPendingInput: Bool = false,
         keepPendingOutput: Bool = false,
         displayName: String = "",
@@ -578,6 +580,7 @@ final class TrzszGoTransport: NSObject {
         self.serverInfo = serverInfo
         self.mode = serverInfo.mode
         self.mtu = mtu
+        self.connectTimeoutSec = connectTimeoutSec.flatMap { (1...120).contains($0) ? $0 : nil } ?? 30
         self.relayTransport = relayTransport
         self.keepPendingInput = keepPendingInput
         self.keepPendingOutput = keepPendingOutput
@@ -601,8 +604,8 @@ final class TrzszGoTransport: NSObject {
         }
 
         state = .connecting
-        Self.logger.info("[\(self.debugLabel)] Connecting Go transport to \(self.host):\(self.port) mode=\(self.mode.rawValue)")
-        ResumeDebugLogger.shared.log("[\(debugLabel)] connect: host=\(self.host), port=\(self.port), mode=\(self.mode.rawValue)")
+        Self.logger.info("[\(self.debugLabel)] Connecting Go transport to \(self.host):\(self.port) mode=\(self.mode.rawValue) connectTimeout=\(self.connectTimeoutSec)s")
+        ResumeDebugLogger.shared.log("[\(debugLabel)] connect: host=\(self.host), port=\(self.port), mode=\(self.mode.rawValue) connectTimeout=\(self.connectTimeoutSec)s")
 
         // Wire Go tsshd debug output to file-based logger when enabled.
         let logger = ResumeDebugLogger.shared.isEnabled ? TrzszGoDebugLoggerBridge() : nil
@@ -626,6 +629,7 @@ final class TrzszGoTransport: NSObject {
             clientID: Int64(bitPattern: serverInfo.clientId),
             serverID: Int64(bitPattern: serverInfo.serverId),
             mtu: mtu,
+            connectTimeoutSec: connectTimeoutSec,
             proxyKeyHex: serverInfo.proxyKey?.hexString,
             kcpPassHex: serverInfo.mode == .kcp ? (serverInfo.kcpPass?.hexString ?? "") : nil,
             kcpSaltHex: serverInfo.mode == .kcp ? (serverInfo.kcpSalt?.hexString ?? "") : nil,
@@ -796,7 +800,30 @@ final class TrzszGoTransport: NSObject {
             throw TrzszError.connectionFailed("No transport for openExecChannel")
         }
         let channelRef = try await TSSHCallGate.shared.openExec(on: tRef, command: command)
-        return TrzszExecPipe(channelRef: channelRef, transportRef: tRef)
+        let sessionID = await TSSHCallGate.shared.execSessionID(on: tRef, channelRef: channelRef)
+        return TrzszExecPipe(
+            channelRef: channelRef,
+            transportRef: tRef,
+            remoteSessionID: sessionID > 0 ? UInt64(sessionID) : nil
+        )
+    }
+
+    /// The server-side session id behind an exec channel, or nil when the
+    /// channel has none to name.
+    func execSessionID(channelRef: Int64) async -> UInt64? {
+        guard let tRef = transportRef else { return nil }
+        let id = await TSSHCallGate.shared.execSessionID(on: tRef, channelRef: channelRef)
+        return id > 0 ? UInt64(id) : nil
+    }
+
+    /// Ends a server-side session by id, including one an earlier run of the
+    /// app opened: auxiliary channels are never reattached, so an attachable
+    /// server keeps them running until someone says otherwise.
+    func exitSession(sessionID: UInt64) async throws {
+        guard let tRef = transportRef else {
+            throw TrzszError.connectionFailed("No transport for exiting a session")
+        }
+        try await TSSHCallGate.shared.exitSession(on: tRef, sessionID: Int64(bitPattern: sessionID))
     }
 
     func openPTYChannel(_ command: String, cols: Int, rows: Int) async throws -> HerdrPTYChannel {

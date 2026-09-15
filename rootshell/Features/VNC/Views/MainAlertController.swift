@@ -34,6 +34,8 @@ import UserNotifications
         case newHost
         case keyChanged
         case helperMissing
+        case herdrUpgrade
+        case herdrTakeControl
         case profileUnavailable
         case vncProfileInvalid
         case vncHighPerformanceTransport
@@ -61,6 +63,31 @@ import UserNotifications
 
     var showHelperMissingAlert = false
     var showProfileUnavailableAlert = false
+
+    /// herdr on a host must be installed or upgraded before control mode works.
+    var herdrUpgradePrompt: HerdrUpgradePrompt?
+    var showHerdrUpgradeAlert = false
+
+    /// A herdr tab another client holds; the user decides whether to take it.
+    struct HerdrTakeControlRequest {
+        let gatewayUUID: UUID
+        let tabId: String
+        let tabTitle: String
+        /// The server cannot share tabs, so taking control evicts the other client.
+        let evictsOtherClient: Bool
+    }
+    var herdrTakeControlRequest: HerdrTakeControlRequest?
+    var showHerdrTakeControlAlert = false
+
+    func presentHerdrUpgrade(_ prompt: HerdrUpgradePrompt) {
+        herdrUpgradePrompt = prompt
+        showHerdrUpgradeAlert = true
+    }
+
+    func presentHerdrTakeControl(_ request: HerdrTakeControlRequest) {
+        herdrTakeControlRequest = request
+        showHerdrTakeControlAlert = true
+    }
 
     /// A shared file failed to import (see FileOpenCoordinator).
     var fileOpenErrorMessage: String?
@@ -188,6 +215,10 @@ import UserNotifications
             return showKeyChangedAlert
         case .helperMissing:
             return showHelperMissingAlert
+        case .herdrUpgrade:
+            return showHerdrUpgradeAlert && herdrUpgradePrompt != nil
+        case .herdrTakeControl:
+            return showHerdrTakeControlAlert && herdrTakeControlRequest != nil
         case .profileUnavailable:
             return showProfileUnavailableAlert
         case .vncProfileInvalid:
@@ -273,6 +304,12 @@ import UserNotifications
             showKeyChangedAlert = false
         case .helperMissing:
             showHelperMissingAlert = false
+        case .herdrUpgrade:
+            showHerdrUpgradeAlert = false
+            herdrUpgradePrompt = nil
+        case .herdrTakeControl:
+            showHerdrTakeControlAlert = false
+            herdrTakeControlRequest = nil
         case .profileUnavailable:
             showProfileUnavailableAlert = false
         case .vncProfileInvalid:

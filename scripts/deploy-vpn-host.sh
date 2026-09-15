@@ -99,7 +99,9 @@ SYSEXT="$APP/Contents/Library/SystemExtensions/$SYSEXT_ID.systemextension"
 [[ -d "$APP" && -d "$SYSEXT" ]] || fail "Build did not produce the expected host and system extension"
 for bundle in "$APP" "$SYSEXT"; do
     executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$bundle/Contents/Info.plist")"
-    xcrun lipo "$bundle/Contents/MacOS/$executable" -verify_arch arm64 x86_64
+    for arch in arm64 x86_64; do
+        xcrun lipo "$bundle/Contents/MacOS/$executable" -verify_arch "$arch"
+    done
     xcrun strip -S -x "$bundle/Contents/MacOS/$executable"
 done
 if ! $BUILD_ONLY; then

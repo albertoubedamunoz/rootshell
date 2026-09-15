@@ -33,6 +33,7 @@ enum TrzszHeadlessConnector {
         udpPortMin: Int,
         udpPortMax: Int,
         mtu: Int,
+        connectTimeoutSec: Int? = nil,
         serverPath: String? = nil,
         displayName: String,
         onHostKeyValidation: ((HostKeyValidationRequest) async -> HostKeyValidationResult)?
@@ -43,7 +44,8 @@ enum TrzszHeadlessConnector {
             udpPortMin: udpPortMin,
             udpPortMax: udpPortMax,
             serverPath: serverPath,
-            mtu: mtu
+            mtu: mtu,
+            connectTimeoutSec: connectTimeoutSec
         )
 
         // Resolve hostname
@@ -69,6 +71,7 @@ enum TrzszHeadlessConnector {
                 port: spawnResult.serverInfo.port,
                 serverInfo: spawnResult.serverInfo,
                 mtu: spawnResult.targetMTU,
+                connectTimeoutSec: trzszConfig.connectTimeoutSec,
                 displayName: displayName,
                 terminalType: trzszConfig.sshConfig.effectiveTerminalType,
                 relayTransport: spawnResult.relayTransport

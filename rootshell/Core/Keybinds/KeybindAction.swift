@@ -104,7 +104,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     case discover_sessions = "discover_sessions"
     /// Detach the current tab from its multiplexer (tmux / zellij / herdr / zmx)
     case detach_session = "detach_session"
-    /// Detach all OTHER tmux clients from the current gateway (`detach-client -a`)
+    /// Detach all OTHER tmux clients from the current gateway
+    /// (`detach-client -a`); on a herdr tab, take the whole session instead
     case detach_other_clients = "detach_other_clients"
 
     // Tab Selection (1-9)

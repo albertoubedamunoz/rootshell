@@ -59,7 +59,8 @@ extension Ghostty.TerminalView {
             self.activeTransferTicketID = ticketID
             let trzszConfig = TrzszConfig(
                 sshConfig: payload.sshConfig,
-                transportMode: payload.transportMode
+                transportMode: payload.transportMode,
+                connectTimeoutSec: payload.connectTimeoutSec
             )
             let trzszSession = TrzszSession(config: trzszConfig, pty: pty, terminalId: self.uuid)
 

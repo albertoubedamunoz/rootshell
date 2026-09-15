@@ -109,6 +109,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         let udpPortMin: Int
         let udpPortMax: Int
         let serverPath: String?
+        let connectTimeoutSec: Int?
 
         init(from config: TrzszConfig) {
             self.sshConfig = SSHConfigSafe(from: config.sshConfig)
@@ -116,6 +117,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             self.udpPortMin = config.udpPortMin
             self.udpPortMax = config.udpPortMax
             self.serverPath = config.serverPath
+            self.connectTimeoutSec = config.connectTimeoutSec
         }
 
         // @MainActor: builds a live TrzszConfig (MainActor init); Codable stays nonisolated.
@@ -126,7 +128,8 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
                 transportMode: transportMode,
                 udpPortMin: udpPortMin,
                 udpPortMax: udpPortMax,
-                serverPath: serverPath
+                serverPath: serverPath,
+                connectTimeoutSec: connectTimeoutSec
             )
         }
 

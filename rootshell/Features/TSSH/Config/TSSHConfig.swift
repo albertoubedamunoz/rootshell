@@ -112,6 +112,9 @@ struct TrzszConfig: Codable, Hashable, Sendable {
     /// Both client and server must match.
     var mtu: Int
 
+    /// Passed unchanged to the existing Go client timeout API.
+    var connectTimeoutSec: Int?
+
     /// Keep typed input queued while the transport is disconnected.
     var keepPendingInput: Bool
 
@@ -122,6 +125,7 @@ struct TrzszConfig: Codable, Hashable, Sendable {
         case udpPortMax
         case serverPath
         case mtu
+        case connectTimeoutSec
         case keepPendingInput
     }
 
@@ -142,6 +146,7 @@ struct TrzszConfig: Codable, Hashable, Sendable {
         udpPortMax: Int = Self.preferredUDPPortMax,
         serverPath: String? = nil,
         mtu: Int = 0,
+        connectTimeoutSec: Int? = nil,
         keepPendingInput: Bool = Self.keepPendingInput
     ) {
         self.sshConfig = sshConfig
@@ -150,6 +155,7 @@ struct TrzszConfig: Codable, Hashable, Sendable {
         self.udpPortMax = udpPortMax
         self.serverPath = serverPath
         self.mtu = mtu
+        self.connectTimeoutSec = connectTimeoutSec.flatMap { (1...120).contains($0) ? $0 : nil }
         self.keepPendingInput = keepPendingInput
     }
 
@@ -161,6 +167,8 @@ struct TrzszConfig: Codable, Hashable, Sendable {
         udpPortMax = try container.decode(Int.self, forKey: .udpPortMax)
         serverPath = try container.decodeIfPresent(String.self, forKey: .serverPath)
         mtu = try container.decodeIfPresent(Int.self, forKey: .mtu) ?? 0
+        let timeout = try? container.decodeIfPresent(Int.self, forKey: .connectTimeoutSec)
+        connectTimeoutSec = timeout.flatMap { (1...120).contains($0) ? $0 : nil }
         keepPendingInput = try container.decodeIfPresent(Bool.self, forKey: .keepPendingInput) ?? false
     }
 

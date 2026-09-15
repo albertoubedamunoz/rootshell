@@ -67,6 +67,20 @@ struct HerdrTabMenuItems: View {
                 } label: {
                     Label("Rename Tab", systemImage: "pencil")
                 }
+                if controller.tabIsControlledElsewhere(tab) {
+                    Button {
+                        if let tabId = tab.herdrTabId { controller.requestTakeControl(tabId: tabId) }
+                    } label: {
+                        Label("Take Control", systemImage: "person.2")
+                    }
+                } else if controller.capabilities.supportsSharedViewing,
+                          let tabId = tab.herdrTabId, controller.ownership(of: tabId) != .mine {
+                    Button {
+                        controller.requestFitToWindow(tab)
+                    } label: {
+                        Label("Fit to This Window", systemImage: "arrow.up.left.and.arrow.down.right")
+                    }
+                }
             }
             Button {
                 controller.requestNewTab(inWorkspaceOf: tab.isHerdrWindow ? tab : nil)

@@ -1905,7 +1905,8 @@ extension LocalShellSession {
                 let trzszConfig = TrzszConfig(
                     sshConfig: sshConfig,
                     transportMode: partialConfig.transportMode,
-                    serverPath: partialConfig.serverPath
+                    serverPath: partialConfig.serverPath,
+                    connectTimeoutSec: partialConfig.connectTimeoutSec
                 )
                 // Pass terminalId for credential persistence (enables session resume)
                 Task { @MainActor in
@@ -1930,7 +1931,8 @@ extension LocalShellSession {
         TrzszCommandParser.PartialTrzszConfig(
             sshPartialConfig: makePartialSSHConfig(from: config.sshConfig),
             transportMode: config.transportMode,
-            serverPath: config.serverPath
+            serverPath: config.serverPath,
+            connectTimeoutSec: config.connectTimeoutSec
         )
     }
 
@@ -1956,7 +1958,8 @@ extension LocalShellSession {
                 let trzszPartial = TrzszCommandParser.PartialTrzszConfig(
                     sshPartialConfig: partialConfig,
                     transportMode: config.transportMode,
-                    serverPath: config.serverPath
+                    serverPath: config.serverPath,
+                    connectTimeoutSec: config.connectTimeoutSec
                 )
                 return .trzszPasswordPrompt(trzszPartial)
             }
@@ -1970,7 +1973,8 @@ extension LocalShellSession {
             transportMode: config.transportMode,
             udpPortMin: config.udpPortMin,
             udpPortMax: config.udpPortMax,
-            serverPath: config.serverPath
+            serverPath: config.serverPath,
+            connectTimeoutSec: config.connectTimeoutSec
         )
 
         // Start inline spinner animation with actual terminal width

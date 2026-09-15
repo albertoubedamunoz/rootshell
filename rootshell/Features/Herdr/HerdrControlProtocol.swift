@@ -15,8 +15,10 @@ import Foundation
 
 nonisolated enum HerdrControl {
 
-    /// `terminal_control_stream` capability value this client understands.
+    /// Lowest `terminal_control_stream` capability value this client can drive.
     static let requiredStreamProtocol = 1
+    /// Stream protocol this client speaks in full (shared attaches, geometry ownership).
+    static let preferredStreamProtocol = 2
 
     // MARK: - Requests
 
@@ -42,6 +44,10 @@ nonisolated enum HerdrControl {
     struct InputParams: Encodable {
         let attach_id: String
         let bytes: String
+        /// A terminal's automatic reply (DA, CPR, OSC colour...), not a
+        /// keystroke: the server forwards it only from the query authority
+        /// and never treats it as interaction. Omitted for old servers.
+        var auto: Bool?
     }
 
     struct TabGeometryParams: Encodable {
@@ -52,6 +58,13 @@ nonisolated enum HerdrControl {
         let cell_height_px: Int
         /// rootshell draws its own dividers; herdr tiles the panes exactly.
         var chrome = "none"
+        /// false stores this client's size without taking the tab's geometry.
+        /// Omitted (nil) for servers that predate ownership; they always claim.
+        var claim: Bool?
+    }
+
+    struct ClaimGeometryParams: Encodable {
+        let tab_id: String
     }
 
     struct Subscription: Encodable {
@@ -146,6 +159,61 @@ nonisolated enum HerdrControl {
         var terminal_control_stream: Int?
         var server_pid: Int?
         var live_handoff: Bool?
+        /// Fine-grained control-stream features (protocol 2 servers).
+        var control_features: [String]?
+    }
+
+    /// Who sizes a tab: a control stream, a herdr shell client, or nobody.
+    struct GeometryController: Decodable, Sendable, Equatable {
+        /// "control", "client", or "none".
+        let kind: String?
+        let connection_id: UInt64?
+        /// "server" or "none".
+        let chrome: String?
+    }
+
+    struct ClientIdentity: Decodable, Sendable, Equatable {
+        let name: String?
+        let version: String?
+        let `protocol`: Int?
+    }
+
+    struct ControlAttachInfo: Decodable, Sendable, Equatable {
+        let attach_id: String
+        let terminal_id: String?
+        let pane_id: String?
+        let geometry: String?
+        let answers_queries: Bool?
+    }
+
+    struct ControlTabInfo: Decodable, Sendable, Equatable {
+        let tab_id: String
+        let cols: Int?
+        let rows: Int?
+        let chrome: String?
+        let controller: Bool?
+    }
+
+    struct ControlConnection: Decodable, Sendable, Equatable, Identifiable {
+        let connection_id: UInt64
+        let control_protocol: Int?
+        let client: ClientIdentity?
+        let attaches: [ControlAttachInfo]?
+        let tabs: [ControlTabInfo]?
+        var id: UInt64 { connection_id }
+
+        /// "rootshell 1.0.13", "herdr-control", or the connection number.
+        var displayLabel: String {
+            let name = client?.name?.split(separator: "/").first.map(String.init) ?? client?.name
+            guard let name, !name.isEmpty else { return "connection #\(connection_id)" }
+            if let version = client?.version, !version.isEmpty { return "\(name) \(version)" }
+            return name
+        }
+    }
+
+    struct ControlListResult: Decodable, Sendable {
+        let self_connection_id: UInt64?
+        let connections: [ControlConnection]
     }
 
     struct ControlOpened: Decodable, Sendable {
@@ -153,10 +221,12 @@ nonisolated enum HerdrControl {
         let boot_id: String
         let version: String
         let `protocol`: Int
+        /// Control-stream protocol the server negotiated for us; absent on protocol 1 servers.
+        let control_protocol: Int?
         let capabilities: Capabilities?
 
         private enum CodingKeys: String, CodingKey {
-            case connection_id, boot_id, version, `protocol`, capabilities
+            case connection_id, boot_id, version, `protocol`, control_protocol, capabilities
         }
 
         init(from decoder: Decoder) throws {
@@ -165,6 +235,7 @@ nonisolated enum HerdrControl {
             connection_id = try values.decode(UInt64.self, forKey: .connection_id)
             boot_id = try values.decode(String.self, forKey: .boot_id)
             self.protocol = try values.decode(Int.self, forKey: .protocol)
+            control_protocol = try values.decodeIfPresent(Int.self, forKey: .control_protocol)
             capabilities = try values.decodeIfPresent(Capabilities.self, forKey: .capabilities)
         }
     }
@@ -204,6 +275,11 @@ nonisolated enum HerdrControl {
         let focused_pane_id: String
         let panes: [LayoutPane]
         let splits: [LayoutSplit]
+        /// Present on protocol 2 servers: the tab's real geometry owner.
+        var geometry_controller: GeometryController? = nil
+
+        /// A layout that describes the tab as actually sized, not the TUI viewport.
+        var carriesRealGeometry: Bool { geometry_controller != nil }
     }
 
     struct WorkspaceInfo: Decodable, Sendable, Equatable {
@@ -382,6 +458,16 @@ nonisolated enum HerdrControl {
         let layout: LayoutSnapshot
     }
 
+    struct AuthorityRecord: Decodable, Sendable {
+        let attach_id: String
+        let answers_queries: Bool
+    }
+
+    struct EventsGapRecord: Decodable, Sendable {
+        let dropped: UInt64?
+        let resume_sequence: UInt64?
+    }
+
     // MARK: - Events
 
     struct Event<Data: Decodable>: Decodable {
@@ -453,6 +539,13 @@ nonisolated enum HerdrControl {
         let layout: LayoutSnapshot
     }
 
+    struct TabGeometryChangedData: Decodable, Sendable {
+        let tab_id: String
+        let workspace_id: String?
+        let geometry_controller: GeometryController?
+        let previous: GeometryController?
+    }
+
     struct AgentStatusChangedData: Decodable, Sendable, Equatable {
         let pane_id: String
         let workspace_id: String
@@ -471,6 +564,9 @@ nonisolated enum HerdrControl {
         case gap(GapRecord)
         case detached(DetachedRecord)
         case tabLayout(LayoutSnapshot)
+        case authority(AuthorityRecord)
+        case eventsGap(EventsGapRecord)
+        case tabGeometryChanged(TabGeometryChangedData)
         case paneCreated(PaneInfo)
         case paneUpdated(PaneInfo)
         case paneClosed(PaneClosedData)
@@ -539,6 +635,10 @@ nonisolated enum HerdrControl {
             return (try? decoder.decode(DetachedRecord.self, from: line)).map(Inbound.detached) ?? .unknown(type)
         case "tab.layout":
             return (try? decoder.decode(TabLayoutRecord.self, from: line)).map { .tabLayout($0.layout) } ?? .unknown(type)
+        case "terminal.authority":
+            return (try? decoder.decode(AuthorityRecord.self, from: line)).map(Inbound.authority) ?? .unknown(type)
+        case "events.gap":
+            return (try? decoder.decode(EventsGapRecord.self, from: line)).map(Inbound.eventsGap) ?? .unknown(type)
         default:
             return .unknown(type)
         }
@@ -569,6 +669,8 @@ nonisolated enum HerdrControl {
         case "workspace_moved", "workspace_reordered": return .workspaceReordered
         case "worktree_created", "worktree_opened", "worktree_removed": return .worktreesChanged
         case "layout_updated": return data(LayoutUpdatedData.self).map { .layoutUpdated($0.layout) } ?? .unknown(event)
+        case "tab_geometry_changed", "tab.geometry_changed":
+            return data(TabGeometryChangedData.self).map(Inbound.tabGeometryChanged) ?? .unknown(event)
         case "pane.agent_status_changed", "pane_agent_status_changed":
             return data(AgentStatusChangedData.self).map(Inbound.agentStatusChanged) ?? .unknown(event)
         default:

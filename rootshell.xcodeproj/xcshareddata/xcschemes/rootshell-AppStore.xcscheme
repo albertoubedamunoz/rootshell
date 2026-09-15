@@ -37,6 +37,16 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "47AC7E570000000000000040"
+               BuildableName = "rootshellTests.xctest"
+               BlueprintName = "rootshellTests"
+               ReferencedContainer = "container:rootshell.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

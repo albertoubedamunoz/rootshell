@@ -783,12 +783,23 @@ struct SSHConfig: Codable, Hashable {
     /// client can tell "not installed" from "connection dropped".
     static func herdrControlCommandLine(sessionName: String?, localAttachment: LocalMultiplexerAttachment? = nil) -> String {
         let executable = localAttachment.map { LoginShellCommand.singleQuoted($0.executable) } ?? "herdr"
-        let command = localAttachment?.command(arguments: ["control"]) ?? "herdr\(herdrSessionArgument(sessionName)) control"
+        let bridge = localAttachment?.command(arguments: ["control"]) ?? "herdr\(herdrSessionArgument(sessionName)) control"
+        // Identity rides in the environment: a flag would make an older
+        // binary exit 2, which reads as "no control stream".
+        let command = "\(herdrControlClientEnvironment) \(bridge)"
         let notFound = "printf '%s\\n' '{\"type\":\"control.error\",\"code\":\"not_found\",\"message\":\"herdr not found on host\"}'; exit 127"
         // A herdr without the subcommand exits 2 ("unknown command"); say
         // so on stdout so the client falls back instead of retrying.
         let unsupported = "printf '%s\\n' '{\"type\":\"control.error\",\"code\":\"unsupported\",\"message\":\"herdr on the host has no control stream\"}'"
         return LoginShellCommand.runInPOSIXShell("\(remoteExecPathPrefix)command -v \(executable) >/dev/null || { \(notFound); }; \(command); _rc=$?; [ \"$_rc\" = 2 ] && { \(unsupported); }; exit $_rc")
+    }
+
+    /// `HERDR_CONTROL_CLIENT=name/version HERDR_CONTROL_PROTOCOL=n`, read by
+    /// the fork's `herdr control` and echoed in `control.list`.
+    static var herdrControlClientEnvironment: String {
+        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0")
+            .filter { $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" }
+        return "HERDR_CONTROL_CLIENT=rootshell/\(version) HERDR_CONTROL_PROTOCOL=\(HerdrControl.preferredStreamProtocol)"
     }
 
     /// One-shot herdr CLI invocation for the degraded control mode

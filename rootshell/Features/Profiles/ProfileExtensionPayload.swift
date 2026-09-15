@@ -20,6 +20,9 @@ struct ProfileExtensionPayload: Codable, Hashable, Sendable {
 
     var version: Int
 
+    /// Client connection/path-renewal/stream-opening timeout; nil uses 30 seconds.
+    var trzszConnectTimeoutSec: Int?
+
     /// Screen Sharing / VNC configuration, when this profile is a VNC profile.
     var vncConfig: VNCConnectionConfig?
     var localConfig: LocalProfileConfig?
@@ -33,9 +36,11 @@ struct ProfileExtensionPayload: Codable, Hashable, Sendable {
         vncConfig: VNCConnectionConfig? = nil,
         localConfig: LocalProfileConfig? = nil,
         themeName: String? = nil,
-        themeModifiedAt: Date? = nil
+        themeModifiedAt: Date? = nil,
+        trzszConnectTimeoutSec: Int? = nil
     ) {
         self.version = version
+        self.trzszConnectTimeoutSec = trzszConnectTimeoutSec.flatMap { (1...120).contains($0) ? $0 : nil }
         self.vncConfig = vncConfig
         self.localConfig = localConfig
         self.themeName = themeName
@@ -45,16 +50,18 @@ struct ProfileExtensionPayload: Codable, Hashable, Sendable {
     /// True when nothing meaningful is stored. Empty envelopes are omitted
     /// from profile JSON and never written to CKRecords.
     var isEmpty: Bool {
-        vncConfig == nil && localConfig == nil && themeName == nil && themeModifiedAt == nil
+        vncConfig == nil && localConfig == nil && themeName == nil && themeModifiedAt == nil && trzszConnectTimeoutSec == nil
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, vncConfig, localConfig, themeName, themeModifiedAt
+        case version, vncConfig, localConfig, themeName, themeModifiedAt, trzszConnectTimeoutSec
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = ((try? container.decodeIfPresent(Int.self, forKey: .version)) ?? nil) ?? Self.currentVersion
+        let timeout = try? container.decodeIfPresent(Int.self, forKey: .trzszConnectTimeoutSec)
+        trzszConnectTimeoutSec = timeout.flatMap { (1...120).contains($0) ? $0 : nil }
         // Field-level tolerance: a bad vncConfig must not sink the envelope.
         vncConfig = (try? container.decodeIfPresent(VNCConnectionConfig.self, forKey: .vncConfig)) ?? nil
         localConfig = try? container.decodeIfPresent(LocalProfileConfig.self, forKey: .localConfig)
@@ -72,6 +79,7 @@ struct ProfileExtensionPayload: Codable, Hashable, Sendable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(version, forKey: .version)
+        try container.encodeIfPresent(trzszConnectTimeoutSec, forKey: .trzszConnectTimeoutSec)
         try container.encodeIfPresent(vncConfig, forKey: .vncConfig)
         try container.encodeIfPresent(localConfig, forKey: .localConfig)
         try container.encodeIfPresent(themeName, forKey: .themeName)

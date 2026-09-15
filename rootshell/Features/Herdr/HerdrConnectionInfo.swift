@@ -27,6 +27,9 @@ nonisolated struct HerdrConnectionSnapshot: Sendable {
         let startedAt: Date?
         let controlStreamVersion: Int?
         let liveHandoff: Bool?
+        let controlFeatures: [String]?
+        let sharedViewing: Bool?
+        let upgradeAdvice: String?
     }
 
     struct Session: Sendable {
@@ -46,6 +49,7 @@ nonisolated struct HerdrConnectionSnapshot: Sendable {
         let isReconnecting: Bool
         let reconnectAttempt: Int
         let endpointOverlay: String?
+        let otherClients: [String]
     }
 
     struct Tab: Sendable {
@@ -58,6 +62,8 @@ nonisolated struct HerdrConnectionSnapshot: Sendable {
         let columns: Int?
         let rows: Int?
         let worktreePath: String?
+        /// "This client", another client's label, "None", or nil when unknown.
+        let geometryOwner: String?
     }
 
     struct Pane: Sendable {
@@ -71,6 +77,9 @@ nonisolated struct HerdrConnectionSnapshot: Sendable {
         let width: Int?
         let height: Int?
         let focused: Bool
+        /// Whether this attach answers the pane's terminal queries; nil until
+        /// a protocol 2 server says.
+        let answersQueries: Bool?
     }
 }
 

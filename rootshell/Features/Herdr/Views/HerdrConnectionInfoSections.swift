@@ -121,6 +121,9 @@ struct HerdrConnectionInfoSections: View {
             if server.startedAt != nil { ageRow("Uptime", since: server.startedAt) }
             row("Control Stream", server.controlStreamVersion.map { "v\($0)" })
             row("Live Handoff", server.liveHandoff.map { $0 ? "Yes" : "No" })
+            row("Shared Viewing", server.sharedViewing.map { $0 ? "Yes" : "No" })
+            row("Control Features", server.controlFeatures.map { $0.isEmpty ? "None" : $0.joined(separator: ", ") })
+            row("Upgrade", server.upgradeAdvice)
         }
     }
 
@@ -141,6 +144,7 @@ struct HerdrConnectionInfoSections: View {
             row("Mode", client.isDegraded ? "Degraded (server-rendered)" : "Control Stream")
             ageRow("Connected", since: client.connectedAt)
             row("Endpoint Overlay", client.endpointOverlay)
+            row("Other Clients", client.otherClients.isEmpty ? nil : client.otherClients.joined(separator: ", "))
         } header: {
             Text("herdr Control Client")
         } footer: {
@@ -159,6 +163,7 @@ struct HerdrConnectionInfoSections: View {
             })
             row("Panes", snapshot.tab.map { String($0.panes) })
             row("Tab Size", dimensions(snapshot.tab?.columns, snapshot.tab?.rows))
+            row("Geometry Owner", snapshot.tab?.geometryOwner)
             row("Worktree", snapshot.tab?.worktreePath)
             if request.terminalID != nil {
                 row("Pane ID", snapshot.pane?.id)
@@ -169,6 +174,7 @@ struct HerdrConnectionInfoSections: View {
                 row("Working Directory", snapshot.pane?.workingDirectory)
                 row("Pane Size", dimensions(snapshot.pane?.width, snapshot.pane?.height))
                 row("Focused", snapshot.pane.map { $0.focused ? "Yes" : "No" })
+                row("Answers Queries", snapshot.pane?.answersQueries.map { $0 ? "Yes" : "No" })
             }
             if snapshot.tab == nil {
                 Text("This tab is no longer in the session.")

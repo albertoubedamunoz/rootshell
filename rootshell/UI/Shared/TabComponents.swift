@@ -250,6 +250,20 @@ struct RoamTabBadgeView: View {
     }
 }
 
+/// A herdr tab another client sizes, or whose panes another client holds.
+struct HerdrControlledElsewhereBadge: View {
+    var body: some View {
+        Image(systemName: "person.2")
+            .font(.caption2)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(Color.secondary.opacity(0.15))
+            .foregroundColor(.secondary)
+            .cornerRadius(4)
+            .accessibilityLabel(String(localized: "Controlled by another herdr client"))
+    }
+}
+
 struct TmuxTabBadgeView: View {
     let badge: TmuxTabBadge
     let palette: TmuxTabBadgePalette
@@ -360,6 +374,8 @@ struct TabButton: View {
     var roamProtocol: MainView.RoamProtocol = .none  // Whether this is a Mosh/Trzsz roaming connection
     var tmuxBadge: TmuxTabBadge? = nil  // tmux control-mode gateway/window badge
     var tmuxBadgePalette: TmuxTabBadgePalette = .fallback
+    /// Another herdr client sizes or holds this tab.
+    var controlledElsewhere: Bool = false
     var attentionBadge: AgentAttentionStatus? = nil  // agent attention dot (id=agent-attention)
     var style: TopTabStyle = .pills
     var tabWidth: CGFloat = 240
@@ -441,6 +457,11 @@ struct TabButton: View {
                     compensateVibrancy: badgeNeedsVibrancyEscape
                 )
                 .fixedSize()
+            }
+
+            if controlledElsewhere {
+                HerdrControlledElsewhereBadge()
+                    .fixedSize()
             }
 
             if let attentionBadge {

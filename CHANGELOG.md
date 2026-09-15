@@ -3,6 +3,37 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.12-147 - September 13, 2026
+
+### herdr Control Mode
+
+- **Native Tabs and Panes:** rootshell now offers optional control mode for herdr, similar to tmux control mode: herdr's tabs become native rootshell tabs, and its splits become native rootshell panes. Navigate with the tab bar, sidebar, keyboard shortcuts and Tab Exposé. Create, rename, close, zoom and rearrange panes with rootshell's controls, with changes kept in sync with herdr. Workspaces are grouped in the sidebar, with agent activity shown per pane.
+- **Workspace and Worktree Management:** Manage herdr workspaces and Git worktrees from the workspace dashboard. Create or open worktrees, rename and reorder workspaces, and move panes between tabs or workspaces without leaving rootshell.
+- **Flexible Connections:** Enable Control Mode in the session picker, choose "herdr (control)" as the auto-start option in a profile or connection, or use `--herdr-control` in Quick Connect. Runs over SSH and tssh exec channels with more efficient encoding than tmux control mode, and also supports local sessions on macOS. The choice follows saved profiles, connection history and iCloud sync.
+- **Standard and Experimental herdr Support:** Control mode requires herdr 0.9.0 or newer on the host. Regular herdr uses fallback mode and supports most features, including native text selection and automatic scrolling while selecting. The optional experimental rootshell herdr fork provides more event-driven, efficient updates, fully pixel-smooth native scrolling and global scrollback search. We hope upstream herdr will adopt these additional control-mode changes; fallback mode supports regular herdr if they aren't included. The gateway tab provides upgrade guidance.
+- **Gateway and Session Recovery:** Hide the gateway tab, or press Escape on it to detach without stopping herdr. Session persistence restores local macOS control-mode sessions on reopening rootshell. Connection Info shows herdr mode and session details.
+- **Agent Detection and Notifications:** In herdr control mode, herdr's agent detection rules and engine take priority over rootshell's own detection engine. Agent notifications route to the matching pane. `rootshell-notify` now supports herdr pane notifications; update it on the host to use this support.
+
+### Session Discovery
+
+- **Rescan without Reconnecting:** Discover Sessions rescans for multiplexer sessions without reconnecting. Open it from the Tabs menu, terminal context menu, or Control+Command+S. The picker shows search progress, empty results and errors.
+- **Improved iPhone Session Picker:** The session picker fits above the keyboard and toolbar, with larger previews, accessible connection and control-mode actions, and support for larger text.
+
+### Screen Sharing
+
+- **Trackpad Pointer Mode:** Move the remote pointer with one finger, tap to click, tap with two fingers to right-click and scroll with two fingers. Adjust pointer speed or switch between Touch and Trackpad from Screen Sharing settings; the session menu changes the current mode.
+- **Cursor Options:** Choose a sharp, resizable local cursor or the remote Mac's cursor. Rendering preferences apply to new connections.
+
+### Keyboard Shortcuts
+
+- **Shortcut Reassignment:** Reassigning a shortcut shows its current owner and asks for confirmation, then removes the previous binding, including profile shortcuts. The recorder also captures macOS menu shortcuts.
+
+### Fixes
+
+- **Reliable SSH Keepalives:** Fixed SSH sessions hanging in a repeated error loop when a server answered a keepalive with "unimplemented". The reply is now handled without stalling the session.
+- **SSH Authentication Compatibility:** SSH authentication now starts with a "none" probe, as OpenSSH does, allowing servers to grant access without credentials or report their supported methods. Keyboard-interactive is now offered as a fallback only when the server advertises it. These fixes improve compatibility with servers including MikroTik RouterOS.
+- **Correct iPhone Keyboard Layout:** Fixed a regression introduced in build 140 where terminal and Screen Sharing content extended beneath the iPhone keyboard toolbar after hiding and showing the keyboard.
+
 ## 1.0.11-146 - September 11, 2026
 
 ### Local Session Recovery (macOS)

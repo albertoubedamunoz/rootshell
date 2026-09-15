@@ -15,10 +15,15 @@ nonisolated final class TrzszExecPipe: AsyncBytePipe, @unchecked Sendable {
 
     private let channelRef: Int64
     private let transportRef: TSSHTransportRef
+    /// The server's id for this channel's session, recorded for cleanup.
+    let remoteSessionID: UInt64?
+    /// Fires on close, so the id stops counting as something to clean up.
+    var onRemoteSessionEnded: (@Sendable (UInt64) -> Void)?
 
-    init(channelRef: Int64, transportRef: TSSHTransportRef) {
+    init(channelRef: Int64, transportRef: TSSHTransportRef, remoteSessionID: UInt64? = nil) {
         self.channelRef = channelRef
         self.transportRef = transportRef
+        self.remoteSessionID = remoteSessionID
     }
 
     func read(maxBytes: Int) async throws -> Data? {
@@ -54,6 +59,11 @@ nonisolated final class TrzszExecPipe: AsyncBytePipe, @unchecked Sendable {
     }
 
     func close() async {
+        // Only an exit code proves the remote process is gone. A close that
+        // throws, times out, or runs against a dead transport proves nothing,
+        // so the id stays recorded for a later sweep.
+        let exited = await TSSHCallGate.shared.execExitCode(on: transportRef, channelRef: channelRef) >= 0
         try? await TSSHCallGate.shared.execClose(on: transportRef, channelRef: channelRef)
+        if exited, let remoteSessionID { onRemoteSessionEnded?(remoteSessionID) }
     }
 }

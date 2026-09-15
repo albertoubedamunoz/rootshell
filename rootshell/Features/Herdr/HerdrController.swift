@@ -83,6 +83,13 @@ final class HerdrController {
     /// Facts from the current stream's `control.open`; nil between streams.
     private(set) var controlOpened: HerdrControl.ControlOpened?
     private(set) var controlOpenedAt: Date?
+    /// What the current server can do; `.none` between streams.
+    private(set) var capabilities = HerdrServerCapabilities.none
+    /// Why the host's herdr should be installed or upgraded, if it should.
+    /// Set through `setUpgradePrompt` outside the connect path.
+    var upgradePrompt: HerdrUpgradePrompt?
+    /// Other control streams on this session (protocol 2 servers only).
+    var otherConnections: [HerdrControl.ControlConnection] = []
     /// Identifies this controller generation to Connection Info sheets.
     let connectionInfoID = UUID()
     var pushRouteServerIdentity: String?
@@ -106,6 +113,9 @@ final class HerdrController {
     // Vanilla 0.9.0 endpoint; independent of our fork's raw control channel.
     var endpoint: HerdrEndpointChannel?
     var endpointOpening: Task<Void, Never>?
+    /// Backoff reopen after the bridge closes; the 2 s poll is the fallback.
+    var endpointReopenTask: Task<Void, Never>?
+    var endpointReconnectAttempt = 0
     var endpointUnsupported = false
     var endpointProbed = false
     var endpointActive = true
@@ -185,6 +195,9 @@ final class HerdrController {
     var paneSessions: [String: HerdrPaneSession] = [:]
     var attachIds: [String: String] = [:]
     var terminalByAttach: [String: String] = [:]
+    /// Per attach, whether this client is the terminal's query authority
+    /// (`terminal.authority`); absent means yes, as on protocol 1 servers.
+    var attachAnswersQueries: [String: Bool] = [:]
     var attachQueue: [String] = []
     var attachesInFlight: [String: UUID] = [:]
     var attachRetries: [String: Task<Void, Never>] = [:]
@@ -203,6 +216,14 @@ final class HerdrController {
     /// lost server-side, so no redraw is guaranteed to restore them.
     var clientDetourMinimums: [String: (cols: Int, rows: Int)] = [:]
     var geometryTasks: [String: Task<Void, Never>] = [:]
+    var activation = HerdrActivation()
+    weak var activationScene: UIWindowScene?
+    /// Panes another client holds (terminal id), waiting on Take Control.
+    var paneControlStates: [String: HerdrPaneControlState] = [:]
+    /// Tabs whose next attaches may evict the other client (user asked).
+    var takeoverRequested: Set<String> = []
+    /// Tabs already prompted for Take Control on this stream.
+    var takeControlPromptedTabs: Set<String> = []
     var focusedPaneId: String?
     var agentStatuses: [String: HerdrControl.AgentStatusChangedData] = [:]
     var agentStatusRevision: UInt64 = 0
@@ -259,11 +280,63 @@ final class HerdrController {
 
     private static var foregroundObserver: NSObjectProtocol?
     private static var backgroundObserver: NSObjectProtocol?
+    private static var terminateObserver: NSObjectProtocol?
+    private static var sceneObservers: [NSObjectProtocol] = []
+
+    /// A bridge can outlive the app when its session is persistent, leaving
+    /// the server counting a dead client as a viewer that can hold a tab's
+    /// geometry. Ask the bridges to go first.
+    static func closeAllForTermination() {
+        let channels = all.compactMap(\.channel)
+        guard !channels.isEmpty else { return }
+        let finished = OSAllocatedUnfairLock(initialState: 0)
+        for channel in channels {
+            Task.detached {
+                await channel.close()
+                finished.withLock { $0 += 1 }
+            }
+        }
+        // The writes finish on other executors, some behind the main actor:
+        // run the loop instead of blocking it, and give up rather than hold
+        // up the quit.
+        let deadline = Date().addingTimeInterval(1)
+        while finished.withLock({ $0 }) < channels.count, Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+    }
 
     /// Every controller checks its stream when the app returns to the
     /// foreground; installed once, on the first start.
     private static func installForegroundObserver() {
         guard foregroundObserver == nil else { return }
+        let center = NotificationCenter.default
+        sceneObservers = [UIScene.didActivateNotification, UIWindow.didBecomeKeyNotification].map { name in
+            center.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated {
+                    for controller in all { controller.selectedTabDidChange() }
+                }
+            }
+        }
+        // A device scene loses the user by backgrounding; a Catalyst window
+        // stays foreground and loses it by deactivating. On iOS deactivation
+        // would also fire for a banner or Control Center.
+        #if targetEnvironment(macCatalyst)
+        let sceneEnd = UIScene.willDeactivateNotification
+        #else
+        let sceneEnd = UIScene.didEnterBackgroundNotification
+        #endif
+        sceneObservers.append(center.addObserver(
+            forName: sceneEnd, object: nil, queue: .main
+        ) { notification in
+            MainActor.assumeIsolated {
+                guard let scene = notification.object as? UIScene else { return }
+                for controller in all where controller.activationScene === scene
+                    || controller.paneViews.values.contains(where: { $0.window?.windowScene === scene })
+                    || controller.gateway?.window?.windowScene === scene {
+                    controller.suspendActivation()
+                }
+            }
+        })
         foregroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -281,6 +354,7 @@ final class HerdrController {
         ) { _ in
             MainActor.assumeIsolated {
                 for controller in all {
+                    controller.suspendActivation()
                     // Ghostty suppresses title callbacks while backgrounded.
                     // Let metadata seed titles again until live OSC resumes.
                     for view in controller.paneViews.values { view.endHerdrTitleAttachment() }
@@ -290,6 +364,11 @@ final class HerdrController {
                     }
                 }
             }
+        }
+        terminateObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { closeAllForTermination() }
         }
     }
 
@@ -397,6 +476,8 @@ final class HerdrController {
                         return
                     case .snapshot(let record):
                         router.applySnapshot(record)
+                    case .authority(let record):
+                        router.setQueryAuthority(attachId: record.attach_id, answersQueries: record.answers_queries)
                     case .tabLayout(let layout):
                         // Queue these panes' output on this thread, before
                         // any redraw at the new size can reach a surface
@@ -447,13 +528,21 @@ final class HerdrController {
             serverPid = opened.capabilities?.server_pid
             controlOpened = opened
             controlOpenedAt = Date()
+            capabilities = HerdrServerCapabilities(opened.capabilities)
+            router.configureQueryAuthority(enabled: capabilities.supports(.queryAuthority))
             reconnectAttempt = 0
-            Self.logger.info("herdr control open: \(opened.version) boot=\(opened.boot_id) pid=\(opened.capabilities?.server_pid ?? 0)")
+            Self.logger.info("herdr control open: \(opened.version) boot=\(opened.boot_id) pid=\(opened.capabilities?.server_pid ?? 0) stream=\(self.capabilities.streamProtocol) features=\(self.capabilities.sortedFeatures.joined(separator: ","))")
+            setUpgradePrompt(capabilities.supportsSharedViewing ? nil : .sharedViewingNeedsUpgrade)
 
             try await channel.request(
                 "events.subscribe",
                 HerdrControl.SubscribeParams(subscriptions: HerdrControl.topologySubscriptions)
             )
+            if capabilities.supports(.geometryOwnership) {
+                _ = try? await channel.request("events.subscribe", HerdrControl.SubscribeParams(subscriptions: [
+                    HerdrControl.Subscription(type: "tab.geometry_changed")
+                ]))
+            }
             let statusRevision = agentStatusRevision
             let snapshot = try await channel.request(
                 "session.snapshot",
@@ -463,6 +552,7 @@ final class HerdrController {
             guard self.channel === channel else { return }
             if let previousBoot, previousBoot != opened.boot_id {
                 tabNames = HerdrTabNames()
+                takeoverRequested.removeAll()
                 Self.logger.info("herdr server restarted (boot \(previousBoot) -> \(opened.boot_id)); rebuilding")
             }
             isActive = true
@@ -472,12 +562,12 @@ final class HerdrController {
             subscribeAgentStatus()
             // Optional additions must not make an older control server fail
             // its otherwise compatible topology subscription handshake.
+            let optionalSubscriptions = ["worktree.created", "worktree.opened", "worktree.removed", "workspace.metadata_updated"]
             Task {
                 try? await channel.request("events.subscribe", HerdrControl.SubscribeParams(subscriptions:
-                    ["worktree.created", "worktree.opened", "worktree.removed", "workspace.metadata_updated"].map {
-                        HerdrControl.Subscription(type: $0)
-                    }))
+                    optionalSubscriptions.map { HerdrControl.Subscription(type: $0) }))
             }
+            refreshOtherConnections()
             startHealthPing(on: channel)
             NotificationCenter.default.post(name: .herdrControlStateDidChange, object: gatewayUUID)
         } catch {
@@ -496,6 +586,7 @@ final class HerdrController {
             case HerdrChannelError.herdrMissing(let why):
                 gateway.writeToGhostty(string: "\r\n\u{1b}[33mherdr control mode: \(why).\u{1b}[0m\r\n")
                 stop()
+                presentUpgradeAlert(.herdrMissing)
             case HerdrChannelError.unsupportedServer(let why):
                 startLegacyMode(reason: why)
             default:
@@ -513,8 +604,10 @@ final class HerdrController {
         let gateway = self.gateway
         gateway?.herdrAutoAttachSuppressed = true
         Self.logger.error("herdr attachment refused: \(error.localizedDescription)")
+        let prompt = HerdrUpgradePrompt.versionTooOld(reported: error.reported)
         stop()
         gateway?.writeToGhostty(string: "\r\n\(error.localizedDescription)\r\n")
+        presentUpgradeAlert(prompt)
         return true
     }
 
@@ -615,6 +708,8 @@ final class HerdrController {
         isActive = false
         controlOpened = nil
         controlOpenedAt = nil
+        capabilities = .none
+        otherConnections = []
         connectionError = error?.localizedDescription
         detachAllLocally()
         publishSessionState()
@@ -648,6 +743,10 @@ final class HerdrController {
     func applicationDidBecomeActive() {
         guard !didEnd else { return }
         refreshPushRouteIdentity()
+        // Returning to the app is intent to use the selected tab here. Only
+        // the controller whose window took key claims; the others re-check
+        // their sizes and attaches.
+        if mode == .raw, capabilities.supportsSharedViewing { selectedTabDidChange() }
         if mode == .legacy {
             Task { [weak self] in
                 await self?.legacyPollOnce()
@@ -705,18 +804,6 @@ final class HerdrController {
                 userInfo: ["windowId": windowId]
             )
         }
-    }
-
-    /// A raw pane takeover ends this gateway's whole projection. Keep the
-    /// shell available, but don't let its next transport resume take control back.
-    func detachAfterTakeover() {
-        guard mode == .raw, !didEnd else { return }
-        let gatewayView = gateway
-        gatewayView?.herdrAutoAttachSuppressed = true
-        Self.logger.info("herdr control mode detached after another client took control")
-        detach(closeGateway: false, announce: false)
-        let message = String(localized: "Detached from herdr because another client took control. The session is still running.")
-        gatewayView?.writeToGhostty(string: "\r\n\(message)\r\n")
     }
 
     /// Whether the gateway tab is hidden, manually or by the auto-hide setting.
@@ -825,11 +912,24 @@ final class HerdrController {
             router.release(barrier: barrier)
             return
         }
+        for pane in layout.panes {
+            if let terminalID = paneInfos[pane.pane_id]?.terminal_id {
+                paneSessions[terminalID]?.readFence = nil
+                paneSessions[terminalID]?.invalidateParserGrid()
+                if let attachID = attachIds[terminalID] {
+                    router.updateGrid(attachId: attachID, cols: 0, rows: 0)
+                }
+            }
+        }
         controlLayouts[layout.tab_id] = layout
+        applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
         applyLayout(layout, barrier: barrier)
         if layoutReleases[barrier] == nil {
             router.release(barrier: barrier)
         }
+        // Applying the layout can make an already-parsed grid ready without
+        // another size callback. Drain recovery work on this transition too.
+        requestSnapshotsForReadyPanes()
     }
 
     private func detachAllLocally() {
@@ -839,6 +939,7 @@ final class HerdrController {
         subscribedAgentPanes.removeAll()
         agentStatusRevisions.removeAll()
         streamGeneration = UUID()
+        suspendActivation()
         for view in paneViews.values { view.endHerdrTitleAttachment() }
         cancelNewTabRequests()
         tabReorderTask?.cancel()
@@ -859,6 +960,7 @@ final class HerdrController {
         router.removeAll()
         attachIds.removeAll()
         terminalByAttach.removeAll()
+        attachAnswersQueries.removeAll()
         attachQueue.removeAll()
         attachesInFlight.removeAll()
         snapshotRequestsInFlight.removeAll()
@@ -867,6 +969,10 @@ final class HerdrController {
         controlLayouts.removeAll()
         panesNeedingSnapshot.removeAll()
         clientDetourMinimums.removeAll()
+        // The other client may be gone by the time we reconnect; the next
+        // attach pass finds out and prompts again if it is not.
+        clearPaneControlStates()
+        takeControlPromptedTabs.removeAll()
         for session in paneSessions.values {
             session.attachId = nil
         }
@@ -899,9 +1005,18 @@ final class HerdrController {
                last.zoomed == layout.zoomed,
                last.focused_pane_id == layout.focused_pane_id,
                last.panes.map(\.pane_id) == layout.panes.map(\.pane_id) {
+                applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
                 break
             }
             applyLayout(layout)
+        case .tabGeometryChanged(let change):
+            geometryControllerDidChange(change)
+        case .authority(let record):
+            Self.logger.info("herdr query authority \(record.attach_id): \(record.answers_queries)")
+            attachAnswersQueries[record.attach_id] = record.answers_queries
+        case .eventsGap(let gap):
+            Self.logger.warning("herdr events gap: dropped \(gap.dropped ?? 0)")
+            refreshTopology()
         case .paneCreated(let pane):
             paneDidAppear(pane)
             refreshTopology()
