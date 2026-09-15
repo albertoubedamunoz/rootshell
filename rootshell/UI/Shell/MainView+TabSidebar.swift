@@ -202,6 +202,14 @@ extension MainView {
     func detachOtherClientsForSelectedTab() {
         guard terminals.indices.contains(selectedTabIndex) else { return }
         let tab = terminals[selectedTabIndex]
+        // herdr has no eviction method, and its viewers are meant to share:
+        // the same command takes the whole session instead (see
+        // `takeControlOfSession`), rather than doing nothing on a herdr tab.
+        if tab.isHerdrWindow || tab.isHerdrGateway,
+           let controller = herdrControllerForTab(tab) {
+            controller.takeControlOfSession()
+            return
+        }
         guard tab.isTmuxWindow || tab.isTmuxGateway,
               let controller = tmuxControllerForTab(tab) else { return }
         Task { @MainActor in
@@ -212,6 +220,15 @@ extension MainView {
                 TmuxDebugLogger.shared.event("DETACH", "others failed: \(message)")
             }
         }
+    }
+
+    /// The herdr controller behind a tab, from either side: a projected tab
+    /// through its owning gateway, a gateway tab through its own terminal.
+    func herdrControllerForTab(_ tab: TabModel) -> HerdrController? {
+        if let controller = HerdrController.controller(forTab: tab) { return controller }
+        return tab.splitTree.terminalLeaves.lazy
+            .compactMap { HerdrController.controller(for: $0) }
+            .first
     }
 
     /// Resolve the tmux controller backing a tab: the gateway tab holds the

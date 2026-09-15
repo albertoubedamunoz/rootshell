@@ -80,6 +80,13 @@ struct TrzszSessionCredentials: Codable, Sendable {
     /// Session ID for Attach() — saved after Shell() succeeds
     var sessionID: UInt64?
 
+    /// Auxiliary exec sessions opened on this connection (a herdr control
+    /// bridge, an auxiliary PTY). Nothing ever reattaches one, but an
+    /// attachable tsshd keeps a departed client's sessions running, so a run
+    /// that ends abruptly leaves them with nobody reading their output. The
+    /// next run ends them by id. Absent in records written before this.
+    var auxiliarySessionIDs: [UInt64]?
+
     var relay: TrzszRelayCredentials? = nil
     var transportMTU: Int? = nil
 

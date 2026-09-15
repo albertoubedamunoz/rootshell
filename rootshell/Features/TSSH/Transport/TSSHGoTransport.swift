@@ -800,7 +800,30 @@ final class TrzszGoTransport: NSObject {
             throw TrzszError.connectionFailed("No transport for openExecChannel")
         }
         let channelRef = try await TSSHCallGate.shared.openExec(on: tRef, command: command)
-        return TrzszExecPipe(channelRef: channelRef, transportRef: tRef)
+        let sessionID = await TSSHCallGate.shared.execSessionID(on: tRef, channelRef: channelRef)
+        return TrzszExecPipe(
+            channelRef: channelRef,
+            transportRef: tRef,
+            remoteSessionID: sessionID > 0 ? UInt64(sessionID) : nil
+        )
+    }
+
+    /// The server-side session id behind an exec channel, or nil when the
+    /// channel has none to name.
+    func execSessionID(channelRef: Int64) async -> UInt64? {
+        guard let tRef = transportRef else { return nil }
+        let id = await TSSHCallGate.shared.execSessionID(on: tRef, channelRef: channelRef)
+        return id > 0 ? UInt64(id) : nil
+    }
+
+    /// Ends a server-side session by id, including one an earlier run of the
+    /// app opened: auxiliary channels are never reattached, so an attachable
+    /// server keeps them running until someone says otherwise.
+    func exitSession(sessionID: UInt64) async throws {
+        guard let tRef = transportRef else {
+            throw TrzszError.connectionFailed("No transport for exiting a session")
+        }
+        try await TSSHCallGate.shared.exitSession(on: tRef, sessionID: Int64(bitPattern: sessionID))
     }
 
     func openPTYChannel(_ command: String, cols: Int, rows: Int) async throws -> HerdrPTYChannel {

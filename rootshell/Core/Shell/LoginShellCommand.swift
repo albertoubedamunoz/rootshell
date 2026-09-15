@@ -13,6 +13,9 @@ nonisolated enum LoginShellCommand {
         // herdr's installer and cargo install here; .zshrc-only PATH
         // additions never reach a non-interactive login shell.
         "$HOME/.local/bin",
+        // herdr fork channel installer (docs/herdr-control-mode.md); also
+        // rc-file-only, so the control-mode preflight needs it listed here too.
+        "$HOME/.local/opt/herdr-rootshell/bin",
         "$HOME/.cargo/bin",
         "$HOME/go/bin",
         "/usr/local/go/bin"

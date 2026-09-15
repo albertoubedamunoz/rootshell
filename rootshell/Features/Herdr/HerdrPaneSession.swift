@@ -464,18 +464,20 @@ final class HerdrPaneSession: TerminalSession {
     private var gridProbeTask: Task<Void, Never>?
     private var parserFence = HerdrParserFence()
     private var queryAuthority = HerdrQueryAuthority()
-    struct MobileReadFence {
+    /// Marks the end of an activation's replay: the pane returns to live
+    /// output once the parser has drained everything queued ahead of it.
+    struct ReadFence {
         let id: Int
         let generation: UUID
         let snapshot: UUID
     }
-    var mobileReadFence: MobileReadFence?
+    var readFence: ReadFence?
 
-    func requestMobileReadFence(generation: UUID, snapshot: UUID) {
+    func requestReadFence(generation: UUID, snapshot: UUID) {
         guard let attachId, let probe = parserFence.issue() else { return }
-        mobileReadFence = MobileReadFence(id: probe.id, generation: generation, snapshot: snapshot)
+        readFence = ReadFence(id: probe.id, generation: generation, snapshot: snapshot)
         if controller?.router.enqueueReadFence(attachId: attachId, snapshot: snapshot, bytes: probe.bytes) != true {
-            mobileReadFence = nil
+            readFence = nil
         }
     }
 
@@ -519,7 +521,7 @@ final class HerdrPaneSession: TerminalSession {
     func stop() {
         guard isRunning else { return }
         isRunning = false
-        mobileReadFence = nil
+        readFence = nil
         gridProbeTask?.cancel()
         gridProbeTask = nil
         responseCarryFlush?.cancel()
@@ -561,9 +563,9 @@ final class HerdrPaneSession: TerminalSession {
         for segment in queryAuthority.consume(pending) {
             let fences = parserFence.consume(segment.bytes)
             for id in fences.acknowledged {
-                guard let fence = mobileReadFence, fence.id == id else { continue }
-                mobileReadFence = nil
-                controller?.mobileParserDidDrain(self, fence: fence)
+                guard let fence = readFence, fence.id == id else { continue }
+                readFence = nil
+                controller?.parserDidDrain(self, fence: fence)
             }
             guard !fences.forward.isEmpty else { continue }
             let automatic = HerdrReplyFilter.isAutomaticReply(fences.forward)
@@ -633,7 +635,7 @@ final class HerdrPaneSession: TerminalSession {
     func endedRemotely() {
         guard isRunning else { return }
         isRunning = false
-        mobileReadFence = nil
+        readFence = nil
         gridProbeTask?.cancel()
         gridProbeTask = nil
         onSessionEnd?()

@@ -1908,6 +1908,16 @@ extension Ghostty {
             updateTerminalPositionForCurrentOffset()
             return
         }
+        // A herdr replay resizes the content under us, and Catalyst has no
+        // drag callbacks to tell UIKit's clamp from a trackpad scroll. Inferring
+        // a live scroll here would push the pre-replay row back into the
+        // terminal and cancel the pending jump to live output. A real scroll
+        // owns the pan gesture (or the scroll view), and still cancels it.
+        if terminalView.hasPendingHerdrReturnToLive,
+           !isNativeScrollPanActive, !isScrollViewUserInteracting {
+            updateTerminalPositionForCurrentOffset()
+            return
+        }
         ensureCatalystLiveScrollTracking()
         #else
         if applyTouchScrollBoostIfNeeded(scrollView) {

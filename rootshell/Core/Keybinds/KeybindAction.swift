@@ -102,7 +102,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     case show_tmux_sessions = "show_tmux_sessions"
     /// Re-run multiplexer session discovery on the focused terminal
     case discover_sessions = "discover_sessions"
-    /// Detach all OTHER tmux clients from the current gateway (`detach-client -a`)
+    /// Detach all OTHER tmux clients from the current gateway
+    /// (`detach-client -a`); on a herdr tab, take the whole session instead
     case detach_other_clients = "detach_other_clients"
 
     // Tab Selection (1-9)

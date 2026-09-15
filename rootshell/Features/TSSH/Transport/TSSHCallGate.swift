@@ -592,6 +592,26 @@ actor TSSHCallGate {
         }
     }
 
+    /// The server-side session id behind an exec channel, or 0 when there is
+    /// none to name. Saved so a later run can end a channel this one leaves
+    /// behind; see `exitSession`.
+    func execSessionID(on ref: TSSHTransportRef, channelRef: Int64) async -> Int64 {
+        let transport = registry.withLock { $0.transports[ref] }
+        guard let transport else { return 0 }
+        nonisolated(unsafe) let t = transport
+        return (try? await runOnWorker { t.execSessionID(channelRef) }) ?? 0
+    }
+
+    /// Ends a session by id, including one this transport never opened. An
+    /// attachable tsshd keeps a departed client's sessions running for a
+    /// reattach that an auxiliary channel never gets.
+    func exitSession(on ref: TSSHTransportRef, sessionID: Int64) async throws {
+        let transport = registry.withLock { $0.transports[ref] }
+        guard let transport else { throw TSSHCallGateError.unknownTransport }
+        nonisolated(unsafe) let t = transport
+        try await runOnWorker { try t.exitSession(sessionID) }
+    }
+
     func execResizePTY(on ref: TSSHTransportRef, channelRef: Int64, rows: Int, cols: Int) async throws {
         let transport = registry.withLock { $0.transports[ref] }
         guard let transport else { throw TSSHCallGateError.unknownTransport }

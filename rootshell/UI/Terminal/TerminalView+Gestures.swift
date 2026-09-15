@@ -1754,12 +1754,27 @@ extension Ghostty.TerminalView {
         // the resolved view is the same gateway by its stable `uuid` captured at
         // bind time — otherwise we could resolve (and upload to) the wrong host.
         // (id=tmux-stale-parent-surface)
-        guard let binding = tmuxPaneBinding,
-              let gateway = ghosttyApp?.surfaceView(for: binding.parentSurface),
-              gateway.uuid == binding.parentUUID else { return nil }
+        if let binding = tmuxPaneBinding {
+            guard let gateway = ghosttyApp?.surfaceView(for: binding.parentSurface),
+                  gateway.uuid == binding.parentUUID else { return nil }
+            return Self.attachmentUploadSSHConfig(forGateway: gateway)
+        }
+        // A herdr control-mode pane is likewise a stateless renderer (`connectionConfig: .local()`)
+        // fed by its gateway's HerdrController. herdr's binding carries the gateway's stable
+        // `uuid` directly, so this can go straight through HerdrController's UUID-keyed registry —
+        // no raw-pointer/ABA hazard to guard against here.
+        if let binding = herdrPaneBinding {
+            guard let gateway = HerdrController.controller(forGateway: binding.gatewayUUID)?.gateway else { return nil }
+            return Self.attachmentUploadSSHConfig(forGateway: gateway)
+        }
+        return nil
+    }
+
+    /// Shared gateway-config resolution for both tmux -CC and herdr control-mode panes.
+    private static func attachmentUploadSSHConfig(forGateway gateway: Ghostty.TerminalView) -> SSHConfig? {
         if let cfg = gateway.connectionConfig.sshConfigForHistory { return cfg }
         // Gateway is a local shell currently hosting an embedded remote
-        // (e.g. `tssh host` then `tmux -CC`): use that remote's host.
+        // (e.g. `tssh host` then `tmux -CC`/herdr control): use that remote's host.
         // LocalShellSession (and its embedded-session tracking) only exists on
         // iOS/visionOS; Mac Catalyst uses CatalystLocalShellSession, which has no
         // embedded-remote concept, so there is nothing further to resolve there.
@@ -1779,6 +1794,9 @@ extension Ghostty.TerminalView {
         if let binding = tmuxPaneBinding {
             guard let gateway = ghosttyApp?.surfaceView(for: binding.parentSurface),
                   gateway.uuid == binding.parentUUID else { return false }
+            effectiveTerminal = gateway
+        } else if let binding = herdrPaneBinding {
+            guard let gateway = HerdrController.controller(forGateway: binding.gatewayUUID)?.gateway else { return false }
             effectiveTerminal = gateway
         } else {
             effectiveTerminal = self

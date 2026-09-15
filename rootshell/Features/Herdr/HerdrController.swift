@@ -216,8 +216,8 @@ final class HerdrController {
     /// lost server-side, so no redraw is guaranteed to restore them.
     var clientDetourMinimums: [String: (cols: Int, rows: Int)] = [:]
     var geometryTasks: [String: Task<Void, Never>] = [:]
-    var mobileActivation = HerdrMobileActivation()
-    weak var mobileScene: UIWindowScene?
+    var activation = HerdrActivation()
+    weak var activationScene: UIWindowScene?
     /// Panes another client holds (terminal id), waiting on Take Control.
     var paneControlStates: [String: HerdrPaneControlState] = [:]
     /// Tabs whose next attaches may evict the other client (user asked).
@@ -280,34 +280,63 @@ final class HerdrController {
 
     private static var foregroundObserver: NSObjectProtocol?
     private static var backgroundObserver: NSObjectProtocol?
-    private static var mobileSceneObservers: [NSObjectProtocol] = []
+    private static var terminateObserver: NSObjectProtocol?
+    private static var sceneObservers: [NSObjectProtocol] = []
+
+    /// A bridge can outlive the app when its session is persistent, leaving
+    /// the server counting a dead client as a viewer that can hold a tab's
+    /// geometry. Ask the bridges to go first.
+    static func closeAllForTermination() {
+        let channels = all.compactMap(\.channel)
+        guard !channels.isEmpty else { return }
+        let finished = OSAllocatedUnfairLock(initialState: 0)
+        for channel in channels {
+            Task.detached {
+                await channel.close()
+                finished.withLock { $0 += 1 }
+            }
+        }
+        // The writes finish on other executors, some behind the main actor:
+        // run the loop instead of blocking it, and give up rather than hold
+        // up the quit.
+        let deadline = Date().addingTimeInterval(1)
+        while finished.withLock({ $0 }) < channels.count, Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+    }
 
     /// Every controller checks its stream when the app returns to the
     /// foreground; installed once, on the first start.
     private static func installForegroundObserver() {
         guard foregroundObserver == nil else { return }
-        #if !targetEnvironment(macCatalyst)
         let center = NotificationCenter.default
-        mobileSceneObservers = [UIScene.didActivateNotification, UIWindow.didBecomeKeyNotification].map { name in
+        sceneObservers = [UIScene.didActivateNotification, UIWindow.didBecomeKeyNotification].map { name in
             center.addObserver(forName: name, object: nil, queue: .main) { _ in
                 MainActor.assumeIsolated {
                     for controller in all { controller.selectedTabDidChange() }
                 }
             }
         }
-        mobileSceneObservers.append(center.addObserver(
-            forName: UIScene.didEnterBackgroundNotification, object: nil, queue: .main
+        // A device scene loses the user by backgrounding; a Catalyst window
+        // stays foreground and loses it by deactivating. On iOS deactivation
+        // would also fire for a banner or Control Center.
+        #if targetEnvironment(macCatalyst)
+        let sceneEnd = UIScene.willDeactivateNotification
+        #else
+        let sceneEnd = UIScene.didEnterBackgroundNotification
+        #endif
+        sceneObservers.append(center.addObserver(
+            forName: sceneEnd, object: nil, queue: .main
         ) { notification in
             MainActor.assumeIsolated {
                 guard let scene = notification.object as? UIScene else { return }
-                for controller in all where controller.mobileScene === scene
+                for controller in all where controller.activationScene === scene
                     || controller.paneViews.values.contains(where: { $0.window?.windowScene === scene })
                     || controller.gateway?.window?.windowScene === scene {
-                    controller.suspendMobileActivation()
+                    controller.suspendActivation()
                 }
             }
         })
-        #endif
         foregroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -325,7 +354,7 @@ final class HerdrController {
         ) { _ in
             MainActor.assumeIsolated {
                 for controller in all {
-                    controller.suspendMobileActivation()
+                    controller.suspendActivation()
                     // Ghostty suppresses title callbacks while backgrounded.
                     // Let metadata seed titles again until live OSC resumes.
                     for view in controller.paneViews.values { view.endHerdrTitleAttachment() }
@@ -335,6 +364,11 @@ final class HerdrController {
                     }
                 }
             }
+        }
+        terminateObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { closeAllForTermination() }
         }
     }
 
@@ -709,9 +743,10 @@ final class HerdrController {
     func applicationDidBecomeActive() {
         guard !didEnd else { return }
         refreshPushRouteIdentity()
-        #if !targetEnvironment(macCatalyst)
+        // Returning to the app is intent to use the selected tab here. Only
+        // the controller whose window took key claims; the others re-check
+        // their sizes and attaches.
         if mode == .raw, capabilities.supportsSharedViewing { selectedTabDidChange() }
-        #endif
         if mode == .legacy {
             Task { [weak self] in
                 await self?.legacyPollOnce()
@@ -869,7 +904,7 @@ final class HerdrController {
         }
         for pane in layout.panes {
             if let terminalID = paneInfos[pane.pane_id]?.terminal_id {
-                paneSessions[terminalID]?.mobileReadFence = nil
+                paneSessions[terminalID]?.readFence = nil
                 paneSessions[terminalID]?.invalidateParserGrid()
                 if let attachID = attachIds[terminalID] {
                     router.updateGrid(attachId: attachID, cols: 0, rows: 0)
@@ -894,7 +929,7 @@ final class HerdrController {
         subscribedAgentPanes.removeAll()
         agentStatusRevisions.removeAll()
         streamGeneration = UUID()
-        suspendMobileActivation()
+        suspendActivation()
         for view in paneViews.values { view.endHerdrTitleAttachment() }
         cancelNewTabRequests()
         tabReorderTask?.cancel()

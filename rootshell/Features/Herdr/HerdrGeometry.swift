@@ -190,6 +190,10 @@ nonisolated struct HerdrTabGeometryState {
         desired != nil && desired == confirmed && inFlight == nil && !claimPending
     }
 
+    /// The user asked for this tab and the request has not gone out yet.
+    /// One-shot: `beginRequest` consumes it, so a push re-gates on the next pass.
+    var hasPendingClaim: Bool { claimPending }
+
     /// Whether the legacy protocol may push a size (it cannot store without
     /// claiming). Shared-mode requests carry their own one-shot claim flag.
     var mayClaim: Bool {
@@ -262,33 +266,67 @@ nonisolated struct HerdrTabGeometryState {
     }
 }
 
-/// A mobile activation is an edge, never a standing claim on a shared tab.
-/// Kept separate from layout negotiation so remote ownership changes cannot
+/// An activation is an edge, never a standing claim on a shared tab. Kept
+/// separate from layout negotiation so remote ownership changes cannot
 /// manufacture another activation.
-nonisolated struct HerdrMobileActivation {
+nonisolated struct HerdrActivation {
     private(set) var tabID: String?
     private(set) var generation = UUID()
     private(set) var needsClaim = false
     private(set) var pendingPanes: Set<String> = []
-    private var needsForegroundActivation = true
+    /// Panes the user took back within this activation. The handoff that
+    /// answers our claim can arrive after they scrolled, and must not re-arm
+    /// a jump they already cancelled.
+    private(set) var cancelledPanes: Set<String> = []
+    private var needsActivationEdge = true
 
     @discardableResult
     mutating func select(_ tabID: String?, panes: Set<String>) -> Bool {
-        guard tabID != self.tabID || needsForegroundActivation else { return false }
+        guard tabID != self.tabID || needsActivationEdge else { return false }
         self.tabID = tabID
         generation = UUID()
         needsClaim = tabID != nil
         pendingPanes = tabID == nil ? [] : panes
+        cancelledPanes.removeAll()
         // A gateway can be selected before its recovered terminal exists.
-        needsForegroundActivation = tabID == nil
+        needsActivationEdge = tabID == nil
         return tabID != nil
     }
 
     mutating func suspend() {
         generation = UUID()
-        needsForegroundActivation = true
+        needsActivationEdge = true
         needsClaim = false
         pendingPanes.removeAll()
+        cancelledPanes.removeAll()
+    }
+
+    /// Expect these panes to return to live output on a tab that is already
+    /// ours: the server hands a tab over on interaction, so a keystroke can
+    /// bring a resize with no activation edge. Never claims.
+    mutating func expectReturnToLive(tabID: String, panes: Set<String>) {
+        if self.tabID != tabID {
+            self.tabID = tabID
+            generation = UUID()
+            needsClaim = false
+            pendingPanes = []
+            cancelledPanes.removeAll()
+        }
+        pendingPanes.formUnion(panes.subtracting(cancelledPanes))
+    }
+
+    /// The user scrolled or selected in this pane: it keeps the position it
+    /// has, for this activation and for any handoff that answers it.
+    mutating func cancelPane(_ terminalID: String) {
+        guard pendingPanes.contains(terminalID) || tabID != nil else { return }
+        pendingPanes.remove(terminalID)
+        cancelledPanes.insert(terminalID)
+    }
+
+    /// The user typed here: new intent, not the activation they scrolled
+    /// away from, so a handoff it earns may arm the jump again.
+    mutating func renewAfterInput(_ terminalID: String) {
+        cancelledPanes.remove(terminalID)
     }
 
     mutating func claimed(generation: UUID) {

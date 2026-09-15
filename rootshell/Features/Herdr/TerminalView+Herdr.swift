@@ -18,9 +18,18 @@ extension Ghostty.TerminalView {
     func cancelHerdrReturnToLive() {
         guard let binding = herdrPaneBinding else { return }
         HerdrController.controller(forGateway: binding.gatewayUUID)?
-            .cancelMobileReturnToLive(terminalID: binding.terminalId)
+            .cancelReturnToLive(terminalID: binding.terminalId)
     }
 
+    /// An activation is still waiting to put this pane back at live output.
+    var hasPendingHerdrReturnToLive: Bool {
+        guard let binding = herdrPaneBinding,
+              let controller = HerdrController.controller(forGateway: binding.gatewayUUID) else { return false }
+        return controller.isReturningToLive(terminalID: binding.terminalId)
+    }
+
+    /// Touch state, handles, and the stale highlight are device concerns; a
+    /// Mac keeps its selection, which the user may still be about to copy.
     func prepareHerdrReturnToLive() {
         #if !targetEnvironment(macCatalyst)
         clearTouchState()
@@ -35,19 +44,17 @@ extension Ghostty.TerminalView {
             ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_LEFT, Ghostty.Input.Mods.none.cMods)
             ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, Ghostty.Input.Mods.none.cMods)
         }
+        #endif
         _ = cancelMomentumScrolling()
         enclosingTerminalScrollView?.prepareHerdrReturnToLive()
-        #endif
     }
 
     func finishHerdrReturnToLive() {
-        #if !targetEnvironment(macCatalyst)
         _ = cancelMomentumScrolling()
         enclosingTerminalScrollView?.prepareHerdrReturnToLive()
         // Let the next core scrollbar sample synchronize UIKit. Sending a
         // scroll_to_row based on a pre-replay sample would undo this jump.
         _ = performAction("scroll_to_bottom")
-        #endif
     }
 
 

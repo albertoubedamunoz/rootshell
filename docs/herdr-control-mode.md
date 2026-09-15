@@ -29,7 +29,11 @@ Fallback is not simply a screenshot poller: the normal upstream endpoint keeps f
 
 Shared viewing does not give every client a separately sized copy of the same terminal. One client controls a tab's geometry; other viewers follow that layout. The **Take Control** and **Fit to This Window** actions allow an explicit change of owner. On older single-owner forks, taking control can displace the previous attach.
 
-On iPhone, iPad, and visionOS, opening or returning to the app, or selecting a terminal tab, automatically fits the selected tab to that device and returns its visible panes to live output. No typing is needed. Other clients stay attached. Each activation claims once; a later handoff to another client does not start a contest for control. Scrolling or selecting text cancels a pending return to live output for that pane. Mac Catalyst keeps its existing interaction and explicit-control behavior.
+**Detach Other Clients** (⇧⌘X by default) takes every tab in the session at once, and any pane another client holds. herdr has no method to close another client's connection, and shared viewing is deliberate, so unlike tmux's `detach-client -a` this does not empty the session: other clients keep viewing, but nothing else decides how the session is laid out. Every tab is claimed at once, including the tabs this window is not currently showing: those are claimed at the size they will have here, so they are laid out for this device the moment you switch to them.
+
+On every platform, opening or returning to the app, or selecting a terminal tab, automatically fits the selected tab to this device and returns its visible panes to live output. No typing is needed. Other clients stay attached. Each activation claims once; a later handoff to another client does not start a contest for control. Scrolling or selecting text cancels a pending return to live output for that pane.
+
+Activation follows the window the user is actually in. On iPhone, iPad, and visionOS it ends when the app is backgrounded. On the Mac, where windows stay on screen, it ends when the window is no longer the focused one in the frontmost app, and returning to that window activates it again. Only the focused window claims, so several rootshell windows on one session do not size the same tab against each other. A Mac keeps its text selection across activation; a device clears the stale highlight left by the replay.
 
 ## Install the optional fork
 
@@ -178,7 +182,11 @@ On capable servers, `tab.set_geometry` can store a client's desired size with `c
 
 rootshell applies query-authority changes at their position in the terminal parser's output stream. Replies to earlier queries can still finish during the server's handoff grace period, while later queries are answered only by the new authority. Layout waits and snapshot recovery preserve this boundary, preventing both clients from answering the same cursor-position query during a resize.
 
-Focus reports, including those generated while replaying a snapshot, are automatic reports and never claim geometry. Routine size updates use `claim:false`; the server applies them only while that client owns the tab. Mobile activation and explicit fit/take-control actions send one claiming size request, so a delayed resize or retry cannot undo a newer client's handoff.
+Focus reports, including those generated while replaying a snapshot, are automatic reports and never claim geometry. Routine size updates use `claim:false`; the server applies them only while that client owns the tab. Activation and explicit fit/take-control actions send one claiming size request, so a delayed resize or retry cannot undo a newer client's handoff.
+
+Stream protocol 1 has no stored size: every `tab.set_geometry` there takes the tab. Such a client sends one only for the tab it is showing, in the focused window, so an idle or backgrounded device cannot resize a tab out from under whoever is using it.
+
+`control.close` is also sent when the app terminates. The bridge runs inside the gateway's session, and a persistent (attachable) session keeps its processes running after the app goes away; without that close, the server keeps counting the departed client as a viewer that can hold a tab's geometry.
 
 `terminal.gap` reports dropped terminal output. rootshell invalidates that attach's output stream and requests a fresh `terminal.snapshot` before resuming rendering. `events.gap` triggers a topology refresh. Reconnection establishes a new stream, subscriptions, and snapshot; a changed `boot_id` identifies a restarted server and causes server-dependent state to be rebuilt.
 

@@ -414,6 +414,21 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertNotNil(state.beginRequest())
     }
 
+    /// `hasPendingClaim` is what lets a Take Control claim size a tab this
+    /// window is not showing, so it must not outlive the one request it arms.
+    func testPendingClaimIsVisibleUntilTheRequestGoesOut() throws {
+        var state = HerdrTabGeometryState()
+        state.update(size)
+        XCTAssertFalse(state.hasPendingClaim)
+        state.requestClaim()
+        XCTAssertTrue(state.hasPendingClaim)
+        let request = try XCTUnwrap(state.beginRequest())
+        XCTAssertTrue(request.claim)
+        XCTAssertFalse(state.hasPendingClaim)
+        state.finish(request, succeeded: false)
+        XCTAssertFalse(state.hasPendingClaim)
+    }
+
     // MARK: Reply classification
 
     func testRoutineResizeCannotReclaimWithStaleOwnership() throws {
@@ -536,10 +551,43 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertFalse(HerdrUpgradePrompt.sharedViewingNeedsUpgrade.isHardRefusal)
         XCTAssertTrue(HerdrUpgradePrompt.versionTooOld(reported: "0.8.0").message.contains("0.8.0"))
     }
-    // MARK: Mobile activation
+    // MARK: Activation
 
-    func testMobileActivationIsOneShotUntilSelectionOrResume() {
-        var state = HerdrMobileActivation()
+    func testACancelledPaneStaysCancelledThroughTheHandoff() {
+        var state = HerdrActivation()
+        XCTAssertTrue(state.select("a", panes: ["p", "q"]))
+        // The user scrolls while the claim is still in flight.
+        state.cancelPane("p")
+        XCTAssertEqual(state.pendingPanes, ["q"])
+        // The handoff answering that claim arrives late and must not re-arm it.
+        state.expectReturnToLive(tabID: "a", panes: ["p", "q"])
+        XCTAssertEqual(state.pendingPanes, ["q"])
+        // A new activation is the user arriving again, so it starts clean.
+        state.suspend()
+        XCTAssertTrue(state.select("a", panes: ["p", "q"]))
+        XCTAssertEqual(state.pendingPanes, ["p", "q"])
+    }
+
+    func testExpectingReturnToLiveNeverClaimsATab() {
+        var state = HerdrActivation()
+        // A handoff earned by typing: the tab is ours, nothing was asked for.
+        state.expectReturnToLive(tabID: "a", panes: ["p"])
+        XCTAssertFalse(state.needsClaim)
+        XCTAssertEqual(state.tabID, "a")
+        XCTAssertEqual(state.pendingPanes, ["p"])
+        // Panes accumulate on the same tab; a different tab starts over.
+        state.expectReturnToLive(tabID: "a", panes: ["q"])
+        XCTAssertEqual(state.pendingPanes, ["p", "q"])
+        state.expectReturnToLive(tabID: "b", panes: ["r"])
+        XCTAssertEqual(state.pendingPanes, ["r"])
+        XCTAssertFalse(state.needsClaim)
+        // It also must not consume the first real activation of that tab.
+        XCTAssertTrue(state.select("b", panes: ["r"]))
+        XCTAssertTrue(state.needsClaim)
+    }
+
+    func testActivationIsOneShotUntilSelectionOrResume() {
+        var state = HerdrActivation()
         XCTAssertTrue(state.select("a", panes: ["p", "q"]))
         let first = state.generation
         XCTAssertTrue(state.needsClaim)
@@ -559,7 +607,7 @@ final class HerdrProtocolTests: XCTestCase {
     }
 
     func testLateClaimCannotCompleteAnotherSelectionOrReconnection() {
-        var state = HerdrMobileActivation()
+        var state = HerdrActivation()
         state.select("a", panes: ["p"])
         let old = state.generation
         state.select("b", panes: ["q"])
@@ -576,7 +624,7 @@ final class HerdrProtocolTests: XCTestCase {
     }
 
     func testGatewayRestoreAndUserScrollCancellation() {
-        var state = HerdrMobileActivation()
+        var state = HerdrActivation()
         XCTAssertFalse(state.select(nil, panes: []))
         XCTAssertTrue(state.select("restored", panes: ["p", "q"]))
         // Failed claims leave intent pending; user scrolling cancels only

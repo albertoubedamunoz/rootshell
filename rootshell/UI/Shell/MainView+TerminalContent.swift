@@ -1030,12 +1030,22 @@ extension MainView {
         // existing keyboard notifications already invalidate the shared view.
         let accessoryFrame = terminals.indices.contains(selectedTabIndex)
             ? terminals[selectedTabIndex].focusedPane?.keyboardAccessoryFrameInScreen : nil
+        let selectedBottomToolbarHeight = terminals.indices.contains(selectedTabIndex)
+            ? (terminals[selectedTabIndex].focusedPane?.reservedKeyboardToolbarHeightAtBottom ?? 0)
+            : 0
         ZStack {
             ForEach(Array(terminals.enumerated()), id: \.element.id) { index, tab in
                 if !tab.splitTree.isEmpty {
                     let terminalEffectsEnabled = tabAllowsTerminalEffects(tab)
                     let visualMetrics = appTabSwipeVisualMetrics(for: tab.id, width: width)
                     let liveBottomToolbarHeight = tab.focusedPane?.reservedKeyboardToolbarHeightAtBottom ?? 0
+                    // A herdr tab can be claimed while it is not showing (Take
+                    // Control), and the size claimed is the size it lays out
+                    // at. Its own pane is not first responder, so borrow the
+                    // selected tab's reservation rather than reserving nothing,
+                    // or it claims several rows too tall and reflows twice.
+                    let hiddenBottomToolbarHeight: CGFloat =
+                        (tab.isHerdrWindow || tab.isHerdrGateway) ? selectedBottomToolbarHeight : 0
                     // During an app-tab swipe both visible tabs must use the
                     // same reservation. The target is not first responder yet,
                     // so its live value is otherwise 0 and its viewport appears
@@ -1044,7 +1054,7 @@ extension MainView {
                         .reservedBottomToolbarHeight(for: tab.id)
                         ?? ((index == selectedTabIndex || tab.id == tabsModel.displayedTabID)
                             ? liveBottomToolbarHeight
-                            : 0)
+                            : hiddenBottomToolbarHeight)
                     let bottomPadding = terminalBottomPadding(
                         geometry: geometry,
                         keyboardFrame: keyboardFrame,

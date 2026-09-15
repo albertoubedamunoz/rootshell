@@ -112,9 +112,9 @@ extension HerdrController {
         queueAttaches(priorityTab: tabsModel.selectedTabID)
         pushGeometryForHostedTabs()
         autoHideGatewayIfWanted()
-        #if !targetEnvironment(macCatalyst)
+        // The initial focus is processed above, so this is the first pass
+        // that can activate: a reconnect re-fits the selected tab here.
         if mode == .raw, capabilities.supportsSharedViewing { selectedTabDidChange() }
-        #endif
         if isInitialSnapshot, snapshot.tabs.isEmpty, !isLocalRecovery,
            requestNewTab(workspaceID: nil, isAutomatic: true) {
             // The automatic tab's arrival or failure reveals the card.
