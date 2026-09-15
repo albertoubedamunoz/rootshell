@@ -23,6 +23,80 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertTrue(error.localizedDescription.contains("0.1.0"))
     }
 
+    // MARK: Query authority
+
+    func testAuthorityHandoffKeepsOldRepliesAndDropsNewFollowerReplies() {
+        var authority = HerdrQueryAuthority()
+        let oldReply = Data("\u{1b}[24;1R".utf8)
+        let newReply = Data("\u{1b}[12;1R".utf8)
+        // The pipe is delayed until after the network has handed control
+        // away. Both replies land in one read around the parser marker.
+        let segments = authority.consume(oldReply + Data("\u{1b}[?15998;0$y".utf8) + newReply)
+        XCTAssertEqual(segments.map(\.bytes), [oldReply, newReply])
+        XCTAssertEqual(segments.map(\.answersQueries), [true, false])
+        XCTAssertFalse(authority.answersQueries)
+    }
+
+    func testTwoClientsAnswerExactlyOnceAcrossRepeatedHandoffs() {
+        var desktop = HerdrQueryAuthority()
+        var phone = HerdrQueryAuthority()
+        _ = phone.consume(Data("\u{1b}[?15998;0$y".utf8))
+        for phoneOwns in [true, false, true, false] {
+            let desktopMarker = Data("\u{1b}[?\(phoneOwns ? 15998 : 15999);0$y".utf8)
+            let phoneMarker = Data("\u{1b}[?\(phoneOwns ? 15999 : 15998);0$y".utf8)
+            let before = Data("\u{1b}[24;1R".utf8)
+            let after = Data("\u{1b}[12;1R".utf8)
+            // Different pipe timings: desktop batches the handoff; phone
+            // drains the outstanding answer separately from the marker.
+            let a = desktop.consume(before + desktopMarker + after)
+            let b = phone.consume(before) + phone.consume(phoneMarker) + phone.consume(after)
+            let answers = (a + b).filter(\.answersQueries).map(\.bytes)
+            XCTAssertEqual(answers.filter { $0 == before }.count, 1)
+            XCTAssertEqual(answers.filter { $0 == after }.count, 1)
+        }
+    }
+
+    func testAuthorityMarkersSurviveEveryResponseReadSplit() {
+        let bytes = Data("\u{1b}[24;1R\u{1b}[?15998;0$y\u{1b}[12;1R\u{1b}[?15999;0$y\u{1b}[8;1R".utf8)
+        for split in 0...bytes.count {
+            var authority = HerdrQueryAuthority()
+            var carry = Data()
+            var forwarded = Data()
+            for read in [Data(bytes.prefix(split)), Data(bytes.dropFirst(split))] {
+                var pending = carry + read
+                carry = Data()
+                if let start = HerdrReplyFilter.incompleteTailStart(Array(pending)) {
+                    carry = Data(pending.dropFirst(start))
+                    pending = Data(pending.prefix(start))
+                }
+                for segment in authority.consume(pending) where segment.answersQueries {
+                    forwarded.append(segment.bytes)
+                }
+            }
+            XCTAssertTrue(carry.isEmpty, "split \(split)")
+            XCTAssertEqual(forwarded, Data("\u{1b}[24;1R\u{1b}[8;1R".utf8), "split \(split)")
+        }
+    }
+
+    func testFollowerInputAndLocalFenceAcknowledgementsArePreserved() throws {
+        var authority = HerdrQueryAuthority()
+        var fence = HerdrParserFence()
+        let probe = try XCTUnwrap(fence.issue())
+        _ = authority.consume(Data("\u{1b}[?15998;0$y".utf8))
+        let input = Data("paste\u{1b}[A".utf8)
+        let localReply = Data("\u{1b}[?\(probe.id);0$y".utf8)
+        let segments = authority.consume(localReply + input)
+        let segment = try XCTUnwrap(segments.first)
+        let filtered = fence.consume(segment.bytes)
+        XCTAssertFalse(segment.answersQueries)
+        XCTAssertEqual(filtered.acknowledged, [probe.id])
+        XCTAssertEqual(filtered.forward, input)
+        XCTAssertFalse(HerdrReplyFilter.isAutomaticReply(filtered.forward))
+        // A connection without authority records retains protocol 1 behavior.
+        var legacy = HerdrQueryAuthority()
+        XCTAssertTrue(try XCTUnwrap(legacy.consume(Data("\u{1b}[1;1R".utf8)).first).answersQueries)
+    }
+
     // MARK: Capabilities
 
     func testProtocolOneServerIsNotShared() {
@@ -157,7 +231,7 @@ final class HerdrProtocolTests: XCTestCase {
         refresh.request {
             refreshes += 1
             // The deferred pass can now lay out all 120 server columns
-            // on the phone, overflowing its viewport until input claims.
+            // on the phone, overflowing its viewport until this client claims.
             frameWidth = HerdrGeometry.requiredExtent(
                 cells: 120, cellPixels: metrics.cellPixels, chrome: 8, scale: 3)
             refreshed.fulfill()
@@ -200,6 +274,63 @@ final class HerdrProtocolTests: XCTestCase {
         }
         withExtendedLifetime(refresh) {}
         XCTAssertEqual(refreshes, 2)
+    }
+
+    // MARK: Parser confirmation across handoffs
+
+    func testReturningToEarlierGridRequiresNewParserReply() {
+        var state = HerdrParserGrid()
+        let ipad = HerdrParserGrid.Grid(cols: 95, rows: 45)
+        let iphone = HerdrParserGrid.Grid(cols: 52, rows: 28)
+        state.request(ipad)
+        _ = state.probe()
+        _ = state.consume(Data("\u{1b}[8;45;95t".utf8))
+        XCTAssertEqual(state.confirmed, ipad)
+
+        state.invalidate()
+        state.request(iphone)
+        _ = state.probe()
+        state.invalidate()
+        state.request(ipad)
+        XCTAssertNil(state.confirmed)
+        XCTAssertTrue(state.needsProbe)
+
+        // The phone-layout probe ran while Ghostty still had the earlier
+        // iPad grid. Its delayed reply must not acknowledge this handoff.
+        _ = state.probe()
+        XCTAssertTrue(state.consume(Data("\u{1b}[8;45;95t".utf8)).grids.isEmpty)
+        XCTAssertTrue(state.needsProbe)
+        XCTAssertEqual(state.consume(Data("\u{1b}[8;45;95t".utf8)).grids, [ipad])
+        XCTAssertFalse(state.needsProbe)
+    }
+
+    func testLayoutInvalidationRetiresSplitRepliesAndPreservesInput() {
+        let reply = Data("\u{1b}[8;45;95t".utf8)
+        for split in 1..<reply.count {
+            var state = HerdrParserGrid()
+            let ipad = HerdrParserGrid.Grid(cols: 95, rows: 45)
+            state.request(ipad)
+            _ = state.probe()
+            _ = state.consume(reply.prefix(split))
+            state.invalidate()
+            state.request(ipad)
+            _ = state.probe()
+            let old = state.consume(reply.suffix(from: split) + Data("x".utf8))
+            XCTAssertTrue(old.grids.isEmpty)
+            XCTAssertEqual(old.forward, Data("x".utf8))
+            XCTAssertTrue(state.needsProbe)
+            XCTAssertEqual(state.consume(reply).grids, [ipad])
+        }
+    }
+
+    func testLatestParserReplyWinsWithinOneRead() {
+        var state = HerdrParserGrid()
+        state.request(.init(cols: 95, rows: 45))
+        _ = state.probe()
+        _ = state.probe()
+        let result = state.consume(Data("\u{1b}[8;45;95t\u{1b}[8;28;52t".utf8))
+        XCTAssertEqual(result.grids, [.init(cols: 52, rows: 28)])
+        XCTAssertTrue(state.needsProbe)
     }
 
     // MARK: Tab geometry ownership
@@ -285,6 +416,64 @@ final class HerdrProtocolTests: XCTestCase {
 
     // MARK: Reply classification
 
+    func testRoutineResizeCannotReclaimWithStaleOwnership() throws {
+        var state = HerdrTabGeometryState()
+        state.update(size)
+        let initial = try XCTUnwrap(state.beginRequest())
+        XCTAssertTrue(initial.claim)
+        state.finish(initial, succeeded: true)
+        state.setOwnership(.mine)
+        // The other client claims on the server before our notification
+        // arrives. A keyboard/window change must not undo that claim.
+        state.update(.init(cols: 60, rows: 20, cellWidth: 8, cellHeight: 16))
+        let resize = try XCTUnwrap(state.beginRequest())
+        XCTAssertFalse(resize.claim)
+        state.finish(resize, succeeded: false)
+        XCTAssertFalse(try XCTUnwrap(state.beginRequest()).claim)
+    }
+
+    func testExplicitClaimIsConsumedOnceEvenWhenResponseIsLost() throws {
+        var state = HerdrTabGeometryState()
+        state.update(size)
+        state.setOwnership(.other(connectionId: 5, kind: "control"))
+        state.requestClaim()
+        let requested = try XCTUnwrap(state.beginRequest())
+        XCTAssertTrue(requested.claim)
+        state.finish(requested, succeeded: false)
+        let retry = try XCTUnwrap(state.beginRequest())
+        XCTAssertFalse(retry.claim)
+        state.finish(retry, succeeded: true)
+        // Another explicit action is still allowed, even at the same size.
+        state.requestClaim()
+        XCTAssertTrue(try XCTUnwrap(state.beginRequest()).claim)
+    }
+
+    func testMobileClaimStillRunsAfterSameSizeWasConfirmed() throws {
+        var state = HerdrTabGeometryState()
+        state.update(size)
+        state.setOwnership(.other(connectionId: 5, kind: "control"))
+        let stored = try XCTUnwrap(state.beginRequest())
+        state.finish(stored, succeeded: true)
+        XCTAssertTrue(state.isConfirmed)
+        let activation = try XCTUnwrap(state.beginRequest(claim: true))
+        XCTAssertTrue(activation.claim)
+        state.finish(activation, succeeded: true)
+        XCTAssertNil(state.beginRequest())
+    }
+
+    func testFocusReportsFromSnapshotReplayCannotClaimGeometry() {
+        XCTAssertTrue(reply("\u{1b}[I"))
+        XCTAssertTrue(reply("\u{1b}[O"))
+        XCTAssertTrue(reply("\u{1b}[I\u{1b}[24;80R"))
+        XCTAssertTrue(reply("\u{1b}[?15998;0$y\u{1b}[O"))
+        XCTAssertFalse(reply("\u{1b}[2I"))
+        XCTAssertFalse(reply("\u{1b}[Ix")) // A real keystroke still counts.
+        var follower = HerdrQueryAuthority()
+        _ = follower.consume(Data("\u{1b}[?15998;0$y".utf8))
+        let reports = follower.consume(Data("\u{1b}[I\u{1b}[O".utf8))
+        XCTAssertTrue(reports.allSatisfy { !$0.answersQueries && HerdrReplyFilter.isAutomaticReply($0.bytes) })
+    }
+
     private func reply(_ text: String) -> Bool {
         HerdrReplyFilter.isAutomaticReply(Data(text.utf8))
     }
@@ -347,4 +536,101 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertFalse(HerdrUpgradePrompt.sharedViewingNeedsUpgrade.isHardRefusal)
         XCTAssertTrue(HerdrUpgradePrompt.versionTooOld(reported: "0.8.0").message.contains("0.8.0"))
     }
+    // MARK: Mobile activation
+
+    func testMobileActivationIsOneShotUntilSelectionOrResume() {
+        var state = HerdrMobileActivation()
+        XCTAssertTrue(state.select("a", panes: ["p", "q"]))
+        let first = state.generation
+        XCTAssertTrue(state.needsClaim)
+        // Repeated topology/layout callbacks do not manufacture a handoff.
+        XCTAssertFalse(state.select("a", panes: ["p", "q"]))
+        state.claimed(generation: first)
+        state.finishPane("p")
+        XCTAssertFalse(state.needsClaim)
+        XCTAssertEqual(state.pendingPanes, ["q"])
+        XCTAssertFalse(state.select("a", panes: ["p", "q"]))
+        XCTAssertEqual(state.generation, first)
+        state.suspend()
+        XCTAssertTrue(state.pendingPanes.isEmpty)
+        XCTAssertTrue(state.select("a", panes: ["p", "q"]))
+        XCTAssertTrue(state.needsClaim)
+        XCTAssertNotEqual(state.generation, first)
+    }
+
+    func testLateClaimCannotCompleteAnotherSelectionOrReconnection() {
+        var state = HerdrMobileActivation()
+        state.select("a", panes: ["p"])
+        let old = state.generation
+        state.select("b", panes: ["q"])
+        state.claimed(generation: old)
+        XCTAssertTrue(state.needsClaim)
+        XCTAssertEqual(state.pendingPanes, ["q"])
+        let beforeReconnect = state.generation
+        state.suspend()
+        state.select("b", panes: ["q"])
+        state.claimed(generation: beforeReconnect)
+        XCTAssertTrue(state.needsClaim)
+        state.claimed(generation: state.generation)
+        XCTAssertFalse(state.needsClaim)
+    }
+
+    func testGatewayRestoreAndUserScrollCancellation() {
+        var state = HerdrMobileActivation()
+        XCTAssertFalse(state.select(nil, panes: []))
+        XCTAssertTrue(state.select("restored", panes: ["p", "q"]))
+        // Failed claims leave intent pending; user scrolling cancels only
+        // that pane's viewport jump, not the tab's requested sizing.
+        state.finishPane("p")
+        XCTAssertTrue(state.needsClaim)
+        XCTAssertEqual(state.pendingPanes, ["q"])
+        XCTAssertFalse(state.select("restored", panes: ["p", "q"]))
+        XCTAssertEqual(state.pendingPanes, ["q"])
+        state.select(nil, panes: [])
+        XCTAssertFalse(state.needsClaim)
+        XCTAssertTrue(state.pendingPanes.isEmpty)
+        XCTAssertTrue(state.select("restored", panes: ["p", "q"]))
+    }
+
+    // MARK: Ordered local parser acknowledgements
+
+    func testParserFenceConsumesEveryPossibleSplitWithoutLeakingToServer() throws {
+        let reply = Data("\u{1b}[?16000;0$y".utf8)
+        for cut in 0...reply.count {
+            var fence = HerdrParserFence()
+            let probe = try XCTUnwrap(fence.issue())
+            XCTAssertEqual(probe.bytes, Data("\u{1b}[?16000$p".utf8))
+            let a = fence.consume(Data("before".utf8) + reply.prefix(cut))
+            let b = fence.consume(reply.suffix(reply.count - cut) + Data("after".utf8))
+            XCTAssertEqual(a.forward + b.forward, Data("beforeafter".utf8))
+            XCTAssertEqual(a.acknowledged + b.acknowledged, [probe.id])
+        }
+    }
+
+    func testParserFenceKeepsOldAndReplacementAcknowledgementsDistinct() throws {
+        var fence = HerdrParserFence()
+        let old = try XCTUnwrap(fence.issue())
+        let replacement = try XCTUnwrap(fence.issue())
+        let oldReply = fence.consume(Data("\u{1b}[?\(old.id);0$y".utf8))
+        XCTAssertEqual(oldReply.acknowledged, [old.id])
+        XCTAssertNotEqual(old.id, replacement.id)
+        XCTAssertTrue(oldReply.forward.isEmpty)
+        let newReply = fence.consume(Data("\u{1b}[?\(replacement.id);0$y".utf8))
+        XCTAssertEqual(newReply.acknowledged, [replacement.id])
+        XCTAssertTrue(newReply.forward.isEmpty)
+    }
+
+    func testParserFencePreservesUnrelatedReportsAndInput() throws {
+        var fence = HerdrParserFence()
+        _ = try XCTUnwrap(fence.issue())
+        let unrelated = Data("x\u{1b}[8;24;80t\u{1b}[?25;1$y\u{1b}[?16001;0$y\u{1b}]10;rgb:ff/ff/ff\u{7}\u{1b}[A".utf8)
+        var forwarded = Data()
+        for byte in unrelated {
+            let result = fence.consume(Data([byte]))
+            forwarded.append(result.forward)
+            XCTAssertTrue(result.acknowledged.isEmpty)
+        }
+        XCTAssertEqual(forwarded, unrelated)
+    }
+
 }

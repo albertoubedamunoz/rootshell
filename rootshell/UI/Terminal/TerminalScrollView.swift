@@ -1721,6 +1721,16 @@ extension Ghostty {
     }
     #endif
 
+    /// Reset native gesture state before a one-shot herdr viewport jump.
+    func prepareHerdrReturnToLive() {
+        isLiveScrolling = false
+        isTouchScrolling = false
+        wasRubberBandingDuringScroll = false
+        // Stops UIKit deceleration without manufacturing a scroll gesture.
+        setContentOffsetFromTerminalSync(scrollView.contentOffset)
+        resetSmoothScrollOffset()
+    }
+
     /// Scroll to the bottom (live terminal view) in response to user input
     func scrollToBottom() {
         guard !terminalView.multiplexerScrollActive else { return }
@@ -1782,6 +1792,7 @@ extension Ghostty {
     // MARK: - UIScrollViewDelegate
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        terminalView.cancelHerdrReturnToLive()
         isLiveScrolling = true
         lastLiveScrollEventTime = Date().timeIntervalSinceReferenceDate
         isTouchScrolling = false
@@ -1918,6 +1929,7 @@ extension Ghostty {
     }
 
     func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
+        terminalView.cancelHerdrReturnToLive()
         // iOS status-bar tap. Use Ghostty's canonical scroll-to-top (same as
         // Cmd+Home) instead of letting UIKit animate the raw content offset:
         // the native animation only fires scrollViewDidScroll (not

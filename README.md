@@ -142,6 +142,7 @@ See the [herdr control mode guide](docs/herdr-control-mode.md) for setup, the fo
 - **Host Shorthand (HSS)** - Pattern-based hostname expansion with YAML configuration
 - **Connection Health** - Real-time RTT and packet loss tracking with time series chart and negotiated cryptographic algorithm details
 - **Transfer to Nearby Device** - Hand off a live tssh session to another iCloud-paired device; the receiver reattaches to the same tsshd PTY with recent scrollback intact
+- **No SSH Compression** - The transport only ever negotiates `none`, with no zlib codec linked. Compression side channels do not apply, including the shared-context attack across multiplexed channels ([arXiv:2609.07709](https://arxiv.org/abs/2609.07709), CCS 2026) and compression-bomb DoS
 - **Login Banners** - Server banners shown inline, sanitized against control-sequence injection
 - **Scrollback Encryption** - Persisted scrollback encrypted at rest with AES-256-GCM and restored on session reconnect with full ANSI colors
 

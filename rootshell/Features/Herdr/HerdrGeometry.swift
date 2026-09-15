@@ -2,6 +2,55 @@ import Foundation
 import CoreGraphics
 import IOSurface
 
+/// A layout needs a new parser observation, even when it returns to an
+/// earlier size. Replies already in the response pipe belong to the old
+/// layout and cannot confirm the new one.
+nonisolated struct HerdrParserGrid {
+    typealias Grid = TerminalGridReports.Grid
+    private(set) var confirmed: Grid?
+    private(set) var wanted: Grid?
+    private var reports = TerminalGridReports()
+    private var staleReplies = 0
+
+    var needsProbe: Bool { wanted != nil && confirmed != wanted }
+    var pending: Int { reports.pending }
+
+    mutating func invalidate() {
+        confirmed = nil
+        wanted = nil
+        staleReplies = reports.pending
+    }
+
+    mutating func request(_ grid: Grid) {
+        if wanted != grid {
+            invalidate()
+            wanted = grid
+        }
+    }
+
+    mutating func probe() -> Data {
+        reports.pending += 1
+        return Data("\u{1b}[18t".utf8)
+    }
+
+    mutating func consume(_ data: Data) -> (forward: Data, grids: [Grid]) {
+        let result = reports.consume(data)
+        var latest: Grid?
+        for grid in result.grids {
+            if staleReplies > 0 {
+                staleReplies -= 1
+            } else if wanted != nil {
+                confirmed = grid
+                latest = grid
+            }
+        }
+        // Several replies can arrive in one read. Only the last observation
+        // describes the parser now; an earlier matching reply cannot release
+        // output if a later reply in the same read reports another size.
+        return (result.forward, latest.map { [$0] } ?? [])
+    }
+}
+
 /// Insertion can create a surface partway through a host layout. Reconcile
 /// after that pass, when its cell metrics are available, without scheduling
 /// one refresh per pane or retaining a host that has been dismantled.
@@ -118,6 +167,7 @@ nonisolated struct HerdrTabGeometryState {
     struct Request: Equatable, Sendable {
         let id = UUID()
         let size: Size
+        let claim: Bool
     }
 
     /// Who sizes this tab on the server, as far as the last layout said.
@@ -134,13 +184,14 @@ nonisolated struct HerdrTabGeometryState {
     private(set) var inFlight: Request?
     private(set) var hasRequested = false
     private(set) var ownership: Ownership = .unknown
+    private var claimPending = false
 
     var isConfirmed: Bool {
-        desired != nil && desired == confirmed && inFlight == nil
+        desired != nil && desired == confirmed && inFlight == nil && !claimPending
     }
 
-    /// Whether a geometry push may take the tab. While another client owns
-    /// it, pushes only store our size for the server's interaction rule.
+    /// Whether the legacy protocol may push a size (it cannot store without
+    /// claiming). Shared-mode requests carry their own one-shot claim flag.
     var mayClaim: Bool {
         if case .other = ownership { return false }
         return true
@@ -152,9 +203,18 @@ nonisolated struct HerdrTabGeometryState {
         desired = size
     }
 
-    mutating func beginRequest() -> Request? {
-        guard let desired, !isConfirmed, inFlight == nil else { return nil }
-        let request = Request(size: desired)
+    mutating func requestClaim() {
+        claimPending = true
+        invalidate()
+    }
+
+    mutating func beginRequest(claim: Bool = false) -> Request? {
+        guard let desired, !isConfirmed || claim, inFlight == nil else { return nil }
+        // The server applies claim:false sizes from its current owner. Never
+        // infer a fresh claim from .mine: that observation may already be stale.
+        let initialClaim = !hasRequested && (ownership == .unknown || ownership == .none)
+        let request = Request(size: desired, claim: claim || claimPending || initialClaim)
+        claimPending = false
         inFlight = request
         hasRequested = true
         return request
@@ -199,5 +259,44 @@ nonisolated struct HerdrTabGeometryState {
         inFlight = nil
         confirmed = succeeded ? request.size : nil
         return true
+    }
+}
+
+/// A mobile activation is an edge, never a standing claim on a shared tab.
+/// Kept separate from layout negotiation so remote ownership changes cannot
+/// manufacture another activation.
+nonisolated struct HerdrMobileActivation {
+    private(set) var tabID: String?
+    private(set) var generation = UUID()
+    private(set) var needsClaim = false
+    private(set) var pendingPanes: Set<String> = []
+    private var needsForegroundActivation = true
+
+    @discardableResult
+    mutating func select(_ tabID: String?, panes: Set<String>) -> Bool {
+        guard tabID != self.tabID || needsForegroundActivation else { return false }
+        self.tabID = tabID
+        generation = UUID()
+        needsClaim = tabID != nil
+        pendingPanes = tabID == nil ? [] : panes
+        // A gateway can be selected before its recovered terminal exists.
+        needsForegroundActivation = tabID == nil
+        return tabID != nil
+    }
+
+    mutating func suspend() {
+        generation = UUID()
+        needsForegroundActivation = true
+        needsClaim = false
+        pendingPanes.removeAll()
+    }
+
+    mutating func claimed(generation: UUID) {
+        guard self.generation == generation else { return }
+        needsClaim = false
+    }
+
+    mutating func finishPane(_ terminalID: String) {
+        pendingPanes.remove(terminalID)
     }
 }

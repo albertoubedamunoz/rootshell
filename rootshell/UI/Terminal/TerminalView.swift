@@ -1033,7 +1033,9 @@ extension Ghostty {
         // MARK: Input State
 
         // Selection state
-        var isSelecting = false
+        var isSelecting = false {
+            didSet { if isSelecting { cancelHerdrReturnToLive() } }
+        }
         var selectionStartPoint: CGPoint?
 
         /// The wrapper currently hosting this terminal. `SplitTreeHostingView.attach`
@@ -1175,7 +1177,9 @@ extension Ghostty {
 
         // Mouse/trackpad state
         var mousePressed = false
-        var selectionMouseDragActive = false
+        var selectionMouseDragActive = false {
+            didSet { if selectionMouseDragActive { cancelHerdrReturnToLive() } }
+        }
         var herdrFallbackScroll = HerdrFallbackScroll()
 
         /// Last known mouse position for discrete scroll wheel events (Mac Catalyst)
@@ -2591,6 +2595,7 @@ extension Ghostty {
 
         /// Send mouse scroll event to Ghostty on background queue to avoid blocking main thread.
         func sendMouseScroll(deltaX: Double, deltaY: Double, mods: ghostty_input_scroll_mods_t = Ghostty.Input.ScrollMods.none.cMods) {
+            cancelHerdrReturnToLive()
             invalidateWritingAssistance()
             if let state = herdrEndpointPane {
                 state.scroll(deltaX: CGFloat(deltaX), deltaY: CGFloat(deltaY), at: lastMousePosition)
@@ -5311,6 +5316,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func noteUserScrollForScrollIndicator() {
+        cancelHerdrReturnToLive()
         scrollIndicatorRevealDeadline = Date().timeIntervalSinceReferenceDate + 1.0
     }
 

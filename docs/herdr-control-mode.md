@@ -29,6 +29,8 @@ Fallback is not simply a screenshot poller: the normal upstream endpoint keeps f
 
 Shared viewing does not give every client a separately sized copy of the same terminal. One client controls a tab's geometry; other viewers follow that layout. The **Take Control** and **Fit to This Window** actions allow an explicit change of owner. On older single-owner forks, taking control can displace the previous attach.
 
+On iPhone, iPad, and visionOS, opening or returning to the app, or selecting a terminal tab, automatically fits the selected tab to that device and returns its visible panes to live output. No typing is needed. Other clients stay attached. Each activation claims once; a later handoff to another client does not start a contest for control. Scrolling or selecting text cancels a pending return to live output for that pane. Mac Catalyst keeps its existing interaction and explicit-control behavior.
+
 ## Install the optional fork
 
 Run this on the **macOS or Linux host running herdr**, which may be a remote SSH/tssh host or your local Mac:
@@ -166,7 +168,17 @@ See the [wire types and record decoder](../rootshell/Features/Herdr/HerdrControl
 
 rootshell subscribes with `events.subscribe` and obtains initial topology from `session.snapshot`. Workspace, tab, pane, and agent events update the native interface. Terminal data is routed by attach ID, while `tab.layout` records supply pane geometry. Layout changes hold output until the native surfaces use the corresponding grid.
 
+Each raw layout invalidates the previous parser-size confirmation, including a handoff that returns to the same dimensions. Probes start after the layout's surface-size requests cross the Ghostty API queue; replies outstanding from an earlier layout cannot release the new layout's output. Superseded layouts and timed-out waits recover through snapshots.
+
+Mounted panes participate in parser confirmation before `terminal.attach` completes, because initial attach itself waits for the parser grid. This avoids a circular wait during cold restoration.
+
+The host fork applies PTY geometry immediately and sends one additional `SIGWINCH` after 250 ms without another resize. New resizes replace the pending notification, and server handoff cancels it. This lets a program recover from a missed initial resize event, including queued changes that return to the original dimensions. The notification does not change ownership, alter the grid, or insert terminal input. This recovery requires the updated host server as well as the app's layout handling.
+
 On capable servers, `tab.set_geometry` can store a client's desired size with `claim:false`; `tab.claim_geometry` explicitly takes geometry ownership. Layouts and geometry-change events identify the owner. Shared terminal viewing and terminal-query authority are separate: `terminal.authority` identifies which attach answers terminal queries. With the `auto_input` feature, automatic terminal replies use `terminal.input` with `auto:true`, so the server can forward only the authority's replies without treating them as user interaction.
+
+rootshell applies query-authority changes at their position in the terminal parser's output stream. Replies to earlier queries can still finish during the server's handoff grace period, while later queries are answered only by the new authority. Layout waits and snapshot recovery preserve this boundary, preventing both clients from answering the same cursor-position query during a resize.
+
+Focus reports, including those generated while replaying a snapshot, are automatic reports and never claim geometry. Routine size updates use `claim:false`; the server applies them only while that client owns the tab. Mobile activation and explicit fit/take-control actions send one claiming size request, so a delayed resize or retry cannot undo a newer client's handoff.
 
 `terminal.gap` reports dropped terminal output. rootshell invalidates that attach's output stream and requests a fresh `terminal.snapshot` before resuming rendering. `events.gap` triggers a topology refresh. Reconnection establishes a new stream, subscriptions, and snapshot; a changed `boot_id` identifies a restarted server and causes server-dependent state to be rebuilt.
 

@@ -216,6 +216,8 @@ final class HerdrController {
     /// lost server-side, so no redraw is guaranteed to restore them.
     var clientDetourMinimums: [String: (cols: Int, rows: Int)] = [:]
     var geometryTasks: [String: Task<Void, Never>] = [:]
+    var mobileActivation = HerdrMobileActivation()
+    weak var mobileScene: UIWindowScene?
     /// Panes another client holds (terminal id), waiting on Take Control.
     var paneControlStates: [String: HerdrPaneControlState] = [:]
     /// Tabs whose next attaches may evict the other client (user asked).
@@ -278,11 +280,34 @@ final class HerdrController {
 
     private static var foregroundObserver: NSObjectProtocol?
     private static var backgroundObserver: NSObjectProtocol?
+    private static var mobileSceneObservers: [NSObjectProtocol] = []
 
     /// Every controller checks its stream when the app returns to the
     /// foreground; installed once, on the first start.
     private static func installForegroundObserver() {
         guard foregroundObserver == nil else { return }
+        #if !targetEnvironment(macCatalyst)
+        let center = NotificationCenter.default
+        mobileSceneObservers = [UIScene.didActivateNotification, UIWindow.didBecomeKeyNotification].map { name in
+            center.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated {
+                    for controller in all { controller.selectedTabDidChange() }
+                }
+            }
+        }
+        mobileSceneObservers.append(center.addObserver(
+            forName: UIScene.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { notification in
+            MainActor.assumeIsolated {
+                guard let scene = notification.object as? UIScene else { return }
+                for controller in all where controller.mobileScene === scene
+                    || controller.paneViews.values.contains(where: { $0.window?.windowScene === scene })
+                    || controller.gateway?.window?.windowScene === scene {
+                    controller.suspendMobileActivation()
+                }
+            }
+        })
+        #endif
         foregroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -300,6 +325,7 @@ final class HerdrController {
         ) { _ in
             MainActor.assumeIsolated {
                 for controller in all {
+                    controller.suspendMobileActivation()
                     // Ghostty suppresses title callbacks while backgrounded.
                     // Let metadata seed titles again until live OSC resumes.
                     for view in controller.paneViews.values { view.endHerdrTitleAttachment() }
@@ -416,6 +442,8 @@ final class HerdrController {
                         return
                     case .snapshot(let record):
                         router.applySnapshot(record)
+                    case .authority(let record):
+                        router.setQueryAuthority(attachId: record.attach_id, answersQueries: record.answers_queries)
                     case .tabLayout(let layout):
                         // Queue these panes' output on this thread, before
                         // any redraw at the new size can reach a surface
@@ -467,6 +495,7 @@ final class HerdrController {
             controlOpened = opened
             controlOpenedAt = Date()
             capabilities = HerdrServerCapabilities(opened.capabilities)
+            router.configureQueryAuthority(enabled: capabilities.supports(.queryAuthority))
             reconnectAttempt = 0
             Self.logger.info("herdr control open: \(opened.version) boot=\(opened.boot_id) pid=\(opened.capabilities?.server_pid ?? 0) stream=\(self.capabilities.streamProtocol) features=\(self.capabilities.sortedFeatures.joined(separator: ","))")
             setUpgradePrompt(capabilities.supportsSharedViewing ? nil : .sharedViewingNeedsUpgrade)
@@ -475,6 +504,11 @@ final class HerdrController {
                 "events.subscribe",
                 HerdrControl.SubscribeParams(subscriptions: HerdrControl.topologySubscriptions)
             )
+            if capabilities.supports(.geometryOwnership) {
+                _ = try? await channel.request("events.subscribe", HerdrControl.SubscribeParams(subscriptions: [
+                    HerdrControl.Subscription(type: "tab.geometry_changed")
+                ]))
+            }
             let statusRevision = agentStatusRevision
             let snapshot = try await channel.request(
                 "session.snapshot",
@@ -495,7 +529,6 @@ final class HerdrController {
             // Optional additions must not make an older control server fail
             // its otherwise compatible topology subscription handshake.
             let optionalSubscriptions = ["worktree.created", "worktree.opened", "worktree.removed", "workspace.metadata_updated"]
-                + (capabilities.supports(.geometryOwnership) ? ["tab.geometry_changed"] : [])
             Task {
                 try? await channel.request("events.subscribe", HerdrControl.SubscribeParams(subscriptions:
                     optionalSubscriptions.map { HerdrControl.Subscription(type: $0) }))
@@ -676,6 +709,9 @@ final class HerdrController {
     func applicationDidBecomeActive() {
         guard !didEnd else { return }
         refreshPushRouteIdentity()
+        #if !targetEnvironment(macCatalyst)
+        if mode == .raw, capabilities.supportsSharedViewing { selectedTabDidChange() }
+        #endif
         if mode == .legacy {
             Task { [weak self] in
                 await self?.legacyPollOnce()
@@ -831,12 +867,24 @@ final class HerdrController {
             router.release(barrier: barrier)
             return
         }
+        for pane in layout.panes {
+            if let terminalID = paneInfos[pane.pane_id]?.terminal_id {
+                paneSessions[terminalID]?.mobileReadFence = nil
+                paneSessions[terminalID]?.invalidateParserGrid()
+                if let attachID = attachIds[terminalID] {
+                    router.updateGrid(attachId: attachID, cols: 0, rows: 0)
+                }
+            }
+        }
         controlLayouts[layout.tab_id] = layout
         applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
         applyLayout(layout, barrier: barrier)
         if layoutReleases[barrier] == nil {
             router.release(barrier: barrier)
         }
+        // Applying the layout can make an already-parsed grid ready without
+        // another size callback. Drain recovery work on this transition too.
+        requestSnapshotsForReadyPanes()
     }
 
     private func detachAllLocally() {
@@ -846,6 +894,7 @@ final class HerdrController {
         subscribedAgentPanes.removeAll()
         agentStatusRevisions.removeAll()
         streamGeneration = UUID()
+        suspendMobileActivation()
         for view in paneViews.values { view.endHerdrTitleAttachment() }
         cancelNewTabRequests()
         tabReorderTask?.cancel()

@@ -111,6 +111,7 @@
 		47AC7E5700000000000000A5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift */; };
 		47AC7E5700000000000000A6 /* rootshell/Features/Herdr/HerdrManagementModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */; };
 		47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */; };
+		47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */; };
 		47AE8FBE2F4BBBAA0032A651 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
 		47AEC0010000000000000001 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */; };
 		47AEC0010000000000000002 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */; };
@@ -552,6 +553,7 @@
 		47AC7E5700000000000000B5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrUpgradePrompt.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrManagementModels.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrReplyFilter.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalGridReports.swift; sourceTree = SOURCE_ROOT; };
 		47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Persistence/LocalMultiplexerAttachment.swift; sourceTree = SOURCE_ROOT; };
 		47AEC0010000000000000011 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "rootshell-helper/Sources/LocalMultiplexerRecovery.swift"; sourceTree = SOURCE_ROOT; };
@@ -1156,6 +1158,7 @@
 				47AC7E5700000000000000B5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift */,
 				47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */,
 				47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */,
+				47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */,
 				47AEC0010000000000000011 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift */,
 				47AEC0010000000000000015 /* rootshell-helper/Sources/LocaleHelper.swift */,
 				47AEC0010000000000000014 /* rootshell-helper/Sources/EnvironmentBuilder.swift */,
@@ -2115,6 +2118,7 @@
 				47AC7E5700000000000000A5 /* rootshell/Features/Herdr/HerdrUpgradePrompt.swift in Sources */,
 				47AC7E5700000000000000A6 /* rootshell/Features/Herdr/HerdrManagementModels.swift in Sources */,
 				47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */,
+				47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

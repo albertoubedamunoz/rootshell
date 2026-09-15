@@ -11,8 +11,45 @@
 import Foundation
 import SwiftUI
 import UIKit
+import GhosttyKit
 
 extension Ghostty.TerminalView {
+
+    func cancelHerdrReturnToLive() {
+        guard let binding = herdrPaneBinding else { return }
+        HerdrController.controller(forGateway: binding.gatewayUUID)?
+            .cancelMobileReturnToLive(terminalID: binding.terminalId)
+    }
+
+    func prepareHerdrReturnToLive() {
+        #if !targetEnvironment(macCatalyst)
+        clearTouchState()
+        selectionMouseDragActive = false
+        selectionWasTouchInitiated = false
+        hideSelectionHandles(animated: false)
+        hideSelectionMagnifier(animated: false)
+        // A local selection click clears the old highlight. Never synthesize
+        // a mouse event into an application that has enabled mouse reporting.
+        if let surface, hasTerminalTextSelection, !isMouseCaptured {
+            ghostty_surface_mouse_pos(surface, 0, 0, Ghostty.Input.Mods.none.cMods)
+            ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_LEFT, Ghostty.Input.Mods.none.cMods)
+            ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, Ghostty.Input.Mods.none.cMods)
+        }
+        _ = cancelMomentumScrolling()
+        enclosingTerminalScrollView?.prepareHerdrReturnToLive()
+        #endif
+    }
+
+    func finishHerdrReturnToLive() {
+        #if !targetEnvironment(macCatalyst)
+        _ = cancelMomentumScrolling()
+        enclosingTerminalScrollView?.prepareHerdrReturnToLive()
+        // Let the next core scrollbar sample synchronize UIKit. Sending a
+        // scroll_to_row based on a pre-replay sample would undo this jump.
+        _ = performAction("scroll_to_bottom")
+        #endif
+    }
+
 
     /// The card is a plain hosted subview: the gateway terminal keeps first
     /// responder, its keyboard, and its gestures. Installed lazily so a

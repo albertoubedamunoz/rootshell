@@ -29,6 +29,102 @@ enum HerdrPaneControlState: Equatable {
 
 extension HerdrController {
 
+    // MARK: - Mobile activation
+
+    var mobileWindowIsActive: Bool {
+        guard !Ghostty.isAppBackgroundedAtomic,
+              let tab = tabs.values.first(where: { $0.id == tabsModel.selectedTabID }),
+              let window = tab.focusedTerminal?.window ?? tab.splitTree.terminalLeaves.first?.window else { return false }
+        return window.isKeyWindow && window.windowScene?.activationState == .foregroundActive
+    }
+
+    func suspendMobileActivation() {
+        #if !targetEnvironment(macCatalyst)
+        mobileActivation.suspend()
+        for session in paneSessions.values { session.mobileReadFence = nil }
+        #endif
+    }
+
+    /// Called from selection and layout readiness, but only selection or a
+    /// foreground/reconnect edge creates intent. Remote layouts cannot renew it.
+    func reconcileMobileActivation() {
+        #if !targetEnvironment(macCatalyst)
+        guard !didEnd, mode == .raw, isActive, hasProcessedInitialFocus, capabilities.supportsSharedViewing else { return }
+        guard let tab = tabs.values.first(where: { $0.id == tabsModel.selectedTabID }) else {
+            mobileActivation.select(nil, panes: [])
+            return
+        }
+        guard mobileWindowIsActive, let tabID = tab.herdrTabId else { return }
+        mobileScene = (tab.focusedTerminal?.window ?? tab.splitTree.terminalLeaves.first?.window)?.windowScene
+        let visibleTree = SplitTree<SplitPaneView>(root: tab.splitTree.zoomed ?? tab.splitTree.root, zoomed: nil)
+        let visiblePanes = visibleTree.terminalLeaves.filter { $0.isHerdrPane }
+        let terminalIDs = Set(visiblePanes.compactMap { $0.herdrPaneBinding?.terminalId })
+        guard !terminalIDs.isEmpty else { return }
+        guard mobileActivation.select(tabID, panes: terminalIDs) else { return }
+        for session in paneSessions.values { session.mobileReadFence = nil }
+        // Even a previously confirmed size must carry this new claim.
+        tabGeometryStates[tabID, default: .init()].invalidate()
+        for view in visiblePanes {
+            view.prepareHerdrReturnToLive()
+        }
+        #endif
+    }
+
+    func mobileClaimGeneration(for tabID: String) -> UUID? {
+        #if !targetEnvironment(macCatalyst)
+        guard mobileWindowIsActive, mobileActivation.tabID == tabID,
+              mobileActivation.needsClaim else { return nil }
+        return mobileActivation.generation
+        #else
+        return nil
+        #endif
+    }
+
+    func cancelMobileReturnToLive(terminalID: String) {
+        mobileActivation.finishPane(terminalID)
+        paneSessions[terminalID]?.mobileReadFence = nil
+    }
+
+    /// Queue the acknowledgement after replay and all output already received.
+    /// A snapshot replacement changes the revision and invalidates old replies.
+    func reconcileMobileReturnToLive() {
+        #if !targetEnvironment(macCatalyst)
+        guard !didEnd, isActive, capabilities.supportsSharedViewing, mobileWindowIsActive,
+              !mobileActivation.needsClaim, let tabID = mobileActivation.tabID,
+              tabs[tabID]?.id == tabsModel.selectedTabID,
+              !layoutReleases.values.contains(where: { $0.tabId == tabID }) else { return }
+        for terminalID in mobileActivation.pendingPanes {
+            guard let session = paneSessions[terminalID], let attachID = session.attachId,
+                  paneGeometryIsReady(terminalID), !panesNeedingSnapshot.contains(terminalID),
+                  !snapshotRequestsInFlight.contains(attachID),
+                  let revision = router.snapshotRevision(attachId: attachID) else { continue }
+            if session.mobileReadFence?.snapshot == revision { continue }
+            session.requestMobileReadFence(generation: mobileActivation.generation, snapshot: revision)
+        }
+        #endif
+    }
+
+    func mobileParserDidDrain(_ session: HerdrPaneSession, fence: HerdrPaneSession.MobileReadFence) {
+        #if !targetEnvironment(macCatalyst)
+        guard !didEnd, mobileWindowIsActive, !mobileActivation.needsClaim,
+              paneSessions[session.terminalId] === session,
+              mobileActivation.generation == fence.generation,
+              mobileActivation.pendingPanes.contains(session.terminalId),
+              isVisible(terminalId: session.terminalId), let attachID = session.attachId,
+              router.snapshotRevision(attachId: attachID) == fence.snapshot,
+              paneGeometryIsReady(session.terminalId),
+              !panesNeedingSnapshot.contains(session.terminalId),
+              !snapshotRequestsInFlight.contains(attachID),
+              !layoutReleases.values.contains(where: { $0.tabId == mobileActivation.tabID }),
+              let view = paneViews[session.terminalId],
+              let tabID = mobileActivation.tabID, let tab = tabs[tabID],
+              (tab.splitTree.zoomed ?? tab.splitTree.root)?.node(view: view) != nil else { return }
+        mobileActivation.finishPane(session.terminalId)
+        guard !view.isActivelySelecting else { return }
+        view.finishHerdrReturnToLive()
+        #endif
+    }
+
     // MARK: - Geometry ownership (protocol 2)
 
     func ownership(of tabId: String) -> HerdrTabGeometryState.Ownership {
@@ -115,26 +211,12 @@ extension HerdrController {
     /// Explicit user intent to size the tab to this window: divider drag,
     /// Fit to This Window, or Take Control on a sharing server.
     func claimGeometry(tabId: String) {
-        guard mode == .raw, let channel, capabilities.supportsSharedViewing, tabs[tabId] != nil else { return }
-        // Optimistic: the server's confirmation matches and changes nothing,
-        // so the badge and card must follow right here.
-        tabGeometryStates[tabId, default: .init()].setOwnership(.mine)
-        syncControlledElsewhereBadge(tabId: tabId)
-        publishSessionState()
+        guard mode == .raw, channel != nil, capabilities.supportsSharedViewing, tabs[tabId] != nil else { return }
+        // Send the measured size and the user's claim together, once. A
+        // separate claim RPC plus a claiming resize can undo another client's
+        // intervening handoff. Ownership changes only on the server's event.
+        tabGeometryStates[tabId, default: .init()].requestClaim()
         Self.logger.info("herdr claim geometry \(tabId)")
-        let generation = streamGeneration
-        Task { [weak self] in
-            do {
-                try await channel.request("tab.claim_geometry", HerdrControl.ClaimGeometryParams(tab_id: tabId))
-            } catch {
-                guard let self, self.streamGeneration == generation else { return }
-                Self.logger.warning("herdr tab.claim_geometry \(tabId) failed: \(error.localizedDescription)")
-                // No stored size yet: a claiming push does both.
-                if let tab = self.tabs[tabId], let view = tab.splitTree.terminalLeaves.first(where: { $0.isHerdrPane }) {
-                    self.scheduleGeometryPush(from: view)
-                }
-            }
-        }
         if let tab = tabs[tabId], let view = tab.splitTree.terminalLeaves.first(where: { $0.isHerdrPane }) {
             scheduleGeometryPush(from: view)
         }
