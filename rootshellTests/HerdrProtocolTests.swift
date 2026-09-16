@@ -164,6 +164,55 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertEqual(plain.panes, owned.panes)
     }
 
+    func testLayoutSnapshotRejectsGeometryOutsideHerdrWireRange() throws {
+        func layout(x: Int, width: Int) -> String {
+            "{\"workspace_id\":\"w\",\"tab_id\":\"t\",\"zoomed\":false,\"area\":{\"x\":0,\"y\":0,\"width\":65535,\"height\":24},\"focused_pane_id\":\"p\",\"panes\":[{\"pane_id\":\"p\",\"focused\":true,\"rect\":{\"x\":\(x),\"y\":0,\"width\":\(width),\"height\":24}}],\"splits\":[]}"
+        }
+
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, layout(x: -1, width: 80)))
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, layout(x: 0, width: 65_536)))
+        XCTAssertNoThrow(try decode(HerdrControl.LayoutSnapshot.self, layout(x: 0, width: 65_535)))
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, layout(x: 65_535, width: 1)))
+    }
+
+    func testLayoutSnapshotRejectsInvalidSplitAndDuplicatePaneIDs() throws {
+        let invalidRatio = #"{"workspace_id":"w","tab_id":"t","zoomed":false,"area":{"x":0,"y":0,"width":80,"height":24},"focused_pane_id":"p","panes":[{"pane_id":"p","focused":true,"rect":{"x":0,"y":0,"width":80,"height":24}}],"splits":[{"id":"s","direction":"right","ratio":1e300,"rect":{"x":0,"y":0,"width":80,"height":24}}]}"#
+        let duplicatePanes = #"{"workspace_id":"w","tab_id":"t","zoomed":false,"area":{"x":0,"y":0,"width":80,"height":24},"focused_pane_id":"p","panes":[{"pane_id":"p","focused":true,"rect":{"x":0,"y":0,"width":40,"height":24}},{"pane_id":"p","focused":false,"rect":{"x":40,"y":0,"width":40,"height":24}}],"splits":[]}"#
+
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, invalidRatio))
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, duplicatePanes))
+    }
+
+    func testSessionSnapshotPreservesCollapsedPaneGeometry() throws {
+        let snapshot = try decode(HerdrControl.SessionSnapshot.self, #"""
+        {"version":"0.9.0","protocol":2,"focused_workspace_id":"w","focused_tab_id":"t","focused_pane_id":"visible",
+         "workspaces":[{"workspace_id":"w","label":"one","number":1,"focused":true,"active_tab_id":"t","agent_status":"idle"}],
+         "tabs":[{"tab_id":"t","workspace_id":"w","number":1,"label":"one","focused":true,"pane_count":2,"agent_status":"idle"}],
+         "panes":[
+           {"pane_id":"collapsed","terminal_id":"tc","workspace_id":"w","tab_id":"t","focused":false,"agent_status":"idle"},
+           {"pane_id":"visible","terminal_id":"tv","workspace_id":"w","tab_id":"t","focused":true,"agent_status":"idle"}],
+         "layouts":[{"workspace_id":"w","tab_id":"t","zoomed":false,"area":{"x":0,"y":0,"width":4,"height":2},"focused_pane_id":"visible",
+           "panes":[
+             {"pane_id":"collapsed","focused":false,"rect":{"x":0,"y":0,"width":0,"height":0}},
+             {"pane_id":"visible","focused":true,"rect":{"x":0,"y":0,"width":4,"height":2}}],
+           "splits":[{"id":"s","direction":"right","ratio":0.1,"rect":{"x":0,"y":0,"width":4,"height":2}}]}],
+         "agents":[]}
+        """#)
+
+        XCTAssertEqual(snapshot.layouts.first?.panes.first?.rect.width, 0)
+        XCTAssertEqual(snapshot.layouts.first?.panes.first?.rect.height, 0)
+    }
+
+    func testSessionSnapshotRejectsDuplicateTopologyIDs() throws {
+        let duplicateWorkspaces = #"""
+        {"version":"0.9.0","protocol":2,"workspaces":[
+          {"workspace_id":"w","label":"one","number":1,"focused":true,"active_tab_id":"","agent_status":"idle"},
+          {"workspace_id":"w","label":"two","number":2,"focused":false,"active_tab_id":"","agent_status":"idle"}],
+         "tabs":[],"panes":[],"layouts":[],"agents":[]}
+        """#
+        XCTAssertThrowsError(try decode(HerdrControl.SessionSnapshot.self, duplicateWorkspaces))
+    }
+
     func testRecordsAndEventsRoute() throws {
         let layout = HerdrControl.decodeInbound(Data(#"{"type":"tab.layout","layout":{"workspace_id":"w","tab_id":"t","zoomed":false,"area":{"x":0,"y":0,"width":10,"height":5},"focused_pane_id":"p","panes":[],"splits":[],"geometry_controller":{"kind":"none"}}}"#.utf8))
         guard case .tabLayout(let snapshot)? = layout else { return XCTFail("expected tab.layout") }

@@ -251,6 +251,41 @@ nonisolated enum HerdrControl {
         let y: Int
         let width: Int
         let height: Int
+
+        private enum CodingKeys: String, CodingKey {
+            case x, y, width, height
+        }
+
+        init(x: Int, y: Int, width: Int, height: Int) {
+            self.x = x
+            self.y = y
+            self.width = width
+            self.height = height
+        }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            let rawX = try values.decode(Int.self, forKey: .x)
+            let rawY = try values.decode(Int.self, forKey: .y)
+            let rawWidth = try values.decode(Int.self, forKey: .width)
+            let rawHeight = try values.decode(Int.self, forKey: .height)
+
+            guard let x = UInt16(exactly: rawX),
+                  let y = UInt16(exactly: rawY),
+                  let width = UInt16(exactly: rawWidth),
+                  let height = UInt16(exactly: rawHeight) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .width,
+                    in: values,
+                    debugDescription: "Herdr layout rectangles must contain unsigned 16-bit values"
+                )
+            }
+
+            self.x = Int(x)
+            self.y = Int(y)
+            self.width = Int(width)
+            self.height = Int(height)
+        }
     }
 
     struct LayoutPane: Decodable, Sendable, Equatable {
@@ -265,6 +300,33 @@ nonisolated enum HerdrControl {
         let direction: String
         let ratio: Double
         let rect: Rect
+
+        private enum CodingKeys: String, CodingKey {
+            case id, direction, ratio, rect
+        }
+
+        init(id: String, direction: String, ratio: Double, rect: Rect) {
+            self.id = id
+            self.direction = direction
+            self.ratio = ratio
+            self.rect = rect
+        }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            id = try values.decode(String.self, forKey: .id)
+            direction = try values.decode(String.self, forKey: .direction)
+            ratio = try values.decode(Double.self, forKey: .ratio)
+            rect = try values.decode(Rect.self, forKey: .rect)
+            guard direction == "right" || direction == "down",
+                  ratio.isFinite, (0...1).contains(ratio) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .ratio,
+                    in: values,
+                    debugDescription: "Herdr layout splits require a right/down direction and a ratio from zero through one"
+                )
+            }
+        }
     }
 
     struct LayoutSnapshot: Decodable, Sendable, Equatable {
@@ -280,6 +342,58 @@ nonisolated enum HerdrControl {
 
         /// A layout that describes the tab as actually sized, not the TUI viewport.
         var carriesRealGeometry: Bool { geometry_controller != nil }
+
+        private enum CodingKeys: String, CodingKey {
+            case workspace_id, tab_id, zoomed, area, focused_pane_id, panes, splits, geometry_controller
+        }
+
+        init(workspace_id: String, tab_id: String, zoomed: Bool, area: Rect,
+             focused_pane_id: String, panes: [LayoutPane], splits: [LayoutSplit],
+             geometry_controller: GeometryController? = nil) {
+            self.workspace_id = workspace_id
+            self.tab_id = tab_id
+            self.zoomed = zoomed
+            self.area = area
+            self.focused_pane_id = focused_pane_id
+            self.panes = panes
+            self.splits = splits
+            self.geometry_controller = geometry_controller
+        }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            workspace_id = try values.decode(String.self, forKey: .workspace_id)
+            tab_id = try values.decode(String.self, forKey: .tab_id)
+            zoomed = try values.decode(Bool.self, forKey: .zoomed)
+            area = try values.decode(Rect.self, forKey: .area)
+            focused_pane_id = try values.decode(String.self, forKey: .focused_pane_id)
+            panes = try values.decode([LayoutPane].self, forKey: .panes)
+            splits = try values.decode([LayoutSplit].self, forKey: .splits)
+            geometry_controller = try values.decodeIfPresent(GeometryController.self, forKey: .geometry_controller)
+
+            let paneIDs = panes.map(\.pane_id)
+            let splitIDs = splits.map(\.id)
+            guard area.width > 0, area.height > 0,
+                  Set(paneIDs).count == paneIDs.count,
+                  Set(splitIDs).count == splitIDs.count,
+                  panes.allSatisfy({ Self.contains($0.rect, in: area) }),
+                  splits.allSatisfy({ Self.contains($0.rect, in: area) }),
+                  panes.isEmpty || paneIDs.contains(focused_pane_id) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .panes,
+                    in: values,
+                    debugDescription: "Herdr layout contains invalid, duplicate, or out-of-bounds geometry"
+                )
+            }
+        }
+
+        private static func contains(_ rect: Rect, in area: Rect) -> Bool {
+            guard rect.x >= area.x, rect.y >= area.y else { return false }
+            // Every component has already been narrowed to UInt16, so these
+            // additions cannot approach Swift Int's limit.
+            return rect.x + rect.width <= area.x + area.width
+                && rect.y + rect.height <= area.y + area.height
+        }
     }
 
     struct WorkspaceInfo: Decodable, Sendable, Equatable {
@@ -374,6 +488,28 @@ nonisolated enum HerdrControl {
             panes = try values.decode([PaneInfo].self, forKey: .panes)
             layouts = try values.decode([LayoutSnapshot].self, forKey: .layouts)
             agents = try values.decode([AgentInfo].self, forKey: .agents)
+
+            guard Set(workspaces.map(\.workspace_id)).count == workspaces.count else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .workspaces,
+                    in: values,
+                    debugDescription: "Herdr snapshot contains duplicate workspace IDs"
+                )
+            }
+            guard Set(tabs.map(\.tab_id)).count == tabs.count else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .tabs,
+                    in: values,
+                    debugDescription: "Herdr snapshot contains duplicate tab IDs"
+                )
+            }
+            guard Set(panes.map(\.pane_id)).count == panes.count else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .panes,
+                    in: values,
+                    debugDescription: "Herdr snapshot contains duplicate pane IDs"
+                )
+            }
         }
     }
 

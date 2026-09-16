@@ -50,7 +50,9 @@ nonisolated enum HerdrLayoutTree {
             case .split(let splitHorizontal, let first, let second):
                 let a = first.extent(horizontal: horizontal)
                 let b = second.extent(horizontal: horizontal)
-                return splitHorizontal == horizontal ? a + b : max(a, b)
+                guard splitHorizontal == horizontal else { return max(a, b) }
+                let (sum, overflow) = a.addingReportingOverflow(b)
+                return overflow ? Int.max : sum
             }
         }
     }
@@ -76,7 +78,10 @@ nonisolated enum HerdrLayoutTree {
     }
 
     private static func sameRows(_ left: [HerdrControl.LayoutPane], _ right: [HerdrControl.LayoutPane]) -> Bool {
-        let leftMaxX = left.map { $0.rect.x + $0.rect.width }.max() ?? 0
+        let leftMaxX = left.map { pane in
+            let (end, overflow) = pane.rect.x.addingReportingOverflow(pane.rect.width)
+            return overflow ? Int.max : end
+        }.max() ?? 0
         let rightMinX = right.map(\.rect.x).min() ?? 0
         return leftMaxX <= rightMinX
     }
@@ -92,7 +97,10 @@ nonisolated enum HerdrLayoutTree {
         let minStart = starts.min() ?? 0
         for candidate in starts.sorted() where candidate > minStart {
             let before = panes.filter { pane in
-                let end = horizontal ? pane.rect.x + pane.rect.width : pane.rect.y + pane.rect.height
+                let origin = horizontal ? pane.rect.x : pane.rect.y
+                let extent = horizontal ? pane.rect.width : pane.rect.height
+                let (end, overflow) = origin.addingReportingOverflow(extent)
+                guard !overflow else { return false }
                 return end <= candidate
             }
             let after = panes.filter { pane in
