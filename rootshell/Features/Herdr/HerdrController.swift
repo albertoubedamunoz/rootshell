@@ -201,7 +201,7 @@ final class HerdrController {
     var attachQueue: [String] = []
     var attachesInFlight: [String: UUID] = [:]
     var attachRetries: [String: Task<Void, Never>] = [:]
-    var snapshotRequestsInFlight: Set<String> = []
+    var snapshotRequestsInFlight: [String: UUID] = [:]
     /// Attaches that asked for another snapshot while one was in flight.
     var snapshotRetryWanted: Set<String> = []
     var lastLayouts: [String: HerdrControl.LayoutSnapshot] = [:]
@@ -217,6 +217,8 @@ final class HerdrController {
     var clientDetourMinimums: [String: (cols: Int, rows: Int)] = [:]
     var geometryTasks: [String: Task<Void, Never>] = [:]
     var activation = HerdrActivation()
+    /// Undrained output or a client-only resize needs a fresh server snapshot.
+    var resizeRecoveries: [String: HerdrResizeRecovery] = [:]
     weak var activationScene: UIWindowScene?
     /// Panes another client holds (terminal id), waiting on Take Control.
     var paneControlStates: [String: HerdrPaneControlState] = [:]
@@ -474,8 +476,11 @@ final class HerdrController {
                     case .output(let attachId, _, let bytes):
                         router.write(attachId: attachId, bytes)
                         return
-                    case .snapshot(let record):
-                        router.applySnapshot(record)
+                    case .snapshot:
+                        // Admission and replay share the main-actor recovery
+                        // state. The reader awaits this hop, so subsequent
+                        // output cannot overtake the accepted snapshot.
+                        break
                     case .authority(let record):
                         router.setQueryAuthority(attachId: record.attach_id, answersQueries: record.answers_queries)
                     case .tabLayout(let layout):
@@ -483,11 +488,17 @@ final class HerdrController {
                         // any redraw at the new size can reach a surface
                         // still on the old grid; released once resized.
                         let barrier = router.holdOutput(forPanes: layout.panes.map(\.pane_id))
-                        await MainActor.run {
+                        let controller = await MainActor.run {
                             guard let controller = HerdrController.controller(forGateway: gatewayUUID),
-                                  controller.streamGeneration == generation else { return }
-                            controller.handleTabLayout(layout, barrier: barrier)
+                                  controller.streamGeneration == generation else { return nil as HerdrController? }
+                            return controller
                         }
+                        guard let controller else {
+                            router.release(barrier: barrier)
+                            return
+                        }
+                        await controller.handleTabLayout(
+                            layout, barrier: barrier, generation: generation, sourceRouter: router)
                         return
                     case .gap(let gap):
                         // Bytes after a server-side drop must not parse; only
@@ -667,7 +678,7 @@ final class HerdrController {
 
     /// Closes a stream we decided is dead. `close()` suppresses the reader's
     /// own closed callback, so the recovery path is driven from here.
-    private func streamDidFail(_ channel: HerdrControlChannel, error: Error) async {
+    func streamDidFail(_ channel: HerdrControlChannel, error: Error) async {
         // No graceful close here: the writer may be the thing that is stuck.
         await channel.abort()
         guard self.channel === channel else { return }
@@ -897,17 +908,58 @@ final class HerdrController {
     /// A `tab.layout` record whose panes' output the router holds behind
     /// `barrier`. Whatever applying it does, the barrier ends: tracked by
     /// the release the layout armed, or released right here.
-    func handleTabLayout(_ layout: HerdrControl.LayoutSnapshot, barrier: UInt64) {
-        guard !didEnd else {
-            router.release(barrier: barrier)
+    func handleTabLayout(_ layout: HerdrControl.LayoutSnapshot, barrier: UInt64,
+                         generation: UUID, sourceRouter: HerdrOutputRouter) async {
+        guard !didEnd, streamGeneration == generation, router === sourceRouter else {
+            sourceRouter.release(barrier: barrier)
             return
+        }
+        // Keep the committed frames while every pane drains its old-grid
+        // bytes. The channel awaits this method, so a later layout cannot
+        // resize a surface past this boundary. New-grid output is held by
+        // the existing barrier until the parser confirms the resize below.
+        var failedDrains: Set<String> = []
+        if mode == .raw, capabilities.supportsSharedViewing {
+            failedDrains = await withTaskGroup(of: (String, Bool).self) { group in
+                var failed: Set<String> = []
+                for pane in layout.panes {
+                    guard let terminalID = paneInfos[pane.pane_id]?.terminal_id,
+                          let view = paneViews[terminalID], let old = view.herdrTargetGrid,
+                          old.cols != pane.rect.width || old.rows != pane.rect.height,
+                          let session = paneSessions[terminalID], let attachID = session.attachId else { continue }
+                    guard view.window != nil, !view.suppressPTYSizeUpdates,
+                          !Ghostty.isAppBackgroundedAtomic,
+                          !layout.zoomed || pane.pane_id == layout.focused_pane_id else {
+                        failed.insert(terminalID)
+                        continue
+                    }
+                    group.addTask {
+                        (terminalID, await session.drainBeforeLayout(
+                            barrier: barrier, attachID: attachID, generation: generation, router: sourceRouter))
+                    }
+                }
+                for await (terminalID, drained) in group where !drained {
+                    failed.insert(terminalID)
+                }
+                return failed
+            }
+        }
+        guard !didEnd, streamGeneration == generation, router === sourceRouter else {
+            sourceRouter.release(barrier: barrier)
+            return
+        }
+        if !failedDrains.isEmpty {
+            Self.logger.debug("herdr layout \(barrier) needs snapshot recovery for \(failedDrains.count) undrained panes")
         }
         for pane in layout.panes {
             if let terminalID = paneInfos[pane.pane_id]?.terminal_id {
                 paneSessions[terminalID]?.readFence = nil
                 paneSessions[terminalID]?.invalidateParserGrid()
+                if failedDrains.contains(terminalID) || resizeRecoveries[terminalID] != nil {
+                    invalidateResizeOutput(terminalID: terminalID, cols: pane.rect.width, rows: pane.rect.height)
+                }
                 if let attachID = attachIds[terminalID] {
-                    router.updateGrid(attachId: attachID, cols: 0, rows: 0)
+                    sourceRouter.updateGrid(attachId: attachID, cols: 0, rows: 0)
                 }
             }
         }
@@ -915,7 +967,7 @@ final class HerdrController {
         applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
         applyLayout(layout, barrier: barrier)
         if layoutReleases[barrier] == nil {
-            router.release(barrier: barrier)
+            sourceRouter.release(barrier: barrier)
         }
         // Applying the layout can make an already-parsed grid ready without
         // another size callback. Drain recovery work on this transition too.
@@ -958,6 +1010,7 @@ final class HerdrController {
         tabGeometryStates.removeAll()
         controlLayouts.removeAll()
         panesNeedingSnapshot.removeAll()
+        resizeRecoveries.removeAll()
         clientDetourMinimums.removeAll()
         // The other client may be gone by the time we reconnect; the next
         // attach pass finds out and prompts again if it is not.

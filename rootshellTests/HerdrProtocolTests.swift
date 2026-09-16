@@ -640,6 +640,104 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertTrue(state.select("restored", panes: ["p", "q"]))
     }
 
+    // MARK: Live resize
+
+    func testLiveResizeKeepsTheCommittedGridUntilServerLayoutArrives() {
+        for scale: CGFloat in [1, 2, 3] {
+            let cellPixels = UInt32(8 * scale)
+            let chrome: CGFloat = 16
+            // The host negotiates its new budget from these bounds, while
+            // the pane still renders output for the server's 100 columns.
+            for viewport: CGFloat in [336, 656, 815, 817, 976] {
+                let drawable = HerdrGeometry.clampedExtent(
+                    viewport, cells: 100, cellPixels: cellPixels,
+                    chrome: chrome, scale: scale, preserveGrid: true)
+                XCTAssertEqual(HerdrGeometry.cellBudget(extent: drawable, chrome: chrome, cell: 8), 100)
+                XCTAssertEqual(Int((drawable * scale).rounded(.down) - chrome * scale) / Int(cellPixels), 100)
+            }
+            // The committed layout finally changes; only now may the pane
+            // shrink to 80 columns, independently of the continuing drag.
+            let resized = HerdrGeometry.clampedExtent(
+                620, cells: 80, cellPixels: cellPixels,
+                chrome: chrome, scale: scale, preserveGrid: true)
+            XCTAssertEqual(HerdrGeometry.cellBudget(extent: resized, chrome: chrome, cell: 8), 80)
+        }
+    }
+
+    func testPinnedGridPreservesPartialCellsAndOtherModesStillShrink() {
+        let pinned = HerdrGeometry.clampedExtent(
+            819, cells: 100, cellPixels: 16, chrome: 16, scale: 2, preserveGrid: true)
+        XCTAssertEqual(pinned, 819)
+        let unpinned = HerdrGeometry.clampedExtent(
+            656, cells: 100, cellPixels: 16, chrome: 16, scale: 2)
+        XCTAssertEqual(unpinned, 656)
+    }
+
+    func testResizeRepairRequiresSnapshotRequestedAfterTheLatestGridChange() {
+        let wide = TerminalGridReports.Grid(cols: 100, rows: 40)
+        let narrow = TerminalGridReports.Grid(cols: 80, rows: 30)
+        let oldRequest = UUID(), narrowRequest = UUID(), finalRequest = UUID()
+        var recovery = HerdrResizeRecovery(grid: wide)
+        recovery.requestedSnapshot(oldRequest)
+        recovery = HerdrResizeRecovery(grid: narrow)
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: oldRequest, grid: narrow))
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: nil, grid: narrow))
+        recovery.requestedSnapshot(narrowRequest)
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: narrowRequest, grid: wide))
+        XCTAssertTrue(recovery.acceptsSnapshot(requestID: narrowRequest, grid: narrow))
+        // A -> B -> A does not make the first snapshot fresh again.
+        recovery = HerdrResizeRecovery(grid: wide)
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: oldRequest, grid: wide))
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: narrowRequest, grid: narrow))
+        recovery.requestedSnapshot(finalRequest)
+        XCTAssertTrue(recovery.acceptsSnapshot(requestID: finalRequest, grid: wide))
+    }
+
+    // MARK: Snapshot record deadlines
+
+    @MainActor
+    func testSnapshotAcknowledgedBeforeBackgroundStillExpiresOnResume() async throws {
+        let request = UUID()
+        var foregroundRecoveryActive = false
+        var waited = false
+        let expired = try await HerdrSnapshotRecordDeadline.waitForExpiry(
+            requestID: request,
+            pendingRequest: { request },
+            wait: {
+                // The RPC was acknowledged with no recovery active. The
+                // pushed record never arrives, even though health pings do.
+                XCTAssertFalse(foregroundRecoveryActive)
+                waited = true
+                foregroundRecoveryActive = true
+            }
+        )
+        XCTAssertTrue(waited)
+        XCTAssertTrue(foregroundRecoveryActive)
+        XCTAssertTrue(expired)
+    }
+
+    @MainActor
+    func testSnapshotRecordDeadlineIgnoresArrivedAndReplacedRequests() async throws {
+        let request = UUID()
+        // A record arrives, the pane detaches, or the stream changes while
+        // waiting; an old deadline must not tear down the current stream.
+        for replacement: UUID? in [nil, UUID()] {
+            var pending: UUID? = request
+            let expired = try await HerdrSnapshotRecordDeadline.waitForExpiry(
+                requestID: request,
+                pendingRequest: { pending },
+                wait: { pending = replacement }
+            )
+            XCTAssertFalse(expired)
+        }
+        let alreadyArrived = try await HerdrSnapshotRecordDeadline.waitForExpiry(
+            requestID: request,
+            pendingRequest: { nil },
+            wait: { XCTFail("A record already received needs no deadline") }
+        )
+        XCTAssertFalse(alreadyArrived)
+    }
+
     // MARK: Ordered local parser acknowledgements
 
     func testParserFenceConsumesEveryPossibleSplitWithoutLeakingToServer() throws {
@@ -679,6 +777,24 @@ final class HerdrProtocolTests: XCTestCase {
             XCTAssertTrue(result.acknowledged.isEmpty)
         }
         XCTAssertEqual(forwarded, unrelated)
+    }
+
+    func testRepeatedResizeFencesReuseOnlyAcknowledgedIDs() throws {
+        var fence = HerdrParserFence()
+        // This cancelled probe can reply at any time, even after the ID
+        // range has been used up by successful resizes.
+        let delayed = try XCTUnwrap(fence.issue())
+        for _ in 0..<20_000 {
+            let resize = try XCTUnwrap(fence.issue())
+            XCTAssertNotEqual(resize.id, delayed.id)
+            let result = fence.consume(Data("\u{1b}[?\(resize.id);0$y".utf8))
+            XCTAssertEqual(result.acknowledged, [resize.id])
+            XCTAssertTrue(result.forward.isEmpty)
+        }
+        let replacement = try XCTUnwrap(fence.issue())
+        let late = fence.consume(Data("\u{1b}[?\(delayed.id);0$y".utf8))
+        XCTAssertEqual(late.acknowledged, [delayed.id])
+        XCTAssertNotEqual(replacement.id, delayed.id)
     }
 
 }

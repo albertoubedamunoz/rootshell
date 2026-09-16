@@ -3423,7 +3423,6 @@ private struct SidebarTabRowItem: View, Equatable {
             roamProtocol: tab.activeRoamProtocol,
             tmuxBadge: tmuxBadge,
             tmuxBadgePalette: .currentTheme,
-            controlledElsewhere: tab.herdrIsControlledElsewhere,
             agentRow: agentRow,
             attentionBadge: attentionBadgesEnabled ? tab.attentionBadge : nil,
             // Card footer context: the project the engine resolved for the pane
@@ -3642,10 +3641,6 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
                 TmuxTabBadgeView(badge: tmuxBadge, palette: .currentTheme)
             }
 
-            if tab.herdrIsControlledElsewhere {
-                HerdrControlledElsewhereBadge()
-            }
-
             Text(title)
                 .font(.system(size: metrics.titleSize, weight: isSelected ? .semibold : .medium))
                 .foregroundColor(isActive ? .primary : .secondary)
@@ -3745,7 +3740,6 @@ private struct SidebarTabRow: View {
     var roamProtocol: MainView.RoamProtocol = .none
     var tmuxBadge: TmuxTabBadge? = nil
     var tmuxBadgePalette: TmuxTabBadgePalette = .fallback
-    var controlledElsewhere: Bool = false
     /// Agent inbox card state: non-nil turns the row into a three-line
     /// t3code-style card (status line / title / context). (id=agent-attention)
     var agentRow: AgentRowState? = nil
@@ -3884,11 +3878,6 @@ private struct SidebarTabRow: View {
 
             if let tmuxBadge {
                 TmuxTabBadgeView(badge: tmuxBadge, palette: tmuxBadgePalette)
-                    .opacity(recedingOpacity)
-            }
-
-            if controlledElsewhere {
-                HerdrControlledElsewhereBadge()
                     .opacity(recedingOpacity)
             }
 

@@ -507,11 +507,12 @@ final class SplitTreeHostingView: UIView {
               let size = pane.surfaceSize,
               size.cell_width_px > 0, size.cell_height_px > 0
         else { return nil }
-        // Another client sized the tab: lay the tree out in its rectangle.
-        // Smaller leaves a margin; larger overflows and is clipped.
+        // Raw v2 panes retain the committed layout during local resizing,
+        // including when this client owns geometry. Ratios must not squeeze
+        // the old grid into the new viewport before tab.layout arrives.
         guard let budget = tmuxWindowCells() else { return nil }
-        let foreign = pane.herdrForeignAreaCells
-        let cells = foreign.map { (cols: UInt16(clamping: $0.cols), rows: UInt16(clamping: $0.rows)) } ?? budget
+        let committed = pane.herdrCommittedAreaCells ?? pane.herdrForeignAreaCells
+        let cells = committed.map { (cols: UInt16(clamping: $0.cols), rows: UInt16(clamping: $0.rows)) } ?? budget
         // Each axis overflows on its own: a 120x24 tab in an 80x40 host is
         // wider than the viewport but shorter.
         let wideOverflow = cells.cols > budget.cols
@@ -822,11 +823,17 @@ final class SplitTreeHostingView: UIView {
         let scale = terminal.contentScaleFactor > 0 ? terminal.contentScaleFactor : terminal.traitCollection.displayScale
         guard scale > 0 else { return frame }
         let chrome = terminal.herdrLayoutChrome
+        let preserveGrid = terminal.herdrCommittedAreaCells != nil
         var clamped = frame
         clamped.size.width = HerdrGeometry.clampedExtent(
-            frame.width, cells: grid.cols, cellPixels: size.cell_width_px, chrome: chrome.width, scale: scale)
+            frame.width, cells: grid.cols, cellPixels: size.cell_width_px, chrome: chrome.width, scale: scale,
+            preserveGrid: preserveGrid)
         clamped.size.height = HerdrGeometry.clampedExtent(
-            frame.height, cells: grid.rows, cellPixels: size.cell_height_px, chrome: chrome.height, scale: scale)
+            frame.height, cells: grid.rows, cellPixels: size.cell_height_px, chrome: chrome.height, scale: scale,
+            preserveGrid: preserveGrid)
+        if preserveGrid, clamped.maxX > bounds.maxX || clamped.maxY > bounds.maxY {
+            clipsToBounds = true
+        }
         if terminal.herdrForeignAreaCells != nil {
             // Another client's grid may exceed this slot on either axis: that
             // axis grows to the exact grid, overflowing and clipped, while the

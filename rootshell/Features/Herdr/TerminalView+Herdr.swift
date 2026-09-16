@@ -182,6 +182,16 @@ extension Ghostty.TerminalView {
         herdrPaneController?.foreignAreaCells(for: self)
     }
 
+    /// Pin the raw v2 renderer and split positions to the committed server
+    /// grid while the host independently negotiates its new viewport size.
+    var herdrCommittedAreaCells: (cols: Int, rows: Int)? {
+        guard let controller = herdrPaneController, controller.mode == .raw,
+              controller.capabilities.supportsSharedViewing, herdrTargetGrid != nil,
+              let tabID = herdrPaneBinding?.tabId,
+              let layout = controller.controlLayouts[tabID] else { return nil }
+        return (cols: layout.area.width, rows: layout.area.height)
+    }
+
     /// Bare ESC on the covered gateway leaves control mode, like the tmux
     /// gateway. Panes and unrelated splits have no controller and are unaffected.
     @discardableResult

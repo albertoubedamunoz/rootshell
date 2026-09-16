@@ -51,6 +51,38 @@ nonisolated struct HerdrParserGrid {
     }
 }
 
+/// Every acknowledged snapshot request needs a pushed-record deadline,
+/// including requests acknowledged before resize recovery is armed.
+@MainActor
+enum HerdrSnapshotRecordDeadline {
+    static func waitForExpiry(
+        requestID: UUID,
+        pendingRequest: @MainActor () -> UUID?,
+        wait: @MainActor () async throws -> Void = { try await Task.sleep(for: .seconds(15)) }
+    ) async throws -> Bool {
+        guard pendingRequest() == requestID else { return false }
+        try await wait()
+        // Arrival, detach, replacement, or a new stream retires this deadline.
+        return pendingRequest() == requestID
+    }
+}
+
+/// Output lost during a resize is replaced only by a snapshot requested
+/// after that resize. A -> B -> A still creates a new recovery.
+nonisolated struct HerdrResizeRecovery {
+    let grid: TerminalGridReports.Grid
+    private(set) var requestID: UUID?
+
+    mutating func requestedSnapshot(_ id: UUID) {
+        requestID = id
+    }
+
+    func acceptsSnapshot(requestID: UUID?, grid: TerminalGridReports.Grid) -> Bool {
+        guard let expected = self.requestID else { return false }
+        return requestID == expected && grid == self.grid
+    }
+}
+
 /// Insertion can create a surface partway through a host layout. Reconcile
 /// after that pass, when its cell metrics are available, without scheduling
 /// one refresh per pane or retaining a host that has been dismantled.
@@ -115,15 +147,16 @@ nonisolated enum HerdrGeometry {
     /// additional cell needs clamping; trimming to the minimum extent exposes
     /// the host behind the terminal, outside Ghostty's effects.
     static func clampedExtent(_ extent: CGFloat, cells: Int, cellPixels: UInt32,
-                              chrome: CGFloat, scale: CGFloat) -> CGFloat {
+                              chrome: CGFloat, scale: CGFloat, preserveGrid: Bool = false) -> CGFloat {
         guard cells > 0, cellPixels > 0, scale > 0 else { return extent }
         let minimumPixels = CGFloat(cells) * CGFloat(cellPixels) + (chrome * scale).rounded()
         var minimum = minimumPixels / scale
         // Division by a 3x scale must not lose a pixel when set_size truncates.
         if floor(minimum * scale) < minimumPixels { minimum = minimum.nextUp }
-        // Recover the existing split math's sub-point shortfall into the divider.
-        // A larger shortfall is a real resize and must reach the server.
-        let fitted = minimum <= extent + 1 ? max(extent, minimum) : extent
+        // A raw v2 pane must not shrink ahead of the server while old-grid
+        // output is arriving. Its host still negotiates from viewport bounds.
+        // Other modes retain their existing sub-point rounding correction.
+        let fitted = preserveGrid || minimum <= extent + 1 ? max(extent, minimum) : extent
         let maximum = (minimumPixels + CGFloat(cellPixels) - 1) / scale
         return min(fitted, maximum)
     }

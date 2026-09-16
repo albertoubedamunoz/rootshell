@@ -451,10 +451,13 @@ extension HerdrController {
         attachRetries.removeValue(forKey: terminalId)?.cancel()
         attachesInFlight.removeValue(forKey: terminalId)
         panesNeedingSnapshot.remove(terminalId)
+        resizeRecoveries.removeValue(forKey: terminalId)
         view.isLogicallyFocused = false
         view.shouldBecomeFirstResponderWhenReady = false
         view.herdrTargetGrid = nil
         if let attachId = attachIds.removeValue(forKey: terminalId) {
+            snapshotRequestsInFlight.removeValue(forKey: attachId)
+            snapshotRetryWanted.remove(attachId)
             terminalByAttach.removeValue(forKey: attachId)
             router.unregister(attachId: attachId)
         }
