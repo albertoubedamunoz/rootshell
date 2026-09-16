@@ -45,9 +45,25 @@ enum MuxSessionResume {
                     windowId: windowId,
                     gatewayKey: gatewayKey,
                     sessionName: target.sessionName,
-                    wantsControl: target.wantsControlMode
+                    wantsControl: target.wantsControlMode && target.type == .tmux
                 ) {
                     return match
+                }
+                if let match = matchHerdrControl(
+                    tab: tab,
+                    model: model,
+                    windowId: windowId,
+                    config: config,
+                    sessionName: target.sessionName,
+                    wantsControl: target.wantsControlMode && target.type == .herdr
+                ) {
+                    return match
+                }
+                // herdr (control) is a gateway + projected tabs, not a raw
+                // binding. Skip the herdrAutoEnable shell fallback so a
+                // leftover gateway after detach is not treated as still live.
+                if target.type == .herdr, target.wantsControlMode {
+                    continue
                 }
                 if let match = matchRawOrPassthrough(
                     tab: tab,
@@ -112,7 +128,7 @@ enum MuxSessionResume {
             return AutoStartTarget(
                 type: .herdr,
                 sessionName: config.herdrSessionNameForConnection,
-                wantsControlMode: false
+                wantsControlMode: config.herdrControlModeEnabled
             )
         }
         if config.zmxAutoEnable {
@@ -159,6 +175,51 @@ enum MuxSessionResume {
             windowId: windowId,
             tabID: focusTab.id,
             displayName: "tmux “\(name)”"
+        )
+    }
+
+    /// Live herdr control-mode family (gateway + projected tabs), analogous
+    /// to `matchTmuxControl`. The gateway pty is a normal shell, so a raw
+    /// herdr binding is not present.
+    private static func matchHerdrControl(
+        tab: TabModel,
+        model: TabsModel,
+        windowId: String,
+        config: SSHConfig,
+        sessionName: String?,
+        wantsControl: Bool
+    ) -> Match? {
+        guard wantsControl else { return nil }
+        guard let controller = HerdrController.controller(forAnyTab: tab),
+              controller.isActive else {
+            return nil
+        }
+        let ssh = controller.gateway?.connectionConfig.sshConfigForHistory
+            ?? controller.gateway?.connectionConfig.underlyingSSHConfig
+        if let ssh {
+            guard ssh.host == config.host,
+                  ssh.port == config.port,
+                  ssh.username == config.username else {
+                return nil
+            }
+        }
+        if let sessionName {
+            let current = controller.sessionName ?? "default"
+            if current != sessionName { return nil }
+        }
+        let focusTab = model.tabs.first(where: {
+            $0.isHerdrWindow
+                && !$0.isHiddenTmuxWindow
+                && $0.owningGatewayTerminalUUID == controller.gatewayUUID
+        }) ?? model.tabs.first(where: {
+            $0.isHerdrGateway
+                && $0.splitTree.terminalLeaves.contains(where: { $0.herdrController === controller })
+        }) ?? tab
+        let name = controller.sessionName ?? sessionName ?? "herdr"
+        return Match(
+            windowId: windowId,
+            tabID: focusTab.id,
+            displayName: "herdr “\(name)”"
         )
     }
 

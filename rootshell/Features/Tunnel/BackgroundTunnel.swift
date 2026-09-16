@@ -75,6 +75,7 @@ final class BackgroundTunnel {
 
     /// TSSH packet MTU override (nil = default)
     let trzszMTU: Int?
+    let trzszConnectTimeoutSec: Int?
 
     /// TSSH UDP port range overrides (nil = global setting)
     let trzszPortMin: Int?
@@ -144,13 +145,14 @@ final class BackgroundTunnel {
 
     // MARK: - Initialization
 
-    init(profileID: UUID, sshConfig: SSHConfig, profileName: String, connectionProtocol: ConnectionProtocol = .ssh, trzszTransportMode: ProfileTransportMode = .default, trzszMTU: Int? = nil, trzszPortMin: Int? = nil, trzszPortMax: Int? = nil) {
+    init(profileID: UUID, sshConfig: SSHConfig, profileName: String, connectionProtocol: ConnectionProtocol = .ssh, trzszTransportMode: ProfileTransportMode = .default, trzszMTU: Int? = nil, trzszConnectTimeoutSec: Int? = nil, trzszPortMin: Int? = nil, trzszPortMax: Int? = nil) {
         self.profileID = profileID
         self.sshConfig = sshConfig
         self.profileName = profileName
         self.connectionProtocol = connectionProtocol
         self.trzszTransportMode = trzszTransportMode
         self.trzszMTU = trzszMTU
+        self.trzszConnectTimeoutSec = trzszConnectTimeoutSec
         self.trzszPortMin = trzszPortMin
         self.trzszPortMax = trzszPortMax
         self.statistics = TunnelStatistics(tunnelID: profileID)
@@ -372,6 +374,7 @@ final class BackgroundTunnel {
             udpPortMin: trzszPortMin ?? TrzszConfig.preferredUDPPortMin,
             udpPortMax: trzszPortMax ?? TrzszConfig.preferredUDPPortMax,
             mtu: trzszMTU ?? 0,
+            connectTimeoutSec: trzszConnectTimeoutSec,
             displayName: "tunnel \(sshConfig.displayName)",
             onHostKeyValidation: onHostKeyValidation
         )

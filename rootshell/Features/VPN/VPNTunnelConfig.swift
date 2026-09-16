@@ -54,6 +54,7 @@ struct VPNTunnelConfig: Codable, Sendable {
     let trzszUDPPortMin: Int?
     let trzszUDPPortMax: Int?
     let trzszMTU: Int?  // Packet MTU (separate from TUN device mtu)
+    let trzszConnectTimeoutSec: Int?
     let trzszServerPath: String?  // Full path to remote tsshd binary (nil = "tsshd" via PATH)
 
     // Shared
@@ -132,6 +133,7 @@ struct VPNTunnelConfig: Codable, Sendable {
             let socks5Address: String?
             // TSSH packet MTU (separate from TUN device mtu)
             let trzszMTU: Int?
+            let connectTimeoutSec: Int?
             // Shared
             let dnsServers: [String]?
             let excludedRoutes: [String]?
@@ -156,6 +158,7 @@ struct VPNTunnelConfig: Codable, Sendable {
             tsshServerID: tsshServerInfo?.serverID,
             socks5Address: socks5Address,
             trzszMTU: transportMTU ?? trzszMTU,
+            connectTimeoutSec: transportType == .tssh ? trzszConnectTimeoutSec : nil,
             dnsServers: dnsServers.isEmpty ? nil : dnsServers,
             excludedRoutes: excludedRoutes.isEmpty ? nil : excludedRoutes,
             mtu: mtu,
@@ -200,6 +203,7 @@ extension VPNTunnelConfig {
         self.trzszUDPPortMin = snapshot.trzszUDPPortMin
         self.trzszUDPPortMax = snapshot.trzszUDPPortMax
         self.trzszMTU = snapshot.trzszMTU
+        self.trzszConnectTimeoutSec = snapshot.trzszConnectTimeoutSec.flatMap { (1...120).contains($0) ? $0 : nil }
         self.trzszServerPath = snapshot.trzszServerPath
         self.dnsServers = snapshot.dnsServers
         self.excludedRoutes = snapshot.excludedRoutes

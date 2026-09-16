@@ -304,6 +304,9 @@ final class TabModel: Identifiable {
         didSet { markGroupingChanged(oldValue, isHerdrWindow) }
     }
 
+    /// Another herdr client sizes this tab, or holds its panes. Display only.
+    var herdrIsControlledElsewhere = false
+
     /// herdr's ids for a projected tab. The workspace groups the tab in the
     /// sidebar; its label is mirrored so grouping needs no controller lookup.
     var herdrTabId: String? {

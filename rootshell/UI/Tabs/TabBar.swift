@@ -1322,6 +1322,7 @@ struct TabBarItem: View, Equatable {
             roamProtocol: tab.activeRoamProtocol,
             tmuxBadge: tmuxBadge,
             tmuxBadgePalette: TmuxTabBadgePalette(theme: theme),
+            controlledElsewhere: tab.herdrIsControlledElsewhere,
             attentionBadge: attentionBadge,
             style: style,
             tabWidth: tabWidth,

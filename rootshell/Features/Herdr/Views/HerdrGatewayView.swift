@@ -10,10 +10,6 @@ struct HerdrGatewayView: View {
     @ScaledMetric(relativeTo: .largeTitle) private var iconSize: CGFloat = 48
     @State private var showsInstallInstructions = false
 
-    struct Fallback {
-        let isForced: Bool
-    }
-
     let tabID: UUID?
     let windowID: String
     let sessionName: String
@@ -22,11 +18,19 @@ struct HerdrGatewayView: View {
     let isActive: Bool
     let isCreating: Bool
     let errorMessage: String?
-    let fallback: Fallback?
+    /// Install or upgrade advice for this host, if any.
+    let upgrade: HerdrUpgradePrompt?
+    let isFallbackForced: Bool
+    /// Labels of other control streams on the session.
+    let otherClients: [String]
     let workspaces: () -> Void
     let newTab: () -> Void
     let retryConnection: () -> Void
     let detach: () -> Void
+    /// Types the install command into the gateway shell (detaching first).
+    let typeIntoShell: ((String) -> Void)?
+
+    private var showsCard: Bool { upgrade != nil || isFallbackForced || !otherClients.isEmpty }
 
     var body: some View {
         let theme = resolvedTheme
@@ -39,7 +43,7 @@ struct HerdrGatewayView: View {
             .tint(theme.accentColor)
             .environment(\.colorScheme, theme.colorScheme ?? systemColorScheme)
             .sheet(isPresented: $showsInstallInstructions) {
-                HerdrInstallInstructionsView(isFallbackForced: fallback?.isForced == true)
+                HerdrInstallInstructionsView(isFallbackForced: isFallbackForced, typeIntoShell: typeIntoShell)
                     .themedSheet(themeColors: theme.themeColors, accentColor: theme.accentColor,
                                  colorScheme: theme.colorScheme)
             }
@@ -59,7 +63,7 @@ struct HerdrGatewayView: View {
     private func gatewayContent(theme: ResolvedSheetTheme) -> some View {
         GeometryReader { geometry in
             let isCompact = geometry.size.width < 500
-            let usesColumns = fallback != nil && geometry.size.width >= 960
+            let usesColumns = showsCard && geometry.size.width >= 960
                 && !dynamicTypeSize.isAccessibilitySize
             // Preserve view identity when resizing changes the arrangement.
             let layout = usesColumns
@@ -70,8 +74,8 @@ struct HerdrGatewayView: View {
                 layout {
                     sessionSection
                         .frame(maxWidth: usesColumns ? 300 : .infinity)
-                    if let fallback {
-                        fallbackSection(fallback)
+                    if showsCard {
+                        adviceSection
                             .padding(isCompact ? 20 : 28)
                             .background(theme.themeColors?.rowBackground ?? Color.primary.opacity(0.035),
                                         in: RoundedRectangle(cornerRadius: 20))
@@ -152,55 +156,84 @@ struct HerdrGatewayView: View {
             .buttonStyle(.bordered)
     }
 
-    private func fallbackSection(_ fallback: Fallback) -> some View {
+    private var adviceSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("herdr fallback mode")
-                .font(.title3.weight(.semibold))
-            Text("You get most control mode functionality with regular herdr, including native text selection with automatic scrolling while selecting. No herdr modifications are required.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Text("The main difference is scrolling: scrollback is less smooth than fully pixel-smooth native scrolling, and global scrollback search is unavailable.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Text("If these scrolling and search improvements aren’t important to you, staying with regular herdr is the safer choice.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            if fallback.isForced {
+            if !otherClients.isEmpty {
+                Label(otherClients.count == 1
+                      ? String(localized: "Also viewed by \(otherClients[0])")
+                      : String(localized: "Also viewed by \(otherClients.count) other clients: \(otherClients.joined(separator: ", "))"),
+                      systemImage: "person.2")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            if let upgrade {
+                Text(upgrade.cardHeadline)
+                    .font(.title3.weight(.semibold))
+                Text(upgrade.message)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                if upgrade.reason == .controlStreamMissing {
+                    Text("Fallback mode gives you most control mode functionality with regular herdr. The fork adds pixel-smooth native scrolling, global scrollback search, and viewing one tab from several devices.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if isFallbackForced {
                 Text("Fallback mode is forced in Debug settings.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Button("Optional: Full Control Mode") {
-                showsInstallInstructions = true
+            if upgrade != nil {
+                HerdrInstallCommandBlock(typeIntoShell: typeIntoShell)
+                Button("Install Instructions") {
+                    showsInstallInstructions = true
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .multilineTextAlignment(.leading)
     }
 }
 
-private struct HerdrInstallInstructionsView: View {
+/// The fork's install command with copy and, when a host shell is at hand,
+/// a button that types it there.
+struct HerdrInstallCommandBlock: View {
+    let typeIntoShell: ((String) -> Void)?
+
+    var body: some View {
+        CopyableValueBlock(
+            title: String(localized: "Install on the herdr host"),
+            value: HerdrUpgradePrompt.installCommand,
+            font: .system(.callout, design: .monospaced)
+        )
+        if let typeIntoShell {
+            Button {
+                typeIntoShell(HerdrUpgradePrompt.installCommand)
+            } label: {
+                Label("Type into Gateway Shell", systemImage: "terminal")
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+}
+
+struct HerdrInstallInstructionsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     let isFallbackForced: Bool
-
-    private static let installCommand = "curl -fsSL https://github.com/kitknox/herdr/releases/download/rootshell-channel/install.sh | sh"
+    let typeIntoShell: ((String) -> Void)?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("Full control mode adds fully pixel-smooth native scrolling and global scrollback search.")
-                    Label("This optional upgrade uses rootshell’s experimental herdr fork. It may introduce breaking changes.", systemImage: "exclamationmark.triangle")
+                    Text("Full control mode adds pixel-smooth native scrolling, global scrollback search, and viewing one tab from several devices at once.")
+                    Label("This uses rootshell’s herdr fork, which tracks upstream herdr closely but may introduce breaking changes.", systemImage: "exclamationmark.triangle")
                         .fontWeight(.semibold)
-                    Text("Regular herdr already provides most control mode functionality. Staying with it is the safer choice if you don’t need these improvements.")
-                        .foregroundStyle(.secondary)
-                    CopyableValueBlock(
-                        title: String(localized: "Install on the herdr host"),
-                        value: Self.installCommand,
-                        font: .system(.callout, design: .monospaced)
-                    )
+                    HerdrInstallCommandBlock(typeIntoShell: typeIntoShell.map { type in
+                        { command in dismiss(); type(command) }
+                    })
                     Text("Run this command in a shell on the macOS or Linux host running herdr, then open a new shell to use the installed fork.")
                     Text("Save your work before restarting the intended herdr server or named session. Stopping a server terminates its pane processes. Installing the new binary alone does not upgrade an already running server.")
                     Text("From a shell outside herdr, restart that session with the installed fork, then detach and reconnect to control mode in rootshell.")
@@ -213,7 +246,7 @@ private struct HerdrInstallInstructionsView: View {
                 .frame(maxWidth: .infinity)
             }
             .background((sheetThemeColors?.background ?? Color(uiColor: .systemGroupedBackground)).ignoresSafeArea())
-            .navigationTitle("Optional Full Control Mode")
+            .navigationTitle("Install the herdr Fork")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(sheetThemeColors?.background ?? Color(uiColor: .systemGroupedBackground), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)

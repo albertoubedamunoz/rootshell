@@ -241,7 +241,9 @@ struct SessionPickerOverlay: View {
                     }
                 }
                 .scrollBounceBehavior(.basedOnSize)
+                #if !os(visionOS)
                 .scrollDismissesKeyboard(.never)
+                #endif
                 .onChange(of: selectedIndex) { _, index in
                     withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo(index, anchor: .top)
@@ -451,7 +453,7 @@ struct SessionPickerOverlay: View {
 
             if isSelected, session.type == .herdr, allowsHerdrControlAttach,
                session.supportsControlStream == false {
-                Text("Control mode is degraded. Upgrade herdr on the host.")
+                Text("No control stream; rootshell will use fallback mode. Install the rootshell herdr fork for full control mode.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

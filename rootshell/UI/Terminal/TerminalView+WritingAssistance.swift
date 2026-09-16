@@ -18,8 +18,10 @@ extension Ghostty.TerminalView {
                         }
                     } else if name == UIResponder.keyboardDidHideNotification,
                               !KeyboardTracker.shared.isSoftwareKeyboardVisible {
-                        self.invalidateWritingAssistance(preservingBulkDictation: true)
+                        self.invalidateWritingAssistance()
                         self.writingAssistanceSource = nil
+                    } else if name == UITextInputMode.currentInputModeDidChangeNotification {
+                        self.syncDictationSessionWithSignals()
                     }
                     // Repeated show notifications (including trait reloads)
                     // are not input-source changes. refresh compares identity.
@@ -45,7 +47,6 @@ extension Ghostty.TerminalView {
               let mode = textInputMode, let language = mode.primaryLanguage,
               language != "dictation", language != "emoji",
               markedTextString == nil, !koreanCompositionModel.hasActiveComposition,
-              !isLikelySystemDictationActive,
               activeKeyboardModifiers.isEmpty, virtualModTapModifier == nil,
               heldHardwareModifiers == .none else { return nil }
         if let binding = tmuxPaneBinding {
@@ -70,7 +71,7 @@ extension Ghostty.TerminalView {
     func refreshWritingAssistanceTraits() -> Bool {
         let source = eligibleWritingAssistanceSource
         if writingAssistanceSource != source {
-            invalidateWritingAssistance(preservingBulkDictation: true)
+            invalidateWritingAssistance()
             writingAssistanceSource = source
         }
         let mode = source == nil ? TerminalWritingAssistanceMode.off : writingAssistanceMode
@@ -115,13 +116,12 @@ extension Ghostty.TerminalView {
         }
     }
 
-    func invalidateWritingAssistance(resetDocument: Bool = false, preservingBulkDictation: Bool = false) {
+    /// Revocation ends QuickType authority only. A reset is a document
+    /// boundary and closes any dictation session with it.
+    func invalidateWritingAssistance(resetDocument: Bool = false) {
         mutateInputDocument(resetDocument ? .reset : .invalidate)
-        // Navigation and unclassified terminal input revoke the fallback too.
-        // Only keyboard lifecycle/source transitions opt into preserving it.
-        if !preservingBulkDictation { clearBulkDictationFallback() }
         if resetDocument {
-            lastDictationActivityAt = nil
+            dictationSettleDeadline = nil
             pendingDictationPlaceholderTokens.removeAll()
         }
     }
@@ -133,12 +133,6 @@ extension Ghostty.TerminalView {
         requestWritingAssistanceRequery()
     }
 
-    func clearBulkDictationFallback() {
-        lastBulkTextInputAt = nil
-        bulkDictationRange = nil
-        bulkDictationDocumentGeneration = nil
-    }
-
     @discardableResult
     func mutateInputDocument(_ mutation: TerminalCorrectionContext.Mutation) -> Bool {
         let generation = correctionContext.generation
@@ -146,12 +140,8 @@ extension Ghostty.TerminalView {
         let hadSelection = writingAssistanceSelection != nil
         guard correctionContext.apply(mutation) else { return false }
         if case .invalidate = mutation {
-            // Revocation cancels the local QuickType selection, not the
-            // dictation document. Source flips around dictation must preserve
-            // its range- and generation-checked follow-up replacement.
+            // Revocation cancels the local QuickType selection only.
             writingAssistanceSelection = nil
-        } else {
-            clearBulkDictationFallback()
         }
         if documentGeneration != correctionContext.documentGeneration {
             writingAssistanceSelection = nil
@@ -171,15 +161,17 @@ extension Ghostty.TerminalView {
     /// Corrections target the application's logical input, not its painted
     /// screen. Redraws and terminal status reports must not revoke that input.
     /// User navigation and session/source changes still revoke the local suffix.
-    func applyWritingAssistanceReplacement(_ range: NSRange, text: String, generation: UInt64) {
+    /// Returns false without side effects so the caller can try other
+    /// authorities before rejecting.
+    func applyWritingAssistanceReplacement(_ range: NSRange, text: String, generation: UInt64) -> Bool {
         guard refreshWritingAssistanceTraits(),
               let replacement = correctionContext.replacement(in: range, with: text, generation: generation) else {
-            rejectWritingAssistanceReplacement()
-            return
+            return false
         }
         // Commit exactly once at input convergence. Keep the corrected suffix
         // eligible for subsequent corrections and ordinary deletion.
         sendUserInput(replacement.payload, documentMutation: .correction(replacement))
         requestWritingAssistanceRequery()
+        return true
     }
 }

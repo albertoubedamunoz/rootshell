@@ -84,6 +84,7 @@ extension Ghostty.TerminalView {
     /// Mac Catalyst: dispatch via Carbon TIS — the UIKit textInputMode override
     /// is not honored by AppKit's input-source machinery on Catalyst.
     func applyInputLanguageSwitch(toPrimaryLanguage target: String) {
+        endDictationSession()
         invalidateWritingAssistance()
         #if targetEnvironment(macCatalyst)
         // Catalyst's TIS call triggers the native macOS input-source HUD,

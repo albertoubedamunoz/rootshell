@@ -11,8 +11,52 @@
 import Foundation
 import SwiftUI
 import UIKit
+import GhosttyKit
 
 extension Ghostty.TerminalView {
+
+    func cancelHerdrReturnToLive() {
+        guard let binding = herdrPaneBinding else { return }
+        HerdrController.controller(forGateway: binding.gatewayUUID)?
+            .cancelReturnToLive(terminalID: binding.terminalId)
+    }
+
+    /// An activation is still waiting to put this pane back at live output.
+    var hasPendingHerdrReturnToLive: Bool {
+        guard let binding = herdrPaneBinding,
+              let controller = HerdrController.controller(forGateway: binding.gatewayUUID) else { return false }
+        return controller.isReturningToLive(terminalID: binding.terminalId)
+    }
+
+    /// Touch state, handles, and the stale highlight are device concerns; a
+    /// Mac keeps its selection, which the user may still be about to copy.
+    func prepareHerdrReturnToLive() {
+        #if !targetEnvironment(macCatalyst)
+        clearTouchState()
+        selectionMouseDragActive = false
+        selectionWasTouchInitiated = false
+        hideSelectionHandles(animated: false)
+        hideSelectionMagnifier(animated: false)
+        // A local selection click clears the old highlight. Never synthesize
+        // a mouse event into an application that has enabled mouse reporting.
+        if let surface, hasTerminalTextSelection, !isMouseCaptured {
+            ghostty_surface_mouse_pos(surface, 0, 0, Ghostty.Input.Mods.none.cMods)
+            ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_LEFT, Ghostty.Input.Mods.none.cMods)
+            ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, Ghostty.Input.Mods.none.cMods)
+        }
+        #endif
+        _ = cancelMomentumScrolling()
+        enclosingTerminalScrollView?.prepareHerdrReturnToLive()
+    }
+
+    func finishHerdrReturnToLive() {
+        _ = cancelMomentumScrolling()
+        enclosingTerminalScrollView?.prepareHerdrReturnToLive()
+        // Let the next core scrollbar sample synchronize UIKit. Sending a
+        // scroll_to_row based on a pre-replay sample would undo this jump.
+        _ = performAction("scroll_to_bottom")
+    }
+
 
     /// The card is a plain hosted subview: the gateway terminal keeps first
     /// responder, its keyboard, and its gestures. Installed lazily so a
@@ -47,13 +91,19 @@ extension Ghostty.TerminalView {
             isActive: controller.isActive,
             isCreating: controller.emptySessionCreationID != nil,
             errorMessage: controller.newTabError ?? controller.connectionError,
-            fallback: controller.mode == .legacy ? .init(
-                isForced: controller.legacyFallbackForced
-            ) : nil,
+            upgrade: controller.upgradePrompt,
+            isFallbackForced: controller.mode == .legacy && controller.legacyFallbackForced,
+            otherClients: controller.otherConnections.map(\.displayLabel),
             workspaces: { [weak controller] in controller?.showWorkspaceOverview() },
             newTab: { [weak controller] in controller?.requestNewTab(workspaceID: nil) },
             retryConnection: { [weak controller] in controller?.applicationDidBecomeActive() },
-            detach: { [weak controller] in controller?.detach(closeGateway: false) }
+            detach: { [weak controller] in controller?.detach(closeGateway: false) },
+            typeIntoShell: { [weak self, weak controller] command in
+                // The shell must be visible to see what was typed; nothing is
+                // sent until the user presses Return.
+                controller?.detach(closeGateway: false)
+                self?.sendUserInput(Data(command.utf8))
+            }
         )
         // Split-host and tab-switch animations may be in flight; the card
         // must snap into place, never slide or grow.
@@ -80,6 +130,56 @@ extension Ghostty.TerminalView {
             host.view.layoutIfNeeded()
             herdrGatewayHost = host
         }
+    }
+
+    /// A pane another client holds keeps its last screen under a dimmed card
+    /// with Take Control. Installed and removed by the controller as the
+    /// pane's control state changes.
+    func updateHerdrPaneControlOverlay() {
+        guard let binding = herdrPaneBinding,
+              let controller = HerdrController.controller(forGateway: binding.gatewayUUID),
+              let state = controller.paneControlStates[binding.terminalId] else {
+            herdrPaneControlHost?.willMove(toParent: nil)
+            herdrPaneControlHost?.view.removeFromSuperview()
+            herdrPaneControlHost?.removeFromParent()
+            herdrPaneControlHost = nil
+            return
+        }
+        let tabId = binding.tabId
+        let content = HerdrPaneControlOverlay(
+            state: state,
+            offersUpgrade: !controller.capabilities.supportsSharedViewing,
+            takeControl: { [weak controller] in controller?.requestTakeControl(tabId: tabId) },
+            showUpgrade: { [weak controller] in controller?.presentUpgradeAlert(.sharedViewingNeedsUpgrade) }
+        )
+        UIView.performWithoutAnimation {
+            if let host = herdrPaneControlHost {
+                host.rootView = content
+                return
+            }
+            let host = UIHostingController(rootView: content)
+            host.view.backgroundColor = .clear
+            host.view.translatesAutoresizingMaskIntoConstraints = false
+            var responder: UIResponder? = next
+            while responder != nil, !(responder is UIViewController) { responder = responder?.next }
+            let parent = responder as? UIViewController
+            parent?.addChild(host)
+            addSubview(host.view)
+            NSLayoutConstraint.activate([
+                host.view.leadingAnchor.constraint(equalTo: leadingAnchor),
+                host.view.trailingAnchor.constraint(equalTo: trailingAnchor),
+                host.view.topAnchor.constraint(equalTo: topAnchor),
+                host.view.bottomAnchor.constraint(equalTo: bottomAnchor)
+            ])
+            host.didMove(toParent: parent)
+            herdrPaneControlHost = host
+        }
+    }
+
+    /// Cells the tab really has when another client sized it; the split host
+    /// lays the tree out in that rectangle instead of our container.
+    var herdrForeignAreaCells: (cols: Int, rows: Int)? {
+        herdrPaneController?.foreignAreaCells(for: self)
     }
 
     /// Bare ESC on the covered gateway leaves control mode, like the tmux
@@ -192,13 +292,23 @@ extension Ghostty.TerminalView {
     /// The split host picks the pane that borders the dragged divider so
     /// herdr moves that divider and no other.
     func requestHerdrResizeEdge(direction: String, cells: Int) {
+        herdrPaneController?.noteDividerDrag(in: self)
         herdrPaneController?.requestResize(self, direction: direction, cells: cells)
+    }
+
+    func requestHerdrFitToWindow() {
+        guard let tabID = containingTabID, let tab = herdrPaneController?.tabsModel.tab(withID: tabID) else { return }
+        herdrPaneController?.requestFitToWindow(tab)
     }
 
     /// The split host laid out; the controller re-derives the tab's cell
     /// budget from the host's bounds.
     func noteHerdrHostLayout() {
         herdrPaneController?.hostLayoutDidChange(for: self)
+    }
+
+    func refreshHerdrLayoutForSurfaceMetrics() {
+        herdrPaneController?.refreshLayoutForSurfaceMetrics(from: self)
     }
 
     func requestHerdrToggleZoom() {

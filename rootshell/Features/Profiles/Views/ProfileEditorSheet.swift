@@ -114,6 +114,7 @@ struct ProfileEditorSheet: View {
     @State private var hasExistingVNCPassword: Bool = false
     @State private var trzszTransportMode: ProfileTransportMode = .default
     @State private var trzszMTU: String = ""
+    @State private var trzszConnectTimeoutSec: String = ""
     @State private var trzszPortMin: String = ""
     @State private var trzszPortMax: String = ""
     @State private var trzszServerPath: String = ""
@@ -880,6 +881,18 @@ struct ProfileEditorSheet: View {
                 }
 
                 HStack {
+                    Text("Connection timeout (seconds)")
+                    Spacer()
+                    TextField("Default (30)", text: $trzszConnectTimeoutSec)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 140)
+                }
+                Text("Controls tssh connection, reconnection, and stream-opening timeouts. Shorter values allow failed connection attempts to retry sooner. Applies to terminal and VPN connections when a new transport is created.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack {
                     Text("MTU")
                     Spacer()
                     TextField("Default (1400)", text: $trzszMTU)
@@ -920,12 +933,15 @@ struct ProfileEditorSheet: View {
         } header: {
             Text("TSSH")
         } footer: {
-            Text("Empty fields inherit from Settings > Roam. tsshd Binary is the full path to the executable on the remote host (e.g. /usr/local/bin/tsshd); leave empty to find tsshd via PATH.")
+            Text("An empty connection timeout uses 30 seconds. Other empty fields inherit from Settings > Roam. tsshd Binary is the full path to the executable on the remote host (e.g. /usr/local/bin/tsshd); leave empty to find tsshd via PATH.")
         }
     }
 
     /// Validation warning for TSSH advanced fields
     private var trzszAdvancedWarning: String? {
+        if !isTrzszTimeoutValid {
+            return String(localized: "Connection timeout must be a whole number between 1 and 120 seconds.")
+        }
         if let mtu = Int(trzszMTU), (mtu < 100 || mtu > 9000) {
             return "MTU must be between 100 and 9000."
         }
@@ -1753,6 +1769,15 @@ struct ProfileEditorSheet: View {
 
     // MARK: - Validation
 
+    private var isTrzszTimeoutValid: Bool {
+        let value = trzszConnectTimeoutSec.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty || Int(value).map { (1...120).contains($0) } == true
+    }
+
+    private var parsedTrzszTimeout: Int? {
+        Int(trzszConnectTimeoutSec.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
     private var isFormValid: Bool {
         if connectionProtocol == .local { return nameValidationMessage == nil }
         if connectionProtocol == .vnc {
@@ -1763,6 +1788,7 @@ struct ProfileEditorSheet: View {
         portValidationMessage == nil &&
         usernameValidationMessage == nil &&
         targetKeyValidationMessage == nil &&
+        (connectionProtocol != .trzsz || isTrzszTimeoutValid) &&
         (!useJumpHost || isJumpHostValid)
     }
 
@@ -2017,12 +2043,13 @@ struct ProfileEditorSheet: View {
             }
 
             // Load TSSH advanced settings
+            if let timeout = profile.trzszConnectTimeoutSec { trzszConnectTimeoutSec = "\(timeout)" }
             if let mtu = profile.trzszMTU { trzszMTU = "\(mtu)" }
             if let portMin = profile.trzszPortMin { trzszPortMin = "\(portMin)" }
             if let portMax = profile.trzszPortMax { trzszPortMax = "\(portMax)" }
             if let serverPath = profile.trzszServerPath { trzszServerPath = serverPath }
             // Auto-expand advanced section if any override is set
-            if profile.trzszMTU != nil || profile.trzszPortMin != nil || profile.trzszPortMax != nil || profile.trzszServerPath != nil {
+            if profile.trzszConnectTimeoutSec != nil || profile.trzszMTU != nil || profile.trzszPortMin != nil || profile.trzszPortMax != nil || profile.trzszServerPath != nil {
                 showAdvancedTSSH = true
             }
 
@@ -2257,6 +2284,10 @@ struct ProfileEditorSheet: View {
     }
 
     private func saveProfile() {
+        guard connectionProtocol != .trzsz || isTrzszTimeoutValid else {
+            errorMessage = trzszAdvancedWarning
+            return
+        }
         errorMessage = nil
         if connectionProtocol == .local {
             saveLocalProfile()
@@ -2470,6 +2501,7 @@ struct ProfileEditorSheet: View {
                 updated.connectionProtocol = connectionProtocol
                 updated.trzszTransportMode = trzszTransportMode
                 updated.trzszMTU = Int(trzszMTU)
+                updated.trzszConnectTimeoutSec = parsedTrzszTimeout
                 updated.trzszPortMin = Int(trzszPortMin)
                 updated.trzszPortMax = Int(trzszPortMax)
                 let trimmedServerPath = trzszServerPath.trimmingCharacters(in: .whitespaces)
@@ -2508,7 +2540,7 @@ struct ProfileEditorSheet: View {
                     vpnDNSServers: vpnDNSServers,
                     vpnExcludedRoutes: vpnExcludedRoutes,
                     vpnBlockQUIC: vpnBlockQUIC,
-                    extensionPayload: ProfileExtensionPayload(themeName: profileThemeName.isEmpty ? nil : profileThemeName)
+                    extensionPayload: ProfileExtensionPayload(themeName: profileThemeName.isEmpty ? nil : profileThemeName, trzszConnectTimeoutSec: parsedTrzszTimeout)
                 )
                 persistDraftShortcut(for: created.id)
             }

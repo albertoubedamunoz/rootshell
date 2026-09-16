@@ -163,6 +163,16 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, SyncableRecord {
     /// Empty envelopes are omitted so existing SSH profile JSON stays unchanged.
     var extensionPayload: ProfileExtensionPayload?
 
+    /// Stored in the existing extensionData CloudKit envelope, not a new record field.
+    var trzszConnectTimeoutSec: Int? {
+        get { extensionPayload?.trzszConnectTimeoutSec.flatMap { (1...120).contains($0) ? $0 : nil } }
+        set {
+            var payload = extensionPayload ?? ProfileExtensionPayload()
+            payload.trzszConnectTimeoutSec = newValue.flatMap { (1...120).contains($0) ? $0 : nil }
+            extensionPayload = payload.isEmpty ? nil : payload
+        }
+    }
+
     // MARK: - VPN Configuration
 
     /// Whether VPN mode is enabled for this profile

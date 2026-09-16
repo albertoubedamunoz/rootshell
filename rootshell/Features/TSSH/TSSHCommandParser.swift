@@ -31,6 +31,7 @@ struct TrzszCommandParser {
         var sshPartialConfig: SSHCommandParser.PartialSSHConfig
         var transportMode: TrzszConfig.TransportMode
         var serverPath: String?
+        var connectTimeoutSec: Int? = nil
 
         /// Convert to full TrzszConfig with password
         func toTrzszConfig(password: String) -> TrzszConfig {
@@ -38,7 +39,8 @@ struct TrzszCommandParser {
             return TrzszConfig(
                 sshConfig: sshConfig,
                 transportMode: transportMode,
-                serverPath: serverPath
+                serverPath: serverPath,
+                connectTimeoutSec: connectTimeoutSec
             )
         }
     }

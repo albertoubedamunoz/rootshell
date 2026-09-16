@@ -206,7 +206,11 @@ extension Ghostty {
 
     init(terminalView: TerminalView) {
         self.terminalView = terminalView
+        #if targetEnvironment(macCatalyst)
+        self.scrollView = TabSwipeYieldingScrollView()
+        #else
         self.scrollView = UIScrollView()
+        #endif
         self.documentView = UIView()
 
         super.init(frame: .zero)
@@ -417,6 +421,17 @@ extension Ghostty {
     #endif
 
     #if targetEnvironment(macCatalyst)
+    /// The native pan is exclusive with the wrapper's tab swipe. Route the
+    /// horizontal-intent decision to the terminal so the pan stands aside.
+    func yieldNativePanToTrackpadTabSwipe(_ shouldYield: @escaping (UIPanGestureRecognizer) -> Bool) {
+        (scrollView as? TabSwipeYieldingScrollView)?.yieldsToTabSwipe = shouldYield
+    }
+
+    var isNativeScrollPanActive: Bool {
+        let state = scrollView.panGestureRecognizer.state
+        return state == .began || state == .changed
+    }
+
     private func isPointInCatalystScrollbarGutter(_ point: CGPoint) -> Bool {
         guard scrollView.isScrollEnabled,
               scrollView.showsVerticalScrollIndicator,
@@ -1706,6 +1721,16 @@ extension Ghostty {
     }
     #endif
 
+    /// Reset native gesture state before a one-shot herdr viewport jump.
+    func prepareHerdrReturnToLive() {
+        isLiveScrolling = false
+        isTouchScrolling = false
+        wasRubberBandingDuringScroll = false
+        // Stops UIKit deceleration without manufacturing a scroll gesture.
+        setContentOffsetFromTerminalSync(scrollView.contentOffset)
+        resetSmoothScrollOffset()
+    }
+
     /// Scroll to the bottom (live terminal view) in response to user input
     func scrollToBottom() {
         guard !terminalView.multiplexerScrollActive else { return }
@@ -1767,6 +1792,7 @@ extension Ghostty {
     // MARK: - UIScrollViewDelegate
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        terminalView.cancelHerdrReturnToLive()
         isLiveScrolling = true
         lastLiveScrollEventTime = Date().timeIntervalSinceReferenceDate
         isTouchScrolling = false
@@ -1882,6 +1908,16 @@ extension Ghostty {
             updateTerminalPositionForCurrentOffset()
             return
         }
+        // A herdr replay resizes the content under us, and Catalyst has no
+        // drag callbacks to tell UIKit's clamp from a trackpad scroll. Inferring
+        // a live scroll here would push the pre-replay row back into the
+        // terminal and cancel the pending jump to live output. A real scroll
+        // owns the pan gesture (or the scroll view), and still cancels it.
+        if terminalView.hasPendingHerdrReturnToLive,
+           !isNativeScrollPanActive, !isScrollViewUserInteracting {
+            updateTerminalPositionForCurrentOffset()
+            return
+        }
         ensureCatalystLiveScrollTracking()
         #else
         if applyTouchScrollBoostIfNeeded(scrollView) {
@@ -1903,6 +1939,7 @@ extension Ghostty {
     }
 
     func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
+        terminalView.cancelHerdrReturnToLive()
         // iOS status-bar tap. Use Ghostty's canonical scroll-to-top (same as
         // Cmd+Home) instead of letting UIKit animate the raw content offset:
         // the native animation only fires scrollViewDidScroll (not
@@ -2398,3 +2435,24 @@ extension Ghostty.TerminalScrollView: UIDropInteractionDelegate {
         terminalView.dropInteraction(interaction, performDrop: session)
     }
 }
+
+#if targetEnvironment(macCatalyst)
+// MARK: - Trackpad Tab-Swipe Yield
+
+/// UIKit asks a recognizer's own view before its delegate, and the built-in
+/// pan ignores `require(toFail:)` for scroll-type events. Once there is
+/// scrollback it begins on any trackpad delta and, being exclusive with the
+/// wrapper's tab swipe, starves it. Yield horizontal intent to the swipe here.
+final class TabSwipeYieldingScrollView: UIScrollView {
+    var yieldsToTabSwipe: ((UIPanGestureRecognizer) -> Bool)?
+
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === panGestureRecognizer,
+           let pan = gestureRecognizer as? UIPanGestureRecognizer,
+           yieldsToTabSwipe?(pan) == true {
+            return false
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+}
+#endif

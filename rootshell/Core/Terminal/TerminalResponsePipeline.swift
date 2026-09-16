@@ -213,6 +213,9 @@ final class TerminalResponsePipeline {
                 return
             }
             session.sendInput(filtered)
+        } else if let pane = session as? HerdrPaneSession {
+            sizeReportCarryOver.removeAll(keepingCapacity: true)
+            pane.sendResponse(data)
         } else {
             sizeReportCarryOver.removeAll(keepingCapacity: true)
             session.sendInput(data)

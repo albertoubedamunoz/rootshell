@@ -26,6 +26,9 @@ nonisolated struct TrzszTransferPayload: Codable, Sendable {
     /// Transport mode preference at time of transfer.
     let transportMode: TrzszConfig.TransportMode
 
+    /// Optional client timeout; older transfer payloads keep the default.
+    var connectTimeoutSec: Int? = nil
+
     /// Display name (e.g. "user@host") for the receiving tab's title.
     let displayName: String
 
