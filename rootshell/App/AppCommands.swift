@@ -121,6 +121,11 @@ struct AppCommands: Commands {
     @ObservedObject var shortcutState = MenuShortcutState.shared
 
     var body: some Commands {
+        #if os(visionOS)
+        // visionOS has no menu rail, and SwiftUI's command availability
+        // branching is unavailable there. Shortcuts use the responder chain.
+        EmptyCommands()
+        #else
         // All of these are 26+ only. Before that CatalystAppDelegate.buildMenu(with:)
         // builds every menu via UIMenuBuilder, and running both sources put duplicate
         // commands in File/Edit/View — UIKit then refuses to display a menu that
@@ -133,6 +138,7 @@ struct AppCommands: Commands {
             ShellCommands(shortcutState: shortcutState)
             WindowCommands(shortcutState: shortcutState)
         }
+        #endif
     }
 }
 

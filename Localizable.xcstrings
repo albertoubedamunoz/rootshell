@@ -198299,6 +198299,9 @@
         }
       }
     },
+    "Discovery needs an SSH connection." : {
+
+    },
     "Dismiss" : {
       "comment" : "Hardware key overlay: dismiss button",
       "localizations" : {

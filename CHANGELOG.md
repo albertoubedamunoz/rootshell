@@ -3,6 +3,34 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.12-149 - September 16, 2026
+
+### SSH Compatibility and Security
+
+- **Strict Key Exchange:** Added the OpenSSH strict key exchange extension when supported by the server.
+- **Server Greeting Compatibility:** Fixed connections failing host-key verification when a server sends greeting text before its SSH version line (RFC 4253 §4.2).
+- **Unknown Messages and Transport Pings:** Unknown SSH message types now receive the required `SSH_MSG_UNIMPLEMENTED` reply without breaking the connection (RFC 4253 §11.4). OpenSSH transport ping messages are also answered.
+- **Reliable Writes during Key Renewal:** Fixed terminal data being lost or writes failing during SSH key renewal. Writes now wait until the key exchange finishes (RFC 4253 §7.1).
+- **Correct Message Authentication Keys:** Fixed message authentication failures with `hmac-sha2-512` when the key exchange uses a shorter hash. Derived keys now expand to the required length (RFC 4253 §7.2).
+
+### tssh Connections
+
+- **Per-Profile Connection Timeout:** Set a connection timeout under advanced TSSH settings: 1–120 seconds, with a default of 30. It controls connection, reconnection and stream-opening waits for newly created terminal and VPN transports. Shorter values let failed attempts retry sooner; the setting follows saved profiles and session restoration.
+- **Auxiliary Channel Cleanup:** rootshell now cleans up auxiliary tssh channels when quitting and reaps leftover channels after reconnecting following a force quit. This prevents abandoned herdr control bridges from continuing to hold tabs or appear as connected clients. No server update is required for this cleanup.
+
+### herdr Shared Sessions
+
+- **Required Fork Upgrade:** If you use control mode with the rootshell herdr fork, upgrade the fork on each host before using build 149. Run `herdr update` with the fork selected, then save your work and restart the affected herdr server before reconnecting. Updating the binary alone does not update a running server; restarting the server terminates its pane processes.
+- **Shared Tab Viewing:** View the same herdr tab from several devices at once with the updated experimental rootshell herdr fork. Shared viewing requires a host advertising control-stream protocol 2 and shared-viewing support; regular herdr continues to work in fallback mode.
+- **More Reliable Attachment and Recovery:** Fixed blank panes on initial attachment and improved layout and output synchronization during app recovery. Fallback connections now retry after an endpoint disconnect.
+- **Image Uploads and Local Fork Discovery:** Pasting or dropping images into remote herdr panes in control mode now uploads them to the correct host. Local macOS attachments now find the fork installed in `~/.local/opt/herdr-rootshell/bin`.
+
+### Dictation and Terminal Fixes
+
+- **More Reliable Dictation Corrections:** Improved iPhone and iPad dictation corrections, including late results after recording stops and iPad live dictation. Corrections now track the text belonging to the dictation session, preventing them from erasing unrelated input after the cursor moves or another input method takes over. Korean input also handles late dictation corrections more reliably.
+- **Trackpad Tab Switching on macOS:** Fixed two-finger horizontal trackpad swipes failing to switch tabs on macOS in herdr control mode and other terminals with scrollback.
+- **Lower GPU Memory Use for Hidden Tabs:** Hidden tabs no longer recreate their Metal rendering buffers when the window or layout changes, keeping their GPU memory released.
+
 ## 1.0.12-147 - September 13, 2026
 
 ### herdr Control Mode
