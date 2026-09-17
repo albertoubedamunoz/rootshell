@@ -1,3 +1,4 @@
+#if !os(visionOS) && !targetEnvironment(macCatalyst)
 import UIKit
 
 extension Ghostty.TerminalView: TerminalTouchKeyboardHost {
@@ -94,3 +95,5 @@ extension Ghostty.TerminalView: TerminalTouchKeyboardHost {
 
     func touchKeyboardInvalidateSuggestions() { invalidateWritingAssistance() }
 }
+
+#endif

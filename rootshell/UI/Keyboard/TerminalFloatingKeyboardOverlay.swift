@@ -1,3 +1,4 @@
+#if !os(visionOS) && !targetEnvironment(macCatalyst)
 import UIKit
 
 /// Placement belongs to the terminal's window, and survives switching panes.
@@ -83,3 +84,5 @@ final class TerminalFloatingKeyboardOverlay: UIView {
         removeFromSuperview()
     }
 }
+
+#endif

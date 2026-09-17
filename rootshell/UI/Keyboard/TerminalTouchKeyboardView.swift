@@ -1,3 +1,4 @@
+#if !os(visionOS) && !targetEnvironment(macCatalyst)
 import UIKit
 import Combine
 import SwiftUI
@@ -1634,3 +1635,5 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
     }
 }
+
+#endif

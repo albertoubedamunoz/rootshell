@@ -3,6 +3,39 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.12-150 - September 17, 2026
+
+### iPadOS 27 Menu Fix
+
+- **Reliable Menu Commands:** Fixed menu commands failing to act when menu tracking lost the terminal's responder chain, including tab, split, search, scrolling and view actions. Pane actions target the focused pane in the correct window.
+
+### New Terminal Keyboard for iPhone and iPad
+
+- **Optional Terminal Keyboard:** Try the English QWERTY keyboard in Settings -> Terminal -> Terminal Keyboard. It is off by default, with an interactive preview in Settings. Use the keyboard button to switch to Apple's keyboard for other languages, swipe typing, emoji or dictation.
+- **Swipe between Key Pages:** Swipe across the keys to reach Symbols, Navigation and Shortcuts. Navigation includes arrows, Home, End, Page Up/Down, Delete and F1-F12. Choose Shell, Vim, Emacs, Nano or Agent shortcut presets.
+- **Agent Shortcuts:** The Agent preset adds common slash commands such as `/model`, `/copy`, `/compact`, `/resume` and `/review`. Buttons insert editable text; press Return to submit. Command availability depends on the agent you are running.
+- **Modifiers and Cursor Control:** Tap a modifier for the next key, double-tap to lock it, or hold it while typing. Hold Space and drag to move the cursor. Your customized toolbar buttons and stacked or cycling drawer rows carry over to the new keyboard.
+- **Optional Typing Assistance:** Local letter prediction helps resolve taps near letter boundaries and can be disabled for literal targeting. Optional spelling suggestions and completions apply only when tapped, adding a trailing space; words are never automatically replaced. Suggestions and haptics are off by default.
+- **Theme and Appearance Options:** The keyboard follows the active terminal theme by default, including tab and window overrides. Customize compact height, key glyphs and haptics. The existing double-space period setting is respected.
+
+### Custom Terminal Keyboard: Detached Mode on iPad
+
+- **System Detached Keyboard:** The new custom Terminal Keyboard can float using iPadOS's detached keyboard container, allowing it to move beyond the app window. Use System Detached Keyboard is on by default when the custom keyboard is enabled. To float or dock it, switch to Apple's keyboard, change its placement, then switch back using the toolbar's keyboard button.
+- **Float within rootshell:** To float the custom keyboard inside rootshell instead, turn off Use System Detached Keyboard in Terminal Keyboard settings. Pinch inward to float, drag the handle to move, and spread two fingers or double-tap the handle to dock.
+- **Detached Appearance Options:** Choose Regular, Clear or Solid glass and adjust tint strength, with a detached preview in Settings. Reduce Transparency uses a solid background.
+- **Stable Keyboard Layout:** Drawer changes animate while keeping terminal space in sync. Detached keyboard positioning stays stable as drawers open and close, and returning to hardware keyboard input collapses the software keys.
+
+### Image and PDF Uploads
+
+- **Drag to Upload:** Pasting images and PDFs into SSH-backed terminals was already supported. Build 150 adds dragging these files from Finder, Files, Photos or screenshot previews. Both paste and drag open the same upload sheet, including in tmux and herdr control-mode panes.
+- **Complete Documents and Ordered Attachments:** PDFs retain their full document rather than uploading an image preview. Multiple attachments keep their drop order, and image conversion runs in the background to keep the interface responsive.
+
+### Session Discovery and herdr
+
+- **Separate Automatic Discovery Settings:** Automatic remote session discovery now has its own setting and remains on by default. Automatic local discovery on standalone macOS defaults to off; saved preferences are preserved.
+- **Manual Discovery:** Manual discovery works even when automatic discovery is off, while still respecting which multiplexers you have enabled.
+- **Prefer the Local rootshell herdr Fork:** herdr launches and restored local sessions now prefer the rootshell fork in `~/.local/opt/herdr-rootshell/bin` when installed, with fallback to existing installations. To switch back to upstream, removing its PATH entry alone is insufficient; follow [the herdr control-mode guide](docs/herdr-control-mode.md), including removing the fork binary and restarting the intended server after saving your work.
+
 ## 1.0.12-149 - September 16, 2026
 
 ### SSH Compatibility and Security

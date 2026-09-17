@@ -1,3 +1,4 @@
+#if !os(visionOS) && !targetEnvironment(macCatalyst)
 import SwiftUI
 
 struct TerminalTouchKeyboardSettingsView: View {
@@ -213,3 +214,5 @@ private struct TerminalTouchKeyboardPreview: UIViewRepresentable {
     }
     static func dismantleUIView(_ view: TerminalTouchKeyboardView, coordinator: Coordinator) { view.cancelInteraction() }
 }
+
+#endif

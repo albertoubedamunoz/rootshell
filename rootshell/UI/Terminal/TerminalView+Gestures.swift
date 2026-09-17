@@ -1088,8 +1088,9 @@ extension Ghostty.TerminalView {
     /// Remote backends without an upload transport cannot use local attachment
     /// paths, but a mixed provider may still contain independently useful
     /// content. Preserve a web URL or plain text before rejecting the image.
-    private func pasteUsableRemoteRepresentationOrShowAttachmentAlert(
-        from providers: [NSItemProvider]
+    func pasteUsableRemoteRepresentationOrShowAttachmentAlert(
+        from providers: [NSItemProvider],
+        escapingURLs: Bool = false
     ) {
         let urlProviders = providers.filter {
             $0.hasItemConformingToTypeIdentifier(UTType.url.identifier)
@@ -1107,7 +1108,7 @@ extension Ghostty.TerminalView {
             return
         }
 
-        loadPastedNonFileURLs(from: urlProviders) { [weak self] text in
+        loadPastedNonFileURLs(from: urlProviders, escapingURLs: escapingURLs) { [weak self] text in
             guard let self else { return }
             if let text, !text.isEmpty, self.insertPastedText(text) {
                 return
@@ -1129,20 +1130,20 @@ extension Ghostty.TerminalView {
 
     private func showUnsupportedRemoteAttachmentAlert() {
         Ghostty.logger.warning(
-            "Ignoring pasted attachment for unsupported remote session: \(self.connectionConfig.lifecycleDebugKind)"
+            "Ignoring attachment for unsupported remote session: \(self.connectionConfig.lifecycleDebugKind)"
         )
         guard let presenter = self.findPresenterViewController(),
               presenter.presentedViewController == nil else { return }
         let alert = UIAlertController(
-            title: String(localized: "Attachment Paste Unavailable"),
-            message: String(localized: "This remote session does not support uploading pasted attachments."),
+            title: String(localized: "Attachment Upload Unavailable"),
+            message: String(localized: "This remote session does not support uploading attachments."),
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
         presenter.present(alert, animated: true)
     }
 
-    private func materializeLocalPastedAttachments(_ attachments: [PasteAttachment]) {
+    func materializeLocalPastedAttachments(_ attachments: [PasteAttachment]) {
         let temporaryDirectory = FileManager.default.temporaryDirectory
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -1225,6 +1226,7 @@ extension Ghostty.TerminalView {
 
     private func loadPastedNonFileURLs(
         from providers: [NSItemProvider],
+        escapingURLs: Bool,
         completion: @escaping (String?) -> Void
     ) {
         let group = DispatchGroup()
@@ -1237,7 +1239,9 @@ extension Ghostty.TerminalView {
                 defer { group.leave() }
                 guard let url else { return }
                 lock.lock()
-                values[index] = url.absoluteString
+                // Drops treat every URL as a shell argument. Escape before
+                // joining so multiple URLs remain separate arguments.
+                values[index] = escapingURLs ? Ghostty.Shell.escape(url.absoluteString) : url.absoluteString
                 lock.unlock()
             }
         }

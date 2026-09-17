@@ -19,17 +19,18 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
     /// - File URLs: Paths are shell-escaped and inserted
     /// - URLs: Escaped as-is (useful for curl, wget, etc.)
     /// - Plain text: Inserted without escaping (for commands)
-    /// - Images: Uploaded via SFTP for SSH sessions
+    /// - Images and PDFs: Uploaded wherever attachment paste supports SFTP
     static let acceptedDropTypes: [UTType] = [
         TabTransferCoordinator.dragUTType,
         .fileURL,
         .url,
         .plainText,
-        .image
+        .image,
+        .pdf
     ]
 
     /// Finder node type used on Mac Catalyst when dragging files from Finder
-    static let finderNodeType = "com.apple.finder.node"
+    static let finderNodeType = PasteAttachmentDetector.finderNodeType
 
     // MARK: - Delegate Methods
 
@@ -37,6 +38,9 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
         _ interaction: UIDropInteraction,
         canHandle session: UIDropSession
     ) -> Bool {
+        if session.items.contains(where: { $0.itemProvider.canLoadObject(ofClass: UIImage.self) }) {
+            return true
+        }
         #if targetEnvironment(macCatalyst)
         // On Mac Catalyst, accept drops with Finder nodes or standard types
         // Finder provides com.apple.finder.node instead of public.file-url
@@ -64,14 +68,6 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
         _ interaction: UIDropInteraction,
         performDrop session: UIDropSession
     ) {
-        // Process items in priority order matching macOS:
-        // 1. File URLs (paths escaped individually, joined by space)
-        // 2. URLs (escaped as-is)
-        // 3. Image data (e.g. screenshot preview thumbnails) — SSH sessions
-        //    upload via SFTP; other sessions write the image to a temp file and
-        //    insert its path so the running program (e.g. Claude Code) can read it
-        // 4. Plain text (not escaped)
-
         let itemProviders = session.items.map(\.itemProvider)
 
         // Log the offered types so drops that "do nothing" are diagnosable.
@@ -90,26 +86,46 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
             return
         }
 
-        let imageProviders = itemProviders.filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
-        let isSSHSession = attachmentUploadSSHConfig != nil
+        let sshConfig = attachmentUploadSSHConfig
+        if sshConfig != nil || !canMaterializeAttachmentsLocally {
+            PasteAttachmentDetector.loadDropped(from: itemProviders) { [weak self] result in
+                guard let self, self.surface != nil else { return }
+                if result.containsAttachments {
+                    if let sshConfig {
+                        if !result.attachments.isEmpty {
+                            self.showAttachmentUploadSheet(attachments: result.attachments, sshConfig: sshConfig)
+                        }
+                    } else {
+                        self.pasteUsableRemoteRepresentationOrShowAttachmentAlert(
+                            from: itemProviders,
+                            escapingURLs: true
+                        )
+                    }
+                    // Recognized attachments own the whole drop, just as with
+                    // paste. Never insert a failed attachment's local path.
+                    return
+                }
+                self.insertDroppedProviders(itemProviders)
+            }
+        } else {
+            insertDroppedProviders(itemProviders)
+        }
+    }
 
-        // Route dropped images. Used directly for image-only drops, and as a
-        // fallback when a file-URL / Finder-node drop resolves to nothing — a
-        // screenshot preview thumbnail commonly offers only image data and/or a
-        // *promised* file rather than a concrete on-disk file URL.
-        let handleImages: () -> Void = { [weak self] in
-            guard let self, !imageProviders.isEmpty else { return }
-            if isSSHSession {
-                self.loadImagesForUpload(from: imageProviders)
-            } else {
-                self.loadImagesForLocalInsertion(from: imageProviders)
+    /// Local drops prefer their original paths; remote drops arrive here only
+    /// after attachment detection has ruled out images and PDFs.
+    private func insertDroppedProviders(_ itemProviders: [NSItemProvider]) {
+        let handleAttachments: () -> Void = { [weak self] in
+            guard let self, self.canMaterializeAttachmentsLocally else { return }
+            PasteAttachmentDetector.loadDropped(from: itemProviders) { [weak self] result in
+                self?.materializeLocalPastedAttachments(result.attachments)
             }
         }
 
         // Try file URLs first
         let fileProviders = itemProviders.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
         if !fileProviders.isEmpty {
-            loadFileURLs(from: fileProviders, fallback: handleImages)
+            loadFileURLs(from: fileProviders, fallback: handleAttachments)
             return
         }
 
@@ -117,7 +133,7 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
         // On Mac Catalyst, Finder provides com.apple.finder.node instead of public.file-url
         let finderProviders = itemProviders.filter { $0.hasItemConformingToTypeIdentifier(Self.finderNodeType) }
         if !finderProviders.isEmpty {
-            loadFinderNodes(from: finderProviders, fallback: handleImages)
+            loadFinderNodes(from: finderProviders, fallback: handleAttachments)
             return
         }
         #endif
@@ -129,9 +145,12 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
             return
         }
 
-        // Dropped image with no usable file URL (e.g. screenshot preview thumbnail)
-        if !imageProviders.isEmpty {
-            handleImages()
+        if itemProviders.contains(where: {
+            $0.canLoadObject(ofClass: UIImage.self)
+                || $0.hasItemConformingToTypeIdentifier(UTType.image.identifier)
+                || $0.hasItemConformingToTypeIdentifier(UTType.pdf.identifier)
+        }) {
+            handleAttachments()
             return
         }
 
@@ -324,114 +343,6 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
                     self?.insertDroppedContent(text)
                 }
             }
-        }
-    }
-
-    // MARK: - Image Upload for SSH Sessions
-
-    /// Load dropped images and route through the attachment upload sheet
-    private func loadImagesForUpload(from providers: [NSItemProvider]) {
-        guard let sshConfig = attachmentUploadSSHConfig else { return }
-
-        let group = DispatchGroup()
-        var attachments: [PasteAttachment] = []
-        let lock = NSLock()
-
-        for provider in providers {
-            group.enter()
-
-            if provider.canLoadObject(ofClass: UIImage.self) {
-                _ = provider.loadObject(ofClass: UIImage.self) { image, error in
-                    defer { group.leave() }
-                    guard error == nil, let image = image as? UIImage else { return }
-
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyyMMdd-HHmmss"
-                    let name = "drop-\(formatter.string(from: Date())).png"
-                    let data = image.pngData() ?? Data()
-
-                    // Generate thumbnail
-                    let scale = min(120 / image.size.width, 120 / image.size.height, 1.0)
-                    let thumbSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-                    let renderer = UIGraphicsImageRenderer(size: thumbSize)
-                    let thumbnail = renderer.image { _ in
-                        image.draw(in: CGRect(origin: .zero, size: thumbSize))
-                    }
-
-                    let attachment = PasteAttachment(
-                        data: data,
-                        suggestedName: name,
-                        uti: .png,
-                        thumbnail: thumbnail
-                    )
-                    lock.lock()
-                    attachments.append(attachment)
-                    lock.unlock()
-                }
-            } else {
-                group.leave()
-            }
-        }
-
-        group.notify(queue: .main) { [weak self] in
-            guard let self, !attachments.isEmpty else { return }
-            self.showAttachmentUploadSheet(attachments: attachments, sshConfig: sshConfig)
-        }
-    }
-
-    // MARK: - Image Insertion for Local Sessions
-
-    /// Write dropped image data to a temporary file and insert its path into the
-    /// terminal. Used for local (non-SSH) sessions where a dragged image — most
-    /// commonly a screenshot preview thumbnail — arrives as image data (or a
-    /// promised file) rather than a concrete on-disk file URL. Writing to our own
-    /// temp directory guarantees the inserted path is readable by the shell's
-    /// child processes (e.g. Claude Code), and `insertDroppedContent` delivers it
-    /// as a bracketed paste so the running program detects it as an image. This
-    /// mirrors native macOS Ghostty, where a dragged screenshot inserts a path.
-    private func loadImagesForLocalInsertion(from providers: [NSItemProvider]) {
-        let group = DispatchGroup()
-        var paths: [String] = []
-        let lock = NSLock()
-        let tmpDir = FileManager.default.temporaryDirectory
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd-HHmmss"
-        let stamp = formatter.string(from: Date())
-
-        for provider in providers {
-            guard provider.canLoadObject(ofClass: UIImage.self) else { continue }
-            group.enter()
-            _ = provider.loadObject(ofClass: UIImage.self) { image, error in
-                defer { group.leave() }
-                guard error == nil,
-                      let image = image as? UIImage,
-                      let data = image.pngData() else {
-                    if let error = error {
-                        Ghostty.logger.warning("Failed to load dropped image: \(error.localizedDescription)")
-                    }
-                    return
-                }
-
-                // Append a UUID so quick successive drops (same second) never
-                // collide and overwrite a file whose path was already inserted.
-                let unique = UUID().uuidString.prefix(8)
-                let fileURL = tmpDir.appendingPathComponent("dropped-image-\(stamp)-\(unique).png")
-                do {
-                    try data.write(to: fileURL, options: .atomic)
-                    let escapedPath = Ghostty.Shell.escape(fileURL.path)
-                    lock.lock()
-                    paths.append(escapedPath)
-                    lock.unlock()
-                } catch {
-                    Ghostty.logger.warning("Failed to write dropped image to temp file: \(error.localizedDescription)")
-                }
-            }
-        }
-
-        group.notify(queue: .main) { [weak self] in
-            guard !paths.isEmpty else { return }
-            let content = paths.joined(separator: " ")
-            self?.insertDroppedContent(content)
         }
     }
 

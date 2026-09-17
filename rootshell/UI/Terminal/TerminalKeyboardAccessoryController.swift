@@ -44,12 +44,12 @@ extension TerminalKeyboardAccessoryHost {
 final class TerminalKeyboardAccessoryController: NSObject {
     private weak var host: TerminalKeyboardAccessoryHost?
 
+    #if !os(visionOS) && !targetEnvironment(macCatalyst)
     private(set) var touchKeyboard: TerminalTouchKeyboardView?
     private var touchKeyboardInputView: TerminalTouchKeyboardInputView?
     private var temporarilyUseSystemKeyboard = false
     private var touchKeyboardEnabled = SettingsStore.shared.value(Settings.Keyboard.touchEnabled)
     private var touchSystemFloating = SettingsStore.shared.value(Settings.Keyboard.touchSystemFloating)
-    private var touchKeyboardRequestedWithHardware = false
     private var touchKeyboardController: UIInputViewController?
 
     private var floatingKeyboardOverlay: TerminalFloatingKeyboardOverlay?
@@ -81,14 +81,10 @@ final class TerminalKeyboardAccessoryController: NSObject {
     }
 
     var usesTouchKeyboard: Bool {
-        #if os(visionOS) || targetEnvironment(macCatalyst)
-        return false
-        #else
         guard touchKeyboardEnabled, !temporarilyUseSystemKeyboard, touchKeyboard != nil,
               !toolbarOnlyMode, host?.keyboardAIAgentOverlayActive != true else { return false }
         guard !hidesTouchKeyboardForHardware else { return false }
         return true
-        #endif
     }
 
     func cancelTouchKeyboardInteraction() { touchKeyboard?.cancelInteraction() }
@@ -176,7 +172,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
     }
 
     private func configureTouchKeyboard(delegate: KeyboardButtonDelegate) {
-        #if !os(visionOS) && !targetEnvironment(macCatalyst)
         guard let terminal = host as? Ghostty.TerminalView else { return }
         let keyboard = TerminalTouchKeyboardView()
         keyboard.host = terminal
@@ -279,8 +274,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
         }
         cancellables.insert(AnyCancellable { NotificationCenter.default.removeObserver(inactive) })
         cancellables.insert(AnyCancellable { NotificationCenter.default.removeObserver(active) })
-
-        #endif
     }
 
     /// The custom keyboard owns its height; UIKit's last frame notification
@@ -288,9 +281,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// directly during terminal layout, without querying UIKit's input window
     /// (which can still have its old frame or exclude the bottom safe area).
     var dockedTouchKeyboardFrameInScreen: CGRect? {
-        #if os(visionOS) || targetEnvironment(macCatalyst)
-        return nil
-        #else
         guard usesTouchKeyboard, touchKeyboardPlacement == .docked,
               let host, host.keyboardIsFirstResponder,
               let window = host.keyboardHostView.window,
@@ -301,7 +291,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
         let frame = window.convert(window.bounds, to: nil)
         return CGRect(x: frame.minX, y: frame.maxY - height,
                       width: frame.width, height: height)
-        #endif
     }
 
     private func updateTouchKeyboardReturnButton() {
@@ -311,6 +300,20 @@ final class TerminalKeyboardAccessoryController: NSObject {
             keyboardAccessory?.toolbarView.onTouchKeyboardRequested = nil
         }
     }
+
+    #else
+    // Keep the system keyboard on unsupported platforms even if an enabled
+    // preference arrives through settings sync or config import.
+    var inputViewController: UIInputViewController? { nil }
+    var usesTouchKeyboard: Bool { false }
+    var dockedTouchKeyboardFrameInScreen: CGRect? { nil }
+    func cancelTouchKeyboardInteraction() {}
+    func dismissFloatingTouchKeyboard() {}
+    func scheduleFloatingTouchKeyboardUpdate() {}
+    private func configureTouchKeyboard(delegate: KeyboardButtonDelegate) {}
+    #endif
+
+    private var touchKeyboardRequestedWithHardware = false
 
     var keyboardAccessory: KeyboardAccessoryView?
     #if os(visionOS)
@@ -624,6 +627,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // inputAccessoryView first. Publish the destination-mode intrinsic
         // height from both paths so toolbar-only entry is correct in one pass.
         applyBottomSafeAreaStrip()
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
         // Do not replace a suppressed custom keyboard with Apple's QWERTY.
         // A system/simulator "show software keyboard" preference may otherwise
         // present it on launch even though a hardware keyboard is attached.
@@ -637,6 +641,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
             // software and hardware keyboard transitions.
             return host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad ? nil : touchKeyboardInputView
         }
+        #endif
         guard toolbarOnlyMode else { return nil }
         guard toolbarOnlyUsesPrimaryInputView else { return emptyInputView }
         guard let host,
@@ -809,10 +814,12 @@ final class TerminalKeyboardAccessoryController: NSObject {
         keyboardVisibilityTask = Task { @MainActor [weak self] in
             for await visible in KeyboardTracker.shared.softwareKeyboardVisibilityDidChangeStream() {
                 guard let self else { break }
+                #if !os(visionOS) && !targetEnvironment(macCatalyst)
                 if !visible && self.touchKeyboardPlacement != .floating && KeyboardTracker.shared.isHardwareKeyboard && self.touchKeyboardRequestedWithHardware {
                     self.touchKeyboardRequestedWithHardware = false
                     self.host?.keyboardReloadInputViews()
                 }
+                #endif
                 self.scheduleKeyboardToolbarUpdate(reason: "softwareVisibility")
             }
         }
@@ -901,7 +908,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     func tearDown() {
         dismissFloatingTouchKeyboard()
-        touchKeyboard?.cancelInteraction()
+        cancelTouchKeyboardInteraction()
         keyboardStateDebounceTimer?.invalidate()
         keyboardStateDebounceTimer = nil
         keyboardStateTask?.cancel()
@@ -915,7 +922,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     func setAIAgentOverlayActive(_ active: Bool) {
         if active { dismissFloatingTouchKeyboard() } else { scheduleFloatingTouchKeyboardUpdate() }
-        if active { touchKeyboard?.cancelInteraction() }
+        if active { cancelTouchKeyboardInteraction() }
         updateCollapsedKeyboardToolbarButtonVisibility()
         EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
         host?.keyboardReloadInputViews()
@@ -924,7 +931,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     func enterToolbarOnlyMode(pinned: Bool = false) {
         dismissFloatingTouchKeyboard()
         touchKeyboardRequestedWithHardware = false
-        touchKeyboard?.cancelInteraction()
+        cancelTouchKeyboardInteraction()
         _ = emptyInputView
         emptyInputViewHeightConstraint?.constant = 0
         toolbarOnlyHidesToolbar = usesHideIntent
@@ -993,7 +1000,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     func resetFocusLossState() {
         dismissFloatingTouchKeyboard()
-        touchKeyboard?.cancelInteraction()
+        cancelTouchKeyboardInteraction()
         if toolbarOnlyMode {
             toolbarOnlyMode = false
             keyboardAccessory?.setDismissButtonShowsRestore(false)

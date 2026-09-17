@@ -1,3 +1,4 @@
+#if !os(visionOS) && !targetEnvironment(macCatalyst)
 import UIKit
 
 /// Keeps UIKit's input region self-sizing, including while content floats in
@@ -317,3 +318,5 @@ private final class TerminalTouchKeyboardFloatingPanel {
         }
     }
 }
+
+#endif

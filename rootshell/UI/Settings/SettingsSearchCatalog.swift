@@ -1048,7 +1048,11 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         EmptyView()
         #endif
     case .touchKeyboard:
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
         TerminalTouchKeyboardSettingsView()
+        #else
+        EmptyView()
+        #endif
     case .toolbarKeys:
         #if !targetEnvironment(macCatalyst)
         KeyboardToolbarSettingsView()
