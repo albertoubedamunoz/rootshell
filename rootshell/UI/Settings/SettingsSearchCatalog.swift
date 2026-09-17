@@ -24,6 +24,7 @@ enum SettingsSearchDestination: String, Hashable, CaseIterable {
     case battery
     case visor
     case toolbarKeys
+    case touchKeyboard
     case newTabAction
     case keyboardShortcuts
     case modTap
@@ -152,6 +153,11 @@ extension SettingsSearchDestination {
         case .visor:
             Meta(section: .appearance, title: String(localized: "Visor"), systemImage: "rectangle.topthird.inset.filled",
                  keywords: ["hotkey", "drop-down", "quake", "slide", "overlay", "global shortcut"])
+        case .touchKeyboard:
+            Meta(section: .terminal, title: String(localized: "Terminal Keyboard"), systemImage: "keyboard.badge.ellipsis",
+                 keywords: ["custom keyboard", "qwerty", "vim", "emacs", "nano", "agent", "suggestions", "haptics",
+                            "letter prediction", "typing accuracy", "touch accuracy", "detached", "floating",
+                            "glass", "tint", "transparency", "system detached keyboard", "app window"])
         case .toolbarKeys:
             Meta(section: .terminal, title: String(localized: "Toolbar Keys"), systemImage: "keyboard",
                  keywords: ["toolbar", "custom keys"])
@@ -324,6 +330,8 @@ extension SettingsSearchDestination {
             return AppIconManager.isSupported
         case .transparency:
             return SearchBuild.isCatalyst
+        case .touchKeyboard:
+            return !SearchBuild.isCatalyst && !SearchBuild.isVisionOS
         case .toolbarKeys, .promptAndUsername, .bookmarkedLocations, .locationDiary:
             return !SearchBuild.isCatalyst
         case .liveActivity:
@@ -1039,6 +1047,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         #else
         EmptyView()
         #endif
+    case .touchKeyboard:
+        TerminalTouchKeyboardSettingsView()
     case .toolbarKeys:
         #if !targetEnvironment(macCatalyst)
         KeyboardToolbarSettingsView()

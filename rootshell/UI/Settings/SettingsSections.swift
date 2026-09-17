@@ -359,6 +359,12 @@ struct SettingsTerminalSection: View {
             // MARK: - Keyboard
             Section {
                 #if !targetEnvironment(macCatalyst)
+                #if !os(visionOS)
+                NavigationLink(value: SettingsSearchDestination.touchKeyboard) {
+                    Label("Terminal Keyboard", systemImage: "keyboard.badge.ellipsis")
+                }
+                .themedRow()
+                #endif
                 Picker(selection: $writingAssistance) {
                     ForEach(TerminalWritingAssistanceMode.allCases, id: \.self) { mode in
                         Text(mode.title).tag(mode)

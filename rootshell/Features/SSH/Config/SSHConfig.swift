@@ -782,7 +782,7 @@ struct SSHConfig: Codable, Hashable {
     /// with a control error line instead of a bare non-zero exit so the
     /// client can tell "not installed" from "connection dropped".
     static func herdrControlCommandLine(sessionName: String?, localAttachment: LocalMultiplexerAttachment? = nil) -> String {
-        let executable = localAttachment.map { LoginShellCommand.singleQuoted($0.executable) } ?? "herdr"
+        let executable = localAttachment.map { LoginShellCommand.singleQuoted($0.launchExecutable) } ?? "herdr"
         let bridge = localAttachment?.command(arguments: ["control"]) ?? "herdr\(herdrSessionArgument(sessionName)) control"
         // Identity rides in the environment: a flag would make an older
         // binary exit 2, which reads as "no control stream".
@@ -825,7 +825,7 @@ struct SSHConfig: Codable, Hashable {
     /// Reads "herdrCustomCommand" and "herdrSessionName" from UserDefaults.
     static var herdrExecCommand: String {
         if let custom = herdrGlobalCustomCommand {
-            return custom
+            return LoginShellCommand.runInLoginShell(custom, prependPATH: true)
         }
         return herdrExecCommandLine(sessionName: herdrGlobalSessionName)
     }
@@ -855,7 +855,7 @@ struct SSHConfig: Codable, Hashable {
     /// "herdrCustomCommand" still wins.
     var herdrExecCommandForConnection: String {
         if let custom = Self.herdrGlobalCustomCommand {
-            return custom
+            return LoginShellCommand.runInLoginShell(custom, prependPATH: true)
         }
         return Self.herdrExecCommandLine(sessionName: herdrRawSessionNameForConnection)
     }

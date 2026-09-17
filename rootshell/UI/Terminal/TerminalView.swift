@@ -629,7 +629,8 @@ extension Ghostty {
             set { keyboardAccessoryController?.shouldShowKeyboardToolbar = newValue }
         }
         var activeKeyboardModifiers: KeyModifiers {
-            get { keyboardAccessoryController?.activeKeyboardModifiers ?? [] }
+            // Resolved touch text must not acquire modifiers pressed after its contact began.
+            get { touchKeyboardInputDepth > 0 ? [] : (keyboardAccessoryController?.activeKeyboardModifiers ?? []) }
             set { keyboardAccessoryController?.activeKeyboardModifiers = newValue }
         }
 
@@ -642,6 +643,9 @@ extension Ghostty {
         override var keyboardAccessoryFrameInScreen: CGRect? {
             guard reservesKeyboardToolbarAtBottom else { return nil }
             return keyboardAccessoryController?.keyboardAccessoryFrameInScreen
+        }
+        override var dockedTouchKeyboardFrameInScreen: CGRect? {
+            keyboardAccessoryController?.dockedTouchKeyboardFrameInScreen
         }
         override var reservedKeyboardToolbarHeightAtBottom: CGFloat {
             // Hold the pre-resign reserve while an overlay owns the keyboard so
@@ -1278,6 +1282,8 @@ extension Ghostty {
         /// Tracks what iOS thinks the editable text contains, so UITextInput
         /// position/range queries return correct values during dictation.
         var correctionContext = TerminalCorrectionContext()
+        var touchPredictionContext = TerminalTouchKeyboardModel.PredictionContext()
+        var touchKeyboardInputDepth = 0
         // UIKit may select a committed word before inserting its completion.
         // This is a local selection, never a remote cursor movement.
         var writingAssistanceSelection: TerminalTextRange?
@@ -3465,6 +3471,7 @@ extension Ghostty {
             super.didMoveToWindow()
 
             if window == nil {
+                keyboardAccessoryController?.dismissFloatingTouchKeyboard()
                 Ghostty.logger.warning("didMoveToWindow called but window is nil!")
                 unregisterWindowFocusObservers()
                 applyGhosttyFocus(false)
@@ -3706,6 +3713,7 @@ extension Ghostty {
                 // ROOTSHELL-TMUX (id=tmux-focus-stale-flag)
                 shouldBecomeFirstResponderWhenReady = false
                 clearInputAssistantsRecursively()
+                keyboardAccessoryController?.scheduleFloatingTouchKeyboardUpdate()
                 EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
             }
 
@@ -3730,6 +3738,7 @@ extension Ghostty {
 
         @discardableResult
         override func resignFirstResponder() -> Bool {
+            keyboardAccessoryController?.cancelTouchKeyboardInteraction()
             invalidateWritingAssistance(resetDocument: true)
             #if !targetEnvironment(macCatalyst)
             if shouldPreserveFirstResponderForSoftwareKeyboardAppTransition() {
@@ -3756,6 +3765,7 @@ extension Ghostty {
             Ghostty.logger.info("resignFirstResponder() called on terminal \(self.uuid.uuidString.prefix(8))")
             let result = super.resignFirstResponder()
             if result {
+                keyboardAccessoryController?.dismissFloatingTouchKeyboard()
                 EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
                 #if targetEnvironment(macCatalyst)
                 CatalystAppDelegate.noteContinuityPasteboardTargetResigned(self)
@@ -3785,6 +3795,10 @@ extension Ghostty {
 #if !os(visionOS)
         override var inputAccessoryView: UIView? {
             return keyboardAccessoryController.inputAccessoryView
+        }
+
+        override var inputViewController: UIInputViewController? {
+            keyboardAccessoryController.inputViewController
         }
 
         override var inputView: UIView? {
@@ -3962,6 +3976,8 @@ extension Ghostty {
         }
         #endif
         
+        func resetDoubleSpaceTracking() { lastSpaceInsertTime = nil }
+
         func insertText(_ text: String) {
             // Software-keyboard and input-method text arrives here, not through
             // `pressesBegan`, and the terminal is not a UITextField, so this is

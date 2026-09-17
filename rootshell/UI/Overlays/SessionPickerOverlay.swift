@@ -18,9 +18,6 @@ enum SessionDiscoveryPlaceholder: Equatable {
     case failed
     /// Every multiplexer's discovery setting is off, so nothing was scanned.
     case disabled
-    /// The local shell is scannable but "Discover Local Sessions" is off. Distinct
-    /// from `disabled`: the per-multiplexer toggles may all be on.
-    case localDisabled
     /// This surface cannot be scanned at all (not SSH-backed, no local shell).
     case unsupported
 }
@@ -325,7 +322,7 @@ struct SessionPickerOverlay: View {
     private var placeholderIcon: String {
         switch placeholder {
         case .failed: return "exclamationmark.triangle"
-        case .disabled, .localDisabled: return "slider.horizontal.3"
+        case .disabled: return "slider.horizontal.3"
         case .unsupported: return "minus.circle"
         default: return "magnifyingglass"
         }
@@ -334,7 +331,7 @@ struct SessionPickerOverlay: View {
     private var placeholderTitle: String {
         switch placeholder {
         case .failed: return String(localized: "Could not check for sessions")
-        case .disabled, .localDisabled: return String(localized: "Session discovery is off")
+        case .disabled: return String(localized: "Session discovery is off")
         case .unsupported: return String(localized: "This tab cannot be checked")
         default: return String(localized: "No sessions found")
         }
@@ -346,10 +343,6 @@ struct SessionPickerOverlay: View {
             return String(localized: "The host did not answer in time, or the connection could not be reused.")
         case .disabled:
             return String(localized: "Turn on discovery for tmux, zellij, herdr or zmx in Settings.")
-        case .localDisabled:
-            // Names the setting that actually gates this, which is not one of the
-            // per-multiplexer toggles. Interpolated so it tracks the Settings row.
-            return String(localized: "Turn on \(Settings.Multiplexer.localSessionDiscovery.title) in Settings.")
         case .unsupported:
             // The local shell is only a discovery surface on unsandboxed Catalyst,
             // where the helper can run the scan.

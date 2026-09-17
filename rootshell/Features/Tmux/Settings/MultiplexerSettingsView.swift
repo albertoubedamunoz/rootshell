@@ -41,9 +41,9 @@ struct MultiplexerSettingsView: View {
     }
 
     private var discoveryFooterText: String {
-        let base = "Checks for active sessions after an SSH connection. Skipped for connections with multiplexer auto-start enabled."
+        let base = "Automatically Discover Remote Sessions checks after an SSH connection, unless it has multiplexer auto-start, a launch command or a remote command, or is resuming a session. Manual discovery always checks the enabled multiplexers, even when automatic discovery is off."
         #if targetEnvironment(macCatalyst)
-        return base + " Discover Local Sessions also scans when opening a local macOS shell tab."
+        return base + " Automatically Discover Local Sessions checks when opening a local macOS shell tab."
         #else
         return base
         #endif
@@ -64,8 +64,11 @@ struct MultiplexerSettingsView: View {
                 SettingToggle(Settings.Multiplexer.zmxSessionDiscovery, title: "Discover zmx Sessions", icon: MultiplexerType.zmx.iconName)
                     .themedRow()
 
+                SettingToggle(Settings.Multiplexer.remoteSessionDiscovery, title: "Automatically Discover Remote Sessions", icon: "network")
+                    .themedRow()
+
                 #if targetEnvironment(macCatalyst)
-                SettingToggle(Settings.Multiplexer.localSessionDiscovery, title: "Discover Local Sessions", icon: "desktopcomputer")
+                SettingToggle(Settings.Multiplexer.localSessionDiscovery, title: "Automatically Discover Local Sessions", icon: "desktopcomputer")
                     .themedRow()
                 #endif
 

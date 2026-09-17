@@ -575,6 +575,7 @@ extension MainView {
                     keyboardHeight: effectManager.keyboardHeight,
                     reservedBottomToolbarHeight: focusedTerminal.reservedKeyboardToolbarHeightAtBottom,
                     accessoryFrame: focusedTerminal.keyboardAccessoryFrameInScreen,
+                    touchKeyboardFrame: focusedTerminal.dockedTouchKeyboardFrameInScreen,
                     containerBottomSafeAreaExpansion: 0,
                     terminalEffectsEnabled: false
                 ).padding
@@ -710,6 +711,7 @@ extension MainView {
     ///   - keyboardHeight: The current keyboard height (passed explicitly to ensure SwiftUI dependency tracking)
     ///   - reservedBottomToolbarHeight: Actual toolbar/accessory height reserved by the selected focused terminal.
     ///   - accessoryFrame: Visible terminal toolbar in screen coordinates, when available.
+    ///   - touchKeyboardFrame: Requested docked custom-keyboard frame, independent of system notifications.
     ///   - containerBottomSafeAreaExpansion: Height the container safe-area escape actually gained
     ///     this layout pass, measured by the reader pair in `terminalTabsView`.
     func terminalBottomPadding(
@@ -718,17 +720,19 @@ extension MainView {
         keyboardHeight: CGFloat,
         reservedBottomToolbarHeight: CGFloat,
         accessoryFrame: CGRect?,
+        touchKeyboardFrame: CGRect?,
         containerBottomSafeAreaExpansion: CGFloat,
         terminalEffectsEnabled: Bool
     ) -> (padding: CGFloat, gridAlignsToToolbar: Bool) {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
-        let isDocked = effectManager.isKeyboardDocked
+        let isDocked = touchKeyboardFrame != nil || effectManager.isKeyboardDocked
+        let keyboardHeight = touchKeyboardFrame?.height ?? keyboardHeight
         let containerFrame = geometry.frame(in: .global)
         let isPhone = UIDevice.current.userInterfaceIdiom == .phone
-        let keyboardFrame = isPhone && accessoryFrame != nil
+        let keyboardFrame = touchKeyboardFrame ?? (isPhone && accessoryFrame != nil
             ? TerminalKeyboardGeometry.includingAccessory(
                 keyboard: reportedKeyboardFrame, accessory: accessoryFrame, container: containerFrame)
-            : reportedKeyboardFrame
+            : reportedKeyboardFrame)
         let visibleKeyboardFrameHeight: CGFloat = {
             guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return 0 }
             let bounds = isPhone ? containerFrame : UIScreen.main.bounds
@@ -1030,6 +1034,8 @@ extension MainView {
         // existing keyboard notifications already invalidate the shared view.
         let accessoryFrame = terminals.indices.contains(selectedTabIndex)
             ? terminals[selectedTabIndex].focusedPane?.keyboardAccessoryFrameInScreen : nil
+        let touchKeyboardFrame = terminals.indices.contains(selectedTabIndex)
+            ? terminals[selectedTabIndex].focusedPane?.dockedTouchKeyboardFrameInScreen : nil
         let selectedBottomToolbarHeight = terminals.indices.contains(selectedTabIndex)
             ? (terminals[selectedTabIndex].focusedPane?.reservedKeyboardToolbarHeightAtBottom ?? 0)
             : 0
@@ -1061,6 +1067,7 @@ extension MainView {
                         keyboardHeight: keyboardHeight,
                         reservedBottomToolbarHeight: reservedBottomToolbarHeight,
                         accessoryFrame: accessoryFrame,
+                        touchKeyboardFrame: touchKeyboardFrame,
                         containerBottomSafeAreaExpansion: containerBottomSafeAreaExpansion,
                         terminalEffectsEnabled: terminalEffectsEnabled
                     )
@@ -1441,11 +1448,14 @@ extension MainView {
         // collapse, and drawer-height changes re-evaluate this (same
         // mechanism terminalTabsView uses for the terminal's own padding).
         let _ = effectManager.keyboardStateVersion
-        let keyboardFrame = effectManager.keyboardFrame
+        let touchKeyboardFrame = terminals.indices.contains(selectedTabIndex)
+            ? terminals[selectedTabIndex].focusedPane?.dockedTouchKeyboardFrameInScreen : nil
+        let keyboardFrame = touchKeyboardFrame ?? effectManager.keyboardFrame
+        let keyboardHeight = touchKeyboardFrame?.height ?? effectManager.keyboardHeight
         let hasSoftwareKeyboard =
             KeyboardTracker.shared.isSoftwareKeyboardVisible ||
-            effectManager.keyboardHeight > 0
-        if effectManager.isKeyboardDocked && hasSoftwareKeyboard {
+            keyboardHeight > 0
+        if (touchKeyboardFrame != nil || effectManager.isKeyboardDocked) && hasSoftwareKeyboard {
             let visibleKeyboardFrameHeight: CGFloat = {
                 guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return 0 }
                 // Same narrow-HUD exclusion as terminalBottomPadding.
@@ -1455,7 +1465,7 @@ extension MainView {
                 return intersection.height
             }()
             let coverage = max(
-                effectManager.keyboardHeight,
+                keyboardHeight,
                 visibleKeyboardFrameHeight,
                 keyboardFrame.height
             )

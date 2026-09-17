@@ -43,6 +43,20 @@ extension Ghostty.TerminalView {
         #if targetEnvironment(macCatalyst)
         return nil
         #else
+        if keyboardAccessoryController?.usesTouchKeyboard == true {
+            guard SettingsStore.shared.value(Settings.Keyboard.touchSuggestions), touchKeyboardCanSend,
+                  keyboardAccessoryController?.touchKeyboard?.window != nil,
+                  (keyboardAccessoryController?.touchKeyboard?.isFloating == true || KeyboardTracker.shared.isSoftwareKeyboardVisible),
+                  markedTextString == nil, !koreanCompositionModel.hasActiveComposition,
+                  activeKeyboardModifiers.isEmpty, virtualModTapModifier == nil, heldHardwareModifiers == .none else { return nil }
+            if let binding = tmuxPaneBinding {
+                guard let gateway = TmuxWindowRegistry.gatewayView(ownerTerminalUUID: binding.parentUUID),
+                      gateway.session?.isRunning == true else { return nil }
+            } else if session?.isRunning != true { return nil }
+            if let lastHardwareTextInputTime,
+               ProcessInfo.processInfo.systemUptime - lastHardwareTextInputTime < 0.25 { return nil }
+            return "rootshell-touch:en"
+        }
         guard KeyboardTracker.shared.isSoftwareKeyboardVisible,
               let mode = textInputMode, let language = mode.primaryLanguage,
               language != "dictation", language != "emoji",
@@ -74,8 +88,9 @@ extension Ghostty.TerminalView {
             invalidateWritingAssistance()
             writingAssistanceSource = source
         }
-        let mode = source == nil ? TerminalWritingAssistanceMode.off : writingAssistanceMode
-        let spelling: UITextSpellCheckingType = mode == .off ? .no : .yes
+        let customSource = source == "rootshell-touch:en"
+        let mode = source == nil ? TerminalWritingAssistanceMode.off : (customSource ? .suggestions : writingAssistanceMode)
+        let spelling: UITextSpellCheckingType = mode == .off || customSource ? .no : .yes
         let correction: UITextAutocorrectionType = mode == .autocorrect ? .yes : .no
         if spellCheckingType != spelling || autocorrectionType != correction {
             spellCheckingType = spelling
@@ -113,6 +128,7 @@ extension Ghostty.TerminalView {
             // keyboard work and can query the wrong document during the switch.
             guard self.isFirstResponder, self.window != nil else { return }
             self.notifyInputDelegateOfExternalChange { }
+            self.keyboardAccessoryController?.touchKeyboard?.updateSuggestions()
         }
     }
 
@@ -139,6 +155,8 @@ extension Ghostty.TerminalView {
         let documentGeneration = correctionContext.documentGeneration
         let hadSelection = writingAssistanceSelection != nil
         guard correctionContext.apply(mutation) else { return false }
+        touchPredictionContext.apply(mutation, attributed: touchKeyboardInputDepth > 0)
+        keyboardAccessoryController?.touchKeyboard?.updatePrediction()
         if case .invalidate = mutation {
             // Revocation cancels the local QuickType selection only.
             writingAssistanceSelection = nil
@@ -155,6 +173,7 @@ extension Ghostty.TerminalView {
                 requestWritingAssistanceRequery()
             }
         }
+        if keyboardAccessoryController?.usesTouchKeyboard == true { requestWritingAssistanceRequery() }
         return true
     }
 

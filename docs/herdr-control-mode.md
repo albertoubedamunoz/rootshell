@@ -57,6 +57,8 @@ export PATH="$HOME/.local/opt/herdr-rootshell/bin:$PATH" # rootshell-herdr
 
 For zsh, the line goes in `${ZDOTDIR:-$HOME}/.zshrc`. For bash, it goes in `~/.bashrc` and the login profile: `~/.bash_profile` if it exists, otherwise `~/.bash_login` or `~/.profile` if present, otherwise a new `~/.bash_profile`.
 
+rootshell also gives `~/.local/opt/herdr-rootshell/bin` first priority when launching herdr on the host, including for saved local sessions. Removing the shell's PATH entry alone does not switch rootshell back to upstream; remove the fork binary as described below.
+
 Open a new shell and check the selected binary:
 
 ```sh
@@ -83,15 +85,21 @@ Use the same socket/configuration overrides if your setup has custom ones. Detac
 
 ## Return to regular upstream herdr
 
-The fork can be deselected without removing your upstream installation. Switching back requires both selecting the upstream binary and restarting the intended server with it.
+Switching back requires removing the preferred fork binary, selecting the upstream binary, and restarting the intended server with it. Your existing upstream installation can stay in place.
 
 1. **Save work, detach, and stop the intended fork server from outside herdr.** Use `herdr server stop` for the default session or `herdr --session NAME server stop` for a named session, preserving any custom socket/configuration overrides. This terminates that server's pane processes; detaching alone does not stop them.
 
-2. **Remove the marked PATH entry from your shell startup files.** Remove the line ending in `# rootshell-herdr` shown above. For zsh, check `${ZDOTDIR:-$HOME}/.zshrc`. For bash, check `~/.bashrc` and the login profile modified by the installer (`~/.bash_profile`, `~/.bash_login`, or `~/.profile`). Preserve unrelated PATH settings. If you installed the fork manually, undo your corresponding alias, symlink, or PATH override instead.
+2. **Remove the rootshell fork binary on the host running herdr.** rootshell prioritizes this location even without the shell startup PATH entry:
 
-3. **Start a fresh login environment and verify resolution.** Close the old shell and open a fresh terminal or SSH login, then run `type -a herdr`, `command -v herdr`, and `herdr --version`. The selected executable must be your upstream installation, not `~/.local/opt/herdr-rootshell/bin/herdr`. Merely sourcing an edited startup file does not remove a PATH entry already in the environment. If a parent process still passes down the old PATH, remove that fork directory from its environment or restart the parent terminal application before continuing. Also update any custom launch command that explicitly names the fork.
+   ```sh
+   rm "$HOME/.local/opt/herdr-rootshell/bin/herdr"
+   ```
 
-4. **Install or update upstream if needed.** It must be at least 0.9.0 for rootshell control mode. Use your original package manager, or the [official upstream installer](https://github.com/herdrdev/herdr#install):
+3. **Remove the marked PATH entry from your shell startup files.** Remove the line ending in `# rootshell-herdr` shown above. For zsh, check `${ZDOTDIR:-$HOME}/.zshrc`. For bash, check `~/.bashrc` and the login profile modified by the installer (`~/.bash_profile`, `~/.bash_login`, or `~/.profile`). Preserve unrelated PATH settings. If you installed the fork manually, also undo your corresponding alias, symlink, or PATH override.
+
+4. **Start a fresh login environment and verify resolution.** Close the old shell and open a fresh terminal or SSH login, then run `type -a herdr`, `command -v herdr`, and `herdr --version`. The selected executable must be your upstream installation, not `~/.local/opt/herdr-rootshell/bin/herdr`. Merely sourcing an edited startup file does not remove a PATH entry already in the environment. If a parent process still passes down the old PATH, remove that fork directory from its environment or restart the parent terminal application before continuing. Also update any custom launch command that explicitly names the fork.
+
+5. **Install or update upstream if needed.** It must be at least 0.9.0 for rootshell control mode. Use your original package manager, or the [official upstream installer](https://github.com/herdrdev/herdr#install):
 
    ```sh
    curl -fsSL https://herdr.dev/install.sh | sh
@@ -99,9 +107,9 @@ The fork can be deselected without removing your upstream installation. Switchin
 
    Verify resolution again afterward. Installing upstream alone does not override a fork directory earlier on PATH.
 
-5. **Start the session with the verified upstream binary.** Run `herdr` or `herdr --session NAME` as appropriate. Reconnect in rootshell with control mode enabled; when upstream lacks the fork's control stream, rootshell automatically selects fallback. For local sessions restored with an old executable path, detach and discover/attach the session again. Check Connection Info to confirm the server and mode.
+6. **Start the session with the verified upstream binary.** Run `herdr` or `herdr --session NAME` as appropriate. Reconnect in rootshell with control mode enabled; when upstream lacks the fork's control stream, rootshell automatically selects fallback. For local sessions restored with an old executable path, detach and discover/attach the session again. Check Connection Info to confirm the server and mode.
 
-6. **Keep your session data.** The inactive fork directory may remain installed. Do not delete herdr configuration, saved session data, or worktrees as part of switching binaries. Because the fork is experimental, compatibility of fork-specific persisted state across a downgrade is not guaranteed; restarting does not preserve the original pane processes.
+7. **Keep your session data.** The empty fork directory may remain, but its `bin/herdr` binary must be removed. Do not delete herdr configuration, saved session data, or worktrees as part of switching binaries. Because the fork is experimental, compatibility of fork-specific persisted state across a downgrade is not guaranteed; restarting does not preserve the original pane processes.
 
 **Force herdr Fallback Mode** only changes how rootshell connects. It does not uninstall the fork, select an upstream binary, or replace the running server.
 

@@ -261,6 +261,7 @@ enum QuickSettingsCatalog {
             toggle(Settings.Multiplexer.zellijSessionDiscovery),
             toggle(Settings.Multiplexer.herdrSessionDiscovery),
             toggle(Settings.Multiplexer.zmxSessionDiscovery),
+            toggle(Settings.Multiplexer.remoteSessionDiscovery),
             choices(Settings.Multiplexer.sessionDiscoverySortOrder, label: { $0.displayName }),
             choices(Settings.Multiplexer.tmuxTabCloseAction, label: { $0.displayName }),
             toggle(Settings.Multiplexer.tabExposeMultiplexer),

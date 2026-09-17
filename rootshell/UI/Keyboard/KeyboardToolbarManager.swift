@@ -280,58 +280,24 @@ class KeyboardToolbarManager {
 
     // MARK: - Capacity & Effective Layout
 
-    /// Minimum button width for calculating capacity
-    private func minButtonWidth(for sizes: KeyboardSizes) -> CGFloat {
-        sizes.button.normalWidth
-    }
-
-    /// How many keys fit in the main row given available width
-    func mainRowCapacity(availableWidth: CGFloat) -> Int {
-        let sizes = KeyboardSizes.current()
-        let buttonWidth = minButtonWidth(for: sizes)
+    /// How many standard buttons fit in the main row before runtime additions.
+    func mainRowCapacity(availableWidth: CGFloat, sizes: KeyboardSizes = .current()) -> Int {
+        let buttonWidth = sizes.button.normalWidth + sizes.toolbar.spacing
         guard buttonWidth > 0 else { return 0 }
-        return max(1, Int(availableWidth / buttonWidth))
+        return max(1, Int((availableWidth + sizes.toolbar.spacing) / buttonWidth))
     }
 
-    /// Effective main row slots after applying capacity constraints and drawer toggle guarantee.
-    func effectiveMainRowSlots(availableWidth: CGFloat) -> [KeySlot] {
-        let capacity = mainRowCapacity(availableWidth: availableWidth)
-        let allMainSlots = validSlots(config.mainRow)
-
-        var visible = Array(allMainSlots.prefix(capacity))
-        let overflow = Array(allMainSlots.dropFirst(capacity))
-        var firstDrawer = overflow + validSlots(config.drawerRows[0])
-        let anyDrawerContent = !firstDrawer.isEmpty
-            || config.drawerRows.dropFirst().contains { !validSlots($0).isEmpty }
-
-        // Guarantee: if any drawer row has content, drawerToggle must be in visible main row
-        // (but respect user's explicit hide)
-        if anyDrawerContent && !visible.contains(.builtIn(.drawerToggle)) && !config.hiddenKeys.contains(.drawerToggle) {
-            if !visible.isEmpty {
-                let lastSlot = visible[visible.count - 1]
-                visible[visible.count - 1] = .builtIn(.drawerToggle)
-                firstDrawer.insert(lastSlot, at: 0)
-            } else {
-                visible = [.builtIn(.drawerToggle)]
-            }
-        }
-
-        return visible
-    }
-
-    /// Effective drawer rows after applying capacity overflow. Row 0 absorbs the
-    /// main-row overflow; later rows are their configured slots unchanged.
-    func effectiveDrawerRowSlots(availableWidth: CGFloat) -> [[KeySlot]] {
-        let capacity = mainRowCapacity(availableWidth: availableWidth)
-        let allMainSlots = validSlots(config.mainRow)
-
-        var overflow = Array(allMainSlots.dropFirst(capacity))
-        // Remove drawerToggle from overflow (it's auto-inserted in main row)
-        overflow.removeAll { $0 == .builtIn(.drawerToggle) }
-
-        var rows = config.drawerRows.map { validSlots($0) }
-        rows[0] = overflow + rows[0]
-        return rows
+    /// Main row and drawers must share the same capacity and reservation. A
+    /// displaced key leads the first drawer, ahead of its configured contents.
+    func effectiveLayout(availableWidth: CGFloat, reservedMainRowSlots: Int = 0,
+                         sizes: KeyboardSizes = .current()) -> (main: [KeySlot], drawers: [[KeySlot]]) {
+        KeyboardToolbarOverflow.layout(
+            main: validSlots(config.mainRow),
+            drawers: config.drawerRows.map { validSlots($0) },
+            capacity: mainRowCapacity(availableWidth: availableWidth, sizes: sizes),
+            reservedSlots: reservedMainRowSlots,
+            drawerToggle: .builtIn(.drawerToggle),
+            keepsDrawerToggleVisible: !config.hiddenKeys.contains(.drawerToggle))
     }
 
     /// Filter out slots that reference deleted custom keys or hidden built-in keys

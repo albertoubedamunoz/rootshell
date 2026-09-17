@@ -168,8 +168,11 @@ nonisolated extension Settings {
             "zmxSessionDiscoveryEnabled", default: true, group: .multiplexer, configKey: "zmx-session-discovery-enabled",
             title: String(localized: "Discover zmx Sessions", comment: "Setting title"))
         static let localSessionDiscovery = SettingKey(
-            "localSessionDiscoveryEnabled", default: true, group: .multiplexer, configKey: "local-session-discovery-enabled",
-            title: String(localized: "Discover Local Sessions", comment: "Setting title"))
+            "localSessionDiscoveryEnabled", default: false, group: .multiplexer, configKey: "local-session-discovery-enabled",
+            title: String(localized: "Automatically Discover Local Sessions", comment: "Setting title"))
+        static let remoteSessionDiscovery = SettingKey(
+            "remoteSessionDiscoveryEnabled", default: true, group: .multiplexer, configKey: "remote-session-discovery-enabled",
+            title: String(localized: "Automatically Discover Remote Sessions", comment: "Setting title"))
         static let sessionDiscoverySortOrder = SettingKey(
             "sessionDiscoverySortOrder", default: SessionDiscoverySortOrder.attachedFirst, group: .multiplexer,
             configKey: "session-discovery-sort-order",
@@ -191,7 +194,7 @@ nonisolated extension Settings {
             herdrCustomCommand.erased, herdrSessionDiscovery.erased,
             herdrDiscoveryAttachMode.erased, herdrAutoHideGatewayOnAttach.erased, herdrControlHistoryLimitBytes.erased,
             zmxSessionName.erased, zmxCustomCommand.erased, zmxSessionDiscovery.erased, localSessionDiscovery.erased,
-            sessionDiscoverySortOrder.erased, tabExposeMultiplexer.erased,
+            remoteSessionDiscovery.erased, sessionDiscoverySortOrder.erased, tabExposeMultiplexer.erased,
             tmuxHiddenWindowsBySession, tmuxLastSessionByConnection,
         ]
     }

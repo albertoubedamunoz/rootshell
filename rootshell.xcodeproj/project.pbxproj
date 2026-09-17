@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		47AC7E57000000000000CB01 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */; };
 		06402925345B9813ECE3B11E /* Debug-AppStore.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 47511ACC2EDF598900696C18 /* Debug-AppStore.xcconfig */; };
 		06641C55E10A388BA59C6B87 /* AppIconRadicalSolarizedLight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 47A1000B2F9D0BCD009B5D30 /* AppIconRadicalSolarizedLight.icon */; };
 		0668A4F421BC22AFA165E265 /* GhosttyKitStandalone in Frameworks */ = {isa = PBXBuildFile; productRef = 417549D6E2D63FC56F6548A4 /* GhosttyKitStandalone */; };
@@ -495,6 +496,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift; sourceTree = SOURCE_ROOT; };
 		473118BF2FFC2B1500FB3C83 /* rootshellvpn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshellvpn.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		473118CB2FFC2B1600FB3C83 /* rootshellvpnTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rootshellvpnTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		473118D52FFC2B1600FB3C83 /* rootshellvpnUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rootshellvpnUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1151,6 +1153,7 @@
 				47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */,
 				47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */,
 				47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */,
+				47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */,
 				47AC7E5700000000000000B1 /* rootshell/Features/Herdr/HerdrVersionRequirement.swift */,
 				47AC7E5700000000000000B2 /* rootshell/Features/Herdr/HerdrGeometry.swift */,
 				47AC7E5700000000000000B3 /* rootshell/Features/Herdr/HerdrControlProtocol.swift */,
@@ -2111,6 +2114,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */,
+				47AC7E57000000000000CB01 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift in Sources */,
 				47AC7E5700000000000000A1 /* rootshell/Features/Herdr/HerdrVersionRequirement.swift in Sources */,
 				47AC7E5700000000000000A2 /* rootshell/Features/Herdr/HerdrGeometry.swift in Sources */,
 				47AC7E5700000000000000A3 /* rootshell/Features/Herdr/HerdrControlProtocol.swift in Sources */,
