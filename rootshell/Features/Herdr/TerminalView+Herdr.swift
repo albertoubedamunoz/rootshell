@@ -289,13 +289,14 @@ extension Ghostty.TerminalView {
         herdrPaneController?.requestSelectPane(self)
     }
 
-    func requestHerdrSplit(_ direction: SplitTree<SplitPaneView>.NewDirection) {
+    /// herdr only splits right/down; left/up land on the same axis.
+    func requestHerdrSplit(_ direction: SplitTree<SplitPaneView>.NewDirection, cwd: String? = nil) {
         let horizontal: Bool
         switch direction {
         case .left, .right: horizontal = true
         case .up, .down: horizontal = false
         }
-        herdrPaneController?.requestSplit(self, horizontal: horizontal)
+        herdrPaneController?.requestSplit(self, horizontal: horizontal, cwd: cwd)
     }
 
     /// Move the divider on this pane's `direction` edge outward by `cells`.

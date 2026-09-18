@@ -1099,8 +1099,22 @@ class CatalystAppDelegate: AppDelegate {
             modifierFlags: [.command, .shift]
         )
 
+        let openInFolder: UICommand
+        if let sequence = KeybindManager.shared.sequence(for: .open_in_folder),
+           !sequence.isSequence, let trigger = sequence.first {
+            openInFolder = UIKeyCommand(
+                title: String(localized: "Open in Folder…"),
+                action: #selector(UIApplication.menuOpenInFolder(_:)),
+                input: trigger.uiKeyInput,
+                modifierFlags: trigger.uiModifierFlags
+            )
+        } else {
+            openInFolder = UICommand(title: String(localized: "Open in Folder…"),
+                                     action: #selector(UIApplication.menuOpenInFolder(_:)))
+        }
+
         builder.replaceChildren(ofMenu: .newScene) { _ in
-            [newLocalShell, newTab, newWindow, duplicateSshTab]
+            [newLocalShell, newTab, newWindow, duplicateSshTab, openInFolder]
         }
     }
 

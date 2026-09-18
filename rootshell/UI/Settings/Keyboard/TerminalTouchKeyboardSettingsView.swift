@@ -85,6 +85,8 @@ struct TerminalTouchKeyboardSettingsView: View {
             Section {
                 SettingToggle(Settings.Keyboard.touchThemeAware, title: "Follow Terminal Theme", icon: "paintpalette")
                     .themedRow()
+                KeyboardBackgroundEffectPicker()
+                    .themedRow()
             } header: {
                 Text("Appearance")
             } footer: {

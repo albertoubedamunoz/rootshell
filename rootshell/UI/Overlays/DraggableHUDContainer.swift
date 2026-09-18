@@ -35,6 +35,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     var forwardsThemePickerToggle: Bool
     var forwardsFindToggle: Bool
     var forwardsClipboardManagerToggle: Bool
+    var forwardsOpenInFolderToggle: Bool
     /// Handles a forwarded toggle menu action instead of `onDismiss`. Needed by
     /// the clipboard manager, whose toggle is a 3-state cycle (open → keyboard
     /// mode → close) rather than a plain dismiss: the HUD's field can hold
@@ -52,6 +53,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
          forwardsThemePickerToggle: Bool = false,
          forwardsFindToggle: Bool = false,
          forwardsClipboardManagerToggle: Bool = false,
+         forwardsOpenInFolderToggle: Bool = false,
          onForwardedToggle: (() -> Void)? = nil,
          onFind: (() -> Void)? = nil,
          onDismiss: (() -> Void)? = nil,
@@ -63,6 +65,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         self.forwardsThemePickerToggle = forwardsThemePickerToggle
         self.forwardsFindToggle = forwardsFindToggle
         self.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
+        self.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         self.onForwardedToggle = onForwardedToggle
         self.onFind = onFind
         self.onDismiss = onDismiss
@@ -78,6 +81,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         view.forwardsThemePickerToggle = forwardsThemePickerToggle
         view.forwardsFindToggle = forwardsFindToggle
         view.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
+        view.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         view.onForwardedToggle = onForwardedToggle
         view.onFind = onFind
         view.onDismiss = onDismiss
@@ -107,6 +111,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         uiView.forwardsThemePickerToggle = forwardsThemePickerToggle
         uiView.forwardsFindToggle = forwardsFindToggle
         uiView.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
+        uiView.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         uiView.onForwardedToggle = onForwardedToggle
         uiView.setNeedsLayout()
     }
@@ -159,6 +164,7 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     var forwardsThemePickerToggle = false
     var forwardsFindToggle = false
     var forwardsClipboardManagerToggle = false
+    var forwardsOpenInFolderToggle = false
     var onForwardedToggle: (() -> Void)?
     var onFind: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -183,10 +189,15 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
         if action == #selector(menuToggleThemePicker(_:)) { return forwardsThemePickerToggle }
         if action == #selector(findInTerminal(_:)) { return forwardsFindToggle }
         if action == #selector(menuToggleClipboardManager(_:)) { return forwardsClipboardManagerToggle }
+        if action == #selector(menuOpenInFolder(_:)) { return forwardsOpenInFolderToggle }
         return super.canPerformAction(action, withSender: sender)
     }
 
     @objc func menuToggleQuickSettings(_ sender: Any?) {
+        (onForwardedToggle ?? onDismiss)?()
+    }
+
+    @objc func menuOpenInFolder(_ sender: Any?) {
         (onForwardedToggle ?? onDismiss)?()
     }
 
@@ -222,6 +233,14 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
            !sequence.isSequence, let trigger = sequence.first {
             let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
                                        action: #selector(menuToggleQuickSettings(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            commands.append(command)
+        }
+        if forwardsOpenInFolderToggle,
+           let sequence = KeybindManager.shared.sequence(for: .open_in_folder),
+           !sequence.isSequence, let trigger = sequence.first {
+            let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
+                                       action: #selector(menuOpenInFolder(_:)))
             command.wantsPriorityOverSystemBehavior = true
             commands.append(command)
         }
@@ -281,6 +300,9 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
         var view = bar.hitTest(point, with: nil)
         while let current = view, current !== bar {
             if let scroll = current as? UIScrollView, scroll.isScrollEnabled { return false }
+            // A UIKit control (segmented picker, switch) tracks its own click;
+            // a pan that begins on the slightest pointer jitter cancels it.
+            if current is UIControl { return false }
             view = current.superview
         }
         return true
@@ -325,17 +347,20 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
         // content's ideal size — anchoring to them strands the HUD off-screen.
         guard size.width > 10, size.height > 10 else { return }
 
+        // Only write geometry that actually changed: reassigning an equal frame
+        // still interrupts a UIKit control tracking a click inside the HUD.
         if userHasDragged {
             // Preserve where the user dropped it; just resize + re-clamp on rotation/resize.
-            let center = bar.center
-            bar.bounds = CGRect(origin: .zero, size: size)
-            bar.center = clamp(center, size: size)
+            let center = clamp(bar.center, size: size)
+            if bar.bounds.size != size { bar.bounds = CGRect(origin: .zero, size: size) }
+            if bar.center != center { bar.center = center }
         } else {
             // Keep pinned top-right until the first drag. Re-anchoring every pass
             // means a wrong first measurement is corrected on the next layout,
             // rather than latched (which required a manual re-toggle to fix).
-            bar.frame = CGRect(x: bounds.width - size.width - inset, y: inset,
+            let frame = CGRect(x: bounds.width - size.width - inset, y: inset,
                                width: size.width, height: size.height)
+            if bar.frame != frame { bar.frame = frame }
         }
     }
 

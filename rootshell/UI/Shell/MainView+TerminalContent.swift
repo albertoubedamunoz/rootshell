@@ -319,6 +319,13 @@ extension MainView {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
+            if showOpenInFolderOverlay, let model = openInFolderModel {
+                OpenInFolderHUD(isPresented: $showOpenInFolderOverlay, model: model, shortcut: openInFolderShortcut) { directory, placement in
+                    openInFolder(model.target, directory: directory, placement: placement)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
             // Theme picker overlay
             themePickerOverlayView(isPresented: $showThemePickerOverlay)
 
@@ -1319,6 +1326,7 @@ extension MainView {
                 geometry: geometry,
                 width: terminalWidth,
                 effectLeadingExtension: backgroundEffectIncludesPinnedSidebar
+                    && backgroundSidebarEffectID == BackgroundEffectSelection.followTerminalID
                     ? dockedWidth
                     : 0
             )
@@ -1330,14 +1338,23 @@ extension MainView {
             #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // The docked sidebar's theme fill sits below the shared effect canvas;
-        // its controls remain in the HStack above it. This makes the effect
-        // full-strength in the column without duplicating animated state or
-        // video playback.
+        // The sidebar fill sits below its controls. Linked effects span in from
+        // the terminal; independently selected effects draw inside this column.
         .background(alignment: .leading) {
             if let dockedSidebarTheme {
                 dockedTabSidebarBackground(theme: dockedSidebarTheme)
+                    .overlay {
+                        if backgroundSidebarEffectID != BackgroundEffectSelection.followTerminalID,
+                           let effect = effectManager.effect(withId: backgroundSidebarEffectID) {
+                            effect.createEffectView()
+                                .id(effect.id)
+                                .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
                     .frame(width: dockedWidth)
+                    .clipped()
                     .ignoresSafeArea(.container, edges: .bottom)
             }
         }

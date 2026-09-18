@@ -38,6 +38,22 @@ final class EffectManager {
         }
     }
 
+    /// Keyboard selection is independent of the terminal, unless explicitly linked.
+    var keyboardEffect: AnyTerminalEffect? {
+        selectedEffect(id: SettingsStore.shared.value(Settings.Shaders.keyboardEffectId))
+    }
+
+    var sidebarEffect: AnyTerminalEffect? {
+        let id = SettingsStore.shared.value(Settings.Shaders.sidebarEffectId)
+        if id == BackgroundEffectSelection.followTerminalID,
+           !SettingsStore.shared.value(Settings.Shaders.effectIncludesPinnedSidebar) { return nil }
+        return selectedEffect(id: id)
+    }
+
+    func selectedEffect(id: String) -> AnyTerminalEffect? {
+        id == BackgroundEffectSelection.followTerminalID ? activeEffect : effect(withId: id)
+    }
+
     @ObservationIgnored private var isReloading = false
 
     /// Theme colors for effects (updated from ThemeManager)
@@ -166,6 +182,14 @@ final class EffectManager {
         if keys.contains(Settings.Shaders.effectConfigurations.name), let activeEffect {
             restoreConfiguration(for: activeEffect)
         }
+        if keys.contains(Settings.Shaders.effectConfigurations.name), let keyboardEffect,
+           keyboardEffect.id != activeEffect?.id {
+            restoreConfiguration(for: keyboardEffect)
+        }
+        if keys.contains(Settings.Shaders.effectConfigurations.name), let sidebarEffect,
+           sidebarEffect.id != activeEffect?.id, sidebarEffect.id != keyboardEffect?.id {
+            restoreConfiguration(for: sidebarEffect)
+        }
         if keys.contains(Settings.Shaders.activeEffectId.name) {
             activeEffect = SettingsStore.shared.get(Settings.Shaders.activeEffectId).flatMap { effect(withId: $0) }
         }
@@ -223,12 +247,14 @@ final class EffectManager {
             .sink { [weak self, weak wrapped] in
                 guard let self = self, let effect = wrapped else { return }
                 self.saveEffectConfiguration(effect)
-                if self.activeEffect?.id == effect.id {
+                if self.activeEffect?.id == effect.id || self.keyboardEffect?.id == effect.id
+                    || self.sidebarEffect?.id == effect.id {
                     self.effectDidChange.send()
                 }
             }
 
         availableEffects.append(wrapped)
+        if keyboardEffect?.id == wrapped.id { effectDidChange.send() }
     }
 
     /// Get effect by ID
@@ -568,6 +594,7 @@ final class EffectManager {
     // MARK: - Built-in Effects Registration
 
     private func registerBuiltInEffects() {
+        registerEffect(AquariumEffect())
         registerEffect(AuroraEffect())
         registerEffect(SolarGraphEffect())
         registerEffect(FirefliesEffect())
@@ -734,10 +761,12 @@ final class EffectManager {
     /// Called when a local video is deleted. Deactivates if currently active.
     private func handleLocalVideoDeleted(_ videoId: String) {
         let effectId = "videoBackground_\(videoId)"
+        let wasKeyboardEffect = keyboardEffect?.id == effectId
         if activeEffect?.id == effectId {
             setActiveEffect(id: nil)
         }
         availableEffects.removeAll { $0.id == effectId }
         effectConfigCancellables.removeValue(forKey: effectId)
+        if wasKeyboardEffect { effectDidChange.send() }
     }
 }

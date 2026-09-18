@@ -39,7 +39,7 @@ final class iPadVisorController {
                 .first(where: { $0.terminal === source }) else { return nil }
         guard owner.owningWindowID == windowID, owner.visible else { return false }
         switch notification.name {
-        case .openSettings, .toggleQuickSettings, .newTab, .createLocalShell, .newWindow,
+        case .openSettings, .toggleQuickSettings, .openInFolder, .newTab, .createLocalShell, .newWindow,
              .previousTab, .nextTab, .selectTab, .previousGroup, .nextGroup,
              .showTabSwitcher, .toggleTabExpose, .toggleTabBar, .toggleGroupMode,
              .browseHosts, .browseProfiles, .toggleAIAgent, .toggleVoiceAgent,

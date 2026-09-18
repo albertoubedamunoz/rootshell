@@ -187,6 +187,7 @@ struct MainView: View {
     /// sidebar. Enabled by default so the content area reads as one canvas.
     @Setting(Settings.Shaders.effectIncludesPinnedSidebar)
     var backgroundEffectIncludesPinnedSidebar
+    @Setting(Settings.Shaders.sidebarEffectId) var backgroundSidebarEffectID
 
     // SSH settings
     @Setting(Settings.Connections.healthMonitoring) var sshHealthMonitoringEnabled
@@ -284,6 +285,11 @@ struct MainView: View {
     // Theme picker overlay state
     @State var showThemePickerOverlay = false
     @State var showQuickSettingsOverlay = false
+    /// Open in Folder palette; the target is captured when it opens.
+    @State var showOpenInFolderOverlay = false
+    @State var openInFolderModel: OpenInFolderModel?
+    /// A split / new-tab chord caught by the menu rail while the palette is up.
+    @State var openInFolderShortcut: OpenInFolderShortcut?
 
     // Clipboard manager overlay state
     @State var showClipboardManager = false

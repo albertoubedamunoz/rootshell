@@ -166,6 +166,7 @@ final class KeybindManager: ObservableObject {
             // Shell Operations
             Keybind(key: .comma, modifiers: .command, action: .open_settings),
             Keybind(key: .comma, modifiers: [.command, .shift], action: .toggle_quick_settings),
+            Keybind(key: .j, modifiers: [.command, .shift], action: .open_in_folder),
             Keybind(key: .b, modifiers: .command, action: .browse_hosts),
             Keybind(key: .p, modifiers: [.command, .shift], action: .browse_profiles),
             Keybind(key: .i, modifiers: .command, action: .toggle_ai_agent),

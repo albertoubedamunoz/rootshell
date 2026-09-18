@@ -32,6 +32,7 @@ extension SplitFocusBorderStyle: SettingValue {}
 extension SplitFocusBorderColor: SettingValue {}
 extension PowerManager.RefreshRateSetting: SettingValue {}
 extension PowerManager.BatteryRefreshRate: SettingValue {}
+extension OpenInFolderPlacement: SettingValue {}
 
 nonisolated extension Settings {
     enum Tabs {
@@ -79,11 +80,21 @@ nonisolated extension Settings {
             "tabHoverPreviewZoom", default: 1.0, group: .tabs, policy: .localByDefault,
             configKey: "tab-hover-preview-zoom",
             title: String(localized: "Tab Hover Preview Size", comment: "Setting title"))
+        /// Open in Folder history, a JSON blob of folders per target.
+        static let openInFolderRecents = SettingKey<Data?>(
+            "openInFolder.recents", default: nil, group: .tabs, policy: .localByDefault,
+            title: String(localized: "Open in Folder Recents", comment: "Setting title"))
+        /// Last placement chosen in the Open in Folder palette.
+        static let openInFolderPlacement = SettingKey(
+            "openInFolder.placement", default: OpenInFolderPlacement.newTab, group: .tabs, policy: .localByDefault,
+            configKey: "open-in-folder-placement",
+            title: String(localized: "Open in Folder Placement", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             newTabAction.erased, barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
             showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
             hoverPreviews.erased, hoverPreviewActivation.erased, hoverPreviewZoom.erased,
+            openInFolderRecents.erased, openInFolderPlacement.erased,
         ]
     }
 

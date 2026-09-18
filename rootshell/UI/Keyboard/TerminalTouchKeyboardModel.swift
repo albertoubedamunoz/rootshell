@@ -24,6 +24,20 @@ nonisolated enum KeyboardToolbarOverflow {
 
 /// Platform-independent behavior shared by the touch surface and its tests.
 nonisolated enum TerminalTouchKeyboardModel {
+    enum BackgroundEffectPlacement: String, CaseIterable, Sendable {
+        case off
+        case toolbar
+        case entireKeyboard = "entire-keyboard"
+
+        var displayName: String {
+            switch self {
+            case .off: String(localized: "Off")
+            case .toolbar: String(localized: "Toolbar Only")
+            case .entireKeyboard: String(localized: "Entire Keyboard")
+            }
+        }
+    }
+
     enum FloatingGlassStyle: String, CaseIterable, Sendable {
         case regular, clear, solid
 

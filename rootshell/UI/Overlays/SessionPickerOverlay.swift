@@ -42,12 +42,13 @@ struct SessionPickerOverlay: View {
 
     @State private var showAttachConfirmation = false
     @State private var pendingSession: MultiplexerSession?
-    // List height excluding the selected preview, so growing that preview
-    // cannot feed back into its own available-space calculation.
+    // List height excluding the selected preview. Subtraction still introduces
+    // floating-point noise, so measurements must settle before updating state.
     @State private var listDetailsHeight: CGFloat?
     @State private var fixedHeaderHeight: CGFloat = 0
     @State private var fixedFooterHeight: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.displayScale) private var displayScale
 
     private var title: String {
         if sessionTypes.count == 1, let type = sessionTypes.first {
@@ -126,7 +127,11 @@ struct SessionPickerOverlay: View {
                         }
                         .fixedSize(horizontal: false, vertical: true)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                            fixedHeaderHeight = $0
+                            if let height = SessionPickerGeometry.updatedHeight(
+                                previous: fixedHeaderHeight, measured: $0, displayScale: displayScale
+                            ) {
+                                fixedHeaderHeight = height
+                            }
                         }
                     }
 
@@ -145,7 +150,11 @@ struct SessionPickerOverlay: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                        fixedFooterHeight = $0
+                        if let height = SessionPickerGeometry.updatedHeight(
+                            previous: fixedFooterHeight, measured: $0, displayScale: displayScale
+                        ) {
+                            fixedFooterHeight = height
+                        }
                     }
                 }
                 .frame(maxWidth: isNarrow ? .infinity : 540)
@@ -234,7 +243,11 @@ struct SessionPickerOverlay: View {
                     .onGeometryChange(for: CGFloat.self) {
                         max(0, $0.size.height - previewHeight)
                     } action: {
-                        listDetailsHeight = $0
+                        if let height = SessionPickerGeometry.updatedHeight(
+                            previous: listDetailsHeight, measured: $0, displayScale: displayScale
+                        ) {
+                            listDetailsHeight = height
+                        }
                     }
                 }
                 .scrollBounceBehavior(.basedOnSize)

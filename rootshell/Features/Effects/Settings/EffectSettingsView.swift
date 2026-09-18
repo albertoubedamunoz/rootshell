@@ -11,6 +11,8 @@ import CoreLocation
 import UniformTypeIdentifiers
 
 struct EffectSettingsView: View {
+    /// Open an effect's controls without selecting it for the main terminal.
+    var configurationEffect: AnyTerminalEffect? = nil
     var effectManager = EffectManager.shared
     var themeManager = ThemeManager.shared
     var transparencyManager = TransparencyManager.shared
@@ -44,11 +46,15 @@ struct EffectSettingsView: View {
     @State private var selectedPhotosVideoItem: PhotosPickerItem?
 
     // Built-in effect IDs (non-video)
-    private let builtInEffectIds = ["aurora", "solarGraph", "fireflies", "butterflies", "jellyfish", "photoBackground"]
+    private let builtInEffectIds = ["aquarium", "aurora", "solarGraph", "fireflies", "butterflies", "jellyfish", "photoBackground"]
 
     /// Built-in effects only (not video backgrounds)
     private var builtInEffects: [AnyTerminalEffect] {
         effectManager.availableEffects.filter { builtInEffectIds.contains($0.id) }
+    }
+
+    private var effectBeingConfigured: AnyTerminalEffect? {
+        configurationEffect ?? effectManager.activeEffect
     }
 
     /// Whether to show the video backgrounds list section
@@ -60,6 +66,7 @@ struct EffectSettingsView: View {
 
     var body: some View {
         List {
+            if configurationEffect == nil {
             // Built-in Effect Selection
             Section {
                 // None option
@@ -152,16 +159,20 @@ struct EffectSettingsView: View {
                 .buttonStyle(.plain)
                 .themedRow()
             } header: {
-                SettingGroupHeader("Effect", group: .shaders)
+                SettingGroupHeader("Terminal Effect", group: .shaders)
             }
 
             Section {
-                SettingDescribedToggle(
-                    Settings.Shaders.effectIncludesPinnedSidebar,
-                    title: "Include Pinned Sidebar",
-                    description: "Extend the background effect behind the pinned vertical tab bar."
-                )
-                .themedRow()
+                #if !os(visionOS)
+                if UIDevice.current.userInterfaceIdiom != .phone {
+                    SidebarBackgroundEffectPicker()
+                        .themedRow()
+                }
+                #endif
+                #if !os(visionOS) && !targetEnvironment(macCatalyst)
+                KeyboardBackgroundEffectPicker()
+                    .themedRow()
+                #endif
             } header: {
                 SettingGroupHeader("Layout", group: .shaders)
             }
@@ -297,9 +308,10 @@ struct EffectSettingsView: View {
                 }
             }
             }
+            } // Terminal effect selection and layout
 
-            // Effect Settings (only shown when an effect is active)
-            if let activeEffect = effectManager.activeEffect {
+            // Keyboard and sidebar controls do not activate the terminal effect.
+            if let activeEffect = effectBeingConfigured {
                 Section("Settings") {
                     // Intensity slider
                     VStack(alignment: .leading, spacing: 8) {
@@ -603,6 +615,16 @@ struct EffectSettingsView: View {
                     JellyfishSettingsSection(effect: jellyfishEffect)
                 }
 
+                // Aquarium-specific settings
+                if activeEffect.id == "aquarium",
+                   let aquariumEffect = activeEffect.asEffect(AquariumEffect.self) {
+                    AquariumSettingsSection(effect: aquariumEffect) {
+                        aquariumEffect.resetToDefaults()
+                        localIntensity = aquariumEffect.intensity
+                        localSpeed = aquariumEffect.speed
+                    }
+                }
+
                 // Aurora-specific settings
                 if activeEffect.id == "aurora",
                    let auroraEffect = activeEffect.asEffect(AuroraEffect.self) {
@@ -627,10 +649,9 @@ struct EffectSettingsView: View {
                             // Jellyfish visits are rare and slow, so the
                             // preview also uses a fast-spawning view
                             JellyfishView(effect: jellyfishEffect, previewMode: true)
-                        } else if activeEffect.id == "aurora" {
-                            // The aurora shader's light-theme output is
-                            // white-based and only reads correctly under the
-                            // same blend mode MainView applies.
+                        } else if activeEffect.id == "aurora" || activeEffect.id == "aquarium" {
+                            // These shaders' light-theme output is white-based
+                            // and needs the same blend mode MainView applies.
                             activeEffect.createEffectView()
                                 .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
                         } else {
@@ -656,20 +677,20 @@ struct EffectSettingsView: View {
             }
         }
         .themedList()
-        .navigationTitle("Background Effect")
+        .navigationTitle(configurationEffect?.displayName ?? String(localized: "Background Effect"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             syncLocalState()
             // Pre-fetch video index if already in video mode
-            if isVideoBackgroundMode {
+            if configurationEffect == nil && isVideoBackgroundMode {
                 Task { await videoManager.fetchRemoteIndex() }
             }
         }
-        .onChange(of: effectManager.activeEffect?.id) { _, _ in
+        .onChange(of: effectBeingConfigured?.id) { _, _ in
             syncLocalState()
         }
         .onChange(of: showVideoList) { _, newValue in
-            if newValue {
+            if configurationEffect == nil && newValue {
                 Task { await videoManager.fetchRemoteIndex() }
             }
         }
@@ -677,7 +698,7 @@ struct EffectSettingsView: View {
 
     /// Sync local slider state from the active effect
     private func syncLocalState() {
-        if let effect = effectManager.activeEffect {
+        if let effect = effectBeingConfigured {
             localIntensity = effect.intensity
             localSpeed = effect.speed
 

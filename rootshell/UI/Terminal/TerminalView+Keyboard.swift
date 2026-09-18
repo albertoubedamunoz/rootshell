@@ -2389,6 +2389,10 @@ extension Ghostty.TerminalView {
         NotificationCenter.default.post(name: .toggleQuickSettings, object: self)
     }
 
+    @objc func menuOpenInFolder(_ sender: Any?) {
+        NotificationCenter.default.post(name: .openInFolder, object: self)
+    }
+
     @objc func menuToggleThemePicker(_ sender: Any?) {
         NotificationCenter.default.post(name: .toggleThemePicker, object: self)
     }

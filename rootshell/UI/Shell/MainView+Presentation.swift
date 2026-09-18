@@ -54,6 +54,7 @@ extension MainView {
             showYubiKeyPINPrompt ||
             showThemePickerOverlay ||
             showQuickSettingsOverlay ||
+            showOpenInFolderOverlay ||
             // The iPhone presentation is a sheet that owns the keyboard. On
             // regular width the clipboard manager is a passthrough glass HUD (like
             // the Find HUD, which is intentionally absent here) and must NOT count
@@ -443,17 +444,26 @@ extension MainView {
             }
             #endif
             .onChange(of: showSettings) { _, presented in
-                if presented { showQuickSettingsOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
             }
             .onChange(of: showClipboardManager) { _, presented in
-                if presented { showQuickSettingsOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
             }
             .onChange(of: showConnectionSidebar) { _, presented in
-                if presented { showQuickSettingsOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
             }
             .onChange(of: showQuickSettingsOverlay) { _, presented in
                 setOverlayOwnsKeyboardForAllTerminals(isAnySheetPresented)
                 if !presented { restoreFirstResponderAfterSheetDismissal() }
+            }
+            .onChange(of: showOpenInFolderOverlay) { _, presented in
+                setOverlayOwnsKeyboardForAllTerminals(isAnySheetPresented)
+                if !presented {
+                    openInFolderModel?.end()
+                    openInFolderModel = nil
+                    openInFolderShortcut = nil
+                    restoreFirstResponderAfterSheetDismissal()
+                }
             }
             .onChange(of: showThemePickerOverlay) { _, newValue in
                 handleThemePickerOverlayChange(newValue)

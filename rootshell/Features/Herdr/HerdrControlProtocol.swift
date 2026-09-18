@@ -84,6 +84,101 @@ nonisolated enum HerdrControl {
         let tab_id: String
     }
 
+    struct LayoutSetSplitRatioParams: Encodable, Sendable, Equatable {
+        let tab_id: String
+        /// Server tree path: false selects first, true selects second.
+        let path: [Bool]
+        let ratio: Double
+    }
+
+    /// Both layout.export and layout.set_split_ratio return this shape.
+    struct LayoutDescriptionResult: Decodable, Sendable {
+        let layout: LayoutDescription
+    }
+
+    struct LayoutDescription: Decodable, Sendable {
+        let workspace_id: String
+        let tab_id: String
+        let root: ExportedLayoutNode
+
+        func hasSameTopology(as other: Self) -> Bool {
+            workspace_id == other.workspace_id && tab_id == other.tab_id
+                && root.hasSameTopology(as: other.root)
+        }
+    }
+
+    /// Use the server's tree, not the tree reconstructed from rectangles:
+    /// equivalent pane geometry can have different split paths, and zoom
+    /// hides panes from the geometry snapshot.
+    indirect enum ExportedLayoutNode: Decodable, Sendable {
+        enum Direction: String, Decodable, Sendable {
+            case right, down
+        }
+
+        case pane(String)
+        case split(direction: Direction, ratio: Double, first: Self, second: Self)
+
+        private enum CodingKeys: String, CodingKey {
+            case type, pane_id, direction, ratio, first, second
+        }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            switch try values.decode(String.self, forKey: .type) {
+            case "pane":
+                self = .pane(try values.decode(String.self, forKey: .pane_id))
+            case "split":
+                let ratio = try values.decode(Double.self, forKey: .ratio)
+                guard ratio.isFinite, (0...1).contains(ratio) else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .ratio, in: values, debugDescription: "Invalid herdr split ratio"
+                    )
+                }
+                self = .split(
+                    direction: try values.decode(Direction.self, forKey: .direction), ratio: ratio,
+                    first: try values.decode(Self.self, forKey: .first),
+                    second: try values.decode(Self.self, forKey: .second)
+                )
+            default:
+                throw DecodingError.dataCorruptedError(
+                    forKey: .type, in: values, debugDescription: "Unknown herdr layout node"
+                )
+            }
+        }
+
+        func hasSameTopology(as other: Self) -> Bool {
+            switch (self, other) {
+            case (.pane(let a), .pane(let b)):
+                return a == b
+            case let (.split(a, _, aFirst, aSecond), .split(b, _, bFirst, bSecond)):
+                return a == b && aFirst.hasSameTopology(as: bFirst) && aSecond.hasSameTopology(as: bSecond)
+            default:
+                return false
+            }
+        }
+
+        func equalizationRequests(tabID: String, path: [Bool] = []) -> [LayoutSetSplitRatioParams] {
+            guard case let .split(direction, ratio, first, second) = self else { return [] }
+            let a = first.weight(for: direction)
+            let b = second.weight(for: direction)
+            // Match SplitTree.equalize(), within herdr's existing ratio limits.
+            let target = min(0.9, max(0.1, Double(a) / Double(a + b)))
+            var requests: [LayoutSetSplitRatioParams] = []
+            // The server stores f32 ratios; avoid rewriting equal thirds, etc.
+            if abs(ratio - target) > 0.000001 {
+                requests.append(.init(tab_id: tabID, path: path, ratio: target))
+            }
+            requests += first.equalizationRequests(tabID: tabID, path: path + [false])
+            requests += second.equalizationRequests(tabID: tabID, path: path + [true])
+            return requests
+        }
+
+        private func weight(for direction: Direction) -> Int {
+            guard case let .split(axis, _, first, second) = self, axis == direction else { return 1 }
+            return first.weight(for: direction) + second.weight(for: direction)
+        }
+    }
+
     struct WorkspaceTarget: Encodable {
         let workspace_id: String
     }
@@ -93,11 +188,14 @@ nonisolated enum HerdrControl {
         /// "right" or "down".
         let direction: String
         var focus = true
+        /// Start directory for the new pane's shell; nil follows herdr's policy.
+        var cwd: String? = nil
     }
 
     struct TabCreateParams: Encodable {
         let workspace_id: String
         var focus = true
+        var cwd: String? = nil
     }
 
     struct TabListParams: Encodable {

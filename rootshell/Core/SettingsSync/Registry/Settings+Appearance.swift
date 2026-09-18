@@ -15,6 +15,7 @@ extension CursorEffect: SettingValue {}
 extension SelectionAppearanceMode: SettingValue {}
 extension TransparencyManager.BlurStyle: SettingValue {}
 extension ShaderManager.AnimationMode: SettingValue {}
+extension TerminalTouchKeyboardModel.BackgroundEffectPlacement: SettingValue {}
 
 nonisolated extension Settings {
     enum Theme {
@@ -227,11 +228,25 @@ nonisolated extension Settings {
             "backgroundEffectIncludesPinnedSidebar", default: true, group: .shaders,
             configKey: "background-effect-includes-pinned-sidebar",
             title: String(localized: "Extend Effect Under Pinned Sidebar", comment: "Setting title"))
+        static let keyboardBackgroundEffect = SettingKey(
+            "keyboardBackgroundEffect", default: TerminalTouchKeyboardModel.BackgroundEffectPlacement.off,
+            group: .shaders, policy: .localByDefault,
+            configKey: "keyboard-background-effect",
+            title: String(localized: "Custom Keyboard Background", comment: "Setting title"))
+        static let keyboardEffectId = SettingKey(
+            "keyboardEffectId", default: BackgroundEffectSelection.followTerminalID,
+            group: .shaders, policy: .localByDefault, configKey: "keyboard-effect-id",
+            title: String(localized: "Keyboard Effect", comment: "Setting title"))
+        static let sidebarEffectId = SettingKey(
+            "sidebarEffectId", default: BackgroundEffectSelection.followTerminalID,
+            group: .shaders, policy: .localByDefault, configKey: "sidebar-effect-id",
+            title: String(localized: "Sidebar Effect", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             animationMode.erased, activeEffectId.erased, effectConfigurations.erased, customShadersList.erased,
             enabledCustomShaders.erased, pendingVideoActivation.erased, solarCachedLocation.erased,
-            videoPausedDownloads, effectIncludesPinnedSidebar.erased,
+            videoPausedDownloads, effectIncludesPinnedSidebar.erased, keyboardBackgroundEffect.erased,
+            keyboardEffectId.erased, sidebarEffectId.erased,
         ]
     }
 }

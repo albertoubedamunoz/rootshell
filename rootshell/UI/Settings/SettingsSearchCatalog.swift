@@ -28,6 +28,7 @@ enum SettingsSearchDestination: String, Hashable, CaseIterable {
     case newTabAction
     case keyboardShortcuts
     case modTap
+    case gestureHelp
     case swipeGestures
     case promptAndUsername
     case bookmarkedLocations
@@ -170,6 +171,14 @@ extension SettingsSearchDestination {
         case .modTap:
             Meta(section: .terminal, title: String(localized: "Mod-Tap Keys"), systemImage: "hand.tap",
                  keywords: ["caps lock", "modifier", "tap hold", "escape", "rules", "threshold", "input source", "hold"])
+        case .gestureHelp:
+            Meta(section: .terminal, title: String(localized: "Gesture Help"), systemImage: "hand.tap",
+                 keywords: ["gestures", "help", "walkthrough", "tutorial", "long press", "double tap",
+                            "two fingers", "chevron", "hide keyboard", "collapse toolbar", "modifiers",
+                            "joystick", "space", "cursor", "floating keyboard", "dock", "swipe", "pinch",
+                            "font size", "selection", "scroll mode", "context menu", "new connection",
+                            "tab expose", "pull down", "previews", "sidebar", "split", "pane",
+                            "screen sharing", "pencil"])
         case .swipeGestures:
             Meta(section: .terminal, title: String(localized: "Swipe Gestures"), systemImage: "hand.draw",
                  keywords: ["swipe", "gesture", "left swipe", "right swipe", "app tabs", "tmux windows",
@@ -647,8 +656,10 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["saver", "low power"]),
 
             // MARK: Background Effect
-            row("effect-pinned-sidebar", String(localized: "Include Pinned Sidebar"), in: .backgroundEffect,
-                keywords: ["layout", "sidebar", "effect"]),
+            row("effect-pinned-sidebar", String(localized: "Sidebar Effect"), in: .backgroundEffect,
+                keywords: ["layout", "sidebar", "effect", "sidebar only", "include pinned sidebar"], available: isTouch && !onPhone || isCatalyst),
+            row("effect-keyboard", String(localized: "Custom Keyboard Background"), in: .backgroundEffect, icon: "keyboard",
+                keywords: ["custom keyboard", "toolbar", "effect", "background", "aquarium", "keyboard only"], available: isTouch),
             row("effect-photo", String(localized: "Photo Background"), in: .backgroundEffect, icon: "photo",
                 keywords: ["photo", "image", "wallpaper", "ken burns", "filter", "tint"]),
             row("effect-video", String(localized: "Video Background"), in: .backgroundEffect, icon: "film",
@@ -1065,6 +1076,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         KeyboardShortcutsSettingsView()
     case .modTap:
         ModTapSettingsView()
+    case .gestureHelp:
+        GestureHelpView()
     case .swipeGestures:
         SwipeGesturesSettingsView()
     case .promptAndUsername:

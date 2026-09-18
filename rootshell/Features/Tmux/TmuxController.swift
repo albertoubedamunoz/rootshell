@@ -4316,7 +4316,7 @@ extension Ghostty.TerminalView {
     /// bound pane surface and the native split. The new pane becomes focused
     /// (no `-d`); the reconcile's focus op moves first responder to it.
     @MainActor
-    func requestTmuxSplit(_ direction: SplitTree<SplitPaneView>.NewDirection) {
+    func requestTmuxSplit(_ direction: SplitTree<SplitPaneView>.NewDirection, startDirectory: String? = nil) {
         guard let binding = tmuxPaneBinding,
               let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
               controller.isActive else { return }
@@ -4330,7 +4330,14 @@ extension Ghostty.TerminalView {
         case .down:  flags = "-v"
         case .up:    flags = "-v -b"
         }
-        sendTmuxCommand("split-window \(flags) -t %\(binding.paneId)\n", to: binding.parentSurface)
+        sendTmuxCommand("split-window \(flags)\(Self.tmuxStartDirectoryFlag(startDirectory)) -t %\(binding.paneId)\n",
+                        to: binding.parentSurface)
+    }
+
+    /// ` -c '<dir>'` for split-window / new-window, or nothing.
+    nonisolated static func tmuxStartDirectoryFlag(_ directory: String?) -> String {
+        guard let directory, InitialDirectoryCommand.isSupportedDirectory(directory) else { return "" }
+        return " -c " + TmuxCommandQuoting.quotedFormatLiteral(directory)
     }
 
     /// Tell tmux this pane is now the user's active pane. Called ONLY for
@@ -4439,13 +4446,14 @@ extension Ghostty.TerminalView {
     /// tab. The controller flag makes that tab open AND get selected (remote focus
     /// is otherwise ignored).
     @MainActor
-    func requestTmuxNewWindow() {
+    func requestTmuxNewWindow(startDirectory: String? = nil) {
         guard let binding = tmuxPaneBinding,
               let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
               controller.isActive
         else { return }
         controller.noteNewWindowRequest()
-        sendTmuxCommand("new-window -a -t @\(binding.windowId)\n", to: binding.parentSurface)
+        sendTmuxCommand("new-window -a\(Self.tmuxStartDirectoryFlag(startDirectory)) -t @\(binding.windowId)\n",
+                        to: binding.parentSurface)
     }
 
     /// Request a new tmux window from the GATEWAY view (the tab running tmux -CC),
@@ -4457,11 +4465,11 @@ extension Ghostty.TerminalView {
     /// through to non-tmux handling when it isn't.
     @MainActor
     @discardableResult
-    func requestTmuxNewWindowFromGateway() -> Bool {
+    func requestTmuxNewWindowFromGateway(startDirectory: String? = nil) -> Bool {
         guard let surface, let controller = tmuxController, controller.isActive
         else { return false }
         controller.noteNewWindowRequest()
-        sendTmuxCommand("new-window -a\n", to: surface)
+        sendTmuxCommand("new-window -a\(Self.tmuxStartDirectoryFlag(startDirectory))\n", to: surface)
         return true
     }
 

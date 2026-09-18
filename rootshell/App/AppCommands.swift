@@ -188,6 +188,14 @@ struct FileCommands: Commands {
                 )
             }
             .modifier(DynamicShortcut(action: .duplicate_ssh_tab, shortcuts: shortcutState.shortcuts))
+
+            Button("Open in Folder…") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuOpenInFolder(_:)),
+                    from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .open_in_folder, shortcuts: shortcutState.shortcuts))
         }
     }
 }

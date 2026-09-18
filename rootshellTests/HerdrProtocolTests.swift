@@ -1,6 +1,102 @@
 import Foundation
 import XCTest
 
+final class HerdrEqualizationTests: XCTestCase {
+    private typealias Node = HerdrControl.ExportedLayoutNode
+
+    func testExportAndRatioResponsesDecodeFullTreeWhileZoomed() throws {
+        for type in ["layout_export", "layout_split_ratio_set"] {
+            let json = """
+            {"id":"equalize","result":{"type":"\(type)","layout":{
+              "workspace_id":"w1","tab_id":"w1:t1","zoomed":true,"focused_pane_id":"p2",
+              "root":{"type":"split","direction":"right","ratio":0.8,
+                "first":{"type":"pane","pane_id":"p1","cwd":"/tmp","env":{}},
+                "second":{"type":"pane","pane_id":"p2"}}
+            }}}
+            """
+            let response = try HerdrControl.decoder.decode(
+                HerdrControl.Response<HerdrControl.LayoutDescriptionResult>.self, from: Data(json.utf8)
+            )
+            XCTAssertEqual(response.result.layout.root.equalizationRequests(tabID: "w1:t1"), [
+                .init(tab_id: "w1:t1", path: [], ratio: 0.5)
+            ])
+        }
+    }
+
+    func testRatioRequestEncodesExplicitTabAndBooleanPath() throws {
+        let request = HerdrControl.Request(id: "equalize", method: "layout.set_split_ratio",
+            params: HerdrControl.LayoutSetSplitRatioParams(tab_id: "w1:t2", path: [false, true], ratio: 0.5))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        let params = try XCTUnwrap(object["params"] as? [String: Any])
+        XCTAssertEqual(object["method"] as? String, "layout.set_split_ratio")
+        XCTAssertEqual(params["tab_id"] as? String, "w1:t2")
+        XCTAssertEqual(params["path"] as? [Bool], [false, true])
+        XCTAssertEqual(params["ratio"] as? Double, 0.5)
+        XCTAssertNil(params["pane_id"])
+    }
+
+    func testThreePanesBecomeEqualThirdsAlongEitherAxis() {
+        for axis in [Node.Direction.right, .down] {
+            let root = Node.split(direction: axis, ratio: 0.7, first: .pane("a"),
+                second: .split(direction: axis, ratio: 0.7, first: .pane("b"), second: .pane("c")))
+            let requests = root.equalizationRequests(tabID: "tab")
+            XCTAssertEqual(requests.map(\.path), [[], [true]])
+            XCTAssertEqual(requests.map(\.ratio), [1.0 / 3.0, 0.5])
+            XCTAssertTrue(requests.allSatisfy { $0.tab_id == "tab" })
+        }
+    }
+
+    func testPerpendicularGroupCountsAsOneAndBothChildrenAreEqualized() {
+        let root = Node.split(direction: .right, ratio: 0.8,
+            first: .split(direction: .down, ratio: 0.8, first: .pane("a"), second: .pane("b")),
+            second: .split(direction: .right, ratio: 0.8, first: .pane("c"), second: .pane("d")))
+        let requests = root.equalizationRequests(tabID: "tab")
+        XCTAssertEqual(requests.map(\.path), [[], [false], [true]])
+        XCTAssertEqual(requests.map(\.ratio), [1.0 / 3.0, 0.5, 0.5])
+    }
+
+    func testSinglePaneAndAlreadyEqualFloatRatiosNeedNoWrites() {
+        XCTAssertTrue(Node.pane("a").equalizationRequests(tabID: "tab").isEmpty)
+        let root = Node.split(direction: .right, ratio: Double(Float(1.0 / 3.0)), first: .pane("a"),
+            second: .split(direction: .right, ratio: 0.5, first: .pane("b"), second: .pane("c")))
+        XCTAssertTrue(root.equalizationRequests(tabID: "tab").isEmpty)
+    }
+
+    func testEqualizationRespectsServerRatioLimits() {
+        let row = (1...10).reduce(Node.pane("0")) { first, index in
+            .split(direction: .right, ratio: 0.5, first: first, second: .pane(String(index)))
+        }
+        let leftHeavy = Node.split(direction: .right, ratio: 0.5, first: row, second: .pane("last"))
+        let rightHeavy = Node.split(direction: .right, ratio: 0.5, first: .pane("first"), second: row)
+        XCTAssertEqual(leftHeavy.equalizationRequests(tabID: "tab").first?.ratio, 0.9)
+        XCTAssertEqual(rightHeavy.equalizationRequests(tabID: "tab").first?.ratio, 0.1)
+    }
+
+    func testTopologyComparisonIgnoresRatiosButDetectsChangedPathsAndTargets() {
+        let root = Node.split(direction: .right, ratio: 0.8, first: .pane("a"), second: .pane("b"))
+        let equalized = Node.split(direction: .right, ratio: 0.5, first: .pane("a"), second: .pane("b"))
+        XCTAssertTrue(root.hasSameTopology(as: equalized))
+        XCTAssertFalse(root.hasSameTopology(as: .pane("a")))
+        XCTAssertFalse(root.hasSameTopology(as: .split(direction: .down, ratio: 0.8, first: .pane("a"), second: .pane("b"))))
+        XCTAssertFalse(root.hasSameTopology(as: .split(direction: .right, ratio: 0.8, first: .pane("b"), second: .pane("a"))))
+        let layout = HerdrControl.LayoutDescription(workspace_id: "workspace", tab_id: "tab", root: root)
+        XCTAssertTrue(layout.hasSameTopology(as: .init(workspace_id: "workspace", tab_id: "tab", root: equalized)))
+        XCTAssertFalse(layout.hasSameTopology(as: .init(workspace_id: "workspace", tab_id: "other", root: root)))
+        XCTAssertFalse(layout.hasSameTopology(as: .init(workspace_id: "other", tab_id: "tab", root: root)))
+    }
+
+    func testMalformedExportedTreesAreRejected() {
+        for json in [
+            #"{"type":"unknown"}"#,
+            #"{"type":"pane"}"#,
+            #"{"type":"split","direction":"left","ratio":0.5,"first":{"type":"pane","pane_id":"a"},"second":{"type":"pane","pane_id":"b"}}"#,
+            #"{"type":"split","direction":"right","ratio":2,"first":{"type":"pane","pane_id":"a"},"second":{"type":"pane","pane_id":"b"}}"#
+        ] {
+            XCTAssertThrowsError(try HerdrControl.decoder.decode(Node.self, from: Data(json.utf8)))
+        }
+    }
+}
+
 final class HerdrProtocolTests: XCTestCase {
 
     // MARK: Version requirement

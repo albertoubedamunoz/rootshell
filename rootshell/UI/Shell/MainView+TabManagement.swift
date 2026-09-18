@@ -459,13 +459,15 @@ extension MainView {
         return terminal.tmuxController
     }
 
-    private func requestNewTmuxWindow(on terminal: Ghostty.TerminalView, ownedBy controller: TmuxController) -> Bool {
+    func requestNewTmuxWindow(
+        on terminal: Ghostty.TerminalView, ownedBy controller: TmuxController, startDirectory: String? = nil
+    ) -> Bool {
         guard controller.isActive, newTabTmuxController(for: terminal) === controller else { return false }
         if terminal.isTmuxPane {
-            terminal.requestTmuxNewWindow()
+            terminal.requestTmuxNewWindow(startDirectory: startDirectory)
             return true
         }
-        return terminal.requestTmuxNewWindowFromGateway()
+        return terminal.requestTmuxNewWindowFromGateway(startDirectory: startDirectory)
     }
 
     func createLocalShellTab(for request: NewTabRequest) {
@@ -503,26 +505,30 @@ extension MainView {
         case .connection(let original, let profileID):
             // Never reuse roam/cloud session IDs. Keep the effective config and
             // profile provenance rather than re-reading an edited saved profile.
-            let config = original.forNewSplit()
-            switch config {
-            case .local:
-                performLocalShellAction(description: "duplicate a local shell") {
-                    self.openTerminalTab(config: config, title: config.displayName,
-                                         sourceProfileID: profileID, suppressesTabBarAnimation: true)
-                }
-            case .vnc(let vnc):
-                createVNCTab(with: vnc, sourceProfileID: profileID)
-            case .mosh(let mosh), .shellLaunchedMosh(let mosh, _):
-                createMoshTab(with: mosh, sourceProfileID: profileID)
-            case .trzsz(let trzsz), .shellLaunchedTrzsz(let trzsz, _):
-                createTrzszTab(with: trzsz, sourceProfileID: profileID)
-            case .ssh(let ssh), .shellLaunchedSSH(let ssh, _):
-                createSSHTab(with: ssh, sourceProfileID: profileID)
-            case .trzszTransfer:
-                addNewTab()
-            default:
-                openTerminalTab(config: config, title: config.displayName, sourceProfileID: profileID)
+            openConnectionTab(original.forNewSplit(), sourceProfileID: profileID)
+        }
+    }
+
+    /// Opens a tab for an already-prepared config (a `forNewSplit()` copy).
+    func openConnectionTab(_ config: ConnectionConfig, sourceProfileID profileID: UUID?) {
+        switch config {
+        case .local:
+            performLocalShellAction(description: "duplicate a local shell") {
+                self.openTerminalTab(config: config, title: config.displayName,
+                                     sourceProfileID: profileID, suppressesTabBarAnimation: true)
             }
+        case .vnc(let vnc):
+            createVNCTab(with: vnc, sourceProfileID: profileID)
+        case .mosh(let mosh), .shellLaunchedMosh(let mosh, _):
+            createMoshTab(with: mosh, sourceProfileID: profileID)
+        case .trzsz(let trzsz), .shellLaunchedTrzsz(let trzsz, _):
+            createTrzszTab(with: trzsz, sourceProfileID: profileID)
+        case .ssh(let ssh), .shellLaunchedSSH(let ssh, _):
+            createSSHTab(with: ssh, sourceProfileID: profileID)
+        case .trzszTransfer:
+            addNewTab()
+        default:
+            openTerminalTab(config: config, title: config.displayName, sourceProfileID: profileID)
         }
     }
 

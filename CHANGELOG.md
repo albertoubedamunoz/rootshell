@@ -3,6 +3,40 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.12-151 - September 17, 2026
+
+### Critical Crash Fix: Session Discovery
+
+- **Session Discovery Crash:** Fixed a critical regression introduced in build 147 that could crash the app during multiplexer session discovery. Reports pointed to iPhone Pro Max devices with session discovery enabled and an active multiplexer session found. The crash required specific device and keyboard geometry and was reproduced in the simulator.
+- **Stable Session Picker Layout:** Fixed repeated layout updates in the session picker with the software keyboard visible. If you were affected, please retry connecting with multiplexer session discovery enabled and an active session available, and report any remaining crashes.
+
+### Open in Folder
+
+- **Open Tabs and Splits in a Folder:** Press Shift-Command-J to open a new tab or split in a folder on the focused pane's host. Works with local shells, SSH, tssh, mosh, and tmux or herdr control-mode sessions.
+- **Folder Browsing and Completion:** Browse with folder previews and Tab completion. Shift-Tab goes to the parent folder. Suggestions include recent folders and working directories from other panes on the same host.
+- **Placement and Recent Folders:** Choose a new tab or split direction in the picker, or use your existing new-tab and split shortcuts while it is open. Recent folders are remembered per host, along with your last placement choice.
+
+### Animated Gesture Help
+
+- **Animated Demonstrations:** Find Gesture Help in Settings -> Terminal for animated demonstrations and expandable instructions covering terminal gestures, tabs, splits, selection, and keyboard controls.
+- **Device-Aware Instructions:** Help adapts to your device, explains when each gesture is available, and is searchable from Settings. Animations respect Reduce Motion and pause when offscreen.
+
+### Aquarium Background
+
+- **Animated Aquarium:** Added an animated aquarium with clownfish, blue tangs, butterflyfish, angelfish, neon tetras, swaying kelp, bubbles, and underwater lighting.
+- **Appearance and Performance Controls:** Customize fish population, water current, kelp density, lighting, color, haze, and bloom. Reading Protection softens the effect behind central text, and render-quality options let you balance appearance and performance.
+- **Device Defaults and Motion Controls:** Starts with 3 fish on iPhone and 8 on other devices. Pause the aquarium or reset its settings to defaults. Reduce Motion displays a still aquarium, and Battery Saver lowers quality automatically.
+
+### Independent Keyboard and Sidebar Effects
+
+- **Separate Background Effects:** Choose separate background effects for the custom Terminal Keyboard on iPhone and iPad and the pinned tab sidebar on iPad and Mac. Each area can follow the terminal effect or use its own selection.
+- **Keyboard and Sidebar Only:** Set the terminal effect to None to show an effect only in the keyboard or sidebar. Keyboard effects can cover just the toolbar or the entire keyboard, with photos and downloaded videos also available.
+- **Shared Effect Settings:** Configure the selected effect without enabling it for the terminal. Areas using the same effect share its settings. Keyboard and toolbar glass styling is preserved.
+
+### herdr Split Fix
+
+- **Reliable Equalize Splits:** Fixed Equalize Splits in herdr control mode. Keyboard shortcuts, menus, and divider gestures now update the server's layout so pane sizes stay equalized, including nested splits and fallback connections.
+
 ## 1.0.12-150 - September 17, 2026
 
 ### iPadOS 27 Menu Fix

@@ -461,6 +461,14 @@ struct SettingsTerminalSection: View {
 
             // MARK: - Gestures
             Section {
+                NavigationLink(value: SettingsSearchDestination.gestureHelp) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "hand.tap")
+                        Text("Gesture Help")
+                    }
+                }
+                .themedRow()
+
                 NavigationLink(value: SettingsSearchDestination.swipeGestures) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "hand.draw")

@@ -206,6 +206,11 @@ struct SSHConfig: Codable, Hashable {
     /// Not persisted — this is chosen by the call site at runtime.
     var remoteCommandPolicy: RemoteCommandPolicy = .verbatim
 
+    /// Absolute directory the remote shell (or exec command) starts in.
+    /// Not in CodingKeys: profiles never store it, but tab restore carries it
+    /// through SerializableConnectionConfig. nil = the account's login directory.
+    var initialDirectory: String? = nil
+
     /// Tracks if the password was loaded from Keychain (for history recording)
     /// Not persisted - only used at runtime to determine auth type for connection history
     var usedSavedPassword: Bool = false
@@ -980,11 +985,27 @@ struct SSHConfig: Codable, Hashable {
         )
     }
 
-    /// Returns the exec command to use, if any.
+    /// Returns the exec command to use, if any. An initial directory wraps the
+    /// base command (or the login shell) in a `cd`.
+    var effectiveExecCommand: String? {
+        guard let initialDirectory, InitialDirectoryCommand.isSupportedDirectory(initialDirectory) else {
+            return baseExecCommand
+        }
+        return InitialDirectoryCommand.execCommand(directory: initialDirectory, wrapping: baseExecCommand)
+    }
+
+    /// Returns the command mosh-server should run inside the mosh session.
+    var effectiveMoshSessionCommand: String {
+        guard let initialDirectory, InitialDirectoryCommand.isSupportedDirectory(initialDirectory) else {
+            return baseMoshSessionCommand
+        }
+        return InitialDirectoryCommand.moshSessionCommand(directory: initialDirectory, wrapping: baseMoshSessionCommand)
+    }
+
     /// Remote command takes precedence over profile launch command and
     /// multiplexer auto-start; precedence among multiplexers is tmux, then
     /// herdr, then zmx.
-    var effectiveExecCommand: String? {
+    private var baseExecCommand: String? {
         if let remoteCommand, !remoteCommand.isEmpty {
             return Self.command(remoteCommand, applying: remoteCommandPolicy)
         }
@@ -1008,8 +1029,7 @@ struct SSHConfig: Codable, Hashable {
         return nil
     }
 
-    /// Returns the command mosh-server should run inside the mosh session.
-    var effectiveMoshSessionCommand: String {
+    private var baseMoshSessionCommand: String {
         if let remoteCommand, !remoteCommand.isEmpty {
             let script = remoteCommandPolicy == .prependPATH ? Self.remoteExecPathPrefix + remoteCommand : remoteCommand
             return LoginShellCommand.runInPOSIXShell(script, login: true)

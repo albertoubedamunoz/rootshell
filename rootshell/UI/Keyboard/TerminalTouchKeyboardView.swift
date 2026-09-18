@@ -50,6 +50,25 @@ private enum TerminalTouchKeyboardAppearance {
     }
 }
 
+private struct TerminalTouchKeyboardEffectBackground: View {
+    let backgroundColor: UIColor
+    @ObservedObject var effect: AnyTerminalEffect
+    var effectManager = EffectManager.shared
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: backgroundColor)
+            effect.createEffectView()
+                .id(effect.id)
+                .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
+        }
+        .environment(\.terminalEffectAvoidsKeyboard, false)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 /// An in-app keyboard. The terminal remains first responder throughout typing.
 @MainActor
 protocol TerminalTouchKeyboardHost: AnyObject {
@@ -299,6 +318,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let background = UIView()
     private let floatingGlass = UIVisualEffectView()
     private let controlGlass = UIVisualEffectView()
+    private var effectContentView: (UIView & UIContentView)?
+    private var effectPlacement = Model.BackgroundEffectPlacement.off
+    private var effectsSuspended = UIApplication.shared.applicationState != .active
     private let drawer = UIScrollView()
     private let pageIndicator = UIVisualEffectView()
     private let pageIndicatorTitle = UILabel()
@@ -384,12 +406,12 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         floatingGlass.layer.cornerCurve = .continuous
         floatingGlass.clipsToBounds = true
         floatingGlass.isHidden = true
-        addSubview(floatingGlass)
         background.isUserInteractionEnabled = false
         background.layer.cornerRadius = 24
         background.layer.cornerCurve = .continuous
         background.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         addSubview(background)
+        addSubview(floatingGlass)
         controlGlass.isUserInteractionEnabled = false
         controlGlass.layer.cornerRadius = 22
         controlGlass.layer.cornerCurve = .continuous
@@ -477,13 +499,23 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         ThemeOverrideManager.shared.overridesDidChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
             self?.updateAppearance(); self?.rebuildDrawer()
         }.store(in: &observations)
-        for name in [UIApplication.willResignActiveNotification, UIAccessibility.reduceTransparencyStatusDidChangeNotification,
+        EffectManager.shared.effectDidChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
+            self?.updateBackgroundEffect()
+        }.store(in: &observations)
+        for name in [UIApplication.willResignActiveNotification, UIApplication.didBecomeActiveNotification,
+                     UIAccessibility.reduceTransparencyStatusDidChangeNotification,
                      UIAccessibility.darkerSystemColorsStatusDidChangeNotification, Notification.Name.settingsDidChange,
                      KeyboardToolbarManager.layoutDidChangeNotification] {
             let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
-                    if name == UIApplication.willResignActiveNotification { self.cancelInteraction(); return }
+                    if name == UIApplication.willResignActiveNotification {
+                        self.cancelInteraction()
+                        self.effectsSuspended = true
+                        self.updateBackgroundEffect()
+                        return
+                    }
+                    if name == UIApplication.didBecomeActiveNotification { self.effectsSuspended = false }
                     self.refreshSettings()
                 }
             }
@@ -676,7 +708,56 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         refreshWritingAssistance()
         rebuildToolbarDrawers()
         updateModifierAppearance()
+        updateBackgroundEffect()
         onAppearanceChanged?()
+    }
+
+    private func updateBackgroundEffect() {
+        effectPlacement = SettingsStore.shared.value(Settings.Shaders.keyboardBackgroundEffect)
+        guard window != nil, !isHidden, !effectsSuspended,
+              effectPlacement != .off, let effect = EffectManager.shared.keyboardEffect else {
+            removeBackgroundEffect()
+            return
+        }
+
+        // Keep glass above the effect, with the existing tint and material.
+        // A detached glass keyboard must retain its transparent backdrop.
+        let color: UIColor = !floatingGlass.isHidden ? .clear : (effectPlacement == .toolbar
+            ? (palette?.background ?? TerminalTouchKeyboardAppearance.toolbar) : containerBackgroundColor)
+        let configuration = UIHostingConfiguration {
+            TerminalTouchKeyboardEffectBackground(backgroundColor: color, effect: effect)
+        }
+        .margins(.all, 0)
+        .minSize(width: 0, height: 0)
+        if let effectContentView {
+            effectContentView.configuration = configuration
+        } else {
+            // UIKit reparents the input hierarchy while presenting the keyboard.
+            // Its responder chain can still lead to MainView at that point, so
+            // manually parenting a UIHostingController there causes a
+            // UIViewControllerHierarchyInconsistency. A content configuration
+            // embeds SwiftUI without a controller parent for us to manage.
+            let view = configuration.makeContentView()
+            view.backgroundColor = .clear
+            view.isUserInteractionEnabled = false
+            view.accessibilityElementsHidden = true
+            view.clipsToBounds = true
+            view.layer.cornerCurve = .continuous
+            effectContentView = view
+            insertSubview(view, aboveSubview: background)
+        }
+        layoutBackgroundEffect()
+    }
+
+    private func layoutBackgroundEffect() {
+        guard let view = effectContentView else { return }
+        view.frame = effectPlacement == .toolbar ? controlGlass.frame : bounds
+        view.layer.cornerRadius = effectPlacement == .toolbar ? 22 : (isFloating ? 24 : 0)
+    }
+
+    private func removeBackgroundEffect() {
+        effectContentView?.removeFromSuperview()
+        effectContentView = nil
     }
 
     private func makeCap(_ key: Model.Key, small: Bool = false) -> TerminalTouchKeycap {
@@ -784,6 +865,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         grabber.isHidden = !isFloating
         grabber.frame = CGRect(x: (bounds.width - 88) / 2, y: bounds.height - 44, width: 88, height: 44)
         controlGlass.frame = CGRect(x: leading + 2, y: 2, width: max(0, width - 4), height: toolbarHeight - 4)
+        layoutBackgroundEffect()
         let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: width, drawerToggle: configuredDrawerToggle)
         if controls.map(\.key) != toolbar.main || toolbarDrawerKeys != toolbar.drawers {
             cancelInteraction()
@@ -867,7 +949,17 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     override func safeAreaInsetsDidChange() { super.safeAreaInsetsDidChange(); setNeedsLayout() }
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window == nil { cancelInteraction() } else { refreshSettings(); updateSuggestions() }
+        if window == nil {
+            cancelInteraction()
+            removeBackgroundEffect()
+        } else {
+            refreshSettings()
+            updateSuggestions()
+        }
+    }
+
+    override var isHidden: Bool {
+        didSet { if oldValue != isHidden { updateBackgroundEffect() } }
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {

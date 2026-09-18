@@ -75,6 +75,11 @@ struct SidebarSearchField: UIViewRepresentable {
     var onQuickSelect: ((Int) -> Void)? = nil   // Ctrl+1..9 (1-based)
     var onTogglePin: (() -> Void)? = nil        // Ctrl+P
     var onDeleteEntry: (() -> Void)? = nil      // Ctrl+Delete
+    var onTab: (() -> Void)? = nil              // Tab (beats UIKit focus movement)
+    var onBackTab: (() -> Void)? = nil          // Shift+Tab
+    /// Caller-defined chords (e.g. the user's split shortcuts) claimed while
+    /// the field is first responder.
+    var extraCommands: [SidebarSearchExtraCommand] = []
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -142,7 +147,10 @@ struct SidebarSearchField: UIViewRepresentable {
             onModifiedSubmit: onModifiedSubmit,
             onQuickSelect: onQuickSelect,
             onTogglePin: onTogglePin,
-            onDeleteEntry: onDeleteEntry
+            onDeleteEntry: onDeleteEntry,
+            onTab: onTab,
+            onBackTab: onBackTab,
+            extraCommands: extraCommands
         )
     }
 
@@ -208,6 +216,13 @@ struct SidebarSearchField: UIViewRepresentable {
     }
 }
 
+/// A chord a panel claims while its field is first responder.
+struct SidebarSearchExtraCommand {
+    let input: String
+    let modifiers: UIKeyModifierFlags
+    let handler: () -> Void
+}
+
 /// UITextField that routes list-navigation keys (Up/Down/Escape) to closures
 /// while letting everything else — typing, Return — behave normally.
 final class SidebarSearchTextField: UITextField {
@@ -221,6 +236,9 @@ final class SidebarSearchTextField: UITextField {
         var onQuickSelect: ((Int) -> Void)?
         var onTogglePin: (() -> Void)?
         var onDeleteEntry: (() -> Void)?
+        var onTab: (() -> Void)?
+        var onBackTab: (() -> Void)?
+        var extraCommands: [SidebarSearchExtraCommand] = []
     }
 
     var handlers: Handlers?
@@ -285,6 +303,19 @@ final class SidebarSearchTextField: UITextField {
                 action: #selector(handleDeleteEntryCommand)
             )))
         }
+        // Tab must be claimed here or the focus system moves focus off the field.
+        if handlers.onTab != nil {
+            commands.append(prioritized(UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(handleTabCommand))))
+        }
+        if handlers.onBackTab != nil {
+            commands.append(prioritized(UIKeyCommand(input: "\t", modifierFlags: .shift, action: #selector(handleBackTabCommand))))
+        }
+        for (index, extra) in handlers.extraCommands.enumerated() {
+            commands.append(prioritized(UIKeyCommand(
+                title: "", image: nil, action: #selector(handleExtraCommand(_:)),
+                input: extra.input, modifierFlags: extra.modifiers, propertyList: index
+            )))
+        }
         return commands
     }
 
@@ -313,6 +344,20 @@ final class SidebarSearchTextField: UITextField {
 
     @objc private func handleDeleteEntryCommand() {
         handlers?.onDeleteEntry?()
+    }
+
+    @objc private func handleTabCommand() {
+        handlers?.onTab?()
+    }
+
+    @objc private func handleBackTabCommand() {
+        handlers?.onBackTab?()
+    }
+
+    @objc private func handleExtraCommand(_ command: UIKeyCommand) {
+        guard let index = command.propertyList as? Int,
+              let extra = handlers?.extraCommands, extra.indices.contains(index) else { return }
+        extra[index].handler()
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -347,7 +392,19 @@ final class SidebarSearchTextField: UITextField {
         guard capturesNavigationKeys else { return false }
         // While composing (IME marked text), arrows navigate the candidate UI.
         guard markedTextRange == nil else { return false }
-        guard let key = press.key, isPlain(key), let handlers else { return false }
+        guard let key = press.key, let handlers else { return false }
+        // Fallback for platforms where the Tab keyCommand does not fire.
+        if key.keyCode == .keyboardTab, key.modifierFlags.intersection([.command, .control, .alternate]).isEmpty {
+            if key.modifierFlags.contains(.shift) {
+                guard let onBackTab = handlers.onBackTab else { return false }
+                onBackTab()
+            } else {
+                guard let onTab = handlers.onTab else { return false }
+                onTab()
+            }
+            return true
+        }
+        guard isPlain(key) else { return false }
         switch key.keyCode {
         case .keyboardUpArrow:
             handlers.onMoveUpBegan()
