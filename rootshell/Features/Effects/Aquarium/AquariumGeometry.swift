@@ -17,7 +17,21 @@ enum AquariumSpecies: Int, CaseIterable, Sendable {
     }
     var thickness: Float { self == .angelfish ? 0.15 : (self == .neonTetra ? 0.14 : 0.23) }
     var scale: Float { self == .neonTetra ? 0.34 : (self == .angelfish ? 0.66 : 0.62) }
-    var cruisingSpeed: Float { self == .neonTetra ? 0.66 : (self == .angelfish ? 0.32 : 0.44) }
+    var cruisingSpeed: Float {
+        switch self {
+        case .clownfish: return 0.34
+        case .blueTang: return 0.60
+        case .butterflyfish: return 0.38
+        case .angelfish: return 0.26
+        case .neonTetra: return 0.58
+        }
+    }
+}
+
+// Separate fin anatomy from material IDs: every fin still uses the translucent
+// material, but its attachment and stroke are different in the vertex shader.
+enum AquariumFin: Int {
+    case none, caudal, median, pectoral, pelvic
 }
 
 struct AquariumMesh: Sendable {
@@ -27,6 +41,7 @@ struct AquariumMesh: Sendable {
     var opaqueIndexCount: Int = 0
 
     mutating func surface(uSegments: Int, vSegments: Int, part: Float = 0,
+                          fin: AquariumFin = .none, side: Float = 0,
                           point: (Float, Float) -> SIMD3<Float>) {
         let base = UInt32(vertices.count)
         for i in 0...uSegments {
@@ -41,7 +56,8 @@ struct AquariumMesh: Sendable {
                 let du = (point(u1, v) - point(u0, v)) / (u1 - u0)
                 let dv = (point(u, v1) - point(u, v0)) / (v1 - v0)
                 let n = aqNormalize(aqCross(du, dv), fallback: aqNormalize(p, fallback: SIMD3(0, 1, 0)))
-                vertices.append(AquariumVertex(position: aqV4(p, part), normal: aqV4(n, 0), uv: SIMD4(u, v, 0, 0)))
+                vertices.append(AquariumVertex(position: aqV4(p, part), normal: aqV4(n, 0),
+                                               uv: SIMD4(u, v, Float(fin.rawValue), side)))
             }
         }
         let stride = UInt32(vSegments + 1)
@@ -94,7 +110,7 @@ enum AquariumGeometry {
         }
         let opaque = mesh.indices.count
         // Caudal fin: forked for fast swimmers, rounded for the clownfish.
-        mesh.surface(uSegments: 12, vSegments: 24, part: 1) { u, v in
+        mesh.surface(uSegments: 12, vSegments: 24, part: 1, fin: .caudal) { u, v in
             let spread = 2 * v - 1
             let fork: Float = species == .clownfish ? 0.035 : 0.24
             let tip = -1.52 + fork * (1 - abs(spread))
@@ -104,7 +120,7 @@ enum AquariumGeometry {
         }
         // Dorsal and anal fins. Angelfish have the characteristic tall triangular sail.
         for side: Float in [-1, 1] {
-            mesh.surface(uSegments: 26, vSegments: 8, part: 1) { u, v in
+            mesh.surface(uSegments: 26, vSegments: 8, part: 1, fin: .median, side: side) { u, v in
                 let x = -0.73 + u * 1.12
                 let bodyU = (x + 0.86) / 1.80
                 let root = h * profile(bodyU, species: species) * 0.90
@@ -114,15 +130,15 @@ enum AquariumGeometry {
                 return SIMD3(x - v * sail * 0.25, y, sin(u * 7) * v * 0.025)
             }
             // Paired pectoral fins, swept backward and cupped rather than flat triangles.
-            mesh.surface(uSegments: 12, vSegments: 12, part: 1) { u, v in
+            mesh.surface(uSegments: 12, vSegments: 12, part: 1, fin: .pectoral, side: side) { u, v in
                 let spread = (v - 0.5) * Float.pi * 0.85
                 return SIMD3(0.26 - u * (0.34 + cos(spread) * 0.20),
                              -h * 0.25 - u * (0.08 + sin(spread) * 0.23),
                              side * (w * 0.77 + sin(u * 1.6) * 0.28))
             }
-            // Long ventral feelers make the angelfish silhouette recognizable.
+            // The angelfish's elongated pelvic-fin rays trail behind the body.
             if species == .angelfish {
-                mesh.surface(uSegments: 18, vSegments: 2, part: 1) { u, v in
+                mesh.surface(uSegments: 18, vSegments: 2, part: 1, fin: .pelvic, side: side) { u, v in
                     SIMD3(0.12 - 0.34 * u + (v - 0.5) * (1 - u) * 0.035,
                           -0.39 - 1.02 * u, side * 0.065 + sin(u * 5) * 0.025)
                 }

@@ -67,19 +67,56 @@ static void aqDeform(thread float3 &p, thread float3 &n, AQVertex inputVertex,
                      AQInstance instance, constant AQUniforms &u) {
     int kind = int(instance.parameters.x + 0.5f);
     if (kind < 5) {
-        float tail = clamp((0.55f - p.x) / 1.90f, 0.0f, 1.25f);
-        float wave = p.x * 3.8f + instance.parameters.z;
-        float amplitude = 0.24f * tail * tail;
-        float derivative = -0.48f * tail / 1.90f * sin(wave) + amplitude * 3.8f * cos(wave);
+        // Species order matches AquariumSpecies. Deep-bodied pectoral swimmers
+        // hold their trunks steadier than a tail-propelled tetra or clownfish.
+        constexpr float bodyAmplitude[5] = {0.19f, 0.065f, 0.10f, 0.045f, 0.22f};
+        constexpr float waveNumber[5] = {3.2f, 2.5f, 2.8f, 2.3f, 4.6f};
+        constexpr float pectoralStroke[5] = {0.48f, 0.68f, 0.58f, 0.46f, 0.18f};
+        constexpr float height[5] = {0.39f, 0.56f, 0.65f, 0.68f, 0.23f};
+        constexpr float thickness[5] = {0.23f, 0.23f, 0.23f, 0.15f, 0.14f};
+        float phase = instance.parameters.z;
+        float effort = smoothstep(0.12f, 1.4f, instance.parameters.w);
+        int fin = int(inputVertex.uv.z + 0.5f);
+        float side = inputVertex.uv.w;
+        if (fin == 3) {
+            // Rotate the whole paired fin about its fixed shoulder attachment.
+            // Tangs flap; the other fish primarily row/scull. At low speed the
+            // paired strokes alternate, blending to synchronous power strokes.
+            float offset = side < 0 ? M_PI_F * (1.0f - effort) : 0.0f;
+            float stroke = sin(phase + offset);
+            float angle = side * (0.12f + stroke * pectoralStroke[kind]);
+            float c = cos(angle), s = sin(angle);
+            float3 root = float3(0.26f, -height[kind] * 0.25f, side * thickness[kind] * 0.77f);
+            float3 q = p - root;
+            if (kind == 1) {
+                q.yz = float2(c * q.y - s * q.z, s * q.y + c * q.z);
+                n.yz = float2(c * n.y - s * n.z, s * n.y + c * n.z);
+            } else {
+                q.xz = float2(c * q.x + s * q.z, -s * q.x + c * q.z);
+                n.xz = float2(c * n.x + s * n.z, -s * n.x + c * n.z);
+            }
+            p = root + q;
+        } else if (fin == 2 || fin == 4) {
+            // Median-fin rays flex from their base; elongated pelvic rays lag
+            // behind. Roots remain attached instead of fluttering bodily.
+            float reach = fin == 2 ? inputVertex.uv.y : inputVertex.uv.x;
+            float flutter = phase + p.x * 5.0f - reach * 2.0f;
+            float amplitude = (kind == 3 ? 0.045f : 0.018f) * reach * reach;
+            p.z += sin(flutter) * amplitude;
+            n.x -= cos(flutter) * amplitude * 5.0f * n.z;
+        }
+        float tail = clamp((0.35f - p.x) / 1.70f, 0.0f, 1.25f);
+        float wave = p.x * waveNumber[kind] + phase;
+        // Tail thrust grows with travel speed, while the paired fins continue
+        // station-keeping. A tetra's recovery interval has a quieter tail.
+        float strength = bodyAmplitude[kind] * mix(0.12f, 1.0f, effort);
+        float amplitude = strength * tail * tail;
+        float tailSlope = tail > 0.0f && tail < 1.25f ? -1.0f / 1.70f : 0.0f;
+        float derivative = 2.0f * strength * tail * tailSlope * sin(wave)
+                         + amplitude * waveNumber[kind] * cos(wave);
         p.z += amplitude * sin(wave);
         // Inverse-transpose Jacobian of z += f(x), not the undeformed normals.
         n.x -= derivative * n.z;
-        if (inputVertex.position.w > 0.5f && inputVertex.position.w < 1.5f) {
-            float flutterPhase = instance.parameters.z * 2.0f + p.x * 8.0f + p.y * 6.0f;
-            float flutterAmplitude = 0.027f * inputVertex.uv.y;
-            p.z += sin(flutterPhase) * flutterAmplitude;
-            n.xy -= cos(flutterPhase) * flutterAmplitude * float2(8,6) * n.z;
-        }
     } else if (kind == 6) {
         float y = max(p.y, 0.0f);
         float t = u.cameraTime.w;

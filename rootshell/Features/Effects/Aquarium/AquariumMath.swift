@@ -8,12 +8,12 @@ import Foundation
 struct AquariumVertex: Sendable {
     var position: SIMD4<Float>  // xyz position; w material part (body, fin, eye, iris)
     var normal: SIMD4<Float>
-    var uv: SIMD4<Float>        // xy surface coordinates; zw reserved
+    var uv: SIMD4<Float>        // xy surface coordinates; z fin anatomy; w fin side
 }
 
 struct AquariumInstance: Sendable {
     var model: AquariumMatrix4
-    var parameters: SIMD4<Float> // kind, seed, swim phase, movement/current strength
+    var parameters: SIMD4<Float> // kind, seed, swim phase, speed/cruise ratio (plants: current)
     var tint: SIMD4<Float>       // rgb tint, opacity
 }
 
@@ -80,6 +80,17 @@ func aqNormalize(_ v: SIMD3<Float>, fallback: SIMD3<Float> = SIMD3(1, 0, 0)) -> 
 func aqLimit(_ v: SIMD3<Float>, _ maximum: Float) -> SIMD3<Float> {
     let length = aqLength(v)
     return length > maximum ? v * (maximum / max(length, 0.00001)) : v
+}
+
+/// Rotate along a bounded arc, including a deterministic turn for opposing
+/// headings. Linear interpolation would collapse to zero halfway through a U-turn.
+func aqTurn(_ heading: SIMD3<Float>, toward target: SIMD3<Float>, maximumAngle: Float) -> SIMD3<Float> {
+    let cosine = min(max(aqDot(heading, target), -1), 1)
+    let angle = acos(cosine)
+    guard angle > maximumAngle else { return target }
+    let tangent = aqNormalize(target - heading * cosine,
+                              fallback: aqNormalize(aqCross(SIMD3(0, 1, 0), heading)))
+    return aqNormalize(heading * cos(maximumAngle) + tangent * sin(maximumAngle))
 }
 
 struct AquariumRandom: Sendable {

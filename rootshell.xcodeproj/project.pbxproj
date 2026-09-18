@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		47AF04710000000000000005 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */; };
 		06402925345B9813ECE3B11E /* Debug-AppStore.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 47511ACC2EDF598900696C18 /* Debug-AppStore.xcconfig */; };
 		06641C55E10A388BA59C6B87 /* AppIconRadicalSolarizedLight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 47A1000B2F9D0BCD009B5D30 /* AppIconRadicalSolarizedLight.icon */; };
 		0668A4F421BC22AFA165E265 /* GhosttyKitStandalone in Frameworks */ = {isa = PBXBuildFile; productRef = 417549D6E2D63FC56F6548A4 /* GhosttyKitStandalone */; };
@@ -124,6 +125,8 @@
 		47AEC0020000000000000001 /* rootshell/Core/Shell/LoginShellCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */; };
 		47AEC0020000000000000002 /* rootshell/Core/Shell/LoginShellCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */; };
 		47AEC0020000000000000003 /* rootshell/Core/Shell/LoginShellCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */; };
+		47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */; };
+		47AF04710000000000000003 /* rootshell/Core/Keybinds/KeyTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */; platformFilter = ios; };
 		47AF0F1D0000000000000B01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */; };
 		47AF0F1D0000000000000B02 /* rootshell/Core/Terminal/TerminalTargetKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */; };
 		47AF0F1D0000000000000B03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */; };
@@ -507,6 +510,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/HardwareKeyboardText.swift; sourceTree = SOURCE_ROOT; };
 		473118BF2FFC2B1500FB3C83 /* rootshellvpn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshellvpn.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		473118CB2FFC2B1600FB3C83 /* rootshellvpnTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rootshellvpnTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		473118D52FFC2B1600FB3C83 /* rootshellvpnUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rootshellvpnUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -575,6 +579,8 @@
 		47AEC0010000000000000014 /* rootshell-helper/Sources/EnvironmentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "rootshell-helper/Sources/EnvironmentBuilder.swift"; sourceTree = SOURCE_ROOT; };
 		47AEC0010000000000000015 /* rootshell-helper/Sources/LocaleHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "rootshell-helper/Sources/LocaleHelper.swift"; sourceTree = SOURCE_ROOT; };
 		47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Shell/LoginShellCommand.swift; sourceTree = SOURCE_ROOT; };
+		47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/ModTapState.swift; sourceTree = SOURCE_ROOT; };
+		47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/KeyTrigger.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Shell/InitialDirectoryCommand.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalTargetKey.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxCommandQuoting.swift; sourceTree = SOURCE_ROOT; };
@@ -1173,6 +1179,9 @@
 				47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */,
 				47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */,
 				47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */,
+				47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */,
+				47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */,
+				47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */,
 				47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */,
 				47AC7E57000000000000DA02 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift */,
 				47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */,
@@ -2144,6 +2153,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				47AF04710000000000000003 /* rootshell/Core/Keybinds/KeyTrigger.swift in Sources */,
+				47AF04710000000000000005 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift in Sources */,
+				47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */,
 				47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */,
 				47AC7E57000000000000DA01 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift in Sources */,
 				47AC7E57000000000000CB01 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift in Sources */,

@@ -91,24 +91,9 @@ extension Ghostty {
             "`": 0,    // NUL
         ]
 
-        /// US keyboard layout shift mappings for digits and symbols.
-        /// Letters are handled separately via `.uppercased()`.
-        static let usShiftMap: [Character: Character] = [
-            "1": "!", "2": "@", "3": "#", "4": "$", "5": "%",
-            "6": "^", "7": "&", "8": "*", "9": "(", "0": ")",
-            "-": "_", "=": "+",
-            "[": "{", "]": "}",
-            "\\": "|",
-            ";": ":", "'": "\"",
-            ",": "<", ".": ">", "/": "?",
-            "`": "~",
-        ]
-
-        /// Returns the shifted version of a character using US keyboard layout.
+        /// Returns the shifted version of a character using the shared fallback.
         static func shiftedCharacter(_ char: Character) -> Character {
-            if char.isLetter { return char.uppercased().first ?? char }
-            if let shifted = usShiftMap[char] { return shifted }
-            return char
+            HardwareKeyboardText.shiftedCharacter(char)
         }
 
         /// Maps characters to HID usages for routing virtual keyboard
@@ -2311,11 +2296,6 @@ extension Ghostty {
             modTapInterceptor.onModifierChanged = { [weak self] modifier in
                 self?.virtualModTapModifier = modifier
             }
-            modTapInterceptor.onReplayKeyWithModifier = { [weak self] press, modifier in
-                guard let self else { return }
-                self.virtualModTapModifier = modifier
-                self.processKeyPress(press, virtualModifier: modifier)
-            }
             modTapInterceptor.onSourceKeyResolved = { [weak self] rule, isHold in
                 if rule.sourceKey == .capsLock && !isHold && rule.tapAction == .none {
                     self?.userWantsCapsLock.toggle()
@@ -4019,6 +3999,16 @@ extension Ghostty {
                 didHandleOptionKey = false
                 return
             }
+            #if targetEnvironment(macCatalyst)
+            // Native text repeat can have a different cadence from our timer.
+            // A held control-action binding owns every delivery, even when
+            // Option normally composes characters instead of acting as Alt.
+            if heldOptionSide != .none, text.count == 1,
+               TerminalCorrectionContext.isPrintable(text),
+               !inputController.controlCharacterPresses.isEmpty {
+                return
+            }
+            #endif
 
             // If processKeyPress already handled a session picker digit key, skip insertText.
             if didHandleSessionPickerKey {
@@ -4307,11 +4297,10 @@ extension Ghostty {
             activeToolbarView?.clearOneShotModifiers()
         }
         
-        func handleSpecialKey(_ key: UIKey) -> String? {
-            let modifiers = key.modifierFlags
+        func handleSpecialKey(_ key: UIKey, characters: String, modifiers: UIKeyModifierFlags) -> String? {
             // Sentinel characters are a key name; the keyCode branches below
             // still resolve the real key.
-            let characters = KeyCode.isUIKeyInputSentinel(key.characters) ? "" : key.characters
+            let characters = KeyCode.isUIKeyInputSentinel(characters) ? "" : characters
 
             // Check for Tab with Shift modifier FIRST (before control character check)
             // iOS converts Shift+Tab to control character 0x19, but we need to catch it as Tab

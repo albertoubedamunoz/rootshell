@@ -921,6 +921,7 @@ extension Ghostty.TerminalView {
 extension Ghostty.TerminalView {
 
     override func copy(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
         if let state = herdrEndpointPane { state.copy(); return }
         guard let surface = surface else { return }
 
@@ -951,6 +952,7 @@ extension Ghostty.TerminalView {
     }
 
     override func paste(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
         // Keep the standard responder-chain paste synchronous. iOS recognizes
         // this direct read as part of the user-invoked paste action; asking the
         // pasteboard for item providers here can lose that association.
@@ -1449,6 +1451,7 @@ extension Ghostty.TerminalView {
     }
 
     override func selectAll(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
         // Use Ghostty's select_all binding action
         _ = performAction("select_all")
     }
