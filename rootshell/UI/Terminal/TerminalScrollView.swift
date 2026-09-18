@@ -1026,7 +1026,7 @@ extension Ghostty {
     private func observeTrzszSession(_ trzszSession: TrzszSession) {
         roamBannerCancellable = trzszSession.$roamBannerState
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] trzszState in
+            .sink { [weak self, weak trzszSession] trzszState in
                 // Convert TrzszRoamBannerState to MoshRoamBannerState for UI reuse
                 let moshState = trzszState.map { state in
                     MoshRoamBannerState(
@@ -1038,7 +1038,7 @@ extension Ghostty {
                     )
                 }
                 self?.updateRoamBanner(state: moshState)
-                if trzszSession.canRebuildJumpConnection {
+                if trzszSession?.canRebuildJumpConnection == true {
                     self?.roamBannerHostView?.rebuildJumpConnection = { [weak trzszSession] in
                         trzszSession?.rebuildJumpConnection()
                     }

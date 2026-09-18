@@ -101,7 +101,7 @@ extension HerdrController {
         if mode == .legacy { legacySnapshotFingerprint = nil }
     }
 
-    private func send<P: Encodable>(_ method: String, _ params: P) {
+    private func send<P: Encodable & Sendable>(_ method: String, _ params: P) {
         guard let channel else { return }
         Task {
             do {

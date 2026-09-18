@@ -3712,7 +3712,7 @@ extension Ghostty.TerminalView {
             // scale), matching every other mouse_pos call site.
             let pixelPoint = viewToPixelCoordinates(location)
             let draggingStart = which == .start
-            Self.ghosttyAPIQueue.async {
+            Self.ghosttyAPIQueue.async { [weak self] in
                 _ = ghostty_surface_selection_handle_drag_begin(surface, draggingStart)
                 ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
                 DispatchQueue.main.async { [weak self] in
@@ -3748,7 +3748,7 @@ extension Ghostty.TerminalView {
             // start auto-scrolling when the finger reaches the top/bottom of the
             // viewport and extend the selection into scrollback.
             let pixelPoint = viewToPixelCoordinates(location)
-            Self.ghosttyAPIQueue.async {
+            Self.ghosttyAPIQueue.async { [weak self] in
                 ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
                 DispatchQueue.main.async { [weak self] in
                     guard let self, self.activeHandleDrag == which else { return }
@@ -3767,7 +3767,7 @@ extension Ghostty.TerminalView {
             // the final position), which stops any active auto-scroll.
             let endLocation = location
             let pixelPoint = viewToPixelCoordinates(location)
-            Self.ghosttyAPIQueue.async {
+            Self.ghosttyAPIQueue.async { [weak self] in
                 ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
                 ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, mods)
                 let hasSelection = ghostty_surface_has_selection(surface)

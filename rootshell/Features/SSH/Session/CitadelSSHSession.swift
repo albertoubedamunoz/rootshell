@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Citadel
+@preconcurrency import Citadel
 import Combine
 import NIOCore
 import NIOSSH

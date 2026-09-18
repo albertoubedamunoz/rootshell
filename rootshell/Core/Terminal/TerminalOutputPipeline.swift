@@ -143,7 +143,7 @@ final class TerminalOutputPipeline {
 
         outputCoalescingResumeTimer?.invalidate()
         let debounceSeconds = Double(config.inputDebounceMs) / 1000.0
-        outputCoalescingResumeTimer = Timer.scheduledTimer(withTimeInterval: debounceSeconds, repeats: false) { _ in
+        outputCoalescingResumeTimer = Timer.scheduledTimer(withTimeInterval: debounceSeconds, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isOutputCoalescingSuppressedByInput = false

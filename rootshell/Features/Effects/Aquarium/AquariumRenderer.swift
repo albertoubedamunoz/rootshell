@@ -8,7 +8,7 @@ import os
 /// MTKView invokes its delegate on the view's main-thread display loop. GPU
 /// completion handlers touch only the semaphore/logger, never the scene or UI.
 @MainActor
-final class AquariumRenderer: NSObject, @preconcurrency MTKViewDelegate {
+final class AquariumRenderer: NSObject, MTKViewDelegate {
     private struct Mesh {
         let vertices: MTLBuffer
         let indices: MTLBuffer

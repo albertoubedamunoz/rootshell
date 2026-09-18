@@ -281,7 +281,8 @@ class KeyboardToolbarManager {
     // MARK: - Capacity & Effective Layout
 
     /// How many standard buttons fit in the main row before runtime additions.
-    func mainRowCapacity(availableWidth: CGFloat, sizes: KeyboardSizes = .current()) -> Int {
+    func mainRowCapacity(availableWidth: CGFloat, sizes: KeyboardSizes? = nil) -> Int {
+        let sizes = sizes ?? .current()
         let buttonWidth = sizes.button.normalWidth + sizes.toolbar.spacing
         guard buttonWidth > 0 else { return 0 }
         return max(1, Int((availableWidth + sizes.toolbar.spacing) / buttonWidth))
@@ -290,7 +291,7 @@ class KeyboardToolbarManager {
     /// Main row and drawers must share the same capacity and reservation. A
     /// displaced key leads the first drawer, ahead of its configured contents.
     func effectiveLayout(availableWidth: CGFloat, reservedMainRowSlots: Int = 0,
-                         sizes: KeyboardSizes = .current()) -> (main: [KeySlot], drawers: [[KeySlot]]) {
+                         sizes: KeyboardSizes? = nil) -> (main: [KeySlot], drawers: [[KeySlot]]) {
         KeyboardToolbarOverflow.layout(
             main: validSlots(config.mainRow),
             drawers: config.drawerRows.map { validSlots($0) },

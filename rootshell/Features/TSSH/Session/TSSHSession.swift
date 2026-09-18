@@ -344,7 +344,7 @@ final class TrzszSession: TerminalSession {
         if let exec = pipe as? TrzszExecPipe, let id = exec.remoteSessionID {
             noteAuxiliarySession(id: id)
             exec.onRemoteSessionEnded = { [weak self] ended in
-                Task { @MainActor in self?.forgetAuxiliarySession(id: ended) }
+                Task { @MainActor [weak self] in self?.forgetAuxiliarySession(id: ended) }
             }
         }
         return pipe
@@ -358,7 +358,7 @@ final class TrzszSession: TerminalSession {
         if let pty = channel as? HerdrTSSHPTYChannel, let id = pty.remoteSessionID {
             noteAuxiliarySession(id: id)
             await pty.setRemoteSessionEndedHandler { [weak self] ended in
-                Task { @MainActor in self?.forgetAuxiliarySession(id: ended) }
+                Task { @MainActor [weak self] in self?.forgetAuxiliarySession(id: ended) }
             }
         }
         return channel

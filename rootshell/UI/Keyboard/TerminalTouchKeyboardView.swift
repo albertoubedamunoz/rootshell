@@ -653,7 +653,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     private func updateAppearance() {
         palette = SettingsStore.shared.value(Settings.Keyboard.touchThemeAware)
-            ? (host?.touchKeyboardThemeColors ?? ThemeManager.shared.currentThemeInfo?.colors).flatMap(TerminalTouchKeyboardPalette.init) : nil
+            ? (host?.touchKeyboardThemeColors ?? ThemeManager.shared.currentThemeInfo?.colors).flatMap { TerminalTouchKeyboardPalette(colors: $0) } : nil
         let style: UIUserInterfaceStyle = palette.map { $0.isLight ? .light : .dark } ?? .unspecified
         if overrideUserInterfaceStyle != style { overrideUserInterfaceStyle = style }
         let toolbar = palette?.background ?? TerminalTouchKeyboardAppearance.toolbar

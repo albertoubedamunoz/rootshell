@@ -111,7 +111,11 @@ final class WebBrowserManager: NSObject {
 
                 // Set up timeout
                 Task {
-                    try await Task.sleep(nanoseconds: UInt64(config.pageLoadTimeout * 1_000_000_000))
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64(config.pageLoadTimeout * 1_000_000_000))
+                    } catch {
+                        return
+                    }
                     if let cont = self.loadContinuations.removeValue(forKey: webView) {
                         Self.logger.warning("Page load timed out after \(self.config.pageLoadTimeout)s")
                         cont.resume(throwing: WebBrowserError.timeout(url))
