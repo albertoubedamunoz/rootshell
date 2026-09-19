@@ -446,7 +446,8 @@ struct MainView: View {
         LifecycleDebugLogger.shared.bumpBodyEvaluation()
         let content = DuoWorkspaceGeometry(
             context: effectiveDuoLayout,
-            headerHeight: showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0
+            headerHeight: showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0,
+            headerConnectsToTerminal: topTabStyle.usesStripLayout
         ) { geometry, workspace in
             #if !os(visionOS)
             let _ = effectManager.keyboardStateVersion
@@ -476,6 +477,18 @@ struct MainView: View {
                         }
                         .frame(height: TabMetrics.tabBarHeight)
                         .padding(workspace.headerInsets)
+                        .background {
+                            if duoLayout.usesFullWidth && duoLayout.frontMode == .belowCamera
+                                && topTabStyle.usesStripLayout {
+                                // The controls avoid the camera column, but
+                                // the strip meets the full-width terminal.
+                                tabBarChromeBackground(resolvedTheme)
+                                    .overlay {
+                                        IntegratedTabEdgeRuleView(palette: resolvedTheme.integratedEdgePalette)
+                                    }
+                                    .allowsHitTesting(false)
+                            }
+                        }
                     }
                     
                     Color.clear.frame(height: workspace.cameraClearance)

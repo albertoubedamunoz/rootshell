@@ -46,7 +46,8 @@ struct DuoWorkspaceLayout: Equatable {
 
     static func resolve(
         bounds: CGRect, safeFrame: CGRect, occlusions: [CGRect], divisions: [CGRect],
-        context: DuoLayoutContext, headerHeight: CGFloat, rightToLeft: Bool = false
+        context: DuoLayoutContext, headerHeight: CGFloat, rightToLeft: Bool = false,
+        headerConnectsToTerminal: Bool = false
     ) -> Self {
         guard bounds.width > 0, bounds.height > 0 else { return Self() }
         let left = max(0, safeFrame.minX - bounds.minX)
@@ -99,6 +100,13 @@ struct DuoWorkspaceLayout: Equatable {
                 }.map(\.maxY).max()
                 if let cameraBottom, bounds.maxY - cameraBottom >= 120 {
                     result.cameraClearance = max(0, cameraBottom - bounds.minY - top - headerHeight)
+                    if headerConnectsToTerminal && headerHeight > 0 {
+                        // Integrated tabs must meet the terminal. Move the
+                        // existing clearance above the row without changing
+                        // the terminal's origin or available height.
+                        result.headerInsets.top += result.cameraClearance
+                        result.cameraClearance = 0
+                    }
                 } else {
                     // Geometry can be absent during a display handoff. Keep the
                     // safe rectangle until the camera region is available.

@@ -81,6 +81,33 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
         }
     }
 
+    func testIntegratedHeaderMeetsTerminalWithoutMovingItsOrigin() {
+        let display = CGRect(x: 0, y: 0, width: 600, height: 900)
+        for cameraOnLeft in [false, true] {
+            let region = CGRect(x: cameraOnLeft ? 0 : 520, y: 48, width: 80, height: 60)
+            for rtl in [false, true] {
+                for headerHeight: CGFloat in [44, 120] {
+                    let ordinary = DuoWorkspaceLayout.resolve(
+                        bounds: display, safeFrame: display, occlusions: [region], divisions: [],
+                        context: front(.belowCamera), headerHeight: headerHeight, rightToLeft: rtl
+                    )
+                    let integrated = DuoWorkspaceLayout.resolve(
+                        bounds: display, safeFrame: display, occlusions: [region], divisions: [],
+                        context: front(.belowCamera), headerHeight: headerHeight, rightToLeft: rtl,
+                        headerConnectsToTerminal: true
+                    )
+                    XCTAssertEqual(integrated.cameraClearance, 0)
+                    XCTAssertEqual(integrated.headerInsets.top + headerHeight,
+                                   ordinary.headerInsets.top + headerHeight + ordinary.cameraClearance)
+                    XCTAssertGreaterThanOrEqual(integrated.headerInsets.top + headerHeight, region.maxY)
+                    XCTAssertEqual(integrated.headerInsets.leading, ordinary.headerInsets.leading)
+                    XCTAssertEqual(integrated.headerInsets.trailing, ordinary.headerInsets.trailing)
+                    XCTAssertEqual(integrated.terminalInsets, EdgeInsets())
+                }
+            }
+        }
+    }
+
     func testFullWidthTerminalDoesNotPullHeaderButtonsIntoCameraColumn() {
         // Vertical bars are disabled: the ordinary safe frame can span the
         // full width even though the header still needs camera clearance.

@@ -51,6 +51,7 @@ private struct DuoSceneContext<Content: View>: View {
 struct DuoWorkspaceGeometry<Content: View>: View {
     let context: DuoLayoutContext
     let headerHeight: CGFloat
+    var headerConnectsToTerminal = false
     @ViewBuilder var content: (GeometryProxy, DuoWorkspaceLayout) -> Content
     @Environment(\.layoutDirection) private var layoutDirection
 
@@ -84,7 +85,8 @@ struct DuoWorkspaceGeometry<Content: View>: View {
         return .resolve(
             bounds: CGRect(origin: .zero, size: expanded.size), safeFrame: safeFrame,
             occlusions: occlusions, divisions: divisions, context: context,
-            headerHeight: headerHeight, rightToLeft: layoutDirection == .rightToLeft
+            headerHeight: headerHeight, rightToLeft: layoutDirection == .rightToLeft,
+            headerConnectsToTerminal: headerConnectsToTerminal
         )
     }
 }
