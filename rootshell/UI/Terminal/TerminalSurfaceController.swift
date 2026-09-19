@@ -531,18 +531,22 @@ final class TerminalSurfaceController: NSObject {
         let insetPx = host.surfaceCurrentBottomInsetPixels
         if abs(insetPx - lastBottomInsetPx) < 0.5 { return }
         lastBottomInsetPx = insetPx
+        // An inset can change rows without changing framebuffer bounds. The
+        // size cache may then skip setSize, so notify the session here too;
+        // updatePTYSize deduplicates an unchanged grid. A pipe-backed surface
+        // is sized by the pty_resize action this inset's own resize emits,
+        // so sending here would race ahead of the grid.
+        let sizesFromAction = sizesSessionFromPtyResizeAction
         #if targetEnvironment(macCatalyst)
         ghostty_surface_set_bottom_inset(surface, insetPx)
-        host.surfaceUpdatePTYSize()
+        if !sizesFromAction { host.surfaceUpdatePTYSize() }
         #else
         nonisolated(unsafe) let surfacePtr = surface
         nonisolated(unsafe) let hostRef = host
         Ghostty.TerminalView.ghosttyAPIQueue.async { [weak self] in
             guard self != nil else { return }
             ghostty_surface_set_bottom_inset(surfacePtr, insetPx)
-            // An inset can change rows without changing framebuffer bounds.
-            // The size cache may then skip setSize, so notify the session here
-            // too; updatePTYSize deduplicates an unchanged grid.
+            guard !sizesFromAction else { return }
             Task { @MainActor in
                 hostRef.surfaceUpdatePTYSize()
             }
