@@ -2881,6 +2881,38 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
         let tabBarMenu = UIMenu(title: "", options: .displayInline, children: [tabBarAction])
         menuItems.append(tabBarMenu)
 
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        if #available(iOS 27.1, *) {
+            let mode = SettingsStore.shared.get(Settings.Tabs.duoFrontDisplayMode)
+            let modeLocked = SettingFileLock.isReadOnly(Settings.Tabs.duoFrontDisplayMode.name)
+            var layoutActions: [UIMenuElement] = DuoFrontDisplayMode.allCases.map { choice in
+                UIAction(
+                    title: choice.displayName,
+                    attributes: modeLocked ? .disabled : [],
+                    state: mode == choice ? .on : .off
+                ) { _ in
+                    SettingsStore.shared.set(Settings.Tabs.duoFrontDisplayMode, choice)
+                }
+            }
+            if mode == .behindCamera {
+                let showsTabs = SettingsStore.shared.get(Settings.Tabs.duoBehindCameraShowsTabs)
+                let tabsAction = UIAction(
+                    title: String(localized: "Show Top Tabs"),
+                    attributes: SettingFileLock.isReadOnly(Settings.Tabs.duoBehindCameraShowsTabs.name) ? .disabled : [],
+                    state: showsTabs ? .on : .off
+                ) { _ in
+                    SettingsStore.shared.set(Settings.Tabs.duoBehindCameraShowsTabs, !showsTabs)
+                }
+                layoutActions.append(UIMenu(title: "", options: .displayInline, children: [tabsAction]))
+            }
+            menuItems.append(UIMenu(
+                title: String(localized: "Duo Front Display"),
+                image: UIImage(systemName: "iphone"),
+                children: layoutActions
+            ))
+        }
+        #endif
+
         // Change title action
         let changeTitle = UIAction(
             title: String(localized: "Change Title..."),

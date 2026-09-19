@@ -90,7 +90,7 @@ struct RootShellApp: App {
 
     var body: some Scene {
         WindowGroup(id: "main-terminal") {
-            MainView()
+            DuoSceneHost { MainView() }
                 .overlay { MCPApprovalOverlay() }
                 .environmentObject(ghosttyApp)
                 .preferredColorScheme(appearanceManager.colorScheme)

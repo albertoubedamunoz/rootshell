@@ -297,12 +297,23 @@ struct IntegratedOSCProgressEdgeHost: View {
     let animateSelectionChanges: Bool
 
     @Environment(\.displayScale) private var displayScale
+    #if !os(visionOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    private var usesCompactStroke: Bool {
+        #if os(visionOS)
+        false
+        #else
+        horizontalSizeClass != .regular
+        #endif
+    }
 
     var body: some View {
         if let report = terminalView.progressReport, report.state != .remove {
             let lineWidth = IntegratedTabEdgeMetrics.progressLineWidth(
                 for: displayScale,
-                isPhone: UIDevice.current.userInterfaceIdiom == .phone
+                isPhone: usesCompactStroke
             )
             let path = IntegratedTabGeometry.progressEdgePath(
                 in: CGRect(origin: .zero, size: rowSize),

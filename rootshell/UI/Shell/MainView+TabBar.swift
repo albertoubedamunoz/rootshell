@@ -35,7 +35,8 @@ extension MainView {
     /// `TabBar`, where reading title/badge/health metadata does not invalidate
     /// `MainView.body`.
     func availableTabBarWidth(in geometry: GeometryProxy) -> CGFloat {
-        max(0, geometry.size.width - Self.actionButtonsWidth - tabBarLeadingPadding)
+        max(0, geometry.size.width - Self.actionButtonsWidth - tabBarLeadingPadding
+            - (duoTabletopAvailable && !showsDuoSideRail ? TabMetrics.tabBarHeight : 0))
     }
 
     /// Width of the compact tab viewport. Capped tabs leave real flexible
@@ -52,6 +53,7 @@ extension MainView {
                 - tabBarLeadingPadding
                 - Self.actionButtonsWidth
                 - integratedMinimumDragWidth
+                - (duoTabletopAvailable && !showsDuoSideRail ? TabMetrics.tabBarHeight : 0)
         )
         return min(preferred, capacity)
     }

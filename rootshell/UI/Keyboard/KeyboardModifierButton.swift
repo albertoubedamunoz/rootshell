@@ -47,7 +47,7 @@ class KeyboardModifierButton: KeyboardButton {
 
     // MARK: - Initialization
 
-    init(title: String, systemImage: String? = nil, modifier: KeyModifiers? = nil, sizes: KeyboardSizes = .current()) {
+    init(title: String, systemImage: String? = nil, modifier: KeyModifiers? = nil, sizes: KeyboardSizes) {
         self.modifier = modifier
         self.systemImageName = systemImage
 

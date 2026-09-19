@@ -44,7 +44,7 @@ class KeyboardSymbolButton: KeyboardButton {
 
     // MARK: - Initialization
 
-    init(key: String, display: DisplayType, isWide: Bool = false, sizes: KeyboardSizes = .current()) {
+    init(key: String, display: DisplayType, isWide: Bool = false, sizes: KeyboardSizes) {
         self.displayType = display
         self.isWideButton = isWide
 

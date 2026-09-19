@@ -23,14 +23,15 @@ struct TerminalComposeOverlay: View {
     @Setting(Settings.Keyboard.composeAutocorrect) private var autocorrectEnabled
 
     #if !os(visionOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     #endif
 
-    private var isPhone: Bool {
+    private var usesCompactLayout: Bool {
         #if os(visionOS)
         return false
         #else
-        return UIDevice.current.userInterfaceIdiom == .phone
+        return horizontalSizeClass != .regular
         #endif
     }
 
@@ -55,7 +56,7 @@ struct TerminalComposeOverlay: View {
 
     private var overlayWidth: CGFloat {
         if isCompactHeight { return 500 }
-        return isPhone ? 320 : 400
+        return usesCompactLayout ? 320 : 400
     }
 
     /// Available height above the software keyboard within the given container geometry.

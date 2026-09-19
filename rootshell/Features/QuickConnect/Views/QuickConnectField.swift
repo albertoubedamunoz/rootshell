@@ -36,8 +36,12 @@ class QuickConnectTextField: UITextField, KeyboardButtonDelegate {
 
     private func setupAccessoryView() {
         // Use the new keyboard toolbar
-        keyboardAccessory = KeyboardAccessoryView()
+        keyboardAccessory = KeyboardAccessoryView(sizes: .current(traitCollection: traitCollection))
         keyboardAccessory?.delegate = self
+        registerForTraitChanges([UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]) {
+            (field: QuickConnectTextField, _: UITraitCollection) in
+            field.keyboardAccessory?.updateForTraitCollection(field.traitCollection)
+        }
 
         // Listen for modifier changes from toolbar
         keyboardAccessory?.onModifiersChanged = { [weak self] modifiers in

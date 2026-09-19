@@ -95,6 +95,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// the incoming responder's input views, which can happen before it calls
     /// resignFirstResponder on the outgoing one.
     func activateTouchKeyboardState() {
+        KeyboardTracker.shared.setInputOwnerWindow(host?.keyboardHostView.window)
         guard let terminal = host as? Ghostty.TerminalView, let delegate = touchKeyboardDelegate,
               let window = terminal.window else { return }
         guard touchKeyboardEnabled else {
@@ -345,6 +346,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
             overlay.isHostActive = { [weak scope] in scope?.owner?.touchKeyboardIsActive == true }
             overlay.onDock = { [weak scope] in scope?.owner?.setTouchKeyboardPlacement(.docked) }
             overlay.frame = window.bounds
+            overlay.inputRegion = scope.inputRegion
             floatingKeyboardOverlay = overlay
             window.addSubview(overlay)
             // The retained keyboard can still have its old docked frame.
@@ -475,7 +477,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
               let input = touchKeyboardInputView else { return nil }
         let height = input.intrinsicContentSize.height
         guard height > 0 else { return nil }
-        let frame = window.convert(window.bounds, to: nil)
+        let frame = window.convert(window.bounds, to: window.screen.coordinateSpace)
         return CGRect(x: frame.minX, y: frame.maxY - height,
                       width: frame.width, height: height)
     }
@@ -627,15 +629,14 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #if os(visionOS) || targetEnvironment(macCatalyst)
         return nil
         #else
-        guard UIDevice.current.userInterfaceIdiom == .phone,
-              let host, host.keyboardIsFirstResponder,
+        guard let host, host.keyboardIsFirstResponder,
               let window = host.keyboardHostView.window,
               let accessory = presentedToolbarView,
               let accessoryWindow = accessory.window,
               accessoryWindow.screen === window.screen,
               !accessoryWindow.isHidden, !accessory.isHidden,
               accessory.alpha > 0, !accessory.bounds.isEmpty else { return nil }
-        return accessoryWindow.convert(accessory.convert(accessory.bounds, to: accessoryWindow), to: nil)
+        return accessory.convert(accessory.bounds, to: accessoryWindow.screen.coordinateSpace)
         #endif
     }
 
@@ -669,12 +670,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #else
         let keyboardFrame = EffectManager.shared.keyboardFrame
         guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return nil }
-        let hostFrame: CGRect
-        if let window = host?.keyboardHostView.window {
-            hostFrame = window.convert(window.bounds, to: nil)
-        } else {
-            hostFrame = UIScreen.main.bounds
-        }
+        guard let window = host?.keyboardHostView.window else { return nil }
+        let hostFrame = window.convert(window.bounds, to: window.screen.coordinateSpace)
         let intersection = hostFrame.intersection(keyboardFrame)
         guard !intersection.isNull, !intersection.isEmpty else { return nil }
         return keyboardFrame
@@ -822,6 +819,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
     }
 
     var inputAccessoryView: UIView? {
+        if host?.keyboardIsFirstResponder == true {
+            KeyboardTracker.shared.setInputOwnerWindow(host?.keyboardHostView.window)
+        }
         guard let host else { return nil }
         applyBottomSafeAreaStrip()
         let isVisible = shouldShowKeyboardToolbar
@@ -853,6 +853,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// 26.5) and only grows the accessory upward, so no reservation can move
     /// the row past that strip.
     var inputView: UIView? {
+        if host?.keyboardIsFirstResponder == true {
+            KeyboardTracker.shared.setInputOwnerWindow(host?.keyboardHostView.window)
+        }
         // UIKit does not specify whether it asks for inputView or
         // inputAccessoryView first. Publish the destination-mode intrinsic
         // height from both paths so toolbar-only entry is correct in one pass.
@@ -1197,8 +1200,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // Snapshot before changing the input set. Once the software keyboard
         // starts hiding, its placement frame is no longer reliable enough to
         // tell whether UIKit is tearing down a detached keyboard.
-        let hasDetachedKeyboardPlacement = UIDevice.current.userInterfaceIdiom == .pad
-            && (!touchKeyboardIsSelected || touchSystemFloating)
+        let hasDetachedKeyboardPlacement = (!touchKeyboardIsSelected || touchSystemFloating)
             && visibleReportedKeyboardFrame != nil
             && !EffectManager.shared.isKeyboardDocked
             && !hardwareAccessoryOwnsKeyboardRegion
@@ -1474,7 +1476,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     private func updateBottomEdgeHomeGestureProtection(accessoryIsVisible: Bool? = nil) {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
-        let idiom = UIDevice.current.userInterfaceIdiom
+        let idiom = host?.keyboardHostView.traitCollection.userInterfaceIdiom
         let isVisible = accessoryIsVisible ?? (
             shouldShowKeyboardToolbar
                 && host?.keyboardAIAgentOverlayActive != true

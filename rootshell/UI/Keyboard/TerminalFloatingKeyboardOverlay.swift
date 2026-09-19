@@ -29,6 +29,8 @@ final class TerminalTouchKeyboardWindowState {
     /// The state whose choices the live keyboard currently shows.
     private(set) var displayedState: TerminalFloatingKeyboardState?
     var overlay: TerminalFloatingKeyboardOverlay?
+    /// Optional tabletop input region, expressed in this app window's coordinates.
+    private(set) var inputRegion: CGRect?
 
     private(set) lazy var keyboard: TerminalTouchKeyboardView = makeKeyboard()
     private(set) lazy var input: TerminalTouchKeyboardInputView = makeInput()
@@ -51,6 +53,13 @@ final class TerminalTouchKeyboardWindowState {
         let state = TerminalTouchKeyboardWindowState(window: window)
         windows.setObject(state, forKey: window)
         return state
+    }
+
+    func setInputRegion(_ region: CGRect?) {
+        guard inputRegion != region else { return }
+        inputRegion = region
+        overlay?.inputRegion = region
+        input.setNeedsLayout()
     }
 
     func state(tabID: UUID?, perTab: Bool) -> TerminalFloatingKeyboardState {
@@ -119,7 +128,10 @@ final class TerminalTouchKeyboardWindowState {
 
     private func makeInput() -> TerminalTouchKeyboardInputView {
         let input = TerminalTouchKeyboardInputView(keyboard: keyboard)
-        input.hostSize = { [weak self] in self?.window?.bounds.size ?? .zero }
+        input.hostSize = { [weak self] in
+            guard let self, let window = self.window else { return .zero }
+            return TerminalKeyboardGeometry.inputRegion(self.inputRegion, in: window.bounds).size
+        }
         input.onHeightChanged = { [weak self] in
             self?.toolbarInput.updateHeight()
             self?.owner?.handleTouchKeyboardEvent(.heightChanged)
@@ -166,6 +178,9 @@ final class TerminalFloatingKeyboardOverlay: UIView {
     private var dragOrigin: CGRect?
     var onDock: (() -> Void)?
     var isHostActive: (() -> Bool)?
+    var inputRegion: CGRect? {
+        didSet { if oldValue != inputRegion { dragOrigin = nil; setNeedsLayout() } }
+    }
 
     init(keyboard: TerminalTouchKeyboardView, state: TerminalFloatingKeyboardState) {
         self.keyboard = keyboard
@@ -187,7 +202,11 @@ final class TerminalFloatingKeyboardOverlay: UIView {
         setNeedsLayout()
     }
 
-    private var available: CGRect { bounds.inset(by: safeAreaInsets).insetBy(dx: 12, dy: 12) }
+    private var available: CGRect {
+        let region = inputRegion.map { convert($0, from: window) }
+        return TerminalKeyboardGeometry.inputRegion(region, in: bounds.inset(by: safeAreaInsets))
+            .insetBy(dx: 12, dy: 12)
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()

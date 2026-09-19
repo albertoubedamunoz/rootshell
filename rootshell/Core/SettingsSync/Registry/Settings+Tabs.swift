@@ -25,6 +25,7 @@ enum TabHoverPreviewActivation: String, CaseIterable, Sendable {
     }
 }
 
+extension DuoFrontDisplayMode: SettingValue {}
 extension NewTabAction: SettingValue {}
 extension TabHoverPreviewActivation: SettingValue {}
 extension TopTabStyle: SettingValue {}
@@ -50,6 +51,13 @@ nonisolated extension Settings {
         static let topTabStyle = SettingKey(
             "topTabStyle", default: TopTabStyle.pills, group: .tabs, configKey: "top-tab-style",
             title: String(localized: "Tab Style", comment: "Setting title"))
+        // These choices describe this device's physical display, so never sync them.
+        static let duoFrontDisplayMode = SettingKey(
+            "duoFrontDisplayMode", default: DuoFrontDisplayMode.sideRail, group: .tabs, policy: .deviceOnly,
+            title: String(localized: "Duo Front Display", comment: "Setting title"))
+        static let duoBehindCameraShowsTabs = SettingKey(
+            "duoBehindCameraShowsTabs", default: true, group: .tabs, policy: .deviceOnly,
+            title: String(localized: "Show Top Tabs Behind Camera", comment: "Setting title"))
         static let compactPillSpacing = SettingKey(
             "compactPillTabSpacing", default: false, group: .tabs, configKey: "compact-pill-tab-spacing",
             title: String(localized: "Compact Tab Spacing", comment: "Setting title"))
@@ -98,6 +106,7 @@ nonisolated extension Settings {
 
         static let all: [AnySettingDefinition] = [
             newTabAction.erased, barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
+            duoFrontDisplayMode.erased, duoBehindCameraShowsTabs.erased,
             showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
             hoverPreviews.erased, hoverPreviewActivation.erased, hoverPreviewZoom.erased,
             openInFolderRecents.erased, openInFolderPlacement.erased,

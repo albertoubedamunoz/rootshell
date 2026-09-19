@@ -168,7 +168,7 @@ class KeyboardAccessoryView: UIInputView {
 
     // MARK: - Initialization
 
-    init(sizes: KeyboardSizes = .current()) {
+    init(sizes: KeyboardSizes) {
         toolbarView = KeyboardToolbarView(sizes: sizes)
 
         let frame = CGRect(

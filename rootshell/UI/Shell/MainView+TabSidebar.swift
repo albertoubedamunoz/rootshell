@@ -36,7 +36,7 @@ extension MainView {
         #if os(visionOS)
         return true
         #else
-        return UIDevice.current.userInterfaceIdiom == .phone
+        return workspaceSizeClass != .regular
         #endif
     }
 

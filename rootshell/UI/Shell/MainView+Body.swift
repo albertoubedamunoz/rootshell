@@ -64,7 +64,7 @@ extension MainView {
             theme.tabBarBackground
             VStack(spacing: 0) {
                 chromeBackground
-                    .frame(height: windowSafeAreaInsets.top + (tabBarHidden ? 0 : TabMetrics.tabBarHeight))
+                    .frame(height: windowSafeAreaInsets.top + (showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0))
                 Spacer()
                 if !visibleContentAllowsTerminalEffects
                     || effectManager.terminalBottomInsetFraction == 0 {

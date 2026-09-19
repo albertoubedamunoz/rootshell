@@ -347,6 +347,13 @@ private struct PageDots: View {
 /// A stylized stand-in for the system keyboard (the real one cannot be rendered).
 private struct SystemKeyboardMock: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var sizes: KeyboardSizes {
+        horizontalSizeClass == .regular ? .iPad
+            : (verticalSizeClass == .compact ? .iPhoneLandscape : .iPhonePortrait)
+    }
 
     private let rows: [[String]] = [
         Array("qwertyuiop").map(String.init),
@@ -360,8 +367,8 @@ private struct SystemKeyboardMock: View {
     var body: some View {
         VStack(spacing: 0) {
             // The real toolbar, so the preview matches the user's saved layout.
-            ToolbarPreview()
-                .frame(height: KeyboardSizes.current().toolbar.height)
+            ToolbarPreview(sizes: sizes)
+                .frame(height: sizes.toolbar.height)
 
             VStack(spacing: 11) {
                 ForEach(rows.indices, id: \.self) { row in
@@ -408,13 +415,17 @@ private struct SystemKeyboardMock: View {
 
 /// Non-interactive `KeyboardToolbarView`; it builds its buttons once it has a width.
 private struct ToolbarPreview: UIViewRepresentable {
+    let sizes: KeyboardSizes
+
     func makeUIView(context: Context) -> KeyboardToolbarView {
-        let toolbar = KeyboardToolbarView(sizes: .current())
+        let toolbar = KeyboardToolbarView(sizes: sizes)
         toolbar.isUserInteractionEnabled = false
         return toolbar
     }
 
-    func updateUIView(_ toolbar: KeyboardToolbarView, context: Context) {}
+    func updateUIView(_ toolbar: KeyboardToolbarView, context: Context) {
+        toolbar.updateSizes(sizes)
+    }
 }
 
 // MARK: - Step 2: swipe tutorial

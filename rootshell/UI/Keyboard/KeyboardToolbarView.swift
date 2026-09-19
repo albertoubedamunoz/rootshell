@@ -347,7 +347,7 @@ class KeyboardToolbarView: UIView {
 
     // MARK: - Initialization
 
-    init(sizes: KeyboardSizes = .current()) {
+    init(sizes: KeyboardSizes) {
         self.sizes = sizes
 
         super.init(frame: .zero)
