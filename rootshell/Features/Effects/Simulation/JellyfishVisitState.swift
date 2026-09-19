@@ -428,10 +428,10 @@ final class JellyfishVisitState: ObservableObject {
             }
         })
 
-        scheduleNextVisit(first: true)
+        if jellies.isEmpty { scheduleNextVisit(first: true) }
     }
 
-    func stop() {
+    func stop(preservingVisit: Bool = false) {
         visitTask?.cancel()
         visitTask = nil
         configCancellable = nil
@@ -439,8 +439,10 @@ final class JellyfishVisitState: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
         lifecycleObservers = []
-        jellies = []
-        isIdle = true
+        if !preservingVisit {
+            jellies = []
+            isIdle = true
+        }
         hasStarted = false
         tracker = nil
         coverageWaiting = false

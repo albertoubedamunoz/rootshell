@@ -61,6 +61,12 @@ struct TerminalTouchKeyboardSettingsView: View {
                 Text("This preview stays on your device and sends nothing to a terminal. Hold Space to move the cursor; tap a modifier for one key, double-tap to lock, or hold it while typing.")
             }
             Section {
+                SettingToggle(Settings.Keyboard.touchStatePerTab, title: "Separate State per Tab", icon: "square.on.square")
+                    .themedRow()
+            } footer: {
+                Text("Off by default. Keep the keyboard’s page, shortcuts, drawers, sticky modifiers, and keyboard choice as you switch tabs. Turn this on to remember a separate state for each tab. Split panes in the same tab share their keyboard state.")
+            }
+            Section {
                 SettingToggle(Settings.Keyboard.touchLetterPrediction, title: "Letter Prediction", icon: "textformat.abc")
                     .themedRow()
                 SettingToggle(Settings.Keyboard.touchSuggestions, title: "Suggestions", icon: "textformat.abc")

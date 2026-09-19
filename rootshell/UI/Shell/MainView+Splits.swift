@@ -267,6 +267,10 @@ extension MainView {
     func equalizeSplits() {
         guard terminals.indices.contains(selectedTabIndex) else { return }
         let tab = terminals[selectedTabIndex]
+        if tab.isTmuxWindow {
+            TmuxController.controller(forWindowTab: tab)?.requestEqualizeSplits(tab)
+            return
+        }
         // Herdr owns these ratios; a local edit is lost on its next layout.
         if tab.isHerdrWindow {
             HerdrController.controller(forTab: tab)?.requestEqualizeSplits(tab)

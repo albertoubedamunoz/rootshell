@@ -294,6 +294,7 @@ struct ButterfliesView: View {
     let effect: ButterfliesEffect
     var previewMode: Bool = false
 
+    @Environment(\.terminalEffectRetainsState) private var retainsState
     @StateObject private var state = ButterflyVisitState()
 
     /// 30fps baseline, halved in battery saver.
@@ -327,7 +328,7 @@ struct ButterfliesView: View {
                 state.canvasFrameInGlobal = newFrame
             }
             .onDisappear {
-                state.stop()
+                state.stop(preservingVisit: retainsState)
             }
             .onReceive(effect.visitRequested) {
                 state.forceSpawn()

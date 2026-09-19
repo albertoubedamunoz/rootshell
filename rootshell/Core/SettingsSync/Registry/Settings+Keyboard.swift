@@ -18,6 +18,9 @@ nonisolated extension Settings {
         static let touchEnabled = SettingKey(
             "terminalTouchKeyboardEnabled", default: false, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard", title: String(localized: "Terminal Keyboard"))
+        static let touchStatePerTab = SettingKey(
+            "terminalTouchKeyboardStatePerTab", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-state-per-tab", title: String(localized: "Separate Keyboard State per Tab"))
         static let touchSuggestions = SettingKey(
             "terminalTouchKeyboardSuggestions", default: false, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-suggestions", title: String(localized: "Terminal Keyboard Suggestions"))
@@ -69,7 +72,7 @@ nonisolated extension Settings {
             optionKeyAsAlt.erased, forceASCIIKeyboard.erased, doubleSpaceForPeriod.erased, composeAutocorrect.erased,
             writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased,
             touchCompactHeight.erased, touchGlyphs.erased, touchThemeAware.erased, touchLetterPrediction.erased,
-            touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
+            touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
         ]
     }
 

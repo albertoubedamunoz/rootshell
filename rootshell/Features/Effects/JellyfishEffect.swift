@@ -275,6 +275,7 @@ struct JellyfishView: View {
     let effect: JellyfishEffect
     var previewMode: Bool = false
 
+    @Environment(\.terminalEffectRetainsState) private var retainsState
     @StateObject private var state = JellyfishVisitState()
 
     /// 30fps baseline, halved in battery saver.
@@ -308,7 +309,7 @@ struct JellyfishView: View {
                 state.canvasFrameInGlobal = newFrame
             }
             .onDisappear {
-                state.stop()
+                state.stop(preservingVisit: retainsState)
             }
             .onReceive(effect.visitRequested) {
                 state.forceSpawn()

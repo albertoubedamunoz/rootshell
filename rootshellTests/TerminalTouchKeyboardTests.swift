@@ -7,6 +7,88 @@ import UIKit
 final class TerminalTouchKeyboardTests: XCTestCase {
     private typealias Model = TerminalTouchKeyboardModel
 
+    private final class KeyboardState {
+        var presentation = Model.PresentationState()
+    }
+
+    func testKeyboardStateIsSharedAcrossTabsByDefault() {
+        var store = Model.StateStore<KeyboardState>()
+        let first = store.state(tabID: UUID(), perTab: false) { KeyboardState() }
+        first.presentation.toolPage = .shortcuts
+        first.presentation.preset = .vim
+        first.presentation.toolbarDrawer = .stacked(2)
+        let second = store.state(tabID: UUID(), perTab: false) { KeyboardState() }
+        XCTAssertTrue(first === second)
+        XCTAssertEqual(second.presentation.toolPage, .shortcuts)
+        XCTAssertEqual(second.presentation.preset, .vim)
+        XCTAssertEqual(second.presentation.toolbarDrawer, .stacked(2))
+    }
+
+    func testSeparateKeyboardStateFollowsTabsRatherThanPanes() {
+        var store = Model.StateStore<KeyboardState>()
+        let tab = UUID()
+        let firstPane = store.state(tabID: tab, perTab: true) { KeyboardState() }
+        firstPane.presentation.page = .symbols
+        firstPane.presentation.toolPage = .navigation
+        let otherTab = store.state(tabID: UUID(), perTab: true) { KeyboardState() }
+        XCTAssertFalse(firstPane === otherTab)
+        XCTAssertEqual(otherTab.presentation.page, .letters)
+        XCTAssertEqual(otherTab.presentation.toolPage, .typing)
+        let secondPane = store.state(tabID: tab, perTab: true) { KeyboardState() }
+        XCTAssertTrue(firstPane === secondPane)
+        XCTAssertEqual(secondPane.presentation.page, .symbols)
+    }
+
+    func testKeyboardStateDoesNotCrossWindows() {
+        var firstWindow = Model.StateStore<KeyboardState>()
+        var secondWindow = Model.StateStore<KeyboardState>()
+        let first = firstWindow.state(tabID: nil, perTab: false) { KeyboardState() }
+        first.presentation.preset = .emacs
+        let second = secondWindow.state(tabID: nil, perTab: false) { KeyboardState() }
+        XCTAssertFalse(first === second)
+        XCTAssertEqual(second.presentation.preset, .shell)
+    }
+
+    func testChangingStateScopeKeepsLastDisplayedChoices() {
+        var store = Model.StateStore<KeyboardState>()
+        let firstTab = UUID(), secondTab = UUID()
+        func copy(_ source: KeyboardState, _ destination: KeyboardState) {
+            destination.presentation = source.presentation
+        }
+        let shared = store.activate(tabID: firstTab, perTab: false, make: { KeyboardState() }, copyChoices: copy)
+        shared.presentation.preset = .vim
+        let first = store.activate(tabID: firstTab, perTab: true, make: { KeyboardState() }, copyChoices: copy)
+        XCTAssertFalse(first === shared)
+        XCTAssertEqual(first.presentation.preset, .vim)
+        let second = store.activate(tabID: secondTab, perTab: true, make: { KeyboardState() }, copyChoices: copy)
+        XCTAssertEqual(second.presentation.preset, .shell)
+        second.presentation.preset = .nano
+        let merged = store.activate(tabID: secondTab, perTab: false, make: { KeyboardState() }, copyChoices: copy)
+        XCTAssertTrue(merged === shared)
+        XCTAssertEqual(merged.presentation.preset, .nano)
+        XCTAssertEqual(first.presentation.preset, .vim)
+    }
+
+    func testTabHandoffPreservesStickyModifiersAndScrollButReleasesHeldKeys() {
+        var state = Model.PresentationState()
+        state.modifiers.begin(.control)
+        state.modifiers.end(.control, at: 1)
+        state.modifiers.begin(.shift)
+        state.modifiers.end(.shift, at: 2)
+        state.modifiers.begin(.shift)
+        state.modifiers.end(.shift, at: 2.2)
+        state.modifiers.begin(.alt)
+        state.drawerOffset = CGPoint(x: 0, y: 120)
+        state.toolbarOffsets = [0: CGPoint(x: 80, y: 0)]
+        let saved = state.suspendingInput()
+        XCTAssertTrue(saved.modifiers.oneShot.contains(.control))
+        XCTAssertTrue(saved.modifiers.locked.contains(.shift))
+        XCTAssertFalse(saved.modifiers.isActive(.alt))
+        XCTAssertEqual(saved.drawerOffset, state.drawerOffset)
+        XCTAssertEqual(saved.toolbarOffsets, state.toolbarOffsets)
+        XCTAssertTrue(state.modifiers.isActive(.alt), "Saving must not mutate the outgoing value")
+    }
+
     private func geometry(width: Double = 390, page: Model.Page = .letters, typingTop: Double = 0) -> Model.TypingGeometry {
         let targets = Model.rows(page: page).enumerated().flatMap { index, row in
             let frames = Model.frames(keys: row, width: width, y: typingTop + Double(index) * 54, height: 54,

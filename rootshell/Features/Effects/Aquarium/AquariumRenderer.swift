@@ -221,11 +221,18 @@ final class AquariumRenderer: NSObject, MTKViewDelegate {
         append(mesh: 5, position: .zero, scale: SIMD3(halfWidth + 2, 1, 1), kind: 5, seed: 0)
         for i in 0..<25 {
             let side: Float = i.isMultiple(of: 2) ? -1 : 1
-            let x = i < 15 ? side * random.range(0.62, 1.0) * halfWidth : random.range(-halfWidth, halfWidth)
+            var x = i < 15 ? side * random.range(0.62, 1.0) * halfWidth : random.range(-halfWidth, halfWidth)
             let size = i < 15 ? random.range(0.45, 1.05) : random.range(0.10, 0.30)
             let z = random.range(-6.0, 1.9)
+            let scale = SIMD3(size * random.range(1, 1.7), size * 0.73, size)
+            // Leave the finger-drawn hash in aqSandSignature a small clearing,
+            // including the irregular rock silhouettes in narrow portrait views.
+            let radius = scale * 1.2
+            if z + radius.z > -4.2 && z - radius.z < 2.5 && abs(x) < 1.0 + radius.x {
+                x = (x < 0 ? -1 : 1) * (1.0 + radius.x)
+            }
             append(mesh: 6, position: SIMD3(x, -2.71 + size * 0.2, z),
-                   scale: SIMD3(size * random.range(1, 1.7), size * 0.73, size), kind: 7, seed: Float(i))
+                   scale: scale, kind: 7, seed: Float(i))
         }
         let plants = Int((configuration.kelpDensity * 38).rounded())
         for i in 0..<plants {

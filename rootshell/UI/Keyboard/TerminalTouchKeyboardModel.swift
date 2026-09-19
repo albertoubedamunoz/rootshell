@@ -105,6 +105,57 @@ nonisolated enum TerminalTouchKeyboardModel {
         mutating func reset() { self = Self() }
     }
 
+    /// One store per window. Reference values let placement and keyboard-choice
+    /// changes stay current without copying input-host state between terminals.
+    struct StateStore<State> {
+        private var shared: State?
+        private var tabs: [UUID: State] = [:]
+        private var lastState: State?
+        private var perTab = false
+
+        mutating func activate(tabID: UUID?, perTab: Bool, make: () -> State,
+                               copyChoices: (State, State) -> Void) -> State {
+            let selected = state(tabID: tabID, perTab: perTab, make: make)
+            // A settings sheet may resign the terminal before changing scope.
+            // Seed the new scope from the last displayed state on next focus.
+            if self.perTab != perTab, let lastState { copyChoices(lastState, selected) }
+            self.perTab = perTab
+            lastState = selected
+            return selected
+        }
+
+        mutating func state(tabID: UUID?, perTab: Bool, make: () -> State) -> State {
+            guard perTab, let tabID else {
+                if let shared { return shared }
+                let state = make()
+                shared = state
+                return state
+            }
+            if let state = tabs[tabID] { return state }
+            let state = make()
+            tabs[tabID] = state
+            return state
+        }
+    }
+
+    /// Durable presentation choices. Touches, repeats, suggestions and prediction
+    /// context belong to the input host and must never travel to another terminal.
+    struct PresentationState {
+        var modifiers = Modifiers()
+        var page = Page.letters
+        var preset = Preset.shell
+        var toolPage = ToolPage.typing
+        var toolbarDrawer = ToolbarDrawerState.closed
+        var drawerOffset = CGPoint.zero
+        var toolbarOffsets: [Int: CGPoint] = [:]
+
+        func suspendingInput() -> Self {
+            var result = self
+            result.modifiers.cancelHeld()
+            return result
+        }
+    }
+
     enum Page: CaseIterable { case letters, numbers, symbols }
     enum Action: Hashable {
         case text(String), key(String), modifier(Modifier)

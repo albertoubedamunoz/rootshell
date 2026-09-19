@@ -51,18 +51,19 @@ private enum TerminalTouchKeyboardAppearance {
 }
 
 private struct TerminalTouchKeyboardEffectBackground: View {
-    let backgroundColor: UIColor
+    @ObservedObject var appearance: TerminalKeyboardEffectSurface.Appearance
     @ObservedObject var effect: AnyTerminalEffect
     var effectManager = EffectManager.shared
 
     var body: some View {
         ZStack {
-            Color(uiColor: backgroundColor)
+            Color(uiColor: appearance.backgroundColor)
             effect.createEffectView()
                 .id(effect.id)
                 .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
         }
         .environment(\.terminalEffectAvoidsKeyboard, false)
+        .environment(\.terminalEffectRetainsState, true)
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -296,6 +297,34 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         didSet { if abs(oldValue - floatingAvailableHeight) > 0.5 { setNeedsLayout() } }
     }
 
+    private var pendingPresentationOffsets: Model.PresentationState?
+
+    var presentationState: Model.PresentationState {
+        Model.PresentationState(modifiers: modifierState, page: page, preset: preset,
+            toolPage: toolPage, toolbarDrawer: toolbarDrawerState,
+            drawerOffset: pendingPresentationOffsets?.drawerOffset ?? drawer.contentOffset,
+            toolbarOffsets: pendingPresentationOffsets?.toolbarOffsets ?? Dictionary(uniqueKeysWithValues:
+                zip(toolbarDrawerIndices, toolbarDrawerRows).map { ($0, $1.contentOffset) }))
+            .suspendingInput()
+    }
+
+    func restorePresentationState(_ state: Model.PresentationState) {
+        cancelInteraction()
+        page = state.page
+        preset = state.preset
+        presets.selectedSegmentIndex = Model.Preset.allCases.firstIndex(of: preset) ?? 0
+        toolPage = state.toolPage
+        toolbarDrawerState = state.toolbarDrawer
+        rebuildKeys()
+        rebuildDrawer()
+        modifierState = state.suspendingInput().modifiers
+        pendingPresentationOffsets = state
+        publishModifiers()
+        invalidateIntrinsicContentSize()
+        onHeightChanged?()
+        setNeedsLayout()
+    }
+
     private var modifierState = Model.Modifiers()
     private var page = Model.Page.letters
     private var preset = Model.Preset.shell
@@ -318,7 +347,25 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let background = UIView()
     private let floatingGlass = UIVisualEffectView()
     private let controlGlass = UIVisualEffectView()
-    private var effectContentView: (UIView & UIContentView)?
+    private struct GlassAppearance: Equatable {
+        let toolbar: UIColor
+        let background: UIColor
+        let floating: Bool
+        let style: Model.FloatingGlassStyle
+        let tintOpacity: Double
+        let reduceTransparency: Bool
+    }
+    private var glassAppearance: GlassAppearance?
+    // Previews own their surface. Terminal controllers bind the surface from
+    // the selected shared/per-tab state only while this keyboard is active.
+    private var effectSurface: TerminalKeyboardEffectSurface? = TerminalKeyboardEffectSurface()
+
+    func setBackgroundEffectSurface(_ surface: TerminalKeyboardEffectSurface?) {
+        guard effectSurface !== surface else { return }
+        effectSurface?.detach(from: self)
+        effectSurface = surface
+        updateBackgroundEffect()
+    }
     private var effectPlacement = Model.BackgroundEffectPlacement.off
     private var effectsSuspended = UIApplication.shared.applicationState != .active
     private let drawer = UIScrollView()
@@ -509,13 +556,20 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
+                    // Activation only pauses and resumes the effect. Settings,
+                    // theme and toolbar changes each arrive through their own
+                    // notification, so no rebuild is needed on either edge.
                     if name == UIApplication.willResignActiveNotification {
-                        self.cancelInteraction()
+                        self.cancelInteraction(preservingModifiers: true)
                         self.effectsSuspended = true
                         self.updateBackgroundEffect()
                         return
                     }
-                    if name == UIApplication.didBecomeActiveNotification { self.effectsSuspended = false }
+                    if name == UIApplication.didBecomeActiveNotification {
+                        self.effectsSuspended = false
+                        self.updateBackgroundEffect()
+                        return
+                    }
                     self.refreshSettings()
                 }
             }
@@ -523,7 +577,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         registerForTraitChanges([UITraitUserInterfaceStyle.self, UITraitVerticalSizeClass.self, UITraitHorizontalSizeClass.self]) {
             (self: TerminalTouchKeyboardView, _: UITraitCollection) in
-            self.cancelInteraction()
+            self.cancelInteraction(preservingModifiers: true)
             self.updateAppearance()
             self.setNeedsLayout()
         }
@@ -534,7 +588,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     func setFloating(_ floating: Bool) {
         guard isFloating != floating else { return }
-        cancelInteraction()
+        cancelInteraction(preservingModifiers: true)
         isFloating = floating
         layer.shadowColor = UIColor.black.cgColor
         layer.cornerRadius = floating ? 24 : 0
@@ -665,8 +719,36 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         // Paint the gaps around the glass toolbar too. A clear input root lets
         // UIKit's independently styled keyboard backdrop show through here.
         backgroundColor = usesFloatingGlass ? .clear : containerBackgroundColor
+        let tintOpacity = Model.floatingGlassTintOpacity(SettingsStore.shared.value(Settings.Keyboard.touchFloatingGlassTintOpacity))
+        let nextGlassAppearance = GlassAppearance(
+            toolbar: toolbar.resolvedColor(with: traitCollection),
+            background: containerBackgroundColor.resolvedColor(with: traitCollection),
+            floating: isFloating, style: floatingStyle, tintOpacity: tintOpacity,
+            reduceTransparency: UIAccessibility.isReduceTransparencyEnabled)
+        // Replacing an identical glass effect briefly rebuilds its backdrop.
+        // A new terminal input target does not require a new glass material.
+        if glassAppearance != nextGlassAppearance {
+            glassAppearance = nextGlassAppearance
+            updateGlassAppearance(toolbar: toolbar, floatingStyle: floatingStyle,
+                                  usesFloatingGlass: usesFloatingGlass, tintOpacity: tintOpacity)
+        }
+        pageIndicator.effect = UIAccessibility.isReduceTransparencyEnabled ? nil : UIBlurEffect(style: .systemUltraThinMaterialDark)
+        pageIndicator.contentView.backgroundColor = UIColor.black.withAlphaComponent(UIAccessibility.isReduceTransparencyEnabled ? 0.9 : 0.3)
+        grabber.tintColor = palette?.toolbarInk ?? .label
+        preview.backgroundColor = palette?.key ?? .secondarySystemBackground
+        preview.textColor = palette?.ink ?? .label
+        accents.backgroundColor = palette?.key ?? .secondarySystemBackground
+        (controls + rows.flatMap { $0 }).forEach { $0.palette = palette }
+        refreshWritingAssistance()
+        rebuildToolbarDrawers()
+        updateModifierAppearance()
+        updateBackgroundEffect()
+        onAppearanceChanged?()
+    }
+
+    private func updateGlassAppearance(toolbar: UIColor, floatingStyle: Model.FloatingGlassStyle,
+                                       usesFloatingGlass: Bool, tintOpacity: Double) {
         if usesFloatingGlass {
-            let tintOpacity = Model.floatingGlassTintOpacity(SettingsStore.shared.value(Settings.Keyboard.touchFloatingGlassTintOpacity))
             let tint = containerBackgroundColor.withAlphaComponent(CGFloat(tintOpacity))
             // One material for the whole detached card lets terminal content
             // show through the gaps without blurring the key labels themselves.
@@ -698,23 +780,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         controlGlass.backgroundColor = .clear
         if !usesFloatingGlass { floatingGlass.effect = nil }
-        pageIndicator.effect = UIAccessibility.isReduceTransparencyEnabled ? nil : UIBlurEffect(style: .systemUltraThinMaterialDark)
-        pageIndicator.contentView.backgroundColor = UIColor.black.withAlphaComponent(UIAccessibility.isReduceTransparencyEnabled ? 0.9 : 0.3)
-        grabber.tintColor = palette?.toolbarInk ?? .label
-        preview.backgroundColor = palette?.key ?? .secondarySystemBackground
-        preview.textColor = palette?.ink ?? .label
-        accents.backgroundColor = palette?.key ?? .secondarySystemBackground
-        (controls + rows.flatMap { $0 }).forEach { $0.palette = palette }
-        refreshWritingAssistance()
-        rebuildToolbarDrawers()
-        updateModifierAppearance()
-        updateBackgroundEffect()
-        onAppearanceChanged?()
     }
 
     private func updateBackgroundEffect() {
         effectPlacement = SettingsStore.shared.value(Settings.Shaders.keyboardBackgroundEffect)
-        guard window != nil, !isHidden, !effectsSuspended,
+        guard let effectSurface, window != nil, !isHidden, !effectsSuspended,
               effectPlacement != .off, let effect = EffectManager.shared.keyboardEffect else {
             removeBackgroundEffect()
             return
@@ -724,40 +794,20 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         // A detached glass keyboard must retain its transparent backdrop.
         let color: UIColor = !floatingGlass.isHidden ? .clear : (effectPlacement == .toolbar
             ? (palette?.background ?? TerminalTouchKeyboardAppearance.toolbar) : containerBackgroundColor)
-        let configuration = UIHostingConfiguration {
-            TerminalTouchKeyboardEffectBackground(backgroundColor: color, effect: effect)
-        }
-        .margins(.all, 0)
-        .minSize(width: 0, height: 0)
-        if let effectContentView {
-            effectContentView.configuration = configuration
-        } else {
-            // UIKit reparents the input hierarchy while presenting the keyboard.
-            // Its responder chain can still lead to MainView at that point, so
-            // manually parenting a UIHostingController there causes a
-            // UIViewControllerHierarchyInconsistency. A content configuration
-            // embeds SwiftUI without a controller parent for us to manage.
-            let view = configuration.makeContentView()
-            view.backgroundColor = .clear
-            view.isUserInteractionEnabled = false
-            view.accessibilityElementsHidden = true
-            view.clipsToBounds = true
-            view.layer.cornerCurve = .continuous
-            effectContentView = view
-            insertSubview(view, aboveSubview: background)
+        effectSurface.attach(to: self, above: background, effectID: ObjectIdentifier(effect), backgroundColor: color) {
+            AnyView(TerminalTouchKeyboardEffectBackground(appearance: effectSurface.appearance, effect: effect))
         }
         layoutBackgroundEffect()
     }
 
     private func layoutBackgroundEffect() {
-        guard let view = effectContentView else { return }
+        guard let view = effectSurface?.contentView, view.superview === self else { return }
         view.frame = effectPlacement == .toolbar ? controlGlass.frame : bounds
         view.layer.cornerRadius = effectPlacement == .toolbar ? 22 : (isFloating ? 24 : 0)
     }
 
     private func removeBackgroundEffect() {
-        effectContentView?.removeFromSuperview()
-        effectContentView = nil
+        effectSurface?.detach(from: self)
     }
 
     private func makeCap(_ key: Model.Key, small: Bool = false) -> TerminalTouchKeycap {
@@ -851,7 +901,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         super.layoutSubviews()
         floatingGlass.frame = bounds
         if previousWidth != bounds.width {
-            if previousWidth != 0 { cancelInteraction() }
+            if previousWidth != 0 { cancelInteraction(preservingModifiers: true) }
             previousWidth = bounds.width
             rebuildKeys()
             rebuildDrawer()
@@ -868,7 +918,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         layoutBackgroundEffect()
         let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: width, drawerToggle: configuredDrawerToggle)
         if controls.map(\.key) != toolbar.main || toolbarDrawerKeys != toolbar.drawers {
-            cancelInteraction()
+            cancelInteraction(preservingModifiers: true)
             rebuildKeysForWidth(width)
             rebuildDrawer()
             setNeedsLayout()
@@ -940,6 +990,13 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             if !contacts.isEmpty { cancelInteraction() }
             typingGeometry = Model.TypingGeometry(targets: targets, bounds: typingBounds)
         }
+        if let offsets = pendingPresentationOffsets {
+            drawer.contentOffset = offsets.drawerOffset
+            for (index, row) in zip(toolbarDrawerIndices, toolbarDrawerRows) {
+                row.contentOffset = offsets.toolbarOffsets[index] ?? .zero
+            }
+            pendingPresentationOffsets = nil
+        }
         if abs(heightConstraint.constant - desiredHeight) > 0.5 {
             heightConstraint.constant = desiredHeight
             invalidateIntrinsicContentSize()
@@ -950,11 +1007,14 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window == nil {
-            cancelInteraction()
+            cancelInteraction(preservingModifiers: true)
             removeBackgroundEffect()
         } else {
-            refreshSettings()
+            // Keys and drawers are already current; only the window-bound
+            // effect and the host's suggestions need refreshing here.
+            updateBackgroundEffect()
             updateSuggestions()
+            setNeedsLayout()
         }
     }
 
@@ -1270,7 +1330,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         case .dismiss: cancelInteraction(); onDismiss?()
         case .compose: cancelInteraction(); onCompose?()
         case .paste: cancelInteraction(); onPaste?()
-        case .tabs: cancelInteraction(); onTabs?()
+        case .tabs: cancelInteraction(preservingModifiers: true); onTabs?()
         case .toolbar(let action):
             guard action != KeyID.writingAssistance.keyValue else { return }
             cancelInteraction(); onToolbarAction?(action)
@@ -1332,6 +1392,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         guard page != toolPage else { return }
         cancelInteraction(preservingModifiers: true)
         toolPage = page
+        drawer.contentOffset = .zero
         rebuildDrawer()
         updateSuggestions()
         showPageIndicator()
@@ -1410,6 +1471,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     @objc private func changePreset() {
         guard Model.Preset.allCases.indices.contains(presets.selectedSegmentIndex) else { return }
         preset = Model.Preset.allCases[presets.selectedSegmentIndex]
+        drawer.contentOffset = .zero
         rebuildDrawer()
     }
     @discardableResult
@@ -1466,7 +1528,6 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private func rebuildDrawer() {
         refreshWritingAssistance()
         drawerButtons.forEach { $0.cancelRepeat(); $0.removeFromSuperview() }; drawerButtons.removeAll()
-        drawer.contentOffset = .zero
         drawerColumns = toolPage == .symbols ? 8 : 4
         switch toolPage {
         case .typing: break
@@ -1599,6 +1660,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 continue
             }
             let row = UIScrollView()
+            row.contentOffset = previousRows[index]?.0.contentOffset ?? .zero
             row.showsHorizontalScrollIndicator = false
             row.alwaysBounceHorizontal = false
             addSubview(row)

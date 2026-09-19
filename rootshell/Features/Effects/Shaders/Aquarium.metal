@@ -51,6 +51,32 @@ static float aqNoise(float3 p) {
 static float aqBand(float x, float center, float width, float feather) {
     return 1.0f - smoothstep(width, width + feather, abs(x - center));
 }
+
+// Rounded finger strokes, with a gentle bow and a little pressure variation.
+// Distance is normalized by the finger width so intersections form one groove.
+static float aqSandStroke(float2 p, float2 start, float2 end, float bow, float radius) {
+    float2 axis = end - start;
+    float t = saturate(dot(p - start, axis) / dot(axis, axis));
+    float2 side = normalize(float2(-axis.y, axis.x));
+    float2 center = mix(start, end, t) + side * (bow * 4.0f * t * (1.0f - t));
+    float pressure = 0.86f + 0.14f * sin(t * M_PI_F);
+    return length(p - center) / (radius * pressure);
+}
+
+static float aqSandSignature(float3 world) {
+    // One mark in the open foreground, anchored to the sand. The long depth
+    // axis keeps it legible under the aquarium camera's shallow viewing angle.
+    // Compensate for dune height along the fixed camera's 1.65/13 tilt.
+    // Otherwise a clean crossbar in XZ buckles visibly over each sand ripple.
+    float surfaceDepth = world.z + 0.8f - (world.y + 2.73f) * (13.0f / 1.65f);
+    float2 p = float2(world.x / 0.72f, -surfaceDepth / 2.6f);
+    if (any(abs(p) > float2(1.5f, 1.4f))) return 4.0f;
+    float d = aqSandStroke(p, float2(-0.62f, -1.02f), float2(-0.28f, 1.04f), 0.025f, 0.105f);
+    d = min(d, aqSandStroke(p, float2(0.24f, -1.00f), float2(0.57f, 0.98f), -0.018f, 0.10f));
+    d = min(d, aqSandStroke(p, float2(-1.02f, -0.38f), float2(0.94f, -0.28f), 0.022f, 0.098f));
+    return min(d, aqSandStroke(p, float2(-0.91f, 0.34f), float2(1.04f, 0.43f), -0.025f, 0.102f));
+}
+
 static float aqCaustics(float3 world, float t) {
     float2 p = world.xz * 2.2f + world.y * float2(0.35f, 0.24f);
     p += float2(sin(t * 0.125f), cos(t * 0.0625f)) * 0.65f;
@@ -291,6 +317,25 @@ fragment half4 aquariumSurfaceFragment(AQSurface in [[stage_in]],
                                       depth2d<float> shadow [[texture(0)]]) {
     AQMaterial m = aqMaterial(in);
     float3 N = normalize(in.normal);
+    if (int(in.parameters.x + 0.5f) == 5) {
+        float d = aqSandSignature(in.world);
+        float footprint = max(fwidth(d), 0.08f);
+        float groove = 1.0f - smoothstep(0.12f, 1.0f + footprint * 0.35f, d);
+        float rim = smoothstep(0.78f, 1.12f + footprint * 0.25f, d)
+                  * (1.0f - smoothstep(1.12f, 1.65f + footprint * 0.25f, d));
+        float height = -0.032f * groove + 0.009f * rim;
+        // Surface-gradient bump mapping follows the existing undulating floor
+        // and the movable light, without extra geometry or a floating decal.
+        float3 dx = dfdx(in.world), dy = dfdy(in.world);
+        float3 acrossX = cross(dy, N), acrossY = cross(N, dx);
+        float determinant = dot(dx, acrossX);
+        float3 gradient = dfdx(height) * acrossX + dfdy(height) * acrossY;
+        if (abs(determinant) > 1e-8f) N = normalize(N - gradient / determinant);
+        // Compacted sand inside the furrow; a small ridge of displaced grains.
+        // Keep the sand pigment and grain visible through both.
+        m.albedo *= 1.0f - 0.24f * groove + 0.055f * rim;
+        m.roughness = mix(m.roughness, 0.92f, groove);
+    }
     float3 V = normalize(u.cameraTime.xyz - in.world);
     // Double-sided fins and kelp have physically meaningful back lighting.
     if ((int(in.parameters.x) == 6 || in.part == 1) && dot(N,V) < 0) N = -N;
