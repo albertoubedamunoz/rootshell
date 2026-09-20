@@ -110,6 +110,11 @@ protocol GhosttyActionDelegate: AnyObject {
     /// Called when terminal cell size changes
     func handleCellSizeChange(width: CGFloat, height: CGFloat)
 
+    /// Called after the IO thread resized the terminal of a pipe-backed
+    /// surface. The session's window change follows from here, never from
+    /// the ghostty_surface_set_size call, which only queues the resize.
+    func handlePTYResize(rows: Int, cols: Int, widthPx: Int, heightPx: Int)
+
     /// Called when renderer health status changes
     func handleRendererHealth(healthy: Bool)
 
@@ -2564,6 +2569,20 @@ extension Ghostty {
                     Ghostty.logger.warning("Cell size action but target is not SURFACE (tag=\(target.tag.rawValue))")
                 }
 
+                return true
+
+            case GHOSTTY_ACTION_PTY_RESIZE:
+                // Delivered while backgrounded too: updatePTYSize applies the
+                // suppression gate itself, as the set_size hop used to.
+                let resize = action.action.pty_resize
+                guard target.tag == GHOSTTY_TARGET_SURFACE else { return true }
+                let surfaceId = Int(bitPattern: target.target.surface)
+                Task { @MainActor in
+                    appInstance.surfaceDelegates[surfaceId]?.delegate?.handlePTYResize(
+                        rows: Int(resize.rows), cols: Int(resize.cols),
+                        widthPx: Int(resize.width_px), heightPx: Int(resize.height_px)
+                    )
+                }
                 return true
 
             case GHOSTTY_ACTION_PROGRESS_REPORT:

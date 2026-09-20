@@ -3044,8 +3044,17 @@ extension Ghostty {
             // shell wedges at whatever dim was last seen pre-background and
             // helix / cursor render is corrupt until the user manually
             // triggers a real resize.
+            // A size the IO thread already applied queues no resize and so
+            // no pty_resize action; resend a window change dropped while
+            // backgrounded. Decided before set_size, which updates the
+            // requested size at once. A changed size arrives through the action.
+            let applied = surfaceController.surfaceHasAppliedFramebuffer(
+                for: bounds.size, scale: contentScaleFactor)
             surfaceController.invalidateCachedSize()
             sizeDidChange(bounds.size)
+            if applied {
+                updatePTYSize()
+            }
             // The host may have grown while this pane remained clamped to
             // herdr's old grid, so no PTY grid callback will report it.
             if isHerdrPane { noteHerdrHostLayout() }
@@ -4410,7 +4419,10 @@ extension Ghostty {
         /// Updates the PTY/SSH session with the current terminal grid size
         /// Note: Only needed for external I/O mode (SSH, iOS local shell)
         /// In Catalyst PTY mode, Ghostty manages window size internally
-        func updatePTYSize() {
+        /// `applied` is the grid the IO thread just resized to (pty_resize
+        /// action). Without it the surface's requested size is used, which a
+        /// queued resize may not have reached yet.
+        func updatePTYSize(applied: (rows: UInt16, cols: UInt16, widthPx: UInt16, heightPx: UInt16)? = nil) {
             guard let surfaceSize = surfaceSize else {
                 if Self.logFrequentLayout {
                     Ghostty.logger.debug("   surfaceSize is nil, cannot update PTY size")
@@ -4465,7 +4477,8 @@ extension Ghostty {
 
             // If the session instance changed (e.g., reconnect), resend size even if unchanged.
             let sessionID = ObjectIdentifier(session as AnyObject)
-            let gridSize = (rows: surfaceSize.rows, cols: surfaceSize.columns)
+            let gridSize = applied.map { (rows: $0.rows, cols: $0.cols) }
+                ?? (rows: surfaceSize.rows, cols: surfaceSize.columns)
             if !surfaceController.shouldSendPTYSize(for: sessionID, gridSize: gridSize) {
                 // Debug log for cursor position bug investigation
                 Ghostty.logger.debug("updatePTYSize: skipped (cache hit) \(gridSize.rows)x\(gridSize.cols)")
@@ -4496,10 +4509,10 @@ extension Ghostty {
             let size = bounds.size
 
             let ptySize = TerminalPTY.TerminalSize(
-                rows: surfaceSize.rows,
-                cols: surfaceSize.columns,
-                pixelWidth: UInt16(size.width * scale),
-                pixelHeight: UInt16(size.height * scale)
+                rows: gridSize.rows,
+                cols: gridSize.cols,
+                pixelWidth: applied?.widthPx ?? UInt16(size.width * scale),
+                pixelHeight: applied?.heightPx ?? UInt16(size.height * scale)
             )
             do {
                 invalidateWritingAssistance()
@@ -4921,6 +4934,15 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         }
     }
     
+    func handlePTYResize(rows: Int, cols: Int, widthPx: Int, heightPx: Int) {
+        let grid = (rows: UInt16(clamping: rows), cols: UInt16(clamping: cols))
+        updatePTYSize(applied: (
+            rows: grid.rows, cols: grid.cols,
+            widthPx: UInt16(clamping: widthPx), heightPx: UInt16(clamping: heightPx)))
+        // Releases the layout-deferred replay once its own grid is applied.
+        surfaceController.notePtyResizeApplied(rows: grid.rows, cols: grid.cols)
+    }
+
     func handleCellSizeChange(width: CGFloat, height: CGFloat) {
         let metricsChanged = cellSize != CGSize(width: width, height: height)
         self.cellSize = CGSize(width: width, height: height)
