@@ -4813,7 +4813,6 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
                 if self.userOverrideTitle == nil {
                     self.title = title
                 }
-                Ghostty.logger.debug("Title changed: \(title)")
             }
         }
     }

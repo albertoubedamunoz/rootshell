@@ -3,6 +3,35 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.12-152 - September 20, 2026
+
+### Terminal Resize Fixes
+
+- **Reliable Terminal Redraws:** Fixed a timing issue that could garble terminal contents during resizing, including when dismissing the software keyboard. rootshell now applies the new terminal dimensions before notifying the session, so programs redraw only after the terminal is ready for the new size.
+- **Ordered SSH Size Updates:** Fixed rapid SSH size changes being sent out of order, allowing an older size to override the latest one.
+
+### Terminal Keyboard Reliability
+
+- **Shared Keyboard State:** Keyboard pages, shortcuts, drawers, sticky modifiers and keyboard choice now carry across tabs by default. Enable Separate State per Tab in Terminal Keyboard settings to remember them independently; split panes in one tab share their state.
+- **Continuous Background Effects:** Keyboard background effects stay animated across tab switches, with fewer visual resets.
+
+### Hardware Keyboard and Mod-Tap
+
+- **More Reliable Mod-Tap Keys:** Improved keys that perform one action when tapped and act as a modifier when held. Existing shortcuts now take priority, and held keys apply the intended modifier without accidentally adding the original one.
+
+### tmux Split Equalization
+
+- **Synchronized Equalize Splits:** Fixed Equalize Splits in tmux control mode so changes update the server layout and stay in sync with the app.
+- **Preserved Pane Layouts:** Equalizing keeps panes in their existing positions, including nested horizontal and vertical splits, and restores a zoomed pane afterward. Layouts that are too cramped to equalize safely are left alone to avoid hangs.
+
+### Aquarium Improvements
+
+- **Natural Fish Movement and Sand Detail:** Fish move more naturally. Added a finger-drawn rootshell hash in the sand, with rounded grooves and raised edges.
+
+### iPhone Full Screen Reminder
+
+- **Full Screen Guidance:** When launching with Full Screen enabled, a reminder explains that content may appear behind the Dynamic Island or notch and shows where to change the setting. Turn Full Screen off directly from the reminder, dismiss it, or choose Never Remind Me Again.
+
 ## 1.0.12-151 - September 17, 2026
 
 ### Critical Crash Fix: Session Discovery
