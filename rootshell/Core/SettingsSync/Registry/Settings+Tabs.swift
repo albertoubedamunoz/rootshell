@@ -146,6 +146,9 @@ nonisolated extension Settings {
             "fullScreenModeEnabled", default: false, group: .window, policy: .localByDefault,
             configKey: "full-screen-mode-enabled",
             title: String(localized: "Full Screen Mode", comment: "Setting title"))
+        static let fullScreenLaunchNoticeDismissed = SettingKey(
+            "fullScreenLaunchNoticeDismissed", default: false, group: .window, policy: .deviceOnly,
+            title: String(localized: "Full Screen Reminder Dismissed", comment: "Setting title"))
         static let extendUnderHomeIndicator = SettingKey(
             "extendUnderHomeIndicator", default: false, group: .window, policy: .localByDefault,
             configKey: "extend-under-home-indicator",
@@ -182,7 +185,8 @@ nonisolated extension Settings {
             title: String(localized: "Titlebar Leading Inset", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
-            hideTitleBar.erased, tabsInTitlebar.erased, fullScreenMode.erased, extendUnderHomeIndicator.erased,
+            hideTitleBar.erased, tabsInTitlebar.erased, fullScreenMode.erased,
+            fullScreenLaunchNoticeDismissed.erased, extendUnderHomeIndicator.erased,
             splitFocusBorderStyle.erased, splitFocusBorderColor.erased, splitFocusBorderCustomColor.erased,
             lastWidth.erased, lastHeight.erased, lastOriginX.erased, lastOriginY.erased, lastHasOrigin.erased,
             titlebarLeadingInset.erased,

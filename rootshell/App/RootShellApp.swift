@@ -96,6 +96,7 @@ struct RootShellApp: App {
                 .preferredColorScheme(appearanceManager.colorScheme)
                 .statusBarStyleForTerminalTheme()
                 .immersiveChromeForFullScreen()
+                .fullScreenLaunchNotice()
                 .alwaysOnDisplay()
                 .task {
                     guard ProtectedDataGuard.isAvailable else { return }
