@@ -159,8 +159,8 @@ nonisolated enum UserPreferences {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: clockFormatKey) }
     }
 
-    /// Formats current time according to the user's clock format preference
-    static func formattedTime() -> String {
+    /// Formats time according to the user's clock format preference
+    static func formattedTime(_ date: Date = Date()) -> String {
         let formatter = DateFormatter()
         switch clockFormat {
         case .system:
@@ -170,6 +170,6 @@ nonisolated enum UserPreferences {
         case .twentyFourHour:
             formatter.dateFormat = "HH:mm"
         }
-        return formatter.string(from: Date())
+        return formatter.string(from: date)
     }
 }

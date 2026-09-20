@@ -303,9 +303,16 @@ struct PromptStyle {
         return displayPath.isEmpty ? "~" : displayPath
     }
 
+    /// Only the prompt's display clock is fixed for screenshots.
+    static var promptDate: Date {
+        let now = Date()
+        guard SettingsStore.shared.value(Settings.System.screenshotMode) else { return now }
+        return Calendar.current.date(bySettingHour: 9, minute: 41, second: 0, of: now) ?? now
+    }
+
     /// Get current time formatted per user preference
     static func currentTime() -> String {
-        UserPreferences.formattedTime()
+        UserPreferences.formattedTime(promptDate)
     }
 
     /// Get abbreviated day of week (Mon, Tue, etc.)

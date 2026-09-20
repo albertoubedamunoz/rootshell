@@ -1630,6 +1630,7 @@ struct SettingsOpenSourceFooter: View {
 
 /// About section detail
 struct SettingsAboutSection: View {
+    @Setting(Settings.System.screenshotMode) private var screenshotMode
     var externalShowDebugSettings: Binding<Bool>? = nil
     @State private var _showDebugSettings = false
 
@@ -1664,21 +1665,23 @@ struct SettingsAboutSection: View {
                 .padding(.vertical, 8)
                 .themedRow()
 
-                HStack(spacing: 12) {
-                    SettingsIcon(systemName: "info.circle")
-                    Text("Version")
-                    Spacer()
-                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-                    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(version) (\(build))")
-                        Text(BuildInfo.date)
+                if !screenshotMode {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "info.circle")
+                        Text("Version")
+                        Spacer()
+                        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+                        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(version) (\(build))")
+                            Text(BuildInfo.date)
+                        }
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                        .textSelection(.enabled)
                     }
-                    .foregroundColor(.secondary)
-                    .font(.subheadline)
-                    .textSelection(.enabled)
+                    .themedRow()
                 }
-                .themedRow()
 
                 SettingsReviewLink()
 

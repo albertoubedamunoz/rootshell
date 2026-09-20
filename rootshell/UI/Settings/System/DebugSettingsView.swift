@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DebugSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
+    @Setting(Settings.System.screenshotMode) private var screenshotMode
     @AppStorage(ResumeDebugLogger.enabledKey) private var resumeDebugLogging: Bool = false
     @AppStorage(LifecycleDebugLogger.enabledKey) private var lifecycleDebugLogging: Bool = false
     @AppStorage(LifecycleDebugLogger.syncRendererDrainEnabledKey) private var syncRendererDrain: Bool = false
@@ -37,6 +38,15 @@ struct DebugSettingsView: View {
 
     var body: some View {
         List {
+            Section {
+                Toggle("Screenshot Mode", isOn: $screenshotMode)
+                    .themedRow()
+            } header: {
+                Text("Screenshots")
+            } footer: {
+                Text("Sets the local shell prompt clock to 9:41 on the next prompt and hides the version and build date in Settings. This setting stays on this device.")
+            }
+
             // MARK: - Agent Detection Capture
 
             Section {
