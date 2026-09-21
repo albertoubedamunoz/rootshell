@@ -1366,6 +1366,16 @@ extension Ghostty {
         }
 
         guard let scrollbar = terminalView.scrollbar else {
+            // Preserve geometry only when there is no tmux surface to query.
+            // An existing surface's query returns false for empty history;
+            // that must clear any previously observed scrollback geometry.
+            if TerminalScrollbarAvailabilityPolicy.preservesExistingDocument(
+                isTmuxPane: terminalView.isTmuxPane,
+                hasSurface: terminalView.surface != nil,
+                hasValidSample: lastObservedScrollbar != nil
+            ) {
+                return
+            }
             // Reset case (e.g., tmux tracking just ended with no native
             // scrollback to restore, or fresh terminal). Shrink the
             // document view back to the visible viewport so we don't

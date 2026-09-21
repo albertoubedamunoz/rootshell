@@ -1399,8 +1399,13 @@ extension Ghostty {
             // surface's io.terminal is only a relay placeholder. Query the full
             // displayed-terminal scrollbar so total and offset come from the
             // same pane state.
-            if tmuxPaneBinding != nil, let surface = surface {
+            if tmuxPaneBinding != nil {
+                // Without the viewer surface there is no displayed sample;
+                // the cached relay scrollbar is not a substitute.
+                guard let surface else { return nil }
                 var scrollbar = ghostty_action_scrollbar_s()
+                // This blocking query also returns false for valid empty
+                // history (total <= len), not just a missing primary screen.
                 guard ghostty_surface_display_scrollbar(surface, &scrollbar) else { return nil }
                 return Ghostty.Action.Scrollbar(
                     total: scrollbar.total,
