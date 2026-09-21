@@ -2,7 +2,6 @@
 
 import Darwin
 import Foundation
-import OSLog
 import UIKit
 import Vision
 
@@ -29,43 +28,22 @@ nonisolated(unsafe) var imgtextCancelFlag = false
 
 // MARK: - Implementation
 
-private let logger = Logger(subsystem: "com.kk2.rootshell", category: "imgtext-bridge")
-
-private func outputStreamForCurrentThread() -> UnsafeMutablePointer<FILE>? {
-    if let stream = ios_get_thread_stdout() {
-        return stream
-    }
-    if let stream = ios_get_thread_stderr() {
-        return stream
-    }
-    return Darwin.stdout
-}
-
-private func writeToOutput(_ text: String) {
-    guard let stream = outputStreamForCurrentThread() else {
-        logger.error("No output stream available for imgtext ios_system bridge")
-        return
-    }
-    fputs(text, stream)
-    fflush(stream)
-}
-
 private func imgtextEntry(
     argc: Int32,
     argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
     imgtextCancelFlag = false
 
-    let args = extractImgtextArgs(argc: argc, argv: argv)
+    let args = IOSSystemBridge.arguments(argc: argc, argv: argv)
 
     if args.isEmpty {
-        writeToOutput(imgtextHelpText)
+        IOSSystemBridge.write(imgtextHelpText)
         return 1
     }
 
     let argSet = Set(args.map { $0.lowercased() })
     if argSet.contains("-h") || argSet.contains("--help") {
-        writeToOutput(imgtextHelpText)
+        IOSSystemBridge.write(imgtextHelpText)
         return 0
     }
 
@@ -76,7 +54,7 @@ private func imgtextEntry(
         if arg.contains("*") || arg.contains("?") || arg.contains("[") {
             let expanded = expandImgtextGlob(arg)
             if expanded.isEmpty {
-                writeToOutput("imgtext: \(arg): no matches found\n")
+                IOSSystemBridge.write("imgtext: \(arg): no matches found\n")
             } else {
                 filePaths.append(contentsOf: expanded)
             }
@@ -86,7 +64,7 @@ private func imgtextEntry(
     }
 
     guard !filePaths.isEmpty else {
-        writeToOutput("imgtext: no files to process\n")
+        IOSSystemBridge.write("imgtext: no files to process\n")
         return 1
     }
 
@@ -111,13 +89,13 @@ private func imgtextEntry(
 /// Runs on the ios_system background thread — no MainActor involvement.
 private func processImageForOCR(path: String, showFilename: Bool) -> Bool {
     guard FileManager.default.fileExists(atPath: path) else {
-        writeToOutput("imgtext: \(path): No such file or directory\n")
+        IOSSystemBridge.write("imgtext: \(path): No such file or directory\n")
         return false
     }
 
     guard let image = UIImage(contentsOfFile: path), let cgImage = image.cgImage else {
         let name = (path as NSString).lastPathComponent
-        writeToOutput("imgtext: \(name): Not a valid image file\n")
+        IOSSystemBridge.write("imgtext: \(name): Not a valid image file\n")
         return false
     }
 
@@ -131,7 +109,7 @@ private func processImageForOCR(path: String, showFilename: Bool) -> Bool {
     } catch {
         if imgtextCancelFlag { return false }
         let name = (path as NSString).lastPathComponent
-        writeToOutput("imgtext: \(name): OCR failed: \(error.localizedDescription)\n")
+        IOSSystemBridge.write("imgtext: \(name): OCR failed: \(error.localizedDescription)\n")
         return false
     }
 
@@ -140,20 +118,20 @@ private func processImageForOCR(path: String, showFilename: Bool) -> Bool {
     guard let observations = request.results, !observations.isEmpty else {
         if showFilename {
             let name = (path as NSString).lastPathComponent
-            writeToOutput("imgtext: \(name): no text found\n")
+            IOSSystemBridge.write("imgtext: \(name): no text found\n")
         }
         return true
     }
 
     if showFilename {
         let name = (path as NSString).lastPathComponent
-        writeToOutput("==> \(name) <==\n")
+        IOSSystemBridge.write("==> \(name) <==\n")
     }
 
     for observation in observations {
         if imgtextCancelFlag { return false }
         if let candidate = observation.topCandidates(1).first {
-            writeToOutput(candidate.string + "\n")
+            IOSSystemBridge.write(candidate.string + "\n")
         }
     }
 
@@ -179,25 +157,6 @@ private func expandImgtextGlob(_ pattern: String) -> [String] {
 }
 
 // MARK: - Helpers
-
-private func extractImgtextArgs(
-    argc: Int32,
-    argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
-) -> [String] {
-    let safeArgc = max(0, Int(argc))
-    guard safeArgc > 1, let argv else { return [] }
-
-    var args: [String] = []
-    args.reserveCapacity(safeArgc - 1)
-
-    for i in 1..<safeArgc {
-        if let arg = argv[i], let decoded = String(validatingUTF8: arg) {
-            args.append(decoded)
-        }
-    }
-
-    return args
-}
 
 private let imgtextHelpText = """
 usage: imgtext [-h] <file> [file ...]

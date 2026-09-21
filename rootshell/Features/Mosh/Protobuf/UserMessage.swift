@@ -118,39 +118,11 @@ struct UserMessage: Sendable {
     /// Deserializes from protobuf wire format
     nonisolated static func deserialize(_ data: Data) throws -> UserMessage {
         var message = UserMessage()
-        var offset = 0
-
-        while offset < data.count {
-            let (tag, newOffset) = try decodeVarint(data, from: offset)
-            offset = newOffset
-
-            let fieldNumber = Int(tag >> 3)
-            let wireType = WireType(rawValue: Int(tag & 0x7))
-
-            guard fieldNumber == 1, wireType == .lengthDelimited else {
-                // Skip unknown field
-                offset = try skipField(data, from: offset, wireType: wireType ?? .varint)
-                continue
-            }
-
-            // Parse instruction length
-            let (length, lengthOffset) = try decodeVarint(data, from: offset)
-            offset = lengthOffset
-
-            guard offset + Int(length) <= data.count else {
-                throw MoshError.protobufDeserializationFailed(
-                    messageType: "UserMessage",
-                    reason: "Instruction length exceeds data"
-                )
-            }
-
-            // Parse instruction submessage
-            let instructionData = Data(data[offset..<(offset + Int(length))])
-            let instruction = try parseInstruction(instructionData)
-            message.instructions.append(instruction)
-            offset += Int(length)
-        }
-
+        message.instructions = try parseRepeatedSubmessages(
+            data: data,
+            messageType: "UserMessage",
+            parse: parseInstruction
+        )
         return message
     }
 
@@ -244,108 +216,6 @@ struct UserMessage: Sendable {
         throw MoshError.protobufDeserializationFailed(
             messageType: "Instruction",
             reason: "No valid instruction found"
-        )
-    }
-}
-
-// MARK: - Protobuf Helpers (same as TransportInstruction)
-
-private enum WireType: Int {
-    case varint = 0
-    case fixed64 = 1
-    case lengthDelimited = 2
-    case startGroup = 3
-    case endGroup = 4
-    case fixed32 = 5
-}
-
-/// Appends a protobuf tag directly to data, avoiding intermediate allocation
-nonisolated private func appendTag(fieldNumber: Int, wireType: WireType, to data: inout Data) {
-    appendVarint(Int64((fieldNumber << 3) | wireType.rawValue), to: &data)
-}
-
-/// Encodes a varint directly into the given Data, avoiding intermediate allocation
-nonisolated private func appendVarint(_ value: Int64, to data: inout Data) {
-    var v = UInt64(bitPattern: value)
-
-    repeat {
-        var byte = UInt8(v & 0x7F)
-        v >>= 7
-        if v != 0 {
-            byte |= 0x80
-        }
-        data.append(byte)
-    } while v != 0
-}
-
-/// Legacy wrapper for compatibility - prefer appendVarint for new code
-nonisolated private func encodeTag(fieldNumber: Int, wireType: WireType) -> [UInt8] {
-    encodeVarint(Int64((fieldNumber << 3) | wireType.rawValue))
-}
-
-/// Legacy wrapper for compatibility - prefer appendVarint for new code
-nonisolated private func encodeVarint(_ value: Int64) -> [UInt8] {
-    var result: [UInt8] = []
-    var v = UInt64(bitPattern: value)
-
-    repeat {
-        var byte = UInt8(v & 0x7F)
-        v >>= 7
-        if v != 0 {
-            byte |= 0x80
-        }
-        result.append(byte)
-    } while v != 0
-
-    return result
-}
-
-nonisolated private func decodeVarint(_ data: Data, from offset: Int) throws -> (value: Int64, newOffset: Int) {
-    var result: Int64 = 0
-    var shift = 0
-    var currentOffset = offset
-
-    while currentOffset < data.count {
-        let byte = data[currentOffset]
-        currentOffset += 1
-
-        result |= Int64(byte & 0x7F) << shift
-        shift += 7
-
-        if byte & 0x80 == 0 {
-            return (result, currentOffset)
-        }
-
-        if shift > 63 {
-            throw MoshError.protobufDeserializationFailed(
-                messageType: "varint",
-                reason: "Varint too long"
-            )
-        }
-    }
-
-    throw MoshError.protobufDeserializationFailed(
-        messageType: "varint",
-        reason: "Unexpected end of data"
-    )
-}
-
-nonisolated private func skipField(_ data: Data, from offset: Int, wireType: WireType) throws -> Int {
-    switch wireType {
-    case .varint:
-        let (_, newOffset) = try decodeVarint(data, from: offset)
-        return newOffset
-    case .fixed64:
-        return offset + 8
-    case .lengthDelimited:
-        let (length, newOffset) = try decodeVarint(data, from: offset)
-        return newOffset + Int(length)
-    case .fixed32:
-        return offset + 4
-    case .startGroup, .endGroup:
-        throw MoshError.protobufDeserializationFailed(
-            messageType: "field",
-            reason: "Groups not supported"
         )
     }
 }

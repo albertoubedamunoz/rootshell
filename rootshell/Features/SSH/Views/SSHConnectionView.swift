@@ -4342,7 +4342,5 @@ extension SSHConnectionView {
 }
 
 #Preview {
-    SSHConnectionView(initialConfig: nil) { config, splitOption in
-        //print("Connecting to: \(config.displayName) as \(splitOption.rawValue)")
-    }
+    SSHConnectionView(initialConfig: nil) { _, _ in }
 }

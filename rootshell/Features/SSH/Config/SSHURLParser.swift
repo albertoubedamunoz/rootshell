@@ -27,7 +27,7 @@ struct SSHURLComponents: Sendable {
     }
 }
 
-/// Parser for SSH URL schemes
+/// Parser for SSH-style URL schemes (`ssh://`, and `mosh://` via `MoshURLParser`)
 ///
 /// Supports both standard and non-standard formats:
 /// - `ssh://user@host:port` (RFC 4819 standard)
@@ -36,11 +36,13 @@ struct SSHURLComponents: Sendable {
 /// - `ssh:host` (minimal)
 enum SSHURLParser {
 
-    /// Parse an SSH URL into components
-    /// - Parameter url: The URL to parse (must have `ssh` scheme)
+    /// Parse an SSH-style URL into components
+    /// - Parameters:
+    ///   - url: The URL to parse (must match `scheme`)
+    ///   - scheme: Lowercase scheme the URL must carry
     /// - Returns: Parsed components, or nil if URL is invalid
-    static func parse(_ url: URL) -> SSHURLComponents? {
-        guard url.scheme?.lowercased() == "ssh" else {
+    static func parse(_ url: URL, scheme: String = "ssh") -> SSHURLComponents? {
+        guard url.scheme?.lowercased() == scheme else {
             return nil
         }
 
@@ -63,7 +65,7 @@ enum SSHURLParser {
         }
 
         // Try opaque part for ssh:host format
-        if let opaque = url.absoluteString.dropFirst("ssh:".count).description.removingPercentEncoding,
+        if let opaque = url.absoluteString.dropFirst(scheme.count + 1).description.removingPercentEncoding,
            !opaque.isEmpty,
            !opaque.hasPrefix("//") {
             return parsePathAsHostSpec(opaque)

@@ -11,7 +11,6 @@
 import SwiftUI
 
 struct TmuxGuideView: View {
-    @Environment(\.sheetThemeColors) private var sheetThemeColors
     @State private var configCopied = false
 
     private static let recommendedConfig = """
@@ -25,7 +24,7 @@ struct TmuxGuideView: View {
             // MARK: - Control Mode
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    guideRow(
+                    GuideRow(
                         icon: "rectangle.stack",
                         title: "Gateway Tab",
                         description: "Attaching with tmux -CC keeps a gateway tab for the tmux client itself. Each tmux window opens as its own tab."
@@ -33,7 +32,7 @@ struct TmuxGuideView: View {
 
                     Divider()
 
-                    guideRow(
+                    GuideRow(
                         icon: "eye.slash",
                         title: "Auto-hide Gateway",
                         description: "When enabled, the gateway tab hides once the session's windows appear and returns when you detach. A hidden gateway always keeps at least one visible window tab."
@@ -41,7 +40,7 @@ struct TmuxGuideView: View {
 
                     Divider()
 
-                    guideRow(
+                    GuideRow(
                         icon: "command",
                         title: "Tab Shortcuts",
                         description: "Close Tab Action sets what ⌘W or the tab's ✕ does on a tmux -CC tab. New Tab Action sets what ⌘T does while attached. Outside tmux, ⌘T always opens a local shell."
@@ -56,7 +55,7 @@ struct TmuxGuideView: View {
             // MARK: - zmx
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    guideRow(
+                    GuideRow(
                         icon: "arrow.right.square",
                         title: "Detaching",
                         description: "Press ctrl+\\ to detach from a zmx session and return to the shell. Set ZMX_NO_DETACH_KEY=1 on the host to disable that key if it conflicts with something you use."
@@ -64,7 +63,7 @@ struct TmuxGuideView: View {
 
                     Divider()
 
-                    guideRow(
+                    GuideRow(
                         icon: "plus.square.on.square",
                         title: "Attach or Create",
                         description: "zmx attach joins the session if it exists and creates it otherwise, so auto-start never fails on a fresh host. There is no unnamed default session, so a name is always used — \"main\" unless you set another."
@@ -72,7 +71,7 @@ struct TmuxGuideView: View {
 
                     Divider()
 
-                    guideRow(
+                    GuideRow(
                         icon: "arrow.up.left.and.arrow.down.right",
                         title: "Resizing",
                         description: "A zmx session has one size shared by every attached client, and the last client to type sets it. Attaching from rootshell will reflow the session for anyone else attached as soon as you type. This is how zmx works, not a rootshell limitation."
@@ -121,26 +120,6 @@ struct TmuxGuideView: View {
         .themedList()
         .navigationTitle("Multiplexer Tips")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Helper Views
-
-    private func guideRow(icon: String, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(.accentColor)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
     }
 }
 

@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct TsshdSetupGuideView: View {
-    @Environment(\.sheetThemeColors) private var sheetThemeColors
-
     var body: some View {
         List {
             // MARK: - Overview
@@ -30,7 +28,7 @@ struct TsshdSetupGuideView: View {
             // MARK: - Advantages
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    howItWorksRow(
+                    GuideRow(
                         icon: "bolt.shield",
                         title: "UDP Connectivity",
                         description: "Client NAT can allow reply traffic, but firewalls, private networks, and server NAT still require suitable routing or port forwarding."
@@ -38,7 +36,7 @@ struct TsshdSetupGuideView: View {
 
                     Divider()
 
-                    howItWorksRow(
+                    GuideRow(
                         icon: "lock.shield",
                         title: "Modern Encryption",
                         description: "QUIC uses TLS 1.3; KCP uses AES-GCM-256"
@@ -46,7 +44,7 @@ struct TsshdSetupGuideView: View {
 
                     Divider()
 
-                    howItWorksRow(
+                    GuideRow(
                         icon: "waveform.path.ecg",
                         title: "Better Roaming",
                         description: "QUIC's connection migration provides seamless network transitions"
@@ -61,26 +59,6 @@ struct TsshdSetupGuideView: View {
         .themedList()
         .navigationTitle("tsshd Setup")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Helper Views
-
-    private func howItWorksRow(icon: String, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(.accentColor)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
     }
 }
 
