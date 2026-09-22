@@ -692,10 +692,22 @@ struct MainView: View {
         let alertContent = applyAlertModifiers(overlayContent)
         return applyLifecycleHandlers(alertContent)
             .iPadVisor(ghosttyApp: ghosttyApp, windowID: windowId, modalPresented: isAnySheetPresented)
-            .focusedSceneValue(\.canChooseTmuxPane,
-                               !isAnySheetPresented && terminals.indices.contains(selectedTabIndex)
-                               && terminals[selectedTabIndex].isTmuxWindow
-                               && terminals[selectedTabIndex].splitTree.count > 1)
+            .focusedSceneValue(\.canChoosePaneToZoom, canChooseSelectedPaneToZoom)
+            .focusedSceneValue(\.canChoosePaneToSwap,
+                               canChooseSelectedPaneToZoom && terminals[selectedTabIndex].isTmuxWindow)
+    }
+
+    private var canChooseSelectedPaneToZoom: Bool {
+        guard !isAnySheetPresented, terminals.indices.contains(selectedTabIndex) else { return false }
+        let tab = terminals[selectedTabIndex]
+        guard !tab.paneMove.isPending, tab.splitTree.count > 1 else { return false }
+        if tab.isTmuxWindow {
+            return TmuxController.controller(forWindowTab: tab)?.isActive == true
+        }
+        if let tabID = tab.herdrTabId {
+            return HerdrController.controller(forTab: tab)?.canChoosePaneToZoom(tabID: tabID) == true
+        }
+        return false
     }
 
 }

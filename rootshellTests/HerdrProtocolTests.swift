@@ -17,6 +17,9 @@ final class HerdrEqualizationTests: XCTestCase {
             let response = try HerdrControl.decoder.decode(
                 HerdrControl.Response<HerdrControl.LayoutDescriptionResult>.self, from: Data(json.utf8)
             )
+            // Pane selection must validate against the full exported tree,
+            // including the pane hidden by zoom, rather than visible geometry.
+            XCTAssertEqual(response.result.layout.root.paneIDs, ["p1", "p2"])
             XCTAssertEqual(response.result.layout.root.equalizationRequests(tabID: "w1:t1"), [
                 .init(tab_id: "w1:t1", path: [], ratio: 0.5)
             ])
@@ -83,6 +86,12 @@ final class HerdrEqualizationTests: XCTestCase {
         XCTAssertTrue(layout.hasSameTopology(as: .init(workspace_id: "workspace", tab_id: "tab", root: equalized)))
         XCTAssertFalse(layout.hasSameTopology(as: .init(workspace_id: "workspace", tab_id: "other", root: root)))
         XCTAssertFalse(layout.hasSameTopology(as: .init(workspace_id: "other", tab_id: "tab", root: root)))
+    }
+
+    func testExportedPaneOrderIncludesNestedHiddenPanes() {
+        let root = Node.split(direction: .right, ratio: 0.5, first: .pane("p9"),
+            second: .split(direction: .down, ratio: 0.5, first: .pane("p2"), second: .pane("p7")))
+        XCTAssertEqual(root.paneIDs, ["p9", "p2", "p7"])
     }
 
     func testMalformedExportedTreesAreRejected() {

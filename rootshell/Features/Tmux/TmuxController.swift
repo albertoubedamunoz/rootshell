@@ -431,7 +431,7 @@ final class TmuxController {
     private var lastAppliedTopologyOps: [TmuxReconcileOp]?
     private var skippedDuplicateReconciles = 0
     private var equalizingWindows: Set<Int> = []
-    private var paneSelectionWindows: Set<Int> = []
+    private var paneZoomSelectionWindows: Set<Int> = []
 
     // MARK: - Recovery watchdog (always-on)
 
@@ -1326,7 +1326,7 @@ final class TmuxController {
     }
 
     private func requestPaneSelection(windowID: Int, paneID: Int, sourcePaneID: Int?, expectedPaneIDs: Set<Int>) {
-        guard isActive, !paneSelectionWindows.contains(windowID),
+        guard isActive, !paneZoomSelectionWindows.contains(windowID),
               let tab = windowTabs[windowID], !tab.paneMove.isPending,
               let layout = appliedLayout(for: windowID),
               Set(layout.paneIDs) == expectedPaneIDs, expectedPaneIDs.contains(paneID),
@@ -1335,10 +1335,10 @@ final class TmuxController {
               let pane = paneViews[sourcePaneID ?? paneID], pane.tmuxPaneBinding?.windowId == windowID,
               sourcePaneID == nil || tab.focusedTerminal === pane
         else { return }
-        paneSelectionWindows.insert(windowID)
+        paneZoomSelectionWindows.insert(windowID)
         Task { @MainActor [weak self, weak tab, weak pane] in
             guard let self else { return }
-            defer { self.paneSelectionWindows.remove(windowID) }
+            defer { self.paneZoomSelectionWindows.remove(windowID) }
             guard let tab, let pane,
                   self.isActive, self.windowTabs[windowID] === tab,
                   !tab.paneMove.isPending,
@@ -1354,16 +1354,16 @@ final class TmuxController {
                           self.paneViews[paneID]?.tmuxPaneBinding?.windowId == windowID,
                           sourcePaneID == nil || tab.focusedTerminal === pane,
                           (self.modelContainingTab(id: tab.id) ?? self.tabsModel).selectedTabID == tab.id
-                    else { throw TmuxPaneSelection.Failure.layoutChanged }
+                    else { throw TmuxPaneZoomCommand.Failure.layoutChanged }
                     return try await self.sendCommandWithReply(command)
                 }
                 if let sourcePaneID {
-                    let command = try TmuxPaneSelection.swapCommand(windowID: windowID,
-                                                                    sourcePaneID: sourcePaneID,
-                                                                    targetPaneID: paneID)
+                    let command = try TmuxPaneZoomCommand.swapCommand(windowID: windowID,
+                                                                     sourcePaneID: sourcePaneID,
+                                                                     targetPaneID: paneID)
                     _ = try await send(command)
                 } else {
-                    try await TmuxPaneSelection.zoom(windowID: windowID, paneID: paneID, send: send)
+                    try await TmuxPaneZoomCommand.zoom(windowID: windowID, paneID: paneID, send: send)
                 }
                 guard self.isActive, self.windowTabs[windowID] === tab,
                       pane.tmuxPaneBinding?.windowId == windowID,

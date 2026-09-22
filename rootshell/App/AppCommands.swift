@@ -15,14 +15,22 @@ import Combine
 
 // MARK: - Keyboard Shortcut State
 
-private struct CanChooseTmuxPaneKey: FocusedValueKey {
+private struct CanChoosePaneToZoomKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+private struct CanChoosePaneToSwapKey: FocusedValueKey {
     typealias Value = Bool
 }
 
 extension FocusedValues {
-    var canChooseTmuxPane: Bool? {
-        get { self[CanChooseTmuxPaneKey.self] }
-        set { self[CanChooseTmuxPaneKey.self] = newValue }
+    var canChoosePaneToSwap: Bool? {
+        get { self[CanChoosePaneToSwapKey.self] }
+        set { self[CanChoosePaneToSwapKey.self] = newValue }
+    }
+    var canChoosePaneToZoom: Bool? {
+        get { self[CanChoosePaneToZoomKey.self] }
+        set { self[CanChoosePaneToZoomKey.self] = newValue }
     }
 }
 
@@ -401,7 +409,8 @@ struct AppViewCommands: Commands {
 
 struct TerminalCommands: Commands {
     @ObservedObject var shortcutState: MenuShortcutState
-    @FocusedValue(\.canChooseTmuxPane) private var canChoosePane
+    @FocusedValue(\.canChoosePaneToZoom) private var canChoosePaneToZoom
+    @FocusedValue(\.canChoosePaneToSwap) private var canChoosePaneToSwap
 
     var body: some Commands {
         CommandMenu("Terminal") {
@@ -480,19 +489,19 @@ struct TerminalCommands: Commands {
 
             Button("Choose Pane to Zoom") {
                 UIApplication.shared.sendMenuAction(
-                    #selector(Ghostty.TerminalView.menuChooseTmuxPaneToZoom(_:)), from: nil
+                    #selector(Ghostty.TerminalView.menuChoosePaneToZoom(_:)), from: nil
                 )
             }
-            .modifier(DynamicShortcut(action: .choose_tmux_pane_to_zoom, shortcuts: shortcutState.shortcuts))
-            .disabled(canChoosePane != true)
+            .modifier(DynamicShortcut(action: .choose_pane_to_zoom, shortcuts: shortcutState.shortcuts))
+            .disabled(canChoosePaneToZoom != true)
 
             Button("Choose Pane to Swap") {
                 UIApplication.shared.sendMenuAction(
-                    #selector(Ghostty.TerminalView.menuChooseTmuxPaneToSwap(_:)), from: nil
+                    #selector(Ghostty.TerminalView.menuChoosePaneToSwap(_:)), from: nil
                 )
             }
-            .modifier(DynamicShortcut(action: .choose_tmux_pane_to_swap, shortcuts: shortcutState.shortcuts))
-            .disabled(canChoosePane != true)
+            .modifier(DynamicShortcut(action: .choose_pane_to_swap, shortcuts: shortcutState.shortcuts))
+            .disabled(canChoosePaneToSwap != true)
 
             Divider()
 

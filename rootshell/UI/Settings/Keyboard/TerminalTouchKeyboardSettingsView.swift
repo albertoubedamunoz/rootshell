@@ -2,6 +2,7 @@
 import SwiftUI
 
 struct TerminalTouchKeyboardSettingsView: View {
+    @Setting(Settings.Keyboard.touchStyle) private var keyboardStyle
     @Setting(Settings.Keyboard.touchFloatingGlassStyle) private var floatingGlassStyle
     @Setting(Settings.Keyboard.touchFloatingGlassTintOpacity) private var floatingGlassTintOpacity
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -89,6 +90,13 @@ struct TerminalTouchKeyboardSettingsView: View {
                 Text("Compact Height moves every row, including Space, down into the bottom safe area without reducing key height. The bottom corners adapt to your iPhone. Key Glyphs shows symbols for Escape, Tab, and modifiers; turn it off to show their names.")
             }
             Section {
+                Picker("Keyboard Style", selection: $keyboardStyle) {
+                    ForEach(TerminalTouchKeyboardModel.Style.allCases, id: \.self) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .settingContextMenu(Settings.Keyboard.touchStyle)
+                .themedRow()
                 SettingToggle(Settings.Keyboard.touchThemeAware, title: "Follow Terminal Theme", icon: "paintpalette")
                     .themedRow()
                 KeyboardBackgroundEffectPicker()
@@ -96,7 +104,7 @@ struct TerminalTouchKeyboardSettingsView: View {
             } header: {
                 Text("Appearance")
             } footer: {
-                Text("Match the active terminal’s colors, including tab and window themes. Key labels keep their contrast in every mode.")
+                Text("Flat is the original keyboard style. Sculpted adds raised keycaps and depth. Follow Terminal Theme matches the active terminal’s colors, including tab and window themes. Key labels keep their contrast in every mode.")
             }
             if UIDevice.current.userInterfaceIdiom == .pad {
                 Section {

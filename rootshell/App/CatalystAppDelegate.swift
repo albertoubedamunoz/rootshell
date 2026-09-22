@@ -226,12 +226,12 @@ extension UIApplication {
         sendAction(#selector(Ghostty.TerminalView.menuEqualizeSplits(_:)), to: nil, from: sender, for: nil)
     }
 
-    @objc func ghostty_chooseTmuxPaneToZoom(_ sender: Any?) {
-        sendAction(#selector(Ghostty.TerminalView.menuChooseTmuxPaneToZoom(_:)), to: nil, from: sender, for: nil)
+    @objc func ghostty_choosePaneToZoom(_ sender: Any?) {
+        sendMenuAction(#selector(Ghostty.TerminalView.menuChoosePaneToZoom(_:)), from: sender)
     }
 
-    @objc func ghostty_chooseTmuxPaneToSwap(_ sender: Any?) {
-        sendAction(#selector(Ghostty.TerminalView.menuChooseTmuxPaneToSwap(_:)), to: nil, from: sender, for: nil)
+    @objc func ghostty_choosePaneToSwap(_ sender: Any?) {
+        sendMenuAction(#selector(Ghostty.TerminalView.menuChoosePaneToSwap(_:)), from: sender)
     }
 
     @objc func ghostty_toggleTabBar(_ sender: Any?) {
@@ -1316,9 +1316,9 @@ class CatalystAppDelegate: AppDelegate {
         let splitManageGroup = UIMenu(title: "", options: .displayInline, children: [
             toggleZoom, equalize,
             UICommand(title: String(localized: "Choose Pane to Zoom"),
-                      action: #selector(UIApplication.ghostty_chooseTmuxPaneToZoom(_:))),
+                      action: #selector(UIApplication.ghostty_choosePaneToZoom(_:))),
             UICommand(title: String(localized: "Choose Pane to Swap"),
-                      action: #selector(UIApplication.ghostty_chooseTmuxPaneToSwap(_:)))
+                      action: #selector(UIApplication.ghostty_choosePaneToSwap(_:)))
         ])
 
         // Scroll commands

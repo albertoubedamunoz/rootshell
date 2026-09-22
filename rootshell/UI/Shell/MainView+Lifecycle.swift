@@ -141,9 +141,7 @@ extension MainView {
 
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
     private func beginShortRemoteSessionBackgroundTaskIfNeeded(
-        sessionCount: Int,
-        locationEnabled: Bool,
-        liveActivityActive: Bool
+        sessionCount: Int
     ) {
         // Mirrored into the VNC log as well: a Screen Sharing drop across a
         // background window is indistinguishable from a network fault unless
@@ -155,42 +153,19 @@ extension MainView {
             ])
         }
 
-        guard UserPreferences.backgroundSessionKeepaliveEnabled else {
+        // Request our own finite grace period even when a Live Activity exists
+        // or Location Diary is enabled; those are not execution guarantees.
+        if let reason = RemoteSessionBackgroundGracePolicy.skipReason(
+            isEnabled: UserPreferences.backgroundSessionKeepaliveEnabled,
+            sessionCount: sessionCount,
+            hasActiveTask: shortRemoteSessionBackgroundTaskID != .invalid
+        ) {
             LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.skipped", ms: nil, [
-                ("reason", "settingDisabled"),
+                ("reason", reason.rawValue),
                 ("sessions", sessionCount),
                 ("existing", shortRemoteSessionBackgroundTaskID),
             ])
-            noteSkip("settingDisabled")
-            return
-        }
-        guard sessionCount > 0 else {
-            LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.skipped", ms: nil, [
-                ("reason", "noSessions"),
-                ("sessions", sessionCount),
-                ("existing", shortRemoteSessionBackgroundTaskID),
-            ])
-            noteSkip("noSessions")
-            return
-        }
-        guard !locationEnabled && !liveActivityActive else {
-            LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.skipped", ms: nil, [
-                ("reason", "strongerBackgroundMode"),
-                ("sessions", sessionCount),
-                ("location", locationEnabled),
-                ("liveActivity", liveActivityActive),
-                ("existing", shortRemoteSessionBackgroundTaskID),
-            ])
-            noteSkip("strongerBackgroundMode")
-            return
-        }
-        guard shortRemoteSessionBackgroundTaskID == .invalid else {
-            LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.skipped", ms: nil, [
-                ("reason", "alreadyActive"),
-                ("sessions", sessionCount),
-                ("existing", shortRemoteSessionBackgroundTaskID),
-            ])
-            noteSkip("alreadyActive")
+            noteSkip(reason.rawValue)
             return
         }
 
@@ -611,9 +586,7 @@ extension MainView {
             ("existing", shortRemoteSessionBackgroundTaskID),
         ])
         beginShortRemoteSessionBackgroundTaskIfNeeded(
-            sessionCount: shortBackgroundKeepaliveSessionCount,
-            locationEnabled: locationEnabled,
-            liveActivityActive: liveActivityActive
+            sessionCount: shortBackgroundKeepaliveSessionCount
         )
         #endif
 
