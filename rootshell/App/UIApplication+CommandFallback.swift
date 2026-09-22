@@ -211,6 +211,10 @@ extension UIApplication {
         ghostty_postNotification(.chooseTmuxPaneToZoom)
     }
 
+    @objc func menuChooseTmuxPaneToSwap(_ sender: Any?) {
+        ghostty_postNotification(.chooseTmuxPaneToSwap)
+    }
+
     @objc func menuOpenSettings(_ sender: Any?) {
         ghostty_postNotification(
             .openSettings,

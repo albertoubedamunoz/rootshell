@@ -2,17 +2,19 @@ import UIKit
 
 /// Takes keyboard focus while choosing. It never forwards input to a terminal.
 /// The host supplies full-tree rectangles even when tmux is currently zoomed.
-final class TmuxPaneZoomPickerView: UIView, UIKeyInput {
-    private var selection: TmuxPaneZoomSelection
+final class TmuxPanePickerView: UIView, UIKeyInput {
+    private var selection: TmuxPaneSelection
     private let buttons: [UIButton]
     private let instruction = UILabel()
+    private let sourceLabel = UILabel()
     private var heldKeys = Set<UIKeyboardHIDUsage>()
-    private var pendingResult: TmuxPaneZoomSelection.Result = .pending
+    private var pendingResult: TmuxPaneSelection.Result = .pending
     private var lastInput: (text: String, modified: Bool, time: TimeInterval)?
     private var finishScheduled = false
     var onFinish: ((Int?) -> Void)?
 
-    init(selection: TmuxPaneZoomSelection, titles: [String], preview: Bool) {
+    init(selection: TmuxPaneSelection, titles: [String], preview: Bool,
+         action: TmuxPaneSelection.Action, sourceTitle: String?) {
         self.selection = selection
         buttons = selection.labels.enumerated().map { index, label in
             let button = UIButton(type: .system)
@@ -28,7 +30,10 @@ final class TmuxPaneZoomPickerView: UIView, UIKeyInput {
                 return attributes
             }
             button.configuration = config
-            button.accessibilityLabel = String(localized: "Zoom pane \(label): \(titles[index])")
+            switch action {
+            case .zoom: button.accessibilityLabel = String(localized: "Zoom pane \(label): \(titles[index])")
+            case .swap: button.accessibilityLabel = String(localized: "Swap with pane \(label): \(titles[index])")
+            }
             return button
         }
         super.init(frame: .zero)
@@ -38,7 +43,19 @@ final class TmuxPaneZoomPickerView: UIView, UIKeyInput {
             button.addTarget(self, action: #selector(choose(_:)), for: .touchUpInside)
             addSubview(button)
         }
-        instruction.text = String(localized: "Type a pane number to zoom · Any other key cancels")
+        if let sourceTitle {
+            sourceLabel.text = String(localized: "Current pane: \(sourceTitle)")
+            sourceLabel.font = .preferredFont(forTextStyle: .headline)
+            sourceLabel.textColor = .label
+            sourceLabel.backgroundColor = .secondarySystemBackground.withAlphaComponent(0.6)
+            sourceLabel.textAlignment = .center
+            sourceLabel.numberOfLines = 0
+            addSubview(sourceLabel)
+        }
+        switch action {
+        case .zoom: instruction.text = String(localized: "Type a pane number to zoom · Any other key cancels")
+        case .swap: instruction.text = String(localized: "Type a pane number to swap · Any other key cancels")
+        }
         instruction.font = .preferredFont(forTextStyle: .caption1)
         instruction.textColor = .label
         instruction.backgroundColor = .systemBackground
@@ -64,7 +81,8 @@ final class TmuxPaneZoomPickerView: UIView, UIKeyInput {
     override var inputView: UIView? { UIView(frame: .zero) }
     var hasText: Bool { false }
 
-    func arrange(in frames: [CGRect]) {
+    func arrange(in frames: [CGRect], sourceFrame: CGRect?) {
+        sourceLabel.frame = sourceFrame?.insetBy(dx: 6, dy: 6) ?? .zero
         for (button, frame) in zip(buttons, frames) {
             button.frame = frame.insetBy(dx: 6, dy: 6)
         }

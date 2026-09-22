@@ -2,7 +2,8 @@ import Foundation
 
 /// A frozen, display-ordered mapping. Numbers are picker labels, not mutable
 /// tmux pane indices. Fixed-width labels avoid ambiguity for 10+ panes.
-struct TmuxPaneZoomSelection {
+struct TmuxPaneSelection {
+    enum Action: Equatable { case zoom, swap }
     enum Result: Equatable {
         case pending
         case selected(Int)
@@ -14,12 +15,14 @@ struct TmuxPaneZoomSelection {
     private(set) var prefix = ""
     private(set) var result: Result = .pending
 
-    init?(paneIDs: [Int]) {
+    init?(paneIDs: [Int], excludingPaneID: Int? = nil) {
         guard paneIDs.count > 1, Set(paneIDs).count == paneIDs.count,
               paneIDs.allSatisfy({ $0 >= 0 }) else { return nil }
-        self.paneIDs = paneIDs
-        let width = String(paneIDs.count).count
-        labels = (1...paneIDs.count).map {
+        if let excludingPaneID, !paneIDs.contains(excludingPaneID) { return nil }
+        let candidates = paneIDs.filter { $0 != excludingPaneID }
+        self.paneIDs = candidates
+        let width = String(candidates.count).count
+        labels = (1...candidates.count).map {
             let number = String($0)
             return String(repeating: "0", count: width - number.count) + number
         }
@@ -42,6 +45,14 @@ struct TmuxPaneZoomSelection {
     }
 
     enum Failure: Error { case invalidTarget, invalidReply, layoutChanged }
+
+    /// One native command, preserving the active pane and any existing zoom.
+    /// Window-qualified IDs must not follow a pane moved into another window.
+    static func swapCommand(windowID: Int, sourcePaneID: Int, targetPaneID: Int) throws -> String {
+        guard windowID >= 0, sourcePaneID >= 0, targetPaneID >= 0,
+              sourcePaneID != targetPaneID else { throw Failure.invalidTarget }
+        return "swap-pane -d -Z -s @\(windowID).%\(sourcePaneID) -t @\(windowID).%\(targetPaneID)"
+    }
 
     /// Preserve existing zoom when switching, then query the server before
     /// deciding whether to zoom. Each send has exactly one control-mode reply:

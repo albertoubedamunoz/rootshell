@@ -1467,8 +1467,8 @@ extension Ghostty.TerminalView {
     }
 
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-        if action == #selector(menuChooseTmuxPaneToZoom(_:)) {
-            return enclosingSplitHost?.canChooseTmuxPaneToZoom == true
+        if action == #selector(menuChooseTmuxPaneToZoom(_:)) || action == #selector(menuChooseTmuxPaneToSwap(_:)) {
+            return enclosingSplitHost?.canChooseTmuxPane == true
         }
         if herdrController?.showsGatewayStatus == true,
            [#selector(copy(_:)), #selector(paste(_:)), #selector(selectAll(_:))].contains(action) {
@@ -2866,6 +2866,10 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             items.append(UIAction(title: String(localized: "Choose Pane to Zoom"),
                                   image: UIImage(systemName: "number.square")) { [weak self] _ in
                 self?.enclosingSplitHost?.showTmuxPaneZoomPicker()
+            })
+            items.append(UIAction(title: String(localized: "Choose Pane to Swap"),
+                                  image: UIImage(systemName: "arrow.left.arrow.right")) { [weak self] _ in
+                self?.enclosingSplitHost?.showTmuxPaneSwapPicker()
             })
             let zoom = UIAction(
                 title: isZoomed

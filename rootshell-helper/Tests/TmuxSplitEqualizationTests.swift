@@ -6,6 +6,48 @@ import XCTest
 /// where Process is available. No user's tmux server or configuration is used.
 @MainActor
 final class TmuxSplitEqualizationTests: XCTestCase {
+    func testSwapPickerPreservesSourceFocusZoomAndReplyAlignment() throws {
+        for zoomed in [false, true] {
+            let server = try Server()
+            defer { server.stop() }
+            try server.cli(["split-window", "-h", "-t", "%0"])
+            try server.cli(["split-window", "-h", "-t", "%1"])
+            let control = try server.attach()
+            defer { control.stop() }
+            try control.command("select-pane -t @0.%0")
+            let original = try control.command("display-message -p -t @0 '#{window_layout}'")
+            if zoomed { try control.command("resize-pane -Z -t @0.%0") }
+            let swap = try TmuxPaneSelection.swapCommand(windowID: 0, sourcePaneID: 0, targetPaneID: 2)
+            try control.command(swap)
+            let changed = try XCTUnwrap(TmuxLayoutNode.parseServerLayout(
+                control.command("display-message -p -t @0 '#{window_layout}'")))
+            XCTAssertEqual(changed.paneIDs, [2, 1, 0])
+            XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_zoomed_flag}:#{pane_id}'"),
+                           "\(zoomed ? 1 : 0):%0")
+            XCTAssertEqual(try control.command("display-message -p swap-reply-marker"), "swap-reply-marker")
+            try control.command(swap)
+            XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_layout}'"), original)
+        }
+    }
+
+    func testSwapPickerCannotFollowEitherPaneToAnotherWindow() throws {
+        for movedPane in [0, 2] {
+            let server = try Server()
+            defer { server.stop() }
+            try server.cli(["split-window", "-h", "-t", "%0"])
+            try server.cli(["split-window", "-h", "-t", "%1"])
+            try server.cli(["new-window", "-d"])
+            try server.cli(["join-pane", "-s", "@0.%\(movedPane)", "-t", "@1"])
+            let control = try server.attach()
+            defer { control.stop() }
+            let before = try control.command("list-windows -F '#{window_id}:#{window_layout}'")
+            let command = try TmuxPaneSelection.swapCommand(windowID: 0, sourcePaneID: 0, targetPaneID: 2)
+            XCTAssertThrowsError(try control.command(command))
+            XCTAssertEqual(try control.command("list-windows -F '#{window_id}:#{window_layout}'"), before)
+            XCTAssertEqual(try control.command("display-message -p stale-swap-reply-marker"), "stale-swap-reply-marker")
+        }
+    }
+
     func testPanePickerSelectsAndEnsuresZoomWithoutShiftingControlReplies() async throws {
         let server = try Server()
         defer { server.stop() }
@@ -16,7 +58,7 @@ final class TmuxSplitEqualizationTests: XCTestCase {
         let layout = try control.command("display-message -p -t @0 '#{window_layout}'")
         // Initially unzoomed, then a different zoomed pane, then the same pane.
         for paneID in [0, 2, 2, 1] {
-            try await TmuxPaneZoomSelection.zoom(windowID: 0, paneID: paneID) { command in
+            try await TmuxPaneSelection.zoom(windowID: 0, paneID: paneID) { command in
                 try control.command(command)
             }
             XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_zoomed_flag}:#{pane_id}'"), "1:%\(paneID)")
@@ -28,7 +70,7 @@ final class TmuxSplitEqualizationTests: XCTestCase {
         // A stable ID moved to a different window must not be followed there.
         try server.cli(["join-pane", "-s", "@0.%2", "-t", "@1"])
         do {
-            try await TmuxPaneZoomSelection.zoom(windowID: 0, paneID: 2) { try control.command($0) }
+            try await TmuxPaneSelection.zoom(windowID: 0, paneID: 2) { try control.command($0) }
             XCTFail("A moved pane must not be followed into another window")
         } catch { /* tmux rejects the window-qualified stale target */ }
         XCTAssertEqual(try control.command("display-message -p -t @1 '#{window_zoomed_flag}'"), "0")

@@ -692,7 +692,7 @@ struct MainView: View {
         let alertContent = applyAlertModifiers(overlayContent)
         return applyLifecycleHandlers(alertContent)
             .iPadVisor(ghosttyApp: ghosttyApp, windowID: windowId, modalPresented: isAnySheetPresented)
-            .focusedSceneValue(\.canChooseTmuxPaneToZoom,
+            .focusedSceneValue(\.canChooseTmuxPane,
                                !isAnySheetPresented && terminals.indices.contains(selectedTabIndex)
                                && terminals[selectedTabIndex].isTmuxWindow
                                && terminals[selectedTabIndex].splitTree.count > 1)

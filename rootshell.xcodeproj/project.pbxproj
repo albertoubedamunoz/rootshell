@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		47AF04970000000000000C01 /* TmuxPaneZoomSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B01 /* TmuxPaneZoomSelection.swift */; };
-		47AF04970000000000000A01 /* TmuxPaneZoomSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B01 /* TmuxPaneZoomSelection.swift */; };
+		47AF04970000000000000C01 /* TmuxPaneSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B01 /* TmuxPaneSelection.swift */; };
+		47AF04970000000000000A01 /* TmuxPaneSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B01 /* TmuxPaneSelection.swift */; };
 		47AF04870000000000000A01 /* PaneCloseConfirmationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04870000000000000B01 /* PaneCloseConfirmationPolicy.swift */; };
 		47AF04890000000000000A01 /* TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* TmuxDividerResize.swift */; };
 		47AF04890000000000000A02 /* TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* TmuxDividerResize.swift */; };
@@ -521,7 +521,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		47AF04970000000000000B01 /* TmuxPaneZoomSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxPaneZoomSelection.swift; sourceTree = SOURCE_ROOT; };
+		47AF04970000000000000B01 /* TmuxPaneSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxPaneSelection.swift; sourceTree = SOURCE_ROOT; };
 		47AF04870000000000000B01 /* PaneCloseConfirmationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift; sourceTree = SOURCE_ROOT; };
 		47AF04890000000000000B01 /* TmuxDividerResize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxDividerResize.swift; sourceTree = SOURCE_ROOT; };
 		473118BF2FFC2B1500FB3C83 /* rootshellvpn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshellvpn.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1221,7 +1221,7 @@
 				47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */,
 				47AF04750000000000000B01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift */,
 				47AF04890000000000000B01 /* TmuxDividerResize.swift */,
-				47AF04970000000000000B01 /* TmuxPaneZoomSelection.swift */,
+				47AF04970000000000000B01 /* TmuxPaneSelection.swift */,
 				47AF0F1D0000000000000A04 /* rootshell/Features/OpenInFolder/DirectoryListingProbe.swift */,
 				47AF0F1D0000000000000A05 /* rootshell/Features/OpenInFolder/DirectoryListingCache.swift */,
 				47AF0F1D0000000000000A06 /* rootshell/Features/OpenInFolder/PathCompletion.swift */,
@@ -2167,7 +2167,7 @@
 				47AF04750000000000000C02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */,
 				47AF04750000000000000C01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift in Sources */,
 				47AF04890000000000000A02 /* TmuxDividerResize.swift in Sources */,
-				47AF04970000000000000C01 /* TmuxPaneZoomSelection.swift in Sources */,
+				47AF04970000000000000C01 /* TmuxPaneSelection.swift in Sources */,
 				47AEC0010000000000000005 /* rootshell-helper/Sources/LocaleHelper.swift in Sources */,
 				47AEC0010000000000000004 /* rootshell-helper/Sources/EnvironmentBuilder.swift in Sources */,
 				47AEC0010000000000000002 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */,
@@ -2185,7 +2185,7 @@
 				47AF04750000000000000A02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */,
 				47AF04750000000000000A01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift in Sources */,
 				47AF04890000000000000A01 /* TmuxDividerResize.swift in Sources */,
-				47AF04970000000000000A01 /* TmuxPaneZoomSelection.swift in Sources */,
+				47AF04970000000000000A01 /* TmuxPaneSelection.swift in Sources */,
 				47AF04710000000000000003 /* rootshell/Core/Keybinds/KeyTrigger.swift in Sources */,
 				47AF04710000000000000005 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift in Sources */,
 				47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */,
