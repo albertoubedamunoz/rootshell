@@ -1467,6 +1467,9 @@ extension Ghostty.TerminalView {
     }
 
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(menuChoosePaneToZoom(_:)) {
+            return enclosingSplitHost?.canChoosePaneToZoom == true
+        }
         if herdrController?.showsGatewayStatus == true,
            [#selector(copy(_:)), #selector(paste(_:)), #selector(selectAll(_:))].contains(action) {
             return false
@@ -2860,6 +2863,10 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
         // tmux no-op).
         if paneCount >= 2 {
             let isZoomed = controller.isWindowZoomed(windowId: binding.windowId)
+            items.append(UIAction(title: String(localized: "Choose Pane to Zoom"),
+                                  image: UIImage(systemName: "number.square")) { [weak self] _ in
+                self?.enclosingSplitHost?.showPaneZoomPicker()
+            })
             let zoom = UIAction(
                 title: isZoomed
                     ? String(localized: "Unzoom Pane")

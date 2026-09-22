@@ -7,9 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		47AF04870000000000000A01 /* PaneCloseConfirmationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04870000000000000B01 /* PaneCloseConfirmationPolicy.swift */; };
-		47AF04890000000000000A01 /* TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* TmuxDividerResize.swift */; };
-		47AF04890000000000000A02 /* TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* TmuxDividerResize.swift */; };
 		06402925345B9813ECE3B11E /* Debug-AppStore.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 47511ACC2EDF598900696C18 /* Debug-AppStore.xcconfig */; };
 		06641C55E10A388BA59C6B87 /* AppIconRadicalSolarizedLight.icon in Resources */ = {isa = PBXBuildFile; fileRef = 47A1000B2F9D0BCD009B5D30 /* AppIconRadicalSolarizedLight.icon */; };
 		0668A4F421BC22AFA165E265 /* GhosttyKitStandalone in Frameworks */ = {isa = PBXBuildFile; productRef = 417549D6E2D63FC56F6548A4 /* GhosttyKitStandalone */; };
@@ -115,7 +112,6 @@
 		47AC7E5700000000000000A6 /* rootshell/Features/Herdr/HerdrManagementModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */; };
 		47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */; };
 		47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */; };
-		47AF04850000000000000A01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */; };
 		47AC7E57000000000000CB01 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */; };
 		47AC7E57000000000000CB03 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */; };
 		47AC7E57000000000000CD01 /* rootshell/UI/Overlays/SessionPickerGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */; };
@@ -136,6 +132,16 @@
 		47AF04750000000000000A02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */; };
 		47AF04750000000000000C01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04750000000000000B01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift */; };
 		47AF04750000000000000C02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */; };
+		47AF04850000000000000A01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */; };
+		47AF04870000000000000A01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */; };
+		47AF04890000000000000A01 /* rootshell/Features/Tmux/TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* rootshell/Features/Tmux/TmuxDividerResize.swift */; };
+		47AF04890000000000000A02 /* rootshell/Features/Tmux/TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* rootshell/Features/Tmux/TmuxDividerResize.swift */; };
+		47AF04960000000000000A01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */; };
+		47AF04970000000000000A01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift */; };
+		47AF04970000000000000A02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift */; };
+		47AF04970000000000000A03 /* rootshell/UI/Terminal/PaneZoomPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B03 /* rootshell/UI/Terminal/PaneZoomPickerView.swift */; platformFilter = ios; };
+		47AF04970000000000000C01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift */; };
+		47AF04970000000000000C02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04970000000000000B02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift */; };
 		47AF0F1D0000000000000B01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */; };
 		47AF0F1D0000000000000B02 /* rootshell/Core/Terminal/TerminalTargetKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */; };
 		47AF0F1D0000000000000B03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */; };
@@ -519,8 +525,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		47AF04870000000000000B01 /* PaneCloseConfirmationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift; sourceTree = SOURCE_ROOT; };
-		47AF04890000000000000B01 /* TmuxDividerResize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxDividerResize.swift; sourceTree = SOURCE_ROOT; };
 		473118BF2FFC2B1500FB3C83 /* rootshellvpn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshellvpn.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		473118CB2FFC2B1600FB3C83 /* rootshellvpnTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rootshellvpnTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		473118D52FFC2B1600FB3C83 /* rootshellvpnUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rootshellvpnUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -580,7 +584,6 @@
 		47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrManagementModels.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrReplyFilter.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalGridReports.swift; sourceTree = SOURCE_ROOT; };
-		47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Overlays/SessionPickerGeometry.swift; sourceTree = SOURCE_ROOT; };
@@ -596,6 +599,13 @@
 		47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/HardwareKeyboardText.swift; sourceTree = SOURCE_ROOT; };
 		47AF04750000000000000B01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxLayoutNode.swift; sourceTree = SOURCE_ROOT; };
 		47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxSplitEqualizer.swift; sourceTree = SOURCE_ROOT; };
+		47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift; sourceTree = SOURCE_ROOT; };
+		47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift; sourceTree = SOURCE_ROOT; };
+		47AF04890000000000000B01 /* rootshell/Features/Tmux/TmuxDividerResize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxDividerResize.swift; sourceTree = SOURCE_ROOT; };
+		47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift; sourceTree = SOURCE_ROOT; };
+		47AF04970000000000000B01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxPaneZoomCommand.swift; sourceTree = SOURCE_ROOT; };
+		47AF04970000000000000B02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Multiplexer/PaneZoomSelection.swift; sourceTree = SOURCE_ROOT; };
+		47AF04970000000000000B03 /* rootshell/UI/Terminal/PaneZoomPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Terminal/PaneZoomPickerView.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Shell/InitialDirectoryCommand.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalTargetKey.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxCommandQuoting.swift; sourceTree = SOURCE_ROOT; };
@@ -1210,14 +1220,18 @@
 				47AC7E5700000000000000B6 /* rootshell/Features/Herdr/HerdrManagementModels.swift */,
 				47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */,
 				47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */,
-				47AF04870000000000000B01 /* PaneCloseConfirmationPolicy.swift */,
+				47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */,
+				47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */,
 				47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */,
 				47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */,
 				47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */,
 				47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */,
 				47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */,
 				47AF04750000000000000B01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift */,
-				47AF04890000000000000B01 /* TmuxDividerResize.swift */,
+				47AF04890000000000000B01 /* rootshell/Features/Tmux/TmuxDividerResize.swift */,
+				47AF04970000000000000B01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift */,
+				47AF04970000000000000B02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift */,
+				47AF04970000000000000B03 /* rootshell/UI/Terminal/PaneZoomPickerView.swift */,
 				47AF0F1D0000000000000A04 /* rootshell/Features/OpenInFolder/DirectoryListingProbe.swift */,
 				47AF0F1D0000000000000A05 /* rootshell/Features/OpenInFolder/DirectoryListingCache.swift */,
 				47AF0F1D0000000000000A06 /* rootshell/Features/OpenInFolder/PathCompletion.swift */,
@@ -2162,7 +2176,9 @@
 			files = (
 				47AF04750000000000000C02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */,
 				47AF04750000000000000C01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift in Sources */,
-				47AF04890000000000000A02 /* TmuxDividerResize.swift in Sources */,
+				47AF04890000000000000A02 /* rootshell/Features/Tmux/TmuxDividerResize.swift in Sources */,
+				47AF04970000000000000C01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift in Sources */,
+				47AF04970000000000000C02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift in Sources */,
 				47AEC0010000000000000005 /* rootshell-helper/Sources/LocaleHelper.swift in Sources */,
 				47AEC0010000000000000004 /* rootshell-helper/Sources/EnvironmentBuilder.swift in Sources */,
 				47AEC0010000000000000002 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */,
@@ -2179,7 +2195,10 @@
 			files = (
 				47AF04750000000000000A02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */,
 				47AF04750000000000000A01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift in Sources */,
-				47AF04890000000000000A01 /* TmuxDividerResize.swift in Sources */,
+				47AF04890000000000000A01 /* rootshell/Features/Tmux/TmuxDividerResize.swift in Sources */,
+				47AF04970000000000000A01 /* rootshell/Features/Tmux/TmuxPaneZoomCommand.swift in Sources */,
+				47AF04970000000000000A02 /* rootshell/Features/Multiplexer/PaneZoomSelection.swift in Sources */,
+				47AF04970000000000000A03 /* rootshell/UI/Terminal/PaneZoomPickerView.swift in Sources */,
 				47AF04710000000000000003 /* rootshell/Core/Keybinds/KeyTrigger.swift in Sources */,
 				47AF04710000000000000005 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift in Sources */,
 				47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */,
@@ -2196,7 +2215,8 @@
 				47AC7E5700000000000000A6 /* rootshell/Features/Herdr/HerdrManagementModels.swift in Sources */,
 				47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */,
 				47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */,
-				47AF04870000000000000A01 /* PaneCloseConfirmationPolicy.swift in Sources */,
+				47AF04870000000000000A01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift in Sources */,
+				47AF04960000000000000A01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift in Sources */,
 				47AF04850000000000000A01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift in Sources */,
 				47AEC0020000000000000003 /* rootshell/Core/Shell/LoginShellCommand.swift in Sources */,
 				47AF0F1D0000000000000B01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift in Sources */,

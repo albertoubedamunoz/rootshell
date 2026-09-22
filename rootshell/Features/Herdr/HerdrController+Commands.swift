@@ -390,6 +390,69 @@ extension HerdrController {
         }
     }
 
+    func canChoosePaneToZoom(tabID: String) -> Bool {
+        guard isActive, !didEnd, !management.isBusy,
+              let tab = tabs[tabID], tabsModel.selectedTabID == tab.id,
+              !tab.paneMove.isPending, tab.splitTree.count > 1,
+              !tabIsControlledElsewhere(tab) else { return false }
+        return true
+    }
+
+    /// Focus and ensure zoom through the same transport selection as other
+    /// management actions (control stream, endpoint, or upstream socket API).
+    /// Never toggle: choosing the current zoomed pane must leave it zoomed.
+    func requestZoomPane(binding: Ghostty.TerminalView.HerdrPaneBinding, expectedPaneIDs: Set<String>) {
+        guard binding.gatewayUUID == gatewayUUID,
+              canChoosePaneToZoom(tabID: binding.tabId),
+              let tab = tabs[binding.tabId],
+              let pane = paneViews[binding.terminalId], pane.herdrPaneBinding == binding,
+              expectedPaneIDs.contains(binding.paneId),
+              let topology = tab.splitTree.root?.structuralIdentity else { return }
+        let generation = streamGeneration
+        let selectionRevision = tabsModel.selectionRevision
+        runManagement { [self, weak tab, weak pane] in
+            guard let tab, let pane else { throw CancellationError() }
+            @MainActor func validate() throws {
+                guard !Task.isCancelled, isActive, !didEnd, streamGeneration == generation,
+                      tabs[binding.tabId] === tab, tabsModel.selectedTabID == tab.id,
+                      tabsModel.selectionRevision == selectionRevision,
+                      !tab.paneMove.isPending, !tabIsControlledElsewhere(tab),
+                      paneViews[binding.terminalId] === pane, pane.herdrPaneBinding == binding,
+                      tab.splitTree.root?.structuralIdentity == topology,
+                      Set(tab.splitTree.terminalLeaves.compactMap { $0.herdrPaneBinding?.paneId }) == expectedPaneIDs
+                else { throw CancellationError() }
+            }
+            try validate()
+            // Export includes hidden panes even when the geometry snapshot is
+            // zoomed. Check server membership before targeting a stable pane ID.
+            let original = try await managementRequest(
+                "layout.export", HerdrControl.TabTarget(tab_id: binding.tabId),
+                as: HerdrControl.LayoutDescriptionResult.self
+            ).layout
+            try validate()
+            guard original.tab_id == binding.tabId, Set(original.root.paneIDs) == expectedPaneIDs else {
+                throw CancellationError()
+            }
+            let _: HerdrControl.OKResult = try await managementRequest(
+                "pane.focus", HerdrControl.PaneTarget(pane_id: binding.paneId),
+                as: HerdrControl.OKResult.self
+            )
+            try validate()
+            let current = try await managementRequest(
+                "layout.export", HerdrControl.TabTarget(tab_id: binding.tabId),
+                as: HerdrControl.LayoutDescriptionResult.self
+            ).layout
+            try validate()
+            guard current.hasSameTopology(as: original) else { throw CancellationError() }
+            let _: HerdrControl.OKResult = try await managementRequest(
+                "pane.zoom", HerdrControl.PaneZoomParams(pane_id: binding.paneId, mode: "on"),
+                as: HerdrControl.OKResult.self
+            )
+            try validate()
+            focusPane(pane, in: tab)
+        }
+    }
+
     func requestToggleZoom(_ view: Ghostty.TerminalView) {
         guard let binding = view.herdrPaneBinding else { return }
         if mode == .legacy {

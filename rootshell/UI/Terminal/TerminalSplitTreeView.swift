@@ -8,6 +8,7 @@
 import SwiftUI
 import UIKit
 import GhosttyKit
+import GameController
 import os
 
 struct TerminalSplitTreeView: UIViewRepresentable {
@@ -67,6 +68,177 @@ final class SplitTreeHostingView: UIView {
     var onMove: ((SplitPaneView, SplitPaneView, PaneDropZone) -> Void)?
     var allowsPaneRearrangement = true
     private lazy var paneRearrangement = SplitPaneRearrangementController(host: self)
+    private var paneZoomPicker: PaneZoomPickerView?
+    private var paneZoomPickerPanes: [Ghostty.TerminalView] = []
+    private var sceneDeactivationObserver: NSObjectProtocol?
+    private var paneZoomPresentationGeneration = 0
+
+    private var windowCanPresentPaneZoomPicker: Bool {
+        guard let window, window.windowScene?.activationState == .foregroundActive else { return false }
+        #if targetEnvironment(macCatalyst)
+        return window.isKeyWindow
+        #else
+        // Match TerminalView.windowGenuineFocusSignal. iPad menu tracking
+        // and multi-window focus do not reliably set UIWindow.isKeyWindow.
+        return traitCollection.activeAppearance == .active
+        #endif
+    }
+
+    var canChoosePaneToZoom: Bool {
+        guard isActiveTab, let panes = tree?.terminalLeaves, panes.count > 1,
+              panes.count == tree?.count else { return false }
+        return paneZoomRequest(for: panes) != nil
+    }
+
+    /// Capture server IDs separately from the view IDs used by the picker.
+    /// herdr can rebind an existing terminal view when a pane moves.
+    private func paneZoomRequest(for panes: [Ghostty.TerminalView]) -> ((UUID) -> Void)? {
+        if let binding = panes.first?.tmuxPaneBinding,
+           let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
+           controller.isActive,
+           panes.allSatisfy({
+               $0.tmuxPaneBinding?.parentUUID == binding.parentUUID &&
+               $0.tmuxPaneBinding?.windowId == binding.windowId
+           }) {
+            let ids = Dictionary(uniqueKeysWithValues: panes.compactMap { pane in
+                pane.tmuxPaneBinding.map { (pane.uuid, $0.paneId) }
+            })
+            return { [weak controller] viewID in
+                guard let paneID = ids[viewID] else { return }
+                controller?.requestZoomPane(windowID: binding.windowId, paneID: paneID,
+                                            expectedPaneIDs: Set(ids.values))
+            }
+        }
+        if let binding = panes.first?.herdrPaneBinding,
+           let controller = HerdrController.controller(forGateway: binding.gatewayUUID),
+           controller.canChoosePaneToZoom(tabID: binding.tabId),
+           panes.allSatisfy({
+               $0.herdrPaneBinding?.gatewayUUID == binding.gatewayUUID &&
+               $0.herdrPaneBinding?.tabId == binding.tabId
+           }) {
+            let bindings = Dictionary(uniqueKeysWithValues: panes.compactMap { pane in
+                pane.herdrPaneBinding.map { (pane.uuid, $0) }
+            })
+            return { [weak controller] viewID in
+                guard let selected = bindings[viewID] else { return }
+                controller?.requestZoomPane(binding: selected,
+                                            expectedPaneIDs: Set(bindings.values.map(\.paneId)))
+            }
+        }
+        return nil
+    }
+
+    func showPaneZoomPicker() {
+        // The menu rail and UIKeyCommand can both deliver the same shortcut.
+        // Repeated presentation is idempotent; the picker handles cancellation.
+        guard paneZoomPicker == nil else { return }
+        paneZoomPresentationGeneration &+= 1
+        let generation = paneZoomPresentationGeneration
+        let keyboard = GCKeyboard.coalesced?.keyboardInput
+        let openingButtons = (4...231).compactMap { usage in
+            keyboard?.button(forKeyCode: GCKeyCode(rawValue: usage))
+        }.filter(\.isPressed)
+        // Menu tracking owns the responder handoff until its action returns.
+        // Resolve eligibility again after it has returned to the terminal scene.
+        DispatchQueue.main.async { [weak self] in
+            self?.presentPaneZoomPickerAfterKeyRelease(generation: generation,
+                                                       keyboard: keyboard, buttons: openingButtons)
+        }
+    }
+
+    private func presentPaneZoomPickerAfterKeyRelease(generation: Int, keyboard: GCKeyboardInput?,
+                                                       buttons: [GCControllerButtonInput]) {
+        guard paneZoomPresentationGeneration == generation, isActiveTab, window != nil else { return }
+        if let keyboard, GCKeyboard.coalesced?.keyboardInput === keyboard, buttons.contains(where: \.isPressed) {
+            // Do not hand a still-held opening chord (including Option's text
+            // delivery) to a view whose non-digit input intentionally cancels.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+                self?.presentPaneZoomPickerAfterKeyRelease(generation: generation, keyboard: keyboard, buttons: buttons)
+            }
+            return
+        }
+        presentPaneZoomPicker()
+    }
+
+    private func presentPaneZoomPicker() {
+        guard paneZoomPicker == nil, canChoosePaneToZoom, windowCanPresentPaneZoomPicker,
+              let panes = tree?.terminalLeaves,
+              let requestZoom = paneZoomRequest(for: panes),
+              let selection = PaneZoomSelection(paneIDs: panes.map(\.uuid))
+        else { return }
+        cancelPaneDrag()
+        let picker = PaneZoomPickerView(selection: selection,
+                                          titles: panes.map { $0.presentation.title },
+                                          preview: tree?.zoomed != nil,
+                                          shortcuts: KeybindManager.shared.activeBindings.compactMap { $0.sequence.first })
+        paneZoomPickerPanes = panes
+        paneZoomPicker = picker
+        MenuShortcutState.shared.beginRecordingCapture()
+        KeyboardTracker.shared.beginOverlayKeyboardPreservation(owner: self, window: window)
+        for pane in panes { pane.captureKeyboardForPaneZoom(owner: self) }
+        focusRestorationGeneration &+= 1
+        picker.onFinish = { [weak self, weak picker] paneID in
+            guard let self, self.paneZoomPicker === picker else { return }
+            let restoreFocus = picker?.isFirstResponder == true
+            self.dismissPaneZoomPicker(restoreFocus: restoreFocus)
+            guard let paneID, self.canChoosePaneToZoom else { return }
+            requestZoom(paneID)
+        }
+        addSubview(picker)
+        layoutPaneZoomPicker()
+        acquirePaneZoomPickerFocus(picker)
+        UIAccessibility.post(notification: .screenChanged, argument: picker)
+    }
+
+    private func acquirePaneZoomPickerFocus(_ picker: PaneZoomPickerView, attempt: Int = 0) {
+        guard paneZoomPicker === picker else { return }
+        guard canChoosePaneToZoom, windowCanPresentPaneZoomPicker else {
+            dismissPaneZoomPicker(restoreFocus: false)
+            return
+        }
+        if picker.isFirstResponder || picker.becomeFirstResponder() { return }
+        guard attempt < 4 else { dismissPaneZoomPicker(); return }
+        // UIKit can refuse focus while the menu's input session is closing.
+        // The pane gates stay raised until this handoff succeeds or cancels.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self, weak picker] in
+            guard let self, let picker else { return }
+            self.acquirePaneZoomPickerFocus(picker, attempt: attempt + 1)
+        }
+    }
+
+    private func dismissPaneZoomPicker(restoreFocus: Bool = true) {
+        paneZoomPresentationGeneration &+= 1
+        guard let picker = paneZoomPicker else { return }
+        paneZoomPicker = nil
+        let panes = paneZoomPickerPanes
+        paneZoomPickerPanes = []
+        picker.onFinish = nil
+        picker.removeFromSuperview()
+        DispatchQueue.main.async { MenuShortcutState.shared.endRecordingCapture() }
+        for pane in panes {
+            pane.releaseKeyboardForPaneZoom(owner: self,
+                restoreFocus: restoreFocus && isActiveTab && windowCanPresentPaneZoomPicker)
+        }
+        KeyboardTracker.shared.endOverlayKeyboardPreservation(owner: self)
+    }
+
+    private func layoutPaneZoomPicker() {
+        guard let picker = paneZoomPicker, let root = tree?.root else { return }
+        picker.frame = bounds
+        let layoutBounds = tmuxDeadMargin() ?? herdrSnapRect() ?? bounds
+        let frames = paneZoomPickerPanes.compactMap {
+            // The zoomed herdr pane's live grid fills the whole tab. Applying
+            // it to the preview would cover the hidden panes' number targets.
+            slotFrame(for: $0, node: root, in: layoutBounds, layoutBounds: layoutBounds,
+                      usePaneGrid: tree?.zoomed == nil)
+        }
+        guard frames.count == paneZoomPickerPanes.count else {
+            dismissPaneZoomPicker()
+            return
+        }
+        picker.arrange(in: frames)
+        bringSubviewToFront(picker)
+    }
 
     @discardableResult
     func cancelPaneDrag() -> Bool { paneRearrangement.cancelDrag() }
@@ -86,6 +258,7 @@ final class SplitTreeHostingView: UIView {
     var isActiveTab: Bool = false {
         didSet {
             guard isActiveTab != oldValue else { return }
+            if !isActiveTab { dismissPaneZoomPicker(restoreFocus: false) }
             setNeedsLayout()
             refreshProgressBarRouting()
         }
@@ -150,6 +323,16 @@ final class SplitTreeHostingView: UIView {
         isMultipleTouchEnabled = true
         backgroundColor = .clear
 
+        sceneDeactivationObserver = NotificationCenter.default.addObserver(
+            forName: UIScene.willDeactivateNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            MainActor.assumeIsolated {
+                guard let self, let scene = notification.object as? UIScene,
+                      scene === self.window?.windowScene else { return }
+                self.dismissPaneZoomPicker(restoreFocus: false)
+            }
+        }
+
         // Listen for layout invalidation notifications (tab bar toggle, titlebar tabs, AI sidebar)
         layoutInvalidationObserver = NotificationCenter.default.addObserver(
             forName: .terminalLayoutInvalidation,
@@ -188,6 +371,9 @@ final class SplitTreeHostingView: UIView {
     }
 
     deinit {
+        if let observer = sceneDeactivationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
         if let observer = layoutInvalidationObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -203,6 +389,7 @@ final class SplitTreeHostingView: UIView {
         // tree or focus change may relayout every attached pane.
         let treeChanged = self.tree?.root != tree.root || self.tree?.zoomed != tree.zoomed
         let focusChanged = self.focusedPane !== focusedPane
+        if treeChanged || focusChanged { dismissPaneZoomPicker(restoreFocus: false) }
         if treeChanged { hasCompletedHerdrLayout = false }
         self.tree = tree
         self.focusedPane = focusedPane
@@ -231,6 +418,7 @@ final class SplitTreeHostingView: UIView {
     /// dismantle runs before the new host adopts them, and a pane checked out for
     /// full screen lives under the takeover container.
     func detachAllPanes() {
+        dismissPaneZoomPicker(restoreFocus: false)
         hasCompletedHerdrLayout = false
         herdrMetricsRefresh.cancel()
         needsFocusRestoration = false
@@ -315,6 +503,7 @@ final class SplitTreeHostingView: UIView {
         // Overlay chrome follows actual pane frames, including tmux's dead margin.
         paneRearrangement.update(tree: tree, enabled: isActiveTab && allowsPaneRearrangement && onMove != nil)
         paneRearrangement.layout()
+        layoutPaneZoomPicker()
         restoreFocusAfterLayoutIfNeeded()
     }
 
@@ -323,13 +512,14 @@ final class SplitTreeHostingView: UIView {
     /// UIKit finishes removing the old hierarchy. Reassert it after layout,
     /// from the surviving host, without sending another tmux select command.
     private func restoreFocusAfterLayoutIfNeeded() {
-        guard needsFocusRestoration else { return }
+        guard needsFocusRestoration, paneZoomPicker == nil else { return }
         needsFocusRestoration = false
         guard isActiveTab, let pane = focusedPane, pane.isLogicallyFocused else { return }
         let generation = focusRestorationGeneration
         DispatchQueue.main.async { [weak self, weak pane] in
             guard let self, let pane,
                   self.focusRestorationGeneration == generation,
+                  self.paneZoomPicker == nil,
                   self.isActiveTab, self.window?.isKeyWindow == true,
                   self.focusedPane === pane, pane.isLogicallyFocused,
                   !pane.isDetachedForFullScreen,
@@ -880,15 +1070,16 @@ final class SplitTreeHostingView: UIView {
     }
 
     private func slotFrame(for pane: SplitPaneView, node: SplitTree<SplitPaneView>.Node,
-                           in bounds: CGRect, layoutBounds: CGRect) -> CGRect? {
+                           in bounds: CGRect, layoutBounds: CGRect, usePaneGrid: Bool = true) -> CGRect? {
         switch node {
         case .leaf(let leaf):
-            return leaf === pane ? herdrPaneFrame(bounds.integral, layoutBounds: layoutBounds, for: leaf) : nil
+            guard leaf === pane else { return nil }
+            return usePaneGrid ? herdrPaneFrame(bounds.integral, layoutBounds: layoutBounds, for: leaf) : bounds.integral
         case .split(let split):
             let ratio = CGFloat(split.ratio).clamped(to: 0...1)
             let (leftBounds, rightBounds, _) = frames(for: bounds, ratio: ratio, direction: split.direction)
-            return slotFrame(for: pane, node: split.left, in: leftBounds, layoutBounds: layoutBounds)
-                ?? slotFrame(for: pane, node: split.right, in: rightBounds, layoutBounds: layoutBounds)
+            return slotFrame(for: pane, node: split.left, in: leftBounds, layoutBounds: layoutBounds, usePaneGrid: usePaneGrid)
+                ?? slotFrame(for: pane, node: split.right, in: rightBounds, layoutBounds: layoutBounds, usePaneGrid: usePaneGrid)
         }
     }
 
@@ -1398,6 +1589,7 @@ extension Notification.Name {
     static let closeSplit = Notification.Name("com.rootshell.closeSplit")
     static let toggleSplitZoom = Notification.Name("com.rootshell.toggleSplitZoom")
     static let equalizeSplits = Notification.Name("com.rootshell.equalizeSplits")
+    static let choosePaneToZoom = Notification.Name("com.rootshell.choosePaneToZoom")
     static let focusSplit = Notification.Name("com.rootshell.focusSplit")
     static let resizeSplit = Notification.Name("com.rootshell.resizeSplit")
     static let newTab = Notification.Name("com.rootshell.newTab")

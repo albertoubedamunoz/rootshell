@@ -207,6 +207,10 @@ extension UIApplication {
         ghostty_postNotification(.equalizeSplits)
     }
 
+    @objc func menuChoosePaneToZoom(_ sender: Any?) {
+        ghostty_postNotification(.choosePaneToZoom)
+    }
+
     @objc func menuOpenSettings(_ sender: Any?) {
         ghostty_postNotification(
             .openSettings,

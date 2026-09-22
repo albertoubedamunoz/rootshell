@@ -15,6 +15,17 @@ import Combine
 
 // MARK: - Keyboard Shortcut State
 
+private struct CanChoosePaneToZoomKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+extension FocusedValues {
+    var canChoosePaneToZoom: Bool? {
+        get { self[CanChoosePaneToZoomKey.self] }
+        set { self[CanChoosePaneToZoomKey.self] = newValue }
+    }
+}
+
 /// Observable object that provides current keyboard shortcuts for menu display
 /// This is separate from KeybindManager to avoid the iPadOS 26 issue with
 /// @ObservedObject in CommandGroup(replacing:)
@@ -390,6 +401,7 @@ struct AppViewCommands: Commands {
 
 struct TerminalCommands: Commands {
     @ObservedObject var shortcutState: MenuShortcutState
+    @FocusedValue(\.canChoosePaneToZoom) private var canChoosePaneToZoom
 
     var body: some Commands {
         CommandMenu("Terminal") {
@@ -465,6 +477,14 @@ struct TerminalCommands: Commands {
                 )
             }
             .modifier(DynamicShortcut(action: .equalize_splits, shortcuts: shortcutState.shortcuts))
+
+            Button("Choose Pane to Zoom") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuChoosePaneToZoom(_:)), from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .choose_pane_to_zoom, shortcuts: shortcutState.shortcuts))
+            .disabled(canChoosePaneToZoom != true)
 
             Divider()
 

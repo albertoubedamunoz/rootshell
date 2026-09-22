@@ -198,7 +198,11 @@ extension Ghostty {
         /// responder claimer funnels through `becomeFirstResponder()`, which
         /// honors this flag at fire time, so stale retries from a prior toggle
         /// cycle can never land first responder in the wrong place.
-        private var overlayOwnsKeyboard: Bool = false
+        private var sceneOverlayOwnsKeyboard = false
+        private weak var paneZoomKeyboardOwner: AnyObject?
+        private var overlayOwnsKeyboard: Bool {
+            sceneOverlayOwnsKeyboard || paneZoomKeyboardOwner != nil
+        }
 
         /// Pre-resign snapshot of `reservedKeyboardToolbarHeightAtBottom`,
         /// held while an overlay owns the keyboard. The live computation
@@ -2395,8 +2399,29 @@ extension Ghostty {
         /// takes over); dropping it reconciles first responder back to this
         /// terminal when it is the logically focused one.
         override func setOverlayOwnsKeyboard(_ owns: Bool) {
-            guard overlayOwnsKeyboard != owns else { return }
-            overlayOwnsKeyboard = owns
+            let wasOwned = overlayOwnsKeyboard
+            sceneOverlayOwnsKeyboard = owns
+            updateOverlayKeyboardOwnership(wasOwned: wasOwned)
+        }
+
+        /// Independent of MainView's sheet gate: a sheet opening or a herdr
+        /// focus reconcile must not clear the picker's keyboard claim.
+        func captureKeyboardForPaneZoom(owner: AnyObject) {
+            let wasOwned = overlayOwnsKeyboard
+            paneZoomKeyboardOwner = owner
+            updateOverlayKeyboardOwnership(wasOwned: wasOwned)
+        }
+
+        func releaseKeyboardForPaneZoom(owner: AnyObject, restoreFocus: Bool) {
+            guard paneZoomKeyboardOwner === owner else { return }
+            let wasOwned = overlayOwnsKeyboard
+            paneZoomKeyboardOwner = nil
+            updateOverlayKeyboardOwnership(wasOwned: wasOwned, restoreFocus: restoreFocus)
+        }
+
+        private func updateOverlayKeyboardOwnership(wasOwned: Bool, restoreFocus: Bool = true) {
+            let owns = overlayOwnsKeyboard
+            guard wasOwned != owns else { return }
             Ghostty.logger.info("setOverlayOwnsKeyboard(\(owns)) terminal=\(self.uuid.uuidString.prefix(8)) isFR=\(self.isFirstResponder) logical=\(self.isLogicallyFocused)")
             if owns {
                 if isFirstResponder {
@@ -2408,7 +2433,7 @@ extension Ghostty {
                         keyboardAccessoryController?.reservedKeyboardToolbarHeightAtBottom ?? 0
                     _ = resignFirstResponder()
                 }
-            } else {
+            } else if restoreFocus {
                 // Defer one runloop so the overlay's dismiss update fully
                 // settles first: the search field resigns (endEditing) and its
                 // @FocusState binding goes false. Claiming synchronously here
@@ -2420,6 +2445,8 @@ extension Ghostty {
                 DispatchQueue.main.async { [weak self] in
                     self?.reconcileFirstResponderAfterOverlayRelease(attempt: 0)
                 }
+            } else {
+                clearOverlayLatchedToolbarReserve()
             }
         }
 

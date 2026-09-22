@@ -21,6 +21,12 @@ extension Ghostty.TerminalView {
             items.append(action(.swapPane, image: "rectangle.2.swap"))
         }
         if let tabID = controller.paneInfos[paneID]?.tab_id, let tab = controller.tabs[tabID] {
+            if controller.canChoosePaneToZoom(tabID: tabID) {
+                items.append(UIAction(title: String(localized: "Choose Pane to Zoom"),
+                                      image: UIImage(systemName: "number.square")) { [weak self] _ in
+                    self?.enclosingSplitHost?.showPaneZoomPicker()
+                })
+            }
             if controller.tabIsControlledElsewhere(tab) {
                 items.append(UIAction(title: String(localized: "Take Control"), image: UIImage(systemName: "person.2")) { [weak controller] _ in
                     controller?.requestTakeControl(tabId: tabID)

@@ -10,6 +10,8 @@ Enable **Control Mode** in the multiplexer session picker, choose **herdr (contr
 
 The gateway tab keeps your shell and connection controls available. Press Escape on the gateway to detach without stopping herdr; the gateway can also be hidden. With session persistence enabled, local macOS control-mode sessions can be restored when rootshell reopens. Connection Info shows the current mode and available server/session details.
 
+For a tab with multiple panes, press **⌘⌥P** or choose **Choose Pane to Zoom** from the Terminal or pane menu. Type the displayed number or click a pane to focus and zoom it. With ten or more panes, type the whole padded label (`01`, `02`, …). Any other key cancels without reaching the terminal. When already zoomed, the picker shows the full split layout; canceling leaves the server's zoom unchanged. The shortcut can be changed or removed in Keyboard Shortcuts. The picker works in both fork and fallback modes and is unavailable while another client controls the tab or a pane move is pending.
+
 ## Regular herdr and the optional fork
 
 [Regular upstream herdr](https://github.com/herdrdev/herdr) is supported. When the host has no rootshell terminal control stream, rootshell automatically uses **fallback mode**, which still provides most native control-mode functionality.

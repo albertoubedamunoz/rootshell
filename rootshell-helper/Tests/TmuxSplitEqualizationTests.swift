@@ -6,6 +6,34 @@ import XCTest
 /// where Process is available. No user's tmux server or configuration is used.
 @MainActor
 final class TmuxSplitEqualizationTests: XCTestCase {
+    func testPanePickerSelectsAndEnsuresZoomWithoutShiftingControlReplies() async throws {
+        let server = try Server()
+        defer { server.stop() }
+        try server.cli(["split-window", "-h", "-t", "%0"])
+        try server.cli(["split-window", "-h", "-t", "%1"])
+        let control = try server.attach()
+        defer { control.stop() }
+        let layout = try control.command("display-message -p -t @0 '#{window_layout}'")
+        // Initially unzoomed, then a different zoomed pane, then the same pane.
+        for paneID in [0, 2, 2, 1] {
+            try await TmuxPaneZoomCommand.zoom(windowID: 0, paneID: paneID) { command in
+                try control.command(command)
+            }
+            XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_zoomed_flag}:#{pane_id}'"), "1:%\(paneID)")
+            XCTAssertEqual(try control.command("display-message -p picker-reply-marker"), "picker-reply-marker")
+        }
+        try control.command("resize-pane -Z -t @0.%1")
+        XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_layout}'"), layout)
+        try server.cli(["new-window", "-d"])
+        // A stable ID moved to a different window must not be followed there.
+        try server.cli(["join-pane", "-s", "@0.%2", "-t", "@1"])
+        do {
+            try await TmuxPaneZoomCommand.zoom(windowID: 0, paneID: 2) { try control.command($0) }
+            XCTFail("A moved pane must not be followed into another window")
+        } catch { /* tmux rejects the window-qualified stale target */ }
+        XCTAssertEqual(try control.command("display-message -p -t @1 '#{window_zoomed_flag}'"), "0")
+    }
+
     private func pane(_ id: Int) -> TmuxLayoutNode {
         .pane(paneId: id, width: 1, height: 1, x: 0, y: 0)
     }
@@ -349,7 +377,8 @@ final class TmuxSplitEqualizationTests: XCTestCase {
                 try cli(["-f", "/dev/null", "new-session", "-d", "-s", "equalize", "-x", "203", "-y", "69", "/bin/sh"])
                 try cli(["set-option", "-g", "status", "off"])
                 try cli(["set-option", "-g", "aggressive-resize", "off"])
-                try cli(["set-option", "-g", "window-size", "manual"])
+                // Keep later new-window fixtures on tmux's normal sizing path.
+                try cli(["set-option", "-w", "-t", "@0", "window-size", "manual"])
                 try cli(["resize-window", "-t", "@0", "-x", "203", "-y", "69"])
             } catch {
                 stop()

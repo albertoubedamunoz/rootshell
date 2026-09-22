@@ -118,6 +118,13 @@ nonisolated enum HerdrControl {
         case pane(String)
         case split(direction: Direction, ratio: Double, first: Self, second: Self)
 
+        var paneIDs: [String] {
+            switch self {
+            case .pane(let id): return [id]
+            case .split(_, _, let first, let second): return first.paneIDs + second.paneIDs
+            }
+        }
+
         private enum CodingKeys: String, CodingKey {
             case type, pane_id, direction, ratio, first, second
         }
