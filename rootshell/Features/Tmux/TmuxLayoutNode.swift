@@ -23,6 +23,18 @@ nonisolated indirect enum TmuxLayoutNode: Equatable {
         case let .split(_, _, _, h, _, _): return h
         }
     }
+
+    private var x: Int {
+        switch self {
+        case let .pane(_, _, _, x, _), let .split(_, _, _, _, x, _): return x
+        }
+    }
+
+    private var y: Int {
+        switch self {
+        case let .pane(_, _, _, _, y), let .split(_, _, _, _, _, y): return y
+        }
+    }
 }
 
 extension TmuxLayoutNode {
@@ -53,6 +65,25 @@ extension TmuxLayoutNode {
             return false
         }
     }
+
+    /// Native `select-layout -E` equalizes one tmux tree node at a time. When
+    /// adjacent splits use the same axis, every binary node can already be
+    /// 50/50 while the visible leaves are not (for example 1/2 + 1/4 + 1/4).
+    /// Those layouts need explicit target sizes for their visible leaves.
+    var hasNestedSameAxisSplit: Bool {
+        switch self {
+        case .pane:
+            return false
+        case let .split(direction, children, _, _, _, _):
+            return children.contains { child in
+                if case let .split(childDirection, _, _, _, _, _) = child,
+                   childDirection == direction {
+                    return true
+                }
+                return child.hasNestedSameAxisSplit
+            }
+        }
+    }
 }
 
 extension TmuxLayoutNode {
@@ -69,6 +100,254 @@ extension TmuxLayoutNode {
         case let .split(axis, children, _, _, _, _):
             let sizes = children.map { $0.minimumSize(along: direction) }
             return axis == direction ? sizes.reduce(0, +) + max(0, children.count - 1) : sizes.max() ?? 1
+        }
+    }
+
+    /// Compute equal-cell target geometry by flattening adjacent same-axis
+    /// splits. This is a sizing model only: the server tree is never imported
+    /// or flattened, and native resize-pane commands retain pane assignments.
+    func equalizedLayout() -> TmuxLayoutNode? {
+        switch self {
+        case let .pane(_, width, height, x, y),
+             let .split(_, _, width, height, x, y):
+            return equalizedLayout(width: width, height: height, x: x, y: y)
+        }
+    }
+
+    /// Put the flattened sizing model back into the server's original tree so
+    /// we can plan changes to ancestor boundaries before resizing descendants.
+    func equalizationTarget() -> TmuxLayoutNode? {
+        guard let equalized = equalizedLayout() else { return nil }
+        let geometry = Dictionary(uniqueKeysWithValues: equalized.leaves.map { ($0.paneIDs[0], $0) })
+        return replacingLeafGeometry(geometry)
+    }
+
+    private func replacingLeafGeometry(_ geometry: [Int: TmuxLayoutNode]) -> TmuxLayoutNode? {
+        switch self {
+        case let .pane(id, _, _, _, _): return geometry[id]
+        case let .split(direction, children, _, _, _, _):
+            let resized = children.compactMap { $0.replacingLeafGeometry(geometry) }
+            guard resized.count == children.count, let first = resized.first else { return nil }
+            let width = direction == .horizontal
+                ? resized.reduce(0) { $0 + $1.width } + resized.count - 1 : first.width
+            let height = direction == .vertical
+                ? resized.reduce(0) { $0 + $1.height } + resized.count - 1 : first.height
+            return .split(direction: direction, children: resized, width: width, height: height,
+                          x: first.x, y: first.y)
+        }
+    }
+
+    struct PaneResize: Equatable {
+        let paneID: Int
+        let direction: Direction
+        let size: Int
+    }
+
+    /// resize-pane stops at the nearest ancestor of the requested axis. A pane
+    /// behind another split of that axis cannot move this node's boundaries.
+    private func exposedPane(along direction: Direction) -> Int? {
+        switch self {
+        case let .pane(id, _, _, _, _): return id
+        case let .split(axis, children, _, _, _, _):
+            guard axis != direction else { return nil }
+            return children.lazy.compactMap { $0.exposedPane(along: direction) }.first
+        }
+    }
+
+    /// Plan left/top boundaries first, then recurse. The last child can move
+    /// the preceding boundary; other children can only move their next one.
+    /// Reject the whole plan if a boundary that needs to move has no directly
+    /// addressable pane. An ancestor resize can disturb descendant boundaries,
+    /// even when they currently match their targets.
+    func resizePlan(to target: TmuxLayoutNode) -> [PaneResize]? {
+        guard hasSameTopology(as: target) else { return nil }
+        return resizePlan(to: target, resizingHorizontal: false, resizingVertical: false)
+    }
+
+    private func resizePlan(to target: TmuxLayoutNode, resizingHorizontal: Bool,
+                            resizingVertical: Bool) -> [PaneResize]? {
+        guard case let .split(direction, children, _, _, _, _) = self,
+              case let .split(_, targets, _, _, _, _) = target else { return [] }
+        let horizontal = direction == .horizontal
+        let resizedByAncestor = horizontal ? resizingHorizontal : resizingVertical
+        // An ancestor may redistribute cells within this node. Otherwise we
+        // know each child's size and can project the effects of earlier steps.
+        var sizes: [Int?] = children.map { child in
+            resizedByAncestor ? nil : (horizontal ? child.width : child.height)
+        }
+        var resizedChildren = Array(repeating: resizedByAncestor, count: children.count)
+        var plan: [PaneResize] = []
+        for index in 0..<(children.count - 1) {
+            let targetSize = horizontal ? targets[index].width : targets[index].height
+            // Earlier boundaries are already fixed, so a matching child size
+            // means this boundary is correct, even if later siblings differ.
+            if sizes[index] == targetSize { continue }
+            let anchor: Int
+            let paneID: Int
+            if let id = children[index].exposedPane(along: direction) {
+                anchor = index
+                paneID = id
+            } else if index == children.count - 2,
+                      let id = children[index + 1].exposedPane(along: direction) {
+                anchor = index + 1
+                paneID = id
+            } else {
+                return nil
+            }
+            plan.append(PaneResize(paneID: paneID, direction: direction,
+                                   size: direction == .horizontal ? targets[anchor].width : targets[anchor].height))
+            resizedChildren[index] = true
+            if let size = sizes[index] {
+                let change = targetSize - size
+                if change < 0 {
+                    // tmux shrinking gives the released cells to the next
+                    // sibling. The target minimum keeps earlier siblings safe.
+                    sizes[index + 1] = sizes[index + 1].map { $0 - change }
+                    resizedChildren[index + 1] = true
+                } else {
+                    // Growing consumes space from following siblings in order,
+                    // stopping at each subtree's minimum. Feasible targets do
+                    // not require borrowing from the already fixed prefix.
+                    var remaining = change
+                    for donor in (index + 1)..<children.count {
+                        guard let donorSize = sizes[donor] else { return nil }
+                        let available = donorSize - children[donor].minimumSize(along: direction)
+                        let taken = min(remaining, available)
+                        if taken > 0 {
+                            sizes[donor] = donorSize - taken
+                            resizedChildren[donor] = true
+                            remaining -= taken
+                        }
+                        if remaining == 0 { break }
+                    }
+                    guard remaining == 0 else { return nil }
+                }
+            } else {
+                // Unknown ancestor redistribution requires planning subsequent
+                // boundaries conservatively, but cannot disturb a fixed prefix.
+                for sibling in (index + 1)..<children.count {
+                    sizes[sibling] = nil
+                    resizedChildren[sibling] = true
+                }
+            }
+            sizes[index] = targetSize
+        }
+        for (index, child) in children.enumerated() {
+            guard let childPlan = child.resizePlan(
+                to: targets[index],
+                resizingHorizontal: horizontal ? resizedChildren[index] : resizingHorizontal,
+                resizingVertical: horizontal ? resizingVertical : resizedChildren[index]
+            ) else { return nil }
+            plan.append(contentsOf: childPlan)
+        }
+        return plan
+    }
+
+    /// Model -E on the original tree, then check the visible (flattened)
+    /// groups. Accept different placements of rounding cells, but not unequal
+    /// proportions such as two columns beside a nested group of three.
+    var nativeEqualizationProducesEqualLeaves: Bool {
+        equalizedLayout(width: width, height: height, x: x, y: y,
+                        flattenSameAxis: false)?.hasEqualVisibleSplits == true
+    }
+
+    private var hasEqualVisibleSplits: Bool {
+        guard case let .split(direction, _, _, _, _, _) = self else { return true }
+        let children = flattenedChildren(along: direction)
+        let sizes = children.map { direction == .horizontal ? $0.width : $0.height }
+        guard let smallest = sizes.min(), let largest = sizes.max(), largest - smallest <= 1 else {
+            return false
+        }
+        return children.allSatisfy(\.hasEqualVisibleSplits)
+    }
+
+    var leaves: [TmuxLayoutNode] {
+        switch self {
+        case .pane: return [self]
+        case let .split(_, children, _, _, _, _): return children.flatMap(\.leaves)
+        }
+    }
+
+    var serverLayoutString: String {
+        let body = serverLayoutBody
+        var checksum: UInt16 = 0
+        for byte in body.utf8 {
+            checksum = (checksum >> 1) | (checksum << 15)
+            checksum = checksum &+ UInt16(byte)
+        }
+        let hex = String(checksum, radix: 16)
+        return String(repeating: "0", count: 4 - hex.count) + hex + "," + body
+    }
+
+    private var serverLayoutBody: String {
+        switch self {
+        case let .pane(id, width, height, x, y):
+            return "\(width)x\(height),\(x),\(y),\(id)"
+        case let .split(direction, children, width, height, x, y):
+            let brackets = direction == .horizontal ? ("{", "}") : ("[", "]")
+            return "\(width)x\(height),\(x),\(y)" + brackets.0
+                + children.map(\.serverLayoutBody).joined(separator: ",") + brackets.1
+        }
+    }
+
+    private func flattenedChildren(along direction: Direction) -> [TmuxLayoutNode] {
+        if case let .split(axis, children, _, _, _, _) = self, axis == direction {
+            return children.flatMap { $0.flattenedChildren(along: direction) }
+        }
+        return [self]
+    }
+
+    private func equalizedLayout(width: Int, height: Int, x: Int, y: Int,
+                                 flattenSameAxis: Bool = true) -> TmuxLayoutNode? {
+        guard width >= minimumSize(along: .horizontal),
+              height >= minimumSize(along: .vertical) else { return nil }
+        switch self {
+        case let .pane(id, _, _, _, _):
+            return .pane(paneId: id, width: width, height: height, x: x, y: y)
+        case let .split(direction, originalChildren, _, _, _, _):
+            let children = flattenSameAxis ? flattenedChildren(along: direction) : originalChildren
+            guard children.count >= 2 else { return nil }
+            let horizontal = direction == .horizontal
+            var remaining = (horizontal ? width : height) - children.count + 1
+            var pending = Array(children.indices)
+            var sizes = Array(repeating: 0, count: children.count)
+
+            // Reserve recursive minima first, then share every remaining cell.
+            // This keeps perpendicular subtrees valid in cramped windows.
+            while !pending.isEmpty {
+                let share = remaining / pending.count
+                let constrained = pending.filter {
+                    children[$0].minimumSize(along: direction) > share
+                }
+                if constrained.isEmpty {
+                    for (offset, index) in pending.enumerated() {
+                        sizes[index] = share + (offset < remaining % pending.count ? 1 : 0)
+                    }
+                    break
+                }
+                for index in constrained {
+                    sizes[index] = children[index].minimumSize(along: direction)
+                    remaining -= sizes[index]
+                }
+                guard remaining >= 0 else { return nil }
+                pending.removeAll { constrained.contains($0) }
+            }
+
+            var cursor = horizontal ? x : y
+            var equalizedChildren: [TmuxLayoutNode] = []
+            for (index, child) in children.enumerated() {
+                guard let equalized = child.equalizedLayout(
+                    width: horizontal ? sizes[index] : width,
+                    height: horizontal ? height : sizes[index],
+                    x: horizontal ? cursor : x,
+                    y: horizontal ? y : cursor,
+                    flattenSameAxis: flattenSameAxis
+                ) else { return nil }
+                equalizedChildren.append(equalized)
+                cursor += sizes[index] + 1
+            }
+            return .split(direction: direction, children: equalizedChildren,
+                          width: width, height: height, x: x, y: y)
         }
     }
 

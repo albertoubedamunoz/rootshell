@@ -303,7 +303,13 @@ extension Ghostty.TerminalView {
 
         let allTouches = event?.allTouches ?? touches
         let activeDirectTouches = allTouches.filter { touch in
-            touch.type == .direct && touch.phase != .ended && touch.phase != .cancelled
+            // A second finger on the window-hosted loupe belongs to its button,
+            // not the terminal's two-finger selection/scroll arbitration.
+            if let magnifier = selectionMagnifierView, let view = touch.view,
+               view === magnifier || view.isDescendant(of: magnifier) {
+                return false
+            }
+            return touch.type == .direct && touch.phase != .ended && touch.phase != .cancelled
         }
 
         if activeDirectTouches.count > 1 {
@@ -395,6 +401,8 @@ extension Ghostty.TerminalView {
 
     /// Handle long press for text selection in scroll mode
     @objc func handleSelectionLongPress(_ gesture: UILongPressGestureRecognizer) {
+        if handleLoupeSecondaryClick(gesture) { return }
+        if gesture.state == .began { loupeLongPressGesture = gesture }
         if herdrEndpointPane != nil { handleEndpointSelectionGesture(gesture); return }
         let location = gesture.location(in: self)
 
@@ -454,12 +462,14 @@ extension Ghostty.TerminalView {
     /// Setting fingerDragActive would cause touchesCancelled (from cancelsTouchesInView) to
     /// send a premature mouseUp immediately after mouseDown.
     @objc func handleCaptureLongPress(_ gesture: UILongPressGestureRecognizer) {
+        if handleLoupeSecondaryClick(gesture) { return }
         guard isMouseCaptured, isTouchScrollMode else { return }
 
         let location = gesture.location(in: self)
 
         switch gesture.state {
         case .began:
+            loupeLongPressGesture = gesture
             cancelMomentumScrolling()
             handleMouseDown(at: location, isRightClick: false)
             triggerHapticFeedback()
@@ -469,7 +479,7 @@ extension Ghostty.TerminalView {
             handleMouseMove(at: location)
             updateCaptureMagnifier(at: location)
 
-        case .ended, .cancelled:
+        case .ended, .cancelled, .failed:
             handleMouseUp(at: location)
             hideSelectionMagnifier()
 
@@ -3482,6 +3492,118 @@ extension Ghostty.TerminalView {
             return
         }
         showCustomSelectionMagnifier(at: point, horizontalOffset: 0)
+        if !prefersNativeSelectionLoupe,
+           let gesture = loupeLongPressGesture,
+           gesture.state == .began || gesture.state == .changed {
+            selectionMagnifierView?.onSecondaryClick = { [weak self] in
+                self?.beginLoupeSecondaryClick()
+            }
+        }
+    }
+
+    /// Balance the primary press before switching buttons. At a shell prompt a
+    /// secondary click is the app's context menu, not terminal mouse reporting.
+    private func beginLoupeSecondaryClick() {
+        guard loupeSecondaryClick == nil,
+              let gesture = loupeLongPressGesture,
+              gesture.state == .began || gesture.state == .changed,
+              selectionMagnifierPoint != nil else { return }
+        let point = gesture.location(in: self)
+        selectionMagnifierPoint = point
+        stopCaptureAutoScroll()
+        if gesture === selectionLongPressGesture {
+            if let state = herdrEndpointPane {
+                state.endDrag()
+            } else {
+                sendLoupeMouseButton(GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT, at: point)
+            }
+            isSelecting = false
+            selectionStartPoint = nil
+        } else {
+            sendLoupeMouseButton(GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT, at: point)
+        }
+        mousePressed = false
+        selectionMouseDragActive = false
+
+        let captured = herdrEndpointPane?.capturesMouse
+            ?? surface.map { ghostty_surface_mouse_captured($0) } ?? false
+        if captured {
+            loupeSecondaryClick = .mouse
+            mousePressed = true
+            Self.pressedMouseButton = GHOSTTY_MOUSE_RIGHT
+            sendLoupeMouseButton(GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_RIGHT, at: point)
+        } else {
+            loupeSecondaryClick = .contextMenu
+        }
+        let feedback = String(localized: "Right Click")
+        showMouseInteractionOverlay(text: feedback)
+        UIAccessibility.post(notification: .announcement, argument: feedback)
+        triggerHapticFeedback()
+    }
+
+    /// Keep position and button events together on the API queue so a quick
+    /// drag/release cannot move an enqueued press to the release location.
+    private func sendLoupeMouseButton(
+        _ action: ghostty_input_mouse_state_e,
+        button: ghostty_input_mouse_button_e,
+        at point: CGPoint
+    ) {
+        lastMousePosition = point
+        if let state = herdrEndpointPane {
+            state.mouse(kind: action == GHOSTTY_MOUSE_PRESS ? 0 : 1,
+                        button: button == GHOSTTY_MOUSE_RIGHT ? 1 : 0, at: point)
+            return
+        }
+        guard let surface else { return }
+        let pixelPoint = viewToPixelCoordinates(point)
+        let mods = currentMouseMods()
+        Self.ghosttyAPIQueue.async {
+            ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
+            ghostty_surface_mouse_button(surface, action, button, mods)
+        }
+    }
+
+    private func handleLoupeSecondaryClick(_ gesture: UILongPressGestureRecognizer) -> Bool {
+        // A recognizer can reset without delivering another callback after its
+        // view leaves the window. Never carry a cancelled click into a new hold.
+        if gesture.state == .began {
+            if loupeSecondaryClick != nil { hideSelectionMagnifier(animated: false) }
+            loupeSecondaryClick = nil
+            loupeLongPressGesture = nil
+            return false
+        }
+        guard gesture === loupeLongPressGesture, let click = loupeSecondaryClick else { return false }
+        let point = gesture.location(in: self)
+        switch gesture.state {
+        case .changed:
+            guard click != .cancelled else { return true }
+            if click == .mouse {
+                lastMousePosition = point
+                if let state = herdrEndpointPane {
+                    state.mouse(kind: 2, button: 1, at: point)
+                } else if let surface {
+                    let pixelPoint = viewToPixelCoordinates(point)
+                    let mods = currentMouseMods()
+                    Self.ghosttyAPIQueue.async {
+                        ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
+                    }
+                }
+            }
+            updateCaptureMagnifier(at: point)
+        case .ended, .cancelled, .failed:
+            // hideSelectionMagnifier balances the secondary press, including
+            // cancellation. Only a completed hold may open the context menu.
+            selectionMagnifierPoint = point
+            hideSelectionMagnifier()
+            loupeSecondaryClick = nil
+            loupeLongPressGesture = nil
+            reloadInputViews()
+            if click == .contextMenu, gesture.state == .ended {
+                presentTransientEditMenu(at: point, fullContextMenu: true)
+            }
+        default: break
+        }
+        return true
     }
 
     func updateCaptureMagnifier(at point: CGPoint) {
@@ -3554,6 +3676,19 @@ extension Ghostty.TerminalView {
     }
 
     func hideSelectionMagnifier(animated: Bool = true) {
+        if loupeSecondaryClick == .mouse, let point = selectionMagnifierPoint {
+            sendLoupeMouseButton(GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_RIGHT, at: point)
+            mousePressed = false
+            selectionMouseDragActive = false
+        }
+        if loupeSecondaryClick != nil {
+            // Consume the rest of the original hold even if an overlay or tab
+            // switch dismissed the loupe before that finger lifted.
+            loupeSecondaryClick = .cancelled
+        } else {
+            loupeLongPressGesture = nil
+        }
+        selectionMagnifierView?.onSecondaryClick = nil
         selectionMagnifierPoint = nil
         selectionLoupe?.invalidate()
         selectionLoupe = nil

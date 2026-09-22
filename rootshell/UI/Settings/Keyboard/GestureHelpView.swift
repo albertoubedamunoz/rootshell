@@ -146,6 +146,12 @@ struct GestureHelpView: View {
                 requirement: "Requires Scroll Mode."
             )
             helpRow(
+                .loupeRightClick,
+                "Right click with the loupe",
+                "Touch and hold the terminal until the magnifier appears. Keep that finger down and tap the magnifier with another finger. A brief Right Click indicator confirms the switch. In an application using mouse input, this releases the primary button and holds the secondary button; move the original finger to drag, then lift it to release at its final position. Otherwise, lifting the original finger opens the terminal context menu there. The switch lasts only for this hold.",
+                requirement: "Requires Scroll Mode and the app's loupe. Turn off Use Native Selection Loupe in Appearance → Window → Text Selection. The system loupe doesn't support this gesture."
+            )
+            helpRow(
                 .selectionMode,
                 "Selection mode",
                 "Drag one finger to select text and use two fingers to scroll. Hold one finger still to open the context menu. If the terminal application captures mouse input, one-finger dragging and holding send mouse input instead.",

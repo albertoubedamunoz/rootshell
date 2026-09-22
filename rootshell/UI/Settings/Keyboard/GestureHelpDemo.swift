@@ -6,7 +6,7 @@ struct GestureHelpDemo: View {
     enum Kind {
         case pinKeyboard, collapseToolbar, moveRestore, lockModifier
         case joystickMode, joystickMove, spaceCursor, keyboardPages, floatKeyboard, moveKeyboard
-        case menuTwoFinger, menuDoubleTap, newConnection, fontSize, tabSwipe, selection, selectionMode
+        case menuTwoFinger, menuDoubleTap, newConnection, fontSize, tabSwipe, selection, selectionMode, loupeRightClick
         case exposeReveal, exposePages, exposeResize, hoverPreview, sidebarReveal
         case equalizeSplits, rearrangePanes, sidebarReset, remoteTabs, pencil
 
@@ -28,6 +28,7 @@ struct GestureHelpDemo: View {
             case .fontSize: "Spread to enlarge text. Pinch to shrink."
             case .tabSwipe: "Swipe sideways to switch tabs by default."
             case .selection: "Hold, then drag to select text or send a mouse drag."
+            case .loupeRightClick: "Keep holding; tap the loupe with another finger."
             case .selectionMode: "One finger selects. Two fingers scroll."
             case .exposeReveal: "Pull down from the tab bar for live previews."
             case .exposePages: "Swipe sideways to browse tab groups."
@@ -47,6 +48,7 @@ struct GestureHelpDemo: View {
             switch self {
             case .menuTwoFinger, .newConnection, .fontSize, .selection: "Scroll Mode"
             case .selectionMode: "Scroll Mode off"
+            case .loupeRightClick: "Scroll Mode · App Loupe"
             case .tabSwipe:
                 #if targetEnvironment(macCatalyst)
                 "Trackpad"
@@ -222,6 +224,8 @@ private struct GestureDemoDrawing {
                 trail(28, 37, 88, 37)
                 touch(28 + 60 * progress, 37, hold: kind == .selection && phase < 0.23)
             }
+        case .loupeRightClick:
+            loupeRightClick()
         case .exposeReveal:
             terminal(lines: false)
             previews(scale: 0.55 + 0.45 * progress, offset: 0)
@@ -273,6 +277,38 @@ private struct GestureDemoDrawing {
         }
     }
 
+    /// First finger holds, second finger taps the lens, then the original
+    /// finger drags and releases. Reduced Motion shows both contacts at once.
+    private func loupeRightClick() {
+        terminal()
+        let drag = still ? 0 : CGFloat(min(1, max(0, (phase - 0.60) / 0.18))) * 18
+        let x: CGFloat = 45 + drag
+        let switched = still || (phase >= 0.48 && phase < 0.88)
+
+        if still || (phase >= 0.22 && phase < 0.88) {
+            box(CGRect(x: x - 24, y: 27, width: 48, height: 26), active: switched)
+            line(x - 15, 35, x + 15, 35)
+            line(x - 15, 43, x + 6, 43)
+            rect(CGRect(x: x - 3, y: 36, width: 6, height: 9), accent.opacity(0.3))
+        }
+        if switched { symbol("computermouse.fill", 87, 31, 15) }
+        if still || (phase >= 0.08 && phase < 0.88) {
+            if phase >= 0.60 && !still { trail(45, 66, 63, 66) }
+            touch(x, 66, hold: true)
+            text("1", x - 14, 66, 9)
+        }
+        if still || (phase >= 0.40 && phase < 0.57) {
+            touch(x + 9, 39, pulseStart: 0.40)
+            text("2", x + 21, 39, 9)
+        }
+        if !still && phase >= 0.88 {
+            // Only a fading ring remains when the original finger lifts.
+            let fade = 1 - (phase - 0.88) / 0.12
+            let ring = Path(ellipseIn: CGRect(x: x - 9, y: 57, width: 18, height: 18))
+            context.stroke(ring, with: .color(accent.opacity(fade)), lineWidth: 1.5)
+        }
+    }
+
     private var pointerSwipeCount: Int {
         #if targetEnvironment(macCatalyst) || os(visionOS)
         2
@@ -318,7 +354,7 @@ private struct GestureDemoDrawing {
         touch(60 + distance, 60)
     }
 
-    private func touch(_ x: CGFloat, _ y: CGFloat, hold: Bool = false, doubleTap: Bool = false) {
+    private func touch(_ x: CGFloat, _ y: CGFloat, hold: Bool = false, doubleTap: Bool = false, pulseStart: Double = 0.10) {
         let center = CGPoint(x: x, y: y)
         let contact = Path(ellipseIn: CGRect(x: x - 5, y: y - 5, width: 10, height: 10))
         context.fill(contact, with: .color(accent.opacity(0.3)))
@@ -329,7 +365,7 @@ private struct GestureDemoDrawing {
                            with: .color(accent), lineWidth: 2)
         } else {
             // Two distinct pulses for double-taps; one for initial contact.
-            for start in doubleTap ? [0.10, 0.29] : [0.10] {
+            for start in doubleTap ? [0.10, 0.29] : [pulseStart] {
                 let pulse = (phase - start) / 0.17
                 if still || (pulse >= 0 && pulse <= 1) {
                     let radius = still ? (start < 0.2 ? 8.0 : 11.0) : 6 + 7 * pulse

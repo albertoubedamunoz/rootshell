@@ -3,9 +3,9 @@
 //  rootshell
 //
 //  Bioluminescent jellyfish that occasionally drift across the terminal
-//  background — slower and calmer than any other effect. Rendered
-//  procedurally in a single Canvas pass; the render timeline is fully
-//  paused between visits so the effect costs nothing while idle. On dark
+//  background — slower and calmer than any other effect. A translucent
+//  Metal scene renders their anatomy and bioluminescence, with the original
+//  Canvas renderer available as an option. Rendering pauses between visits. On dark
 //  themes they glow under the additive overlay blend; on light themes they
 //  read as an ink-wash drawing under multiply.
 //
@@ -56,6 +56,22 @@ final class JellyfishEffect: TerminalEffect, ObservableObject {
 
     // MARK: - Jellyfish-Specific Configuration
 
+    enum RenderingStyle: String, Codable, CaseIterable {
+        case original
+        case enhanced
+
+        var displayName: String {
+            switch self {
+            case .original: return String(localized: "Original", comment: "Original jellyfish rendering style")
+            case .enhanced: return String(localized: "Enhanced", comment: "Detailed jellyfish rendering style")
+            }
+        }
+    }
+
+    var renderingStyle: RenderingStyle = .enhanced {
+        didSet { objectWillChange.send(); configurationDidChange.send() }
+    }
+
     /// How often visits occur
     var visitFrequency: JellyfishVisitState.VisitFrequency = .occasional {
         didSet { objectWillChange.send(); configurationDidChange.send() }
@@ -68,6 +84,11 @@ final class JellyfishEffect: TerminalEffect, ObservableObject {
 
     /// Rare brightening ripple down the tentacles (dark themes only)
     var shimmerEnabled: Bool = true {
+        didSet { objectWillChange.send(); configurationDidChange.send() }
+    }
+
+    /// Optical bloom around luminous tissue, independent of the rare shimmer.
+    var bloom: Double = 0.55 {
         didSet { objectWillChange.send(); configurationDidChange.send() }
     }
 
@@ -112,28 +133,33 @@ final class JellyfishEffect: TerminalEffect, ObservableObject {
     }
 
     func resetToDefaults() {
+        renderingStyle = .enhanced
         intensity = 0.20
         speed = 0.5
         visitFrequency = .occasional
         moreJellyfish = false
         shimmerEnabled = true
+        bloom = 0.55
         textAvoidanceEnabled = true
         colorMode = .themeAdaptive
     }
 
     func encodeConfiguration() -> [String: Any] {
         return [
+            "renderingStyle": renderingStyle.rawValue,
             "intensity": intensity,
             "speed": speed,
             "visitFrequency": visitFrequency.rawValue,
             "moreJellyfish": moreJellyfish,
             "shimmerEnabled": shimmerEnabled,
+            "bloom": bloom,
             "textAvoidanceEnabled": textAvoidanceEnabled,
             "colorMode": colorMode.rawValue
         ]
     }
 
     func decodeConfiguration(_ data: [String: Any]) {
+        renderingStyle = (data["renderingStyle"] as? String).flatMap(RenderingStyle.init(rawValue:)) ?? .enhanced
         if let intensity = data["intensity"] as? Double {
             self.intensity = intensity
         }
@@ -150,6 +176,9 @@ final class JellyfishEffect: TerminalEffect, ObservableObject {
         if let shimmerEnabled = data["shimmerEnabled"] as? Bool {
             self.shimmerEnabled = shimmerEnabled
         }
+        if let bloom = data["bloom"] as? Double, bloom.isFinite {
+            self.bloom = min(max(bloom, 0), 1)
+        }
         if let textAvoidanceEnabled = data["textAvoidanceEnabled"] as? Bool {
             self.textAvoidanceEnabled = textAvoidanceEnabled
         }
@@ -160,6 +189,16 @@ final class JellyfishEffect: TerminalEffect, ObservableObject {
     }
 
     // MARK: - Color Derivation
+
+    /// The Metal scene is lit in linear light; the final composite encodes
+    /// sRGB once. Share the existing palette so saved color modes still match.
+    func linearTint(colorIndex: Int) -> SIMD3<Float> {
+        let rgb = baseRGB(colorIndex: colorIndex)
+        func linear(_ value: Double) -> Float {
+            Float(value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4))
+        }
+        return SIMD3(linear(rgb.r), linear(rgb.g), linear(rgb.b))
+    }
 
     /// Tiny RGB working space so all color math stays in plain doubles
     private struct RGB {
@@ -272,11 +311,27 @@ final class JellyfishEffect: TerminalEffect, ObservableObject {
 // MARK: - Jellyfish View
 
 struct JellyfishView: View {
-    let effect: JellyfishEffect
+    @ObservedObject var effect: JellyfishEffect
     var previewMode: Bool = false
+    var showcase: Bool = false
+
+    var body: some View {
+        JellyfishContentView(effect: effect, previewMode: previewMode, showcase: showcase)
+            // Each renderer owns its simulation and display loop. Replacing
+            // the content releases Metal resources and respawns the anatomy.
+            .id(effect.renderingStyle)
+    }
+}
+
+private struct JellyfishContentView: View {
+    @ObservedObject var effect: JellyfishEffect
+    let previewMode: Bool
+    let showcase: Bool
 
     @Environment(\.terminalEffectRetainsState) private var retainsState
     @StateObject private var state = JellyfishVisitState()
+    @State private var useCanvasFallback = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 30fps baseline, halved in battery saver.
     private var frameInterval: Double {
@@ -285,16 +340,25 @@ struct JellyfishView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            TimelineView(.animation(minimumInterval: frameInterval, paused: state.isIdle)) { timeline in
-                let frameTime = state.frameTime(at: timeline.date)
-
-                Canvas { context, size in
-                    for jelly in state.jellies {
-                        drawJellyfish(jelly, at: frameTime, context: context, canvasSize: size)
+            Group {
+                if effect.renderingStyle == .original || useCanvasFallback {
+                    TimelineView(.animation(minimumInterval: frameInterval, paused: state.isIdle)) { timeline in
+                        let frameTime = state.frameTime(at: timeline.date)
+                        Canvas { context, size in
+                            for jelly in state.jellies {
+                                drawJellyfish(jelly, at: frameTime, context: context, canvasSize: size)
+                            }
+                        }
+                        .onChange(of: timeline.date) { _, newDate in
+                            state.update(frameTime: state.frameTime(at: newDate))
+                        }
                     }
-                }
-                .onChange(of: timeline.date) { _, newDate in
-                    state.update(frameTime: state.frameTime(at: newDate))
+                } else {
+                    JellyfishMetalView(effect: effect, state: state, showcase: showcase,
+                                       powerScale: PowerManager.shared.effectIntervalScale,
+                                       reduceMotion: reduceMotion) {
+                        useCanvasFallback = true
+                    }
                 }
             }
             .onAppear {
@@ -308,6 +372,9 @@ struct JellyfishView: View {
             .onChange(of: geometry.frame(in: .global)) { _, newFrame in
                 state.canvasFrameInGlobal = newFrame
             }
+            .onChange(of: reduceMotion) { _, enabled in
+                state.setReduceMotion(enabled)
+            }
             .onDisappear {
                 state.stop(preservingVisit: retainsState)
             }
@@ -316,6 +383,7 @@ struct JellyfishView: View {
             }
         }
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Drawing
@@ -337,7 +405,7 @@ struct JellyfishView: View {
         let transform = jelly.bellTransform(at: time, in: canvasSize)
 
         context.drawLayer { layer in
-            layer.opacity = min(effect.intensity / 0.6, 1.0)
+            layer.opacity = showcase ? 1 : min(max(effect.intensity / 0.6, 0), 1.0)
 
             // Soft bloom under additive blending only
             if !isLight {
@@ -347,7 +415,7 @@ struct JellyfishView: View {
                     Path(ellipseIn: CGRect(x: center.x - glowR, y: center.y - glowR,
                                            width: glowR * 2, height: glowR * 2)),
                     with: .radialGradient(
-                        Gradient(colors: [colors.glow.opacity(0.16), .clear]),
+                        Gradient(colors: [colors.glow.opacity(0.16 * min(max(effect.bloom, 0), 1) / 0.55), .clear]),
                         center: center, startRadius: 0, endRadius: glowR))
             }
 
@@ -395,10 +463,10 @@ struct JellyfishView: View {
     }
 
     private func drawTentacles(_ jelly: Jellyfish, at time: TimeInterval, transform: CGAffineTransform, colors: JellyfishColors, isLight: Bool, in ctx: inout GraphicsContext) {
-        let shimmer = (!isLight && effect.shimmerEnabled) ? jelly.shimmer(at: time) : nil
+        let shimmer = (!isLight && effect.shimmerEnabled && !jelly.calmDrift) ? jelly.shimmer(at: time) : nil
 
-        for chain in jelly.tentacleAnchorX.indices {
-            let anchor = CGPoint(x: jelly.tentacleAnchorX[chain], y: 0.02).applying(transform)
+        for chain in 0..<jelly.tentacleCount {
+            let anchor = jelly.tentacleAnchor(chain, at: time).applying(transform)
             let start = chain * jelly.tentacleNodesPer
             let slice = jelly.tentacleNodes[start..<(start + jelly.tentacleNodesPer)]
             guard let tip = slice.last else { continue }

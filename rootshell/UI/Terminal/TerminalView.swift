@@ -689,9 +689,9 @@ extension Ghostty {
         /// Prevents showing on first responder gain, tab creation, or app launch.
         private var inputModeChangeCount: Int = 0
 
-        // MARK: Mouse Capture Override Overlay
-        private var mouseCaptureOverlayHost: UIHostingController<InputModeOverlayView>?
-        private var mouseCaptureOverlayDismissTask: Task<Void, Never>?
+        // MARK: Mouse Interaction Overlay
+        private var mouseInteractionOverlayHost: UIHostingController<InputModeOverlayView>?
+        private var mouseInteractionOverlayDismissTask: Task<Void, Never>?
         #endif
 
         /// Timestamp of last space insertion for double-space-for-period detection
@@ -1110,6 +1110,12 @@ extension Ghostty {
         var selectionLoupe: SelectionLoupe?
         /// Last touch point used to position and refresh the magnifier.
         var selectionMagnifierPoint: CGPoint?
+        /// The original hold owns the click; the loupe's second finger never moves it.
+        weak var loupeLongPressGesture: UILongPressGestureRecognizer?
+        enum LoupeSecondaryClick {
+            case mouse, contextMenu, cancelled
+        }
+        var loupeSecondaryClick: LoupeSecondaryClick?
         /// Last cell position during drag (for haptic on cell boundary crossing)
         var lastDragCell: (col: Int, row: Int)?
         #if !os(visionOS)
@@ -1632,6 +1638,11 @@ extension Ghostty {
             // teardown semantics (resumable Trzsz/Mosh keep the server session
             // alive for .sceneTeardown; .userClose terminates) live on the
             // owning controller now. See TerminalSessionController.teardown.
+            #if !targetEnvironment(macCatalyst)
+            hideSelectionMagnifier(animated: false)
+            loupeSecondaryClick = nil
+            loupeLongPressGesture = nil
+            #endif
             sessionController.teardown(reason: reason)
 
             // 3. Cancel async tasks and timers
@@ -1667,6 +1678,10 @@ extension Ghostty {
 
             inputModeDismissTask?.cancel()
             inputModeDismissTask = nil
+            mouseInteractionOverlayDismissTask?.cancel()
+            mouseInteractionOverlayDismissTask = nil
+            mouseInteractionOverlayHost?.view.removeFromSuperview()
+            mouseInteractionOverlayHost = nil
             if let obs = inputModeObserver {
                 NotificationCenter.default.removeObserver(obs)
                 inputModeObserver = nil
@@ -3315,7 +3330,7 @@ extension Ghostty {
             guard newLang != lastInputModePrimaryLanguage else { return }
             if newLang == "emoji" || lastInputModePrimaryLanguage == "emoji" {
                 resetKeyboardInteractionState(sendSyntheticKeyReleases: true)
-                keyboardAccessory?.toolbarView.clearOneShotModifiers()
+                keyboardAccessoryController?.clearOneShotModifiers()
             }
             lastInputModePrimaryLanguage = newLang
 
@@ -3386,52 +3401,58 @@ extension Ghostty {
             })
         }
 
-        // MARK: - Mouse Capture Override Overlay
+        // MARK: - Mouse Interaction Overlay
 
         private func showMouseCaptureOverlay() {
             let text = mouseCaptureOverrideActive
                 ? String(localized: "Mouse Capture Off")
                 : String(localized: "Mouse Capture On")
+            showMouseInteractionOverlay(text: text)
+        }
 
-            mouseCaptureOverlayDismissTask?.cancel()
+        /// Feedback belongs to the terminal, so releasing the original hold and
+        /// dismissing its loupe cannot remove the confirmation prematurely.
+        func showMouseInteractionOverlay(text: String) {
+            mouseInteractionOverlayDismissTask?.cancel()
 
-            if let host = mouseCaptureOverlayHost {
+            if let host = mouseInteractionOverlayHost {
                 host.rootView = InputModeOverlayView(text: text)
                 host.view.layer.removeAllAnimations()
                 host.view.alpha = 1.0
+                bringSubviewToFront(host.view)
             } else {
                 let host = UIHostingController(rootView: InputModeOverlayView(text: text))
                 host.sizingOptions = [.intrinsicContentSize]
                 host.view.backgroundColor = .clear
                 host.view.translatesAutoresizingMaskIntoConstraints = false
+                host.view.isUserInteractionEnabled = false
 
                 addSubview(host.view)
                 NSLayoutConstraint.activate([
                     host.view.centerXAnchor.constraint(equalTo: centerXAnchor),
                     host.view.centerYAnchor.constraint(equalTo: centerYAnchor),
                 ])
-                mouseCaptureOverlayHost = host
-
-                host.view.alpha = 0
-                UIView.animate(withDuration: 0.15, delay: 0, options: .curveEaseOut) {
-                    host.view.alpha = 1.0
-                }
+                mouseInteractionOverlayHost = host
             }
 
-            mouseCaptureOverlayDismissTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            // Start the fade only after a full visible interval, rather than
+            // immediately animating alpha back to zero with an animation delay.
+            mouseInteractionOverlayDismissTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
                 guard !Task.isCancelled, let self else { return }
-                self.hideMouseCaptureOverlay()
+                self.hideMouseInteractionOverlay()
             }
         }
 
-        private func hideMouseCaptureOverlay() {
-            guard let host = mouseCaptureOverlayHost else { return }
+        private func hideMouseInteractionOverlay() {
+            guard let host = mouseInteractionOverlayHost else { return }
+            // A new confirmation during this fade gets its own host; this
+            // completion must never remove or clear a newer confirmation.
+            mouseInteractionOverlayHost = nil
             UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseIn, animations: {
                 host.view.alpha = 0
-            }, completion: { [weak self] _ in
+            }, completion: { _ in
                 host.view.removeFromSuperview()
-                self?.mouseCaptureOverlayHost = nil
             })
         }
         #endif
@@ -4151,7 +4172,7 @@ extension Ghostty {
                     guard let self else { return }
                     self.notifyInputDelegateOfExternalChange { /* buffer already reset */ }
                 }
-                activeToolbarView?.clearOneShotModifiers()
+                keyboardAccessoryController?.clearOneShotModifiers()
                 return
             }
 
@@ -4180,7 +4201,7 @@ extension Ghostty {
                    let localSession = session as? LocalShellSession,
                    !localSession.hasActiveEmbeddedSession {
                     localSession.interrupt()
-                    activeToolbarView?.clearOneShotModifiers()
+                    keyboardAccessoryController?.clearOneShotModifiers()
                     return
                 }
                 #endif
@@ -4188,7 +4209,7 @@ extension Ghostty {
                 // Try routing through Ghostty's key encoder first
                 if text.count == 1, let char = text.first,
                    sendViaGhosttyKeyEvent(char, modifiers: activeKeyboardModifiers) {
-                    activeToolbarView?.clearOneShotModifiers()
+                    keyboardAccessoryController?.clearOneShotModifiers()
                     return
                 }
 
@@ -4227,7 +4248,7 @@ extension Ghostty {
                 }
 
                 // Clear one-shot modifiers after applying (locked modifiers persist)
-                activeToolbarView?.clearOneShotModifiers()
+                keyboardAccessoryController?.clearOneShotModifiers()
             }
 
             // Apply active mod-tap virtual modifier when input is routed through UITextInput.
@@ -4314,7 +4335,7 @@ extension Ghostty {
             sendUserInput(data, documentMutation: .backspace(eligible: assistanceEligible))
 
             // Clear one-shot modifiers (backspace consumes them too)
-            activeToolbarView?.clearOneShotModifiers()
+            keyboardAccessoryController?.clearOneShotModifiers()
         }
         
         func handleSpecialKey(_ key: UIKey, characters: String, modifiers: UIKeyModifierFlags) -> String? {

@@ -9,6 +9,7 @@ final class TerminalTouchKeyboardInputView: UIInputView {
     var shouldHideAfterDocking: (() -> Bool)?
     var onDocked: (() -> Void)?
     var onHeightChanged: (() -> Void)?
+    var onAppearanceChanged: (() -> Void)?
     var onNativePlacementChanged: ((TerminalTouchKeyboardModel.Placement) -> Void)?
     private(set) var isNativeFloating = false
     private var suppressed = false
@@ -77,7 +78,10 @@ final class TerminalTouchKeyboardInputView: UIInputView {
         heightConstraint.priority = .init(999)
         heightConstraint.isActive = true
         keyboard.useContainerSizing()
-        keyboard.onAppearanceChanged = { [weak self] in self?.updateAppearance() }
+        keyboard.onAppearanceChanged = { [weak self] in
+            self?.updateAppearance()
+            self?.onAppearanceChanged?()
+        }
         // The root tracks content height itself, whether or not a terminal
         // currently owns the keyboard. Settings can change it while unowned.
         keyboard.onHeightChanged = { [weak self] in
@@ -335,7 +339,7 @@ final class TerminalTouchKeyboardInputView: UIInputView {
     }
 
     func attachKeyboard() {
-        guard keyboard.superview !== self else { return }
+        guard !keyboard.isToolbarOnly, keyboard.superview !== self else { return }
         // The system container can remain floating while our content lives in
         // the app overlay. Do not request docked height when reattaching to it.
         keyboard.setFloating(isNativeFloating)
@@ -349,6 +353,79 @@ final class TerminalTouchKeyboardInputView: UIInputView {
             keyboard.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
         updateHeight()
+    }
+}
+
+/// The compact toolbar has its own host so a native floating input controller
+/// can remain suppressed without inheriting its old card size or placement.
+/// The window's single keyboard moves here only after UIKit mounts this host.
+final class TerminalTouchKeyboardToolbarInputView: UIInputView {
+    private let keyboard: TerminalTouchKeyboardView
+    private var heightConstraint: NSLayoutConstraint!
+    var isActive = false
+    private(set) var reservedBottomInset: CGFloat = 0
+
+    init(keyboard: TerminalTouchKeyboardView) {
+        self.keyboard = keyboard
+        super.init(frame: .zero, inputViewStyle: .default)
+        allowsSelfSizing = true
+        translatesAutoresizingMaskIntoConstraints = false
+        heightConstraint = heightAnchor.constraint(equalToConstant: intrinsicContentSize.height)
+        heightConstraint.priority = .init(999)
+        heightConstraint.isActive = true
+        updateAppearance()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: keyboard.toolbarContentHeight + reservedBottomInset)
+    }
+
+    @discardableResult
+    func setReservedBottomInset(_ value: CGFloat) -> Bool {
+        guard reservedBottomInset != value else { return false }
+        reservedBottomInset = value
+        updateHeight()
+        return true
+    }
+
+    func updateHeight() {
+        let height = intrinsicContentSize.height
+        guard heightConstraint.constant != height else { return }
+        heightConstraint.constant = height
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+    func updateAppearance() {
+        backgroundColor = keyboard.containerBackgroundColor
+        overrideUserInterfaceStyle = keyboard.overrideUserInterfaceStyle
+    }
+
+    func attachKeyboard() {
+        guard window != nil, isActive, keyboard.isToolbarOnly, keyboard.superview !== self else { return }
+        keyboard.removeFromSuperview()
+        keyboard.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(keyboard)
+        NSLayoutConstraint.activate([
+            keyboard.leadingAnchor.constraint(equalTo: leadingAnchor),
+            keyboard.trailingAnchor.constraint(equalTo: trailingAnchor),
+            keyboard.topAnchor.constraint(equalTo: topAnchor),
+            keyboard.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+        keyboard.isHidden = false
+        updateAppearance()
+        updateHeight()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { attachKeyboard() }
+    }
+
+    override func layoutSubviews() {
+        attachKeyboard()
+        super.layoutSubviews()
     }
 }
 

@@ -329,6 +329,12 @@ extension MainView {
             paneToClose = focused
         }
 
+        // An automatic session-end may win the race while the confirmation is
+        // visible. Dismiss the stale dialog before tearing down its target.
+        if pendingClosePaneID == paneToClose.uuid {
+            pendingClosePaneID = nil
+        }
+
         // tmux control mode: route a tmux PANE close to the tmux server. tmux
         // tears the pane down and emits a topology change; the reconcile's prune
         // removes the pane view (and the tab/window when it was the last pane).
@@ -530,6 +536,51 @@ extension MainView {
                 setupTitleObservation(at: tabIndex)
             }
         }
+    }
+
+    /// Applies the optional confirmation only to an explicit Close Tab/Split
+    /// command and only while another pane will remain in the tab. Automatic
+    /// session-end teardown calls `closeSplit` directly and never reaches here.
+    func requestUserCloseSplit(targeting targetPane: SplitPaneView? = nil) {
+        let resolved: (tabIndex: Int, pane: SplitPaneView)?
+        if let targetPane,
+           let tabIndex = terminals.firstIndex(where: {
+               $0.splitTree.contains(where: { $0 === targetPane })
+           }) {
+            resolved = (tabIndex, targetPane)
+        } else if terminals.indices.contains(selectedTabIndex),
+                  let focusedPane = terminals[selectedTabIndex].focusedPane {
+            resolved = (selectedTabIndex, focusedPane)
+        } else {
+            resolved = nil
+        }
+
+        guard let resolved else {
+            closeSplit(targeting: targetPane)
+            return
+        }
+        guard PaneCloseConfirmationPolicy.shouldConfirm(
+            isEnabled: SettingsStore.shared.value(Settings.Window.confirmBeforeClosingPane),
+            paneCount: terminals[resolved.tabIndex].splitTree.count
+        ) else {
+            closeSplit(targeting: resolved.pane)
+            return
+        }
+
+        pendingClosePaneID = resolved.pane.uuid
+    }
+
+    /// Closes the pane captured when the confirmation was requested, rather
+    /// than whichever pane happens to be focused when the user responds.
+    func confirmPendingPaneClose() {
+        guard let paneID = pendingClosePaneID else { return }
+        pendingClosePaneID = nil
+
+        guard let pane = terminals.lazy.compactMap({ tab in
+            tab.splitTree.first(where: { $0.uuid == paneID })
+        }).first else { return }
+
+        closeSplit(targeting: pane)
     }
 
     /// Closes the current window/scene properly

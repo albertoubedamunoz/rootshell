@@ -191,7 +191,11 @@ extension MainView {
             // events close the dying tab, not whichever tab the user has since
             // switched to. nil object → fall back to the focused split.
             let target = notification.object as? SplitPaneView
-            self.closeSplit(targeting: target)
+            if notification.userInfo?[GhosttyCommandRouting.userInitiatedCloseSplitKey] as? Bool == true {
+                self.requestUserCloseSplit(targeting: target)
+            } else {
+                self.closeSplit(targeting: target)
+            }
         }
 
         observerBag.observeOnMainActor(.vncToggleFullScreen) { [self] notification in

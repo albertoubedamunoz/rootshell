@@ -178,6 +178,7 @@ extension SettingsSearchDestination {
                             "two fingers", "chevron", "hide keyboard", "collapse toolbar", "modifiers",
                             "joystick", "space", "cursor", "floating keyboard", "dock", "swipe", "pinch",
                             "font size", "selection", "scroll mode", "context menu", "new connection",
+                            "right click", "right-click", "secondary click", "loupe", "magnifier",
                             "tab expose", "pull down", "previews", "sidebar", "split", "pane",
                             "screen sharing", "pencil"])
         case .swipeGestures:
@@ -702,6 +703,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["meta", "modifier", "keyboard"]),
 
             // MARK: Terminal › Gestures (inline)
+            row("gesture-loupe-right-click", String(localized: "Right click with the loupe"), in: .gestureHelp, icon: "hand.tap",
+                keywords: ["right click", "right-click", "secondary click", "loupe", "magnifier", "hold", "touch", "no mouse"], available: isTouch),
             row("tab-expose-gesture", String(localized: "Pull Down for Tab Exposé"), in: .terminal, icon: "rectangle.stack",
                 keywords: ["expose", "tab previews", "pull down", "swipe down", "gesture"], available: !isVisionOS),
             row("two-finger-long-press", String(localized: "Two-Finger Long Press"), in: .terminal, icon: "hand.point.up.left",

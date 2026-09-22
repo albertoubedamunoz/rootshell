@@ -317,10 +317,10 @@ class KeyboardAccessoryView: UIInputView {
         return true
     }
 
-    func setBottomEdgeHomeGestureProtectionEnabled(_ enabled: Bool) {
-        toolbarView.setDefersKeysForBottomEdgeGesture(enabled)
+    func setInteractionMode(_ mode: KeyboardToolbarInteractionMode) {
+        toolbarView.setInteractionMode(mode)
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
-        bottomEdgePanGesture?.isEnabled = enabled
+        bottomEdgePanGesture?.isEnabled = mode == .screenEdge
         #endif
     }
 

@@ -9,6 +9,10 @@ import Foundation
 
 enum GhosttyCommandRouting {
     static let windowSceneSessionIDKey = "windowSceneSessionID"
+    /// Marks Close Tab/Split notifications that came from a keyboard or menu
+    /// command. Session-end notifications intentionally omit this key so they
+    /// can tear down panes without presenting user confirmation UI.
+    static let userInitiatedCloseSplitKey = "userInitiatedCloseSplit"
     static let paneCommandNotification = Notification.Name("com.rootshell.menuPaneCommand")
     static let paneCommandKey = "paneCommand"
 

@@ -193,7 +193,10 @@ extension UIApplication {
     }
 
     @objc func menuCloseSplit(_ sender: Any?) {
-        ghostty_postNotification(.closeSplit)
+        ghostty_postNotification(
+            .closeSplit,
+            userInfo: [GhosttyCommandRouting.userInitiatedCloseSplitKey: true]
+        )
     }
 
     @objc func menuToggleSplitZoom(_ sender: Any?) {

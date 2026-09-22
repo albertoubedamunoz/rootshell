@@ -138,6 +138,9 @@ struct MainView: View {
     @State var pendingTmuxCloseTabID: UUID?
     /// "Ask Each Time" close of a herdr control-mode tab.
     @State var pendingHerdrCloseTabID: UUID?
+    /// User-requested pane close awaiting confirmation. The UUID preserves the
+    /// original target if focus or tab selection changes while the dialog is up.
+    @State var pendingClosePaneID: UUID?
     @State var pendingNewTabRequest: NewTabRequest?
     @State var unavailableNewTabRequest: NewTabRequest?
     @State var authenticationRetryRequest: SSHAuthenticationRetryRequest?

@@ -32,6 +32,7 @@ final class TerminalTouchKeyboardWindowState {
 
     private(set) lazy var keyboard: TerminalTouchKeyboardView = makeKeyboard()
     private(set) lazy var input: TerminalTouchKeyboardInputView = makeInput()
+    private(set) lazy var toolbarInput = TerminalTouchKeyboardToolbarInputView(keyboard: keyboard)
     private(set) lazy var controller = TerminalTouchKeyboardInputController(keyboardInput: input)
 
     private init(window: UIWindow) { self.window = window }
@@ -110,7 +111,11 @@ final class TerminalTouchKeyboardWindowState {
     private func makeInput() -> TerminalTouchKeyboardInputView {
         let input = TerminalTouchKeyboardInputView(keyboard: keyboard)
         input.hostSize = { [weak self] in self?.window?.bounds.size ?? .zero }
-        input.onHeightChanged = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.heightChanged) }
+        input.onHeightChanged = { [weak self] in
+            self?.toolbarInput.updateHeight()
+            self?.owner?.handleTouchKeyboardEvent(.heightChanged)
+        }
+        input.onAppearanceChanged = { [weak self] in self?.toolbarInput.updateAppearance() }
         input.onNativePlacementChanged = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.nativePlacementChanged($0)) }
         input.shouldHideAfterDocking = { [weak self] in self?.owner?.touchKeyboardShouldHideAfterDocking == true }
         input.onDocked = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.docked) }
@@ -211,11 +216,15 @@ final class TerminalFloatingKeyboardOverlay: UIView {
     }
 
     func detach() {
-        keyboard.cancelInteraction(preservingModifiers: true)
-        keyboard.onFloatingDrag = nil
-        keyboard.onFloatingDragCancelled = nil
-        keyboard.onFloatingNudge = nil
-        keyboard.removeFromSuperview()
+        // UIKit may already have mounted the compact toolbar host. A stale
+        // overlay must not remove the keyboard from its new container.
+        if keyboard.superview === self {
+            keyboard.cancelInteraction(preservingModifiers: true)
+            keyboard.onFloatingDrag = nil
+            keyboard.onFloatingDragCancelled = nil
+            keyboard.onFloatingNudge = nil
+            keyboard.removeFromSuperview()
+        }
         removeFromSuperview()
     }
 }

@@ -20,6 +20,16 @@ extension MainView {
 
     // MARK: - Sheet Presentation Predicates
 
+    private var pendingClosePaneExists: Bool {
+        // Avoid observing every tab's split tree during ordinary rendering.
+        // Topology changes matter here only while a confirmation is pending.
+        guard pendingClosePaneID != nil else { return false }
+        return PaneCloseConfirmationPolicy.targetExists(
+            pendingID: pendingClosePaneID,
+            livePaneIDs: terminals.flatMap { $0.splitTree.map(\.uuid) }
+        )
+    }
+
     /// Whether the pending "Ask Each Time" tab is already hidden — used to omit
     /// the Hide Tab dialog button (hiding it is a no-op). (id=tmux-tab-close-action)
     private var pendingTmuxCloseTabIsHidden: Bool {
@@ -179,6 +189,12 @@ extension MainView {
                 ConnectionInfoSheet(info: info)
                     .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
             }
+            // Keep the dialog's view builder outside this large modifier chain.
+            .modifier(PaneCloseDialogModifier(
+                pendingPaneID: $pendingClosePaneID,
+                targetExists: pendingClosePaneExists,
+                confirm: { confirmPendingPaneClose() }
+            ))
             // "Ask Each Time" tmux tab-close action sheet. (id=tmux-tab-close-action)
             .confirmationDialog(
                 "Close tmux Tab",
@@ -502,6 +518,36 @@ private struct HerdrCloseTabDialogModifier: ViewModifier {
                 .keyboardShortcut(.cancelAction)
         } message: {
             Text("Closing removes the tab from the herdr session on the host. Detaching leaves the session running and returns the gateway tab to its shell.")
+        }
+    }
+}
+
+/// Optional confirmation for a user-requested close in a multi-pane tab.
+private struct PaneCloseDialogModifier: ViewModifier {
+    @Binding var pendingPaneID: UUID?
+    let targetExists: Bool
+    let confirm: () -> Void
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Close Pane?",
+            isPresented: Binding(
+                get: { targetExists },
+                set: { if !$0 { pendingPaneID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Close Pane", role: .destructive, action: confirm)
+                .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) { pendingPaneID = nil }
+                .keyboardShortcut(.cancelAction)
+        } message: {
+            Text("Closing this pane will end its current session.")
+        }
+        .onChange(of: targetExists) { _, exists in
+            // Server reconciliation and tab removal bypass closeSplit.
+            // Observe the live tree so those paths dismiss the dialog too.
+            if !exists { pendingPaneID = nil }
         }
     }
 }

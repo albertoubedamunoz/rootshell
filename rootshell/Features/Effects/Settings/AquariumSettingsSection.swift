@@ -27,8 +27,8 @@ extension AquariumConfiguration.Quality {
 
 struct AquariumSettingsSection: View {
     @ObservedObject var effect: AquariumEffect
+    let onShowcase: () -> Void
     let onReset: () -> Void
-    @State private var showShowcase = false
 
     private func binding<Value>(_ key: WritableKeyPath<AquariumConfiguration, Value>) -> Binding<Value> {
         Binding(get: { effect.configuration[keyPath: key] }, set: { effect.configuration[keyPath: key] = $0 })
@@ -81,9 +81,7 @@ struct AquariumSettingsSection: View {
                 }
             }
             .themedRow()
-            Button {
-                showShowcase = true
-            } label: {
+            Button(action: onShowcase) {
                 Label("Full-screen Aquarium Preview", systemImage: "arrow.up.left.and.arrow.down.right")
             }
             .themedRow()
@@ -91,28 +89,6 @@ struct AquariumSettingsSection: View {
             Text("Aquarium Presentation")
         } footer: {
             Text("Reading Protection softens the effect behind central text. Cinematic targets 60 fps; other modes target 30 fps. Battery Saver lowers quality automatically. Reduce Motion shows a still aquarium.")
-        }
-        .sheet(isPresented: $showShowcase) {
-            NavigationStack {
-                ZStack(alignment: .bottom) {
-                    (Color(hex: effect.themeColors.background) ?? .black)
-                    AquariumView(effect: effect, showcase: true)
-                        .blendMode(effect.aquariumPalette.isLight ? .multiply : .plusLighter)
-                    Text("Showcase preview · terminal intensity is unchanged")
-                        .font(.caption)
-                        .padding(10)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .padding()
-                }
-                .ignoresSafeArea(edges: .bottom)
-                .navigationTitle("Aquarium")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { showShowcase = false }
-                    }
-                }
-            }
         }
         Section {
             Button(action: onReset) {

@@ -15,258 +15,6 @@ import UIKit
 import Combine
 import os.log
 
-// MARK: - Entry Edge
-
-/// Which screen edge a jellyfish enters from
-enum JellyfishEntryEdge: Sendable {
-    case left
-    case right
-}
-
-// MARK: - Jellyfish Model
-
-/// A single jellyfish in the water. Position, bell pose, and pulse are all
-/// closed-form functions of frame time; the tentacle/oral-arm chains are the
-/// one piece of simulated state, integrated by
-/// `JellyfishVisitState.stepTentacles(frameTime:)`.
-struct Jellyfish: Identifiable, Sendable {
-    let id: UUID
-
-    // Path across the screen
-    let spawnFrameTime: TimeInterval    // Animation-clock time when this jelly starts (includes stagger)
-    let entryEdge: JellyfishEntryEdge
-    let entryY: Double                  // Entry height (fraction of view height)
-    let exitYDrift: Double              // Height change over the crossing (fraction of view height)
-    let sinksOut: Bool                  // Exits by sinking out the bottom instead of crossing fully
-    let crossingDuration: Double        // Seconds to cross the screen (speed-adjusted at spawn)
-
-    // Wander: incommensurate sines (golden-ratio frequency trick) at much
-    // lower frequencies than the butterflies — an oceanic sway, not a flutter
-    let wanderFreqX: Double             // Hz
-    let wanderFreqY: Double             // Hz, ~freqX * golden ratio
-    let wanderPhaseX: Double            // 0-2pi
-    let wanderPhaseY: Double            // 0-2pi
-    let wanderAmpX: Double              // Fraction of view width
-    let wanderAmpY: Double              // Fraction of view height
-
-    // Pulse-swim rhythm: the bell contracts quickly and relaxes slowly, and
-    // the jelly lunges forward on the contraction then coasts back — the
-    // pulse-coast coupling is what makes it read as swimming, not floating
-    let pulsePeriod: Double             // Seconds per contract+relax cycle
-    let pulsePhase0: Double             // 0-2pi
-    let surgeAmplitude: Double          // Points of along-lane lunge per pulse
-
-    // Anatomy (fixed at spawn)
-    let bellRadius: CGFloat             // Points
-    let tentacleCount: Int
-    let tentacleNodesPer: Int
-    let oralArmCount: Int
-    let oralArmNodesPer: Int
-    let tentacleAnchorX: [Double]       // Unit-space rim x per tentacle
-    let oralArmAnchorX: [Double]        // Unit-space underside x per oral arm
-    let colorIndex: Int                 // Per-jelly hue variation
-
-    // Rare bioluminescent shimmer: pre-scheduled ripple start times so the
-    // renderer stays a pure function of frame time
-    let shimmerTimes: [TimeInterval]
-    let shimmerDuration: Double
-
-    // Calm drifting with a barely-perceptible breathe instead of the
-    // contraction snap and lunge. Set under Reduce Motion.
-    var calmDrift: Bool
-
-    // MARK: Tentacle chains (per-frame simulation state)
-    //
-    // World-space node positions, flattened [chain * nodesPer + node].
-    // Allocated once at spawn and mutated strictly in place afterwards.
-    var tentacleNodes: [CGPoint]
-    var oralArmNodes: [CGPoint]
-    /// Animation-clock time of the most recent integration step (nil until
-    /// first integrated frame — keeps staggered, not-yet-born jellies from
-    /// taking a giant catch-up step on birth)
-    var lastSimTime: TimeInterval? = nil
-
-    // MARK: Avoidance (per-frame simulation state)
-    //
-    // Spring-damped displacement off the scripted lane, steering the bell
-    // away from terminal text and from other bells. Integrated in
-    // stepTentacles; the chains trail the displaced bell automatically via
-    // bellTransform.
-    var avoidOffset: CGVector = .zero
-    var avoidVel: CGVector = .zero
-
-    /// Portion of the pulse cycle spent contracting
-    private static let contractFraction = 0.32
-    /// Calm drift scales the bell deformation down to a gentle breathe
-    private static let calmBreathe = 0.15
-
-    // MARK: Pulse
-
-    /// Bell contraction amount (0 = relaxed, 1 = fully contracted).
-    /// Asymmetric: fast contraction, slow relaxation, C1-continuous.
-    func pulseValue(at frameTime: TimeInterval) -> Double {
-        let elapsed = frameTime - spawnFrameTime
-        let u = positiveMod(elapsed / pulsePeriod + pulsePhase0 / (2 * .pi), 1.0)
-        if u < Self.contractFraction {
-            return Self.smootherstep(0, Self.contractFraction, u)
-        }
-        return 1 - Self.smootherstep(Self.contractFraction, 1, u)
-    }
-
-    /// Along-lane surge displacement (points): a quick forward lunge during
-    /// the contraction, falling slowly back while coasting. Periodic and
-    /// bounded, so the jelly never drifts off its lane. The small lag makes
-    /// the thrust visibly follow the contraction.
-    func surgeOffset(at frameTime: TimeInterval) -> Double {
-        surgeAmplitude * (pulseValue(at: frameTime - 0.12 * pulsePeriod) - 0.5)
-    }
-
-    /// Bell deformation driven by the pulse: contraction narrows and
-    /// elongates the dome. Splayed tentacles emerge from the rim anchors
-    /// riding this transform.
-    func bellSquash(at frameTime: TimeInterval) -> (x: Double, y: Double) {
-        let p = pulseValue(at: frameTime) * (calmDrift ? Self.calmBreathe : 1.0)
-        return (x: 1 - 0.22 * p, y: 1 + 0.15 * p)
-    }
-
-    // MARK: Progress
-
-    /// Crossing progress (0 = entry edge, can exceed 1 for exit detection)
-    func progress(at frameTime: TimeInterval) -> Double {
-        (frameTime - spawnFrameTime) / crossingDuration
-    }
-
-    /// Whether the jellyfish has fully left the screen (crossed, or sunk out
-    /// the bottom with its trailing tentacles)
-    func isComplete(at frameTime: TimeInterval, in size: CGSize) -> Bool {
-        if progress(at: frameTime) > 1.05 { return true }
-        if sinksOut {
-            let p = position(at: frameTime, in: size)
-            return p.y > size.height + Double(bellRadius) * 8
-        }
-        return false
-    }
-
-    // MARK: Position
-
-    func position(at frameTime: TimeInterval, in size: CGSize) -> CGPoint {
-        let elapsed = frameTime - spawnFrameTime
-        let prog = elapsed / crossingDuration
-
-        // Offscreen margin covers the bell plus the full trailing chain
-        // length so neither entry nor exit ever pops
-        let margin = wanderAmpX * size.width + Double(bellRadius) * 8
-        let startX = entryEdge == .left ? -margin : size.width + margin
-        let endX = entryEdge == .left ? size.width + margin : -margin
-
-        let baseX = startX + (endX - startX) * prog
-        let baseY = size.height * (entryY + exitYDrift * prog)
-
-        let wx = wanderAmpX * size.width * sin(2 * .pi * wanderFreqX * elapsed + wanderPhaseX)
-        let wy = wanderAmpY * size.height * sin(2 * .pi * wanderFreqY * elapsed + wanderPhaseY)
-
-        // Pulse-coast surge projected along the lane direction
-        let laneDX = endX - startX
-        let laneDY = exitYDrift * size.height
-        let laneLen = max((laneDX * laneDX + laneDY * laneDY).squareRoot(), 1)
-        let surge = surgeOffset(at: frameTime)
-
-        return CGPoint(x: baseX + wx + surge * laneDX / laneLen,
-                       y: baseY + wy + surge * laneDY / laneLen)
-    }
-
-    /// Lane-only position: the crossing baseline without the wander and
-    /// pulse-surge micro-motion (keep the base math in lockstep with
-    /// `position(at:in:)`). The avoidance field is sampled here — sampled at
-    /// the full scripted position, the surge/wander would pump a narrow text
-    /// corridor's steep opposing gradients at pulse frequency and the
-    /// offset spring would echo it as a wiggle instead of a lean.
-    func lanePosition(at frameTime: TimeInterval, in size: CGSize) -> CGPoint {
-        let prog = (frameTime - spawnFrameTime) / crossingDuration
-        let margin = wanderAmpX * size.width + Double(bellRadius) * 8
-        let startX = entryEdge == .left ? -margin : size.width + margin
-        let endX = entryEdge == .left ? size.width + margin : -margin
-        return CGPoint(x: startX + (endX - startX) * prog,
-                       y: size.height * (entryY + exitYDrift * prog))
-    }
-
-    /// Scripted position plus the text-avoidance displacement — the point
-    /// everything visible hangs off (bell transform, culling)
-    func renderPosition(at frameTime: TimeInterval, in size: CGSize) -> CGPoint {
-        let p = position(at: frameTime, in: size)
-        return CGPoint(x: p.x + avoidOffset.dx, y: p.y + avoidOffset.dy)
-    }
-
-    // MARK: Heading
-
-    /// Scripted velocity (points/sec) via central finite difference of the
-    /// smooth position function
-    func scriptedVelocity(at frameTime: TimeInterval, in size: CGSize) -> CGVector {
-        let dt = 0.08
-        let p0 = position(at: frameTime - dt, in: size)
-        let p1 = position(at: frameTime + dt, in: size)
-        return CGVector(dx: (p1.x - p0.x) / (2 * dt), dy: (p1.y - p0.y) / (2 * dt))
-    }
-
-    /// Unit bell space → world: rim center at the origin, apex at (0,-1).
-    /// Shared by the tentacle physics (anchor placement) and the renderer so
-    /// the two can never drift apart.
-    func bellTransform(at frameTime: TimeInterval, in size: CGSize) -> CGAffineTransform {
-        let p = renderPosition(at: frameTime, in: size)
-        let squash = bellSquash(at: frameTime)
-        // Medusae swim bell-first: the apex points into the direction of
-        // travel, with heavy vertical damping so the tilt stays gentle
-        // through the slow wander. Blending in the avoidance velocity makes
-        // an evading bell lean into its drift instead of side-slipping —
-        // but capped to a fraction of the scripted speed, so it can only
-        // tilt (~20° max), never swing through vertical: uncapped, an
-        // avoidance push against the slow cruise dominated the atan2 and
-        // visibly rotated the head sideways.
-        let v = scriptedVelocity(at: frameTime, in: size)
-        var ax = avoidVel.dx * 0.5
-        var ay = avoidVel.dy * 0.5
-        let speed = max((v.dx * v.dx + v.dy * v.dy).squareRoot(), 4)
-        let alen = (ax * ax + ay * ay).squareRoot()
-        let cap = 0.35 * speed
-        if alen > cap {
-            ax *= cap / alen
-            ay *= cap / alen
-        }
-        let heading = atan2((v.dy + ay) * 0.35, v.dx + ax)
-        return CGAffineTransform(translationX: p.x, y: p.y)
-            .rotated(by: heading + .pi / 2)
-            .scaledBy(x: bellRadius * squash.x, y: bellRadius * squash.y)
-    }
-
-    // MARK: Shimmer
-
-    /// Active bioluminescent ripple, if any. `head` runs 0 (rim) → 1
-    /// (tentacle tip); `strength` fades the highlight in and out.
-    func shimmer(at frameTime: TimeInterval) -> (head: Double, strength: Double)? {
-        for start in shimmerTimes {
-            let t = frameTime - start
-            if t >= 0, t < shimmerDuration {
-                let head = t / shimmerDuration
-                return (head, sin(.pi * head))
-            }
-        }
-        return nil
-    }
-
-    // MARK: Helpers
-
-    private func positiveMod(_ value: Double, _ m: Double) -> Double {
-        let r = value.truncatingRemainder(dividingBy: m)
-        return r < 0 ? r + m : r
-    }
-
-    /// Smootherstep for C2-continuous transitions
-    static func smootherstep(_ edge0: Double, _ edge1: Double, _ x: Double) -> Double {
-        let t = max(0, min(1, (x - edge0) / (edge1 - edge0)))
-        return t * t * t * (t * (t * 6 - 15) + 10)
-    }
-}
-
 // MARK: - Visit State
 
 /// Visit lifecycle manager (modeled on `ButterflyVisitState`): schedules
@@ -280,14 +28,17 @@ final class JellyfishVisitState: ObservableObject {
 
     // MARK: Published State
 
-    /// The active jellies. Deliberately NOT `@Published`: the only reader is
-    /// the `Canvas` inside the `TimelineView`, which already redraws every
-    /// frame from `timeline.date` while a visit is in progress. Publishing
-    /// this would fire `objectWillChange` on every per-frame tentacle write
+    /// The active jellies. Deliberately NOT `@Published`: the Metal display
+    /// loop (or fallback Canvas timeline) already redraws every frame while
+    /// a visit is in progress. Publishing would fire `objectWillChange` on
+    /// every per-frame tentacle write
     /// in `stepTentacles`, causing redundant SwiftUI body invalidations on
     /// top of the timeline tick. `isIdle` (below) is the sole reactive
     /// signal needed. Mutated in place (no per-frame copy/allocation).
     private(set) var jellies: [Jellyfish] = []
+
+    /// Bound geometry and simulation work even with repeated Visit Now taps.
+    static let maximumPopulation = 8
 
     /// True when no jellies are on screen; drives the paused render timeline.
     @Published private(set) var isIdle = true
@@ -473,16 +224,20 @@ final class JellyfishVisitState: ObservableObject {
         spawnVisit(ignoringCoverage: true)
     }
 
+    func setReduceMotion(_ enabled: Bool) {
+        for index in jellies.indices { jellies[index].calmDrift = enabled }
+    }
+
     // MARK: - Tentacle Physics
 
     /// Tunable constants for the tentacle-chain simulation. Kept together
     /// for easy on-device tuning.
     private enum ChainConstants {
-        static let segLenFactor: Double = 0.50      // tentacle segment length ÷ bell radius
-        static let armSegLenFactor: Double = 0.68   // oral arms are longer and lazier
+        static let segLenFactor: Double = 0.82      // fine marginal tentacles trail furthest
+        static let armSegLenFactor: Double = 0.32   // shorter, folded central oral arms
         static let stiffness: Double = 12           // exponential follow rate (1/s)
         static let calmStiffness: Double = 30       // Reduce Motion: near-rigid trailing
-        static let swayAmp: Double = 5              // pt/s lateral water-current sway
+        static let swayAmp: Double = 9              // pt/s lateral water-current sway
         static let swayFreq: Double = 0.22          // Hz
         static let sinkBias: Double = 6             // pt/s downward settle, growing toward the tip
         static let dtClamp: Double = 0.10           // max integration step (s)
@@ -527,6 +282,7 @@ final class JellyfishVisitState: ObservableObject {
             // that would retain the node arrays and force a COW copy of
             // them on every write below
             let bellRadius = Double(jellies[i].bellRadius)
+            let original = jellies[i].usesOriginalRendering
             let calm = jellies[i].calmDrift
             let phase0 = jellies[i].pulsePhase0
             let seeding = jellies[i].lastSimTime == nil
@@ -539,18 +295,22 @@ final class JellyfishVisitState: ObservableObject {
             let transform = jellies[i].bellTransform(at: frameTime, in: size)
             let stiffness = calm ? K.calmStiffness : K.stiffness
             let swayScale = calm ? 0.25 : 1.0
+            let swayAmp = original ? 5.0 : K.swayAmp
 
             func stepChains(_ kp: WritableKeyPath<Jellyfish, [CGPoint]>,
-                            anchors: [Double], anchorY: Double,
+                            count: Int, oral: Bool,
                             nodesPer: Int, segLen: Double) {
-                for chain in anchors.indices {
-                    var parent = CGPoint(x: anchors[chain], y: anchorY).applying(transform)
+                for chain in 0..<count {
+                    let anchor = oral ? CGPoint(x: jellies[i].oralArmAnchorX[chain], y: 0.08)
+                        : jellies[i].tentacleAnchor(chain, at: frameTime)
+                    var parent = anchor.applying(transform)
                     let chainPhase = phase0 + Double(chain) * 1.7
+                    let segmentLength = original ? segLen : segLen * (0.90 + 0.16 * cos(chainPhase))
                     for k in 0..<nodesPer {
                         let idx = chain * nodesPer + k
                         if seeding {
                             // Born hanging straight below the anchor
-                            let seeded = CGPoint(x: parent.x, y: parent.y + segLen)
+                            let seeded = CGPoint(x: parent.x, y: parent.y + segmentLength)
                             jellies[i][keyPath: kp][idx] = seeded
                             parent = seeded
                             continue
@@ -558,18 +318,22 @@ final class JellyfishVisitState: ObservableObject {
                         var p = jellies[i][keyPath: kp][idx]
                         var dx = p.x - parent.x
                         var dy = p.y - parent.y
+                        // Tissue emerges down from the bell before water
+                        // drag bends it into the wake. Without this root
+                        // tangent, a fast preview cuts strings across the rim.
+                        if k == 0 && !original { dx = transform.c; dy = transform.d }
                         let len = (dx * dx + dy * dy).squareRoot()
                         if len < 0.001 {
-                            dx = 0; dy = segLen
+                            dx = 0; dy = segmentLength
                         } else {
-                            dx *= segLen / len; dy *= segLen / len
+                            dx *= segmentLength / len; dy *= segmentLength / len
                         }
                         // Distance-constrained target, direction preserved
                         let follow = 1 - exp(-dt * stiffness)
                         p.x += (parent.x + dx - p.x) * follow
                         p.y += (parent.y + dy - p.y) * follow
                         // Water current + settle, phase-offset down the chain
-                        p.x += K.swayAmp * sin(2 * .pi * K.swayFreq * frameTime + chainPhase + Double(k) * 0.8) * dt * swayScale
+                        p.x += swayAmp * sin(2 * .pi * K.swayFreq * frameTime + chainPhase + Double(k) * 0.8) * dt * swayScale
                         p.y += K.sinkBias * dt * Double(k) / Double(nodesPer)
                         jellies[i][keyPath: kp][idx] = p
                         parent = p
@@ -578,13 +342,13 @@ final class JellyfishVisitState: ObservableObject {
             }
 
             stepChains(\.tentacleNodes,
-                       anchors: jellies[i].tentacleAnchorX, anchorY: 0.02,
+                       count: jellies[i].tentacleCount, oral: false,
                        nodesPer: jellies[i].tentacleNodesPer,
-                       segLen: bellRadius * K.segLenFactor)
+                       segLen: bellRadius * (original ? 0.50 : K.segLenFactor))
             stepChains(\.oralArmNodes,
-                       anchors: jellies[i].oralArmAnchorX, anchorY: 0.08,
+                       count: jellies[i].oralArmCount, oral: true,
                        nodesPer: jellies[i].oralArmNodesPer,
-                       segLen: bellRadius * K.armSegLenFactor)
+                       segLen: bellRadius * (original ? 0.68 : K.armSegLenFactor))
 
             jellies[i].lastSimTime = frameTime
         }
@@ -807,6 +571,8 @@ final class JellyfishVisitState: ObservableObject {
         var count = roll < 0.55 ? 1 : (roll < 0.90 ? 2 : 3)
         if effect.moreJellyfish { count += 1 }
         if lowPower || previewMode { count = 1 }
+        count = min(count, Self.maximumPopulation - jellies.count)
+        guard count > 0 else { return }
 
         // The group shares an entry edge; separated lanes plus long staggers
         // keep the slow drifters from overlapping for a whole crossing. The
@@ -911,23 +677,37 @@ final class JellyfishVisitState: ObservableObject {
         let crossingDuration = (previewMode
             ? Double.random(in: 18...30)
             : Double.random(in: 45...120)) / speed
-        let bellRadius = previewMode ? CGFloat.random(in: 14...20) : CGFloat.random(in: 26...44)
+        let visualDepth = Double.random(in: 0...1)
+        let original = effect?.renderingStyle == .original
+        let previewRadius = min(max(min(viewSize.height * 0.12, viewSize.width * 0.13), 18), 72)
+        let bellRadius = original
+            ? (previewMode ? CGFloat.random(in: 14...20) : CGFloat.random(in: 26...44))
+            : (previewMode ? previewRadius : CGFloat.random(in: 34...58)) * (0.78 + visualDepth * 0.22)
+        // Show the creature immediately in settings, including the full-size
+        // showcase, instead of spending its first ten seconds offscreen.
+        let spawnFrameTime = previewMode ? spawnFrameTime - crossingDuration * 0.42 : spawnFrameTime
 
-        let tentacleCount = Int.random(in: 6...10)
+        let tentacleCount = original ? Int.random(in: 6...10) : Int.random(in: 10...16)
         let tentacleNodesPer = 7
-        let oralArmCount = Int.random(in: 2...4)
+        let oralArmCount = original ? Int.random(in: 2...4) : 4
         let oralArmNodesPer = 9
 
-        // Rim anchors spread evenly with a little jitter; oral arms cluster
-        // under the bell center
-        var anchors: [Double] = []
+        // Original Canvas anatomy spreads fewer filaments along a flat rim.
+        // Enhanced filaments encircle the bell; oral arms cluster centrally.
+        var angles: [Double] = []
+        var originalAnchors: [Double] = []
         for i in 0..<tentacleCount {
-            let t = Double(i) / Double(tentacleCount - 1)
-            anchors.append(-0.85 + 1.70 * t + Double.random(in: -0.04...0.04))
+            if original {
+                let t = Double(i) / Double(tentacleCount - 1)
+                originalAnchors.append(-0.85 + 1.70 * t + Double.random(in: -0.04...0.04))
+            } else {
+                let t = Double(i) / Double(tentacleCount)
+                angles.append(2 * .pi * t + Double.random(in: -0.035...0.035))
+            }
         }
         var armAnchors: [Double] = []
         for i in 0..<oralArmCount {
-            let t = oralArmCount == 1 ? 0.5 : Double(i) / Double(oralArmCount - 1)
+            let t = Double(i) / Double(oralArmCount - 1)
             armAnchors.append((t - 0.5) * 0.35 + Double.random(in: -0.03...0.03))
         }
 
@@ -961,9 +741,11 @@ final class JellyfishVisitState: ObservableObject {
             tentacleNodesPer: tentacleNodesPer,
             oralArmCount: oralArmCount,
             oralArmNodesPer: oralArmNodesPer,
-            tentacleAnchorX: anchors,
+            tentacleAngles: angles,
+            originalTentacleAnchorX: originalAnchors,
             oralArmAnchorX: armAnchors,
             colorIndex: Int.random(in: 0...7),
+            visualDepth: visualDepth,
             shimmerTimes: shimmerTimes,
             shimmerDuration: 1.6,
             calmDrift: reduceMotion,

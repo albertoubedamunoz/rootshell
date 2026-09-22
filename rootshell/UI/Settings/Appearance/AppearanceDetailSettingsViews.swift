@@ -560,10 +560,17 @@ struct WindowSettingsView: View {
                     }
                     .themedRow()
                 }
+
+                SettingDescribedToggle(
+                    Settings.Window.confirmBeforeClosingPane,
+                    title: "Confirm Before Closing Pane",
+                    description: "Ask before ⌘W, or a custom Close Tab/Split shortcut, closes one pane in a multi-pane layout."
+                )
+                .themedRow()
             } header: {
                 SettingGroupHeader("Split Panes", group: .window)
             } footer: {
-                Text("Controls the border shown around the focused pane when using split terminals.")
+                Text("Controls focused-pane appearance and safeguards for split terminal layouts.")
                     .font(.caption)
             }
 
@@ -719,7 +726,11 @@ struct WindowSettingsView: View {
                     .themedRow()
 
                 #if os(iOS) && !targetEnvironment(macCatalyst)
-                SettingToggle(Settings.Selection.useNativeLoupe, title: "Use Native Selection Loupe")
+                SettingDescribedToggle(
+                    Settings.Selection.useNativeLoupe,
+                    title: "Use Native Selection Loupe",
+                    description: "Keep this off to tap the app's loupe with a second finger for a right click while holding the terminal. Requires Scroll Mode. See Terminal → Gestures → Gesture Help."
+                )
                     .padding(.vertical, 4)
                     .themedRow()
                 #endif

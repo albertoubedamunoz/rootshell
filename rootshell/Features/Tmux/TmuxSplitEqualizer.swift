@@ -1,5 +1,8 @@
-/// Equalize existing server cells instead of importing a layout string: tmux's
-/// layout parser assigns panes by index and ignores the serialized pane IDs.
+/// Equalize existing server cells. Most layouts use tmux's native spread
+/// operation. Adjacent same-axis splits use planned native resize-pane commands
+/// when their boundaries are reachable, or a safe native spread when it can
+/// produce equal visible leaves. Unsupported plans fail before changing panes.
+/// Never import a custom layout: it assigns panes by mutable pane-list order.
 @MainActor
 enum TmuxSplitEqualizer {
     enum Failure: Error {
@@ -34,8 +37,8 @@ enum TmuxSplitEqualizer {
         }
     }
 
-    /// `send` must validate that the window still has this topology before each
-    /// command. Every call contains exactly one command / control-mode reply.
+    /// `send` must validate that the window still has the same topology
+    /// before each command. Every call contains exactly one command / reply.
     static func run(windowID: Int, layout: TmuxLayoutNode,
                     send: (String) async throws -> String) async throws {
         let paneIDs = layout.paneIDs
@@ -45,9 +48,11 @@ enum TmuxSplitEqualizer {
         }
         let snapshotCommand = "display-message -p -t @\(windowID) '#{window_layout}|#{window_zoomed_flag}|#{pane_id}|#{pane-border-status}|#{pane-scrollbars}'"
         let original = try Snapshot(await send(snapshotCommand))
+        var requiresNativeSafety = !original.tree.hasNestedSameAxisSplit
         func validate(_ snapshot: Snapshot) throws {
             guard snapshot.tree.hasSameTopology(as: layout) else { throw Failure.layoutChanged }
-            guard !snapshot.hasDecorations, snapshot.tree.permitsNativeEqualization else {
+            guard !snapshot.hasDecorations else { throw Failure.unsafeLayout }
+            if requiresNativeSafety && !snapshot.tree.permitsNativeEqualization {
                 throw Failure.unsafeLayout
             }
         }
@@ -63,6 +68,44 @@ enum TmuxSplitEqualizer {
             if current.zoomedPaneID == nil {
                 _ = try await send("resize-pane -Z -t @\(windowID).%\(paneID)")
             }
+        }
+
+        if original.tree.hasNestedSameAxisSplit {
+            guard let target = original.tree.equalizationTarget() else {
+                throw Failure.unsafeLayout
+            }
+            if original.tree.leaves == target.leaves { return }
+            if let plan = original.tree.resizePlan(to: target) {
+                do {
+                    var current = original
+                    for step in plan {
+                        try validate(current)
+                        guard current.tree.width == original.tree.width,
+                              current.tree.height == original.tree.height,
+                              let leaf = current.tree.leaves.first(where: { $0.paneIDs == [step.paneID] }) else {
+                            throw Failure.layoutChanged
+                        }
+                        let horizontal = step.direction == .horizontal
+                        if (horizontal ? leaf.width : leaf.height) == step.size { continue }
+                        let flag = horizontal ? "-x" : "-y"
+                        _ = try await send("resize-pane -t @\(windowID).%\(step.paneID) \(flag) \(step.size)")
+                        current = try Snapshot(await send(snapshotCommand))
+                    }
+                    try validate(current)
+                    guard current.tree.leaves == target.leaves else { throw Failure.didNotConverge }
+                    try await restoreZoom()
+                    return
+                } catch {
+                    try? await restoreZoom()
+                    throw error
+                }
+            }
+            // A leaf resize cannot reach every ancestor boundary. Use -E only
+            // if equal immediate children also give the desired visible sizes.
+            // Do this preflight before any mutation, including unzooming.
+            guard original.tree.nativeEqualizationProducesEqualLeaves else { throw Failure.unsafeLayout }
+            requiresNativeSafety = true
+            try validate(original)
         }
 
         do {

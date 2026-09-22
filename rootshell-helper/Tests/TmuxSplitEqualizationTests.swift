@@ -55,6 +55,165 @@ final class TmuxSplitEqualizationTests: XCTestCase {
         XCTAssertEqual(try geometry(control), expected)
     }
 
+    func testIssue475NestedSameAxisColumnsBecomeThirds() async throws {
+        let server = try Server()
+        defer { server.stop() }
+        try server.cli(["split-window", "-h", "-t", "%0"])
+        try server.cli(["split-window", "-h", "-t", "%1"])
+        for id in 0...2 { try server.cli(["split-window", "-v", "-t", "%\(id)"]) }
+        let control = try server.attach()
+        defer { control.stop() }
+
+        func column(_ top: Int, _ bottom: Int, width: Int, x: Int) -> TmuxLayoutNode {
+            .split(direction: .vertical, children: [
+                .pane(paneId: top, width: width, height: 34, x: x, y: 0),
+                .pane(paneId: bottom, width: width, height: 34, x: x, y: 35)
+            ], width: width, height: 69, x: x, y: 0)
+        }
+        let middle = column(1, 4, width: 50, x: 102)
+        let right = column(2, 5, width: 50, x: 153)
+        let nestedRight = TmuxLayoutNode.split(
+            direction: .horizontal, children: [middle, right],
+            width: 101, height: 69, x: 102, y: 0)
+        let nested = TmuxLayoutNode.split(direction: .horizontal, children: [
+            column(0, 3, width: 101, x: 0), nestedRight
+        ], width: 203, height: 69, x: 0, y: 0)
+
+        try control.command("select-layout -t @0 '\(nested.serverLayoutString)'")
+        XCTAssertEqual(try geometry(control), [
+            "%0 0 0 101 34", "%3 0 35 101 34",
+            "%1 102 0 50 34", "%4 102 35 50 34",
+            "%2 153 0 50 34", "%5 153 35 50 34"
+        ].sorted())
+
+        try await TmuxSplitEqualizer.run(windowID: 0, layout: nested) { try control.command($0) }
+        XCTAssertEqual(try geometry(control), [
+            "%0 0 0 67 34", "%3 0 35 67 34",
+            "%1 68 0 67 34", "%4 68 35 67 34",
+            "%2 136 0 67 34", "%5 136 35 67 34"
+        ].sorted())
+        let resized = try XCTUnwrap(TmuxLayoutNode.parseServerLayout(
+            control.command("display-message -p -t @0 '#{window_layout}'")))
+        XCTAssertTrue(resized.hasSameTopology(as: nested))
+        XCTAssertEqual(try control.command("display-message -p nested-replies-aligned"), "nested-replies-aligned")
+
+        // The native path must preserve zoom as well as the server topology.
+        try control.command("select-layout -t @0 '\(nested.serverLayoutString)'")
+        try control.command("resize-pane -Z -t %0")
+        try await TmuxSplitEqualizer.run(windowID: 0, layout: nested) { try control.command($0) }
+        XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_zoomed_flag}:#{pane_id}'"), "1:%0")
+        try control.command("resize-pane -Z -t %0")
+        XCTAssertEqual(try geometry(control), resized.leaves.map { leaf in
+            guard case let .pane(id, w, h, x, y) = leaf else { return "" }
+            return "%\(id) \(x) \(y) \(w) \(h)"
+        }.sorted())
+
+        // Another client swaps panes after the snapshot but before a resize.
+        // Resizing by pane ID must not import the old assignment over the swap.
+        try control.command("select-layout -t @0 '\(nested.serverLayoutString)'")
+        var swappedOrder: [Int]?
+        do {
+            try await TmuxSplitEqualizer.run(windowID: 0, layout: nested) { command in
+                if command.hasPrefix("resize-pane"), swappedOrder == nil {
+                    try server.cli(["swap-pane", "-s", "%0", "-t", "%2"])
+                    let snapshot = try server.cli(["display-message", "-p", "-t", "@0", "#{window_layout}"])
+                    swappedOrder = try XCTUnwrap(TmuxLayoutNode.parseServerLayout(
+                        snapshot.trimmingCharacters(in: .whitespacesAndNewlines))).paneIDs
+                }
+                return try control.command(command)
+            }
+            XCTFail("Expected topology change after the other client's swap")
+        } catch TmuxSplitEqualizer.Failure.layoutChanged {
+            let actual = try XCTUnwrap(TmuxLayoutNode.parseServerLayout(
+                control.command("display-message -p -t @0 '#{window_layout}'")))
+            XCTAssertEqual(actual.paneIDs, try XCTUnwrap(swappedOrder))
+            XCTAssertEqual(try control.command("display-message -p race-replies-aligned"), "race-replies-aligned")
+        }
+    }
+
+    private func nestedGroups(_ sizes: [[Int]], vertical: Bool) -> TmuxLayoutNode {
+        var cursor = 0
+        var id = 0
+        let axis: TmuxLayoutNode.Direction = vertical ? .vertical : .horizontal
+        func node(_ children: [TmuxLayoutNode], start: Int, size: Int) -> TmuxLayoutNode {
+            .split(direction: axis, children: children,
+                   width: vertical ? 69 : size, height: vertical ? size : 69,
+                   x: vertical ? 0 : start, y: vertical ? start : 0)
+        }
+        let groups = sizes.map { sizes -> TmuxLayoutNode in
+            let start = cursor
+            let panes = sizes.map { size -> TmuxLayoutNode in
+                defer { cursor += size + 1; id += 1 }
+                return .pane(paneId: id, width: vertical ? 69 : size, height: vertical ? size : 69,
+                             x: vertical ? 0 : cursor, y: vertical ? cursor : 0)
+            }
+            return panes.count == 1 ? panes[0] : node(panes, start: start, size: cursor - start - 1)
+        }
+        return node(groups, start: 0, size: cursor - 1)
+    }
+
+    func testNestedAncestorBoundariesAndRoundingOverControlMode() async throws {
+        for vertical in [false, true] {
+            // Both groups nested; rounding across groups; only the last child
+            // can move the root boundary; an unreachable root already sized
+            // correctly; an unchanged boundary beside a resize; a boundary
+            // brought to its target by an earlier shrink.
+            for sizes in [[[75, 75], [25, 25]], [[25, 25], [8, 8]], [[40, 10], [151]],
+                          [[60, 20], [60, 30, 28]], [[50, 50], [80], [20]],
+                          [[80], [35, 35], [20], [80]]] {
+                let original = nestedGroups(sizes, vertical: vertical)
+                let server = try Server()
+                defer { server.stop() }
+                for id in 0..<(original.paneIDs.count - 1) {
+                    try server.cli(["split-window", "-h", "-t", "%\(id)"])
+                }
+                let control = try server.attach()
+                defer { control.stop() }
+                try control.command("refresh-client -C \(original.width),\(original.height)")
+                for zoomed in [false, true] {
+                    try control.command("select-layout -t @0 '\(original.serverLayoutString)'")
+                    if zoomed { try control.command("resize-pane -Z -t %0") }
+                    try await TmuxSplitEqualizer.run(windowID: 0, layout: original) { try control.command($0) }
+                    XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_zoomed_flag}'"), zoomed ? "1" : "0")
+                    if zoomed { try control.command("resize-pane -Z -t %0") }
+                    let actual = try XCTUnwrap(TmuxLayoutNode.parseServerLayout(
+                        control.command("display-message -p -t @0 '#{window_layout}'")))
+                    XCTAssertTrue(actual.hasSameTopology(as: original))
+                    XCTAssertEqual(actual.width, original.width)
+                    XCTAssertEqual(actual.height, original.height)
+                    let dimensions = actual.leaves.map { vertical ? $0.height : $0.width }.sorted()
+                    let target = try XCTUnwrap(original.equalizationTarget())
+                    XCTAssertEqual(dimensions, target.leaves.map { vertical ? $0.height : $0.width }.sorted())
+                    XCTAssertEqual(try control.command("display-message -p ancestor-replies-aligned"), "ancestor-replies-aligned")
+                }
+            }
+        }
+    }
+
+    func testUnreachableNestedGroupsLeaveServerGeometryAndZoomUntouched() async throws {
+        for vertical in [false, true] {
+            let original = nestedGroups([[75, 75], [16, 16, 17]], vertical: vertical)
+            let server = try Server()
+            defer { server.stop() }
+            for id in 0..<(original.paneIDs.count - 1) {
+                try server.cli(["split-window", "-h", "-t", "%\(id)"])
+            }
+            let control = try server.attach()
+            defer { control.stop() }
+            try control.command("refresh-client -C \(original.width),\(original.height)")
+            try control.command("select-layout -t @0 '\(original.serverLayoutString)'")
+            try control.command("resize-pane -Z -t %0")
+            do {
+                try await TmuxSplitEqualizer.run(windowID: 0, layout: original) { try control.command($0) }
+                XCTFail("Expected unreachable target to fail preflight")
+            } catch TmuxSplitEqualizer.Failure.unsafeLayout {
+                XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_layout}'"), original.serverLayoutString)
+                XCTAssertEqual(try control.command("display-message -p -t @0 '#{window_zoomed_flag}:#{pane_id}'"), "1:%0")
+                XCTAssertEqual(try control.command("display-message -p preflight-replies-aligned"), "preflight-replies-aligned")
+            }
+        }
+    }
+
     func testFullWidthJoinedPaneKeepsItsPosition() async throws {
         let server = try Server()
         defer { server.stop() }
@@ -140,6 +299,35 @@ final class TmuxSplitEqualizationTests: XCTestCase {
     private func geometry(_ control: ControlClient) throws -> [String] {
         try control.command("list-panes -t @0 -F '#{pane_id} #{pane_left} #{pane_top} #{pane_width} #{pane_height}'")
             .split(separator: "\n").map(String.init).sorted()
+    }
+
+    func testInnerDividerDragInThreeColumnsAndRowsPreservesOuterPane() throws {
+        for horizontal in [true, false] {
+            let server = try Server()
+            defer { server.stop() }
+            let flag = horizontal ? "-h" : "-v"
+            try server.cli(["split-window", flag, "-t", "%0"])
+            try server.cli(["split-window", flag, "-t", "%1"])
+            let control = try server.attach()
+            defer { control.stop() }
+            let before = try XCTUnwrap(TmuxLayoutNode.parseServerLayout(
+                control.command("display-message -p -t @0 '#{window_layout}'")))
+            let target = try XCTUnwrap(TmuxDividerResize.target(in: before, horizontal: horizontal,
+                                       leftPaneIDs: [1], rightPaneIDs: [2], delta: 3))
+            try control.command("resize-pane -t @0.%\(target.paneID) \(horizontal ? "-x" : "-y") \(target.size)")
+            let after = try XCTUnwrap(TmuxLayoutNode.parseServerLayout(
+                control.command("display-message -p -t @0 '#{window_layout}'")))
+            guard case let .split(_, beforeChildren, _, _, _, _) = before,
+                  case let .split(_, afterChildren, _, _, _, _) = after else {
+                return XCTFail("Expected three server siblings")
+            }
+            XCTAssertEqual(beforeChildren[0], afterChildren[0])
+            XCTAssertTrue(before.hasSameTopology(as: after))
+            XCTAssertEqual(horizontal ? afterChildren[1].width : afterChildren[1].height, target.size)
+            XCTAssertEqual(horizontal ? afterChildren[2].width : afterChildren[2].height,
+                           (horizontal ? beforeChildren[2].width : beforeChildren[2].height) - 3)
+            XCTAssertEqual(try control.command("display-message -p divider-replies-aligned"), "divider-replies-aligned")
+        }
     }
 
     @MainActor

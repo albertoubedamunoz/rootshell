@@ -711,14 +711,9 @@ final class SplitTreeHostingView: UIView {
         }
     }
 
-    /// Commit a divider drag to tmux. Runs in the hosting view so it uses the
-    /// reliable container size (`tmuxWindowCells`), NOT the divider's stored
-    /// `parentBounds` or the panes' `surfaceSize` (both lag a window resize and
-    /// produced a ~2x-too-large target that tmux clamped to the edge — the
-    /// "jump"). Sets the LEFT/TOP pane to `ratio` of the window cells via a
-    /// single-axis `resize-pane`; tmux moves the divider and the reconcile +
-    /// wake reflow the panes. For a 2-pane (root) split the window IS the split
-    /// region, so this is exact.
+    /// Commit the movement within this divider's own region. A nested ratio
+    /// must not be multiplied by the whole window's cell count. The controller
+    /// resolves the corresponding server boundary before sending one resize.
     fileprivate func commitDividerToTmux(
         node: SplitTree<SplitPaneView>.Node,
         ratio: Double,
@@ -754,13 +749,32 @@ final class SplitTreeHostingView: UIView {
             }
             return
         }
-        guard let leftView = split.left.leftmostLeaf().asTerminal,
-              leftView.isTmuxPane, let cells = effectiveTmuxWindowCells() else { return }
+        guard let probe = split.left.leftmostLeaf().asTerminal,
+              let binding = probe.tmuxPaneBinding,
+              let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
+              let size = probe.surfaceSize, let parentBounds, let startRatio else { return }
         let horizontal = split.direction == .horizontal
-        let axisCells = Int(horizontal ? cells.cols : cells.rows)
-        guard axisCells > 1 else { return }
-        let target = min(max(Int((Double(axisCells) * ratio).rounded()), 1), axisCells - 1)
-        leftView.requestTmuxResizePane(horizontal: horizontal, cells: target)
+        let scale = probe.contentScaleFactor > 0 ? probe.contentScaleFactor : probe.traitCollection.displayScale
+        guard scale > 0,
+              let delta = TmuxDividerResize.cellDelta(
+                startRatio: startRatio, endRatio: ratio,
+                extent: Double(horizontal ? parentBounds.width : parentBounds.height),
+                divider: Double(Self.dividerVisibleThickness),
+                cell: Double(horizontal ? size.cell_width_px : size.cell_height_px) / Double(scale)
+              ) else { return }
+        func paneIDs(_ node: SplitTree<SplitPaneView>.Node) -> [Int]? {
+            let leaves = node.leaves()
+            let ids = leaves.compactMap { pane -> Int? in
+                guard let candidate = pane.asTerminal?.tmuxPaneBinding,
+                      candidate.parentUUID == binding.parentUUID,
+                      candidate.windowId == binding.windowId else { return nil }
+                return candidate.paneId
+            }
+            return ids.count == leaves.count ? ids : nil
+        }
+        guard let left = paneIDs(split.left), let right = paneIDs(split.right) else { return }
+        controller.requestResizeDivider(windowID: binding.windowId, horizontal: horizontal,
+                                        leftPaneIDs: left, rightPaneIDs: right, delta: delta)
     }
 
     private func layout(
