@@ -403,6 +403,7 @@ extension HerdrController {
             tabs.removeValue(forKey: tabId)
             tabInfos.removeValue(forKey: tabId)
             lastLayouts.removeValue(forKey: tabId)
+            zoomedLayoutRequests.removeValue(forKey: tabId)
             controlLayouts.removeValue(forKey: tabId)
             endpointLayouts.removeValue(forKey: tabId)
             tabGeometryStates.removeValue(forKey: tabId)
@@ -517,9 +518,9 @@ extension HerdrController {
             // record for this tab retries.
             return
         }
-        // Zoom projects only one pane; keep the hidden split leaves alive so
-        // unzoom does not discard their session, selection, or surface.
-        let root = layout.zoomed && endpointLayouts[layout.tab_id] != nil
+        // Both raw control layouts and fallback frames can contain only the
+        // zoomed pane. Keep the full tree for the picker and hidden surfaces.
+        let root = layout.zoomed
             ? (tab.splitTree.root ?? builtRoot) : builtRoot
         // Each pane keeps exactly the grid herdr gave it, whatever slot the
         // ratio math hands it (id=herdr-chromeless).
@@ -545,6 +546,7 @@ extension HerdrController {
         let tree = SplitTree<SplitPaneView>(root: root, zoomed: zoomed)
         let structureChanged = tab.splitTree.structuralIdentity != tree.structuralIdentity
         tab.splitTree = tree
+        if layout.zoomed { restoreZoomedLayoutIfNeeded(in: tab, tabID: layout.tab_id) }
         showPanesIfSelected(in: tab)
         if let barrier {
             armLayoutRelease(for: layout, barrier: barrier)
@@ -576,6 +578,64 @@ extension HerdrController {
                     }
                 }
             }
+        }
+    }
+
+    /// On an already-zoomed attachment there is no previous split tree to
+    /// preserve. Read the hidden topology without changing the server's zoom.
+    private func restoreZoomedLayoutIfNeeded(in tab: TabModel, tabID: String) {
+        let paneIDs = Set(paneInfos.values.filter { $0.tab_id == tabID }.map(\.pane_id))
+        let projectedIDs = Set(tab.splitTree.terminalLeaves.compactMap { $0.herdrPaneBinding?.paneId })
+        guard paneIDs.count > 1, projectedIDs != paneIDs,
+              zoomedLayoutRequests[tabID] == nil, isActive, !didEnd else { return }
+        let requestID = UUID()
+        let generation = streamGeneration
+        let revision = managementRevision
+        zoomedLayoutRequests[tabID] = requestID
+        Task { [weak self, weak tab] in
+            guard let self else { return }
+            defer {
+                if self.zoomedLayoutRequests[tabID] == requestID {
+                    self.zoomedLayoutRequests.removeValue(forKey: tabID)
+                }
+            }
+            guard let tab, self.tabs[tabID] === tab,
+                  self.streamGeneration == generation,
+                  self.zoomedLayoutRequests[tabID] == requestID,
+                  tab.splitTree.zoomed != nil else { return }
+            // A snapshot may still have been adding panes when this read was
+            // scheduled. Capture membership after that synchronous pass ends.
+            let paneIDs = Set(self.paneInfos.values.filter { $0.tab_id == tabID }.map(\.pane_id))
+            do {
+                let layout = try await self.managementRequest(
+                    "layout.export", HerdrControl.TabTarget(tab_id: tabID),
+                    as: HerdrControl.LayoutDescriptionResult.self
+                ).layout
+                guard self.streamGeneration == generation, !self.didEnd,
+                      self.zoomedLayoutRequests[tabID] == requestID,
+                      self.managementRevision == revision, self.tabs[tabID] === tab,
+                      tab.splitTree.zoomed != nil, layout.tab_id == tabID,
+                      layout.workspace_id == tab.herdrWorkspaceId,
+                      Set(layout.root.paneIDs) == paneIDs,
+                      Set(self.paneInfos.values.filter { $0.tab_id == tabID }.map(\.pane_id)) == paneIDs,
+                      let root = self.buildSplitNode(layout.root) else { return }
+                tab.splitTree = SplitTree(root: root, zoomed: tab.splitTree.zoomed)
+                self.tabsModel.syncDisplayedTab()
+            } catch is CancellationError { } catch {
+                Self.logger.debug("herdr zoomed layout export failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func buildSplitNode(_ node: HerdrControl.ExportedLayoutNode) -> SplitTree<SplitPaneView>.Node? {
+        switch node {
+        case .pane(let paneID):
+            guard let info = paneInfos[paneID], let view = paneViews[info.terminal_id] else { return nil }
+            return .leaf(view: view)
+        case let .split(direction, ratio, first, second):
+            guard let left = buildSplitNode(first), let right = buildSplitNode(second) else { return nil }
+            return .split(.init(direction: direction == .right ? .horizontal : .vertical,
+                                ratio: min(max(ratio, 0.05), 0.95), left: left, right: right))
         }
     }
 

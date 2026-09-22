@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/ios_system-rootshell.git",
       "state" : {
-        "revision" : "8f84ebfc7ee44cb05402cabdd1a82b4214a173cd",
-        "version" : "0.1.0"
+        "revision" : "d26afc264a78723afba6286695eadba5184dd7af",
+        "version" : "0.1.1"
       }
     },
     {
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/joe-rootshell.git",
       "state" : {
-        "revision" : "cc2693d65b8f937aa484edce41eb9018f6553f6a",
-        "version" : "0.1.0"
+        "revision" : "68763f078e4a48b858540de121935171badd4103",
+        "version" : "0.1.2"
       }
     },
     {

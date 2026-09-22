@@ -159,6 +159,7 @@ extension SettingsSearchDestination {
                  keywords: ["custom keyboard", "qwerty", "vim", "emacs", "nano", "agent", "suggestions", "haptics",
                             "letter prediction", "typing accuracy", "touch accuracy", "detached", "floating",
                             "glass", "tint", "transparency", "system detached keyboard", "app window",
+                            "keyboard style", "flat", "sculpted", "3d", "skeuomorphic",
                             "separate state per tab", "shared keyboard", "sticky modifiers"])
         case .toolbarKeys:
             Meta(section: .terminal, title: String(localized: "Toolbar Keys"), systemImage: "keyboard",

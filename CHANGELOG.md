@@ -3,6 +3,48 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.12-153 - September 22, 2026
+
+### Touch Right-Click with the Loupe
+
+- **Right-Click and Drag:** In Scroll Mode, hold the terminal until the magnifier appears, then keep holding and tap the magnifier with a second finger. In mouse-aware terminal apps this switches to a right-button hold: move the original finger to drag and lift it to release. Otherwise, lifting opens the terminal context menu.
+- **Loupe Setting and Gesture Help:** Requires the app's loupe: turn off Use Native Selection Loupe in Settings -> Appearance -> Window -> Text Selection. Gesture Help includes an animated demonstration.
+
+### Terminal Keyboard and Home Gestures
+
+- **Sculpted Keyboard Style:** Choose Flat or Sculpted in Settings -> Terminal -> Terminal Keyboard -> Keyboard Style. Flat remains the default; Sculpted adds raised keycaps, matching drawers and previews, and animated key presses. Reduce Motion and Low Power Mode disable press animations.
+- **Toolbar and Hardware Keyboard Support:** The custom keyboard keeps its toolbar and drawers when typing rows are hidden or a hardware keyboard is connected, respecting toolbar visibility settings. Modifiers work with hardware input; the restore button brings back the full keyboard.
+- **Smoother Keyboard Transitions:** Improved transitions between floating, full keyboard, and toolbar-only views, preserving floating placement and modifiers.
+- **Reliable Home Gestures:** Fixed accidental toolbar presses during Home swipes, including with spacing above the Home indicator. Pending touches and key repeats stop when the app becomes inactive.
+
+### Choose Pane to Zoom
+
+- **Numbered Pane Picker:** Press Option-Command-P in a tmux or herdr control-mode tab to show numbered panes. Type a displayed number or tap a pane to focus and zoom it. Also available from the Terminal menu and pane context menu; the shortcut is customizable.
+- **Switch between Zoomed Panes:** Works while another pane is already zoomed, showing the full layout so you can switch directly. Choosing the current pane keeps it zoomed. Escape or any non-number key cancels without sending that input to the terminal.
+
+### Optional Pane-Close Confirmation
+
+- **Confirm Before Closing Pane:** Enable Confirm Before Closing Pane in Settings -> Appearance -> Window -> Split Panes to ask before Command-W, or your custom Close Tab/Split shortcut, closes a pane in a multi-pane tab. Off by default.
+- **Confirmation Follows the Original Pane:** Confirmation stays tied to the original pane and dismisses if it disappears. Sessions that end on their own still close normally.
+
+### tmux Layout and Scrollback Fixes
+
+- **Improved Equalize Splits:** Improved equalization for nested rows and columns. Panes keep their positions and a zoomed pane is restored afterward. Layouts that cannot be equalized safely are left unchanged.
+- **Reliable Divider Dragging:** Fixed divider dragging in layouts with three or more panes and nested splits, avoiding size jumps or changes to the wrong pane.
+- **Preserved Scroll Position:** Preserve scroll position when a tmux pane's terminal view is temporarily unavailable, while correctly clearing stale scrollbars when history is empty.
+- **Resolved Pane Titles:** Swap-pane menus now show resolved pane titles instead of a generic title.
+
+### Jellyfish and Aquarium Improvements
+
+- **Enhanced Jellyfish Rendering:** Enhanced rendering adds translucent bells, flowing arms, finer tentacles, and richer glow. Enhanced is the default; choose Original in Jellyfish settings for simpler graphics and lower GPU use.
+- **Preview and Appearance Controls:** Added a Bloom slider and full-screen Jellyfish preview. Battery Saver reduces detail and frame rate; Reduce Motion softens swimming and disables shimmer.
+- **Stable Aquarium Preview:** Fixed the Aquarium preview dismissing unexpectedly as its settings row moved offscreen.
+
+### Connection Reliability
+
+- **Background Connection Grace Period:** With Keep SSH Alive in Background enabled, eligible sessions now request a short background grace period even when a Live Activity or Location Diary is active. This helps SSH and Screen Sharing survive brief app switches; iOS still controls the available background time.
+- **YubiKey RSA Key Crash Fix:** Malformed YubiKey RSA public keys now report a conversion error instead of triggering Swift's bounds-check trap and terminating the app. This is a crash-handling fix, not a C-style memory-safety flaw: Swift already prevented out-of-bounds memory access.
+
 ## 1.0.12-152 - September 20, 2026
 
 ### Terminal Resize Fixes

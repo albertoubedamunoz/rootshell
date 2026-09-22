@@ -205,6 +205,8 @@ final class HerdrController {
     /// Attaches that asked for another snapshot while one was in flight.
     var snapshotRetryWanted: Set<String> = []
     var lastLayouts: [String: HerdrControl.LayoutSnapshot] = [:]
+    /// Full topology reads for tabs first encountered while already zoomed.
+    var zoomedLayoutRequests: [String: UUID] = [:]
     /// Inner pane rectangles from the raw stream, rather than the generic
     /// snapshot's layout in the server TUI's viewport.
     var controlLayouts: [String: HerdrControl.LayoutSnapshot] = [:]
@@ -993,6 +995,7 @@ final class HerdrController {
         topologyRefreshTask?.cancel()
         topologyRefreshTask = nil
         topologyRefreshWanted = false
+        zoomedLayoutRequests.removeAll()
         for task in attachRetries.values { task.cancel() }
         attachRetries.removeAll()
         for task in geometryTasks.values { task.cancel() }

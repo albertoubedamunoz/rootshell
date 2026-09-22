@@ -3,53 +3,6 @@ import UIKit
 import Combine
 import SwiftUI
 
-private struct TerminalTouchKeyboardPalette {
-    let background: UIColor
-    let key: UIColor
-    let pressedKey: UIColor
-    let pressedInk: UIColor
-    let ink: UIColor
-    let toolbarInk: UIColor
-    let isLight: Bool
-
-    init?(colors: ThemeManager.ThemeInfo.ThemeColors) {
-        guard let base = Color(hex: colors.background), let derived = ThemeUIColorDerivation.derive(from: colors) else { return nil }
-        let key = derived.sheetRowBackground
-        let preferred = Color(hex: colors.foreground) ?? derived.tabText
-        func rgb(_ color: Color) -> TerminalTouchKeyboardModel.RGB {
-            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-            UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
-            return .init(red: Double(r), green: Double(g), blue: Double(b))
-        }
-        func readable(on surface: Color) -> Color {
-            let ink = rgb(surface).readableInk(preferred: rgb(preferred))
-            return Color(red: ink.red, green: ink.green, blue: ink.blue)
-        }
-        let ink = readable(on: key)
-        let pressed = key.blended(toward: ink, amount: 0.1)
-        self.background = UIColor(base)
-        self.key = UIColor(key)
-        self.pressedKey = UIColor(pressed)
-        self.ink = UIColor(ink)
-        self.pressedInk = UIColor(readable(on: pressed))
-        self.toolbarInk = UIColor(readable(on: base))
-        self.isLight = base.isLight
-    }
-}
-
-private enum TerminalTouchKeyboardAppearance {
-    static let background = UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 34 / 255, green: 34 / 255, blue: 39 / 255, alpha: 1)
-            : UIColor(red: 210 / 255, green: 213 / 255, blue: 219 / 255, alpha: 1)
-    }
-    static let toolbar = UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 38 / 255, green: 38 / 255, blue: 46 / 255, alpha: 1)
-            : UIColor(red: 233 / 255, green: 235 / 255, blue: 240 / 255, alpha: 1)
-    }
-}
-
 private struct TerminalTouchKeyboardEffectBackground: View {
     @ObservedObject var appearance: TerminalKeyboardEffectSurface.Appearance
     @ObservedObject var effect: AnyTerminalEffect
@@ -88,103 +41,15 @@ extension TerminalTouchKeyboardHost {
     var touchKeyboardPredictionContext: TerminalTouchKeyboardModel.PredictionSnapshot? { nil }
 }
 
-private final class TerminalTouchKeycap: UIView {
-    let key: TerminalTouchKeyboardModel.Key
-    let plate = UIView()
-    let label = UILabel()
-    let icon = UIImageView()
-    private let lockIndicator = UIView()
-    private let toolbarKey: Bool
-    var palette: TerminalTouchKeyboardPalette? { didSet { updateColor() } }
-    var locked = false { didSet { lockIndicator.isHidden = !locked } }
-    var activate: (() -> Void)?
-    var pressed = false { didSet { updateColor() } }
-    var selected = false { didSet { updateColor() } }
-
-    init(_ key: TerminalTouchKeyboardModel.Key, small: Bool = false) {
-        self.key = key
-        self.toolbarKey = small
-        super.init(frame: .zero)
-        isAccessibilityElement = true
-        accessibilityTraits = [.keyboardKey]
-        accessibilityLabel = key.accessibility ?? key.title
-        plate.isUserInteractionEnabled = false
-        plate.layer.cornerRadius = small ? 12 : 8
-        plate.layer.cornerCurve = .continuous
-        plate.layer.shadowColor = UIColor.black.cgColor
-        plate.layer.shadowOffset = CGSize(width: 0, height: 1)
-        plate.layer.shadowRadius = 0.5
-        addSubview(plate)
-        label.textAlignment = .center
-        label.font = .systemFont(ofSize: small ? 13 : (key.title.count == 1 ? 25 : 16), weight: small ? .medium : .regular)
-        label.adjustsFontSizeToFitWidth = true
-        label.minimumScaleFactor = 0.75
-        label.text = key.title
-        plate.addSubview(label)
-        icon.contentMode = .scaleAspectFit
-        icon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: small ? 17 : 21, weight: .regular)
-        plate.addSubview(icon)
-        lockIndicator.layer.cornerRadius = 1.5
-        lockIndicator.isHidden = true
-        plate.addSubview(lockIndicator)
-        setSymbol(key.symbol)
-        updateColor()
-    }
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    func setSymbol(_ name: String?) {
-        icon.image = name.flatMap { UIImage(systemName: $0) }
-        label.isHidden = icon.image != nil
-    }
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        plate.frame = bounds.insetBy(dx: 3, dy: 5)
-        label.frame = plate.bounds.insetBy(dx: 3, dy: 0)
-        lockIndicator.frame = CGRect(x: (plate.bounds.width - 14) / 2, y: plate.bounds.height - 4, width: 14, height: 2.5)
-        let iconSize = CGSize(width: min(24, max(0, plate.bounds.width - 8)), height: min(23, max(0, plate.bounds.height - 6)))
-        icon.frame = CGRect(x: (plate.bounds.width - iconSize.width) / 2, y: (plate.bounds.height - iconSize.height) / 2,
-                            width: iconSize.width, height: iconSize.height)
-    }
-    func updateColor() {
-        let character: Bool = { if case .text = key.action { return true }; return false }()
-        let selected = self.selected, pressed = self.pressed, toolbarKey = self.toolbarKey
-        // A keyboard can acquire its final appearance after attachment. Do not
-        // mix a light-only background with a dynamically changing .label color.
-        plate.backgroundColor = UIColor { traits in
-            if toolbarKey && !selected {
-                return pressed ? UIColor.label.resolvedColor(with: traits).withAlphaComponent(0.12) : .clear
-            }
-            let colors = TerminalTouchKeyboardModel.keyColors(dark: traits.userInterfaceStyle == .dark,
-                character: character, pressed: pressed, selected: selected)
-            if traits.userInterfaceStyle == .dark, !selected {
-                return UIColor(red: colors.background, green: colors.background, blue: colors.background + 4 / 255, alpha: 1)
-            }
-            return UIColor(white: colors.background, alpha: 1)
-        }
-        let ink = UIColor { traits in
-            let colors = TerminalTouchKeyboardModel.keyColors(dark: traits.userInterfaceStyle == .dark,
-                character: character, pressed: pressed, selected: selected)
-            return UIColor(white: colors.ink, alpha: 1)
-        }
-        label.textColor = ink
-        icon.tintColor = ink
-        lockIndicator.backgroundColor = ink
-        if let palette {
-            let themedInk = selected ? palette.key : (toolbarKey ? palette.toolbarInk : (pressed ? palette.pressedInk : palette.ink))
-            plate.backgroundColor = selected ? palette.ink : (toolbarKey ? (pressed ? palette.toolbarInk.withAlphaComponent(0.12) : .clear) : (pressed ? palette.pressedKey : palette.key))
-            label.textColor = themedInk
-            icon.tintColor = themedInk
-            lockIndicator.backgroundColor = themedInk
-        }
-        plate.layer.shadowOpacity = toolbarKey || traitCollection.userInterfaceStyle == .dark ? 0 : 0.12
-        plate.layer.borderWidth = UIAccessibility.isDarkerSystemColorsEnabled && (!toolbarKey || selected) ? 1 : 0
-        plate.layer.borderColor = UIColor.label.cgColor
-        accessibilityTraits = selected ? [.keyboardKey, .selected] : [.keyboardKey]
-    }
-    override func accessibilityActivate() -> Bool { activate?(); return true }
-}
-
 /// UIKit cancels the ordinary button tap when this recognizer starts repeating.
-private final class TerminalTouchRepeatingButton: UIButton {
+class TerminalTouchRepeatingButton: UIButton {
+    override var isHighlighted: Bool {
+        didSet { updateContactAppearance() }
+    }
+    private var repeatingContact = false
+    var contactPressed: Bool { isHighlighted || repeatingContact }
+    func updateContactAppearance() {}
+
     var repeatAction: (() -> Void)?
     private var repeatTask: Task<Void, Never>?
     var interactionMode: KeyboardToolbarInteractionMode = .accessory
@@ -241,6 +106,8 @@ private final class TerminalTouchRepeatingButton: UIButton {
     }
     @objc private func handleHold(_ gesture: UILongPressGestureRecognizer) {
         if gesture.state == .began, validTouch {
+            repeatingContact = true
+            updateContactAppearance()
             repeatAction?()
             repeatTask = Task { @MainActor [weak self] in
                 while !Task.isCancelled {
@@ -253,7 +120,11 @@ private final class TerminalTouchRepeatingButton: UIButton {
             cancelInteraction()
         }
     }
-    func cancelRepeat() { repeatTask?.cancel(); repeatTask = nil }
+    func cancelRepeat() {
+        repeatTask?.cancel(); repeatTask = nil
+        repeatingContact = false
+        updateContactAppearance()
+    }
     override func didMoveToWindow() { super.didMoveToWindow(); if window == nil { cancelInteraction() } }
 }
 
@@ -419,9 +290,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var toolbarDrawerOpenByDefault = KeyboardToolbarManager.shared.drawerOpenByDefault
     private var toolbarDrawerRows: [UIScrollView] = []
     private var toolbarDrawerIndices: [Int] = []
-    private var toolbarDrawerButtons: [[TerminalTouchRepeatingButton]] = []
-    private var toolbarDrawerModifiers: [TerminalTouchRepeatingButton: Model.Modifier] = [:]
-    private var toolbarDrawerDismissButtons: [TerminalTouchRepeatingButton] = []
+    private var toolbarDrawerButtons: [[TerminalTouchDrawerButton]] = []
     private var toolbarDrawerHeight: CGFloat { CGFloat(toolbarDrawerRows.count) * 44 }
     private var toolbarHeight: CGFloat { 48 + toolbarDrawerHeight }
     private var configuredMain: [Model.Key] = []
@@ -460,10 +329,15 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let presets = UISegmentedControl(items: Model.Preset.allCases.map(\.rawValue))
     private let writingAssistanceButton = TerminalTouchRepeatingButton(type: .system)
     private let grabber = UIButton(type: .system)
-    private var drawerButtons: [TerminalTouchRepeatingButton] = []
+    private var drawerButtons: [TerminalTouchDrawerButton] = []
     private var drawerColumns = 6
+    private var allKeycaps: [TerminalTouchKeycap] {
+        controls + rows.flatMap { $0 } + drawerButtons.map(\.keycap)
+            + toolbarDrawerButtons.flatMap { $0 }.map(\.keycap)
+    }
     private let suggestions = UIStackView()
-    private let preview = UILabel()
+    private var keyboardStyle = SettingsStore.shared.value(Settings.Keyboard.touchStyle)
+    private var preview = SettingsStore.shared.value(Settings.Keyboard.touchStyle).makePreview()
     private let accents = UIStackView()
     private var accentChoices: [String] = []
     private var accentIndex = 0
@@ -586,10 +460,6 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         suggestions.axis = .horizontal
         suggestions.distribution = .fillEqually
         addSubview(suggestions)
-        preview.textAlignment = .center
-        preview.font = .systemFont(ofSize: 32)
-        preview.layer.cornerRadius = 10
-        preview.clipsToBounds = true
         preview.isUserInteractionEnabled = false
         preview.isHidden = true
         addSubview(preview)
@@ -641,12 +511,21 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             self?.updateBackgroundEffect()
         }.store(in: &observations)
         for name in [UIApplication.willResignActiveNotification, UIApplication.didBecomeActiveNotification,
+                     UIAccessibility.reduceMotionStatusDidChangeNotification,
+                     Notification.Name.NSProcessInfoPowerStateDidChange,
                      UIAccessibility.reduceTransparencyStatusDidChangeNotification,
                      UIAccessibility.darkerSystemColorsStatusDidChangeNotification, Notification.Name.settingsDidChange,
                      KeyboardToolbarManager.layoutDidChangeNotification] {
             let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
+                    if name == UIAccessibility.reduceMotionStatusDidChangeNotification
+                        || name == Notification.Name.NSProcessInfoPowerStateDidChange {
+                        // Changing visual policy must not cancel a held key,
+                        // rebuild the hit grid, or consume sticky modifiers.
+                        self.allKeycaps.forEach { $0.finishVisualTransition() }
+                        return
+                    }
                     // Activation only pauses and resumes the effect. Settings,
                     // theme and toolbar changes each arrive through their own
                     // notification, so no rebuild is needed on either edge.
@@ -770,6 +649,15 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     private func refreshSettings() {
+        let style = SettingsStore.shared.value(Settings.Keyboard.touchStyle)
+        if keyboardStyle != style {
+            cancelInteraction(preservingModifiers: true)
+            keyboardStyle = style
+            preview.removeFromSuperview()
+            preview = style.makePreview()
+            preview.isHidden = true
+            addSubview(preview)
+        }
         let prediction = SettingsStore.shared.value(Settings.Keyboard.touchLetterPrediction)
         if predictionEnabled != prediction {
             cancelInteraction()
@@ -827,10 +715,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         pageIndicator.effect = UIAccessibility.isReduceTransparencyEnabled ? nil : UIBlurEffect(style: .systemUltraThinMaterialDark)
         pageIndicator.contentView.backgroundColor = UIColor.black.withAlphaComponent(UIAccessibility.isReduceTransparencyEnabled ? 0.9 : 0.3)
         grabber.tintColor = palette?.toolbarInk ?? .label
-        preview.backgroundColor = palette?.key ?? .secondarySystemBackground
-        preview.textColor = palette?.ink ?? .label
+        preview.palette = palette
         accents.backgroundColor = palette?.key ?? .secondarySystemBackground
         (controls + rows.flatMap { $0 }).forEach { $0.palette = palette }
+        (drawerButtons + toolbarDrawerButtons.flatMap { $0 }).forEach { $0.updatePalette(palette) }
         refreshWritingAssistance()
         rebuildToolbarDrawers()
         updateModifierAppearance()
@@ -903,7 +791,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     private func makeCap(_ key: Model.Key, small: Bool = false) -> TerminalTouchKeycap {
-        let cap = TerminalTouchKeycap(key, small: small)
+        let cap = keyboardStyle.makeKeycap(key, small: small)
         cap.palette = palette
         cap.activate = { [weak self, weak cap] in
             guard let self, let cap, self.canSend else { return }
@@ -1375,6 +1263,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         hidePageIndicator()
         contacts.values.forEach { $0.task?.cancel(); $0.initial.pressed = false; $0.current?.pressed = false }
         contacts.removeAll()
+        allKeycaps.forEach { $0.finishVisualTransition() }
         (drawerButtons + toolbarDrawerButtons.flatMap { $0 }).forEach { $0.cancelInteraction() }
         writingAssistanceButton.cancelInteraction()
         sequenceTask?.cancel(); sequenceTask = nil
@@ -1407,19 +1296,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     private func updateModifierAppearance() {
-        for button in toolbarDrawerDismissButtons {
-            button.configuration?.title = nil
-            button.configuration?.image = UIImage(systemName: dismissSymbol,
-                withConfiguration: UIImage.SymbolConfiguration(pointSize: 17))
-            button.accessibilityLabel = dismissAccessibilityLabel
-            button.accessibilityValue = pinnedHidden ? String(localized: "Pinned") : nil
-        }
-        for (button, modifier) in toolbarDrawerModifiers {
-            button.isSelected = modifierState.isActive(modifier)
-            button.configuration?.baseBackgroundColor = button.isSelected ? (palette?.toolbarInk ?? .label).withAlphaComponent(0.2) : .clear
-            button.accessibilityValue = modifierState.locked.contains(modifier) ? "Locked" : (button.isSelected ? "On" : "Off")
-        }
-        for cap in controls + rows.flatMap({ $0 }) {
+        for cap in controls + rows.flatMap({ $0 }) + toolbarDrawerButtons.flatMap({ $0 }).map(\.keycap) {
             if cap.key.action == .drawer { cap.selected = toolbarDrawerState != .closed }
             switch cap.key.action {
             case .key("\u{1b}"): cap.setSymbol(glyphsEnabled ? "escape" : nil)
@@ -1444,6 +1321,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 cap.updateColor()
                 cap.label.text = text == " " ? "space" : (modifierState.isActive(.shift) ? text.uppercased() : text)
             }
+        }
+        for button in toolbarDrawerButtons.flatMap({ $0 }) {
+            button.refreshAppearance()
         }
     }
 
@@ -1618,23 +1498,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
     @discardableResult
     private func drawerButton(_ title: String, subtitle: String? = nil, repeats: Bool = false,
-                              in container: UIView? = nil, action: @escaping () -> Void) -> TerminalTouchRepeatingButton {
-        let button = TerminalTouchRepeatingButton(type: .system)
-        var config = palette == nil ? UIButton.Configuration.tinted() : UIButton.Configuration.filled()
-        config.title = title
-        config.subtitle = subtitle
-        config.baseForegroundColor = palette?.ink ?? .label
-        config.baseBackgroundColor = palette?.key ?? .secondaryLabel
-        config.cornerStyle = .medium
-        config.contentInsets = NSDirectionalEdgeInsets(top: 2, leading: 3, bottom: 2, trailing: 3)
-        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { input in
-            var output = input; output.font = .systemFont(ofSize: subtitle == nil && title.count <= 4 ? 17 : 12, weight: .medium); return output
-        }
-        config.subtitleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { input in
-            var output = input; output.font = .monospacedSystemFont(ofSize: 12, weight: .regular); return output
-        }
-        button.configuration = config
-        button.titleLabel?.numberOfLines = 2
+                              key: Model.Key? = nil, in container: UIView? = nil,
+                              action: @escaping () -> Void) -> TerminalTouchDrawerButton {
+        let button = keyboardStyle.makeDrawerButton(
+            key: key ?? Model.Key(title: title, action: toolPage == .symbols ? .text(title) : .key(title)),
+            subtitle: subtitle, toolbar: container != nil, palette: palette)
         button.accessibilityLabel = [title, subtitle].compactMap { $0 }.joined(separator: ", ")
         button.addAction(UIAction { [weak self] _ in guard self?.canSend == true else { return }; action() }, for: .touchUpInside)
         if repeats { button.enableRepeat { [weak self] in guard self?.canSend == true else { return }; action() } }
@@ -1706,12 +1574,12 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         setNeedsLayout()
     }
 
-    private func layoutToolbarDrawer(_ row: UIScrollView, buttons: [TerminalTouchRepeatingButton],
+    private func layoutToolbarDrawer(_ row: UIScrollView, buttons: [TerminalTouchDrawerButton],
                                      position: Int, leading: CGFloat, width: CGFloat) {
         row.frame = CGRect(x: leading + 5, y: CGFloat(position) * 44, width: max(0, width - 10), height: 44)
         var x: CGFloat = 0
         for button in buttons {
-            let titleWidth = ((button.configuration?.title ?? "") as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 13)]).width
+            let titleWidth = ((button.keycap.icon.image == nil ? button.keycap.key.title : "") as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 13)]).width
             let buttonWidth = max(40, min(120, titleWidth + 20))
             button.frame = CGRect(x: x, y: 2, width: buttonWidth, height: 40)
             x += buttonWidth + 2
@@ -1792,12 +1660,6 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         toolbarDrawerRows.removeAll()
         toolbarDrawerButtons.removeAll()
         toolbarDrawerIndices = indices
-        toolbarDrawerDismissButtons = toolbarDrawerDismissButtons.filter { button in
-            preservingRows && indices.contains { index in previousRows[index]?.1.contains(button) == true }
-        }
-        toolbarDrawerModifiers = toolbarDrawerModifiers.filter { button, _ in
-            preservingRows && indices.contains { index in previousRows[index]?.1.contains(button) == true }
-        }
         for index in indices {
             if preservingRows, let (row, buttons) = previousRows[index] {
                 toolbarDrawerRows.append(row)
@@ -1810,10 +1672,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             row.alwaysBounceHorizontal = false
             addSubview(row)
             toolbarDrawerRows.append(row)
-            var buttons: [TerminalTouchRepeatingButton] = []
+            var buttons: [TerminalTouchDrawerButton] = []
             for key in toolbarDrawerKeys[index] {
                 let repeats: Bool = { if case .key = key.action { return true }; return false }()
-                let button = drawerButton(key.title, repeats: repeats, in: row) { [weak self] in
+                let button = drawerButton(key.title, repeats: repeats, key: key, in: row) { [weak self] in
                     guard let self else { return }
                     if case .modifier(let modifier) = key.action {
                         self.modifierState.begin(modifier)
@@ -1821,25 +1683,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                         self.publishModifiers()
                     } else { self.perform(key) }
                 }
-                var config = button.configuration!
-                config.baseBackgroundColor = .clear
-                config.baseForegroundColor = palette?.toolbarInk ?? .label
-                let usesGlyph: Bool = {
-                    switch key.action {
-                    case .modifier, .key("\u{1b}"), .key("\t"): return glyphsEnabled
-                    default: return true
-                    }
-                }()
-                if let symbol = key.symbol, usesGlyph,
-                   let image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17)) {
-                    config.title = nil
-                    config.image = image
-                }
-                button.configuration = config
                 button.interactionMode = toolbarInteractionMode
                 button.accessibilityLabel = key.accessibility ?? key.title
-                if case .modifier(let modifier) = key.action { toolbarDrawerModifiers[button] = modifier }
-                if key.action == .dismiss { toolbarDrawerDismissButtons.append(button) }
                 if key.action == .toolbar(KeyID.writingAssistance.keyValue) {
                     button.showsMenuAsPrimaryAction = true
                     button.menu = writingAssistanceMenu()
