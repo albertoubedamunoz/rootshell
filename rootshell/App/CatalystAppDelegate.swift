@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Combine
 import os
 import ObjectiveC
 import UniformTypeIdentifiers
@@ -543,6 +544,12 @@ class CatalystAppDelegate: AppDelegate {
     private var lastActivationSyncDate: Date?
     private let activationSyncInterval: TimeInterval = 180 // 3 minutes
 
+    // MARK: - Menu Shortcuts
+
+    /// Rebuilds the menu bar when keybinds change or shortcut recording starts
+    /// or stops, so key equivalents set in buildMenu(with:) stay current.
+    private var menuShortcutObserver: AnyCancellable?
+
     // MARK: - Application Lifecycle
 
     override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
@@ -565,6 +572,7 @@ class CatalystAppDelegate: AppDelegate {
         // scenePhase and UIApplication.didBecomeActiveNotification don't fire reliably
         setupWorkspaceActivationObserver()
         setupApplicationHideObserver()
+        setupMenuShortcutObserver()
         // AppKit owns Continuity Camera's Services handoff even in Catalyst.
         // Install after launch, once the native NSApplication subclass exists.
         DispatchQueue.main.async { [weak self] in
@@ -692,6 +700,19 @@ class CatalystAppDelegate: AppDelegate {
             object: application
         )
         logger.info("Registered for NSApplication hide notifications")
+    }
+
+    /// MenuShortcutState republishes after every keybind change and whenever
+    /// shortcut recording starts or stops — exactly when the key equivalents
+    /// in buildMenu(with:) go stale. @Published emits before the value is
+    /// stored, so hop a runloop turn before asking for the rebuild.
+    private func setupMenuShortcutObserver() {
+        menuShortcutObserver = MenuShortcutState.shared.$shortcuts
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { _ in
+                UIMenuSystem.main.setNeedsRebuild()
+            }
     }
 
     #if STANDALONE
@@ -1014,14 +1035,18 @@ class CatalystAppDelegate: AppDelegate {
 
         // CRITICAL: Replace Close command (Cmd-W) to close tabs instead of windows
         // System default closes the entire window - we want to close tabs/splits first
+        //
+        // The key equivalent follows the close_tab keybind. AppKit dispatches
+        // menu key equivalents before any responder UIKeyCommand, so a fixed
+        // Cmd-W here would swallow bindings that remap it (e.g. an imported
+        // `keybind = cmd+w=text:\x1Bw`). No key equivalent while a shortcut is
+        // being recorded, so the recorder sees the physical chord.
+        let closeTitle = String(localized: "Close Tab")
+        let closeCommand = MenuShortcutState.shared.isRecordingCapture
+            ? UICommand(title: closeTitle, action: closeSelector)
+            : keybindMenuCommand(title: closeTitle, action: closeSelector, keybind: .close_tab)
         builder.replaceChildren(ofMenu: .close) { _ in
-            let closeCommand = UIKeyCommand(
-                title: String(localized: "Close Tab"),
-                action: closeSelector,
-                input: "w",
-                modifierFlags: [.command]
-            )
-            return [closeCommand]
+            [closeCommand]
         }
 
         // Rootshell is not document-based. The default Catalyst Document menu

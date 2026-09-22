@@ -38,6 +38,10 @@ final class MenuShortcutState: ObservableObject {
     /// while another is still recording.
     private var recordingCaptureCount = 0
 
+    /// Whether a capture view is recording. The Catalyst menu items built in
+    /// CatalystAppDelegate.buildMenu(with:) drop their key equivalents too.
+    var isRecordingCapture: Bool { recordingCaptureCount > 0 }
+
     /// Whether a menu bar exists to carry app shortcuts. Both menu rails dispatch
     /// through UIApplication notifications rather than the responder chain, so a
     /// menu item still fires while an overlay owns first responder — and a second
@@ -235,10 +239,10 @@ struct DynamicShortcut: ViewModifier {
     }
 }
 
-// Note: Close (Cmd-W) is handled by:
-// 1. System-provided Close menu item
-// 2. UIKeyCommand in TerminalViewKeyboard.swift with wantsPriorityOverSystemBehavior
-// 3. pressesBegan fallback for macOS Sequoia compatibility
+// Note: On Mac Catalyst, Close Tab is the Close menu item that
+// CatalystAppDelegate.buildMenu(with:) installs. Its key equivalent follows
+// the close_tab keybind, because AppKit dispatches menu key equivalents
+// before any responder UIKeyCommand.
 
 // MARK: - Edit Commands
 
