@@ -291,6 +291,9 @@ class KeyboardToolbarView: UIView {
     /// Callback when the clipboard manager button is tapped
     var onClipboardManagerRequested: (() -> Void)?
 
+    /// Callback when the file manager button is tapped
+    var onFileManagerRequested: (() -> Void)?
+
     /// Callback when drawer opens/closes (for height updates)
     var onDrawerStateChanged: (() -> Void)?
 
@@ -716,6 +719,8 @@ class KeyboardToolbarView: UIView {
             return createBrightnessBoostButton()
         case .clipboardManager:
             return createClipboardManagerButton()
+        case .fileManager:
+            return createFileManagerButton()
         case .drawerToggle:
             return createExtraKeysDrawerToggleButton()
         default:
@@ -995,6 +1000,16 @@ class KeyboardToolbarView: UIView {
         let button = KeyboardSymbolButton(
             key: "__clipboardManager__",
             display: .icon("list.clipboard"),
+            sizes: sizes
+        )
+        button.delegate = self
+        return button
+    }
+
+    private func createFileManagerButton() -> KeyboardSymbolButton {
+        let button = KeyboardSymbolButton(
+            key: "__fileManager__",
+            display: .icon("folder.badge.gearshape"),
             sizes: sizes
         )
         button.delegate = self
@@ -1399,6 +1414,10 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
         }
         if key == "__clipboardManager__" {
             onClipboardManagerRequested?()
+            return
+        }
+        if key == "__fileManager__" {
+            onFileManagerRequested?()
             return
         }
         if key == "__arrowDrawer__" {

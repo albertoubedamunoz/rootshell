@@ -13,7 +13,7 @@ import NIOSSH
 import os.log
 
 /// Error types for SFTP operations
-enum SFTPError: LocalizedError {
+nonisolated enum SFTPError: LocalizedError {
     case connectionFailed(host: String, underlying: Error?)
     case authenticationFailed(host: String)
     case notConnected

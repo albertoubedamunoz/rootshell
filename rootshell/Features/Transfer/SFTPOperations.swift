@@ -17,11 +17,11 @@ import NIOFoundationCompat
 /// SFTP backend (RFSFTPDataSource) call through to these methods.
 enum SFTPOperations {
 
-    // MARK: - Directory Listing (rf file browser only)
+    // MARK: - Directory Listing
 
-    #if !targetEnvironment(macCatalyst)
-    /// List directory contents and map to RFEntry structs suitable for the file browser.
-    static func listDirectoryEntries(
+    /// List directory contents as RFEntry values. Symlinks are stat'ed so a link
+    /// to a directory lists as a directory, and their targets are read.
+    nonisolated static func listDirectoryEntries(
         sftp: SFTPClient,
         path: String
     ) async throws -> [RFEntry] {
@@ -33,34 +33,68 @@ enum SFTPOperations {
         }
 
         var entries: [RFEntry] = []
+        var linkIndices: [Int] = []
         for nameMessage in nameMessages {
             for component in nameMessage.components {
                 let filename = component.filename
                 guard filename != "." && filename != ".." else { continue }
 
-                let fullPath = joinPath(path, filename)
                 let entry = attributesToEntry(
                     filename: filename,
-                    path: fullPath,
+                    path: joinPath(path, filename),
                     attrs: component.attributes,
                     longname: component.longname
                 )
+                if entry.isSymlink { linkIndices.append(entries.count) }
                 entries.append(entry)
             }
+        }
+
+        // Resolve links concurrently; a dangling link keeps its lstat view.
+        let resolved = await withTaskGroup(of: (Int, SFTPFileAttributes?, String?).self) { group in
+            for index in linkIndices {
+                let linkPath = entries[index].path
+                group.addTask {
+                    async let target = try? sftp.getAttributes(at: linkPath)
+                    async let destination = try? sftp.readLink(at: linkPath)
+                    return (index, await target, await destination)
+                }
+            }
+            var results: [(Int, SFTPFileAttributes?, String?)] = []
+            for await result in group { results.append(result) }
+            return results
+        }
+        for (index, targetAttrs, destination) in resolved {
+            let link = entries[index]
+            var entry = targetAttrs.map {
+                attributesToEntry(filename: link.name, path: link.path, attrs: $0)
+            } ?? link
+            entry = RFEntry(
+                name: entry.name, path: entry.path, isDirectory: entry.isDirectory,
+                isSymlink: true, isHidden: entry.isHidden, isExecutable: entry.isExecutable,
+                size: entry.size, modifiedDate: entry.modifiedDate, gitStatus: nil,
+                permissions: link.permissions, symlinkTarget: destination, owner: link.owner
+            )
+            entries[index] = entry
         }
         return entries
     }
 
     /// Map SFTPFileAttributes to an RFEntry.
-    static func attributesToEntry(
+    nonisolated static func attributesToEntry(
         filename: String,
         path: String,
         attrs: SFTPFileAttributes,
         longname: String? = nil
     ) -> RFEntry {
         let isDir = isDirectory(attrs)
-        // Longname starting with 'l' indicates symlink in ls -l output
-        let isLink = longname?.first == "l"
+        let isLink: Bool
+        if let mode = attrs.permissions {
+            isLink = (mode & 0o170000) == 0o120000
+        } else {
+            // Longname starting with 'l' indicates symlink in ls -l output
+            isLink = longname?.first == "l"
+        }
         // Clamp to avoid trapping on a malicious/buggy server returning size > Int64.max.
         let size = Int64(clamping: attrs.size ?? 0)
 
@@ -80,11 +114,20 @@ enum SFTPOperations {
             isHidden: filename.hasPrefix("."),
             isExecutable: isExec,
             size: size,
-            modifiedDate: nil,
-            gitStatus: nil
+            modifiedDate: attrs.accessModificationTime?.modificationTime,
+            gitStatus: nil,
+            permissions: attrs.permissions,
+            owner: longname.flatMap(ownerFromLongname)
         )
     }
-    #endif
+
+    /// The owner column of an `ls -l` style longname, e.g. "kit" in
+    /// `-rw-r--r--    1 kit      staff    42 Jan  1 00:00 file`.
+    nonisolated static func ownerFromLongname(_ longname: String) -> String? {
+        let fields = longname.split(separator: " ", omittingEmptySubsequences: true)
+        guard fields.count >= 4, fields[0].count >= 10 else { return nil }
+        return String(fields[2])
+    }
 
     // MARK: - Recursive Enumeration
 
@@ -272,7 +315,7 @@ enum SFTPOperations {
     // MARK: - Path Utilities
 
     /// Join two POSIX path components.
-    static func joinPath(_ base: String, _ component: String) -> String {
+    nonisolated static func joinPath(_ base: String, _ component: String) -> String {
         if component.isEmpty { return base }
         let cleanBase = base.hasSuffix("/") ? String(base.dropLast()) : base
         let cleanComponent = component.hasPrefix("/") ? String(component.dropFirst()) : component
@@ -281,7 +324,7 @@ enum SFTPOperations {
 
     /// Normalize a POSIX-style remote path lexically, collapsing `.` and `..`
     /// without requiring the path to exist on the remote server.
-    static func normalizePath(_ path: String) -> String {
+    nonisolated static func normalizePath(_ path: String) -> String {
         guard !path.isEmpty else { return "." }
 
         let isAbsolute = path.hasPrefix("/")
@@ -310,12 +353,12 @@ enum SFTPOperations {
     }
 
     /// Get the parent directory of a POSIX path.
-    static func parentPath(of path: String) -> String {
+    nonisolated static func parentPath(of path: String) -> String {
         (path as NSString).deletingLastPathComponent
     }
 
     /// Split path into directory and filename.
-    static func splitPath(_ path: String) -> (directory: String, filename: String) {
+    nonisolated static func splitPath(_ path: String) -> (directory: String, filename: String) {
         let nsPath = path as NSString
         return (nsPath.deletingLastPathComponent, nsPath.lastPathComponent)
     }
@@ -355,7 +398,7 @@ enum SFTPOperations {
     // MARK: - Attribute Checks
 
     /// Check if SFTP attributes indicate a directory (S_IFDIR).
-    static func isDirectory(_ attrs: SFTPFileAttributes) -> Bool {
+    nonisolated static func isDirectory(_ attrs: SFTPFileAttributes) -> Bool {
         if let mode = attrs.permissions {
             return (mode & 0o170000) == 0o040000
         }

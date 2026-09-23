@@ -193,6 +193,9 @@
 		47D8B28B2ECAC24B00CA99EC /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 47D8B28A2ECAC24B00CA99EC /* libc++.tbd */; };
 		47D8B2A12ECB90D100CA99EC /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47D8B2A02ECB90D100CA99EC /* Metal.framework */; };
 		47ED19994CFF9EF35029B687 /* TrzszSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 47TSSH0112FC00000AABB0001 /* TrzszSSH */; };
+		47F11E0000000000000000B1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift */; };
+		47F11E0000000000000000B2 /* rootshell/Features/FileManager/Model/FileListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A2 /* rootshell/Features/FileManager/Model/FileListSelection.swift */; };
+		47F11E0000000000000000B3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift */; };
 		47FF768D2F33DD6900DFD408 /* TrzszSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 47TSSH0112FC00000AABB0001 /* TrzszSSH */; };
 		47FONT022ED92ABC009B57F8 /* fonts in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47FONT012ED92ABC009B57F8 /* fonts */; };
 		47IOS0032FA00000AABB0003 /* ios_system in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47IOS0012FA00000AABB0001 /* ios_system */; };
@@ -623,6 +626,9 @@
 		47D8B2422ECAAE7F00CA99EC /* rootshell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshell.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47D8B28A2ECAC24B00CA99EC /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		47D8B2A02ECB90D100CA99EC /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		47F11E0000000000000000A1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Transfers/FileTransferLogic.swift; sourceTree = SOURCE_ROOT; };
+		47F11E0000000000000000A2 /* rootshell/Features/FileManager/Model/FileListSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Model/FileListSelection.swift; sourceTree = SOURCE_ROOT; };
+		47F11E0000000000000000A3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift; sourceTree = SOURCE_ROOT; };
 		47FONT012ED92ABC009B57F8 /* fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fonts; path = Resources/fonts; sourceTree = "<group>"; };
 		47IDCFG012F000000AABB0001 /* Identity.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Identity.xcconfig; sourceTree = "<group>"; };
 		47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SessionActivityWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1224,6 +1230,9 @@
 				47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */,
 				47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */,
 				47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */,
+				47F11E0000000000000000A1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift */,
+				47F11E0000000000000000A2 /* rootshell/Features/FileManager/Model/FileListSelection.swift */,
+				47F11E0000000000000000A3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift */,
 				47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */,
 				47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */,
 				47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */,
@@ -2220,6 +2229,9 @@
 				47AF04850000000000000A01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift in Sources */,
 				47AEC0020000000000000003 /* rootshell/Core/Shell/LoginShellCommand.swift in Sources */,
 				47AF0F1D0000000000000B01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift in Sources */,
+				47F11E0000000000000000B1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift in Sources */,
+				47F11E0000000000000000B2 /* rootshell/Features/FileManager/Model/FileListSelection.swift in Sources */,
+				47F11E0000000000000000B3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift in Sources */,
 				47AF0F1D0000000000000B02 /* rootshell/Core/Terminal/TerminalTargetKey.swift in Sources */,
 				47AF0F1D0000000000000B03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift in Sources */,
 				47AF0F1D0000000000000B04 /* rootshell/Features/OpenInFolder/DirectoryListingProbe.swift in Sources */,
@@ -2404,7 +2416,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -2464,7 +2476,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -2526,7 +2538,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -3651,7 +3663,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -3768,7 +3780,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -3893,7 +3905,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -4023,7 +4035,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -4378,7 +4390,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -4437,7 +4449,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -4490,7 +4502,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -4514,7 +4526,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -4538,7 +4550,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				EXCLUDED_SOURCE_FILE_NAMES = "VPN*.swift";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -4570,7 +4582,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				EXCLUDED_SOURCE_FILE_NAMES = "VPN*.swift";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
@@ -4602,7 +4614,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -4634,7 +4646,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -4669,7 +4681,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -4735,7 +4747,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -4800,7 +4812,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -4865,7 +4877,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -4923,7 +4935,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -4984,7 +4996,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -5044,7 +5056,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -5104,7 +5116,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -5157,7 +5169,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -5181,7 +5193,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -5205,7 +5217,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -5229,7 +5241,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -5253,7 +5265,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -5277,7 +5289,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)-maccatalyst";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CoreWLANPlugin/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -5430,7 +5442,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -5498,7 +5510,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -5556,7 +5568,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Session Activity";
@@ -5586,7 +5598,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Session Activity";
@@ -5616,7 +5628,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Session Activity";
@@ -5646,7 +5658,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Session Activity";
@@ -5676,7 +5688,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Session Activity";
@@ -5706,7 +5718,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SessionActivityWidget/SessionActivityWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SessionActivityWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Session Activity";
@@ -5737,7 +5749,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-MacCatalyst.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -5771,7 +5783,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-MacCatalyst.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -5805,7 +5817,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-MacCatalyst.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -5839,7 +5851,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-MacCatalyst.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -5873,7 +5885,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-MacCatalyst.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -5907,7 +5919,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-MacCatalyst.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -5940,7 +5952,7 @@
 				CODE_SIGN_ENTITLEMENTS = "PushNotificationService/PushNotificationService-China.entitlements";
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-China-MacCatalyst.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -5973,7 +5985,7 @@
 				CODE_SIGN_ENTITLEMENTS = "PushNotificationService/PushNotificationService-China.entitlements";
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "PushNotificationService/PushNotificationService-China-MacCatalyst.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PushNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "rootshell Push";
@@ -6006,7 +6018,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -6039,7 +6051,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -6072,7 +6084,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -6105,7 +6117,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -6138,7 +6150,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -6171,7 +6183,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = VPNTunnelExtension/VPNTunnelExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = VPNTunnelExtension/Info.plist;
@@ -6208,7 +6220,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -6274,7 +6286,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -6341,7 +6353,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -6406,7 +6418,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -6466,7 +6478,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 154;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -6772,7 +6784,7 @@
 			repositoryURL = "https://github.com/kitknox/Citadel-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.12.6;
+				version = 0.12.7;
 			};
 		};
 		4747A1092F2ADF800080DE63 /* XCRemoteSwiftPackageReference "yubikit-swift-rootshell" */ = {
@@ -6860,7 +6872,7 @@
 			repositoryURL = "https://github.com/kitknox/ios_system-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.1.0;
+				version = 0.1.1;
 			};
 		};
 		47JOE0002FA00000AABB0000 /* XCRemoteSwiftPackageReference "joe-rootshell" */ = {
@@ -6868,7 +6880,7 @@
 			repositoryURL = "https://github.com/kitknox/joe-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.1.0;
+				version = 0.1.2;
 			};
 		};
 		47JQPKG02FB00000AABB0000 /* XCRemoteSwiftPackageReference "jq-rootshell" */ = {

@@ -109,6 +109,9 @@ extension TerminalTouchKeyboardModel.Style {
         switch self {
         case .flat: TerminalTouchFlatKeycap(key, small: small)
         case .sculpted: TerminalTouchSculptedKeycap(key, small: small)
+        case .steampunk: TerminalTouchSteampunkKeycap(key, small: small)
+        case .phosphor, .beigeBox, .neonGrid, .circuitBoard:
+            TerminalTouchRetroKeycap(key, design: retroDesign ?? .phosphor, small: small)
         }
     }
 
@@ -117,6 +120,9 @@ extension TerminalTouchKeyboardModel.Style {
         switch self {
         case .flat: TerminalTouchFlatKeyPreview()
         case .sculpted: TerminalTouchSculptedKeyPreview()
+        case .steampunk: TerminalTouchSteampunkKeyPreview()
+        case .phosphor, .beigeBox, .neonGrid, .circuitBoard:
+            TerminalTouchRetroKeyPreview(design: retroDesign ?? .phosphor)
         }
     }
 
@@ -126,6 +132,10 @@ extension TerminalTouchKeyboardModel.Style {
         switch self {
         case .flat: TerminalTouchFlatDrawerButton(key: key, subtitle: subtitle, toolbar: toolbar, palette: palette)
         case .sculpted: TerminalTouchSculptedDrawerButton(key: key, subtitle: subtitle, toolbar: toolbar, palette: palette)
+        case .steampunk: TerminalTouchSteampunkDrawerButton(key: key, subtitle: subtitle, toolbar: toolbar, palette: palette)
+        case .phosphor, .beigeBox, .neonGrid, .circuitBoard:
+            TerminalTouchRetroDrawerButton(key: key, design: retroDesign ?? .phosphor, subtitle: subtitle,
+                                           toolbar: toolbar, palette: palette)
         }
     }
 }

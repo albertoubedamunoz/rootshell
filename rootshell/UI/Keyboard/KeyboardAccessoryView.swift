@@ -129,6 +129,13 @@ class KeyboardAccessoryView: UIInputView {
         }
     }
 
+    /// Callback when the file manager button is tapped
+    var onFileManagerRequested: (() -> Void)? {
+        didSet {
+            toolbarView.onFileManagerRequested = onFileManagerRequested
+        }
+    }
+
     /// Callback when accessory layout changes and input views should refresh
     var onLayoutInvalidated: (() -> Void)?
 

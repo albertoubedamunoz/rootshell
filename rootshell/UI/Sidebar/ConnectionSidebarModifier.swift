@@ -23,6 +23,7 @@ enum ConnectionSidebarTab {
     case local
     case kubernetes
     case console
+    case files
 }
 
 // MARK: - Connection Sidebar Modifier
@@ -34,6 +35,8 @@ struct ConnectionSidebarModifier<PhoneContent: View, SidebarContent: View>: View
     let themeColors: SheetThemeColors?
     let accentColor: Color?
     let colorScheme: ColorScheme?
+    /// Runs after the sheet presentation (iPhone, visionOS) finishes dismissing.
+    var onSheetDismiss: (() -> Void)? = nil
     @ViewBuilder var phoneContent: () -> PhoneContent
     @ViewBuilder var sidebarContent: () -> SidebarContent
 
@@ -48,7 +51,7 @@ struct ConnectionSidebarModifier<PhoneContent: View, SidebarContent: View>: View
     func body(content: Content) -> some View {
         if isPhone {
             content
-                .sheet(isPresented: $showSidebar) {
+                .sheet(isPresented: $showSidebar, onDismiss: onSheetDismiss) {
                     phoneContent()
                         .id(contentID)
                         .themedSheet(themeColors: themeColors, accentColor: accentColor, colorScheme: colorScheme)
@@ -57,7 +60,7 @@ struct ConnectionSidebarModifier<PhoneContent: View, SidebarContent: View>: View
         } else {
             #if os(visionOS)
             content
-                .sheet(isPresented: $showSidebar) {
+                .sheet(isPresented: $showSidebar, onDismiss: onSheetDismiss) {
                     sidebarContent()
                         .id(contentID)
                         .themedSheet(themeColors: themeColors, accentColor: accentColor, colorScheme: colorScheme)

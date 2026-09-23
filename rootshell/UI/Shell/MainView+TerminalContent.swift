@@ -326,6 +326,9 @@ extension MainView {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
+            // File manager HUD, or the transfer pill while it is hidden
+            fileManagerOverlays()
+
             // Theme picker overlay
             themePickerOverlayView(isPresented: $showThemePickerOverlay)
 
@@ -1306,10 +1309,14 @@ extension MainView {
         #if !CHINA_BUILD
         let shouldShowSidebar = shouldShowAISidebar(currentTabId: currentTabId)
         let sidebarWidth = shouldShowSidebar ? aiAgentSidebarWidth : 0
-        let terminalWidth = geometry.size.width - sidebarWidth - dockedWidth
         #else
-        let terminalWidth = geometry.size.width - dockedWidth
+        let sidebarWidth: CGFloat = 0
         #endif
+        // The file manager column never squeezes the terminal below 320pt.
+        let fileManagerWidth = fileManagerShowsSidebar
+            ? min(fileManagerSidebarWidth, max(FileManagerSidebarView.minWidth, geometry.size.width - dockedWidth - sidebarWidth - 320))
+            : 0
+        let terminalWidth = geometry.size.width - sidebarWidth - dockedWidth - fileManagerWidth
 
         HStack(spacing: 0) {
             if let dockedSidebarTheme {
@@ -1330,6 +1337,8 @@ extension MainView {
                     ? dockedWidth
                     : 0
             )
+
+            fileManagerSidebarColumn(width: fileManagerWidth, totalWidth: geometry.size.width)
 
             #if !CHINA_BUILD
             if shouldShowSidebar, let session = aiAgentSessions[currentTabId] {
@@ -1363,6 +1372,7 @@ extension MainView {
         // during the live drag (the gesture drives width directly). Outside the
         // CHINA gate — the docked path ships on China builds too.
         .animation(tabSidebarIsDragging ? .none : .interactiveSpring(), value: dockedWidth)
+        .animation(fileManagerSidebarIsDragging ? .none : .spring(response: 0.3, dampingFraction: 0.85), value: fileManagerWidth)
         #if !CHINA_BUILD
         .animation(
             aiAgentSidebarIsDragging ? .none : .spring(response: 0.3, dampingFraction: 0.85),

@@ -3,6 +3,8 @@ import SwiftUI
 
 struct TerminalTouchKeyboardSettingsView: View {
     @Setting(Settings.Keyboard.touchStyle) private var keyboardStyle
+    @Setting(Settings.Keyboard.touchThemeAware) private var themeAware
+    @Setting(Settings.Keyboard.touchPhosphorColor) private var phosphorColor
     @Setting(Settings.Keyboard.touchFloatingGlassStyle) private var floatingGlassStyle
     @Setting(Settings.Keyboard.touchFloatingGlassTintOpacity) private var floatingGlassTintOpacity
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -74,10 +76,12 @@ struct TerminalTouchKeyboardSettingsView: View {
                     .themedRow()
                 SettingToggle(Settings.Keyboard.touchHaptics, title: "Haptic Feedback", icon: "hand.tap")
                     .themedRow()
+                SettingToggle(Settings.Keyboard.touchClickSound, title: "Key Click Sounds", icon: "speaker.wave.2")
+                    .themedRow()
             } header: {
                 Text("Typing")
             } footer: {
-                Text("Letter Prediction uses recent English typing to help choose between nearby letters. Turn it off for literal key targeting. Suggestions are local spelling guesses and completions; tap to apply one. Words are never automatically replaced. The double-space period shortcut follows your Terminal keyboard setting.")
+                Text("Letter Prediction uses recent English typing to help choose between nearby letters. Turn it off for literal key targeting. Suggestions are local spelling guesses and completions; tap to apply one. Words are never automatically replaced. The double-space period shortcut follows your Terminal keyboard setting. Key Click Sounds match the keyboard style and are muted in Silent Mode.")
             }
             Section {
                 SettingToggle(Settings.Keyboard.touchCompactHeight, title: "Compact Height", icon: "arrow.down.to.line")
@@ -99,12 +103,29 @@ struct TerminalTouchKeyboardSettingsView: View {
                 .themedRow()
                 SettingToggle(Settings.Keyboard.touchThemeAware, title: "Follow Terminal Theme", icon: "paintpalette")
                     .themedRow()
+                if keyboardStyle == .steampunk {
+                    SettingToggle(Settings.Keyboard.touchSteampunkThemeAwareKeycaps, title: "Theme-Aware Keycaps", icon: "keyboard")
+                        .disabled(!themeAware)
+                        .themedRow()
+                }
+                if keyboardStyle == .phosphor {
+                    Picker("Phosphor Color", selection: $phosphorColor) {
+                        ForEach(TerminalTouchKeyboardModel.PhosphorColor.allCases, id: \.self) { color in
+                            Text(color.displayName).tag(color)
+                        }
+                    }
+                    .settingContextMenu(Settings.Keyboard.touchPhosphorColor)
+                    .themedRow()
+                }
                 KeyboardBackgroundEffectPicker()
                     .themedRow()
             } header: {
                 Text("Appearance")
             } footer: {
-                Text("Flat is the original keyboard style. Sculpted adds raised keycaps and depth. Follow Terminal Theme matches the active terminal’s colors, including tab and window themes. Key labels keep their contrast in every mode.")
+                Text("Flat is the original keyboard style. Sculpted adds raised keycaps and depth. Steampunk adds brass-rimmed instrument keys and a mechanical drive that responds to touch. Phosphor draws glowing keys on a dark CRT screen. Beige Box has tall keys like a classic office keyboard. Neon Grid puts glowing keys over a synthwave horizon whose grid moves as you type. Circuit Board sends a pulse along the board’s traces with each key press. Animations stop when idle, with Reduce Motion, or in Low Power Mode. Follow Terminal Theme matches the active terminal’s colors, including tab and window themes. Key labels keep their contrast in every mode.")
+                if keyboardStyle == .steampunk {
+                    Text("Steampunk uses matching ivory and dark enamel keycaps by default. With Follow Terminal Theme on, enable Theme-Aware Keycaps to also match the keycaps to your terminal’s colors.")
+                }
             }
             if UIDevice.current.userInterfaceIdiom == .pad {
                 Section {
@@ -172,10 +193,12 @@ struct TerminalTouchKeyboardSettingsView: View {
     }
 }
 
-private struct TerminalTouchKeyboardPreview: UIViewRepresentable {
+struct TerminalTouchKeyboardPreview: UIViewRepresentable {
     @Binding var sample: String
     @Binding var height: CGFloat
     var floating: Bool
+    var style: TerminalTouchKeyboardModel.Style?
+    var onPageChanged: ((TerminalTouchKeyboardModel.ToolPage) -> Void)?
 
     final class Coordinator: TerminalTouchKeyboardHost {
         var parent: TerminalTouchKeyboardPreview
@@ -210,17 +233,22 @@ private struct TerminalTouchKeyboardPreview: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> TerminalTouchKeyboardView {
         let view = TerminalTouchKeyboardView()
+        view.styleOverride = style
         view.host = context.coordinator
         view.setFloating(floating)
         view.onHeightChanged = { [weak view, weak coordinator = context.coordinator] in
             guard let view else { return }
             coordinator?.parent.height = view.intrinsicContentSize.height
         }
+        view.onPageChanged = { [weak coordinator = context.coordinator] page in
+            coordinator?.parent.onPageChanged?(page)
+        }
         return view
     }
     func updateUIView(_ view: TerminalTouchKeyboardView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
+        view.styleOverride = style
         view.setFloating(floating)
         if coordinator.lastSample != sample {
             coordinator.predictionContext.reset()

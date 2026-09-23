@@ -1,5 +1,3 @@
-#if !targetEnvironment(macCatalyst)
-
 import Foundation
 
 /// Git status for a single file.
@@ -15,7 +13,7 @@ nonisolated enum RFGitFileStatus: Sendable {
 }
 
 /// Sort order for directory listings.
-enum RFSortOrder: Sendable {
+nonisolated enum RFSortOrder: Sendable {
     case nameAsc
     case nameDesc
     case sizeAsc
@@ -50,7 +48,8 @@ enum RFSortOrder: Sendable {
 }
 
 /// A single file or directory entry with metadata.
-struct RFEntry: Sendable {
+/// `isDirectory` follows symlinks, so a link to a directory can be entered.
+nonisolated struct RFEntry: Sendable {
     let name: String
     let path: String          // Absolute path
     let isDirectory: Bool
@@ -60,30 +59,14 @@ struct RFEntry: Sendable {
     let size: Int64
     let modifiedDate: Date?
     var gitStatus: RFGitFileStatus?
-
-    // MARK: - Display Properties
+    /// POSIX mode bits including the file-type bits, when known.
+    var permissions: UInt32? = nil
+    var symlinkTarget: String? = nil
+    var owner: String? = nil
 
     /// File extension (lowercase, without dot).
     var fileExtension: String {
-        let ext = (name as NSString).pathExtension.lowercased()
-        return ext
-    }
-
-    /// Resolved icon definition with per-file Nerd Font icon and RGB color.
-    var iconDef: RFIconDef {
-        RFIconRegistry.resolve(self)
-    }
-
-    /// Color for this entry's name (theme-dependent, state-aware).
-    /// Icon color comes from iconDef.fg directly.
-    @MainActor
-    func nameColor(theme: RFTheme) -> (UInt8, UInt8, UInt8) {
-        if isDirectory { return theme.directoryColor }
-        if isSymlink { return theme.symlinkColor }
-        if isHidden { return theme.hiddenColor }
-        if isExecutable { return theme.executableColor }
-        // Use the per-icon color for regular files
-        return iconDef.fg
+        (name as NSString).pathExtension.lowercased()
     }
 
     /// Human-readable file size.
@@ -112,49 +95,6 @@ struct RFEntry: Sendable {
         case .ignored:   return ""
         }
     }
-
-    /// Git status color.
-    @MainActor
-    func gitColor(theme: RFTheme) -> (UInt8, UInt8, UInt8)? {
-        guard let status = gitStatus else { return nil }
-        switch status {
-        case .modified:  return theme.gitModified
-        case .staged:    return theme.gitStaged
-        case .added:     return theme.gitStaged
-        case .untracked: return theme.gitUntracked
-        case .deleted:   return theme.gitDeleted
-        case .renamed:   return theme.gitModified
-        case .conflict:  return theme.gitConflict
-        case .ignored:   return nil
-        }
-    }
-
-    /// Convert to display entry for rendering.
-    @MainActor
-    func toDisplayEntry(theme: RFTheme) -> RFDisplayEntry {
-        var rightParts: [String] = []
-        if !gitIndicator.isEmpty {
-            rightParts.append(gitIndicator)
-        }
-        let sz = sizeString
-        if !sz.isEmpty {
-            rightParts.append(sz)
-        }
-        let rightText = rightParts.joined(separator: " ")
-
-        let icon = iconDef
-        let entryColor = nameColor(theme: theme)
-        return RFDisplayEntry(
-            name: name,
-            path: path,
-            icon: icon.text,
-            iconColor: theme.readableDecorativeColor(icon.fg),
-            color: theme.readableTextColor(entryColor),
-            isDirectory: isDirectory,
-            rightText: rightText,
-            rightColor: gitColor(theme: theme).map { theme.readableDecorativeColor($0) }
-        )
-    }
 }
 
 // MARK: - Loading
@@ -164,25 +104,24 @@ extension RFEntry {
     /// If the path is a bookmarked location (symlink to a security-scoped resource),
     /// uses the BookmarkedLocationsManager's resolved URL for access while keeping
     /// entry paths relative to the original path for consistent navigation.
+    @MainActor
     static func loadDirectory(at path: String) -> [RFEntry] {
+        (try? loadLocalDirectory(at: path, resolver: .current())) ?? []
+    }
+
+    /// Off-main variant; the resolver carries the bookmark state captured on the main actor.
+    nonisolated static func loadLocalDirectory(at path: String, resolver: LocalPathResolver) throws -> [RFEntry] {
         let fm = FileManager.default
         let keys: [URLResourceKey] = [
             .isDirectoryKey, .fileSizeKey, .contentModificationDateKey,
             .isSymbolicLinkKey
         ]
 
-        // Use the security-scoped URL if this path is a bookmarked location,
-        // otherwise fall back to the plain file URL.
-        let accessURL = BookmarkedLocationsManager.shared.accessibleURL(for: path)
-            ?? URL(fileURLWithPath: path)
-
-        guard let contents = try? fm.contentsOfDirectory(
-            at: accessURL,
+        let contents = try fm.contentsOfDirectory(
+            at: URL(fileURLWithPath: resolver.resolve(path)),
             includingPropertiesForKeys: keys,
             options: []
-        ) else {
-            return []
-        }
+        )
 
         return contents.compactMap { url in
             // Build the entry path under the ORIGINAL path prefix so navigation
@@ -191,7 +130,7 @@ extension RFEntry {
 
             guard let resources = try? url.resourceValues(forKeys: Set(keys)) else {
                 // If resource values fail, check if the entry is a bookmark symlink
-                let isBkmk = BookmarkedLocationsManager.shared.isBookmarkSymlink(named: url.lastPathComponent)
+                let isBkmk = resolver.bookmarkNames.contains(url.lastPathComponent)
                 return RFEntry(
                     name: url.lastPathComponent,
                     path: entryPath,
@@ -210,15 +149,18 @@ extension RFEntry {
             let size = Int64(resources.fileSize ?? 0)
             let modified = resources.contentModificationDate
 
-            // For symlinks where isDirectory is false (target outside sandbox),
-            // check if this is a bookmark symlink — bookmarks are always directories.
             if isLink && !isDir {
-                if BookmarkedLocationsManager.shared.isBookmarkSymlink(named: url.lastPathComponent) {
-                    isDir = true
-                }
+                // Bookmarks are always directories, even when the target is outside the sandbox.
+                var targetIsDir: ObjCBool = false
+                isDir = resolver.bookmarkNames.contains(url.lastPathComponent)
+                    || (fm.fileExists(atPath: url.path, isDirectory: &targetIsDir) && targetIsDir.boolValue)
             }
 
             let isExec = fm.isExecutableFile(atPath: url.path) && !isDir
+
+            var mode: UInt32?
+            var info = stat()
+            if lstat(url.path, &info) == 0 { mode = UInt32(info.st_mode) }
 
             return RFEntry(
                 name: url.lastPathComponent,
@@ -229,13 +171,15 @@ extension RFEntry {
                 isExecutable: isExec,
                 size: size,
                 modifiedDate: modified,
-                gitStatus: nil
+                gitStatus: nil,
+                permissions: mode,
+                symlinkTarget: isLink ? try? fm.destinationOfSymbolicLink(atPath: url.path) : nil
             )
         }
     }
 
     /// Sort entries with the given order. Directories always come first.
-    static func sorted(_ entries: [RFEntry], by order: RFSortOrder) -> [RFEntry] {
+    nonisolated static func sorted(_ entries: [RFEntry], by order: RFSortOrder) -> [RFEntry] {
         entries.sorted { a, b in
             // Directories first
             if a.isDirectory != b.isDirectory {
@@ -264,5 +208,3 @@ extension RFEntry {
         }
     }
 }
-
-#endif
