@@ -177,9 +177,14 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     weak var host: TerminalTouchKeyboardHost? { didSet { updateAppearance() } }
     private var palette: TerminalTouchKeyboardPalette?
     /// Steampunk keeps its brass-matched ivory/enamel caps unless explicitly opted in.
+    /// Beige Box, Neon Grid and Circuit Board have fixed materials; Phosphor
+    /// reads the palette only for its Terminal Theme color.
     private var keycapPalette: TerminalTouchKeyboardPalette? {
-        keyboardStyle == .steampunk && !SettingsStore.shared.value(Settings.Keyboard.touchSteampunkThemeAwareKeycaps)
-            ? nil : palette
+        switch keyboardStyle {
+        case .steampunk: SettingsStore.shared.value(Settings.Keyboard.touchSteampunkThemeAwareKeycaps) ? palette : nil
+        case .beigeBox, .neonGrid, .circuitBoard: nil
+        case .flat, .sculpted, .phosphor: palette
+        }
     }
     var onAppearanceChanged: (() -> Void)?
     var containerBackgroundColor: UIColor { palette?.background ?? TerminalTouchKeyboardAppearance.background }
@@ -306,6 +311,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let floatingGlass = UIVisualEffectView()
     private let controlGlass = UIVisualEffectView()
     private var steampunkMachinery: TerminalTouchSteampunkMachineryView?
+    private var retroBackdrop: TerminalTouchRetroBackdropView?
     private struct GlassAppearance: Equatable {
         let toolbar: UIColor
         let background: UIColor
@@ -363,6 +369,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var typingGeometry = Model.TypingGeometry(targets: [], bounds: .zero)
     private var nextContactOrder: UInt64 = 0
     private var hapticsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchHaptics)
+    private var clickSoundEnabled = SettingsStore.shared.value(Settings.Keyboard.touchClickSound)
     private var compactHeightEnabled = SettingsStore.shared.value(Settings.Keyboard.touchCompactHeight)
     private var glyphsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
     #if !os(visionOS)
@@ -680,6 +687,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             updateSuggestions()
         }
         hapticsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchHaptics)
+        clickSoundEnabled = SettingsStore.shared.value(Settings.Keyboard.touchClickSound)
         let compactHeight = SettingsStore.shared.value(Settings.Keyboard.touchCompactHeight)
         let glyphs = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
         if compactHeightEnabled != compactHeight || glyphsEnabled != glyphs { cancelInteraction() }
@@ -773,6 +781,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     /// The optional instrument sits above the glass/effect but below every key.
     /// Binding visual feedback never replaces input handlers or touch geometry.
     private func updateSteampunkMachinery() {
+        updateRetroBackdrop()
         guard keyboardStyle == .steampunk else {
             steampunkMachinery?.resetContactFeedback()
             steampunkMachinery?.removeFromSuperview()
@@ -789,8 +798,16 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         machine.frame = bounds
         machine.layer.cornerRadius = isFloating ? 24 : 0
-        // Exclude suggestion and preset rows: their original text stays on its
-        // original background, not on dark engine metal or moving gears.
+        machine.configure(palette: palette, rows: styleBackdropBands,
+                          active: window != nil && !isHidden && !effectsSuspended)
+        for case let cap as TerminalTouchSteampunkKeycap in allKeycaps {
+            cap.machinery = machine
+        }
+    }
+
+    /// Exclude suggestion and preset rows: their original text stays on its
+    /// original background, not on a style's bed or moving artwork.
+    private var styleBackdropBands: [CGRect] {
         var bands = [CGRect(x: 0, y: 0, width: bounds.width, height: toolbarHeight)]
         if !isToolbarOnly {
             if drawerOpen {
@@ -802,10 +819,30 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 }
             }
         }
-        machine.configure(palette: palette, rows: bands,
-                          active: window != nil && !isHidden && !effectsSuspended)
-        for case let cap as TerminalTouchSteampunkKeycap in allKeycaps {
-            cap.machinery = machine
+        return bands
+    }
+
+    private func updateRetroBackdrop() {
+        guard let design = keyboardStyle.retroDesign else {
+            retroBackdrop?.resetContactFeedback()
+            retroBackdrop?.removeFromSuperview()
+            retroBackdrop = nil
+            return
+        }
+        let backdrop: TerminalTouchRetroBackdropView
+        if let existing = retroBackdrop {
+            backdrop = existing
+        } else {
+            backdrop = TerminalTouchRetroBackdropView()
+            retroBackdrop = backdrop
+            insertSubview(backdrop, aboveSubview: controlGlass)
+        }
+        backdrop.frame = bounds
+        backdrop.layer.cornerRadius = isFloating ? 24 : 0
+        backdrop.configure(design: design, palette: palette, rows: styleBackdropBands,
+                           active: window != nil && !isHidden && !effectsSuspended)
+        for case let cap as TerminalTouchRetroKeycap in allKeycaps {
+            cap.backdrop = backdrop
         }
     }
 
@@ -1101,6 +1138,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             contacts[id] = contact
             key.pressed = true
             feedback()
+            if clickSoundEnabled { TerminalTouchKeyClick.shared.play(keyboardStyle.clickProfile) }
             if case .modifier(let mod) = key.key.action {
                 modifierState.begin(mod)
                 publishModifiers()
@@ -1316,6 +1354,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         (drawerButtons + toolbarDrawerButtons.flatMap { $0 }).forEach { $0.cancelInteraction() }
         writingAssistanceButton.cancelInteraction()
         steampunkMachinery?.resetContactFeedback()
+        retroBackdrop?.resetContactFeedback()
         sequenceTask?.cancel(); sequenceTask = nil
         if !preservingSuggestions {
             suggestionTask?.cancel(); suggestionTask = nil

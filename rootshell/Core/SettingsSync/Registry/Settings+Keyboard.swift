@@ -13,6 +13,7 @@ extension TerminalWritingAssistanceMode: SettingValue {}
 extension KeyboardArrowJoystickButton.Mode: SettingValue {}
 extension TerminalTouchKeyboardModel.FloatingGlassStyle: SettingValue {}
 extension TerminalTouchKeyboardModel.Style: SettingValue {}
+extension TerminalTouchKeyboardModel.PhosphorColor: SettingValue {}
 
 nonisolated extension Settings {
     enum Keyboard {
@@ -47,6 +48,13 @@ nonisolated extension Settings {
         static let touchSteampunkThemeAwareKeycaps = SettingKey(
             "terminalTouchKeyboardSteampunkThemeAwareKeycaps", default: false, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-steampunk-theme-aware-keycaps", title: String(localized: "Theme-Aware Keycaps"))
+        static let touchPhosphorColor = SettingKey(
+            "terminalTouchKeyboardPhosphorColor", default: TerminalTouchKeyboardModel.PhosphorColor.green,
+            group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-phosphor-color", title: String(localized: "Phosphor Color"))
+        static let touchClickSound = SettingKey(
+            "terminalTouchKeyboardClickSound", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-click-sound", title: String(localized: "Key Click Sounds"))
         static let touchSystemFloating = SettingKey(
             "terminalTouchKeyboardSystemFloating", default: true, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-system-floating", title: String(localized: "Use System Detached Keyboard"))
@@ -80,7 +88,7 @@ nonisolated extension Settings {
             optionKeyAsAlt.erased, forceASCIIKeyboard.erased, doubleSpaceForPeriod.erased, composeAutocorrect.erased,
             writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased,
             touchCompactHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
-            touchSteampunkThemeAwareKeycaps.erased,
+            touchSteampunkThemeAwareKeycaps.erased, touchPhosphorColor.erased, touchClickSound.erased,
             touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
         ]
     }
