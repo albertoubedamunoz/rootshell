@@ -80,6 +80,10 @@ struct SidebarSearchField: UIViewRepresentable {
     /// Caller-defined chords (e.g. the user's split shortcuts) claimed while
     /// the field is first responder.
     var extraCommands: [SidebarSearchExtraCommand] = []
+    /// ⌘A while the field is empty; nil keeps text select-all.
+    var onSelectAll: (() -> Void)? = nil
+    /// While focused, terminal focus recovery yields to this field as it does to a HUD's.
+    var claimsKeyboard = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -138,6 +142,7 @@ struct SidebarSearchField: UIViewRepresentable {
 
     private func applyHandlers(to field: SidebarSearchTextField) {
         field.capturesNavigationKeys = capturesNavigationKeys
+        field.claimsKeyboard = claimsKeyboard
         field.handlers = SidebarSearchTextField.Handlers(
             onMoveUpBegan: onMoveUpBegan,
             onMoveUpEnded: onMoveUpEnded,
@@ -150,7 +155,8 @@ struct SidebarSearchField: UIViewRepresentable {
             onDeleteEntry: onDeleteEntry,
             onTab: onTab,
             onBackTab: onBackTab,
-            extraCommands: extraCommands
+            extraCommands: extraCommands,
+            onSelectAll: onSelectAll
         )
     }
 
@@ -220,7 +226,16 @@ struct SidebarSearchField: UIViewRepresentable {
 struct SidebarSearchExtraCommand {
     let input: String
     let modifiers: UIKeyModifierFlags
+    /// Listed in the iPad hold-⌘ shortcut overlay when non-empty.
+    var title: String = ""
     let handler: () -> Void
+
+    init(input: String, modifiers: UIKeyModifierFlags, title: String = "", handler: @escaping () -> Void) {
+        self.input = input
+        self.modifiers = modifiers
+        self.title = title
+        self.handler = handler
+    }
 }
 
 /// UITextField that routes list-navigation keys (Up/Down/Escape) to closures
@@ -239,11 +254,13 @@ final class SidebarSearchTextField: UITextField {
         var onTab: (() -> Void)?
         var onBackTab: (() -> Void)?
         var extraCommands: [SidebarSearchExtraCommand] = []
+        var onSelectAll: (() -> Void)?
     }
 
     var handlers: Handlers?
     var onWindowAttached: (() -> Void)?
     var capturesNavigationKeys = true
+    var claimsKeyboard = false
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
@@ -311,12 +328,31 @@ final class SidebarSearchTextField: UITextField {
             commands.append(prioritized(UIKeyCommand(input: "\t", modifierFlags: .shift, action: #selector(handleBackTabCommand))))
         }
         for (index, extra) in handlers.extraCommands.enumerated() {
-            commands.append(prioritized(UIKeyCommand(
+            let command = UIKeyCommand(
                 title: "", image: nil, action: #selector(handleExtraCommand(_:)),
                 input: extra.input, modifierFlags: extra.modifiers, propertyList: index
-            )))
+            )
+            if !extra.title.isEmpty { command.discoverabilityTitle = extra.title }
+            commands.append(prioritized(command))
         }
         return commands
+    }
+
+    /// ⌘A arrives as the Edit menu's selectAll:, which beats any key command,
+    /// so a panel that selects list items claims it here while the field is empty.
+    override func selectAll(_ sender: Any?) {
+        if let onSelectAll = handlers?.onSelectAll, text?.isEmpty ?? true {
+            onSelectAll()
+        } else {
+            super.selectAll(sender)
+        }
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(selectAll(_:)), handlers?.onSelectAll != nil, text?.isEmpty ?? true {
+            return true
+        }
+        return super.canPerformAction(action, withSender: sender)
     }
 
     /// Chords must beat system text-editing behavior (Ctrl+P caret-up, etc.).

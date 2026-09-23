@@ -3,16 +3,15 @@
 //  rootshell
 //
 //  AsyncBytePipe over a bidirectional file descriptor (a socketpair end
-//  received from the helper). Reads block on a private queue so a waiting
-//  read never ties up an actor or the main thread.
+//  received from the helper, or one half of the SFTP-over-tssh bridge).
+//  Reads block on a private queue so a waiting read never ties up an actor
+//  or the main thread.
 //
 //  Copyright (c) 2026 Kit Knox / Rootshell LLC
 //
 
 import Foundation
 import os
-
-#if targetEnvironment(macCatalyst)
 
 nonisolated final class FileDescriptorBytePipe: AsyncBytePipe, @unchecked Sendable {
 
@@ -99,5 +98,3 @@ nonisolated final class FileDescriptorBytePipe: AsyncBytePipe, @unchecked Sendab
         }
     }
 }
-
-#endif

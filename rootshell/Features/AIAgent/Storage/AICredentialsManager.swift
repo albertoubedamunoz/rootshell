@@ -118,11 +118,19 @@ final class AICredentialsManager {
     /// Model IDs we no longer offer, mapped to their replacement. Stored selections
     /// are rewritten on launch — an unmapped ID resolves to no provider at all.
     private nonisolated static let legacyModelMigrations: [String: String] = [
-        "gpt-5.4": "gpt-5.6-sol",
-        "gpt-5.4-mini-2026-03-17": "gpt-5.6-terra",
-        "gpt-5.4-nano-2026-03-17": "gpt-5.6-luna",
-        "claude-opus-4-8": "claude-opus-5",
-        "bedrock-claude-opus-4-8": "bedrock-claude-opus-5",
+        "gpt-5.4": "gpt-6-astra",
+        "gpt-5.4-mini-2026-03-17": "gpt-6-sol",
+        "gpt-5.4-nano-2026-03-17": "gpt-6-luna",
+        "gpt-5.5-2026-04-23": "gpt-6-astra",
+        "gpt-5.6-sol": "gpt-6-astra",
+        "gpt-5.6-terra": "gpt-6-sol",
+        "gpt-5.6-luna": "gpt-6-luna",
+        "claude-opus-4-8": "claude-opus-5-5",
+        "claude-opus-5": "claude-opus-5-5",
+        "claude-sonnet-4-6": "claude-sonnet-5",
+        "bedrock-claude-opus-4-8": "bedrock-claude-opus-5-5",
+        "bedrock-claude-opus-5": "bedrock-claude-opus-5-5",
+        "bedrock-claude-sonnet-4-6": "bedrock-claude-sonnet-5",
     ]
 
     // Keychain accounts
@@ -495,8 +503,15 @@ final class AICredentialsManager {
     /// selected capability tier. Unrelated and custom model IDs are unchanged.
     private func migrateLegacyModelSelections() {
         let defaults = UserDefaults.standard
+        // Runs before `_openAIAuthMode` loads. ChatGPT sign-in discovers its own
+        // gpt-5.6 lineup, so shared selections of those IDs stay put in that mode.
+        let isChatGPTMode = defaults.string(forKey: openAIAuthModeKey) == OpenAIAuthMode.chatgptSignIn.rawValue
+        func sharedMigration(for id: String) -> String? {
+            if isChatGPTMode, id.hasPrefix("gpt-5.6") { return nil }
+            return Self.legacyModelMigrations[id]
+        }
 
-        if let migrated = Self.legacyModelMigrations[_globalSelectedModelID] {
+        if let migrated = sharedMigration(for: _globalSelectedModelID) {
             _globalSelectedModelID = migrated
             SettingsStore.shared.set(Settings.AI.globalSelectedModel, migrated)
         }
@@ -514,7 +529,7 @@ final class AICredentialsManager {
             }
         }
 
-        if let migrated = Self.legacyModelMigrations[_aiCommitMessageModelID] {
+        if let migrated = sharedMigration(for: _aiCommitMessageModelID) {
             _aiCommitMessageModelID = migrated
             SettingsStore.shared.set(Settings.AI.commitMessageModel, migrated)
         }

@@ -26,12 +26,13 @@ nonisolated enum KeyboardToolbarOverflow {
 nonisolated enum TerminalTouchKeyboardModel {
     /// Stable persisted identifiers; rendering implementations live in the style files.
     enum Style: String, CaseIterable, Sendable {
-        case flat, sculpted
+        case flat, sculpted, steampunk
 
         var displayName: String {
             switch self {
             case .flat: String(localized: "Flat")
             case .sculpted: String(localized: "Sculpted")
+            case .steampunk: String(localized: "Steampunk")
             }
         }
     }

@@ -294,6 +294,16 @@ struct MainView: View {
     /// A split / new-tab chord caught by the menu rail while the palette is up.
     @State var openInFolderShortcut: OpenInFolderShortcut?
 
+    // File manager: the model is created on first open and kept while hidden.
+    @State var showFileManager = false
+    @State var fileManagerModel: FileManagerModel?
+    @State var fileManagerPresentation: FileManagerPresentation = SettingsStore.shared.value(Settings.Transfer.fileManagerPresentation)
+    /// Live width during a drag; persisted only on commit, like the AI sidebar's.
+    @State var fileManagerSidebarWidth: CGFloat = CGFloat(SettingsStore.shared.value(Settings.Transfer.fileManagerSidebarWidth))
+    @State var fileManagerSidebarIsDragging = false
+    /// A Files-tab choice waiting for the connection sheet to finish dismissing.
+    @State var pendingFileManagerOpen: (endpoint: SFTPEndpoint, presentation: FileManagerPresentation?)?
+
     // Clipboard manager overlay state
     @State var showClipboardManager = false
     /// Keyboard mode for the regular-width clipboard HUD (2nd Cmd+Shift+C
@@ -646,7 +656,7 @@ struct MainView: View {
                     // (pinned) tab sidebar consumes the leading edge and the
                     // AI agent sidebar the trailing edge.
                     .padding(.leading, dockedTabSidebarWidth(windowWidth: geometry.size.width))
-                    .padding(.trailing, aiAgentSidebarCurrentWidth())
+                    .padding(.trailing, aiAgentSidebarCurrentWidth() + fileManagerSidebarCurrentWidth)
                     .transition(.opacity)
                 }
             }

@@ -2714,6 +2714,15 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             menuItems.append(clipboardManagerAction)
         }
 
+        // Opens on this pane's host and folder, so it's reachable without a keyboard.
+        menuItems.append(UIAction(
+            title: String(localized: "File Manager"),
+            image: UIImage(systemName: "folder.badge.gearshape")
+        ) { [weak self] _ in
+            guard let self else { return }
+            NotificationCenter.default.post(name: .toggleFileManager, object: self)
+        })
+
         // Split actions menu
         let splitRight = UIAction(
             title: String(localized: "Split Right"),

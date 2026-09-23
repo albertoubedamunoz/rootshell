@@ -213,7 +213,7 @@ enum AnthropicMessageHelpers {
             return .toolCalls
         case "max_tokens":
             return .length
-        case "content_filter":
+        case "content_filter", "refusal":
             return .contentFilter
         default:
             return nil

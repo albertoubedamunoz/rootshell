@@ -590,18 +590,8 @@ struct SessionPickerOverlay: View {
         return session.isAttached ? .orange : .green
     }
 
-    @ViewBuilder
     private func hintBadge(_ key: String, label: String, compact: Bool = false) -> some View {
-        HStack(spacing: compact ? 4 : 6) {
-            Text(key)
-                .font(.system(size: compact ? 10 : 12, weight: .medium, design: .monospaced))
-                .padding(.horizontal, compact ? 4 : 6)
-                .padding(.vertical, compact ? 2 : 3)
-                .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 3))
-            Text(label)
-                .font(.system(size: compact ? 10 : 12))
-                .foregroundStyle(.tertiary)
-        }
+        KeyHintBadge(key: key, label: label, compact: compact)
     }
 
     /// Returns the digit key hint string if all session names are single digits (e.g. "0,2,5"),

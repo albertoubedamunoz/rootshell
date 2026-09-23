@@ -65,6 +65,7 @@ extension MainView {
             showThemePickerOverlay ||
             showQuickSettingsOverlay ||
             showOpenInFolderOverlay ||
+            fileManagerOwnsKeyboard ||
             // The iPhone presentation is a sheet that owns the keyboard. On
             // regular width the clipboard manager is a passthrough glass HUD (like
             // the Find HUD, which is intentionally absent here) and must NOT count
@@ -185,6 +186,8 @@ extension MainView {
                 .presentationDetents([.medium, .large])
                 .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
             }
+            // File manager: iPhone presentation. Larger screens use the sidebar or HUD.
+            .modifier(fileManagerPhoneSheetModifier(sheetTheme: sheetTheme))
             .sheet(item: $connectionInfoToShow) { info in
                 ConnectionInfoSheet(info: info)
                     .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
@@ -319,6 +322,7 @@ extension MainView {
                 themeColors: sheetTheme.themeColors,
                 accentColor: sheetTheme.accentColor,
                 colorScheme: sheetTheme.colorScheme,
+                onSheetDismiss: { flushPendingFileManagerOpen() },
                 phoneContent: { connectionSheetContentForPhone },
                 // Same SidePanelOverlay re-hosting as the tab sidebar above:
                 // inject so @EnvironmentObject reads under this overlay can

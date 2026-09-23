@@ -8,6 +8,7 @@
 import Foundation
 
 extension ProfileSortOrder: SettingValue {}
+extension FileManagerPresentation: SettingValue {}
 extension KeyAuthRequirement: SettingValue {}
 extension KeyStorageLevel: SettingValue {}
 extension TmuxAutoMode: SettingValue {}
@@ -315,6 +316,42 @@ nonisolated extension Settings {
             "crocMachineID", default: nil, group: .transfer, policy: .deviceOnly,
             title: String(localized: "Croc Machine ID", comment: "Setting title"))
 
-        static let all: [AnySettingDefinition] = [crocMachineID.erased]
+        static let fileManagerPresentation = SettingKey(
+            "fileManager.presentation", default: FileManagerPresentation.sidebar, group: .transfer,
+            configKey: "file-manager-presentation",
+            title: String(localized: "File Manager Presentation", comment: "Setting title"))
+        static let fileManagerSidebarWidth = SettingKey(
+            "fileManager.sidebar.width", default: 460.0, group: .transfer, policy: .deviceOnly,
+            title: String(localized: "File Manager Sidebar Width", comment: "Setting title"))
+        static let fileManagerShowHidden = SettingKey(
+            "fileManager.showHidden", default: false, group: .transfer,
+            configKey: "file-manager-show-hidden",
+            title: String(localized: "Show Hidden Files", comment: "Setting title"))
+        static let fileManagerConcurrentJobs = SettingKey(
+            "fileManager.concurrentJobs", default: 2, group: .transfer,
+            configKey: "file-manager-concurrent-transfers",
+            title: String(localized: "Concurrent Transfers", comment: "Setting title"))
+        static let fileManagerPreserveAttributes = SettingKey(
+            "fileManager.preserveAttributes", default: true, group: .transfer,
+            configKey: "file-manager-preserve-attributes",
+            title: String(localized: "Preserve Permissions and Dates", comment: "Setting title"))
+        static let fileManagerIdleDisconnectMinutes = SettingKey(
+            "fileManager.idleDisconnectMinutes", default: 10, group: .transfer,
+            configKey: "file-manager-idle-disconnect",
+            title: String(localized: "Disconnect Idle Hosts After (Minutes)", comment: "Setting title"))
+        static let fileManagerPaneState = SettingKey<String?>(
+            "fileManager.paneState", default: nil, group: .transfer, policy: .deviceOnly,
+            title: String(localized: "File Manager Last Locations", comment: "Setting title"))
+        static let fileManagerShortcutsTipShown = SettingKey(
+            "fileManager.shortcutsTipShown", default: false, group: .transfer, policy: .deviceOnly,
+            title: String(localized: "File Manager Shortcuts Tip Shown", comment: "Setting title"))
+
+        static let all: [AnySettingDefinition] = [
+            crocMachineID.erased,
+            fileManagerPresentation.erased, fileManagerSidebarWidth.erased,
+            fileManagerShowHidden.erased, fileManagerConcurrentJobs.erased,
+            fileManagerPreserveAttributes.erased, fileManagerIdleDisconnectMinutes.erased,
+            fileManagerPaneState.erased, fileManagerShortcutsTipShown.erased,
+        ]
     }
 }

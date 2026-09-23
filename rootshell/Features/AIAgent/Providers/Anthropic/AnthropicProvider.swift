@@ -49,7 +49,7 @@ final class AnthropicProvider: AIProvider {
     // MARK: - Initialization
 
     /// Initialize for direct Anthropic API
-    init(apiKey: String, selectedModelID: String = "claude-sonnet-4-6") {
+    init(apiKey: String, selectedModelID: String = "claude-sonnet-5") {
         self.apiKey = apiKey
         self.baseURL = Self.defaultBaseURL
         self.isCustomEndpoint = false
@@ -258,8 +258,8 @@ final class AnthropicProvider: AIProvider {
         // Opus 4.x stays listed even though we no longer offer it: a stale stored
         // selection or a custom gateway model ID would 400 on `enabled` + budget.
         let adaptivePrefixes = isCustomEndpoint
-            ? ["claude-opus-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-sonnet-5"]
-            : ["claude-opus-5", "claude-opus-4-", "claude-sonnet-4-6", "claude-sonnet-5"]
+            ? ["claude-fable-5", "claude-opus-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-sonnet-5"]
+            : ["claude-fable-5", "claude-opus-5", "claude-opus-4-", "claude-sonnet-4-6", "claude-sonnet-5"]
         let usesAdaptiveThinking = adaptivePrefixes.contains { selectedModelID.hasPrefix($0) }
         if !usesAdaptiveThinking {
             request.setValue("interleaved-thinking-2025-05-14", forHTTPHeaderField: "anthropic-beta")
@@ -301,7 +301,7 @@ final class AnthropicProvider: AIProvider {
         return request
     }
 
-    /// Opus 5, Opus 4.8, and Sonnet 5 omit thinking content by default; opt in to
+    /// Fable 5.x, Opus 5.x, Opus 4.8, and Sonnet 5 omit thinking content by default; opt in to
     /// "summarized" so the UI keeps showing reasoning progress during long thinking
     /// pauses. Only applied when talking to the real Anthropic API — custom endpoints
     /// may not support `display`.
@@ -309,7 +309,7 @@ final class AnthropicProvider: AIProvider {
         guard usesAdaptive else {
             return .enabled(budgetTokens: 4096)
         }
-        let summarizedPrefixes = ["claude-opus-5", "claude-opus-4-8", "claude-sonnet-5"]
+        let summarizedPrefixes = ["claude-fable-5", "claude-opus-5", "claude-opus-4-8", "claude-sonnet-5"]
         if !isCustomEndpoint, summarizedPrefixes.contains(where: { modelID.hasPrefix($0) }) {
             return .adaptiveSummarized
         }

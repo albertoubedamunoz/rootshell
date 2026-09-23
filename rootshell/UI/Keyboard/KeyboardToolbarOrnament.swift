@@ -112,6 +112,10 @@ struct KeyboardToolbarRepresentable: UIViewRepresentable {
             NotificationCenter.default.post(name: .toggleClipboardManager, object: toolbar)
         }
 
+        toolbar.onFileManagerRequested = { [weak toolbar] in
+            NotificationCenter.default.post(name: .toggleFileManager, object: toolbar)
+        }
+
         toolbar.onModifiersChanged = { [weak coordinator] modifiers in
             coordinator?.focusedTerminal?.activeKeyboardModifiers = modifiers
         }

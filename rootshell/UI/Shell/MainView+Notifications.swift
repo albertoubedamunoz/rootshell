@@ -535,6 +535,13 @@ extension MainView {
             self.setOverlayOwnsKeyboardForAllTerminals(true)
         }
 
+        observerBag.observeOnMainActor(.toggleFileManager) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            // Another sheet owns the screen; the manager's own sheets are fine.
+            if !self.showFileManager, self.isSheetPresentedBesidesFloatingTabSidebar { return }
+            self.toggleFileManager()
+        }
+
         observerBag.observeOnMainActor(.toggleThemePicker) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
             self.showQuickSettingsOverlay = false

@@ -2527,6 +2527,11 @@ extension Ghostty.TerminalView {
         NotificationCenter.default.post(name: .openInFolder, object: self)
     }
 
+    @objc func menuToggleFileManager(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
+        NotificationCenter.default.post(name: .toggleFileManager, object: self)
+    }
+
     @objc func menuToggleThemePicker(_ sender: Any?) {
         noteModTapCommand(sender as? UIKeyCommand)
         NotificationCenter.default.post(name: .toggleThemePicker, object: self)

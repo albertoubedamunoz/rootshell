@@ -103,6 +103,10 @@ extension UIApplication {
         ghostty_postNotification(.openInFolder)
     }
 
+    @objc func menuToggleFileManager(_ sender: Any?) {
+        ghostty_postNotification(.toggleFileManager)
+    }
+
     @objc func menuToggleThemePicker(_ sender: Any?) {
         ghostty_postNotification(.toggleThemePicker)
     }

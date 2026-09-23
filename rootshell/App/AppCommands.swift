@@ -207,6 +207,14 @@ struct FileCommands: Commands {
                 )
             }
             .modifier(DynamicShortcut(action: .open_in_folder, shortcuts: shortcutState.shortcuts))
+
+            Button("File Manager") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuToggleFileManager(_:)),
+                    from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .toggle_file_manager, shortcuts: shortcutState.shortcuts))
         }
     }
 }

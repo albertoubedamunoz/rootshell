@@ -5,7 +5,7 @@
 //
 //  AWS regions where Amazon Bedrock + Anthropic Claude models are available,
 //  plus the geography prefix used for cross-region inference profile IDs
-//  (e.g., us.anthropic.claude-opus-5-v1:0 in any us-* region).
+//  (e.g., us.anthropic.claude-opus-5-5 in any us-* region).
 //
 
 import Foundation

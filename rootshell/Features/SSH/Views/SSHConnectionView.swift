@@ -24,7 +24,11 @@ struct SSHConnectionView: View {
     // (internal: shared with the Screen Sharing form extension)
     @State var quickConnectProfile: ConnectionProfile?
     @State var splitOption: SplitOption = .newTab
-    
+
+    // Files tab: where the file manager opens, and the location search
+    @State private var filePresentation: FileManagerPresentation = SettingsStore.shared.value(Settings.Transfer.fileManagerPresentation)
+    @State private var fileLocationQuery: String = ""
+
     // Kubernetes-specific state
     @State private var selectedCluster: KubernetesCluster?
     @State private var nodes: [ClusterNodeInfo] = []
@@ -186,7 +190,10 @@ struct SSHConnectionView: View {
     
     /// Callback when a profile is selected for connection
     var onProfileConnect: ((ConnectionProfile, SplitOption) -> Void)? = nil
-    
+
+    /// Callback when a Files location is chosen; presentation is nil on iPhone (always a sheet)
+    var onFileManagerOpen: ((SFTPEndpoint, FileManagerPresentation?) -> Void)? = nil
+
     /// When true, the Cancel button is hidden (no terminal to return to)
     var preventDismissal: Bool = false
     
@@ -217,6 +224,7 @@ struct SSHConnectionView: View {
         onConsoleConnect: ((ConsoleConfig, SplitOption) -> Void)? = nil,
         onEC2ConsoleConnect: ((EC2ConsoleConfig, SplitOption) -> Void)? = nil,
         onProfileConnect: ((ConnectionProfile, SplitOption) -> Void)? = nil,
+        onFileManagerOpen: ((SFTPEndpoint, FileManagerPresentation?) -> Void)? = nil,
         preventDismissal: Bool = false,
         onClose: (() -> Void)? = nil,
         initialTab: ConnectionSidebarTab? = nil
@@ -231,6 +239,7 @@ struct SSHConnectionView: View {
         self.onConsoleConnect = onConsoleConnect
         self.onEC2ConsoleConnect = onEC2ConsoleConnect
         self.onProfileConnect = onProfileConnect
+        self.onFileManagerOpen = onFileManagerOpen
         self.preventDismissal = preventDismissal
         self.onClose = onClose
         self.initialTab = initialTab
@@ -250,6 +259,7 @@ struct SSHConnectionView: View {
             case .local: _connectionType = State(initialValue: .local)
             case .kubernetes: _connectionType = State(initialValue: .kubernetes)
             case .console: _connectionType = State(initialValue: .console)
+            case .files: _connectionType = State(initialValue: .files)
             }
         } else {
             _connectionType = State(initialValue: defaultType)
@@ -264,6 +274,7 @@ struct SSHConnectionView: View {
         case local = "Local Shell"
         case kubernetes = "Kubernetes"
         case console = "Console"
+        case files = "Files"
 
         var displayName: String {
             switch self {
@@ -274,6 +285,7 @@ struct SSHConnectionView: View {
             case .local: return String(localized: "Local Shell")
             case .kubernetes: return String(localized: "Kubernetes")
             case .console: return String(localized: "Console")
+            case .files: return String(localized: "Files")
             }
         }
 
@@ -286,6 +298,7 @@ struct SSHConnectionView: View {
             case .local: return "macwindow"
             case .kubernetes: return "helm"
             case .console: return "server.rack"
+            case .files: return "folder"
             }
         }
     }
@@ -302,6 +315,8 @@ struct SSHConnectionView: View {
 #endif
 
         types.append(.vnc)
+
+        types.append(.files)
 
         types.append(.browse)
 
@@ -370,9 +385,10 @@ struct SSHConnectionView: View {
         case .local: return String(localized: "Local Shell")
         case .kubernetes: return String(localized: "Kubernetes")
         case .console: return String(localized: "Console")
+        case .files: return String(localized: "Files")
         }
     }
-    
+
     enum SplitOption: String, CaseIterable {
         case newTab = "New Tab"
         case splitRight = "Split Right"
@@ -562,7 +578,7 @@ struct SSHConnectionView: View {
         }
         
         ToolbarItem(placement: .confirmationAction) {
-            if connectionType == .console || connectionType == .profiles || connectionType == .browse {
+            if connectionType == .console || connectionType == .profiles || connectionType == .browse || connectionType == .files {
                 EmptyView()
             } else if isConnecting {
                 ProgressView()
@@ -597,6 +613,8 @@ struct SSHConnectionView: View {
                 kubernetesConnectionView
             case .console:
                 consoleConnectionView
+            case .files:
+                filesConnectionContent
             }
         }
     }
@@ -1255,6 +1273,97 @@ struct SSHConnectionView: View {
         }
     }
     
+    /// iPhone always presents the file manager as a sheet; elsewhere sidebar and overlay are both available.
+    private var fileManagerIsSheetOnly: Bool {
+#if os(visionOS)
+        return false
+#else
+        return UIDevice.current.userInterfaceIdiom == .phone
+#endif
+    }
+
+    private var filesConnectionContent: some View {
+        let locations = FileManagerLocation.all(origin: nil).filter { $0.matches(fileLocationQuery) }
+        return VStack(spacing: 0) {
+            if !fileManagerIsSheetOnly {
+                filesOpenAsHeader
+            }
+
+            List {
+                Section {
+                    Group {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                            TextField(String(localized: "Search profiles", comment: "File manager location picker placeholder"), text: $fileLocationQuery)
+                                .autocapitalization(.none)
+                                .autocorrectionDisabled()
+                            if !fileLocationQuery.isEmpty {
+                                Button(action: { fileLocationQuery = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .themedRow()
+                }
+
+                Section {
+                    Group {
+                        ForEach(locations) { location in
+                            Button { openFileLocation(location) } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: location.symbol)
+                                        .frame(width: 24)
+                                        .foregroundStyle(Color.accentColor)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(location.title).foregroundStyle(.primary)
+                                        if let detail = location.detail {
+                                            Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .themedRow()
+                }
+            }
+            .themedList()
+#if !os(visionOS)
+            .scrollDismissesKeyboard(.immediately)
+#endif
+        }
+    }
+
+    private var filesOpenAsHeader: some View {
+        VStack(spacing: 0) {
+            Picker(String(localized: "Open In", comment: "Connection view: file manager presentation picker"), selection: $filePresentation) {
+                ForEach(FileManagerPresentation.allCases, id: \.self) { presentation in
+                    Text(presentation.title).tag(presentation)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(sheetThemeColors?.background ?? Color(.systemGroupedBackground))
+
+            Divider()
+        }
+    }
+
+    private func openFileLocation(_ location: FileManagerLocation) {
+        if case .profile(let id) = location.endpoint {
+            ConnectionProfileManager.shared.recordUsage(id: id)
+        }
+        onFileManagerOpen?(location.endpoint, fileManagerIsSheetOnly ? nil : filePresentation)
+    }
+
     // Shared with the Screen Sharing form (SSHConnectionView+VNC.swift).
     var compactOpenAsHeader: some View {
         VStack(spacing: 0) {
@@ -1346,6 +1455,7 @@ struct SSHConnectionView: View {
         case .kubernetes: return UUID(uuidString: "8B4B6A50-9128-4D16-B90D-4A2E221AA005")!
         case .console: return UUID(uuidString: "8B4B6A50-9128-4D16-B90D-4A2E221AA006")!
         case .vnc: return UUID(uuidString: "8B4B6A50-9128-4D16-B90D-4A2E221AA007")!
+        case .files: return UUID(uuidString: "8B4B6A50-9128-4D16-B90D-4A2E221AA008")!
         }
     }
     
@@ -1743,7 +1853,7 @@ struct SSHConnectionView: View {
         }
         
         // Console/Browse connections happen by tapping an instance directly (no Connect button)
-        if connectionType == .console || connectionType == .browse {
+        if connectionType == .console || connectionType == .browse || connectionType == .files {
             return true
         }
 

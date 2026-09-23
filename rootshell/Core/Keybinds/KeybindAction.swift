@@ -145,6 +145,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     case toggle_quick_settings = "toggle_quick_settings"
     /// Open a new tab or split on the same target in a chosen folder
     case open_in_folder = "open_in_folder"
+    /// Show or hide the file manager
+    case toggle_file_manager = "toggle_file_manager"
     /// Open host browser
     case browse_hosts = "browse_hosts"
     /// Open profiles browser
@@ -324,7 +326,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .toggle_auto_redact:
             return .view
 
-        case .toggle_visor, .open_settings, .toggle_quick_settings, .open_in_folder, .browse_hosts, .browse_profiles, .open_profile, .toggle_ai_agent, .toggle_voice_agent:
+        case .toggle_visor, .open_settings, .toggle_quick_settings, .open_in_folder, .toggle_file_manager, .browse_hosts, .browse_profiles, .open_profile, .toggle_ai_agent, .toggle_voice_agent:
             return .shell
 
         case .select_all, .clear_screen, .reset_terminal,
@@ -392,6 +394,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .toggle_visor: return String(localized: "Toggle Visor")
         case .toggle_quick_settings: return String(localized: "Quick Settings")
         case .open_in_folder: return String(localized: "Open in Folder…", comment: "Keybind action: new tab or split in a chosen folder on the same target")
+        case .toggle_file_manager: return String(localized: "File Manager", comment: "Keybind action: show or hide the SFTP file manager")
         case .open_settings: return String(localized: "Settings", comment: "Keybind action: open settings")
         case .browse_hosts: return String(localized: "Browse Hosts", comment: "Keybind action")
         case .browse_profiles: return String(localized: "Browse Profiles", comment: "Keybind action")
@@ -485,6 +488,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .toggle_visor: return .toggleVisorOverlay
         case .toggle_quick_settings: return .toggleQuickSettings
         case .open_in_folder: return .openInFolder
+        case .toggle_file_manager: return .toggleFileManager
         case .browse_hosts: return .browseHosts
         case .browse_profiles: return .browseProfiles
         case .open_profile: return .openConnectionProfile
@@ -623,7 +627,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .select_tab_4, .select_tab_5, .select_tab_6, .select_tab_7, .select_tab_8,
              .select_tab_9, .split_right, .split_down, .navigate_split_left,
              .navigate_split_right, .navigate_split_up, .navigate_split_down,
-             .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .open_settings, .toggle_quick_settings, .open_in_folder, .browse_hosts,
+             .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .open_settings, .toggle_quick_settings, .open_in_folder,
+             .toggle_file_manager, .browse_hosts,
              .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_tab_bar, .toggle_group_mode, .toggle_transparency,
              .toggle_titlebar, .toggle_auto_redact,
              .toggle_background_effect, .toggle_tab_switcher, .toggle_tab_expose, .show_tmux_sessions,

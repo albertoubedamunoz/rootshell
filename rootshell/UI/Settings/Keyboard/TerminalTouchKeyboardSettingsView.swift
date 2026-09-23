@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TerminalTouchKeyboardSettingsView: View {
     @Setting(Settings.Keyboard.touchStyle) private var keyboardStyle
+    @Setting(Settings.Keyboard.touchThemeAware) private var themeAware
     @Setting(Settings.Keyboard.touchFloatingGlassStyle) private var floatingGlassStyle
     @Setting(Settings.Keyboard.touchFloatingGlassTintOpacity) private var floatingGlassTintOpacity
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -99,12 +100,20 @@ struct TerminalTouchKeyboardSettingsView: View {
                 .themedRow()
                 SettingToggle(Settings.Keyboard.touchThemeAware, title: "Follow Terminal Theme", icon: "paintpalette")
                     .themedRow()
+                if keyboardStyle == .steampunk {
+                    SettingToggle(Settings.Keyboard.touchSteampunkThemeAwareKeycaps, title: "Theme-Aware Keycaps", icon: "keyboard")
+                        .disabled(!themeAware)
+                        .themedRow()
+                }
                 KeyboardBackgroundEffectPicker()
                     .themedRow()
             } header: {
                 Text("Appearance")
             } footer: {
-                Text("Flat is the original keyboard style. Sculpted adds raised keycaps and depth. Follow Terminal Theme matches the active terminal’s colors, including tab and window themes. Key labels keep their contrast in every mode.")
+                Text("Flat is the original keyboard style. Sculpted adds raised keycaps and depth. Steampunk adds brass-rimmed instrument keys and a mechanical drive that responds to touch. Its motion stops when idle, with Reduce Motion, or in Low Power Mode. Follow Terminal Theme matches the active terminal’s colors, including tab and window themes. Key labels keep their contrast in every mode.")
+                if keyboardStyle == .steampunk {
+                    Text("Steampunk uses matching ivory and dark enamel keycaps by default. With Follow Terminal Theme on, enable Theme-Aware Keycaps to also match the keycaps to your terminal’s colors.")
+                }
             }
             if UIDevice.current.userInterfaceIdiom == .pad {
                 Section {

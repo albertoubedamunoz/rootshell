@@ -58,6 +58,9 @@ extension MainView {
                 showConnectionSidebar = false
                 connectToProfile(profile, splitOption: splitOption)
             },
+            onFileManagerOpen: { endpoint, presentation in
+                openFileManagerFromConnectionView(endpoint, presentation: presentation)
+            },
             preventDismissal: terminals.isEmpty && tabBarHidden,
             initialTab: connectionSidebarInitialTab
         )
@@ -101,10 +104,35 @@ extension MainView {
                 showConnectionSidebar = false
                 connectToProfile(profile, splitOption: splitOption)
             },
+            onFileManagerOpen: { endpoint, presentation in
+                openFileManagerFromConnectionView(endpoint, presentation: presentation)
+            },
             preventDismissal: terminals.isEmpty && tabBarHidden,
             onClose: { showConnectionSidebar = false },
             initialTab: connectionSidebarInitialTab
         )
+    }
+
+    /// iPhone and visionOS present the connection view as a sheet; iPad and Mac as a side panel.
+    var connectionViewIsSheet: Bool {
+#if os(visionOS)
+        true
+#else
+        isPhone
+#endif
+    }
+
+    /// Opens after the connection view closes so the terminal's focus restore can't win:
+    /// the panel flushes from the close handler, a sheet from its onDismiss.
+    private func openFileManagerFromConnectionView(_ endpoint: SFTPEndpoint, presentation: FileManagerPresentation?) {
+        pendingFileManagerOpen = (endpoint, presentation)
+        showConnectionSidebar = false
+    }
+
+    func flushPendingFileManagerOpen() {
+        guard let pending = pendingFileManagerOpen else { return }
+        pendingFileManagerOpen = nil
+        openFileManager(at: pending.endpoint, presentation: pending.presentation)
     }
     
     private func handleSSHOrLocalConnection(config: SSHConfig?, splitOption: SSHConnectionView.SplitOption) {

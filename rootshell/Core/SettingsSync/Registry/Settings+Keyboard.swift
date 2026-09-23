@@ -44,6 +44,9 @@ nonisolated extension Settings {
         static let touchThemeAware = SettingKey(
             "terminalTouchKeyboardThemeAware", default: true, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-theme-aware", title: String(localized: "Follow Terminal Theme"))
+        static let touchSteampunkThemeAwareKeycaps = SettingKey(
+            "terminalTouchKeyboardSteampunkThemeAwareKeycaps", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-steampunk-theme-aware-keycaps", title: String(localized: "Theme-Aware Keycaps"))
         static let touchSystemFloating = SettingKey(
             "terminalTouchKeyboardSystemFloating", default: true, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-system-floating", title: String(localized: "Use System Detached Keyboard"))
@@ -77,6 +80,7 @@ nonisolated extension Settings {
             optionKeyAsAlt.erased, forceASCIIKeyboard.erased, doubleSpaceForPeriod.erased, composeAutocorrect.erased,
             writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased,
             touchCompactHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
+            touchSteampunkThemeAwareKeycaps.erased,
             touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
         ]
     }

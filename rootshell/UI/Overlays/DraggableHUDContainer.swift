@@ -36,6 +36,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     var forwardsFindToggle: Bool
     var forwardsClipboardManagerToggle: Bool
     var forwardsOpenInFolderToggle: Bool
+    var forwardsFileManagerToggle: Bool
     /// Handles a forwarded toggle menu action instead of `onDismiss`. Needed by
     /// the clipboard manager, whose toggle is a 3-state cycle (open → keyboard
     /// mode → close) rather than a plain dismiss: the HUD's field can hold
@@ -54,6 +55,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
          forwardsFindToggle: Bool = false,
          forwardsClipboardManagerToggle: Bool = false,
          forwardsOpenInFolderToggle: Bool = false,
+         forwardsFileManagerToggle: Bool = false,
          onForwardedToggle: (() -> Void)? = nil,
          onFind: (() -> Void)? = nil,
          onDismiss: (() -> Void)? = nil,
@@ -66,6 +68,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         self.forwardsFindToggle = forwardsFindToggle
         self.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         self.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
+        self.forwardsFileManagerToggle = forwardsFileManagerToggle
         self.onForwardedToggle = onForwardedToggle
         self.onFind = onFind
         self.onDismiss = onDismiss
@@ -82,6 +85,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         view.forwardsFindToggle = forwardsFindToggle
         view.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         view.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
+        view.forwardsFileManagerToggle = forwardsFileManagerToggle
         view.onForwardedToggle = onForwardedToggle
         view.onFind = onFind
         view.onDismiss = onDismiss
@@ -112,6 +116,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         uiView.forwardsFindToggle = forwardsFindToggle
         uiView.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         uiView.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
+        uiView.forwardsFileManagerToggle = forwardsFileManagerToggle
         uiView.onForwardedToggle = onForwardedToggle
         uiView.setNeedsLayout()
     }
@@ -146,10 +151,13 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     /// must still yield while a HUD control actually holds first responder.
     /// Inspect only this window, and use live UIKit state rather than a flag
     /// that can lag SwiftUI field focus or HUD removal.
+    /// Also true for a docked panel field that opts in via `claimsKeyboard`
+    /// (the file manager sidebar), which lives outside any HUD host.
     static func ownsFirstResponder(in window: UIWindow) -> Bool {
         func containsFocusedHUD(_ view: UIView, insideHUD: Bool) -> Bool {
             let insideHUD = insideHUD || view is DraggableHUDHostView
-            if insideHUD && view.isFirstResponder { return true }
+            if view.isFirstResponder,
+               insideHUD || (view as? SidebarSearchTextField)?.claimsKeyboard == true { return true }
             return view.subviews.contains { containsFocusedHUD($0, insideHUD: insideHUD) }
         }
         return containsFocusedHUD(window, insideHUD: false)
@@ -165,6 +173,7 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     var forwardsFindToggle = false
     var forwardsClipboardManagerToggle = false
     var forwardsOpenInFolderToggle = false
+    var forwardsFileManagerToggle = false
     var onForwardedToggle: (() -> Void)?
     var onFind: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -190,7 +199,12 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
         if action == #selector(findInTerminal(_:)) { return forwardsFindToggle }
         if action == #selector(menuToggleClipboardManager(_:)) { return forwardsClipboardManagerToggle }
         if action == #selector(menuOpenInFolder(_:)) { return forwardsOpenInFolderToggle }
+        if action == #selector(menuToggleFileManager(_:)) { return forwardsFileManagerToggle }
         return super.canPerformAction(action, withSender: sender)
+    }
+
+    @objc func menuToggleFileManager(_ sender: Any?) {
+        (onForwardedToggle ?? onDismiss)?()
     }
 
     @objc func menuToggleQuickSettings(_ sender: Any?) {
@@ -241,6 +255,14 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
            !sequence.isSequence, let trigger = sequence.first {
             let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
                                        action: #selector(menuOpenInFolder(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            commands.append(command)
+        }
+        if forwardsFileManagerToggle,
+           let sequence = KeybindManager.shared.sequence(for: .toggle_file_manager),
+           !sequence.isSequence, let trigger = sequence.first {
+            let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
+                                       action: #selector(menuToggleFileManager(_:)))
             command.wantsPriorityOverSystemBehavior = true
             commands.append(command)
         }

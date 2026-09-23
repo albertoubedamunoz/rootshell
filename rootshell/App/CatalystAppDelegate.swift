@@ -1103,23 +1103,29 @@ class CatalystAppDelegate: AppDelegate {
             modifierFlags: [.command, .shift]
         )
 
-        let openInFolder: UICommand
-        if let sequence = KeybindManager.shared.sequence(for: .open_in_folder),
-           !sequence.isSequence, let trigger = sequence.first {
-            openInFolder = UIKeyCommand(
-                title: String(localized: "Open in Folder…"),
-                action: #selector(UIApplication.menuOpenInFolder(_:)),
-                input: trigger.uiKeyInput,
-                modifierFlags: trigger.uiModifierFlags
-            )
-        } else {
-            openInFolder = UICommand(title: String(localized: "Open in Folder…"),
-                                     action: #selector(UIApplication.menuOpenInFolder(_:)))
-        }
+        let openInFolder = keybindMenuCommand(
+            title: String(localized: "Open in Folder…"),
+            action: #selector(UIApplication.menuOpenInFolder(_:)),
+            keybind: .open_in_folder
+        )
+        let fileManager = keybindMenuCommand(
+            title: String(localized: "File Manager"),
+            action: #selector(UIApplication.menuToggleFileManager(_:)),
+            keybind: .toggle_file_manager
+        )
 
         builder.replaceChildren(ofMenu: .newScene) { _ in
-            [newLocalShell, newTab, newWindow, duplicateSshTab, openInFolder]
+            [newLocalShell, newTab, newWindow, duplicateSshTab, openInFolder, fileManager]
         }
+    }
+
+    /// A menu item carrying the action's current single-chord binding, if any.
+    private func keybindMenuCommand(title: String, action: Selector, keybind: KeybindAction) -> UICommand {
+        if let sequence = KeybindManager.shared.sequence(for: keybind),
+           !sequence.isSequence, let trigger = sequence.first {
+            return UIKeyCommand(title: title, action: action, input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags)
+        }
+        return UICommand(title: title, action: action)
     }
 
     private func buildEditMenu(_ builder: UIMenuBuilder) {
