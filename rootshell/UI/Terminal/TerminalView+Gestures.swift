@@ -1467,6 +1467,9 @@ extension Ghostty.TerminalView {
     }
 
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(menuChoosePaneToSwap(_:)) {
+            return enclosingSplitHost?.canChoosePaneToSwap == true
+        }
         if action == #selector(menuChoosePaneToZoom(_:)) {
             return enclosingSplitHost?.canChoosePaneToZoom == true
         }
@@ -2875,6 +2878,10 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             items.append(UIAction(title: String(localized: "Choose Pane to Zoom"),
                                   image: UIImage(systemName: "number.square")) { [weak self] _ in
                 self?.enclosingSplitHost?.showPaneZoomPicker()
+            })
+            items.append(UIAction(title: String(localized: "Choose Pane to Swap"),
+                                  image: UIImage(systemName: "arrow.left.arrow.right")) { [weak self] _ in
+                self?.enclosingSplitHost?.showPaneSwapPicker()
             })
             let zoom = UIAction(
                 title: isZoomed

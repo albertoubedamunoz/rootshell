@@ -4,6 +4,14 @@ import Foundation
 enum TmuxPaneZoomCommand {
     enum Failure: Error { case invalidTarget, invalidReply, layoutChanged }
 
+    /// One native command preserves the active pane and existing zoom. Qualify
+    /// both targets so neither can be followed into a different window.
+    static func swapCommand(windowID: Int, sourcePaneID: Int, targetPaneID: Int) throws -> String {
+        guard windowID >= 0, sourcePaneID >= 0, targetPaneID >= 0,
+              sourcePaneID != targetPaneID else { throw Failure.invalidTarget }
+        return "swap-pane -d -Z -s @\(windowID).%\(sourcePaneID) -t @\(windowID).%\(targetPaneID)"
+    }
+
     /// Preserve existing zoom when switching, then query the server before
     /// deciding whether to zoom. Each send has exactly one control-mode reply:
     /// if-shell / compound commands would shift the gateway's reply FIFO.

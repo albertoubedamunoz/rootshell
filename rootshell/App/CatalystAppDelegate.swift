@@ -230,6 +230,10 @@ extension UIApplication {
         sendMenuAction(#selector(Ghostty.TerminalView.menuChoosePaneToZoom(_:)), from: sender)
     }
 
+    @objc func ghostty_choosePaneToSwap(_ sender: Any?) {
+        sendMenuAction(#selector(Ghostty.TerminalView.menuChoosePaneToSwap(_:)), from: sender)
+    }
+
     @objc func ghostty_toggleTabBar(_ sender: Any?) {
         sendAction(#selector(Ghostty.TerminalView.menuToggleTabBar(_:)), to: nil, from: sender, for: nil)
     }
@@ -1318,7 +1322,9 @@ class CatalystAppDelegate: AppDelegate {
         let splitManageGroup = UIMenu(title: "", options: .displayInline, children: [
             toggleZoom, equalize,
             UICommand(title: String(localized: "Choose Pane to Zoom"),
-                      action: #selector(UIApplication.ghostty_choosePaneToZoom(_:)))
+                      action: #selector(UIApplication.ghostty_choosePaneToZoom(_:))),
+            UICommand(title: String(localized: "Choose Pane to Swap"),
+                      action: #selector(UIApplication.ghostty_choosePaneToSwap(_:)))
         ])
 
         // Scroll commands

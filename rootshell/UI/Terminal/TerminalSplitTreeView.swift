@@ -70,6 +70,7 @@ final class SplitTreeHostingView: UIView {
     private lazy var paneRearrangement = SplitPaneRearrangementController(host: self)
     private var paneZoomPicker: PaneZoomPickerView?
     private var paneZoomPickerPanes: [Ghostty.TerminalView] = []
+    private var paneSwapSourceViewID: UUID?
     private var sceneDeactivationObserver: NSObjectProtocol?
     private var paneZoomPresentationGeneration = 0
 
@@ -88,6 +89,40 @@ final class SplitTreeHostingView: UIView {
         guard isActiveTab, let panes = tree?.terminalLeaves, panes.count > 1,
               panes.count == tree?.count else { return false }
         return paneZoomRequest(for: panes) != nil
+    }
+
+    var canChoosePaneToSwap: Bool {
+        guard isActiveTab, let panes = tree?.terminalLeaves, panes.count > 1,
+              panes.count == tree?.count else { return false }
+        return paneSwapRequest(for: panes) != nil
+    }
+
+    private func canChoosePane(for action: PaneZoomPickerView.Action) -> Bool {
+        switch action {
+        case .zoom: return canChoosePaneToZoom
+        case .swap: return canChoosePaneToSwap
+        }
+    }
+
+    /// Swapping is tmux-only for now. Capture both server IDs and the original
+    /// source view so a delayed selection cannot swap a newly focused pane.
+    private func paneSwapRequest(for panes: [Ghostty.TerminalView]) -> ((UUID) -> Void)? {
+        guard let source = focusedPane?.asTerminal, panes.contains(where: { $0 === source }),
+              let binding = source.tmuxPaneBinding,
+              let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
+              controller.isActive, panes.allSatisfy({
+                  $0.tmuxPaneBinding?.parentUUID == binding.parentUUID &&
+                  $0.tmuxPaneBinding?.windowId == binding.windowId
+              }) else { return nil }
+        let ids = Dictionary(uniqueKeysWithValues: panes.compactMap { pane in
+            pane.tmuxPaneBinding.map { (pane.uuid, $0.paneId) }
+        })
+        return { [weak controller, weak source, weak self] viewID in
+            guard let self, let source, self.focusedPane === source,
+                  let targetID = ids[viewID], targetID != binding.paneId else { return }
+            controller?.requestSwapPane(windowID: binding.windowId, sourcePaneID: binding.paneId,
+                                        targetPaneID: targetID, expectedPaneIDs: Set(ids.values))
+        }
     }
 
     /// Capture server IDs separately from the view IDs used by the picker.
@@ -129,6 +164,14 @@ final class SplitTreeHostingView: UIView {
     }
 
     func showPaneZoomPicker() {
+        showPanePicker(action: .zoom)
+    }
+
+    func showPaneSwapPicker() {
+        showPanePicker(action: .swap)
+    }
+
+    private func showPanePicker(action: PaneZoomPickerView.Action) {
         // The menu rail and UIKeyCommand can both deliver the same shortcut.
         // Repeated presentation is idempotent; the picker handles cancellation.
         guard paneZoomPicker == nil else { return }
@@ -142,36 +185,52 @@ final class SplitTreeHostingView: UIView {
         // Resolve eligibility again after it has returned to the terminal scene.
         DispatchQueue.main.async { [weak self] in
             self?.presentPaneZoomPickerAfterKeyRelease(generation: generation,
-                                                       keyboard: keyboard, buttons: openingButtons)
+                                                       keyboard: keyboard, buttons: openingButtons, action: action)
         }
     }
 
     private func presentPaneZoomPickerAfterKeyRelease(generation: Int, keyboard: GCKeyboardInput?,
-                                                       buttons: [GCControllerButtonInput]) {
+                                                       buttons: [GCControllerButtonInput], action: PaneZoomPickerView.Action) {
         guard paneZoomPresentationGeneration == generation, isActiveTab, window != nil else { return }
         if let keyboard, GCKeyboard.coalesced?.keyboardInput === keyboard, buttons.contains(where: \.isPressed) {
             // Do not hand a still-held opening chord (including Option's text
             // delivery) to a view whose non-digit input intentionally cancels.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
-                self?.presentPaneZoomPickerAfterKeyRelease(generation: generation, keyboard: keyboard, buttons: buttons)
+                self?.presentPaneZoomPickerAfterKeyRelease(generation: generation, keyboard: keyboard, buttons: buttons, action: action)
             }
             return
         }
-        presentPaneZoomPicker()
+        presentPanePicker(action: action)
     }
 
-    private func presentPaneZoomPicker() {
-        guard paneZoomPicker == nil, canChoosePaneToZoom, windowCanPresentPaneZoomPicker,
-              let panes = tree?.terminalLeaves,
-              let requestZoom = paneZoomRequest(for: panes),
-              let selection = PaneZoomSelection(paneIDs: panes.map(\.uuid))
+    private func presentPanePicker(action: PaneZoomPickerView.Action) {
+        guard paneZoomPicker == nil, canChoosePane(for: action), windowCanPresentPaneZoomPicker,
+              let panes = tree?.terminalLeaves
         else { return }
+        let request: ((UUID) -> Void)?
+        let source: Ghostty.TerminalView?
+        switch action {
+        case .zoom:
+            request = paneZoomRequest(for: panes)
+            source = nil
+        case .swap:
+            request = paneSwapRequest(for: panes)
+            source = focusedPane?.asTerminal
+        }
+        guard let request,
+              let selection = PaneZoomSelection(paneIDs: panes.map(\.uuid), excludingPaneID: source?.uuid)
+        else { return }
+        let candidates = panes.filter { $0 !== source }
         cancelPaneDrag()
         let picker = PaneZoomPickerView(selection: selection,
-                                          titles: panes.map { $0.presentation.title },
+                                          titles: candidates.map { $0.presentation.title },
                                           preview: tree?.zoomed != nil,
-                                          shortcuts: KeybindManager.shared.activeBindings.compactMap { $0.sequence.first })
+                                          shortcuts: KeybindManager.shared.activeBindings.compactMap { $0.sequence.first },
+                                          action: action, sourceTitle: source?.presentation.title)
+        // Keep every pane in the keyboard-ownership group, including the
+        // unnumbered source; it must not reclaim focus while picking a target.
         paneZoomPickerPanes = panes
+        paneSwapSourceViewID = source?.uuid
         paneZoomPicker = picker
         MenuShortcutState.shared.beginRecordingCapture()
         KeyboardTracker.shared.beginOverlayKeyboardPreservation(owner: self, window: window)
@@ -181,8 +240,8 @@ final class SplitTreeHostingView: UIView {
             guard let self, self.paneZoomPicker === picker else { return }
             let restoreFocus = picker?.isFirstResponder == true
             self.dismissPaneZoomPicker(restoreFocus: restoreFocus)
-            guard let paneID, self.canChoosePaneToZoom else { return }
-            requestZoom(paneID)
+            guard let paneID, self.canChoosePane(for: action) else { return }
+            request(paneID)
         }
         addSubview(picker)
         layoutPaneZoomPicker()
@@ -192,7 +251,7 @@ final class SplitTreeHostingView: UIView {
 
     private func acquirePaneZoomPickerFocus(_ picker: PaneZoomPickerView, attempt: Int = 0) {
         guard paneZoomPicker === picker else { return }
-        guard canChoosePaneToZoom, windowCanPresentPaneZoomPicker else {
+        guard canChoosePane(for: picker.action), windowCanPresentPaneZoomPicker else {
             dismissPaneZoomPicker(restoreFocus: false)
             return
         }
@@ -212,6 +271,7 @@ final class SplitTreeHostingView: UIView {
         paneZoomPicker = nil
         let panes = paneZoomPickerPanes
         paneZoomPickerPanes = []
+        paneSwapSourceViewID = nil
         picker.onFinish = nil
         picker.removeFromSuperview()
         DispatchQueue.main.async { MenuShortcutState.shared.endRecordingCapture() }
@@ -236,7 +296,11 @@ final class SplitTreeHostingView: UIView {
             dismissPaneZoomPicker()
             return
         }
-        picker.arrange(in: frames)
+        let sourceIndex = paneZoomPickerPanes.firstIndex { $0.uuid == paneSwapSourceViewID }
+        let targetFrames = frames.enumerated().compactMap { index, frame in
+            index == sourceIndex ? nil : frame
+        }
+        picker.arrange(in: targetFrames, sourceFrame: sourceIndex.map { frames[$0] })
         bringSubviewToFront(picker)
     }
 
@@ -1590,6 +1654,7 @@ extension Notification.Name {
     static let toggleSplitZoom = Notification.Name("com.rootshell.toggleSplitZoom")
     static let equalizeSplits = Notification.Name("com.rootshell.equalizeSplits")
     static let choosePaneToZoom = Notification.Name("com.rootshell.choosePaneToZoom")
+    static let choosePaneToSwap = Notification.Name("com.rootshell.choosePaneToSwap")
     static let focusSplit = Notification.Name("com.rootshell.focusSplit")
     static let resizeSplit = Notification.Name("com.rootshell.resizeSplit")
     static let newTab = Notification.Name("com.rootshell.newTab")

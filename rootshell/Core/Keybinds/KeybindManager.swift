@@ -130,6 +130,7 @@ final class KeybindManager: ObservableObject {
             Keybind(key: .enter, modifiers: [.command, .shift], action: .toggle_split_zoom),
             Keybind(key: .e, modifiers: [.command, .shift], action: .equalize_splits),
             Keybind(key: .p, modifiers: [.command, .option], action: .choose_pane_to_zoom),
+            Keybind(key: .s, modifiers: [.command, .option], action: .choose_pane_to_swap),
 
             // View
             Keybind(key: .equal, modifiers: .command, action: .increase_font_size),

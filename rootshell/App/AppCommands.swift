@@ -19,7 +19,15 @@ private struct CanChoosePaneToZoomKey: FocusedValueKey {
     typealias Value = Bool
 }
 
+private struct CanChoosePaneToSwapKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
 extension FocusedValues {
+    var canChoosePaneToSwap: Bool? {
+        get { self[CanChoosePaneToSwapKey.self] }
+        set { self[CanChoosePaneToSwapKey.self] = newValue }
+    }
     var canChoosePaneToZoom: Bool? {
         get { self[CanChoosePaneToZoomKey.self] }
         set { self[CanChoosePaneToZoomKey.self] = newValue }
@@ -410,6 +418,7 @@ struct AppViewCommands: Commands {
 struct TerminalCommands: Commands {
     @ObservedObject var shortcutState: MenuShortcutState
     @FocusedValue(\.canChoosePaneToZoom) private var canChoosePaneToZoom
+    @FocusedValue(\.canChoosePaneToSwap) private var canChoosePaneToSwap
 
     var body: some Commands {
         CommandMenu("Terminal") {
@@ -493,6 +502,14 @@ struct TerminalCommands: Commands {
             }
             .modifier(DynamicShortcut(action: .choose_pane_to_zoom, shortcuts: shortcutState.shortcuts))
             .disabled(canChoosePaneToZoom != true)
+
+            Button("Choose Pane to Swap") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuChoosePaneToSwap(_:)), from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .choose_pane_to_swap, shortcuts: shortcutState.shortcuts))
+            .disabled(canChoosePaneToSwap != true)
 
             Divider()
 

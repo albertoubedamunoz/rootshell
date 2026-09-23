@@ -242,6 +242,15 @@ extension MainView {
             host?.showPaneZoomPicker()
         }
 
+        observerBag.observeOnMainActor(.choosePaneToSwap) { [self] notification in
+            guard self.shouldHandleNotification(notification), !isAnySheetPresented,
+                  terminals.indices.contains(selectedTabIndex) else { return }
+            let tab = terminals[selectedTabIndex]
+            let host = tab.focusedPane?.enclosingSplitHost
+                ?? tab.splitTree.terminalLeaves.compactMap(\.enclosingSplitHost).first
+            host?.showPaneSwapPicker()
+        }
+
         observerBag.observeOnMainActor(.focusSplit) { [self] notification in
             guard let paneView = notification.object as? SplitPaneView else { return }
             guard terminals.indices.contains(selectedTabIndex) else { return }

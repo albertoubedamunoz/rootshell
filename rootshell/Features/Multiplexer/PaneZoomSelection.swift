@@ -14,11 +14,13 @@ struct PaneZoomSelection<PaneID: Hashable> {
     private(set) var prefix = ""
     private(set) var result: Result = .pending
 
-    init?(paneIDs: [PaneID]) {
+    init?(paneIDs: [PaneID], excludingPaneID: PaneID? = nil) {
         guard paneIDs.count > 1, Set(paneIDs).count == paneIDs.count else { return nil }
-        self.paneIDs = paneIDs
-        let width = String(paneIDs.count).count
-        labels = (1...paneIDs.count).map {
+        if let excludingPaneID, !paneIDs.contains(excludingPaneID) { return nil }
+        let candidates = paneIDs.filter { $0 != excludingPaneID }
+        self.paneIDs = candidates
+        let width = String(candidates.count).count
+        labels = (1...candidates.count).map {
             let number = String($0)
             return String(repeating: "0", count: width - number.count) + number
         }
