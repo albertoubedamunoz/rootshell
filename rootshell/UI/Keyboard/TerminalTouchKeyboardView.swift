@@ -177,13 +177,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     weak var host: TerminalTouchKeyboardHost? { didSet { updateAppearance() } }
     private var palette: TerminalTouchKeyboardPalette?
     /// Steampunk keeps its brass-matched ivory/enamel caps unless explicitly opted in.
-    /// Beige Box, Neon Grid and Circuit Board have fixed materials; Phosphor
-    /// reads the palette only for its Terminal Theme color.
+    /// Retro styles keep their signature colors and blend their neutrals toward the palette.
     private var keycapPalette: TerminalTouchKeyboardPalette? {
         switch keyboardStyle {
         case .steampunk: SettingsStore.shared.value(Settings.Keyboard.touchSteampunkThemeAwareKeycaps) ? palette : nil
-        case .beigeBox, .neonGrid, .circuitBoard: nil
-        case .flat, .sculpted, .phosphor: palette
+        case .flat, .sculpted, .phosphor, .beigeBox, .neonGrid, .circuitBoard: palette
         }
     }
     var onAppearanceChanged: (() -> Void)?
