@@ -137,6 +137,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     /// Show numbered targets for zooming a tmux or herdr control-mode pane.
     /// Keep the original raw value so saved shortcut overrides continue to work.
     case choose_pane_to_zoom = "choose_tmux_pane_to_zoom"
+    /// Swap the focused tmux control-mode pane with a numbered target.
+    case choose_pane_to_swap = "choose_tmux_pane_to_swap"
 
     // Shell Operations
     /// Open settings
@@ -317,7 +319,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
 
         case .split_right, .split_down,
              .navigate_split_left, .navigate_split_right, .navigate_split_up, .navigate_split_down,
-             .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom:
+             .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .choose_pane_to_swap:
             return .splits
 
         case .increase_font_size, .decrease_font_size, .reset_font_size, .start_search,
@@ -390,6 +392,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .toggle_split_zoom: return String(localized: "Toggle Split Zoom", comment: "Keybind action")
         case .equalize_splits: return String(localized: "Equalize Splits", comment: "Keybind action")
         case .choose_pane_to_zoom: return String(localized: "Choose Pane to Zoom", comment: "Keybind action")
+        case .choose_pane_to_swap: return String(localized: "Choose Pane to Swap", comment: "Keybind action")
 
         case .toggle_visor: return String(localized: "Toggle Visor")
         case .toggle_quick_settings: return String(localized: "Quick Settings")
@@ -483,6 +486,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .toggle_split_zoom: return .toggleSplitZoom
         case .equalize_splits: return .equalizeSplits
         case .choose_pane_to_zoom: return .choosePaneToZoom
+        case .choose_pane_to_swap: return .choosePaneToSwap
 
         case .open_settings: return .openSettings
         case .toggle_visor: return .toggleVisorOverlay
@@ -627,7 +631,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .select_tab_4, .select_tab_5, .select_tab_6, .select_tab_7, .select_tab_8,
              .select_tab_9, .split_right, .split_down, .navigate_split_left,
              .navigate_split_right, .navigate_split_up, .navigate_split_down,
-             .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .open_settings, .toggle_quick_settings, .open_in_folder,
+             .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .choose_pane_to_swap,
+             .open_settings, .toggle_quick_settings, .open_in_folder,
              .toggle_file_manager, .browse_hosts,
              .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_tab_bar, .toggle_group_mode, .toggle_transparency,
              .toggle_titlebar, .toggle_auto_redact,

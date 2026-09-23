@@ -215,6 +215,10 @@ extension UIApplication {
         ghostty_postNotification(.choosePaneToZoom)
     }
 
+    @objc func menuChoosePaneToSwap(_ sender: Any?) {
+        ghostty_postNotification(.choosePaneToSwap)
+    }
+
     @objc func menuOpenSettings(_ sender: Any?) {
         ghostty_postNotification(
             .openSettings,

@@ -706,6 +706,8 @@ struct MainView: View {
         return applyLifecycleHandlers(alertContent)
             .iPadVisor(ghosttyApp: ghosttyApp, windowID: windowId, modalPresented: isAnySheetPresented)
             .focusedSceneValue(\.canChoosePaneToZoom, canChooseSelectedPaneToZoom)
+            .focusedSceneValue(\.canChoosePaneToSwap,
+                               canChooseSelectedPaneToZoom && terminals[selectedTabIndex].isTmuxWindow)
     }
 
     private var canChooseSelectedPaneToZoom: Bool {
