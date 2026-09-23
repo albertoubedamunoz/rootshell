@@ -1231,10 +1231,12 @@ class CatalystAppDelegate: AppDelegate {
         }
     }
 
-    /// A menu item carrying the action's current single-chord binding, if any.
+    /// A menu item carrying the action's current single-chord binding, unless
+    /// that chord also starts a sequence that must reach KeySequenceTracker.
     private func keybindMenuCommand(title: String, action: Selector, keybind: KeybindAction) -> UICommand {
         if let sequence = KeybindManager.shared.sequence(for: keybind),
-           !sequence.isSequence, let trigger = sequence.first {
+           !sequence.isSequence, let trigger = sequence.first,
+           !KeybindManager.shared.isSequencePrefix(trigger) {
             return UIKeyCommand(title: title, action: action, input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags)
         }
         return UICommand(title: title, action: action)
