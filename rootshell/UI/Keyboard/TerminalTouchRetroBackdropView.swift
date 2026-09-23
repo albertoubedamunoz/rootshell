@@ -97,7 +97,7 @@ final class TerminalTouchRetroBackdropView: UIView {
         let accent: Art.RGB = switch design {
         case .phosphor: Art.phosphor(SettingsStore.shared.value(Settings.Keyboard.touchPhosphorColor),
                                      palette: palette, traits: traitCollection)
-        case .circuitBoard: Art.RGB(0.86, 0.68, 0.30)
+        case .circuitBoard: Art.Board.silk
         case .neonGrid: Art.RGB(1.0, 0.22, 0.74)
         case .beigeBox: Art.RGB(0.36, 0.34, 0.31)
         }

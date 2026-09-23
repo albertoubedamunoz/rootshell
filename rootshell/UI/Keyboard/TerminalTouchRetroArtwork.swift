@@ -42,10 +42,10 @@ enum TerminalTouchRetroArtwork {
                 face = selected ? accent : (pressed ? night.mix(accent, 0.22) : night)
                 preferred = selected ? RGB(0.10, 0.02, 0.18) : RGB(1.0, 0.90, 0.98)
             case .circuitBoard:
-                accent = RGB(0.86, 0.68, 0.30)
-                face = selected ? RGB(0.93, 0.93, 0.88) : (utility ? RGB(0.05, 0.29, 0.14) : RGB(0.84, 0.67, 0.31))
-                if pressed { face = face.mix(.white, 0.14) }
-                preferred = face.luminance < 0.3 ? RGB(0.95, 0.96, 0.92) : RGB(0.03, 0.15, 0.07)
+                accent = Board.silk
+                face = selected ? Board.silk : (utility ? Board.utility : Board.package)
+                if pressed && !selected { face = face.mix(Board.silk, 0.16) }
+                preferred = selected ? Board.mask : (utility ? Board.silk : Board.text)
             }
             self.design = design
             self.face = face
@@ -53,6 +53,17 @@ enum TerminalTouchRetroArtwork {
             self.accent = accent
             self.highContrast = highContrast
         }
+    }
+
+    /// Matte black solder mask with ENIG pads, keyed to Catppuccin Mocha.
+    enum Board {
+        static let mask = RGB(0.075, 0.075, 0.115)
+        static let package = RGB(0.192, 0.196, 0.267)
+        static let utility = RGB(0.118, 0.118, 0.180)
+        static let copper = RGB(0.200, 0.205, 0.275)
+        static let silk = RGB(0.706, 0.745, 0.996)
+        static let gold = RGB(0.976, 0.886, 0.686).mix(.black, 0.18)
+        static let text = RGB(0.804, 0.839, 0.957)
     }
 
     static func phosphor(_ color: PhosphorColor, palette: TerminalTouchKeyboardPalette?, traits: UITraitCollection) -> RGB {
@@ -74,7 +85,7 @@ enum TerminalTouchRetroArtwork {
         case .phosphor: return min(role == .preview ? 8 : 5, short * 0.2)
         case .beigeBox: return min(role == .preview ? 7 : 4.5, short * 0.18)
         case .neonGrid: return min(role == .preview ? 12 : 9, short * 0.3)
-        case .circuitBoard: return role == .utility || role == .toolbar ? min(3, short * 0.12) : short * 0.2
+        case .circuitBoard: return min(role == .preview ? 6 : 3.5, short * 0.14)
         }
     }
 
@@ -196,32 +207,55 @@ enum TerminalTouchRetroArtwork {
 
     private static func circuitCap(_ c: CGContext, rect: CGRect, radius: CGFloat, material: Material, role: Role, pressed: Bool) {
         let outline = UIBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: radius)
-        c.saveGState()
-        c.setShadow(offset: CGSize(width: 0, height: 0.6), blur: 1, color: UIColor.black.withAlphaComponent(0.4).cgColor)
-        material.face.ui.setFill(); outline.fill()
-        c.restoreGState()
         let minimum = material.highContrast ? 7.0 : 4.5
-        let pad = material.face.luminance >= 0.3
-        if pad {
-            // Plated pad: a soft sheen with a darker tinned rim.
-            c.saveGState(); outline.addClip()
-            vertical(c, colors: [material.face.lit(toward: .white, amount: 0.12, ink: material.ink, minimum: minimum).ui,
-                                 material.face.ui,
-                                 material.face.lit(toward: .black, amount: 0.06, ink: material.ink, minimum: minimum).ui], rect: rect)
-            c.restoreGState()
-            Brass.stroke(c, path: outline, color: material.highContrast ? material.ink.ui : material.accent.mix(.black, 0.35).ui,
-                         width: material.highContrast ? 1.5 : 1)
-        } else {
-            // Solder-mask key with a silkscreened outline and a plated corner via.
-            let silk = UIBezierPath(roundedRect: rect.insetBy(dx: 2, dy: 2), cornerRadius: max(0, radius - 1))
-            Brass.stroke(c, path: silk, color: material.highContrast ? material.ink.ui : material.accent.ui.withAlphaComponent(0.85),
-                         width: material.highContrast ? 1.5 : 1)
-            if role != .toolbar, rect.width > 30, rect.height > 24, !material.highContrast {
-                via(c, center: CGPoint(x: rect.maxX - 6, y: rect.minY + 6), radius: 1.6, gold: material.accent)
+        let selected = material.face.luminance >= 0.3
+        // Letter keys are IC packages: gold gull-wing leads peek out of both sides.
+        if role == .letter, !selected, !material.highContrast, rect.height > 24 {
+            let count = rect.height > 40 ? 4 : 3
+            let step = rect.height / CGFloat(count + 1)
+            for index in 1...count {
+                let y = rect.minY + step * CGFloat(index) - 0.6
+                for x in [rect.minX - 1.6, rect.maxX - 0.4] {
+                    Brass.fill(c, rect: CGRect(x: x, y: y, width: 2, height: 1.2), radius: 0.3,
+                               color: Board.gold.ui.withAlphaComponent(0.8))
+                }
             }
         }
+        c.saveGState()
         if pressed && !material.highContrast {
-            Brass.stroke(c, path: outline, color: UIColor.white.withAlphaComponent(0.45), width: 1)
+            c.setShadow(offset: .zero, blur: 6, color: material.accent.ui.withAlphaComponent(0.7).cgColor)
+        } else {
+            c.setShadow(offset: CGSize(width: 0, height: 1), blur: 1.5, color: UIColor.black.withAlphaComponent(0.55).cgColor)
+        }
+        material.face.ui.setFill(); outline.fill()
+        c.restoreGState()
+        c.saveGState(); outline.addClip()
+        vertical(c, colors: [material.face.lit(toward: .white, amount: 0.06, ink: material.ink, minimum: minimum).ui,
+                             material.face.ui,
+                             material.face.lit(toward: .black, amount: 0.08, ink: material.ink, minimum: minimum).ui], rect: rect)
+        c.restoreGState()
+        if material.highContrast {
+            Brass.stroke(c, path: outline, color: material.ink.ui, width: 1.5)
+            return
+        }
+        Brass.line(c, from: CGPoint(x: rect.minX + radius, y: rect.minY + 0.5), to: CGPoint(x: rect.maxX - radius, y: rect.minY + 0.5),
+                   color: UIColor.white.withAlphaComponent(selected ? 0.35 : 0.1), width: 0.6)
+        guard !selected else { return }
+        let large = role != .toolbar && rect.width > 30 && rect.height > 24
+        if role == .letter {
+            Brass.stroke(c, path: outline, color: material.face.mix(.white, pressed ? 0.3 : 0.12).ui, width: 0.8)
+            if large {
+                // Pin-1 marker.
+                Brass.fill(c, rect: CGRect(x: rect.minX + 3.5, y: rect.minY + 3.5, width: 2.4, height: 2.4), radius: 1.2,
+                           color: material.accent.ui.withAlphaComponent(0.45))
+            }
+        } else {
+            // Silkscreened footprint with a plated corner via.
+            let silk = UIBezierPath(roundedRect: rect.insetBy(dx: 2, dy: 2), cornerRadius: max(0, radius - 1))
+            Brass.stroke(c, path: silk, color: material.accent.ui.withAlphaComponent(pressed ? 0.9 : 0.5), width: 0.8)
+            if large {
+                via(c, center: CGPoint(x: rect.maxX - 6, y: rect.minY + 6), radius: 1.6, gold: Board.gold)
+            }
         }
     }
 
@@ -281,9 +315,9 @@ enum TerminalTouchRetroArtwork {
                     c.restoreGState()
                 }
             case .circuitBoard:
-                Brass.fill(c, rect: bounds, radius: 0, color: RGB(0.035, 0.21, 0.10).ui.withAlphaComponent(alpha))
+                Brass.fill(c, rect: bounds, radius: 0, color: Board.mask.ui.withAlphaComponent(alpha))
                 guard !highContrast else { return }
-                circuitTraces(c, size: size, rows: rows, gold: accent)
+                circuitTraces(c, size: size, rows: rows)
             }
         }
     }
@@ -309,8 +343,10 @@ enum TerminalTouchRetroArtwork {
         c.restoreGState()
     }
 
-    private static func circuitTraces(_ c: CGContext, size: CGSize, rows: [CGRect], gold: RGB) {
-        let trace = RGB(0.10, 0.44, 0.22).ui
+    /// Copper under matte mask: differential-pair buses along each row gap, with
+    /// 45° stubs to the next bus ending in gold vias.
+    private static func circuitTraces(_ c: CGContext, size: CGSize, rows: [CGRect]) {
+        let trace = Board.copper.ui
         var seed: UInt32 = 0x2545_F491
         func next() -> CGFloat {
             seed = seed &* 1_664_525 &+ 1_013_904_223
@@ -318,10 +354,11 @@ enum TerminalTouchRetroArtwork {
         }
         for (index, band) in rows.enumerated() {
             let y = band.maxY - 1
-            Brass.line(c, from: CGPoint(x: 0, y: y), to: CGPoint(x: size.width, y: y), color: trace, width: 1.4)
+            for offset: CGFloat in [-1.2, 1.2] {
+                Brass.line(c, from: CGPoint(x: 0, y: y + offset), to: CGPoint(x: size.width, y: y + offset), color: trace, width: 0.9)
+            }
             guard index + 1 < rows.count else { continue }
             let target = rows[index + 1].maxY - 1
-            // Stubs drop to the next bus with a 45° jog, ending in a via.
             var x = 14 + next() * 20
             while x < size.width - 14 {
                 let path = UIBezierPath()
@@ -330,8 +367,8 @@ enum TerminalTouchRetroArtwork {
                 path.addLine(to: CGPoint(x: x, y: y + (target - y) / 2 - jog))
                 path.addLine(to: CGPoint(x: x + jog, y: y + (target - y) / 2))
                 path.addLine(to: CGPoint(x: x + jog, y: target))
-                Brass.stroke(c, path: path, color: trace.withAlphaComponent(0.8), width: 1)
-                via(c, center: CGPoint(x: x, y: y), radius: 1.8, gold: gold)
+                Brass.stroke(c, path: path, color: trace.withAlphaComponent(0.85), width: 0.8)
+                via(c, center: CGPoint(x: x, y: y), radius: 1.6, gold: Board.gold)
                 x += 38 + next() * 46
             }
         }
@@ -339,10 +376,10 @@ enum TerminalTouchRetroArtwork {
 
     private static func via(_ c: CGContext, center: CGPoint, radius: CGFloat, gold: RGB) {
         Brass.fill(c, rect: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2),
-                   radius: radius, color: gold.ui)
+                   radius: radius, color: gold.ui.withAlphaComponent(0.85))
         let hole = radius * 0.45
         Brass.fill(c, rect: CGRect(x: center.x - hole, y: center.y - hole, width: hole * 2, height: hole * 2),
-                   radius: hole, color: RGB(0.02, 0.08, 0.04).ui)
+                   radius: hole, color: Board.mask.ui)
     }
 
     static func pulse(scale: CGFloat, color: RGB) -> UIImage? {
