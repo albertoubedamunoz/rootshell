@@ -116,18 +116,8 @@ struct FileManagerView: View {
             Text("Files").font(.headline)
             Spacer()
             if let onSwitchPresentation {
-                Menu {
-                    ForEach(FileManagerPresentation.allCases, id: \.self) { presentation in
-                        Button {
-                            onSwitchPresentation(presentation)
-                        } label: {
-                            Label(presentation.title, systemImage: presentation == .sidebar ? "sidebar.right" : "macwindow")
-                        }
-                    }
-                } label: {
-                    Image(systemName: style == .sidebar ? "sidebar.right" : "macwindow")
-                }
-                .accessibilityLabel(String(localized: "Presentation", comment: "File manager presentation menu"))
+                FileManagerPresentationMenu(current: style == .sidebar ? .sidebar : .overlay, onSwitch: onSwitchPresentation)
+                    .equatable()
             }
             moreMenu
             Button(action: onClose) {
@@ -377,5 +367,31 @@ struct FileManagerView: View {
                 withAnimation(.easeInOut(duration: 0.6)) { highlightsShortcutsTip = false }
             }
         }
+    }
+}
+
+/// Equatable so FileManagerView and MainView renders skip this body and never
+/// rebuild the menu while it is open. `onSwitch` is excluded; it acts on live state.
+private struct FileManagerPresentationMenu: View, Equatable {
+    let current: FileManagerPresentation
+    let onSwitch: (FileManagerPresentation) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.current == rhs.current
+    }
+
+    var body: some View {
+        Menu {
+            ForEach(FileManagerPresentation.allCases, id: \.self) { presentation in
+                Button {
+                    onSwitch(presentation)
+                } label: {
+                    Label(presentation.title, systemImage: presentation == .sidebar ? "sidebar.right" : "macwindow")
+                }
+            }
+        } label: {
+            Image(systemName: current == .sidebar ? "sidebar.right" : "macwindow")
+        }
+        .accessibilityLabel(String(localized: "Presentation", comment: "File manager presentation menu"))
     }
 }
