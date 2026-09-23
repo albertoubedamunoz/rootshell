@@ -302,8 +302,10 @@ struct FilePaneView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
             }
+            #if !os(visionOS)
             // With a hardware keyboard the field must keep focus while the list scrolls.
             .scrollDismissesKeyboard(hasHardwareKeyboard ? .never : .immediately)
+            #endif
             .onChange(of: pane.selection.cursor) { _, cursor in
                 guard let cursor else { return }
                 proxy.scrollTo(cursor)

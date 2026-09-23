@@ -3,6 +3,33 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.12-154 - September 23, 2026
+
+### New SFTP File Manager
+
+- **Two-Pane File Browsing:** Browse local folders and remote SSH or tssh hosts side by side. Use a resizable sidebar or floating overlay on iPad and Mac; iPhone opens the file manager in a sheet.
+- **Quick Access:** Open with Command-Shift-U, File -> File Manager, or the keyboard toolbar's File Manager button, found in the drawer by default. The shortcut is customizable. Choose Open Connections -> Files and select a local location or saved profile to open a specific location.
+- **File Operations and Previews:** Copy and move files and folders between panes, rename items, create folders, delete files, and inspect file information. Filter listings, show hidden files, preview files with Quick Look, or open a folder in a terminal.
+- **Transfer Queue:** Track progress, transfer rate, and estimated time remaining, with cancellation and retry. Resolve name conflicts with Replace, Skip, or Keep Both. A floating progress indicator keeps transfers visible when the file manager is closed.
+- **Hardware Keyboard Navigation:** Use arrow keys to navigate, Tab to switch panes, and Shift-Tab for the enclosing folder. Press Command-/ for the full shortcut list.
+
+### iPhone Keyboard Chooser
+
+- **Live Keyboard Previews:** A one-time chooser lets you compare the system keyboard and every Terminal Keyboard style with live previews. Skip to keep your current keyboard. On a fresh install, it appears before Open Connections.
+- **Hands-On Tutorial:** Choosing a Terminal Keyboard style opens a tutorial for swiping between Symbols, Navigation, and Shortcuts pages. The final screen explains how to change your keyboard later and links directly to its settings.
+
+### Five New Terminal Keyboard Styles
+
+- **New Style Choices:** Choose Steampunk, Phosphor, Beige Box, Neon Grid, or Circuit Board in Settings -> Terminal -> Terminal Keyboard -> Keyboard Style.
+- **Steampunk:** Brass-rimmed instrument keys and machinery respond to touch. Ivory and enamel keycaps are the default; enable Theme-Aware Keycaps with Follow Terminal Theme to match your terminal colors.
+- **Retro Styles:** Phosphor adds glowing CRT-style keys with green, amber, white, or terminal-theme colors. Beige Box brings tall classic office keycaps. Neon Grid adds a synthwave horizon that moves as you type. Circuit Board features chip-style keys, gold leads, and pulses along its traces.
+- **Theme and Motion Support:** The four retro styles adapt to light and dark terminal themes when Follow Terminal Theme is enabled. Animations stop when idle, with Reduce Motion, or in Low Power Mode.
+- **Optional Key Click Sounds:** Sounds match each keyboard style and respect Silent Mode. Off by default; enable them in Terminal Keyboard settings.
+
+### AI Agent Updates
+
+- **Updated Model Choices:** OpenAI API-key connections now offer GPT-6 Astra, Sol, and Luna, with Astra as the default. Anthropic and Amazon Bedrock model choices now include Claude Fable 5.1, Opus 5.5, Sonnet 5, and Haiku 4.5.
+
 ## 1.0.12-153 - September 22, 2026
 
 ### Touch Right-Click with the Loupe
