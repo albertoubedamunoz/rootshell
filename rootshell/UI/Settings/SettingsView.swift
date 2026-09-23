@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 /// Navigation destinations for programmatic push (e.g., from Shortcuts intents).
 enum SettingsDestination: Hashable {
     case vpn
+    /// Opened by the iPhone keyboard chooser; pushes Terminal › Terminal Keyboard.
+    case touchKeyboard
 }
 
 /// Sidebar sections for the iPad split-view settings layout.
@@ -456,6 +458,8 @@ struct SettingsView: View {
                             #else
                             EmptyView()
                             #endif
+                        case .touchKeyboard:
+                            settingsSearchDestinationView(for: .touchKeyboard)
                         }
                     }
                     .navigationDestination(for: SettingsSearchDestination.self) { destination in
@@ -508,6 +512,9 @@ struct SettingsView: View {
                 DispatchQueue.main.async {
                     navigateToVPN = true
                 }
+            case .touchKeyboard:
+                navigationPath.append(SettingsSection.terminal)
+                navigationPath.append(SettingsSearchDestination.touchKeyboard)
             }
         }
     }
