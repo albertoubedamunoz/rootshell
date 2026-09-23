@@ -193,10 +193,12 @@ struct TerminalTouchKeyboardSettingsView: View {
     }
 }
 
-private struct TerminalTouchKeyboardPreview: UIViewRepresentable {
+struct TerminalTouchKeyboardPreview: UIViewRepresentable {
     @Binding var sample: String
     @Binding var height: CGFloat
     var floating: Bool
+    var style: TerminalTouchKeyboardModel.Style?
+    var onPageChanged: ((TerminalTouchKeyboardModel.ToolPage) -> Void)?
 
     final class Coordinator: TerminalTouchKeyboardHost {
         var parent: TerminalTouchKeyboardPreview
@@ -231,17 +233,22 @@ private struct TerminalTouchKeyboardPreview: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> TerminalTouchKeyboardView {
         let view = TerminalTouchKeyboardView()
+        view.styleOverride = style
         view.host = context.coordinator
         view.setFloating(floating)
         view.onHeightChanged = { [weak view, weak coordinator = context.coordinator] in
             guard let view else { return }
             coordinator?.parent.height = view.intrinsicContentSize.height
         }
+        view.onPageChanged = { [weak coordinator = context.coordinator] page in
+            coordinator?.parent.onPageChanged?(page)
+        }
         return view
     }
     func updateUIView(_ view: TerminalTouchKeyboardView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
+        view.styleOverride = style
         view.setFloating(floating)
         if coordinator.lastSample != sample {
             coordinator.predictionContext.reset()

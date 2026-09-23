@@ -57,6 +57,8 @@ struct SettingsSplitView: View {
                             #else
                             EmptyView()
                             #endif
+                        case .touchKeyboard:
+                            settingsSearchDestinationView(for: .touchKeyboard)
                         }
                     }
                     .navigationDestination(for: SettingsSearchDestination.self) { destination in
@@ -135,6 +137,9 @@ struct SettingsSplitView: View {
                 DispatchQueue.main.async {
                     navigateToVPN = true
                 }
+            case .touchKeyboard:
+                navigationPath.append(SettingsSection.terminal)
+                navigationPath.append(SettingsSearchDestination.touchKeyboard)
             }
         }
     }

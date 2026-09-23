@@ -197,6 +197,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     var onCustomize: (() -> Void)?
     var onToolbarAction: ((String) -> Void)?
     var onHeightChanged: (() -> Void)?
+    var onPageChanged: ((Model.ToolPage) -> Void)?
+    /// Renders this style instead of the saved one (onboarding previews).
+    var styleOverride: Model.Style? {
+        didSet { if oldValue != styleOverride { refreshSettings() } }
+    }
     /// Only the app-contained host supports our explicit placement requests.
     /// Native placement must remain under UIKit's control.
     var usesSystemPlacement = false {
@@ -661,7 +666,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     private func refreshSettings() {
-        let style = SettingsStore.shared.value(Settings.Keyboard.touchStyle)
+        let style = styleOverride ?? SettingsStore.shared.value(Settings.Keyboard.touchStyle)
         if keyboardStyle != style {
             cancelInteraction(preservingModifiers: true)
             keyboardStyle = style
@@ -1505,6 +1510,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         updateSuggestions()
         showPageIndicator()
         UIAccessibility.post(notification: .pageScrolled, argument: page.title)
+        onPageChanged?(page)
     }
 
     private func showPageIndicator() {
