@@ -22,7 +22,7 @@ final class TerminalTouchRetroBackdropView: UIView {
         let rows: [CGRect]
         let design: Art.Design
         let accent: Art.RGB
-        let dark: Bool
+        let theme: Art.Theme
         let solid: Bool
         let highContrast: Bool
     }
@@ -94,15 +94,15 @@ final class TerminalTouchRetroBackdropView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let scale = max(1, traitCollection.displayScale)
+        let theme = Art.Theme(palette: palette, traits: traitCollection)
         let accent: Art.RGB = switch design {
         case .phosphor: Art.phosphor(SettingsStore.shared.value(Settings.Keyboard.touchPhosphorColor),
                                      palette: palette, traits: traitCollection)
-        case .circuitBoard: Art.RGB(0.86, 0.68, 0.30)
-        case .neonGrid: Art.RGB(1.0, 0.22, 0.74)
+        case .circuitBoard: Art.Board(theme).silk
+        case .neonGrid: Art.Neon.pink(dark: theme.dark)
         case .beigeBox: Art.RGB(0.36, 0.34, 0.31)
         }
-        let next = Prepared(size: bounds.size, scale: scale, rows: rowBands, design: design, accent: accent,
-                            dark: traitCollection.userInterfaceStyle == .dark,
+        let next = Prepared(size: bounds.size, scale: scale, rows: rowBands, design: design, accent: accent, theme: theme,
                             solid: UIAccessibility.isReduceTransparencyEnabled, highContrast: highContrast)
         guard prepared != next, bounds.width > 1, bounds.height > 1 else { return }
         prepared = next
@@ -117,12 +117,14 @@ final class TerminalTouchRetroBackdropView: UIView {
         visibleBandMask.path = visible.cgPath
         bed.frame = bounds
         bed.image = Art.bed(size: bounds.size, scale: scale, design: design, accent: accent, rows: rowBands,
-                            dark: next.dark, solid: next.solid, highContrast: next.highContrast)
+                            theme: theme, solid: next.solid, highContrast: next.highContrast)
         let neon = design == .neonGrid && !next.highContrast
         gridSpokes.isHidden = !neon; gridRungs.isHidden = !neon
         gridSpokes.frame = bounds; gridRungs.frame = bounds
-        gridSpokes.strokeColor = Art.RGB(1.0, 0.30, 0.80).ui.withAlphaComponent(0.55).cgColor
-        gridRungs.strokeColor = Art.RGB(1.0, 0.30, 0.80).ui.withAlphaComponent(0.55).cgColor
+        let gridColor = (theme.dark ? Art.RGB(1.0, 0.30, 0.80) : Art.Neon.pink(dark: false)).ui
+            .withAlphaComponent(theme.dark ? 0.55 : 0.4).cgColor
+        gridSpokes.strokeColor = gridColor
+        gridRungs.strokeColor = gridColor
         gridSpokes.path = neon ? spokesPath() : nil
         gridRungs.path = neon ? rungsPath() : nil
         pulses.forEach { $0.removeFromSuperlayer() }; pulses.removeAll()
