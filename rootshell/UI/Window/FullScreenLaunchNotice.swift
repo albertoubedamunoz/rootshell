@@ -42,7 +42,9 @@ private struct FullScreenLaunchNoticeModifier: ViewModifier {
                   UIDevice.current.userInterfaceIdiom == .phone,
                   !Self.didCheckLaunch else { return }
             Self.didCheckLaunch = true
-            isPresented = fullScreenModeEnabled && !neverRemindAgain
+            // The keyboard chooser covers the window on its launch; don't stack on it.
+            let chooserPending = !SettingsStore.shared.value(Settings.Keyboard.touchChooserPresented)
+            isPresented = fullScreenModeEnabled && !neverRemindAgain && !chooserPending
         }
         .onChange(of: fullScreenModeEnabled) { _, enabled in
             if !enabled { isPresented = false }

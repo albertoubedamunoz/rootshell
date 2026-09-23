@@ -288,6 +288,8 @@ struct MainView: View {
     // Theme picker overlay state
     @State var showThemePickerOverlay = false
     @State var showQuickSettingsOverlay = false
+    @State var showKeyboardChooser = false
+    @State var connectionSheetAwaitsKeyboardChooser = false
     /// Open in Folder palette; the target is captured when it opens.
     @State var showOpenInFolderOverlay = false
     @State var openInFolderModel: OpenInFolderModel?
@@ -697,7 +699,8 @@ struct MainView: View {
         // catches in the 52 0x8BADF00D crash IPS files (varying frames; same
         // root cause: MainView.body is too expensive).
         let sheetTheme = resolvedSheetTheme()
-        let sheetContent = applySheetModifiers(sceneContent, sheetTheme: sheetTheme)
+        let sheetContent = applyKeyboardChooser(
+            applySheetModifiers(sceneContent, sheetTheme: sheetTheme), sheetTheme: sheetTheme)
         let overlayContent = applyOverlayChangeHandlers(sheetContent)
         let alertContent = applyAlertModifiers(overlayContent)
         return applyLifecycleHandlers(alertContent)

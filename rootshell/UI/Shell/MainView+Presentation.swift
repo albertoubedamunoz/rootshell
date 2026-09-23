@@ -64,6 +64,7 @@ extension MainView {
             showYubiKeyPINPrompt ||
             showThemePickerOverlay ||
             showQuickSettingsOverlay ||
+            showKeyboardChooser ||
             showOpenInFolderOverlay ||
             fileManagerOwnsKeyboard ||
             // The iPhone presentation is a sheet that owns the keyboard. On

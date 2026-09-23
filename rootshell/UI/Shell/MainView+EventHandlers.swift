@@ -275,7 +275,7 @@ extension MainView {
                 if UIDevice.current.userInterfaceIdiom == .pad {
                     createLocalShellTabInternal()
                     LaunchSignposts.event("mainView.firstShell.local")
-                } else {
+                } else if !deferConnectionSheetForKeyboardChooser() {
                     addNewTab()
                     LaunchSignposts.event("mainView.firstShell.sheet")
                 }

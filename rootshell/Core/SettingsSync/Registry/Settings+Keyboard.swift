@@ -65,6 +65,9 @@ nonisolated extension Settings {
         static let touchFloatingGlassTintOpacity = SettingKey(
             "terminalTouchKeyboardFloatingGlassTintOpacity", default: 0.25, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-floating-glass-tint-opacity", title: String(localized: "Detached Keyboard Tint Strength"))
+        static let touchChooserPresented = SettingKey(
+            "terminalTouchKeyboardChooserPresented", default: false, group: .keyboard, policy: .deviceOnly,
+            title: String(localized: "Keyboard Chooser Presented"))
 
         static let writingAssistance = SettingKey(
             "terminalWritingAssistanceMode", default: TerminalWritingAssistanceMode.off, group: .keyboard,
@@ -90,6 +93,7 @@ nonisolated extension Settings {
             touchCompactHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
             touchSteampunkThemeAwareKeycaps.erased, touchPhosphorColor.erased, touchClickSound.erased,
             touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
+            touchChooserPresented.erased,
         ]
     }
 
