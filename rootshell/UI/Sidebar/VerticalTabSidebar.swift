@@ -1695,6 +1695,9 @@ struct VerticalTabSidebar: View {
         groupOverrideMenuItem(for: tab)
         Divider()
         HerdrGatewayDetachMenuItem(tab: tab, dialogs: herdrDialogs)
+        MultiplexerDetachMenuItem(tab: tab) { tab in
+            _ = MuxSessionDetach.detach(tab: tab, tmuxController: tmuxController)
+        }
         Button(role: .destructive) {
             onCloseTab(tab.id)
         } label: {
@@ -1717,6 +1720,11 @@ struct VerticalTabSidebar: View {
         moveToWindowItems(for: tab)
         groupOverrideMenuItem(for: tab)
         Divider()
+        TmuxGatewayDetachMenuItem(
+            tab: tab,
+            controller: tmuxController(tab),
+            dialogs: tmuxDialogs
+        )
         Button(role: .destructive) {
             onCloseTab(tab.id)
         } label: {

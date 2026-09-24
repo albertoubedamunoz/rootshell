@@ -275,6 +275,11 @@ final class TmuxController {
     private(set) var gatewaySourceSystemImage = "terminal"
     /// Identifies this tmux server lifetime; combined with pane IDs for push routing.
     var pushRouteServerIdentity: String?
+    var configuredResumeSocket: TmuxSocketIdentity?
+    var startupResumeSocket: TmuxSocketIdentity?
+    var resumeSocket: TmuxSocketIdentity? {
+        pushRouteServerIdentity.flatMap(TmuxSocketIdentity.fromServerIdentity) ?? startupResumeSocket
+    }
     var pushRouteServerIdentityTask: Task<Void, Never>?
     /// Tag 0 is never used.
     var nextReplyTag: UInt32 = 1
@@ -1814,6 +1819,20 @@ final class TmuxController {
         }
         let uuidPrefix = ownerTerminalUUID.uuidString.prefix(8)
         TmuxDebugLogger.shared.event("DETACH", "requested \(source) gw=\(uuidPrefix)")
+
+        // Context-menu / dashboard / ESC / tab-close all enter here without
+        // going through MuxSessionDetach.detach — post the reconnect banner
+        // from this choke point so tmux -CC matches zmx.
+        let bannerTerminal = ownGatewayView()
+            ?? windowTabs.values.lazy.compactMap { $0.splitTree.terminalLeaves.first }.first
+        MuxSessionDetach.notifyControlModeDetached(
+            sessionName: currentSessionName,
+            windowId: baseWindowId,
+            terminal: bannerTerminal,
+            tmuxSocket: resumeSocket,
+            tmuxSocketSelector: configuredResumeSocket
+        )
+
         // Recheck after the async hops; the surface can be freed in between.
         // ROOTSHELL-TMUX (id=tmux-gateway-surface-freed)
         Ghostty.TerminalView.ghosttyAPIQueue.async { [weak self] in
@@ -2816,6 +2835,8 @@ extension Ghostty.TerminalView {
             // Flush session info that arrived before the controller existed.
             // ROOTSHELL-TMUX (id=tmux-session-info-stash)
             if let ssh = connectionConfig.underlyingSSHConfig {
+                controller.startupResumeSocket = ssh.tmuxSocketForResume
+                controller.configuredResumeSocket = ssh.muxResumeTarget?.configuredTmuxSocket ?? ssh.tmuxSocketForResume
                 controller.connectionKey = TmuxGatewaySessionStore.connectionKey(
                     host: ssh.host, port: ssh.port, username: ssh.username)
             }

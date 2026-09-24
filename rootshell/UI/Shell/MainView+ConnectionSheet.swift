@@ -299,6 +299,13 @@ extension MainView {
         var config = profile.sshConfig
         let connectionProtocol = profile.connectionProtocol
 
+        // Resume-or-focus: opening a mux auto-start profile while already
+        // attached to that host/session focuses the live UI instead of a
+        // second client (especially important for zmx — one PTY per name).
+        if focusLiveMuxAttachmentIfPresent(for: config) {
+            return
+        }
+
         let transportMode = profile.trzszTransportMode
         let profileMTU = profile.trzszMTU
         let profilePortMin = profile.trzszPortMin
@@ -446,6 +453,12 @@ extension MainView {
     #endif
 
     func connectWithConfig(_ config: SSHConfig, connectionProtocol: ConnectionProtocol = .ssh, splitOption: SSHConnectionView.SplitOption, trzszTransportMode: ProfileTransportMode = .default, trzszMTU: Int? = nil, trzszPortMin: Int? = nil, trzszPortMax: Int? = nil, trzszServerPath: String? = nil, sourceProfileID: UUID? = nil) {
+        // History / duplicate / deep-link paths also land here — resume before
+        // spawning another client to the same mux session.
+        if focusLiveMuxAttachmentIfPresent(for: config) {
+            return
+        }
+
         // Safety net: verify key is still resolvable before creating session
         if case .key(let keyID) = config.authMethod, SSHKeyManager.shared.findKey(id: keyID) == nil {
             let resolution = ConnectionKeyResolver.resolve(config: config)
@@ -569,7 +582,9 @@ extension MainView {
         }
 
         // Update profile auth method to reflect saved password preference
-        var updatedProfile = profile
+        // Reconnect can carry a temporary startup override. Save only the auth
+        // change to the stored profile, not that one-shot attachment target.
+        var updatedProfile = ConnectionProfileManager.shared.profile(for: profile.id) ?? profile
         updatedProfile.sshConfig.authMethod = savedSuccessfully ? .savedPassword : .password("")
         try? ConnectionProfileManager.shared.updateProfile(updatedProfile)
 
