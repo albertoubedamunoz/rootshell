@@ -304,8 +304,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var toolbarDrawerRows: [UIScrollView] = []
     private var toolbarDrawerIndices: [Int] = []
     private var toolbarDrawerButtons: [[TerminalTouchDrawerButton]] = []
-    private var toolbarDrawerHeight: CGFloat { CGFloat(toolbarDrawerRows.count) * 44 }
-    private var toolbarHeight: CGFloat { 48 + toolbarDrawerHeight }
+    private var toolbarDrawerHeight: CGFloat { CGFloat(toolbarDrawerRows.count) * keyboardHeight.toolbarDrawerRowHeight }
+    private var toolbarHeight: CGFloat { keyboardHeight.toolbarRowHeight + toolbarDrawerHeight }
     private var configuredMain: [Model.Key] = []
     private var configuredDrawers: [[Model.Key]] = []
     private var rows: [[TerminalTouchKeycap]] = []
@@ -373,7 +373,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var nextContactOrder: UInt64 = 0
     private var hapticsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchHaptics)
     private var clickSoundEnabled = SettingsStore.shared.value(Settings.Keyboard.touchClickSound)
-    private var compactHeightEnabled = SettingsStore.shared.value(Settings.Keyboard.touchCompactHeight)
+    private var heightSetting = SettingsStore.shared.value(Settings.Keyboard.touchHeight)
+    /// The detached keyboard sizes itself, so it keeps the default metrics.
+    private var keyboardHeight: Model.Height { isFloating ? .compact : heightSetting }
     private var glyphsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
     #if !os(visionOS)
     private let haptic = UIImpactFeedbackGenerator(style: .soft)
@@ -407,7 +409,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         if isFloating {
             return min(44, max(28, (floatingAvailableHeight - toolbarHeight - 44 - (suggestionsEnabled ? 36 : 0)) / 4))
         }
-        return compact ? 40 : (traitCollection.userInterfaceIdiom == .pad ? 60 : 54)
+        return keyboardHeight.rowHeight(verticallyCompact: compact, pad: traitCollection.userInterfaceIdiom == .pad)
     }
     private var deviceBottomInset: CGFloat {
         // An embedded settings preview must not inherit padding from the window's
@@ -417,7 +419,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         return max(safeAreaInsets.bottom, window.safeAreaInsets.bottom)
     }
-    private var bottomInset: CGFloat { isFloating ? 44 : (compactHeightEnabled ? 6 : max(6, deviceBottomInset)) }
+    private var bottomInset: CGFloat { isFloating ? 44 : (heightSetting.usesBottomSafeArea ? 6 : max(6, deviceBottomInset)) }
     private var desiredHeight: CGFloat {
         isToolbarOnly ? toolbarHeight + toolbarBottomInset
             : toolbarHeight + rowHeight * 4 + bottomInset + (suggestionsEnabled ? 36 : 0)
@@ -691,10 +693,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         hapticsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchHaptics)
         clickSoundEnabled = SettingsStore.shared.value(Settings.Keyboard.touchClickSound)
-        let compactHeight = SettingsStore.shared.value(Settings.Keyboard.touchCompactHeight)
+        let height = SettingsStore.shared.value(Settings.Keyboard.touchHeight)
         let glyphs = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
-        if compactHeightEnabled != compactHeight || glyphsEnabled != glyphs { cancelInteraction() }
-        compactHeightEnabled = compactHeight
+        if heightSetting != height || glyphsEnabled != glyphs { cancelInteraction() }
+        heightSetting = height
         glyphsEnabled = glyphs
         loadToolbarConfiguration()
         rebuildKeys()
@@ -983,6 +985,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         grabber.isHidden = !isFloating
         grabber.frame = CGRect(x: (bounds.width - 88) / 2, y: bounds.height - 44, width: 88, height: 44)
         controlGlass.frame = CGRect(x: leading + 2, y: 2, width: max(0, width - 4), height: toolbarHeight - 4)
+        controlGlass.layer.cornerRadius = min(22, (keyboardHeight.toolbarRowHeight - 4) / 2)
         layoutBackgroundEffect()
         let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: width, drawerToggle: configuredDrawerToggle)
         if controls.map(\.key) != toolbar.main || toolbarDrawerKeys != toolbar.drawers {
@@ -991,7 +994,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             rebuildDrawer()
             setNeedsLayout()
         }
-        for (cap, rect) in zip(controls, Model.frames(keys: controls.map(\.key), width: width, y: toolbarDrawerHeight, height: 48, inset: 5)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
+        for (cap, rect) in zip(controls, Model.frames(keys: controls.map(\.key), width: width, y: toolbarDrawerHeight, height: keyboardHeight.toolbarRowHeight, inset: 5)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
         if let cap = controls.first(where: { $0.key.action == .toolbar(KeyID.writingAssistance.keyValue) }) {
             writingAssistanceButton.frame = cap.frame
             writingAssistanceButton.isHidden = false
@@ -1043,7 +1046,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         let typingTop = y
         for (index, row) in rows.enumerated() {
             var inset: CGFloat = index == 1 && page == .letters ? width / 20 + 2 : 2
-            if index == 3, compactHeightEnabled, traitCollection.userInterfaceIdiom == .phone {
+            if index == 3, heightSetting.usesBottomSafeArea, traitCollection.userInterfaceIdiom == .phone {
                 // Keep the entire bottom row at its normal height while fitting
                 // its end keys inside the rounded screen corners.
                 inset = max(2, min(width / 10, deviceBottomInset - min(leading, trailing)))
@@ -1669,15 +1672,16 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     private func layoutToolbarDrawer(_ row: UIScrollView, buttons: [TerminalTouchDrawerButton],
                                      position: Int, leading: CGFloat, width: CGFloat) {
-        row.frame = CGRect(x: leading + 5, y: CGFloat(position) * 44, width: max(0, width - 10), height: 44)
+        let rowHeight = keyboardHeight.toolbarDrawerRowHeight
+        row.frame = CGRect(x: leading + 5, y: CGFloat(position) * rowHeight, width: max(0, width - 10), height: rowHeight)
         var x: CGFloat = 0
         for button in buttons {
             let titleWidth = ((button.keycap.icon.image == nil ? button.keycap.key.title : "") as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 13)]).width
             let buttonWidth = max(40, min(120, titleWidth + 20))
-            button.frame = CGRect(x: x, y: 2, width: buttonWidth, height: 40)
+            button.frame = CGRect(x: x, y: 2, width: buttonWidth, height: rowHeight - 4)
             x += buttonWidth + 2
         }
-        row.contentSize = CGSize(width: x, height: 44)
+        row.contentSize = CGSize(width: x, height: rowHeight)
     }
 
     private func toggleToolbarDrawer() {

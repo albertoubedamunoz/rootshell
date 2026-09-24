@@ -12,6 +12,7 @@ extension DrawerToggleMode: SettingValue {}
 extension TerminalWritingAssistanceMode: SettingValue {}
 extension KeyboardArrowJoystickButton.Mode: SettingValue {}
 extension TerminalTouchKeyboardModel.FloatingGlassStyle: SettingValue {}
+extension TerminalTouchKeyboardModel.Height: SettingValue {}
 extension TerminalTouchKeyboardModel.Style: SettingValue {}
 extension TerminalTouchKeyboardModel.PhosphorColor: SettingValue {}
 
@@ -32,9 +33,10 @@ nonisolated extension Settings {
         static let touchHaptics = SettingKey(
             "terminalTouchKeyboardHaptics", default: false, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-haptics", title: String(localized: "Terminal Keyboard Haptics"))
-        static let touchCompactHeight = SettingKey(
-            "terminalTouchKeyboardCompactHeight", default: true, group: .keyboard, policy: .localByDefault,
-            configKey: "terminal-touch-keyboard-compact-height", title: String(localized: "Compact Keyboard Height"))
+        static let touchHeight = SettingKey(
+            "terminalTouchKeyboardHeight", default: TerminalTouchKeyboardModel.Height.compact,
+            group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-height", title: String(localized: "Keyboard Height"))
         static let touchGlyphs = SettingKey(
             "terminalTouchKeyboardGlyphs", default: true, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-glyphs", title: String(localized: "Keyboard Key Glyphs"))
@@ -90,7 +92,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             optionKeyAsAlt.erased, forceASCIIKeyboard.erased, doubleSpaceForPeriod.erased, composeAutocorrect.erased,
             writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased,
-            touchCompactHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
+            touchHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
             touchSteampunkThemeAwareKeycaps.erased, touchPhosphorColor.erased, touchClickSound.erased,
             touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
             touchChooserPresented.erased,
