@@ -1,0 +1,34 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Soto for AWS open source project
+//
+// Copyright (c) 2020 the Soto project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.txt for the list of Soto project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
+
+This product contains a copy of INIParser from PerfectlySoft
+
+  * LICENSE (Apache License 2.0):
+    * https://github.com/PerfectlySoft/Perfect-INIParser/blob/master/LICENSE
+  * HOMEPAGE:
+    * https://github.com/PerfectlySoft/Perfect-INIParser
+
+This product contains a copy of libexpat
+
+  * LICENSE (MIT):
+    * https://github.com/libexpat/libexpat/blob/master/expat/COPYING
+  * HOMEPAGE:
+    * https://libexpat.github.io/
+
+This product contains a copy of base64.swift from swift-extras-base64
+
+  * LICENSE (Apache License 2.0):
+    * https://github.com/swift-extras/swift-extras-base64/blob/main/LICENSE
+  * HOMEPAGE:
+    * https://github.com/swift-extras/swift-extras-base64
