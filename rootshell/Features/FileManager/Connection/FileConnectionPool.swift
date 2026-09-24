@@ -1,32 +1,43 @@
 //
-//  SFTPConnectionPool.swift
+//  FileConnectionPool.swift
 //  rootshell
 //
-//  App-wide SFTP connections keyed by endpoint, shared by every file manager
-//  pane and transfer job so each host is authenticated once. A connection
-//  closes after an idle delay once nothing retains it.
+//  App-wide remote connections (SFTP sessions and storage clients) keyed by
+//  endpoint, shared by every file manager pane and transfer job so each host
+//  is authenticated once. A connection closes after an idle delay once
+//  nothing retains it.
 //
 
 import Foundation
 
+/// A live remote filesystem the pool can share and close.
+nonisolated protocol FileConnection: AnyObject, Sendable {
+    var isActive: Bool { get }
+    /// For listings and small metadata calls.
+    var browseFileSystem: FileSystemEndpoint { get }
+    /// For bulk transfers; may be the browse filesystem.
+    func transferFileSystem() async -> FileSystemEndpoint
+    func close() async
+}
+
 @MainActor
-final class SFTPConnectionPool {
-    static let shared = SFTPConnectionPool()
+final class FileConnectionPool {
+    static let shared = FileConnectionPool()
 
     enum Purpose {
         case browse
         case transfer
     }
 
-    private var connections: [SFTPEndpoint: SFTPConnection] = [:]
-    private var pending: [SFTPEndpoint: Task<SFTPConnection, Error>] = [:]
-    private var retainCounts: [SFTPEndpoint: Int] = [:]
-    private var idleClosers: [SFTPEndpoint: Task<Void, Never>] = [:]
+    private var connections: [FileEndpoint: any FileConnection] = [:]
+    private var pending: [FileEndpoint: Task<any FileConnection, Error>] = [:]
+    private var retainCounts: [FileEndpoint: Int] = [:]
+    private var idleClosers: [FileEndpoint: Task<Void, Never>] = [:]
 
     private init() {}
 
     /// A filesystem for `endpoint`, connecting (and prompting) if needed.
-    func fileSystem(for endpoint: SFTPEndpoint, purpose: Purpose, prompts: FileManagerPrompts) async throws -> FileSystemEndpoint {
+    func fileSystem(for endpoint: FileEndpoint, purpose: Purpose, prompts: FileManagerPrompts) async throws -> FileSystemEndpoint {
         if endpoint.isLocal {
             return FileSystemEndpoint(backend: .local(.current()))
         }
@@ -37,7 +48,7 @@ final class SFTPConnectionPool {
         }
     }
 
-    func connection(for endpoint: SFTPEndpoint, prompts: FileManagerPrompts) async throws -> SFTPConnection {
+    private func connection(for endpoint: FileEndpoint, prompts: FileManagerPrompts) async throws -> any FileConnection {
         if let existing = connections[endpoint] {
             if existing.isActive { return existing }
             connections[endpoint] = nil
@@ -46,7 +57,7 @@ final class SFTPConnectionPool {
         if let task = pending[endpoint] {
             return try await task.value
         }
-        let task = Task { try await SFTPConnectionFactory.open(endpoint, prompts: prompts) }
+        let task = Task<any FileConnection, Error> { try await Self.open(endpoint, prompts: prompts) }
         pending[endpoint] = task
         defer { pending[endpoint] = nil }
         let connection = try await task.value
@@ -55,18 +66,28 @@ final class SFTPConnectionPool {
         return connection
     }
 
+    private static func open(_ endpoint: FileEndpoint, prompts: FileManagerPrompts) async throws -> any FileConnection {
+        if case .storage(let id) = endpoint {
+            guard let provider = StorageProviderStore.shared.provider(for: id) else {
+                throw FileManagerConnectionError.storageProviderUnavailable
+            }
+            return try S3Connection(provider: provider)
+        }
+        return try await SFTPConnectionFactory.open(endpoint, prompts: prompts)
+    }
+
     /// Whether a live connection exists, without opening one.
-    func isConnected(_ endpoint: SFTPEndpoint) -> Bool {
+    func isConnected(_ endpoint: FileEndpoint) -> Bool {
         endpoint.isLocal || connections[endpoint]?.isActive == true
     }
 
-    func retain(_ endpoint: SFTPEndpoint) {
+    func retain(_ endpoint: FileEndpoint) {
         guard !endpoint.isLocal else { return }
         retainCounts[endpoint, default: 0] += 1
         idleClosers.removeValue(forKey: endpoint)?.cancel()
     }
 
-    func release(_ endpoint: SFTPEndpoint) {
+    func release(_ endpoint: FileEndpoint) {
         guard !endpoint.isLocal, let count = retainCounts[endpoint] else { return }
         if count <= 1 {
             retainCounts[endpoint] = nil
@@ -76,8 +97,8 @@ final class SFTPConnectionPool {
         }
     }
 
-    /// Drops the connection now, e.g. after the user disconnects.
-    func disconnect(_ endpoint: SFTPEndpoint) {
+    /// Drops the connection now, e.g. after the user disconnects or edits its settings.
+    func disconnect(_ endpoint: FileEndpoint) {
         pending.removeValue(forKey: endpoint)?.cancel()
         idleClosers.removeValue(forKey: endpoint)?.cancel()
         if let connection = connections.removeValue(forKey: endpoint) {
@@ -85,7 +106,7 @@ final class SFTPConnectionPool {
         }
     }
 
-    private func scheduleIdleCloseIfUnused(_ endpoint: SFTPEndpoint) {
+    private func scheduleIdleCloseIfUnused(_ endpoint: FileEndpoint) {
         guard retainCounts[endpoint] == nil, connections[endpoint] != nil else { return }
         idleClosers[endpoint]?.cancel()
         let delay = SettingsStore.shared.value(Settings.Transfer.fileManagerIdleDisconnectMinutes)

@@ -161,7 +161,7 @@ struct FileManagerView: View {
             Divider()
             if !pane.endpoint.isLocal {
                 Button {
-                    SFTPConnectionPool.shared.disconnect(pane.endpoint)
+                    FileConnectionPool.shared.disconnect(pane.endpoint)
                     pane.connect(to: .local)
                 } label: {
                     Label(String(localized: "Disconnect", comment: "File manager: close the pane's connection"), systemImage: "bolt.horizontal.circle")

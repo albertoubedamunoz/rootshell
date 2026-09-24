@@ -14,6 +14,13 @@ final class FileManagerLogicTests: XCTestCase {
         XCTAssertEqual(FileTransferLogic.lastComponent(of: "/a/b/"), "b")
     }
 
+    func testNormalize() {
+        XCTAssertEqual(FileTransferLogic.normalize(""), "/")
+        XCTAssertEqual(FileTransferLogic.normalize("a//b/"), "/a/b")
+        XCTAssertEqual(FileTransferLogic.normalize("/a/./b/../c"), "/a/c")
+        XCTAssertEqual(FileTransferLogic.normalize("/../.."), "/")
+    }
+
     func testDestinationMapping() {
         XCTAssertEqual(FileTransferLogic.destination(for: "/src/dir", sourceRoot: "/src/dir", destinationRoot: "/dst/dir"), "/dst/dir")
         XCTAssertEqual(FileTransferLogic.destination(for: "/src/dir/x/y.txt", sourceRoot: "/src/dir", destinationRoot: "/dst/dir"), "/dst/dir/x/y.txt")

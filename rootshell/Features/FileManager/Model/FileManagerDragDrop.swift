@@ -24,7 +24,7 @@ enum FileManagerDragDrop {
 extension FileManagerModel {
     struct DragPayload {
         let side: FilePaneModel.Side
-        let endpoint: SFTPEndpoint
+        let endpoint: FileEndpoint
         let paths: [String]
         let startedAt = Date()
     }

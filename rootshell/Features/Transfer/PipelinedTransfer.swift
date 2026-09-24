@@ -24,6 +24,18 @@ nonisolated protocol ChunkReader: Sendable {
 nonisolated protocol ChunkWriter: Sendable {
     func write(_ data: Data, at offset: UInt64) async throws
     func close() async throws
+    /// Gives up on a failed copy instead of closing.
+    func abort() async
+    /// True when a failed or aborted write leaves any existing destination untouched.
+    var replacesAtomically: Bool { get }
+}
+
+nonisolated extension ChunkWriter {
+    func abort() async {
+        try? await close()
+    }
+
+    var replacesAtomically: Bool { false }
 }
 
 /// Pipelined transfer operations that overlap multiple read/write requests

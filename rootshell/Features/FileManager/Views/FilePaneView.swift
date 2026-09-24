@@ -65,7 +65,7 @@ struct FilePaneView: View {
         HStack(spacing: 6) {
             Button { manager.sheet = .connect(pane.id) } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: endpointSymbol)
+                    Image(systemName: pane.endpoint.symbol)
                     Text(pane.endpoint.displayName).fontWeight(.semibold).lineLimit(1)
                     if pane.status == .connecting {
                         ProgressView().controlSize(.mini)
@@ -107,15 +107,6 @@ struct FilePaneView: View {
         .disabled(!enabled)
         .help(shortcut.helpText)
         .accessibilityLabel(shortcut.title)
-    }
-
-    private var endpointSymbol: String {
-        guard pane.endpoint.isLocal else { return "server.rack" }
-        #if targetEnvironment(macCatalyst)
-        return "laptopcomputer"
-        #else
-        return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
-        #endif
     }
 
     // MARK: - Filter field
@@ -427,7 +418,7 @@ struct FilePaneView: View {
                 Label(FileManagerShortcut.shortcut(for: .info).title, systemImage: "info.circle")
             }
         }
-        if entry.isDirectory, manager.openInTerminal != nil {
+        if entry.isDirectory, manager.openInTerminal != nil, pane.endpoint.supportsTerminal {
             Button { manager.activeSide = pane.id; pane.selection.setCursor(entry.path); manager.perform(.openInTerminal) } label: {
                 Label(FileManagerShortcut.shortcut(for: .openInTerminal).title, systemImage: "terminal")
             }

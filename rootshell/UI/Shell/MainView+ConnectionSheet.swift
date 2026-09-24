@@ -124,7 +124,7 @@ extension MainView {
 
     /// Opens after the connection view closes so the terminal's focus restore can't win:
     /// the panel flushes from the close handler, a sheet from its onDismiss.
-    private func openFileManagerFromConnectionView(_ endpoint: SFTPEndpoint, presentation: FileManagerPresentation?) {
+    private func openFileManagerFromConnectionView(_ endpoint: FileEndpoint, presentation: FileManagerPresentation?) {
         pendingFileManagerOpen = (endpoint, presentation)
         showConnectionSidebar = false
     }

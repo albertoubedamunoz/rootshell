@@ -2,8 +2,9 @@
 //  FileSystemEndpoint.swift
 //  rootshell
 //
-//  One Sendable filesystem API over the local disk or an SFTP session, so
-//  listing, recursive walks and transfers are written once for every pairing.
+//  One Sendable filesystem API over the local disk, an SFTP session or an S3
+//  bucket namespace, so listing, recursive walks and transfers are written
+//  once for every pairing.
 //
 
 import Foundation
@@ -69,6 +70,7 @@ nonisolated struct FileSystemEndpoint: Sendable {
     enum Backend: Sendable {
         case local(LocalPathResolver)
         case sftp(SFTPClient)
+        case s3(S3FileSystem)
     }
 
     struct ItemInfo: Sendable {
@@ -82,8 +84,14 @@ nonisolated struct FileSystemEndpoint: Sendable {
     let backend: Backend
 
     var isRemote: Bool {
-        if case .sftp = backend { return true }
-        return false
+        if case .local = backend { return false }
+        return true
+    }
+
+    /// Object storage has no links, so there are none to check for or create.
+    var supportsSymlinks: Bool {
+        if case .s3 = backend { return false }
+        return true
     }
 
     // MARK: - Listing and metadata
@@ -94,6 +102,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             return try await Self.listLocal(path, resolver: resolver)
         case .sftp(let sftp):
             return try await SFTPOperations.listDirectoryEntries(sftp: sftp, path: path)
+        case .s3(let s3):
+            return try await s3.list(path)
         }
     }
 
@@ -119,6 +129,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             } catch {
                 throw SFTPError.from(sftpError: error, path: path)
             }
+        case .s3(let s3):
+            return try await s3.info(path)
         }
     }
 
@@ -134,6 +146,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             #endif
         case .sftp(let sftp):
             return try await mapped(".") { try await sftp.getRealPath(atPath: ".") }
+        case .s3(let s3):
+            return s3.homeDirectory
         }
     }
 
@@ -150,6 +164,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             return (expanded as NSString).standardizingPath
         case .sftp(let sftp):
             return try await mapped(expanded) { try await sftp.getRealPath(atPath: expanded) }
+        case .s3:
+            return FileTransferLogic.normalize(expanded)
         }
     }
 
@@ -161,6 +177,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             return try await Self.localRealPath(resolver.resolve(path))
         case .sftp(let sftp):
             return try await mapped(path) { try await sftp.getRealPath(atPath: path) }
+        case .s3:
+            return FileTransferLogic.normalize(path)
         }
     }
 
@@ -181,6 +199,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             return try FileManager.default.destinationOfSymbolicLink(atPath: resolver.resolveParent(path))
         case .sftp(let sftp):
             return try await mapped(path) { try await sftp.readLink(at: path) }
+        case .s3:
+            throw StorageError.noSymlinks
         }
     }
 
@@ -192,6 +212,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             try await Self.onDisk { try FileManager.default.createDirectory(atPath: resolver.resolveParent(path), withIntermediateDirectories: false) }
         case .sftp(let sftp):
             try await mapped(path) { try await sftp.createDirectory(atPath: path) }
+        case .s3(let s3):
+            try await s3.makeDirectory(path)
         }
     }
 
@@ -209,6 +231,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             }
         case .sftp(let sftp):
             try await mapped(path) { try await sftp.remove(at: path) }
+        case .s3(let s3):
+            try await s3.removeFile(path)
         }
     }
 
@@ -221,12 +245,18 @@ nonisolated struct FileSystemEndpoint: Sendable {
             }
         case .sftp(let sftp):
             try await mapped(path) { try await sftp.rmdir(at: path) }
+        case .s3(let s3):
+            try await s3.removeDirectory(path)
         }
     }
 
     /// Deletes `path` and, for a real directory, everything beneath it.
     /// Symlinked directories are unlinked, not descended into.
     func removeRecursively(_ path: String) async throws {
+        if case .s3(let s3) = backend {
+            // Batch deletes by prefix instead of a walk.
+            return try await s3.removeRecursively(path)
+        }
         let item = try await info(path, followLinks: false)
         guard item.isDirectory else {
             try await removeFile(path)
@@ -251,6 +281,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             }
         case .sftp(let sftp):
             try await mapped(from) { try await sftp.rename(at: from, to: to) }
+        case .s3(let s3):
+            try await s3.rename(from, to: to)
         }
     }
 
@@ -264,6 +296,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             var attributes = SFTPFileAttributes()
             attributes.permissions = mode & 0o7777
             try await mapped(path) { try await sftp.setAttributes(at: path, attributes: attributes) }
+        case .s3:
+            throw StorageError.noPermissions
         }
     }
 
@@ -278,6 +312,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
                 accessModificationTime: .init(accessTime: date, modificationTime: date)
             )
             try await mapped(path) { try await sftp.setAttributes(at: path, attributes: attributes) }
+        case .s3:
+            throw StorageError.noPermissions
         }
     }
 
@@ -289,6 +325,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
             }
         case .sftp(let sftp):
             try await mapped(linkPath) { try await sftp.createSymlink(linkPath: linkPath, targetPath: target) }
+        case .s3:
+            throw StorageError.noSymlinks
         }
     }
 
@@ -301,6 +339,8 @@ nonisolated struct FileSystemEndpoint: Sendable {
         case .sftp(let sftp):
             let file = try await mapped(path) { try await sftp.openFile(filePath: path, flags: .read) }
             return PipelinedTransfer.SendableSFTPFile(file: file)
+        case .s3(let s3):
+            return try await s3.openReader(path)
         }
     }
 
@@ -315,7 +355,18 @@ nonisolated struct FileSystemEndpoint: Sendable {
                 try await sftp.openFile(filePath: path, flags: [.write, .create, .truncate])
             }
             return PipelinedTransfer.SendableSFTPFile(file: file)
+        case .s3(let s3):
+            return try await s3.openWriter(path)
         }
+    }
+
+    /// Copies `sourcePath` into `path` without the bytes passing through this
+    /// device, when both ends allow it. Returns false to fall back to streaming.
+    func copyOnServer(_ sourcePath: String, from source: FileSystemEndpoint, to path: String) async throws -> Bool {
+        guard case .s3(let destination) = backend, case .s3(let origin) = source.backend,
+              destination.canCopyOnServer(from: origin) else { return false }
+        try await destination.copyOnServer(sourcePath, from: origin, to: path)
+        return true
     }
 
     // MARK: - Path helpers

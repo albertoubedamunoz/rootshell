@@ -10,7 +10,7 @@ import Foundation
 @preconcurrency import Citadel
 import os.log
 
-actor SFTPConnection {
+actor SFTPConnection: FileConnection {
     private static let logger = Logger(subsystem: "com.rootshell", category: "FileManagerConnection")
 
     /// Channel for listings and small metadata calls.

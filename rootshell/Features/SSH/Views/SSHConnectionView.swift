@@ -192,7 +192,7 @@ struct SSHConnectionView: View {
     var onProfileConnect: ((ConnectionProfile, SplitOption) -> Void)? = nil
 
     /// Callback when a Files location is chosen; presentation is nil on iPhone (always a sheet)
-    var onFileManagerOpen: ((SFTPEndpoint, FileManagerPresentation?) -> Void)? = nil
+    var onFileManagerOpen: ((FileEndpoint, FileManagerPresentation?) -> Void)? = nil
 
     /// When true, the Cancel button is hidden (no terminal to return to)
     var preventDismissal: Bool = false
@@ -224,7 +224,7 @@ struct SSHConnectionView: View {
         onConsoleConnect: ((ConsoleConfig, SplitOption) -> Void)? = nil,
         onEC2ConsoleConnect: ((EC2ConsoleConfig, SplitOption) -> Void)? = nil,
         onProfileConnect: ((ConnectionProfile, SplitOption) -> Void)? = nil,
-        onFileManagerOpen: ((SFTPEndpoint, FileManagerPresentation?) -> Void)? = nil,
+        onFileManagerOpen: ((FileEndpoint, FileManagerPresentation?) -> Void)? = nil,
         preventDismissal: Bool = false,
         onClose: (() -> Void)? = nil,
         initialTab: ConnectionSidebarTab? = nil
@@ -1295,7 +1295,7 @@ struct SSHConnectionView: View {
                         HStack {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
-                            TextField(String(localized: "Search profiles", comment: "File manager location picker placeholder"), text: $fileLocationQuery)
+                            TextField(String(localized: "Search locations", comment: "File manager location picker placeholder"), text: $fileLocationQuery)
                                 .autocapitalization(.none)
                                 .autocorrectionDisabled()
                             if !fileLocationQuery.isEmpty {
