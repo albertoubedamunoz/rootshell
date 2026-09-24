@@ -3,6 +3,42 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.13-155 - September 24, 2026
+
+### Cloud Storage in the File Manager
+
+- **S3-Compatible Storage:** Browse cloud storage alongside local folders and SSH or tssh hosts. Add accounts in Settings -> Connections -> Storage Providers, then open them from either file-manager pane or Open Connections -> Files.
+- **Provider Presets and Custom Endpoints:** Presets include Amazon S3, Backblaze B2, Akamai (Linode), Google Cloud Storage, and more. Custom endpoints support services such as MinIO and Ceph.
+- **Cloud File Operations:** Upload, download, copy, move, rename, and delete files and folders using the existing transfer queue. Compatible copies within the same service run on the server without downloading data to your device; large uploads use multipart transfers.
+- **Bucket and Credential Options:** Set a specific bucket and starting folder, use temporary credentials, or leave credentials empty for public buckets. Saved providers and their keys sync through iCloud Keychain.
+- **File Manager Fixes:** Fixed drag and drop into empty panes and over file rows. Local panes now load their contents on first open, and restoring the file manager preserves the saved local folder.
+
+### Terminal Keyboard Heights
+
+- **Four Height Options:** Choose Full, Compact, Shorter, or Shortest in Settings -> Terminal -> Terminal Keyboard -> Keyboard Height. Shorter and Shortest reduce the keys, toolbar, and drawer rows to leave more room for the terminal on iPhone and iPad.
+- **Preserved Preferences:** Your existing Compact Height preference carries over automatically. The floating keyboard continues to size itself independently.
+
+### Tint by Host
+
+- **Consistent Server Colors:** Enable Settings -> Appearance -> Colors -> Tint by Host to give each SSH destination a consistent background shade based on its host key. The tint follows your active theme and stays consistent across profiles for the same server. Off by default.
+
+### Detach and Resume Multiplexer Sessions
+
+- **Detach Session:** Detach from tmux, zellij, herdr, and zmx while leaving the remote session running. Use the tab menu or assign a Detach Session key binding. In tmux control mode, it is available from window tabs even when the gateway tab is hidden.
+- **Reconnect to Detached Sessions:** A Reconnect banner lets you return to the detached remote session, preserving the session name, control mode, and tmux socket instead of falling back to profile defaults. The banner remains available even when detaching closes every tab.
+- **Reuse Attached Sessions:** Opening a profile for a multiplexer session that is already attached focuses its existing tab or window instead of creating another client. Reconnecting herdr control mode reuses the existing gateway connection when available.
+- **tmux Tab Fixes:** Fixed window tabs that would stay stuck or reappear when closed after detaching and reattaching. Close, Hide, and Detach follow your configured tab-close action even for background windows.
+
+### Choose Pane to Swap
+
+- **Numbered Pane Picker:** Press Option-Command-S in a tmux control-mode window to swap the current pane with another. Type a displayed pane number or tap the destination. Also available from Terminal -> Choose Pane to Swap and the pane context menu; the shortcut is customizable.
+- **Preserved Focus and Zoom:** Swapping preserves the active pane and zoom state. Escape or any non-number key cancels without sending that input to the terminal.
+
+### Mac Keyboard Shortcuts
+
+- **Custom Menu Shortcuts:** Close Tab now follows your configured key binding in the menu bar. Reassigned shortcuts such as Command-W, Command-Q, Command-H, and Command-M reach your chosen action instead of being intercepted by system menus.
+- **Key Sequences and Recording:** Multi-key sequence prefixes are no longer swallowed by menu shortcuts, and shortcut recording can capture keys normally reserved by those menus.
+
 ## 1.0.12-154 - September 23, 2026
 
 ### New SFTP File Manager
