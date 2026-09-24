@@ -653,6 +653,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["generate", "256", "ansi"]),
             row("palette-harmonious", String(localized: "Harmonious Mode"), in: .palette, icon: "circle.lefthalf.filled",
                 keywords: ["harmonious", "harmony"]),
+            row("host-tint", String(localized: "Tint by Host"), in: .palette, icon: "paintpalette",
+                keywords: ["host color", "server color", "fingerprint", "per host", "background tint"]),
 
             // MARK: Battery
             row("battery-refresh-rate", String(localized: "Maximum Refresh Rate"), in: .battery, icon: "gauge.with.dots.needle.67percent",
