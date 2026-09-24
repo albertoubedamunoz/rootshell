@@ -303,7 +303,13 @@ extension Ghostty.TerminalView {
 
         let allTouches = event?.allTouches ?? touches
         let activeDirectTouches = allTouches.filter { touch in
-            touch.type == .direct && touch.phase != .ended && touch.phase != .cancelled
+            // A second finger on the window-hosted loupe belongs to its button,
+            // not the terminal's two-finger selection/scroll arbitration.
+            if let magnifier = selectionMagnifierView, let view = touch.view,
+               view === magnifier || view.isDescendant(of: magnifier) {
+                return false
+            }
+            return touch.type == .direct && touch.phase != .ended && touch.phase != .cancelled
         }
 
         if activeDirectTouches.count > 1 {
@@ -395,6 +401,8 @@ extension Ghostty.TerminalView {
 
     /// Handle long press for text selection in scroll mode
     @objc func handleSelectionLongPress(_ gesture: UILongPressGestureRecognizer) {
+        if handleLoupeSecondaryClick(gesture) { return }
+        if gesture.state == .began { loupeLongPressGesture = gesture }
         if herdrEndpointPane != nil { handleEndpointSelectionGesture(gesture); return }
         let location = gesture.location(in: self)
 
@@ -454,12 +462,14 @@ extension Ghostty.TerminalView {
     /// Setting fingerDragActive would cause touchesCancelled (from cancelsTouchesInView) to
     /// send a premature mouseUp immediately after mouseDown.
     @objc func handleCaptureLongPress(_ gesture: UILongPressGestureRecognizer) {
+        if handleLoupeSecondaryClick(gesture) { return }
         guard isMouseCaptured, isTouchScrollMode else { return }
 
         let location = gesture.location(in: self)
 
         switch gesture.state {
         case .began:
+            loupeLongPressGesture = gesture
             cancelMomentumScrolling()
             handleMouseDown(at: location, isRightClick: false)
             triggerHapticFeedback()
@@ -469,7 +479,7 @@ extension Ghostty.TerminalView {
             handleMouseMove(at: location)
             updateCaptureMagnifier(at: location)
 
-        case .ended, .cancelled:
+        case .ended, .cancelled, .failed:
             handleMouseUp(at: location)
             hideSelectionMagnifier()
 
@@ -921,6 +931,7 @@ extension Ghostty.TerminalView {
 extension Ghostty.TerminalView {
 
     override func copy(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
         if let state = herdrEndpointPane { state.copy(); return }
         guard let surface = surface else { return }
 
@@ -951,6 +962,7 @@ extension Ghostty.TerminalView {
     }
 
     override func paste(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
         // Keep the standard responder-chain paste synchronous. iOS recognizes
         // this direct read as part of the user-invoked paste action; asking the
         // pasteboard for item providers here can lose that association.
@@ -1088,8 +1100,9 @@ extension Ghostty.TerminalView {
     /// Remote backends without an upload transport cannot use local attachment
     /// paths, but a mixed provider may still contain independently useful
     /// content. Preserve a web URL or plain text before rejecting the image.
-    private func pasteUsableRemoteRepresentationOrShowAttachmentAlert(
-        from providers: [NSItemProvider]
+    func pasteUsableRemoteRepresentationOrShowAttachmentAlert(
+        from providers: [NSItemProvider],
+        escapingURLs: Bool = false
     ) {
         let urlProviders = providers.filter {
             $0.hasItemConformingToTypeIdentifier(UTType.url.identifier)
@@ -1107,7 +1120,7 @@ extension Ghostty.TerminalView {
             return
         }
 
-        loadPastedNonFileURLs(from: urlProviders) { [weak self] text in
+        loadPastedNonFileURLs(from: urlProviders, escapingURLs: escapingURLs) { [weak self] text in
             guard let self else { return }
             if let text, !text.isEmpty, self.insertPastedText(text) {
                 return
@@ -1129,20 +1142,20 @@ extension Ghostty.TerminalView {
 
     private func showUnsupportedRemoteAttachmentAlert() {
         Ghostty.logger.warning(
-            "Ignoring pasted attachment for unsupported remote session: \(self.connectionConfig.lifecycleDebugKind)"
+            "Ignoring attachment for unsupported remote session: \(self.connectionConfig.lifecycleDebugKind)"
         )
         guard let presenter = self.findPresenterViewController(),
               presenter.presentedViewController == nil else { return }
         let alert = UIAlertController(
-            title: String(localized: "Attachment Paste Unavailable"),
-            message: String(localized: "This remote session does not support uploading pasted attachments."),
+            title: String(localized: "Attachment Upload Unavailable"),
+            message: String(localized: "This remote session does not support uploading attachments."),
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
         presenter.present(alert, animated: true)
     }
 
-    private func materializeLocalPastedAttachments(_ attachments: [PasteAttachment]) {
+    func materializeLocalPastedAttachments(_ attachments: [PasteAttachment]) {
         let temporaryDirectory = FileManager.default.temporaryDirectory
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -1225,6 +1238,7 @@ extension Ghostty.TerminalView {
 
     private func loadPastedNonFileURLs(
         from providers: [NSItemProvider],
+        escapingURLs: Bool,
         completion: @escaping (String?) -> Void
     ) {
         let group = DispatchGroup()
@@ -1237,7 +1251,9 @@ extension Ghostty.TerminalView {
                 defer { group.leave() }
                 guard let url else { return }
                 lock.lock()
-                values[index] = url.absoluteString
+                // Drops treat every URL as a shell argument. Escape before
+                // joining so multiple URLs remain separate arguments.
+                values[index] = escapingURLs ? Ghostty.Shell.escape(url.absoluteString) : url.absoluteString
                 lock.unlock()
             }
         }
@@ -1445,11 +1461,18 @@ extension Ghostty.TerminalView {
     }
 
     override func selectAll(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
         // Use Ghostty's select_all binding action
         _ = performAction("select_all")
     }
 
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(menuChoosePaneToSwap(_:)) {
+            return enclosingSplitHost?.canChoosePaneToSwap == true
+        }
+        if action == #selector(menuChoosePaneToZoom(_:)) {
+            return enclosingSplitHost?.canChoosePaneToZoom == true
+        }
         if herdrController?.showsGatewayStatus == true,
            [#selector(copy(_:)), #selector(paste(_:)), #selector(selectAll(_:))].contains(action) {
             return false
@@ -2694,6 +2717,15 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             menuItems.append(clipboardManagerAction)
         }
 
+        // Opens on this pane's host and folder, so it's reachable without a keyboard.
+        menuItems.append(UIAction(
+            title: String(localized: "File Manager"),
+            image: UIImage(systemName: "folder.badge.gearshape")
+        ) { [weak self] _ in
+            guard let self else { return }
+            NotificationCenter.default.post(name: .toggleFileManager, object: self)
+        })
+
         // Split actions menu
         let splitRight = UIAction(
             title: String(localized: "Split Right"),
@@ -2843,6 +2875,14 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
         // tmux no-op).
         if paneCount >= 2 {
             let isZoomed = controller.isWindowZoomed(windowId: binding.windowId)
+            items.append(UIAction(title: String(localized: "Choose Pane to Zoom"),
+                                  image: UIImage(systemName: "number.square")) { [weak self] _ in
+                self?.enclosingSplitHost?.showPaneZoomPicker()
+            })
+            items.append(UIAction(title: String(localized: "Choose Pane to Swap"),
+                                  image: UIImage(systemName: "arrow.left.arrow.right")) { [weak self] _ in
+                self?.enclosingSplitHost?.showPaneSwapPicker()
+            })
             let zoom = UIAction(
                 title: isZoomed
                     ? String(localized: "Unzoom Pane")
@@ -3475,6 +3515,118 @@ extension Ghostty.TerminalView {
             return
         }
         showCustomSelectionMagnifier(at: point, horizontalOffset: 0)
+        if !prefersNativeSelectionLoupe,
+           let gesture = loupeLongPressGesture,
+           gesture.state == .began || gesture.state == .changed {
+            selectionMagnifierView?.onSecondaryClick = { [weak self] in
+                self?.beginLoupeSecondaryClick()
+            }
+        }
+    }
+
+    /// Balance the primary press before switching buttons. At a shell prompt a
+    /// secondary click is the app's context menu, not terminal mouse reporting.
+    private func beginLoupeSecondaryClick() {
+        guard loupeSecondaryClick == nil,
+              let gesture = loupeLongPressGesture,
+              gesture.state == .began || gesture.state == .changed,
+              selectionMagnifierPoint != nil else { return }
+        let point = gesture.location(in: self)
+        selectionMagnifierPoint = point
+        stopCaptureAutoScroll()
+        if gesture === selectionLongPressGesture {
+            if let state = herdrEndpointPane {
+                state.endDrag()
+            } else {
+                sendLoupeMouseButton(GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT, at: point)
+            }
+            isSelecting = false
+            selectionStartPoint = nil
+        } else {
+            sendLoupeMouseButton(GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT, at: point)
+        }
+        mousePressed = false
+        selectionMouseDragActive = false
+
+        let captured = herdrEndpointPane?.capturesMouse
+            ?? surface.map { ghostty_surface_mouse_captured($0) } ?? false
+        if captured {
+            loupeSecondaryClick = .mouse
+            mousePressed = true
+            Self.pressedMouseButton = GHOSTTY_MOUSE_RIGHT
+            sendLoupeMouseButton(GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_RIGHT, at: point)
+        } else {
+            loupeSecondaryClick = .contextMenu
+        }
+        let feedback = String(localized: "Right Click")
+        showMouseInteractionOverlay(text: feedback)
+        UIAccessibility.post(notification: .announcement, argument: feedback)
+        triggerHapticFeedback()
+    }
+
+    /// Keep position and button events together on the API queue so a quick
+    /// drag/release cannot move an enqueued press to the release location.
+    private func sendLoupeMouseButton(
+        _ action: ghostty_input_mouse_state_e,
+        button: ghostty_input_mouse_button_e,
+        at point: CGPoint
+    ) {
+        lastMousePosition = point
+        if let state = herdrEndpointPane {
+            state.mouse(kind: action == GHOSTTY_MOUSE_PRESS ? 0 : 1,
+                        button: button == GHOSTTY_MOUSE_RIGHT ? 1 : 0, at: point)
+            return
+        }
+        guard let surface else { return }
+        let pixelPoint = viewToPixelCoordinates(point)
+        let mods = currentMouseMods()
+        Self.ghosttyAPIQueue.async {
+            ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
+            ghostty_surface_mouse_button(surface, action, button, mods)
+        }
+    }
+
+    private func handleLoupeSecondaryClick(_ gesture: UILongPressGestureRecognizer) -> Bool {
+        // A recognizer can reset without delivering another callback after its
+        // view leaves the window. Never carry a cancelled click into a new hold.
+        if gesture.state == .began {
+            if loupeSecondaryClick != nil { hideSelectionMagnifier(animated: false) }
+            loupeSecondaryClick = nil
+            loupeLongPressGesture = nil
+            return false
+        }
+        guard gesture === loupeLongPressGesture, let click = loupeSecondaryClick else { return false }
+        let point = gesture.location(in: self)
+        switch gesture.state {
+        case .changed:
+            guard click != .cancelled else { return true }
+            if click == .mouse {
+                lastMousePosition = point
+                if let state = herdrEndpointPane {
+                    state.mouse(kind: 2, button: 1, at: point)
+                } else if let surface {
+                    let pixelPoint = viewToPixelCoordinates(point)
+                    let mods = currentMouseMods()
+                    Self.ghosttyAPIQueue.async {
+                        ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
+                    }
+                }
+            }
+            updateCaptureMagnifier(at: point)
+        case .ended, .cancelled, .failed:
+            // hideSelectionMagnifier balances the secondary press, including
+            // cancellation. Only a completed hold may open the context menu.
+            selectionMagnifierPoint = point
+            hideSelectionMagnifier()
+            loupeSecondaryClick = nil
+            loupeLongPressGesture = nil
+            reloadInputViews()
+            if click == .contextMenu, gesture.state == .ended {
+                presentTransientEditMenu(at: point, fullContextMenu: true)
+            }
+        default: break
+        }
+        return true
     }
 
     func updateCaptureMagnifier(at point: CGPoint) {
@@ -3547,6 +3699,19 @@ extension Ghostty.TerminalView {
     }
 
     func hideSelectionMagnifier(animated: Bool = true) {
+        if loupeSecondaryClick == .mouse, let point = selectionMagnifierPoint {
+            sendLoupeMouseButton(GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_RIGHT, at: point)
+            mousePressed = false
+            selectionMouseDragActive = false
+        }
+        if loupeSecondaryClick != nil {
+            // Consume the rest of the original hold even if an overlay or tab
+            // switch dismissed the loupe before that finger lifted.
+            loupeSecondaryClick = .cancelled
+        } else {
+            loupeLongPressGesture = nil
+        }
+        selectionMagnifierView?.onSecondaryClick = nil
         selectionMagnifierPoint = nil
         selectionLoupe?.invalidate()
         selectionLoupe = nil
@@ -3705,7 +3870,7 @@ extension Ghostty.TerminalView {
             // scale), matching every other mouse_pos call site.
             let pixelPoint = viewToPixelCoordinates(location)
             let draggingStart = which == .start
-            Self.ghosttyAPIQueue.async {
+            Self.ghosttyAPIQueue.async { [weak self] in
                 _ = ghostty_surface_selection_handle_drag_begin(surface, draggingStart)
                 ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
                 DispatchQueue.main.async { [weak self] in
@@ -3741,7 +3906,7 @@ extension Ghostty.TerminalView {
             // start auto-scrolling when the finger reaches the top/bottom of the
             // viewport and extend the selection into scrollback.
             let pixelPoint = viewToPixelCoordinates(location)
-            Self.ghosttyAPIQueue.async {
+            Self.ghosttyAPIQueue.async { [weak self] in
                 ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
                 DispatchQueue.main.async { [weak self] in
                     guard let self, self.activeHandleDrag == which else { return }
@@ -3760,7 +3925,7 @@ extension Ghostty.TerminalView {
             // the final position), which stops any active auto-scroll.
             let endLocation = location
             let pixelPoint = viewToPixelCoordinates(location)
-            Self.ghosttyAPIQueue.async {
+            Self.ghosttyAPIQueue.async { [weak self] in
                 ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
                 ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, mods)
                 let hasSelection = ghostty_surface_has_selection(surface)

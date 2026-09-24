@@ -756,7 +756,8 @@ extension Ghostty.TerminalView {
     ///
     /// `manual` marks a run the user asked for from the Tabs menu, a keybind, or
     /// the terminal context menu. It still honours the per-multiplexer discovery
-    /// settings, but bypasses every condition that suppresses the picker, and
+    /// settings, but bypasses automatic local/remote discovery settings and
+    /// every condition that suppresses the picker, and
     /// always reports back rather than failing silently.
     func discoverSessionsIfConfigured(manual: Bool = false) {
         // Check which discoveries are enabled (default to true for all)
@@ -779,10 +780,7 @@ extension Ghostty.TerminalView {
         #if STANDALONE && targetEnvironment(macCatalyst)
         if session is CatalystLocalShellSession, case .local = connectionConfig {
             let localEnabled = store.value(Settings.Multiplexer.localSessionDiscovery)
-            guard localEnabled else {
-                if manual { presentManualSessionDiscovery(.localDisabled) }
-                return
-            }
+            guard localEnabled || manual else { return }
 
             let allowSessionPickerOverlay = true
             let skipTmuxSessions = !tmuxEnabled
@@ -812,6 +810,9 @@ extension Ghostty.TerminalView {
             if manual { presentManualSessionDiscovery(.unsupported) }
             return
         }
+        let remoteEnabled = store.value(Settings.Multiplexer.remoteSessionDiscovery)
+        guard remoteEnabled || manual else { return }
+
         let hasLaunchCommand = !(sshConfig.launchCommand?.isEmpty ?? true)
         let hasRemoteCommand = !(sshConfig.remoteCommand?.isEmpty ?? true)
         let wasResumed = (session as? TrzszSession)?.wasResumed == true || (session as? MoshSession)?.wasResumed == true

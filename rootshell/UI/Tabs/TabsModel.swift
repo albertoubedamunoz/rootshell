@@ -2,35 +2,11 @@
 //  TabsModel.swift
 //  rootshell
 //
-//  Architectural replacement for `@State var terminals: [TerminalTab]` and the
-//  value-type `TerminalTab` struct that used to live in `MainViewTypes.swift`.
+//  @Observable tab models, so a per-tab title or health change invalidates only
+//  the views that read that tab rather than all of MainView.
 //
-//  Why this exists
-//  ---------------
-//  The previous design stored tabs as a value-type array under SwiftUI `@State`,
-//  with each tab a struct that mirrored data from a class (`Ghostty.TerminalView`)
-//  via Combine sinks (`setupTitleObservation`). Every per-tab title or
-//  connection-health update mutated the `@State` array, which invalidated all
-//  of `MainView`'s body — including the tab bar, the terminal area, modal
-//  sheets, etc. Combined with on-screen-keyboard publisher churn during
-//  background→foreground transitions on iPhone, this contributed to the
-//  0x8BADF00D scene-update watchdog kills the team has been patching one
-//  hot path at a time.
-//
-//  With `@Observable`, SwiftUI tracks per-property reads inside view bodies.
-//  By making each tab a class (`TabModel`) annotated `@Observable`, only the
-//  views that actually read `tab.resolvedTitle` for *that specific tab* are
-//  invalidated when its title changes — sibling tabs and the surrounding
-//  chrome no longer recompute.
-//
-//  Lifecycle
-//  ---------
-//  - `TabModel.startObserving()` is invoked when a tab is added to a
-//    `TabsModel`, or when its focused split changes. It Combine-subscribes to
-//    the focused `Ghostty.TerminalView`'s `$title` and `$connectionHealth`
-//    publishers and writes the resolved values into its own `@Observable`
-//    properties.
-//  - `TabModel.stopObserving()` is invoked when removed (and from `deinit`).
+//  TabModel mirrors its focused terminal's `$title` and `$connectionHealth`
+//  between `startObserving()` and `stopObserving()`.
 //
 
 import Foundation
@@ -51,8 +27,6 @@ nonisolated struct TabGroupID: Hashable, Codable, Sendable, Identifiable {
         case remoteDomain
         case remoteNetwork
         case tmux
-        /// A herdr control-mode family: the gateway tab and its projected
-        /// tabs, mirroring `.tmux`.
         case herdr
         case other
     }
@@ -78,7 +52,6 @@ nonisolated struct TabGroupID: Hashable, Codable, Sendable, Identifiable {
         TabGroupID(kind: .herdr, value: ownerID.uuidString.lowercased())
     }
 
-    /// The gateway terminal UUID backing a `.herdr` group (nil for other kinds).
     var herdrOwnerID: UUID? {
         kind == .herdr ? UUID(uuidString: value) : nil
     }
@@ -105,8 +78,6 @@ nonisolated struct TabGroupID: Hashable, Codable, Sendable, Identifiable {
         TabGroupID(kind: .other, value: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
     }
 
-    /// The gateway terminal UUID backing a `.tmux` group (nil for other kinds).
-    /// Lets a gateway move recover the owner id from the group id.
     var tmuxOwnerID: UUID? {
         kind == .tmux ? UUID(uuidString: value) : nil
     }
@@ -190,15 +161,11 @@ struct TabGroup: Identifiable, Hashable {
     let tabIDs: [UUID]
 }
 
-/// Stable identity for a project section shared by all terminal providers.
-/// The display label is not part of the identity: two repositories named "api" on
-/// different hosts/paths must remain separate, while a better probe may refine
-/// how the same section is presented without merging it with a namesake.
+/// The label is not part of the identity, so same-named projects stay separate.
 nonisolated struct ProjectGroupID: Hashable, Codable, Sendable, Identifiable {
     let hostKey: String
     let path: String
-    /// A named workspace with no known directory still gets a section. Its
-    /// identity survives renames and cannot collide with a filesystem project.
+    /// For named workspaces without a directory; survives renames.
     let workspaceKey: String?
 
     var id: String { rawValue }
@@ -218,8 +185,7 @@ nonisolated struct ProjectGroupID: Hashable, Codable, Sendable, Identifiable {
 nonisolated struct ProjectTabSection: Identifiable, Hashable, Sendable {
     let id: ProjectGroupID
     let title: String
-    /// Every tab has exactly one primary section, so section membership stays
-    /// duplicate-free and the active section can safely drive navigation.
+    /// Each tab is in exactly one section, so sections can drive navigation.
     let tabIDs: [UUID]
 }
 
@@ -243,72 +209,48 @@ nonisolated struct TabOrderProjection: Equatable, Sendable {
 
 // MARK: - TabModel
 
-/// A single tab in a window, replacing the value-type `MainView.TerminalTab`
-/// struct. As an `@Observable` class, per-tab UI (tab buttons, indicators)
-/// reads its properties directly and is invalidated only on changes to the
-/// properties it actually reads.
 @MainActor
 @Observable
 final class TabModel: Identifiable {
-    /// Stable identity for `ForEach` and reorder/cleanup operations.
     let id = UUID()
     let paneMove = PaneMoveState()
-    /// Prevent a delayed move reply from overriding a newer focus choice.
+    /// Stops a delayed move reply from overriding a newer focus choice.
     @ObservationIgnored private(set) var paneFocusRevision: UInt64 = 0
 
-    /// The window this tab belongs to. Used for window-aware drag and per-window
-    /// theme override resolution.
     var windowId: String
 
-    /// True when this tab hosts the `tmux -CC` control-mode gateway surface
-    /// (the tab control mode was launched from). The tab stays visible and
-    /// navigable like any other — control mode does NOT hide it (matching
-    /// iTerm2); the tmux windows simply appear as additional tabs. This flag
-    /// just identifies the gateway tab, e.g. so `TmuxController` can reselect it
-    /// when control mode ends (%exit). Set by `TmuxController` on reconcile.
+    /// Hosts the `tmux -CC` gateway surface. The tab stays visible, like iTerm2.
     var isTmuxGateway: Bool = false {
         didSet { markGroupingChanged(oldValue, isTmuxGateway) }
     }
 
-    /// The tmux session this gateway tab's control client is attached to.
-    /// Mirrors `TmuxController.currentSessionName` (set by
-    /// `updateCurrentSession` on attach / switch / rename) because the
-    /// controller is a plain class, so a SwiftUI view reading it directly
-    /// never re-renders on a rename. Nil for ordinary tabs.
+    /// Observable mirror of `TmuxController.currentSessionName`.
     var tmuxSessionName: String? {
         didSet { markGroupingChanged(oldValue, tmuxSessionName) }
     }
 
-    /// True when this tab is a projected tmux control-mode *window* tab
-    /// (created by `TmuxController.ensureWindow`). Drives the green "T" tab
-    /// badge. Distinct from `isTmuxGateway`, which marks the host tab that
-    /// launched `tmux -CC` and is intentionally NOT badged.
+    /// A projected tmux window tab; badged, unlike the gateway.
     var isTmuxWindow: Bool = false {
         didSet { markGroupingChanged(oldValue, isTmuxWindow) }
     }
 
-    /// The tab whose connection carries a herdr control stream. Its own
-    /// pane is the user's shell; the projected tabs below hang off it.
     var isHerdrGateway: Bool = false {
         didSet { markGroupingChanged(oldValue, isHerdrGateway) }
     }
 
-    /// herdr session the gateway is attached to. nil for ordinary tabs.
     var herdrSessionName: String? {
         didSet { markGroupingChanged(oldValue, herdrSessionName) }
     }
 
-    /// True for a tab projected from a herdr tab by `HerdrController`.
-    /// Never persisted: the controller rebuilds it on reconnect.
+    /// Never persisted; the controller rebuilds it on reconnect.
     var isHerdrWindow: Bool = false {
         didSet { markGroupingChanged(oldValue, isHerdrWindow) }
     }
 
-    /// Another herdr client sizes this tab, or holds its panes. Display only.
+    /// Another herdr client sizes this tab or holds its panes. Display only.
     var herdrIsControlledElsewhere = false
 
-    /// herdr's ids for a projected tab. The workspace groups the tab in the
-    /// sidebar; its label is mirrored so grouping needs no controller lookup.
+    /// Workspace fields are mirrored so grouping needs no controller lookup.
     var herdrTabId: String? {
         didSet { markGroupingChanged(oldValue, herdrTabId) }
     }
@@ -325,93 +267,59 @@ final class TabModel: Identifiable {
         didSet { markGroupingChanged(oldValue, herdrWorkspaceProject) }
     }
 
-    /// The tmux window id this tab models, once known (set by
-    /// `TmuxController.ensureWindow` or on placeholder adoption). Persisted so a
-    /// projected window tab can be restored as a placeholder and re-matched to
-    /// its tmux window after the gateway resumes. Nil for ordinary tabs.
+    /// Persisted so a restored placeholder can be re-matched to its window.
     var tmuxWindowId: Int? {
         didSet { markGroupingChanged(oldValue, tmuxWindowId) }
     }
 
-    /// The UUID of the gateway terminal (the one running `tmux -CC`) that owns
-    /// this window tab. Stamped by `TmuxController.ensureWindow`. Stable across
-    /// restore (unlike the tab UUID), so the controller adopts restored
-    /// placeholders for its own gateway by matching this against its owner
-    /// terminal's UUID. Nil for ordinary tabs.
+    /// Stable across restore, unlike the tab UUID, so the controller can adopt
+    /// its own restored placeholders.
     var owningGatewayTerminalUUID: UUID? {
         didSet { markGroupingChanged(oldValue, owningGatewayTerminalUUID) }
     }
 
-    /// True for a tmux window tab restored from disk as a PLACEHOLDER: it has no
-    /// live panes yet (the split tree is empty) and is shown with its last title
-    /// and a "reconnecting tmux…" affordance. The first reconcile after the
-    /// gateway resumes ADOPTS the placeholder (fills it with live panes and
-    /// clears this flag). A placeholder still awaiting when the resume watchdog
-    /// fires is removed (its tmux window is gone / the session expired).
+    /// A restored tmux window tab with no live panes yet. The first reconcile
+    /// adopts it; one still waiting when the resume watchdog fires is removed.
     var awaitingTmuxReconcile: Bool = false
 
-    /// The tmux window id a restored placeholder is waiting to be matched to.
-    /// Set alongside `awaitingTmuxReconcile`; cleared on adoption.
+    /// Cleared on adoption.
     var pendingTmuxWindowId: Int?
 
-    /// The tmux window display index (from `#{window_index}`), used to order this
-    /// gateway's tmux tabs so new-window -a / move-window / swap-window are
-    /// reflected. Only meaningful when `isTmuxWindow`. (id=tmux-window-order)
+    /// `#{window_index}`, for tab order. (id=tmux-window-order)
     var tmuxWindowIndex: Int = 0
 
-    /// Rolled-up attention state of this tab's panes (agent blocked/done/
-    /// working/failed), published by AgentAttentionCenter; nil when there
-    /// is nothing to show. Deliberately NOT grouping-relevant (no
-    /// `markGroupingChanged`): it changes often and must never invalidate
-    /// the grouping cache. (id=agent-attention)
+    /// Not grouping-relevant: it changes often and must not invalidate the
+    /// grouping cache. (id=agent-attention)
     var attentionBadge: AgentAttentionStatus?
 
-    /// Card row state for the sidebar's agent inbox (the tab's highest-
-    /// priority detected agent), published by AgentAttentionCenter; nil
-    /// when no agent is detected. Same grouping rule as `attentionBadge`.
+    /// The tab's highest-priority agent. Same grouping rule as `attentionBadge`.
     /// (id=agent-attention)
     var agentRow: AgentRowState?
 
-    /// Agent-bearing terminal panes in split-tree order. Unlike `agentRow`,
-    /// this preserves every independently detected agent in a split tab.
-    /// Structural consumers (the sidebar hierarchy) observe this compact ID
-    /// list; each row observes its own pane's `PanePresentationState`.
+    /// Every agent pane in split-tree order, unlike `agentRow`.
     var agentPaneIDs: [UUID] = []
 
-    /// True when this tmux window tab is HIDDEN: the window lives on the
-    /// server (and reconcile keeps updating the tab — title, layout, panes at
-    /// opacity 0), but the tab strip, sidebar, and tab navigation all skip
-    /// it. Set exclusively by `TmuxController` (hide/show actions, the
-    /// session's `@hidden` option on attach). Meaningful when `isTmuxWindow`,
-    /// and also on a gateway tab (`isTmuxGateway`) the user hid — gateway
-    /// hidden state is client-local and never enters the server's `@hidden`
-    /// option. (id=tmux-hidden-windows, id=tmux-hidden-gateway)
+    /// The window still lives on the server and keeps reconciling, but tab UI
+    /// skips it. Set only by `TmuxController`. A hidden gateway is client-local
+    /// and never enters `@hidden`. (id=tmux-hidden-windows, id=tmux-hidden-gateway)
     var isHiddenTmuxWindow: Bool = false {
         didSet { markGroupingChanged(oldValue, isHiddenTmuxWindow) }
     }
 
-    /// Set at restore when the saved state had a HIDDEN gateway tab; consumed
-    /// by `TmuxController.markGatewayTab` after the first successful reconcile
-    /// post-resume. Never applied to `isHiddenTmuxWindow` directly at restore —
-    /// a hidden tab whose tmux resume fails would be unreachable.
-    /// (id=tmux-hidden-gateway)
+    /// Applied only after a successful reconcile; hiding at restore would strand
+    /// the tab if resume failed. (id=tmux-hidden-gateway)
     @ObservationIgnored var pendingHiddenTmuxGatewayRestore: Bool = false
 
-    /// Absolute per-window font size override for projected tmux window tabs.
-    /// Nil means the tmux window follows the global font.
+    /// Nil follows the global font.
     var tmuxFontSizeOverride: Double?
 
-    /// The split tree of pane views inside this tab. Mutated when the user
-    /// splits or closes a split. We track changes via the @Observable accessor;
-    /// downstream views that iterate the tree re-render as needed.
     var splitTree: SplitTree<SplitPaneView> {
         didSet {
             AgentAttentionCenter.shared.topologyDidChange()
         }
     }
 
-    /// The currently focused pane inside this tab. Setting this rewires the
-    /// title/health observation onto the new focused view.
+    /// Setting this rewires title/health observation.
     var focusedPane: SplitPaneView? {
         didSet {
             guard oldValue !== focusedPane else { return }
@@ -422,9 +330,7 @@ final class TabModel: Identifiable {
         }
     }
 
-    /// Terminal-typed view of `focusedPane`. Kept as a shim so the many
-    /// terminal-only call sites read/write focus with correct semantics:
-    /// reads are nil when a non-terminal pane holds focus.
+    /// Nil when a non-terminal pane holds focus.
     var focusedTerminal: Ghostty.TerminalView? {
         get { focusedPane as? Ghostty.TerminalView }
         set { focusedPane = newValue }
@@ -475,47 +381,30 @@ final class TabModel: Identifiable {
 
     // MARK: - Mirrored State (driven by the focused terminal's @Published properties)
 
-    /// Resolved tab title — either the focused split's session-provided title
-    /// or, when that title is empty/"ghostty", the connection's display name.
-    /// Only observers of *this tab's* title invalidate when it changes
-    /// (the @Observable macro tracks per-property reads).
+    /// The session title, or the connection's display name when that is empty
+    /// or "ghostty".
     var title: String = "Terminal"
 
-    /// SSH connection health for the focused split (nil for non-SSH or pre-connect).
+    /// Nil for non-SSH or pre-connect.
     var connectionHealth: ConnectionHealth?
 
-    /// Cached roam-protocol classification for tab-bar indicators. Recomputed
-    /// when the focused terminal changes; downstream views that need to respond
-    /// to embedded mosh/trzsz session-change notifications should call
-    /// `recomputeRoamProtocol()` explicitly.
     private(set) var activeRoamProtocol: MainView.RoamProtocol = .none
 
-    /// Backwards-compat with old `TerminalTab.hasActiveMoshSession`.
     var hasActiveMoshSession: Bool { activeRoamProtocol == .mosh }
 
     // MARK: - Internal observation storage
 
-    /// Combine subscriptions on the focused terminal's @Published properties.
-    /// Excluded from observation — these are implementation detail.
     @ObservationIgnored private var observationCancellables = Set<AnyCancellable>()
     private(set) var groupingRevision = 0
 
-    /// Owning collection, read only to consult the tab-switch animation gate.
-    /// Weak (TabsModel strongly holds its tabs); stamped by TabsModel.tabs.didSet.
+    /// Weak: TabsModel owns its tabs. Read only for the tab-switch animation gate.
     @ObservationIgnored weak var tabsModel: TabsModel?
 
-    /// Latest resolved title received while the tab-switch gate was up, pending
-    /// flush. Coalesced — only the most recent is kept.
+    /// Latest title held back while the tab-switch gate is up.
     @ObservationIgnored private var deferredTitle: String?
 
-    /// High-rate OSC/tmux titles are presentation data, but `title` is an
-    /// observed property consumed by the window, top tabs, and sidebar. A
-    /// tmux agent spinner can otherwise invalidate that entire graph about ten
-    /// times per second. Preserve a responsive leading update and the newest
-    /// trailing value while limiting publication (75 ms for herdr, 200 ms otherwise). Codex and
-    /// Claude commonly animate their title spinners at about 10 Hz; publishing
-    /// every other frame keeps that motion legible without making SwiftUI
-    /// process every source update.
+    /// Leading-and-trailing throttle so ~10 Hz agent title spinners don't
+    /// invalidate the whole window graph on every frame.
     @ObservationIgnored private var pendingPublishedTitle: String?
     @ObservationIgnored private var titlePublicationTimer: Timer?
     @ObservationIgnored private var lastTitlePublicationUptime: TimeInterval = 0
@@ -545,43 +434,27 @@ final class TabModel: Identifiable {
             self.focusedPane = nil
         }
 
-        // `focusedPane`'s `didSet` doesn't fire from initializers in Swift,
-        // so kick off observation explicitly.
         startObserving()
     }
 
     convenience init(terminalView: Ghostty.TerminalView? = nil, title: String = "Terminal", windowId: String, isMosh: Bool = false) {
-        // `isMosh` parameter is ignored (kept for source compat with the old
-        // `TerminalTab(...)` struct initializer; roam protocol is now computed).
+        // `isMosh` is ignored; roam protocol is computed.
         _ = isMosh
         self.init(paneView: terminalView, title: title, windowId: windowId)
     }
 
-    /// Initializer for restoration paths that build the tab incrementally
-    /// (focused terminal and split tree set later by the restoration code).
     convenience init(windowId: String) {
         self.init(terminalView: nil, title: "Terminal", windowId: windowId)
     }
 
-    /// Initializer used by session restoration. Wires up the split tree,
-    /// focused pane, and saved title, then starts observation with
-    /// `preserveExistingTitle: true` so the focused split's pre-connect
-    /// "ghostty" title doesn't overwrite the saved one. The order of
-    /// assignments matters — see the comment in the body.
     init(restoringTitle title: String,
          splitTree: SplitTree<SplitPaneView>,
          focusedPane: SplitPaneView?,
          windowId: String) {
         self.windowId = windowId
         self.splitTree = splitTree
-        // Setting `focusedPane` here fires its @Observable-backed didSet
-        // (unlike plain stored properties, @Observable property observers DO
-        // fire during init). That didSet calls `startObserving()` with the
-        // default `preserveExistingTitle: false`, which would clobber the
-        // saved title with the connection's `displayName`. Set focusedPane
-        // first, then overwrite with the saved title, then re-run observation
-        // with `preserveExistingTitle: true` so the dropFirst()'d title sink
-        // doesn't push a fallback emission over the saved value.
+        // Order matters: this didSet fires during init and would overwrite the
+        // saved title, so restore it afterwards and re-observe preserving it.
         self.focusedPane = focusedPane
         self.title = title
         startObserving(preserveExistingTitle: true)
@@ -589,13 +462,7 @@ final class TabModel: Identifiable {
 
     // MARK: - Notification-driven roam-protocol refresh
 
-    /// Subscribe to the embedded mosh / trzsz / ghostty session-change
-    /// notifications and recompute `activeRoamProtocol` when one of *this
-    /// tab's* terminals reports a change. Called automatically from
-    /// `startObserving()`. Without this, a TSSH or embedded-mosh session
-    /// that starts inside an already-running terminal doesn't update the
-    /// tab-bar "R" indicator (the cached `activeRoamProtocol` stays stale
-    /// because no `focusedTerminal` change triggers a recompute).
+    /// Catches tssh/mosh started inside a running shell, which no focus change reports.
     private func subscribeToRoamProtocolNotifications() {
         let center = NotificationCenter.default
         for name in [
@@ -607,9 +474,6 @@ final class TabModel: Identifiable {
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] notification in
                     guard let self else { return }
-                    // Only recompute when the notification originated from one
-                    // of this tab's terminals or its session, so a session
-                    // change in a sibling tab doesn't churn this tab.
                     if self.notificationOriginatesInThisTab(notification) {
                         self.recomputeRoamProtocol()
                     }
@@ -619,15 +483,11 @@ final class TabModel: Identifiable {
     }
 
     private func notificationOriginatesInThisTab(_ notification: Notification) -> Bool {
-        // The TerminalView (Ghostty.Surface) is the object for `.ghosttySessionDidChange`.
         if let terminal = notification.object as? Ghostty.TerminalView {
             return splitTree.contains { $0 === terminal }
         }
         #if !targetEnvironment(macCatalyst)
-        // For `.ghosttyEmbedded(Mosh|Trzsz)SessionDidChange` the object is the
-        // `LocalShellSession` itself; walk the tree to find the owning terminal.
-        // Embedded mosh/trzsz only run inside the iOS local-shell session, so
-        // this branch is gated to the same target as `LocalShellSession`.
+        // Embedded-session notifications carry the LocalShellSession.
         if let session = notification.object as? LocalShellSession {
             return splitTree.contains { $0.asTerminal?.session === session }
         }
@@ -636,24 +496,13 @@ final class TabModel: Identifiable {
     }
 
     deinit {
-        // Cancel Combine subscriptions on deinit. `MainActor.assumeIsolated`
-        // is safe here because the class is `@MainActor`-isolated and Swift
-        // 6 deinit on a MainActor class runs on the main actor.
         observationCancellables.removeAll()
         titlePublicationTimer?.invalidate()
     }
 
     // MARK: - Observation
 
-    /// Subscribe to the current `focusedTerminal`'s `@Published` properties and
-    /// mirror them into this model's `@Observable` properties. Replaces the
-    /// `setupTitleObservation` Combine wiring that previously lived inline in
-    /// `MainView` and pushed values into a `@State` array.
-    /// Set up observation of the focused terminal's `@Published` properties.
-    ///
-    /// Pass `preserveExistingTitle: true` during restoration so the saved tab
-    /// title isn't immediately overwritten by the focused view's pre-connect
-    /// title (typically "ghostty").
+    /// `preserveExistingTitle` keeps a restored title over the pre-connect "ghostty".
     func startObserving(preserveExistingTitle: Bool = false) {
         observationCancellables.removeAll()
         cancelPendingTitlePublication()
@@ -661,9 +510,7 @@ final class TabModel: Identifiable {
             HerdrController.controller(forTab: self)?.refreshTitle(of: self)
         }
 
-        // Resolve the focused pane first (not the terminal shim) so a focused
-        // non-terminal pane isn't silently skipped in favor of a background
-        // terminal.
+        // The pane, not the terminal shim, so a focused non-terminal isn't skipped.
         guard let pane = focusedPane ?? splitTree.first else {
             if !isHerdrWindow, title != "Terminal" {
                 title = "Terminal"
@@ -672,11 +519,7 @@ final class TabModel: Identifiable {
             return
         }
         guard let focusedTerminal = pane.asTerminal else {
-            // Non-terminal pane: no terminal title/health publishers to
-            // mirror. VNC panes publish their own display title (config name
-            // upgrading to the server-reported desktop name); other pane
-            // kinds keep the current title. Still track roam protocol across
-            // the tab's terminals.
+            // Only VNC panes publish a title; others keep the current one.
             if let vncPane = pane as? VNCPaneView {
                 let titlePublisher = preserveExistingTitle
                     ? vncPane.$displayTitle.dropFirst().eraseToAnyPublisher()
@@ -693,15 +536,8 @@ final class TabModel: Identifiable {
             recomputeRoamProtocol()
             return
         }
-        // Initial title push — same fallback logic the old setupTitleObservation
-        // used, factored into `resolveTitle(rawTitle:on:)`.
-        //
-        // NOT for tmux window tabs: their title is owned by the reconcile's
-        // set_tab_title op (the gateway's title subscription, which resolves
-        // pane title vs window name server-side). The focused PANE also
-        // receives OSC titles directly, and letting it write here would stomp
-        // a manually renamed window's name with the pane title.
-        // (id=tmux-window-title-single-writer)
+        // tmux/herdr window titles come only from their controller, or pane OSC
+        // titles would stomp a renamed window. (id=tmux-window-title-single-writer)
         if !preserveExistingTitle,
            !isTmuxWindow,
            !isHerdrWindow,
@@ -710,16 +546,7 @@ final class TabModel: Identifiable {
             title = resolved
         }
 
-        // Title subscription. Equality guard before assignment — the focused
-        // view emits on every OSC 0/2 even when the resolved title is unchanged.
-        //
-        // During restoration the saved tab title must survive until the live
-        // session emits a *real* (non-fallback) title. Pre-connect surface
-        // SET_TITLE actions emit "ghostty" or "", which would otherwise
-        // resolve to the connection's `displayName` via `resolveTitle` and
-        // overwrite the saved title. Gate the sink on "have we ever received
-        // a real title?" — for restored tabs, fallback emissions are dropped
-        // until a real OSC title arrives.
+        // Restored tabs drop fallback titles ("ghostty", "") until a real one arrives.
         var hasReceivedRealTitle = !preserveExistingTitle
         let titlePublisher: AnyPublisher<String, Never> = preserveExistingTitle
             ? focusedTerminal.$title.dropFirst().eraseToAnyPublisher()
@@ -728,10 +555,7 @@ final class TabModel: Identifiable {
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak focusedTerminal] newTitle in
                 guard let self, let focusedTerminal else { return }
-                // tmux window tabs: reconcile is the sole title writer.
                 // (id=tmux-window-title-single-writer)
-                // herdr resolves live titles and metadata in its controller;
-                // delayed publisher values must not become a second writer.
                 if self.isTmuxWindow || self.isHerdrWindow { return }
                 if !hasReceivedRealTitle {
                     if Self.shouldUseFallbackTitle(newTitle) {
@@ -745,7 +569,6 @@ final class TabModel: Identifiable {
             }
             .store(in: &observationCancellables)
 
-        // Connection-health subscription (SSH only). Equality guard.
         focusedTerminal.$connectionHealth
             .receive(on: DispatchQueue.main)
             .sink { [weak self] health in
@@ -756,9 +579,6 @@ final class TabModel: Identifiable {
             }
             .store(in: &observationCancellables)
 
-        // Listen for embedded-mosh / embedded-trzsz / session-change events on
-        // any terminal in this tab so the cached `activeRoamProtocol` stays
-        // current when a TSSH or mosh wrapper starts inside a running shell.
         subscribeToRoamProtocolNotifications()
 
         recomputeRoamProtocol()
@@ -769,17 +589,10 @@ final class TabModel: Identifiable {
         cancelPendingTitlePublication()
     }
 
-    /// Apply a resolved tab title. During a tab-switch animation the write is
-    /// deferred (coalesced to the latest value) and flushed on gate-close, so
-    /// high-rate OSC/tmux title churn can't starve the selection spring with
-    /// TabBarItem re-renders. Outside the animation, publication is
-    /// leading-and-trailing coalesced so frequently animated titles stay live
-    /// without driving the whole SwiftUI graph at spinner frequency.
+    /// Deferred during a tab-switch animation so title churn can't starve the
+    /// spring; throttled otherwise.
     func applyResolvedTitle(_ resolved: String) {
-        // An empty title means "no update", never "blank the tab". For tmux
-        // window tabs the reconcile is the sole title writer, so a blank that
-        // lands here is permanent until the next topology rebuild — the Zig
-        // snapshot deliberately sends "" for a title it can't validate.
+        // Empty means "no update": the Zig snapshot sends "" for invalid titles.
         guard !resolved.isEmpty else { return }
         if tabsModel?.isTabSwitchAnimating == true {
             deferredTitle = resolved
@@ -789,8 +602,6 @@ final class TabModel: Identifiable {
         scheduleTitlePublication(resolved)
     }
 
-    /// Flush the most recent title deferred during the animation. Called from
-    /// `TabsModel.endTabSwitchAnimationGate` over every tab.
     func flushDeferredTitle() {
         guard let pending = deferredTitle else { return }
         deferredTitle = nil
@@ -832,9 +643,7 @@ final class TabModel: Identifiable {
         if title != pending { title = pending }
     }
 
-    /// Drop titles captured from the previously observed pane. In particular,
-    /// a coalescing timer must not be allowed to overwrite the synchronous
-    /// initial title installed by `startObserving()` for a newly focused pane.
+    /// So a stale timer can't overwrite the new pane's initial title.
     private func cancelPendingTitlePublication() {
         titlePublicationTimer?.invalidate()
         titlePublicationTimer = nil
@@ -843,9 +652,6 @@ final class TabModel: Identifiable {
         lastTitlePublicationUptime = 0
     }
 
-    /// Recompute `activeRoamProtocol` from the current split tree's session
-    /// types. Called when the focused terminal changes; tab-bar consumers can
-    /// also invoke it after embedded mosh/trzsz session-change notifications.
     func recomputeRoamProtocol() {
         let computed = Self.computeRoamProtocol(in: splitTree)
         if activeRoamProtocol != computed {
@@ -853,12 +659,9 @@ final class TabModel: Identifiable {
         }
     }
 
-    // MARK: - Title resolution (mirrors the old `MainView.resolvedTabTitle`)
+    // MARK: - Title resolution
 
-    /// Returns the tab title to display for a focused terminal given its raw
-    /// title. Returns nil for the `.local` fallback case where the existing
-    /// tab title should be preserved (we don't overwrite a custom title with
-    /// "ghostty" or "").
+    /// Nil means keep the existing title (local shells with a fallback title).
     static func resolveTitle(rawTitle: String, on terminal: Ghostty.TerminalView) -> String? {
         if !shouldUseFallbackTitle(rawTitle) { return rawTitle }
         switch terminal.connectionConfig {
@@ -873,8 +676,7 @@ final class TabModel: Identifiable {
         case .shellLaunchedMosh(let moshConfig, _): return moshConfig.sshConfig.displayName
         case .shellLaunchedTrzsz(let trzszConfig, _): return trzszConfig.sshConfig.displayName
         case .trzszTransfer(_, let displayName, _): return displayName
-        // VNC sessions live in non-terminal panes; a terminal never carries
-        // this config, but the switch must stay exhaustive.
+        // Unreachable for terminals; kept for exhaustiveness.
         case .vnc(let config): return config.displayName
         }
     }
@@ -883,8 +685,6 @@ final class TabModel: Identifiable {
         return title.isEmpty || title == "ghostty"
     }
 
-    /// Compute the active roam protocol (mosh/trzsz/none) for a split tree.
-    /// Mirrors the logic that previously lived on `TerminalTab.activeRoamProtocol`.
     static func computeRoamProtocol(in splitTree: SplitTree<SplitPaneView>) -> MainView.RoamProtocol {
         for terminal in splitTree.terminalLeaves {
             if let moshSession = terminal.session as? MoshSession, moshSession.isRunning {
@@ -907,8 +707,6 @@ final class TabModel: Identifiable {
         return .none
     }
 
-    /// Allow callers to force a fallback title (used during restoration when
-    /// the saved tab title should be displayed until the session reconnects).
     func setFallbackTitle(_ newTitle: String) {
         if title != newTitle {
             title = newTitle
@@ -929,25 +727,16 @@ final class TabModel: Identifiable {
 
 // MARK: - TabsModel
 
-/// The collection of tabs in a window, plus selection and drag state.
-///
-/// As an `@Observable` class, mutations to `tabs` (insert/remove/move) and to
-/// `selectedTabID` are tracked per-property: the tab bar reading `tabs.tabs`
-/// and `tabs.selectedTabID` re-renders only on those changes; views reading
-/// individual `TabModel` properties re-render only on those.
+/// A window's tabs plus selection and drag state.
 @MainActor
 @Observable
 final class TabsModel {
     @ObservationIgnored private(set) var selectionRevision: UInt64 = 0
-    /// Kept through reconnect/autosave until the owning herdr gateway receives
-    /// its first snapshot. Choosing another tab cancels the pending selection.
+    /// Held until the herdr gateway's first snapshot; selecting another tab cancels it.
     @ObservationIgnored var pendingHerdrSelection: SerializableHerdrSelection?
-    /// All tabs in the window, in display order.
     var tabs: [TabModel] = [] {
         didSet {
             invalidateGroupingCache()
-            // Stamp the back-reference so each tab can consult the tab-switch
-            // gate. Idempotent; the array is tiny.
             for tab in tabs { tab.tabsModel = self }
             let liveIDs = Set(tabs.map(\.id))
             primaryProjectAssignments = primaryProjectAssignments.filter { liveIDs.contains($0.key) }
@@ -955,10 +744,7 @@ final class TabsModel {
         }
     }
 
-    /// The currently-selected tab's identity. `nil` only when `tabs` is empty.
-    /// Every selection mutation in the codebase goes through this property
-    /// (the `selectedTabIndex` shim, tab bar, TmuxController, restoration),
-    /// so its `didSet` is the single funnel for the displayed-tab reveal.
+    /// Nil only when `tabs` is empty. Every selection change funnels through here.
     var selectedTabID: UUID? {
         didSet {
             guard oldValue != selectedTabID else { return }
@@ -980,50 +766,32 @@ final class TabsModel {
         }
     }
 
-    /// Last selected tab per group / project (see `rememberSelectionScope`).
     @ObservationIgnored private var lastSelectedTabByScope: [ScopeKey: UUID] = [:]
 
-    /// The tab whose content is shown at full opacity. Lags `selectedTabID`
-    /// until every terminal in the target tab has presented its first frame,
-    /// so a tab swap never exposes the translucent window background (the
-    /// renderer's layer is empty until its first present, which on macOS
-    /// shows straight through to the desktop). Focus, input, and occlusion
-    /// follow `selectedTabID` immediately; only the visuals lag.
+    /// Lags `selectedTabID` until the target's terminals present a first frame,
+    /// so a swap never shows the empty translucent layer. Focus doesn't lag.
     var displayedTabID: UUID?
 
-    /// Pane currently checked out for the in-window full-screen takeover
-    /// (PaneFullScreenController). Runtime-only bookkeeping, never
-    /// serialized, so restoration always lands non-full-screen.
+    /// Runtime-only, so restoration always lands non-full-screen.
     var fullScreenPaneID: UUID?
 
-    /// Invalidates in-flight reveal waiters (first-frame callbacks and the
-    /// fail-open timeout) when the selection changes again mid-transition.
+    /// Invalidates in-flight reveal waiters when selection changes again.
     @ObservationIgnored private var displayRevealGeneration = 0
 
-    /// True while a tab-switch selection animation is settling. Per-tab title
-    /// writers (`TabModel.applyResolvedTitle`) read this imperatively and DEFER
-    /// their @Observable `title` write while it's up, so OSC/tmux title churn
-    /// can't starve the selection spring with TabBarItem re-renders. A
-    /// coordination flag only — never observed for UI, so `@ObservationIgnored`
-    /// (its flip must not itself invalidate anything).
+    /// Title writers defer while this is up so churn can't starve the selection
+    /// spring. Ignored by Observation so flipping it invalidates nothing.
     @ObservationIgnored private(set) var isTabSwitchAnimating = false
     @ObservationIgnored private var tabSwitchAnimationTimer: Timer?
 
-    /// The id of the tab being dragged (used by drag-reorder modifiers).
     var draggingTabID: UUID?
 
-    /// Set by the sidebar while its project hierarchy is active. Project
-    /// sorting remains a sidebar-only organization in flat mode; when the
-    /// user's grouped-mode toggle is also on, the top bar and keyboard
-    /// navigation scope to the selected tab's stable primary project.
-    /// (id=agent-project)
+    /// Set by the sidebar. With grouped mode also on, the top bar and keyboard
+    /// navigation scope to the selected tab's project. (id=agent-project)
     var projectScopedInboxEnabled: Bool = AgentAttentionSettings.projectGroupingSelected {
         didSet {
             guard oldValue != projectScopedInboxEnabled else { return }
             invalidateNavigationCache()
-            // On return to a user-group view, keep the selected tab visible by
-            // making its group active. Remembered user/project orders remain
-            // independent and untouched.
+            // Keep the selected tab visible by activating its group.
             if !projectScopedInboxEnabled, isGroupedModeEnabled,
                let selectedGroup = effectiveGroupID(for: selectedTab) {
                 activeGroupID = selectedGroup
@@ -1035,9 +803,7 @@ final class TabsModel {
         didSet {
             guard oldValue != isGroupedModeEnabled else { return }
             invalidateNavigationCache()
-            // Entering grouped mode: the currently-active tab wins. Adopt its
-            // group so the user stays on the same tab instead of being pulled
-            // into a stale (persisted) `activeGroupID`'s group.
+            // The selected tab's group wins over a stale persisted one.
             if isGroupedModeEnabled, let selectedGroup = effectiveGroupID(for: selectedTab) {
                 activeGroupID = selectedGroup
             }
@@ -1045,7 +811,6 @@ final class TabsModel {
         }
     }
 
-    /// The currently active navigation group in grouped mode.
     var activeGroupID: TabGroupID? {
         didSet {
             guard oldValue != activeGroupID else { return }
@@ -1054,21 +819,15 @@ final class TabsModel {
         }
     }
 
-    /// User-forced group assignment by tab UUID. The value is a concrete group
-    /// id from `availableGroups`; stale ids are ignored by effective grouping.
+    /// Stale ids are ignored by effective grouping.
     var tabGroupOverrides: [UUID: TabGroupID] = [:] {
         didSet { invalidateGroupingCache() }
     }
 
-    /// User-defined vertical sidebar section order, stored as group raw values.
-    /// Stale entries are harmless: the sidebar applies only IDs that currently
-    /// exist and keeps unknown IDs so delayed restore/classification can still
-    /// recover their previous position.
+    /// Unknown ids are kept so late-classified groups recover their position.
     var sidebarGroupOrder: [String] = []
 
-    /// Independent order within each user group. Flat order remains the live
-    /// `tabs` order; grouped-mode moves update these buckets instead of
-    /// rewriting flat order, so toggling the lens is lossless.
+    /// Grouped-mode moves write here instead of `tabs`, so toggling is lossless.
     var sidebarGroupTabOrders: [String: [UUID]] = [:] {
         didSet {
             guard oldValue != sidebarGroupTabOrders else { return }
@@ -1077,9 +836,7 @@ final class TabsModel {
         }
     }
 
-    /// Stable user order for Coding Agent project sections and their tabs.
-    /// Stale section IDs are intentionally retained so asynchronously-resolved
-    /// projects recover their previous position.
+    /// Stale ids are kept so asynchronously resolved projects recover their position.
     var projectGroupOrder: [ProjectGroupID] = [] {
         didSet {
             guard oldValue != projectGroupOrder else { return }
@@ -1096,12 +853,9 @@ final class TabsModel {
         }
     }
 
-    /// Whole-section drag state shared by the vertical and horizontal bars.
     var draggingProjectGroupID: ProjectGroupID?
 
-    /// A split tab may expose several detected projects. Its first project is
-    /// chosen once and retained while still present, preventing pane-focus or
-    /// attention churn from moving the tab between top-bar sections.
+    /// Sticky while present, so focus changes don't move a split tab between sections.
     @ObservationIgnored private var primaryProjectAssignments: [UUID: ProjectGroupID] = [:]
     @ObservationIgnored private var orderRevision: UInt64 = 0
 
@@ -1137,8 +891,7 @@ final class TabsModel {
         let activeGroupID: TabGroupID?
         let selectedFallbackID: UUID?
         let projectScopedInbox: Bool
-        /// Every visible tab's project, so a change to ANY tab's project
-        /// invalidates the cache — not just the selected one's.
+        /// All visible tabs, not just the selected one.
         let projectMembership: [String]
         let orderRevision: UInt64
     }
@@ -1150,25 +903,11 @@ final class TabsModel {
         let projection: TabOrderProjection
     }
 
-    /// Whether a keyboard-owning overlay (tab/connection sidebar, any sheet —
-    /// `MainView.isAnySheetPresented`) is currently up in this window. MainView
-    /// keeps this in lockstep with the per-terminal `overlayOwnsKeyboard` gate
-    /// it pushes. It exists so focus paths that run for terminals created WHILE
-    /// an overlay is open — `setFocusedTerminal`, `handleSelectedTabChange`, and
-    /// `TmuxController` pane creation — can initialize the new terminal's gate
-    /// before its first focus attempt; otherwise the gate defaults false, the
-    /// terminal steals first responder from the open overlay, and (because the
-    /// flag was never raised) it misses the dismiss reconcile. Read imperatively
-    /// at focus time, never observed for UI, so it is `@ObservationIgnored`.
+    /// Seeds the gate for terminals created while an overlay is open, which
+    /// would otherwise steal first responder from it.
     @ObservationIgnored var overlayOwnsKeyboard = false
 
-    /// Pending scroll target for the scrolling-mode tab bar. Tab-management
-    /// code sets this after inserting a new tab so the `ScrollViewReader`
-    /// scrolls to the new tab even if `selectedTabIndex` / `tabs.count`
-    /// changes don't trigger a layout update at the right moment (which the
-    /// previous design papered over with `.id(tabBarVersion)` forcing the
-    /// ScrollView to rebuild). The scroll-effect handler clears this back to
-    /// nil after issuing the scroll.
+    /// Cleared by the tab bar once it has scrolled.
     var pendingScrollToTabID: UUID?
 
     init() {}
@@ -1241,10 +980,7 @@ final class TabsModel {
         return snapshot
     }
 
-    /// A herdr family reads gateway first, then each workspace's projected
-    /// tabs contiguous in the order the workspaces first appear. The sidebar
-    /// nests the family that way, so navigation must agree with it whatever
-    /// order a drag left in the preferred list.
+    /// Gateway first, then each workspace contiguously, matching the sidebar.
     private static func groupedByHerdrWorkspace(_ ids: [UUID], byID: [UUID: TabModel]) -> [UUID] {
         var gateway: [UUID] = []
         var workspaceOrder: [String] = []
@@ -1269,10 +1005,7 @@ final class TabsModel {
 
     private func navigationSnapshot() -> NavigationSnapshot {
         let grouping = groupingSnapshot()
-        // Prefer the active group, but if it has dissolved (its tmux gateway
-        // detached, or its last tab closed) fall back to the SELECTED tab's
-        // group — never to every visible tab, which is what leaked unrelated
-        // groups into the tab bar until the user toggled grouped mode off/on.
+        // A dissolved active group falls back to the selected tab's group, not all tabs.
         let resolvedActiveGroupID = activeGroupID.flatMap { grouping.groupTabIDs[$0] != nil ? $0 : nil }
         let usesSelectedFallback = isGroupedModeEnabled && resolvedActiveGroupID == nil
         let projectMembership: [String] = projectScopedInboxEnabled
@@ -1357,9 +1090,7 @@ final class TabsModel {
         visibleTabs.contains { !projectCandidates(for: $0).isEmpty }
     }
 
-    /// Cache identity for every project-bearing pane in a tab. Pane UUIDs are
-    /// included so replacing one pane with another invalidates even when
-    /// their labels happen to match.
+    /// Includes pane UUIDs so swapping a same-labelled pane still invalidates.
     private static func projectMembershipRevision(for tab: TabModel) -> String {
         let values = tab.splitTree.map { pane in
             let project = pane.presentation.projectForGrouping
@@ -1467,8 +1198,7 @@ final class TabsModel {
                 if id.hostKey.isEmpty {
                     disambiguator = pathSuffix
                 } else if id.workspaceKey != nil, sameHostIDs.count > 1 {
-                    // Unknown-directory workspaces need readable names, not
-                    // the opaque owner/workspace IDs used for identity.
+                    // Their identity keys are opaque, so number them.
                     disambiguator = "\(id.hostKey) · \((sameHostIDs.firstIndex(of: id) ?? 0) + 1)"
                 } else if sameHostIDs.count > 1 {
                     disambiguator = "\(id.hostKey) · \(pathSuffix)"
@@ -1487,7 +1217,6 @@ final class TabsModel {
         }
     }
 
-    /// Convenience: insert a tab and request the scrolling tab bar scroll to it.
     func insertTab(_ tab: TabModel, at index: Int, selectIt: Bool = true) {
         let clamped = max(0, min(index, tabs.count))
         tabs.insert(tab, at: clamped)
@@ -1497,14 +1226,7 @@ final class TabsModel {
         pendingScrollToTabID = tab.id
     }
 
-    /// Reorder a tab in a single Observation event.
-    ///
-    /// Mutating `tabs` in place via `_modify` (e.g. `tabs.remove(at:)` followed
-    /// by `tabs.insert(_:at:)`) publishes one Observation invalidation per
-    /// mutation, even when both calls are inside one `withAnimation` block.
-    /// Reassigning the property publishes once, so SwiftUI sees a single
-    /// transition `[A,B,C,D] → [A,C,B,D]` and `ForEach`'s identity-keyed diff
-    /// animates only the swapped elements.
+    /// Reassigns `tabs` so Observation publishes one change, not one per mutation.
     func move(from: Int, to: Int) {
         guard from != to,
               tabs.indices.contains(from),
@@ -1515,23 +1237,15 @@ final class TabsModel {
         tabs = copy
     }
 
-    /// Animated reorder shared by every tab-move call site. Uses `.snappy`
-    /// because rapid back-to-back moves retarget cleanly through it; a stiff
-    /// spring with high damping pops/stutters when a second transaction
-    /// arrives mid-flight.
+    /// `.snappy` retargets cleanly on rapid moves; a stiff spring stutters.
     func animatedMove(from: Int, to: Int) {
         withAnimation(.snappy(duration: 0.28, extraBounce: 0.0)) {
             move(from: from, to: to)
         }
     }
 
-    /// Permutation counterpart of `animatedMove`: writes `newOrder` into the
-    /// given `slots`, leaving every other index untouched (the same contract
-    /// as the tmux reconcile's `reorderTmuxTabsByIndex`). Used by the
-    /// vertical tab sidebar, where grouped rows make visual neighbors
-    /// non-adjacent in the raw array — a raw remove+insert move there would
-    /// drag unrelated tabs along with it. Publishes a single Observation
-    /// event (see `move`).
+    /// Writes `newOrder` into `slots` only, since grouped visual neighbors aren't
+    /// adjacent in `tabs`.
     func animatedPermute(slots: [Int], newOrder: [TabModel]) {
         guard slots.count == newOrder.count,
               slots.allSatisfy({ tabs.indices.contains($0) }) else { return }
@@ -1546,31 +1260,24 @@ final class TabsModel {
 
     // MARK: - Convenience accessors
 
-    /// Index of `selectedTabID` in `tabs`, or nil if the selection no longer
-    /// matches any tab. Use `selectedTabIndex(default:)` to fall back to a
-    /// safe default for code that needs an `Int`.
     var selectedTabIndex: Int? {
         guard let id = selectedTabID else { return nil }
         return tabs.firstIndex(where: { $0.id == id })
     }
 
-    /// The currently-selected tab, or nil if `tabs` is empty.
     var selectedTab: TabModel? {
         guard let id = selectedTabID else { return nil }
         return tabs.first(where: { $0.id == id })
     }
 
-    /// An initial multiplexer attach may replace its selected gateway, but
-    /// must preserve any other valid selection, including an empty restored
-    /// tmux placeholder. Read this when the reply arrives so a background
-    /// reconnect cannot override restoration or a newer user tab choice.
+    /// Initial attach may only replace its own gateway's selection. Check when the
+    /// reply arrives so a background reconnect can't override a newer choice.
     func maySelectInitialMultiplexerTab(gatewayTabID: UUID?) -> Bool {
         guard let selectedTab else { return true }
         return selectedTab.id == gatewayTabID
     }
 
-    /// Preserve the server identity while its native tab is live, or while
-    /// its selected gateway is still reconnecting after a previous restore.
+    /// Also kept while the selected gateway is still reconnecting.
     var herdrSelectionForPersistence: SerializableHerdrSelection? {
         guard let selectedTab else { return nil }
         if selectedTab.isHerdrWindow,
@@ -1585,23 +1292,17 @@ final class TabsModel {
         return nil
     }
 
-    /// Tabs the user can see and navigate to: everything except hidden tmux
-    /// window tabs. The tab strip, Cmd+N shortcuts, and next/prev navigation
-    /// all operate on this view of `tabs`. (id=tmux-hidden-windows)
+    /// All but hidden tmux windows. (id=tmux-hidden-windows)
     var visibleTabs: [TabModel] {
         groupingSnapshot().visibleTabs
     }
 
-    /// Tabs used by top-tab-bar rendering and keyboard tab navigation. In
-    /// grouped mode this is narrowed to the active group; otherwise it is the
-    /// full visible tab set.
+    /// Narrowed to the active group in grouped mode.
     var navigationTabs: [TabModel] {
         navigationSnapshot().tabs
     }
 
-    /// The single ordering contract consumed by every horizontal-navigation
-    /// surface. Only the active scope's `navigationTabIDs` receive shortcut
-    /// positions; `projectSections` supplies the scope switcher and organizer.
+    /// The ordering every horizontal-navigation surface uses.
     var orderProjection: TabOrderProjection {
         navigationSnapshot().projection
     }
@@ -1615,8 +1316,6 @@ final class TabsModel {
         return false
     }
 
-    /// Index of a tab within `visibleTabs` (what the user perceives as the
-    /// tab's position), or nil when the tab is hidden or gone.
     func visibleIndex(of id: UUID) -> Int? {
         groupingSnapshot().visibleTabs.firstIndex(where: { $0.id == id })
     }
@@ -1625,8 +1324,7 @@ final class TabsModel {
         navigationSnapshot().indexByID[id]
     }
 
-    /// Workspace siblings in the user's current presentation. A sidebar drag
-    /// can belong to a different group from the selected tab's navigation set.
+    /// Workspace siblings in the current presentation, not the navigation set.
     func herdrReorderTabIDs(for tab: TabModel) -> [String]? {
         guard tab.isHerdrWindow, let ownerID = tab.owningGatewayTerminalUUID,
               let workspaceID = tab.herdrWorkspaceId else { return nil }
@@ -1647,8 +1345,7 @@ final class TabsModel {
         }.compactMap(\.herdrTabId)
     }
 
-    /// Server order also governs the native herdr group. Custom groups and
-    /// project orders keep their independent presentation preferences.
+    /// Only the native herdr group follows server order.
     func synchronizeHerdrGroupOrder(_ orderedIDs: [UUID], ownerID: UUID) {
         let groupID = TabGroupID.herdr(ownerID: ownerID)
         guard let group = availableGroups.first(where: { $0.id == groupID }) else { return }
@@ -1659,9 +1356,7 @@ final class TabsModel {
         sidebarGroupTabOrders[groupID.rawValue] = replacement
     }
 
-    /// Reorder two visible tabs according to the active presentation. Flat
-    /// mode updates canonical order; user/project lenses update only their own
-    /// remembered order so switching modes is lossless.
+    /// Grouped lenses update only their own order, so switching modes is lossless.
     @discardableResult
     func moveTabInActiveOrder(movingID: UUID, toTargetID targetID: UUID) -> Bool {
         guard movingID != targetID,
@@ -1684,9 +1379,7 @@ final class TabsModel {
             withAnimation(.snappy(duration: 0.28, extraBounce: 0.0)) {
                 sidebarGroupTabOrders[sourceGroup.rawValue] = movedOrder
             }
-            // tmux window order is also a remote server semantic. Keep the
-            // backing array aligned for the existing move-window synchronizer;
-            // ordinary user groups remain presentation-only.
+            // tmux order is server state; keep `tabs` aligned for move-window sync.
             if movingTab.isTmuxWindow,
                let fromRaw = index(of: movingID),
                let toRaw = index(of: targetID) {
@@ -1699,10 +1392,8 @@ final class TabsModel {
         return true
     }
 
-    /// Reorders within the stable primary-project bucket regardless of the
-    /// horizontal presentation mode. The project sidebar uses this directly
-    /// because its project hierarchy can be active while the top bar remains
-    /// flat. Cross-project targets are rejected without touching `tabs`.
+    /// Independent of the top bar's mode, which can stay flat while the sidebar
+    /// groups by project. Rejects cross-project targets.
     @discardableResult
     func moveTabInProjectOrder(movingID: UUID, toTargetID targetID: UUID) -> Bool {
         guard movingID != targetID,
@@ -1747,9 +1438,7 @@ final class TabsModel {
         }
     }
 
-    /// Replace only the slots occupied by `orderedIDs` inside the active
-    /// projection. Used for multiplexer sibling drags where gateway/ordinary tabs
-    /// interleave the visual section and must keep their positions.
+    /// Replaces only `orderedIDs`' slots, so interleaved tabs keep their positions.
     func setActiveOrderSubsequence(_ orderedIDs: [UUID]) {
         switch orderProjection.mode {
         case .flat:
@@ -1817,14 +1506,12 @@ final class TabsModel {
 
     // MARK: - Scope navigation (groups / projects)
 
-    /// A user group or a project section, for per-scope selection memory.
     nonisolated enum ScopeKey: Hashable {
         case group(TabGroupID)
         case project(ProjectGroupID)
     }
 
-    /// Remembered per scope so returning to a group lands on the tab you
-    /// left, not its first tab. Updated on every selection change.
+    /// So returning to a scope lands on the tab you left.
     private func rememberSelectionScope(of tab: TabModel) {
         if let group = effectiveGroupID(for: tab) {
             lastSelectedTabByScope[.group(group)] = tab.id
@@ -1832,14 +1519,11 @@ final class TabsModel {
         lastSelectedTabByScope[.project(primaryProjectGroupID(for: tab))] = tab.id
     }
 
-    /// First tab a user can land on in a group/section (skips hidden tmux
-    /// windows). Shared by the scope menu and scope navigation.
     func firstNavigableTabID(in tabIDs: [UUID]) -> UUID? {
         tabIDs.first { tab(withID: $0)?.isHiddenTmuxWindow == false }
     }
 
-    /// The tab to land on when entering a scope: its last selected tab if it
-    /// is still there and navigable, else the first navigable one.
+    /// The remembered tab if still navigable, else the first navigable one.
     func preferredTabID(in tabIDs: [UUID], scope: ScopeKey) -> UUID? {
         if let remembered = lastSelectedTabByScope[scope],
            tabIDs.contains(remembered),
@@ -1857,27 +1541,21 @@ final class TabsModel {
         preferredTabID(in: section.tabIDs, scope: .project(section.id))
     }
 
-    /// A group / project section as the exposé and scope navigation see it.
     nonisolated struct ScopeInfo {
         let key: ScopeKey
         let title: String?
-        /// Navigable members (hidden tmux windows excluded), in scope order:
-        /// exactly `orderProjection.navigationTabIDs` once this scope is active.
+        /// Matches `orderProjection.navigationTabIDs` once this scope is active.
         let tabIDs: [UUID]
     }
 
-    /// The scope `offset` steps from the active one, wrapping: user groups
-    /// in sidebar order, or project sections; scopes with no navigable tab
-    /// (hidden-only tmux groups) are skipped. nil in flat mode or when there
-    /// is only one scope.
+    /// Wraps, skipping scopes with no navigable tab. Nil in flat mode or with one scope.
     func neighborScope(offset: Int) -> ScopeInfo? {
         guard let list = scopeList(), list.scopes.count > 1 else { return nil }
         let count = list.scopes.count
         return list.scopes[((list.activeIndex + offset) % count + count) % count]
     }
 
-    /// Every navigable scope in order with the active one's index; nil in
-    /// flat mode or when the active scope cannot be found.
+    /// Nil in flat mode or when the active scope can't be found.
     func scopeList() -> (scopes: [ScopeInfo], activeIndex: Int)? {
         let projection = orderProjection
         let scopes: [ScopeInfo]
@@ -1902,7 +1580,6 @@ final class TabsModel {
         return (scopes, activeIndex)
     }
 
-    /// Preferred tab of the neighbor scope (see `neighborScope(offset:)`).
     func firstTabIDInNeighborScope(offset: Int) -> UUID? {
         guard let scope = neighborScope(offset: offset) else { return nil }
         return preferredTabID(in: scope.tabIDs, scope: scope.key)
@@ -1918,10 +1595,7 @@ final class TabsModel {
         }
     }
 
-    /// Groups in the order the vertical sidebar displays them: applies the
-    /// user's persisted `sidebarGroupOrder`; groups with no saved position fall
-    /// to the end in their natural order. Shared by the sidebar and by
-    /// close-neighbor selection so both agree on the user-perceived order.
+    /// Sidebar order; groups without a saved position go last.
     var orderedGroups: [TabGroup] {
         let groups = availableGroups
         let groupOrder = sidebarGroupOrder
@@ -1935,9 +1609,7 @@ final class TabsModel {
         }.map { $0.element }
     }
 
-    /// Neighbor in the active derived order. User and project grouping prefer
-    /// the current scope, then cross a section boundary only when its last tab
-    /// closes.
+    /// Stays in the current scope unless its last tab is closing.
     func groupedCloseNeighbor(for closingID: UUID) -> UUID? {
         if isProjectGroupingActive {
             let ids = orderProjection.navigationTabIDs
@@ -2002,14 +1674,8 @@ final class TabsModel {
         return groupingSnapshot().effectiveIDs[tab.id]
     }
 
-    /// All tabs belonging to a tmux gateway by owner UUID — the gateway tab plus
-    /// every window tab (visible, hidden, and awaiting-reconcile placeholders),
-    /// in display order, REGARDLESS of any group override. A gateway move must
-    /// use this rather than `availableGroups` (which buckets by effective group
-    /// and so drops children the user overrode into another group): the gateway
-    /// move re-points the controller's `baseWindowId`, so any family member left
-    /// behind — especially a placeholder with no per-window host mapping — would
-    /// fail tmux adoption on the next reconcile.
+    /// The whole family, ignoring group overrides. Gateway moves need every
+    /// member, or left-behind placeholders fail adoption.
     func tmuxFamilyTabIDs(ownerID: UUID) -> [UUID] {
         tabs.compactMap { Self.tmuxOwnerID(for: $0) == ownerID ? $0.id : nil }
     }
@@ -2057,27 +1723,17 @@ final class TabsModel {
         tabs.first(where: { $0.id == id })
     }
 
-    /// Ensure `selectedTabID` still points at an existing tab; if not (e.g. the
-    /// selected tab was just removed — a failed tmux placeholder), fall back to
-    /// the tmux gateway tab if present, otherwise the first remaining tab. Keeps
-    /// the tab bar from being left with no valid selection.
+    /// Repairs a missing or hidden selection. (id=tmux-hidden-windows)
     func repairSelectionIfNeeded() {
         func isUsableFallback(_ tab: TabModel) -> Bool {
             !tab.isHiddenTmuxWindow && !(tab.awaitingTmuxReconcile && tab.splitTree.isEmpty)
         }
 
-        // A selection pointing at a HIDDEN tab is broken too: any path that
-        // hides the selected tab without re-selecting lands here.
-        // (id=tmux-hidden-windows)
         if let id = selectedTabID,
            let current = tabs.first(where: { $0.id == id }),
            !current.isHiddenTmuxWindow { return }
-        // With more than one tmux -CC gateway open, first(isTmuxGateway) is an
-        // arbitrary pick — acceptable for this last-resort fallback. Paths
-        // that know which gateway they belong to (prune's
-        // id=tmux-detach-reselect-own-gateway, neighbor close) select
-        // deterministically BEFORE this runs, so this only fires when no
-        // better information exists. Hidden tabs are never a valid landing.
+        // Last resort; with several gateways the pick is arbitrary. Callers that
+        // know their gateway select first. (id=tmux-detach-reselect-own-gateway)
         let groupFallback = activeGroupID.flatMap { groupID in
             tabs.first { isUsableFallback($0) && effectiveGroupID(for: $0) == groupID }
         }
@@ -2089,10 +1745,7 @@ final class TabsModel {
         if let fallback { pendingScrollToTabID = fallback.id }
     }
 
-    /// Re-point `activeGroupID` after a structural change dissolved its group
-    /// (e.g. a tmux gateway detached and its `.tmux(ownerID:)` group vanished).
-    /// The automatic equivalent of toggling grouped mode off/on. No-op outside
-    /// grouped mode and when the active group still exists.
+    /// After the active group dissolves, e.g. a tmux gateway detached.
     func revalidateGroupingSelection() {
         normalizeGroupingSelection()
     }
@@ -2172,8 +1825,6 @@ final class TabsModel {
         return hasLiveTmuxPane ? tab.owningGatewayTerminalUUID : nil
     }
 
-    /// The host a tab's connection groups under, for labels outside the
-    /// grouping itself (a gateway family's header).
     func groupHostLabel(for tab: TabModel) -> String? {
         Self.groupHost(for: tab, allTabs: tabs)
     }
@@ -2195,10 +1846,7 @@ final class TabsModel {
     }
 
     private static func groupingPane(for tab: TabModel) -> SplitPaneView? {
-        // Resolve the focused PANE first so a focused non-terminal pane means
-        // "no grouping config" instead of silently grouping by a background
-        // terminal's host. Non-terminal connection panes such as VNC expose
-        // their configuration directly below.
+        // The pane, so a focused non-terminal isn't grouped by a background terminal.
         tab.focusedPane ?? tab.splitTree.first
     }
 
@@ -2255,27 +1903,16 @@ final class TabsModel {
 
     // MARK: - Displayed-tab reveal
 
-    /// Open the title-deferral gate for the duration of the selection spring
-    /// animation. While it's up, `TabModel.applyResolvedTitle` stashes title
-    /// updates instead of writing them, so a churning tab's TabBarItem
-    /// re-renders don't compete with the in-flight animation.
     private func beginTabSwitchAnimationGate() {
-        // Nothing to protect when tab-bar animations are off — don't add title
-        // latency for an instant switch.
         guard !SettingsStore.shared.value(Settings.Tabs.barAnimationsDisabled) else { return }
         isTabSwitchAnimating = true
         tabSwitchAnimationTimer?.invalidate()
-        // .spring(response: 0.3) settles in ~0.4s; the `.animation(_:value:)`
-        // modifier gives no completion callback, so a safety timer clears the
-        // gate (same pattern as KeyboardTracker.setKeyboardAnimating). Rapid
-        // switches re-arm it — titles stay frozen until switching stops, then
-        // flush once. Tunable; shorten toward 0.3 if titles feel slow to resume.
+        // The spring settles in ~0.4s and has no completion callback.
         tabSwitchAnimationTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in self?.endTabSwitchAnimationGate() }
         }
     }
 
-    /// Close the gate and flush each tab's most recent deferred title.
     private func endTabSwitchAnimationGate() {
         tabSwitchAnimationTimer?.invalidate()
         tabSwitchAnimationTimer = nil
@@ -2284,10 +1921,7 @@ final class TabsModel {
         for tab in tabs { tab.flushDeferredTitle() }
     }
 
-    /// True while the selected tab is a restored herdr gateway whose saved
-    /// projected tab has not been re-selected yet and whose controller is
-    /// still connecting. A failed or ended controller lifts the hold so the
-    /// card can show its error and retry button.
+    /// A failed or ended controller lifts the hold so its error card shows.
     private func isAwaitingHerdrRestoreReveal(for tab: TabModel) -> Bool {
         guard let pending = pendingHerdrSelection,
               tab.splitTree.terminalLeaves.contains(where: { $0.uuid == pending.gatewayTerminalUUID })
@@ -2297,8 +1931,7 @@ final class TabsModel {
         return !controller.didEnd && (controller.connectionError == nil || controller.isReconnectPending)
     }
 
-    /// Immediate reveal used after external tab mutations and key-window
-    /// changes. Honors the herdr restore hold; everything else shows at once.
+    /// Honors the herdr restore hold.
     func displaySelectedTabImmediately() {
         guard let selectedTabID, let tab = selectedTab else { return }
         if isAwaitingHerdrRestoreReveal(for: tab) {
@@ -2319,15 +1952,8 @@ final class TabsModel {
         }
     }
 
-    /// Reconcile `displayedTabID` with `selectedTabID`. Called from the
-    /// selection `didSet` and from tab-removal paths (the displayed tab may
-    /// have been closed out from under a pending reveal).
-    ///
-    /// If the target tab's terminals have all presented a frame (or it has
-    /// none, e.g. a tmux placeholder that renders nothing anyway), reveal it
-    /// immediately so tab switching stays instant. Otherwise keep the old
-    /// tab visible, register first-frame callbacks, and fail open after
-    /// 600ms so a surface that never presents can't pin a stale tab.
+    /// Reveals at once if the target has presented, else waits for first frames
+    /// and fails open after 600ms.
     func syncDisplayedTab() {
         displayRevealGeneration += 1
         let generation = displayRevealGeneration
@@ -2336,38 +1962,24 @@ final class TabsModel {
             if tabs.isEmpty {
                 displayedTabID = nil
             } else {
-                // Selection is broken (nil or dangling) while tabs exist,
-                // e.g. a restore whose saved index was invalidated by
-                // placeholder filtering. Repair instead of blanking every
-                // tab; the resulting `selectedTabID` didSet re-enters this
-                // function with a valid target.
+                // Repairing re-enters here via the selection didSet.
                 repairSelectionIfNeeded()
             }
             return
         }
-        // A restored herdr gateway stands in for the projected tab it will
-        // select once its snapshot arrives. Keep the previous tab (or the
-        // backdrop) on screen rather than flashing the gateway card.
+        // Don't flash the gateway card before it selects its saved tab.
         if isAwaitingHerdrRestoreReveal(for: target) {
             scheduleHerdrRevealFailOpen(generation: generation, targetID: target.id)
             return
         }
         if displayedTabID == target.id {
-            // Settled, with one exception: a tab that was displayed while
-            // EMPTY (tmux placeholder) and has now received its first panes
-            // must gate those panes like a fresh reveal, or they show at
-            // full opacity before their first present. "No terminal has
-            // presented yet" identifies that case; a tab with any presented
-            // terminal is genuinely settled (splits added to a visible tab
-            // never gate).
+            // Settled, unless a placeholder just received its first panes.
             let isFirstContent = !target.splitTree.isEmpty
                 && target.splitTree.terminalLeaves.allSatisfy { !$0.hasRenderedFirstFrame }
             if !isFirstContent { return }
             displayedTabID = nil
         }
 
-        // The previously displayed tab may have been closed; drop it so the
-        // backdrop fill covers the gap instead of a dangling identity.
         if let displayed = displayedTabID, !tabs.contains(where: { $0.id == displayed }) {
             displayedTabID = nil
         }
@@ -2378,11 +1990,7 @@ final class TabsModel {
             return
         }
 
-        // Capture only the id, not the TabModel: the callback is stored on
-        // the TerminalView, which the tab's splitTree owns, so a strong
-        // `target` capture would cycle (TabModel -> TerminalView -> closure
-        // -> TabModel) and pin the tab if the callback is never drained
-        // (e.g. surface creation bails before polling ever arms).
+        // Capture the id only; capturing the tab would cycle through its terminal.
         let targetID = target.id
         for view in pending {
             view.notifyOnFirstFrame { [weak self] in
@@ -2412,11 +2020,5 @@ final class TabsModel {
 }
 
 // MARK: - Source-compat typealias
-//
-// The pre-existing codebase used the name `TerminalTab` for the value-type
-// struct that stored per-tab state. The struct is gone; tabs are now
-// `TabModel` class instances tracked by an `@Observable TabsModel`. To keep
-// the migration mechanical, leave a top-level typealias so call sites that
-// reference `TerminalTab` continue to compile while preserving the new
-// observation behavior.
+
 typealias TerminalTab = TabModel

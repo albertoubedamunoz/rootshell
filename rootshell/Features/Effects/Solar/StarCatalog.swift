@@ -9,6 +9,7 @@
 import Foundation
 import CoreLocation
 import SwiftUI
+import os
 
 // MARK: - Spectral Classification
 
@@ -130,7 +131,7 @@ final class StarCatalog {
                 isLoaded = true
                 return
             } catch {
-                print("Failed to decode star catalog: \(error)")
+                Ghostty.logger.error("Failed to decode star catalog: \(error)")
             }
         }
 

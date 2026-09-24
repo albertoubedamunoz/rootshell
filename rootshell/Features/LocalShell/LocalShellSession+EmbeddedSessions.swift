@@ -208,7 +208,7 @@ extension LocalShellSession {
             }
         }
 
-        session.onSessionEnd = {
+        session.onSessionEnd = { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 guard self.isCurrentEmbeddedSession(sessionID, kind: kind) else { return }
@@ -223,7 +223,7 @@ extension LocalShellSession {
             }
         }
 
-        session.onError = { error in
+        session.onError = { [weak self] error in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 guard self.isCurrentEmbeddedSession(sessionID, kind: kind) else { return }

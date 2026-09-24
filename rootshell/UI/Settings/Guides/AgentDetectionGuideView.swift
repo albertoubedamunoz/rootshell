@@ -10,8 +10,6 @@
 import SwiftUI
 
 struct AgentDetectionGuideView: View {
-    @Environment(\.sheetThemeColors) private var sheetThemeColors
-
     var body: some View {
         List {
             // MARK: - What It Detects
@@ -32,7 +30,7 @@ struct AgentDetectionGuideView: View {
             // MARK: - How It Works
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    guideRow(
+                    GuideRow(
                         icon: "text.viewfinder",
                         title: "On-Device Recognition",
                         description: "Detection reads each pane's title and visible screen on this device. Nothing is installed on the server."
@@ -40,7 +38,7 @@ struct AgentDetectionGuideView: View {
 
                     Divider()
 
-                    guideRow(
+                    GuideRow(
                         icon: "power",
                         title: "Zero Overhead When Off",
                         description: "Detect Coding Agents is the master switch. Off, the engine is fully stopped and adds no overhead."
@@ -55,7 +53,7 @@ struct AgentDetectionGuideView: View {
             // MARK: - What You See
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    guideRow(
+                    GuideRow(
                         icon: "timer",
                         title: "Live Tab Status",
                         description: "Tabs show each agent's state: working with elapsed time, needs input, done, or failed."
@@ -63,7 +61,7 @@ struct AgentDetectionGuideView: View {
 
                     Divider()
 
-                    guideRow(
+                    GuideRow(
                         icon: "tray.full",
                         title: "Agent Inbox",
                         description: "The tab sidebar becomes an agent inbox with unread states. \"Done\" markers clear when you view the tab."
@@ -71,7 +69,7 @@ struct AgentDetectionGuideView: View {
 
                     Divider()
 
-                    guideRow(
+                    GuideRow(
                         icon: "circlebadge.fill",
                         title: "Badges vs. Notifications",
                         description: "Show Attention Badges controls only the dots and cards. Notifications follow their own policy, chosen under Agent Notifications."
@@ -103,26 +101,6 @@ struct AgentDetectionGuideView: View {
         .themedList()
         .navigationTitle("How Detection Works")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Helper Views
-
-    private func guideRow(icon: String, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(.accentColor)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
     }
 }
 

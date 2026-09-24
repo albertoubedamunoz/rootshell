@@ -129,6 +129,13 @@ class KeyboardAccessoryView: UIInputView {
         }
     }
 
+    /// Callback when the file manager button is tapped
+    var onFileManagerRequested: (() -> Void)? {
+        didSet {
+            toolbarView.onFileManagerRequested = onFileManagerRequested
+        }
+    }
+
     /// Callback when accessory layout changes and input views should refresh
     var onLayoutInvalidated: (() -> Void)?
 
@@ -317,10 +324,10 @@ class KeyboardAccessoryView: UIInputView {
         return true
     }
 
-    func setBottomEdgeHomeGestureProtectionEnabled(_ enabled: Bool) {
-        toolbarView.setDefersKeysForBottomEdgeGesture(enabled)
+    func setInteractionMode(_ mode: KeyboardToolbarInteractionMode) {
+        toolbarView.setInteractionMode(mode)
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
-        bottomEdgePanGesture?.isEnabled = enabled
+        bottomEdgePanGesture?.isEnabled = mode == .screenEdge
         #endif
     }
 

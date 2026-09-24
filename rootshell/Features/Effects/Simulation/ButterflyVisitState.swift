@@ -482,10 +482,10 @@ final class ButterflyVisitState: ObservableObject {
             }
         })
 
-        scheduleNextVisit(first: true)
+        if butterflies.isEmpty { scheduleNextVisit(first: true) }
     }
 
-    func stop() {
+    func stop(preservingVisit: Bool = false) {
         visitTask?.cancel()
         visitTask = nil
         configCancellable = nil
@@ -493,8 +493,10 @@ final class ButterflyVisitState: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
         lifecycleObservers = []
-        butterflies = []
-        isIdle = true
+        if !preservingVisit {
+            butterflies = []
+            isIdle = true
+        }
         hasStarted = false
         tracker = nil
         coverageWaiting = false

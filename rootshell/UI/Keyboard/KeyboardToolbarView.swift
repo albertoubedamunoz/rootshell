@@ -33,8 +33,10 @@ private final class KeyboardDismissButton: KeyboardSymbolButton {
     private var longPressTriggered = false
     private var awaitingRelease = false
     private var touchIsDown = false
+    private var awaitingDoubleTapRelease = false
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard beginTouchInteraction(touches) else { return }
         SystemShiftReader.shared.noteTouchEvent(event)
         isHighlighted = true
         playHaptic()
@@ -46,7 +48,11 @@ private final class KeyboardDismissButton: KeyboardSymbolButton {
             pendingLongPress = nil
             isHighlighted = false
             backgroundColor = .clear
-            delegate?.keyPressed("__dismissDouble__", modifiers: currentModifiers())
+            if interactionMode == .spacedBottom {
+                awaitingDoubleTapRelease = true
+            } else {
+                delegate?.keyPressed("__dismissDouble__", modifiers: currentModifiers())
+            }
             return
         }
 
@@ -57,7 +63,8 @@ private final class KeyboardDismissButton: KeyboardSymbolButton {
         // If the finger is still down when the double-tap window expires,
         // defer the single tap to touchesEnded so a long press can preempt it.
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+            guard let self, self.canDispatchTouchAction else { return }
+            if self.touchIsDown && !self.validateTouchInteraction() { return }
             self.pendingSingleTap = nil
             if self.touchIsDown {
                 self.awaitingRelease = true
@@ -72,7 +79,7 @@ private final class KeyboardDismissButton: KeyboardSymbolButton {
         )
 
         let longPressItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+            guard let self, self.validateTouchInteraction() else { return }
             self.pendingLongPress = nil
             self.pendingSingleTap?.cancel()
             self.pendingSingleTap = nil
@@ -91,10 +98,18 @@ private final class KeyboardDismissButton: KeyboardSymbolButton {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard validateTouchInteraction() else { return }
+        defer { finishTouchTracking() }
         touchIsDown = false
         pendingLongPress?.cancel()
         pendingLongPress = nil
         isHighlighted = false
+
+        if awaitingDoubleTapRelease {
+            awaitingDoubleTapRelease = false
+            delegate?.keyPressed("__dismissDouble__", modifiers: currentModifiers())
+            return
+        }
 
         if longPressTriggered {
             longPressTriggered = false
@@ -108,7 +123,8 @@ private final class KeyboardDismissButton: KeyboardSymbolButton {
         }
     }
 
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override func cancelTouchInteraction() {
+        super.cancelTouchInteraction()
         touchIsDown = false
         pendingSingleTap?.cancel()
         pendingSingleTap = nil
@@ -116,6 +132,7 @@ private final class KeyboardDismissButton: KeyboardSymbolButton {
         pendingLongPress = nil
         longPressTriggered = false
         awaitingRelease = false
+        awaitingDoubleTapRelease = false
         isHighlighted = false
     }
 }
@@ -221,6 +238,12 @@ class KeyboardToolbarView: UIView {
     weak var delegate: KeyboardButtonDelegate?
 
     /// Callback when active modifiers change
+    /// A session-local return key after switching from the optional touch keyboard.
+    /// This does not alter the user's saved toolbar layout.
+    var onTouchKeyboardRequested: (() -> Void)? {
+        didSet { rebuildForCurrentWidth() }
+    }
+
     var onModifiersChanged: ((KeyModifiers) -> Void)?
 
     /// Callback when dismiss button is tapped
@@ -268,6 +291,9 @@ class KeyboardToolbarView: UIView {
     /// Callback when the clipboard manager button is tapped
     var onClipboardManagerRequested: (() -> Void)?
 
+    /// Callback when the file manager button is tapped
+    var onFileManagerRequested: (() -> Void)?
+
     /// Callback when drawer opens/closes (for height updates)
     var onDrawerStateChanged: (() -> Void)?
 
@@ -310,10 +336,11 @@ class KeyboardToolbarView: UIView {
     private var dismissButtonShowsRestore = false
     private var dismissButtonPinned = false
     private(set) var drawerState: DrawerState = .closed
-    private var defersKeysForBottomEdgeGesture = false
+    private var interactionMode: KeyboardToolbarInteractionMode = .accessory
 
     /// Track last known width to detect meaningful size changes
     private var lastBuiltWidth: CGFloat = 0
+    private var effectiveDrawerRows: [[KeySlot]] = [[]]
 
     // MARK: - Initialization
 
@@ -323,7 +350,15 @@ class KeyboardToolbarView: UIView {
         super.init(frame: .zero)
 
         setupViews()
+        NotificationCenter.default.addObserver(self, selector: #selector(sceneWillDeactivate(_:)),
+                                               name: UIScene.willDeactivateNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationWillResignActive),
+                                               name: UIApplication.willResignActiveNotification, object: nil)
         // Buttons built on first layoutSubviews when we have a real width
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     required init?(coder: NSCoder) {
@@ -515,7 +550,25 @@ class KeyboardToolbarView: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        if window == nil { cancelTouchInteractions(in: self) }
         updateInsetsForCurrentTraits()
+    }
+
+    @objc private func sceneWillDeactivate(_ notification: Notification) {
+        guard let scene = notification.object as? UIScene, scene === window?.windowScene else { return }
+        cancelTouchInteractions(in: self)
+    }
+
+    @objc private func applicationWillResignActive() {
+        cancelTouchInteractions(in: self)
+    }
+
+    private func cancelTouchInteractions(in view: UIView) {
+        (view as? KeyboardButton)?.cancelTouchInteraction()
+        (view as? KeyboardArrowJoystickButton)?.cancelTouchInteraction()
+        for subview in view.subviews {
+            cancelTouchInteractions(in: subview)
+        }
     }
 
     override func layoutSubviews() {
@@ -573,7 +626,17 @@ class KeyboardToolbarView: UIView {
         let edgePadding = currentEdgePadding()
         let chromeInsets = currentChromeHorizontalInsets()
         let availableWidth = width - edgePadding * 2 - chromeInsets.left - chromeInsets.right
-        let mainSlots = manager.effectiveMainRowSlots(availableWidth: availableWidth)
+        let layout = manager.effectiveLayout(availableWidth: availableWidth,
+            reservedMainRowSlots: onTouchKeyboardRequested == nil ? 0 : 1, sizes: sizes)
+        effectiveDrawerRows = layout.drawers
+        let mainSlots = layout.main
+        if onTouchKeyboardRequested != nil {
+            let button = KeyboardSymbolButton(key: "__touchKeyboard__",
+                display: .icon("keyboard.badge.ellipsis"), sizes: sizes)
+            button.accessibilityLabel = String(localized: "Use Terminal Keyboard")
+            button.delegate = self
+            mainRowStackView.addArrangedSubview(button)
+        }
 
         for slot in mainSlots {
             if let button = createButtonForSlot(slot) {
@@ -656,6 +719,8 @@ class KeyboardToolbarView: UIView {
             return createBrightnessBoostButton()
         case .clipboardManager:
             return createClipboardManagerButton()
+        case .fileManager:
+            return createFileManagerButton()
         case .drawerToggle:
             return createExtraKeysDrawerToggleButton()
         default:
@@ -941,6 +1006,16 @@ class KeyboardToolbarView: UIView {
         return button
     }
 
+    private func createFileManagerButton() -> KeyboardSymbolButton {
+        let button = KeyboardSymbolButton(
+            key: "__fileManager__",
+            display: .icon("folder.badge.gearshape"),
+            sizes: sizes
+        )
+        button.delegate = self
+        return button
+    }
+
     // MARK: - Drawer Management
 
     /// Runtime drawer open state. `stacked(count)` shows extra-keys drawers
@@ -1077,22 +1152,14 @@ class KeyboardToolbarView: UIView {
     private func populateExtraKeysRow(_ row: DrawerRowView, drawerIndex: Int) {
         row.configureForScrolling()
 
-        let manager = KeyboardToolbarManager.shared
-        let edgePadding = currentEdgePadding()
-        let chromeInsets = currentChromeHorizontalInsets()
-        let availableWidth = bounds.width - edgePadding * 2 - chromeInsets.left - chromeInsets.right
-        let drawerRows = manager.effectiveDrawerRowSlots(availableWidth: availableWidth)
-        guard drawerRows.indices.contains(drawerIndex) else { return }
+        guard effectiveDrawerRows.indices.contains(drawerIndex) else { return }
 
-        for slot in drawerRows[drawerIndex] {
+        for slot in effectiveDrawerRows[drawerIndex] {
             switch slot {
             case .builtIn(let keyID):
                 if keyID.isModifier {
                     let modButton = createModifierButton(for: keyID.keyDefinition)
                     row.stackView.addArrangedSubview(modButton)
-                } else if keyID == .arrowDrawerToggle {
-                    // Skip arrow drawer toggle in extra keys drawer
-                    continue
                 } else if keyID == .drawerToggle {
                     // Skip drawer toggle in drawer
                     continue
@@ -1172,15 +1239,19 @@ class KeyboardToolbarView: UIView {
 
     // MARK: - Public Methods
 
-    func setDefersKeysForBottomEdgeGesture(_ defers: Bool) {
-        guard defersKeysForBottomEdgeGesture != defers else { return }
-        defersKeysForBottomEdgeGesture = defers
+    func setInteractionMode(_ mode: KeyboardToolbarInteractionMode) {
+        guard interactionMode != mode else { return }
+        cancelTouchInteractions(in: self)
+        interactionMode = mode
         applyBottomEdgeKeyDispatchMode(in: self)
     }
 
     private func applyBottomEdgeKeyDispatchMode(in view: UIView) {
         if let button = view as? KeyboardButton {
-            button.defersKeyUntilTouchUp = defersKeysForBottomEdgeGesture
+            button.interactionMode = interactionMode
+        }
+        if let button = view as? KeyboardArrowJoystickButton {
+            button.interactionMode = interactionMode
         }
         for subview in view.subviews {
             applyBottomEdgeKeyDispatchMode(in: subview)
@@ -1198,13 +1269,18 @@ class KeyboardToolbarView: UIView {
     }
 
     private var dismissButtonIconName: String {
-        if dismissButtonPinned {
+        Self.dismissSymbolName(pinned: dismissButtonPinned, showsRestore: dismissButtonShowsRestore)
+    }
+
+    /// Shared by the system-keyboard toolbar and the custom keyboard.
+    static func dismissSymbolName(pinned: Bool, showsRestore: Bool) -> String {
+        if pinned {
             for candidate in ["keyboard.slash", "chevron.up.2"] where UIImage(systemName: candidate) != nil {
                 return candidate
             }
             return "chevron.up"
         }
-        return dismissButtonShowsRestore ? "chevron.up" : "chevron.down"
+        return showsRestore ? "chevron.up" : "chevron.down"
     }
 
     func setMouseCaptureOverrideActive(_ active: Bool) {
@@ -1225,6 +1301,7 @@ class KeyboardToolbarView: UIView {
             updateSubviewSizes(in: row.stackView)
         }
         updateInsetsForCurrentTraits()
+        rebuildForCurrentWidth()
         invalidateIntrinsicContentSize()
         setNeedsLayout()
     }
@@ -1267,6 +1344,10 @@ class KeyboardToolbarView: UIView {
 extension KeyboardToolbarView: KeyboardButtonDelegate {
     func keyPressed(_ key: String, modifiers: KeyModifiers) {
         // Intercept action buttons before forwarding
+        if key == "__touchKeyboard__" {
+            onTouchKeyboardRequested?()
+            return
+        }
         if key == "__dismiss__" {
             onDismissRequested?()
             return
@@ -1333,6 +1414,10 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
         }
         if key == "__clipboardManager__" {
             onClipboardManagerRequested?()
+            return
+        }
+        if key == "__fileManager__" {
+            onFileManagerRequested?()
             return
         }
         if key == "__arrowDrawer__" {

@@ -5,8 +5,8 @@
 //  SwiftUI Commands for menu bar integration on macOS Catalyst and iPadOS 26+
 //  These provide menu visibility while UIKeyCommands handle actual input priority
 //
-//  All commands use UIApplication.shared.sendAction() to route through the responder
-//  chain, ensuring actions are handled by the focused terminal in the key window.
+//  Commands try the responder chain first, then explicitly target UIApplication
+//  when menu tracking leaves that chain unavailable (iPadOS 27).
 //
 
 import SwiftUI
@@ -14,6 +14,25 @@ import UIKit
 import Combine
 
 // MARK: - Keyboard Shortcut State
+
+private struct CanChoosePaneToZoomKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+private struct CanChoosePaneToSwapKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+extension FocusedValues {
+    var canChoosePaneToSwap: Bool? {
+        get { self[CanChoosePaneToSwapKey.self] }
+        set { self[CanChoosePaneToSwapKey.self] = newValue }
+    }
+    var canChoosePaneToZoom: Bool? {
+        get { self[CanChoosePaneToZoomKey.self] }
+        set { self[CanChoosePaneToZoomKey.self] = newValue }
+    }
+}
 
 /// Observable object that provides current keyboard shortcuts for menu display
 /// This is separate from KeybindManager to avoid the iPadOS 26 issue with
@@ -26,6 +45,10 @@ final class MenuShortcutState: ObservableObject {
     /// Nested count so overlapping capture views don't restore the menu rail
     /// while another is still recording.
     private var recordingCaptureCount = 0
+
+    /// Whether a capture view is recording. The Catalyst menu items built in
+    /// CatalystAppDelegate.buildMenu(with:) drop their key equivalents too.
+    var isRecordingCapture: Bool { recordingCaptureCount > 0 }
 
     /// Whether a menu bar exists to carry app shortcuts. Both menu rails dispatch
     /// through UIApplication notifications rather than the responder chain, so a
@@ -121,6 +144,11 @@ struct AppCommands: Commands {
     @ObservedObject var shortcutState = MenuShortcutState.shared
 
     var body: some Commands {
+        #if os(visionOS)
+        // visionOS has no menu rail, and SwiftUI's command availability
+        // branching is unavailable there. Shortcuts use the responder chain.
+        EmptyCommands()
+        #else
         // All of these are 26+ only. Before that CatalystAppDelegate.buildMenu(with:)
         // builds every menu via UIMenuBuilder, and running both sources put duplicate
         // commands in File/Edit/View — UIKit then refuses to display a menu that
@@ -133,6 +161,7 @@ struct AppCommands: Commands {
             ShellCommands(shortcutState: shortcutState)
             WindowCommands(shortcutState: shortcutState)
         }
+        #endif
     }
 }
 
@@ -152,36 +181,52 @@ struct FileCommands: Commands {
         // Replace system "New" items with our custom file commands
         CommandGroup(replacing: .newItem) {
             Button("New Tab") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuCreateLocalShell(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .new_local_shell, shortcuts: shortcutState.shortcuts))
 
             Button("Open Connections") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuNewTab(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .new_tab, shortcuts: shortcutState.shortcuts))
 
             Button("New Window") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuNewWindow(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .new_window, shortcuts: shortcutState.shortcuts))
 
             Button("Duplicate Focused Tab") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuDuplicateTabWithSSH(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .duplicate_ssh_tab, shortcuts: shortcutState.shortcuts))
+
+            Button("Open in Folder…") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuOpenInFolder(_:)),
+                    from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .open_in_folder, shortcuts: shortcutState.shortcuts))
+
+            Button("File Manager") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuToggleFileManager(_:)),
+                    from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .toggle_file_manager, shortcuts: shortcutState.shortcuts))
         }
     }
 }
@@ -202,10 +247,10 @@ struct DynamicShortcut: ViewModifier {
     }
 }
 
-// Note: Close (Cmd-W) is handled by:
-// 1. System-provided Close menu item
-// 2. UIKeyCommand in TerminalViewKeyboard.swift with wantsPriorityOverSystemBehavior
-// 3. pressesBegan fallback for macOS Sequoia compatibility
+// Note: On Mac Catalyst, Close Tab is the Close menu item that
+// CatalystAppDelegate.buildMenu(with:) installs. Its key equivalent follows
+// the close_tab keybind, because AppKit dispatches menu key equivalents
+// before any responder UIKeyCommand.
 
 // MARK: - Edit Commands
 
@@ -217,9 +262,9 @@ struct EditCommands: Commands {
         // Add Clear Screen and Find after system pasteboard items
         CommandGroup(after: .pasteboard) {
             Button("Clear Screen") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuClearScreen(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .clear_screen, shortcuts: shortcutState.shortcuts))
@@ -227,9 +272,9 @@ struct EditCommands: Commands {
             Divider()
 
             Button("Find") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.findInTerminal(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .start_search, shortcuts: shortcutState.shortcuts))
@@ -247,25 +292,25 @@ struct AppViewCommands: Commands {
         CommandGroup(after: .toolbar) {
             // Font size section
             Button("Increase Font Size") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.increaseFontSize(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .increase_font_size, shortcuts: shortcutState.shortcuts))
 
             Button("Decrease Font Size") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.decreaseFontSize(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .decrease_font_size, shortcuts: shortcutState.shortcuts))
 
             Button("Reset Font Size") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.resetFontSizeToDefault(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .reset_font_size, shortcuts: shortcutState.shortcuts))
@@ -274,49 +319,49 @@ struct AppViewCommands: Commands {
 
             // View toggles
             Button("Toggle Top Tab Bar") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleTabBar(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_tab_bar, shortcuts: shortcutState.shortcuts))
 
             Button("Toggle Group Mode") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleGroupMode(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_group_mode, shortcuts: shortcutState.shortcuts))
 
             Button("Toggle Background Effect") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleBackgroundEffect(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_background_effect, shortcuts: shortcutState.shortcuts))
 
             Button("Toggle Theme Picker") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleThemePicker(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_theme_picker, shortcuts: shortcutState.shortcuts))
 
             Button("Clipboard Manager") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleClipboardManager(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_clipboard_manager, shortcuts: shortcutState.shortcuts))
 
             Button("Brightness Boost") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuBrightnessBoost(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .brightness_boost, shortcuts: shortcutState.shortcuts))
@@ -333,26 +378,26 @@ struct AppViewCommands: Commands {
             Divider()
 
             Button("Switch Keyboard Language") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuCycleInputSource(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .cycle_input_source, shortcuts: shortcutState.shortcuts))
 
             #if targetEnvironment(macCatalyst)
             Button("Toggle Transparency") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleTransparency(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_transparency, shortcuts: shortcutState.shortcuts))
 
             Button("Toggle Title Bar") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleTitleBar(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_titlebar, shortcuts: shortcutState.shortcuts))
@@ -361,9 +406,9 @@ struct AppViewCommands: Commands {
             #if !targetEnvironment(macCatalyst)
             // iPad only — macOS system provides "Enter Full Screen" in View menu
             Button("Toggle Full Screen") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleFullScreen(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_full_screen, shortcuts: shortcutState.shortcuts))
@@ -376,22 +421,24 @@ struct AppViewCommands: Commands {
 
 struct TerminalCommands: Commands {
     @ObservedObject var shortcutState: MenuShortcutState
+    @FocusedValue(\.canChoosePaneToZoom) private var canChoosePaneToZoom
+    @FocusedValue(\.canChoosePaneToSwap) private var canChoosePaneToSwap
 
     var body: some Commands {
         CommandMenu("Terminal") {
             // Split creation
             Button("Split Right") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSplitRight(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .split_right, shortcuts: shortcutState.shortcuts))
 
             Button("Split Down") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSplitDown(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .split_down, shortcuts: shortcutState.shortcuts))
@@ -401,33 +448,33 @@ struct TerminalCommands: Commands {
             // Focus Split submenu
             Menu("Focus Split") {
                 Button("Left") {
-                    UIApplication.shared.sendAction(
+                    UIApplication.shared.sendMenuAction(
                         #selector(Ghostty.TerminalView.menuNavigateSplitLeft(_:)),
-                        to: nil, from: nil, for: nil
+                        from: nil
                     )
                 }
                 .modifier(DynamicShortcut(action: .navigate_split_left, shortcuts: shortcutState.shortcuts))
 
                 Button("Right") {
-                    UIApplication.shared.sendAction(
+                    UIApplication.shared.sendMenuAction(
                         #selector(Ghostty.TerminalView.menuNavigateSplitRight(_:)),
-                        to: nil, from: nil, for: nil
+                        from: nil
                     )
                 }
                 .modifier(DynamicShortcut(action: .navigate_split_right, shortcuts: shortcutState.shortcuts))
 
                 Button("Up") {
-                    UIApplication.shared.sendAction(
+                    UIApplication.shared.sendMenuAction(
                         #selector(Ghostty.TerminalView.menuNavigateSplitUp(_:)),
-                        to: nil, from: nil, for: nil
+                        from: nil
                     )
                 }
                 .modifier(DynamicShortcut(action: .navigate_split_up, shortcuts: shortcutState.shortcuts))
 
                 Button("Down") {
-                    UIApplication.shared.sendAction(
+                    UIApplication.shared.sendMenuAction(
                         #selector(Ghostty.TerminalView.menuNavigateSplitDown(_:)),
-                        to: nil, from: nil, for: nil
+                        from: nil
                     )
                 }
                 .modifier(DynamicShortcut(action: .navigate_split_down, shortcuts: shortcutState.shortcuts))
@@ -437,52 +484,68 @@ struct TerminalCommands: Commands {
 
             // Split management
             Button("Toggle Split Zoom") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleSplitZoom(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_split_zoom, shortcuts: shortcutState.shortcuts))
 
             Button("Equalize Splits") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuEqualizeSplits(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .equalize_splits, shortcuts: shortcutState.shortcuts))
+
+            Button("Choose Pane to Zoom") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuChoosePaneToZoom(_:)), from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .choose_pane_to_zoom, shortcuts: shortcutState.shortcuts))
+            .disabled(canChoosePaneToZoom != true)
+
+            Button("Choose Pane to Swap") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuChoosePaneToSwap(_:)), from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .choose_pane_to_swap, shortcuts: shortcutState.shortcuts))
+            .disabled(canChoosePaneToSwap != true)
 
             Divider()
 
             // Scroll commands
             Button("Scroll Page Up") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuScrollPageUp(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .scroll_page_up, shortcuts: shortcutState.shortcuts))
 
             Button("Scroll Page Down") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuScrollPageDown(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .scroll_page_down, shortcuts: shortcutState.shortcuts))
 
             Button("Scroll to Top") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuScrollToTop(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .scroll_to_top, shortcuts: shortcutState.shortcuts))
 
             Button("Scroll to Bottom") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuScrollToBottom(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .scroll_to_bottom, shortcuts: shortcutState.shortcuts))
@@ -490,9 +553,9 @@ struct TerminalCommands: Commands {
             Divider()
 
             Button("Toggle Compose") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleCompose(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_compose, shortcuts: shortcutState.shortcuts))
@@ -502,9 +565,9 @@ struct TerminalCommands: Commands {
                     NSSelectorFromString("toggleVNCKeyboardCapture:"),
                     to: nil, from: nil, for: nil
                 ) {
-                    UIApplication.shared.sendAction(
+                    UIApplication.shared.sendMenuAction(
                         #selector(Ghostty.TerminalView.menuToggleMouseCapture(_:)),
-                        to: nil, from: nil, for: nil
+                        from: nil
                     )
                 }
             }
@@ -539,17 +602,17 @@ struct ShellCommands: Commands {
     var body: some Commands {
         CommandMenu("Shell") {
             Button("Browse Hosts") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuBrowseHosts(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .browse_hosts, shortcuts: shortcutState.shortcuts))
 
             Button("Browse Profiles") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuBrowseProfiles(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .browse_profiles, shortcuts: shortcutState.shortcuts))
@@ -558,17 +621,17 @@ struct ShellCommands: Commands {
             Divider()
 
             Button("AI Agent") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleAIAgent(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_ai_agent, shortcuts: shortcutState.shortcuts))
 
             Button("Voice Agent") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuToggleVoiceAgent(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_voice_agent, shortcuts: shortcutState.shortcuts))
@@ -586,9 +649,9 @@ struct ShellCommands: Commands {
             .modifier(DynamicShortcut(action: .open_settings, shortcuts: shortcutState.shortcuts))
 
             Button("Quick Settings…") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(UIApplication.menuToggleQuickSettings(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_quick_settings, shortcuts: shortcutState.shortcuts))
@@ -646,17 +709,17 @@ struct WindowCommands: Commands {
             .modifier(DynamicShortcut(action: .next_group, shortcuts: shortcutState.shortcuts))
 
             Button("tmux Sessions") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuShowTmuxSessions(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .show_tmux_sessions, shortcuts: shortcutState.shortcuts))
 
             Button("Discover Sessions") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuDiscoverSessions(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .discover_sessions, shortcuts: shortcutState.shortcuts))
@@ -670,9 +733,9 @@ struct WindowCommands: Commands {
             .modifier(DynamicShortcut(action: .detach_session, shortcuts: shortcutState.shortcuts))
 
             Button("Detach Other Clients") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuDetachOtherClients(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .detach_other_clients, shortcuts: shortcutState.shortcuts))
@@ -681,73 +744,73 @@ struct WindowCommands: Commands {
 
             // Tab selection (1-9) - individual buttons for sendAction compatibility
             Button("Tab 1") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab1(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_1, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 2") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab2(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_2, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 3") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab3(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_3, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 4") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab4(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_4, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 5") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab5(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_5, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 6") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab6(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_6, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 7") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab7(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_7, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 8") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab8(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_8, shortcuts: shortcutState.shortcuts))
 
             Button("Tab 9") {
-                UIApplication.shared.sendAction(
+                UIApplication.shared.sendMenuAction(
                     #selector(Ghostty.TerminalView.menuSelectTab9(_:)),
-                    to: nil, from: nil, for: nil
+                    from: nil
                 )
             }
             .modifier(DynamicShortcut(action: .select_tab_9, shortcuts: shortcutState.shortcuts))

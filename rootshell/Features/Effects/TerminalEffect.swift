@@ -8,6 +8,10 @@
 import SwiftUI
 import Combine
 
+nonisolated enum BackgroundEffectSelection {
+    static let followTerminalID = "follow-terminal"
+}
+
 /// Theme colors passed to effects from ThemeManager
 struct EffectThemeColors: Equatable {
     let background: String    // Hex color

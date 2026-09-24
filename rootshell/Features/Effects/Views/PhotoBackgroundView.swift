@@ -44,6 +44,8 @@ private struct KenBurnsImageView: View {
     let speed: Double
     let size: CGSize
 
+    @Environment(\.terminalEffectRetainsState) private var retainsState
+    @State private var hasStarted = false
     @State private var currentScale: CGFloat = 1.0
     @State private var currentOffset: CGSize = .zero
     @State private var timer: Timer?
@@ -61,7 +63,10 @@ private struct KenBurnsImageView: View {
             .offset(currentOffset)
             .clipped()
             .onAppear {
-                animateToNextKeyframe()
+                if !retainsState || !hasStarted {
+                    animateToNextKeyframe()
+                    hasStarted = true
+                }
                 startTimer()
             }
             .onDisappear {

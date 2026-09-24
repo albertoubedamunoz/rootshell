@@ -80,8 +80,15 @@ extension Ghostty {
             guard size.width > 0 && size.height > 0 else { return }
 
             let scale = contentScaleFactor
-            let fbWidth = UInt32(size.width * scale)
-            let fbHeight = UInt32(size.height * scale)
+            let scaledWidth = size.width * scale
+            let scaledHeight = size.height * scale
+            guard scaledWidth.isFinite, scaledHeight.isFinite,
+                  scaledWidth <= CGFloat(UInt32.max), scaledHeight <= CGFloat(UInt32.max) else {
+                Self.logger.error("Ignoring invalid preview size \(scaledWidth)x\(scaledHeight)")
+                return
+            }
+            let fbWidth = UInt32(scaledWidth)
+            let fbHeight = UInt32(scaledHeight)
 
             ghostty_surface_set_content_scale(surface, scale, scale)
             ghostty_surface_set_size(surface, fbWidth, fbHeight)

@@ -1,9 +1,7 @@
 #if !targetEnvironment(macCatalyst)
 
-import Darwin
 import Foundation
 import Network
-import OSLog
 import UIKit
 
 // MARK: - ios_system entry points
@@ -29,54 +27,28 @@ func whatismyip6_main(_ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutableP
 
 // MARK: - Common implementation
 
-private let logger = Logger(subsystem: "com.kk2.rootshell", category: "whatismyip-bridge")
-
 private enum WhatIsMyIPBridgeVariant {
     case dual
     case ipv4Only
     case ipv6Only
 }
 
-private func outputStreamForCurrentThread() -> UnsafeMutablePointer<FILE>? {
-    if let stream = ios_get_thread_stdout() {
-        return stream
-    }
-    if let stream = ios_get_thread_stderr() {
-        return stream
-    }
-    return Darwin.stdout
-}
-
-private func writeToCurrentThreadOutput(_ text: String) {
-    guard let stream = outputStreamForCurrentThread() else {
-        logger.error("No output stream available for whatismyip ios_system bridge")
-        return
-    }
-    fputs(text, stream)
-    fflush(stream)
-}
-
 /// Per-server STUN timeout. With 3 IPv4 servers this means 9s worst case.
 private let stunTimeout: TimeInterval = 3.0
 
 /// Common entry point for all whatismyip variants invoked via ios_system.
-///
-/// Bridge pattern: STUNClient/GeoResolver/FaviconManager are @MainActor + async.
-/// ios_system calls us on a background thread. We create a pipe pair, dispatch
-/// the async work to MainActor with an output closure that writes to the pipe's
-/// write-end, then read from the pipe's read-end and write to `ios_get_thread_stdout()`.
-/// When the work completes, it closes the write-end → EOF → we return.
+/// STUNClient/GeoResolver/FaviconManager are @MainActor + async, so their output
+/// is bridged back to the ios_system thread through `IOSSystemBridge.pump`.
 private func whatismyipIOSSystemEntry(
     argc: Int32,
     argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
     variant: WhatIsMyIPBridgeVariant
 ) -> Int32 {
-    // Parse arguments
-    let args = extractArgs(argc: argc, argv: argv)
+    let args = IOSSystemBridge.arguments(argc: argc, argv: argv)
     let argSet = Set(args.map { $0.lowercased() })
 
     if argSet.contains("-h") || argSet.contains("--help") {
-        writeToCurrentThreadOutput(helpText(for: variant))
+        IOSSystemBridge.write(helpText(for: variant))
         return 0
     }
 
@@ -93,107 +65,29 @@ private func whatismyipIOSSystemEntry(
 
     // If a non-flag positional arg was given but isn't a valid IP, error out
     if let badArg = positionalArgs.first, lookupIP == nil {
-        writeToCurrentThreadOutput("whatismyip: invalid IP address '\(badArg)'\n")
+        IOSSystemBridge.write("whatismyip: invalid IP address '\(badArg)'\n")
         return 1
     }
 
-    // Create a pipe for bridging MainActor output → this thread's stdout
-    var pipeFds: [Int32] = [0, 0]
-    guard pipe(&pipeFds) == 0 else {
-        writeToCurrentThreadOutput("whatismyip: failed to create pipe\n")
-        return 1
-    }
-    let pipeReadFd = pipeFds[0]
-    let pipeWriteFd = pipeFds[1]
-
-    guard let threadStdout = outputStreamForCurrentThread() else {
-        close(pipeReadFd)
-        close(pipeWriteFd)
-        logger.error("No output stream available after pipe setup")
-        return 1
-    }
-
-    // Avoid SIGPIPE termination if the read-end gets closed unexpectedly.
-    _ = fcntl(pipeWriteFd, F_SETNOSIGPIPE, 1)
-
-    // Serial queue for pipe writes — keeps writes off MainActor and preserves ordering.
-    let writeQueue = DispatchQueue(label: "com.rootshell.whatismyip-bridge.write")
-    let writeFd = pipeWriteFd
-
-    nonisolated(unsafe) var exitStatus: Int32 = 0
-    nonisolated(unsafe) var writeClosed = false
-
-    // Dispatch async work to MainActor.
-    Task { @MainActor in
-        let writeText: @Sendable (String) -> Void = { text in
-            guard let data = text.data(using: .utf8) else { return }
-            writeQueue.async {
-                guard !writeClosed else { return }
-                data.withUnsafeBytes { buf in
-                    guard let ptr = buf.baseAddress else { return }
-                    var remaining = buf.count
-                    var offset = 0
-                    while remaining > 0 {
-                        let written = write(writeFd, ptr + offset, remaining)
-                        if written < 0 {
-                            if errno == EINTR { continue }
-                            writeClosed = true
-                            break
-                        }
-                        if written == 0 { break }
-                        offset += written
-                        remaining -= written
-                    }
+    return IOSSystemBridge.pump(name: "whatismyip") { writer in
+        Task { @MainActor in
+            let output: @Sendable (String) -> Void = { writer.write($0) }
+            let success: Bool
+            if let ip = lookupIP {
+                success = await lookupProvidedIP(ip: ip, skipASN: skipASN, output: output)
+            } else {
+                switch variant {
+                case .ipv4Only:
+                    success = await discoverSingleFamily(family: .ipv4, skipASN: skipASN, output: output)
+                case .ipv6Only:
+                    success = await discoverSingleFamily(family: .ipv6, skipASN: skipASN, output: output)
+                case .dual:
+                    success = await discoverDualStack(skipASN: skipASN, output: output)
                 }
             }
-        }
-
-        var success = false
-
-        if let ip = lookupIP {
-            success = await lookupProvidedIP(ip: ip, skipASN: skipASN, output: writeText)
-        } else {
-            switch variant {
-            case .ipv4Only:
-                success = await discoverSingleFamily(family: .ipv4, skipASN: skipASN, output: writeText)
-            case .ipv6Only:
-                success = await discoverSingleFamily(family: .ipv6, skipASN: skipASN, output: writeText)
-            case .dual:
-                success = await discoverDualStack(skipASN: skipASN, output: writeText)
-            }
-        }
-
-        // Close write-end after all pending writes drain
-        writeQueue.async {
-            exitStatus = success ? 0 : 1
-            guard !writeClosed else { return }
-            writeClosed = true
-            close(writeFd)
+            writer.finish(exitStatus: success ? 0 : 1)
         }
     }
-
-    // Read loop: pipe read-end → ios_get_thread_stdout()
-    let bufferSize = 4096
-    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-    defer {
-        buffer.deallocate()
-        close(pipeReadFd)
-    }
-
-    while true {
-        let bytesRead = read(pipeReadFd, buffer, bufferSize)
-        if bytesRead > 0 {
-            fwrite(buffer, 1, bytesRead, threadStdout)
-            fflush(threadStdout)
-        } else if bytesRead == 0 {
-            break
-        } else {
-            if errno == EINTR { continue }
-            break
-        }
-    }
-
-    return exitStatus
 }
 
 // MARK: - IP Lookup (user-provided address)
@@ -349,22 +243,6 @@ private func emitGeoLineWithFavicon(_ geo: GeoInfo, output: @escaping @Sendable 
 }
 
 // MARK: - Helpers
-
-private func extractArgs(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?) -> [String] {
-    let safeArgc = max(0, Int(argc))
-    guard safeArgc > 1, let argv else { return [] }
-
-    var args: [String] = []
-    args.reserveCapacity(safeArgc - 1)
-
-    for i in 1..<safeArgc {
-        if let arg = argv[i], let decoded = String(validatingUTF8: arg) {
-            args.append(decoded)
-        }
-    }
-
-    return args
-}
 
 private func helpText(for variant: WhatIsMyIPBridgeVariant) -> String {
     switch variant {

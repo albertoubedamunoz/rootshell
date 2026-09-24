@@ -111,7 +111,7 @@ extension HerdrController {
         for terminalID in activation.pendingPanes {
             guard let session = paneSessions[terminalID], let attachID = session.attachId,
                   paneGeometryIsReady(terminalID), !panesNeedingSnapshot.contains(terminalID),
-                  !snapshotRequestsInFlight.contains(attachID),
+                  snapshotRequestsInFlight[attachID] == nil,
                   let revision = router.snapshotRevision(attachId: attachID) else { continue }
             if session.readFence?.snapshot == revision { continue }
             session.requestReadFence(generation: activation.generation, snapshot: revision)
@@ -127,7 +127,7 @@ extension HerdrController {
               router.snapshotRevision(attachId: attachID) == fence.snapshot,
               paneGeometryIsReady(session.terminalId),
               !panesNeedingSnapshot.contains(session.terminalId),
-              !snapshotRequestsInFlight.contains(attachID),
+              snapshotRequestsInFlight[attachID] == nil,
               !layoutReleases.values.contains(where: { $0.tabId == activation.tabID }),
               let view = paneViews[session.terminalId],
               let tabID = activation.tabID, let tab = tabs[tabID],

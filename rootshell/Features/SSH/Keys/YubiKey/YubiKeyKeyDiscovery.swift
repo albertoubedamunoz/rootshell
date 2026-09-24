@@ -254,7 +254,7 @@ final class YubiKeyKeyDiscovery {
 
         switch algorithm {
         case .rsa2048, .rsa4096:
-            let (exponent, modulus) = try extractRSAComponents(from: publicKeyData)
+            let (exponent, modulus) = try YubiKeyKeyConverter.rsaPublicKeyComponents(fromPKCS1: publicKeyData)
             writeSSHString(&buffer, "ssh-rsa")
             writeSSHMPInt(&buffer, exponent)
             writeSSHMPInt(&buffer, modulus)
@@ -275,59 +275,6 @@ final class YubiKeyKeyDiscovery {
         }
 
         return buffer
-    }
-
-    private func extractRSAComponents(from derData: Data) throws -> (exponent: Data, modulus: Data) {
-        var index = 0
-        let bytes = [UInt8](derData)
-
-        guard bytes.count > 2, bytes[0] == 0x30 else {
-            throw YubiKeyError.keyConversionFailed("Invalid RSA key format")
-        }
-        index = 1
-        if bytes[1] & 0x80 != 0 {
-            let lenBytes = Int(bytes[1] & 0x7F)
-            index += 1 + lenBytes
-        } else {
-            index += 1
-        }
-
-        // Read modulus INTEGER
-        guard bytes[index] == 0x02 else {
-            throw YubiKeyError.keyConversionFailed("Expected INTEGER for modulus")
-        }
-        index += 1
-        let modulusLen: Int
-        if bytes[index] & 0x80 != 0 {
-            let lenBytes = Int(bytes[index] & 0x7F)
-            index += 1
-            modulusLen = bytes[index..<index+lenBytes].reduce(0) { $0 << 8 + Int($1) }
-            index += lenBytes
-        } else {
-            modulusLen = Int(bytes[index])
-            index += 1
-        }
-        let modulus = Data(bytes[index..<index+modulusLen])
-        index += modulusLen
-
-        // Read exponent INTEGER
-        guard bytes[index] == 0x02 else {
-            throw YubiKeyError.keyConversionFailed("Expected INTEGER for exponent")
-        }
-        index += 1
-        let exponentLen: Int
-        if bytes[index] & 0x80 != 0 {
-            let lenBytes = Int(bytes[index] & 0x7F)
-            index += 1
-            exponentLen = bytes[index..<index+lenBytes].reduce(0) { $0 << 8 + Int($1) }
-            index += lenBytes
-        } else {
-            exponentLen = Int(bytes[index])
-            index += 1
-        }
-        let exponent = Data(bytes[index..<index+exponentLen])
-
-        return (exponent, modulus)
     }
 
     private func generateFingerprint(_ publicKeyData: Data) -> String {

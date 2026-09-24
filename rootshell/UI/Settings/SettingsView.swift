@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 /// Navigation destinations for programmatic push (e.g., from Shortcuts intents).
 enum SettingsDestination: Hashable {
     case vpn
+    /// Opened by the iPhone keyboard chooser; pushes Terminal › Terminal Keyboard.
+    case touchKeyboard
 }
 
 /// Sidebar sections for the iPad split-view settings layout.
@@ -52,6 +54,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
 struct SettingsHomeList: View {
     @Binding var showDebugSettings: Bool
+    @Setting(Settings.System.screenshotMode) private var screenshotMode
 
     var body: some View {
         List {
@@ -92,21 +95,23 @@ struct SettingsHomeList: View {
                 .padding(.vertical, 8)
                 .themedRow()
 
-                HStack(spacing: 12) {
-                    SettingsIcon(systemName: "info.circle")
-                    Text("Version")
-                    Spacer()
-                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-                    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(version) (\(build))")
-                        Text(BuildInfo.date)
+                if !screenshotMode {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "info.circle")
+                        Text("Version")
+                        Spacer()
+                        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+                        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(version) (\(build))")
+                            Text(BuildInfo.date)
+                        }
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                        .textSelection(.enabled)
                     }
-                    .foregroundColor(.secondary)
-                    .font(.subheadline)
-                    .textSelection(.enabled)
+                    .themedRow()
                 }
-                .themedRow()
 
                 SettingsReviewLink()
 
@@ -453,6 +458,8 @@ struct SettingsView: View {
                             #else
                             EmptyView()
                             #endif
+                        case .touchKeyboard:
+                            settingsSearchDestinationView(for: .touchKeyboard)
                         }
                     }
                     .navigationDestination(for: SettingsSearchDestination.self) { destination in
@@ -505,6 +512,9 @@ struct SettingsView: View {
                 DispatchQueue.main.async {
                     navigateToVPN = true
                 }
+            case .touchKeyboard:
+                navigationPath.append(SettingsSection.terminal)
+                navigationPath.append(SettingsSearchDestination.touchKeyboard)
             }
         }
     }

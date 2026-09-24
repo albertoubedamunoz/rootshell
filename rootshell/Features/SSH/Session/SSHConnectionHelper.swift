@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import Citadel
+@preconcurrency import Citadel
 import NIOSSH
 import NIOCore
 import NIOTransportServices

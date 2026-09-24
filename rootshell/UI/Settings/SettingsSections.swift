@@ -359,6 +359,12 @@ struct SettingsTerminalSection: View {
             // MARK: - Keyboard
             Section {
                 #if !targetEnvironment(macCatalyst)
+                #if !os(visionOS)
+                NavigationLink(value: SettingsSearchDestination.touchKeyboard) {
+                    Label("Terminal Keyboard", systemImage: "keyboard.badge.ellipsis")
+                }
+                .themedRow()
+                #endif
                 Picker(selection: $writingAssistance) {
                     ForEach(TerminalWritingAssistanceMode.allCases, id: \.self) { mode in
                         Text(mode.title).tag(mode)
@@ -455,6 +461,14 @@ struct SettingsTerminalSection: View {
 
             // MARK: - Gestures
             Section {
+                NavigationLink(value: SettingsSearchDestination.gestureHelp) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "hand.tap")
+                        Text("Gesture Help")
+                    }
+                }
+                .themedRow()
+
                 NavigationLink(value: SettingsSearchDestination.swipeGestures) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "hand.draw")
@@ -870,6 +884,19 @@ struct SettingsConnectionsSection: View {
                                 .foregroundColor(.secondary)
                                 .font(.subheadline)
                         }
+                    }
+                }
+                .themedRow()
+
+                NavigationLink(value: SettingsSearchDestination.storageProviders) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "externaldrive.connected.to.line.below")
+                        Text(String(localized: "Storage Providers", comment: "Settings row: S3-compatible storage accounts"))
+                        Spacer()
+                        let storageCount = StorageProviderStore.shared.providers.count
+                        Text(storageCount == 0 ? String(localized: "None", comment: "Settings status: none configured") : "\(storageCount)")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
                     }
                 }
                 .themedRow()
@@ -1616,6 +1643,7 @@ struct SettingsOpenSourceFooter: View {
 
 /// About section detail
 struct SettingsAboutSection: View {
+    @Setting(Settings.System.screenshotMode) private var screenshotMode
     var externalShowDebugSettings: Binding<Bool>? = nil
     @State private var _showDebugSettings = false
 
@@ -1650,21 +1678,23 @@ struct SettingsAboutSection: View {
                 .padding(.vertical, 8)
                 .themedRow()
 
-                HStack(spacing: 12) {
-                    SettingsIcon(systemName: "info.circle")
-                    Text("Version")
-                    Spacer()
-                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-                    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(version) (\(build))")
-                        Text(BuildInfo.date)
+                if !screenshotMode {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "info.circle")
+                        Text("Version")
+                        Spacer()
+                        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+                        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(version) (\(build))")
+                            Text(BuildInfo.date)
+                        }
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                        .textSelection(.enabled)
                     }
-                    .foregroundColor(.secondary)
-                    .font(.subheadline)
-                    .textSelection(.enabled)
+                    .themedRow()
                 }
-                .themedRow()
 
                 SettingsReviewLink()
 

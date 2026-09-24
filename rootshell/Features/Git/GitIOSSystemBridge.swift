@@ -23,32 +23,28 @@ func git_main(_ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutablePointer<C
         workingDirectory = FileManager.default.currentDirectoryPath
     }
 
-    // Convert argc/argv directly to [String], preserving argument boundaries.
-    // argv[0] is "git" — skip it and pass the rest to parseArgs.
-    let args = gitExtractArgs(argc: argc, argv: argv)
-
     // Parse using the argv-based path (no string round-trip that would
     // break arguments containing spaces, e.g. git add "My File.swift")
     let parseResult = GitCommandParser.parseArgs(
-        args,
+        IOSSystemBridge.arguments(argc: argc, argv: argv),
         workingDirectory: workingDirectory
     )
 
     switch parseResult {
     case .error(let message):
-        gitWriteError("git: \(message)\n")
+        IOSSystemBridge.writeError("git: \(message)\n")
         return 1
 
     case .help:
-        gitWriteOutput(gitHelpText)
+        IOSSystemBridge.write(gitHelpText)
         return 0
 
     case .success(let config):
         // Auth flags require interactive mode (password prompts, Keychain access).
         // When invoked via ios_system, there's no way to interact with the user mid-command.
         if config.sshKeyName != nil || config.forcePassword || config.profileName != nil {
-            gitWriteError("git: --ssh-key, --password, and --profile require interactive mode\n")
-            gitWriteError("hint: run the command without piping or redirection\n")
+            IOSSystemBridge.writeError("git: --ssh-key, --password, and --profile require interactive mode\n")
+            IOSSystemBridge.writeError("hint: run the command without piping or redirection\n")
             return 1
         }
 
@@ -89,7 +85,7 @@ private func gitExecute(config: GitCommandParser.GitCommandConfig, colorEnabled:
     // pipeline executor forwards stdout downstream while leaving stderr on the
     // terminal unless the user explicitly redirects or merges it.
     guard let threadStdout = ios_get_thread_stdout() else {
-        gitWriteOutput("git: no output stream available\n")
+        IOSSystemBridge.write("git: no output stream available\n")
         return 1
     }
     let threadStderr = ios_get_thread_stderr() ?? threadStdout
@@ -173,47 +169,6 @@ private func gitExecute(config: GitCommandParser.GitCommandConfig, colorEnabled:
 }
 
 // MARK: - Helpers
-
-private func gitWriteOutput(_ text: String) {
-    if let stream = ios_get_thread_stdout() {
-        fputs(text, stream)
-        fflush(stream)
-    } else if let stream = ios_get_thread_stderr() {
-        fputs(text, stream)
-        fflush(stream)
-    }
-}
-
-private func gitWriteError(_ text: String) {
-    if let stream = ios_get_thread_stderr() {
-        fputs(text, stream)
-        fflush(stream)
-    } else if let stream = ios_get_thread_stdout() {
-        fputs(text, stream)
-        fflush(stream)
-    }
-}
-
-/// Extract arguments from argc/argv, skipping argv[0] ("git").
-/// Preserves original argument boundaries — no string joining/reparsing.
-private func gitExtractArgs(
-    argc: Int32,
-    argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
-) -> [String] {
-    let safeArgc = max(0, Int(argc))
-    guard safeArgc > 1, let argv else { return [] }
-
-    var args: [String] = []
-    args.reserveCapacity(safeArgc - 1)
-
-    for i in 1..<safeArgc {
-        if let arg = argv[i], let decoded = String(validatingUTF8: arg) {
-            args.append(decoded)
-        }
-    }
-
-    return args
-}
 
 /// Help text matching the native interactive path.
 private let gitHelpText = """

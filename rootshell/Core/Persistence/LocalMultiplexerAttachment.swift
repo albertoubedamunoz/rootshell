@@ -93,11 +93,21 @@ public nonisolated struct LocalMultiplexerAttachment: Codable, Equatable, Sendab
     /// Native herdr owns an auxiliary connection; its gateway PTY stays a shell.
     public var ptyRecoveryCommand: String? { isHerdrControl ? nil : attachCommand }
 
+    /// Saved local sessions keep their verified socket, but prefer the installed
+    /// rootshell client over the executable recorded when they were attached.
+    public var launchExecutable: String {
+        let preferred = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+            .appendingPathComponent(LoginShellCommand.herdrDirectoryRelativeToHome)
+            .appendingPathComponent("herdr").path
+        return kind == "herdr" && FileManager.default.isExecutableFile(atPath: preferred)
+            ? preferred : executable
+    }
+
     public func command(arguments: [String]) -> String {
         let cleared = ["TMUX", "TMUX_PANE", "ZELLIJ", "ZELLIJ_SESSION_NAME", "HERDR_ENV", "ZMX_SESSION", "ZMX_SESSION_PREFIX"]
         return (["/usr/bin/env"] + cleared.flatMap { ["-u", $0] }
             + launchEnvironment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
-            + [executable] + arguments).map(Self.quote).joined(separator: " ")
+            + [launchExecutable] + arguments).map(Self.quote).joined(separator: " ")
     }
 }
 

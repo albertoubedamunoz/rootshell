@@ -138,6 +138,9 @@ struct MainView: View {
     @State var pendingTmuxCloseTabID: UUID?
     /// "Ask Each Time" close of a herdr control-mode tab.
     @State var pendingHerdrCloseTabID: UUID?
+    /// User-requested pane close awaiting confirmation. The UUID preserves the
+    /// original target if focus or tab selection changes while the dialog is up.
+    @State var pendingClosePaneID: UUID?
     @State var pendingNewTabRequest: NewTabRequest?
     /// Transient post-detach / already-attached banner.
     @State var muxDetachBanner: MuxDetachBannerState?
@@ -190,6 +193,7 @@ struct MainView: View {
     /// sidebar. Enabled by default so the content area reads as one canvas.
     @Setting(Settings.Shaders.effectIncludesPinnedSidebar)
     var backgroundEffectIncludesPinnedSidebar
+    @Setting(Settings.Shaders.sidebarEffectId) var backgroundSidebarEffectID
 
     // SSH settings
     @Setting(Settings.Connections.healthMonitoring) var sshHealthMonitoringEnabled
@@ -287,6 +291,23 @@ struct MainView: View {
     // Theme picker overlay state
     @State var showThemePickerOverlay = false
     @State var showQuickSettingsOverlay = false
+    @State var showKeyboardChooser = false
+    @State var connectionSheetAwaitsKeyboardChooser = false
+    /// Open in Folder palette; the target is captured when it opens.
+    @State var showOpenInFolderOverlay = false
+    @State var openInFolderModel: OpenInFolderModel?
+    /// A split / new-tab chord caught by the menu rail while the palette is up.
+    @State var openInFolderShortcut: OpenInFolderShortcut?
+
+    // File manager: the model is created on first open and kept while hidden.
+    @State var showFileManager = false
+    @State var fileManagerModel: FileManagerModel?
+    @State var fileManagerPresentation: FileManagerPresentation = SettingsStore.shared.value(Settings.Transfer.fileManagerPresentation)
+    /// Live width during a drag; persisted only on commit, like the AI sidebar's.
+    @State var fileManagerSidebarWidth: CGFloat = CGFloat(SettingsStore.shared.value(Settings.Transfer.fileManagerSidebarWidth))
+    @State var fileManagerSidebarIsDragging = false
+    /// A Files-tab choice waiting for the connection sheet to finish dismissing.
+    @State var pendingFileManagerOpen: (endpoint: FileEndpoint, presentation: FileManagerPresentation?)?
 
     // Clipboard manager overlay state
     @State var showClipboardManager = false
@@ -648,7 +669,7 @@ struct MainView: View {
                     // (pinned) tab sidebar consumes the leading edge and the
                     // AI agent sidebar the trailing edge.
                     .padding(.leading, dockedTabSidebarWidth(windowWidth: geometry.size.width))
-                    .padding(.trailing, aiAgentSidebarCurrentWidth())
+                    .padding(.trailing, aiAgentSidebarCurrentWidth() + fileManagerSidebarCurrentWidth)
                     .transition(.opacity)
                 }
             }
@@ -689,11 +710,28 @@ struct MainView: View {
         // catches in the 52 0x8BADF00D crash IPS files (varying frames; same
         // root cause: MainView.body is too expensive).
         let sheetTheme = resolvedSheetTheme()
-        let sheetContent = applySheetModifiers(sceneContent, sheetTheme: sheetTheme)
+        let sheetContent = applyKeyboardChooser(
+            applySheetModifiers(sceneContent, sheetTheme: sheetTheme), sheetTheme: sheetTheme)
         let overlayContent = applyOverlayChangeHandlers(sheetContent)
         let alertContent = applyAlertModifiers(overlayContent)
         return applyLifecycleHandlers(alertContent)
             .iPadVisor(ghosttyApp: ghosttyApp, windowID: windowId, modalPresented: isAnySheetPresented)
+            .focusedSceneValue(\.canChoosePaneToZoom, canChooseSelectedPaneToZoom)
+            .focusedSceneValue(\.canChoosePaneToSwap,
+                               canChooseSelectedPaneToZoom && terminals[selectedTabIndex].isTmuxWindow)
+    }
+
+    private var canChooseSelectedPaneToZoom: Bool {
+        guard !isAnySheetPresented, terminals.indices.contains(selectedTabIndex) else { return false }
+        let tab = terminals[selectedTabIndex]
+        guard !tab.paneMove.isPending, tab.splitTree.count > 1 else { return false }
+        if tab.isTmuxWindow {
+            return TmuxController.controller(forWindowTab: tab)?.isActive == true
+        }
+        if let tabID = tab.herdrTabId {
+            return HerdrController.controller(forTab: tab)?.canChoosePaneToZoom(tabID: tabID) == true
+        }
+        return false
     }
 
 }

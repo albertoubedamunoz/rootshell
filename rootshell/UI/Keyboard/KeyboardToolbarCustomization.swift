@@ -77,6 +77,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
     case aiAgent
     case brightnessBoost
     case clipboardManager
+    case fileManager
 
     // Toggles (1)
     case drawerToggle
@@ -139,6 +140,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .aiAgent: return String(localized: "AI Agent")
         case .brightnessBoost: return String(localized: "Brightness Boost")
         case .clipboardManager: return String(localized: "Clipboard Manager")
+        case .fileManager: return String(localized: "File Manager")
         case .drawerToggle: return String(localized: "Drawer Toggle")
         }
     }
@@ -172,6 +174,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .aiAgent: return "sparkles"
         case .brightnessBoost: return "sun.max"
         case .clipboardManager: return "list.clipboard"
+        case .fileManager: return "folder.badge.gearshape"
         case .drawerToggle: return "ellipsis"
         default: return nil
         }
@@ -234,6 +237,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .aiAgent: return "__aiAgent__"
         case .brightnessBoost: return "__brightnessBoost__"
         case .clipboardManager: return "__clipboardManager__"
+        case .fileManager: return "__fileManager__"
         case .drawerToggle: return "__extraDrawer__"
         }
     }
@@ -267,6 +271,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .aiAgent: return .aiAgent
         case .brightnessBoost: return .brightnessBoost
         case .clipboardManager: return .clipboardManager
+        case .fileManager: return .fileManager
         case .drawerToggle: return .extraKeysDrawerToggle
         default:
             // All symbol keys use single-text display
@@ -290,7 +295,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .arrowDrawerToggle, .arrowUp, .arrowDown, .arrowLeft, .arrowRight: return .navigation
         case .dismiss, .tabSwitcher, .compose, .writingAssistance, .toolbarSettings, .paste, .voiceAgent,
              .toggleFullScreen, .toggleTabBar, .newConnection, .appSettings,
-             .toggleMouseCapture, .aiAgent, .brightnessBoost, .clipboardManager: return .action
+             .toggleMouseCapture, .aiAgent, .brightnessBoost, .clipboardManager, .fileManager: return .action
         case .drawerToggle: return .toggle
         default: return .symbol
         }
@@ -349,7 +354,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
 
     // MARK: - Defaults
 
-    static let currentVersion = 14
+    static let currentVersion = 15
 
     static func defaultConfig(for idiom: UIUserInterfaceIdiom) -> ToolbarLayoutConfig {
         switch idiom {
@@ -415,6 +420,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.aiAgent),
             .builtIn(.brightnessBoost),
             .builtIn(.clipboardManager),
+            .builtIn(.fileManager),
             .builtIn(.appSettings),
         ]],
         hiddenKeys: []
@@ -467,6 +473,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.aiAgent),
             .builtIn(.brightnessBoost),
             .builtIn(.clipboardManager),
+            .builtIn(.fileManager),
             .builtIn(.appSettings),
         ]],
         hiddenKeys: []

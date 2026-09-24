@@ -869,7 +869,5 @@ private struct CloudInstanceHostRow: View {
 }
 
 #Preview {
-    SSHHostBrowseSheet { selection in
-        print("Selected: \(selection.hostname)")
-    }
+    SSHHostBrowseSheet { _ in }
 }

@@ -281,6 +281,8 @@ private extension UIColor {
 struct FirefliesView: View {
     let effect: FirefliesEffect
 
+    @Environment(\.terminalEffectRetainsState) private var retainsState
+    @State private var hasInitialized = false
     @State private var fireflies: [Firefly] = []
     @State private var startTime = Date.now
     @State private var viewSize: CGSize = .zero
@@ -310,7 +312,10 @@ struct FirefliesView: View {
             }
             .onAppear {
                 viewSize = geometry.size
-                initializeFireflies(in: geometry.size)
+                if !retainsState || !hasInitialized {
+                    initializeFireflies(in: geometry.size)
+                    hasInitialized = true
+                }
             }
             .onChange(of: geometry.size) { _, newSize in
                 viewSize = newSize

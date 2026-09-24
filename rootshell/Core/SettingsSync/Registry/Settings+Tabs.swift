@@ -32,6 +32,7 @@ extension SplitFocusBorderStyle: SettingValue {}
 extension SplitFocusBorderColor: SettingValue {}
 extension PowerManager.RefreshRateSetting: SettingValue {}
 extension PowerManager.BatteryRefreshRate: SettingValue {}
+extension OpenInFolderPlacement: SettingValue {}
 
 nonisolated extension Settings {
     enum Tabs {
@@ -79,11 +80,21 @@ nonisolated extension Settings {
             "tabHoverPreviewZoom", default: 1.0, group: .tabs, policy: .localByDefault,
             configKey: "tab-hover-preview-zoom",
             title: String(localized: "Tab Hover Preview Size", comment: "Setting title"))
+        /// Open in Folder history, a JSON blob of folders per target.
+        static let openInFolderRecents = SettingKey<Data?>(
+            "openInFolder.recents", default: nil, group: .tabs, policy: .localByDefault,
+            title: String(localized: "Open in Folder Recents", comment: "Setting title"))
+        /// Last placement chosen in the Open in Folder palette.
+        static let openInFolderPlacement = SettingKey(
+            "openInFolder.placement", default: OpenInFolderPlacement.newTab, group: .tabs, policy: .localByDefault,
+            configKey: "open-in-folder-placement",
+            title: String(localized: "Open in Folder Placement", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             newTabAction.erased, barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
             showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
             hoverPreviews.erased, hoverPreviewActivation.erased, hoverPreviewZoom.erased,
+            openInFolderRecents.erased, openInFolderPlacement.erased,
         ]
     }
 
@@ -135,6 +146,9 @@ nonisolated extension Settings {
             "fullScreenModeEnabled", default: false, group: .window, policy: .localByDefault,
             configKey: "full-screen-mode-enabled",
             title: String(localized: "Full Screen Mode", comment: "Setting title"))
+        static let fullScreenLaunchNoticeDismissed = SettingKey(
+            "fullScreenLaunchNoticeDismissed", default: false, group: .window, policy: .deviceOnly,
+            title: String(localized: "Full Screen Reminder Dismissed", comment: "Setting title"))
         static let extendUnderHomeIndicator = SettingKey(
             "extendUnderHomeIndicator", default: false, group: .window, policy: .localByDefault,
             configKey: "extend-under-home-indicator",
@@ -151,6 +165,10 @@ nonisolated extension Settings {
             "splitFocusBorderCustomColor", default: "007AFF", group: .window,
             configKey: "split-focus-border-custom-color",
             title: String(localized: "Split Border Custom Color", comment: "Setting title"))
+        static let confirmBeforeClosingPane = SettingKey(
+            "confirmBeforeClosingPane", default: false, group: .window,
+            configKey: "confirm-before-closing-pane",
+            title: String(localized: "Confirm Before Closing Pane", comment: "Setting title"))
         static let lastWidth = SettingKey(
             "lastWindowWidth", default: 0.0, group: .window, policy: .deviceOnly,
             title: String(localized: "Last Window Width", comment: "Setting title"))
@@ -171,8 +189,10 @@ nonisolated extension Settings {
             title: String(localized: "Titlebar Leading Inset", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
-            hideTitleBar.erased, tabsInTitlebar.erased, fullScreenMode.erased, extendUnderHomeIndicator.erased,
+            hideTitleBar.erased, tabsInTitlebar.erased, fullScreenMode.erased,
+            fullScreenLaunchNoticeDismissed.erased, extendUnderHomeIndicator.erased,
             splitFocusBorderStyle.erased, splitFocusBorderColor.erased, splitFocusBorderCustomColor.erased,
+            confirmBeforeClosingPane.erased,
             lastWidth.erased, lastHeight.erased, lastOriginX.erased, lastOriginY.erased, lastHasOrigin.erased,
             titlebarLeadingInset.erased,
         ]

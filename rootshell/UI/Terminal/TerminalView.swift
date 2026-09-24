@@ -91,24 +91,9 @@ extension Ghostty {
             "`": 0,    // NUL
         ]
 
-        /// US keyboard layout shift mappings for digits and symbols.
-        /// Letters are handled separately via `.uppercased()`.
-        static let usShiftMap: [Character: Character] = [
-            "1": "!", "2": "@", "3": "#", "4": "$", "5": "%",
-            "6": "^", "7": "&", "8": "*", "9": "(", "0": ")",
-            "-": "_", "=": "+",
-            "[": "{", "]": "}",
-            "\\": "|",
-            ";": ":", "'": "\"",
-            ",": "<", ".": ">", "/": "?",
-            "`": "~",
-        ]
-
-        /// Returns the shifted version of a character using US keyboard layout.
+        /// Returns the shifted version of a character using the shared fallback.
         static func shiftedCharacter(_ char: Character) -> Character {
-            if char.isLetter { return char.uppercased().first ?? char }
-            if let shifted = usShiftMap[char] { return shifted }
-            return char
+            HardwareKeyboardText.shiftedCharacter(char)
         }
 
         /// Maps characters to HID usages for routing virtual keyboard
@@ -213,7 +198,11 @@ extension Ghostty {
         /// responder claimer funnels through `becomeFirstResponder()`, which
         /// honors this flag at fire time, so stale retries from a prior toggle
         /// cycle can never land first responder in the wrong place.
-        private var overlayOwnsKeyboard: Bool = false
+        private var sceneOverlayOwnsKeyboard = false
+        private weak var paneZoomKeyboardOwner: AnyObject?
+        private var overlayOwnsKeyboard: Bool {
+            sceneOverlayOwnsKeyboard || paneZoomKeyboardOwner != nil
+        }
 
         /// Pre-resign snapshot of `reservedKeyboardToolbarHeightAtBottom`,
         /// held while an overlay owns the keyboard. The live computation
@@ -630,7 +619,8 @@ extension Ghostty {
             set { keyboardAccessoryController?.shouldShowKeyboardToolbar = newValue }
         }
         var activeKeyboardModifiers: KeyModifiers {
-            get { keyboardAccessoryController?.activeKeyboardModifiers ?? [] }
+            // Resolved touch text must not acquire modifiers pressed after its contact began.
+            get { touchKeyboardInputDepth > 0 ? [] : (keyboardAccessoryController?.activeKeyboardModifiers ?? []) }
             set { keyboardAccessoryController?.activeKeyboardModifiers = newValue }
         }
 
@@ -643,6 +633,9 @@ extension Ghostty {
         override var keyboardAccessoryFrameInScreen: CGRect? {
             guard reservesKeyboardToolbarAtBottom else { return nil }
             return keyboardAccessoryController?.keyboardAccessoryFrameInScreen
+        }
+        override var dockedTouchKeyboardFrameInScreen: CGRect? {
+            keyboardAccessoryController?.dockedTouchKeyboardFrameInScreen
         }
         override var reservedKeyboardToolbarHeightAtBottom: CGFloat {
             // Hold the pre-resign reserve while an overlay owns the keyboard so
@@ -701,9 +694,9 @@ extension Ghostty {
         /// Prevents showing on first responder gain, tab creation, or app launch.
         private var inputModeChangeCount: Int = 0
 
-        // MARK: Mouse Capture Override Overlay
-        private var mouseCaptureOverlayHost: UIHostingController<InputModeOverlayView>?
-        private var mouseCaptureOverlayDismissTask: Task<Void, Never>?
+        // MARK: Mouse Interaction Overlay
+        private var mouseInteractionOverlayHost: UIHostingController<InputModeOverlayView>?
+        private var mouseInteractionOverlayDismissTask: Task<Void, Never>?
         #endif
 
         /// Timestamp of last space insertion for double-space-for-period detection
@@ -1122,6 +1115,12 @@ extension Ghostty {
         var selectionLoupe: SelectionLoupe?
         /// Last touch point used to position and refresh the magnifier.
         var selectionMagnifierPoint: CGPoint?
+        /// The original hold owns the click; the loupe's second finger never moves it.
+        weak var loupeLongPressGesture: UILongPressGestureRecognizer?
+        enum LoupeSecondaryClick {
+            case mouse, contextMenu, cancelled
+        }
+        var loupeSecondaryClick: LoupeSecondaryClick?
         /// Last cell position during drag (for haptic on cell boundary crossing)
         var lastDragCell: (col: Int, row: Int)?
         #if !os(visionOS)
@@ -1279,6 +1278,8 @@ extension Ghostty {
         /// Tracks what iOS thinks the editable text contains, so UITextInput
         /// position/range queries return correct values during dictation.
         var correctionContext = TerminalCorrectionContext()
+        var touchPredictionContext = TerminalTouchKeyboardModel.PredictionContext()
+        var touchKeyboardInputDepth = 0
         // UIKit may select a committed word before inserting its completion.
         // This is a local selection, never a remote cursor movement.
         var writingAssistanceSelection: TerminalTextRange?
@@ -1409,8 +1410,13 @@ extension Ghostty {
             // surface's io.terminal is only a relay placeholder. Query the full
             // displayed-terminal scrollbar so total and offset come from the
             // same pane state.
-            if tmuxPaneBinding != nil, let surface = surface {
+            if tmuxPaneBinding != nil {
+                // Without the viewer surface there is no displayed sample;
+                // the cached relay scrollbar is not a substitute.
+                guard let surface else { return nil }
                 var scrollbar = ghostty_action_scrollbar_s()
+                // This blocking query also returns false for valid empty
+                // history (total <= len), not just a missing primary screen.
                 guard ghostty_surface_display_scrollbar(surface, &scrollbar) else { return nil }
                 return Ghostty.Action.Scrollbar(
                     total: scrollbar.total,
@@ -1650,6 +1656,11 @@ extension Ghostty {
             // teardown semantics (resumable Trzsz/Mosh keep the server session
             // alive for .sceneTeardown; .userClose / .muxDetach terminate)
             // live on the owning controller now. See TerminalSessionController.teardown.
+            #if !targetEnvironment(macCatalyst)
+            hideSelectionMagnifier(animated: false)
+            loupeSecondaryClick = nil
+            loupeLongPressGesture = nil
+            #endif
             sessionController.teardown(reason: reason)
 
             // 3. Cancel async tasks and timers
@@ -1685,6 +1696,10 @@ extension Ghostty {
 
             inputModeDismissTask?.cancel()
             inputModeDismissTask = nil
+            mouseInteractionOverlayDismissTask?.cancel()
+            mouseInteractionOverlayDismissTask = nil
+            mouseInteractionOverlayHost?.view.removeFromSuperview()
+            mouseInteractionOverlayHost = nil
             if let obs = inputModeObserver {
                 NotificationCenter.default.removeObserver(obs)
                 inputModeObserver = nil
@@ -2319,11 +2334,6 @@ extension Ghostty {
             modTapInterceptor.onModifierChanged = { [weak self] modifier in
                 self?.virtualModTapModifier = modifier
             }
-            modTapInterceptor.onReplayKeyWithModifier = { [weak self] press, modifier in
-                guard let self else { return }
-                self.virtualModTapModifier = modifier
-                self.processKeyPress(press, virtualModifier: modifier)
-            }
             modTapInterceptor.onSourceKeyResolved = { [weak self] rule, isHold in
                 if rule.sourceKey == .capsLock && !isHold && rule.tapAction == .none {
                     self?.userWantsCapsLock.toggle()
@@ -2403,8 +2413,29 @@ extension Ghostty {
         /// takes over); dropping it reconciles first responder back to this
         /// terminal when it is the logically focused one.
         override func setOverlayOwnsKeyboard(_ owns: Bool) {
-            guard overlayOwnsKeyboard != owns else { return }
-            overlayOwnsKeyboard = owns
+            let wasOwned = overlayOwnsKeyboard
+            sceneOverlayOwnsKeyboard = owns
+            updateOverlayKeyboardOwnership(wasOwned: wasOwned)
+        }
+
+        /// Independent of MainView's sheet gate: a sheet opening or a herdr
+        /// focus reconcile must not clear the picker's keyboard claim.
+        func captureKeyboardForPaneZoom(owner: AnyObject) {
+            let wasOwned = overlayOwnsKeyboard
+            paneZoomKeyboardOwner = owner
+            updateOverlayKeyboardOwnership(wasOwned: wasOwned)
+        }
+
+        func releaseKeyboardForPaneZoom(owner: AnyObject, restoreFocus: Bool) {
+            guard paneZoomKeyboardOwner === owner else { return }
+            let wasOwned = overlayOwnsKeyboard
+            paneZoomKeyboardOwner = nil
+            updateOverlayKeyboardOwnership(wasOwned: wasOwned, restoreFocus: restoreFocus)
+        }
+
+        private func updateOverlayKeyboardOwnership(wasOwned: Bool, restoreFocus: Bool = true) {
+            let owns = overlayOwnsKeyboard
+            guard wasOwned != owns else { return }
             Ghostty.logger.info("setOverlayOwnsKeyboard(\(owns)) terminal=\(self.uuid.uuidString.prefix(8)) isFR=\(self.isFirstResponder) logical=\(self.isLogicallyFocused)")
             if owns {
                 if isFirstResponder {
@@ -2416,7 +2447,7 @@ extension Ghostty {
                         keyboardAccessoryController?.reservedKeyboardToolbarHeightAtBottom ?? 0
                     _ = resignFirstResponder()
                 }
-            } else {
+            } else if restoreFocus {
                 // Defer one runloop so the overlay's dismiss update fully
                 // settles first: the search field resigns (endEditing) and its
                 // @FocusState binding goes false. Claiming synchronously here
@@ -2428,6 +2459,8 @@ extension Ghostty {
                 DispatchQueue.main.async { [weak self] in
                     self?.reconcileFirstResponderAfterOverlayRelease(attempt: 0)
                 }
+            } else {
+                clearOverlayLatchedToolbarReserve()
             }
         }
 
@@ -3072,8 +3105,17 @@ extension Ghostty {
             // shell wedges at whatever dim was last seen pre-background and
             // helix / cursor render is corrupt until the user manually
             // triggers a real resize.
+            // A size the IO thread already applied queues no resize and so
+            // no pty_resize action; resend a window change dropped while
+            // backgrounded. Decided before set_size, which updates the
+            // requested size at once. A changed size arrives through the action.
+            let applied = surfaceController.surfaceHasAppliedFramebuffer(
+                for: bounds.size, scale: contentScaleFactor)
             surfaceController.invalidateCachedSize()
             sizeDidChange(bounds.size)
+            if applied {
+                updatePTYSize()
+            }
             // The host may have grown while this pane remained clamped to
             // herdr's old grid, so no PTY grid callback will report it.
             if isHerdrPane { noteHerdrHostLayout() }
@@ -3329,7 +3371,7 @@ extension Ghostty {
             guard newLang != lastInputModePrimaryLanguage else { return }
             if newLang == "emoji" || lastInputModePrimaryLanguage == "emoji" {
                 resetKeyboardInteractionState(sendSyntheticKeyReleases: true)
-                keyboardAccessory?.toolbarView.clearOneShotModifiers()
+                keyboardAccessoryController?.clearOneShotModifiers()
             }
             lastInputModePrimaryLanguage = newLang
 
@@ -3400,52 +3442,58 @@ extension Ghostty {
             })
         }
 
-        // MARK: - Mouse Capture Override Overlay
+        // MARK: - Mouse Interaction Overlay
 
         private func showMouseCaptureOverlay() {
             let text = mouseCaptureOverrideActive
                 ? String(localized: "Mouse Capture Off")
                 : String(localized: "Mouse Capture On")
+            showMouseInteractionOverlay(text: text)
+        }
 
-            mouseCaptureOverlayDismissTask?.cancel()
+        /// Feedback belongs to the terminal, so releasing the original hold and
+        /// dismissing its loupe cannot remove the confirmation prematurely.
+        func showMouseInteractionOverlay(text: String) {
+            mouseInteractionOverlayDismissTask?.cancel()
 
-            if let host = mouseCaptureOverlayHost {
+            if let host = mouseInteractionOverlayHost {
                 host.rootView = InputModeOverlayView(text: text)
                 host.view.layer.removeAllAnimations()
                 host.view.alpha = 1.0
+                bringSubviewToFront(host.view)
             } else {
                 let host = UIHostingController(rootView: InputModeOverlayView(text: text))
                 host.sizingOptions = [.intrinsicContentSize]
                 host.view.backgroundColor = .clear
                 host.view.translatesAutoresizingMaskIntoConstraints = false
+                host.view.isUserInteractionEnabled = false
 
                 addSubview(host.view)
                 NSLayoutConstraint.activate([
                     host.view.centerXAnchor.constraint(equalTo: centerXAnchor),
                     host.view.centerYAnchor.constraint(equalTo: centerYAnchor),
                 ])
-                mouseCaptureOverlayHost = host
-
-                host.view.alpha = 0
-                UIView.animate(withDuration: 0.15, delay: 0, options: .curveEaseOut) {
-                    host.view.alpha = 1.0
-                }
+                mouseInteractionOverlayHost = host
             }
 
-            mouseCaptureOverlayDismissTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            // Start the fade only after a full visible interval, rather than
+            // immediately animating alpha back to zero with an animation delay.
+            mouseInteractionOverlayDismissTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
                 guard !Task.isCancelled, let self else { return }
-                self.hideMouseCaptureOverlay()
+                self.hideMouseInteractionOverlay()
             }
         }
 
-        private func hideMouseCaptureOverlay() {
-            guard let host = mouseCaptureOverlayHost else { return }
+        private func hideMouseInteractionOverlay() {
+            guard let host = mouseInteractionOverlayHost else { return }
+            // A new confirmation during this fade gets its own host; this
+            // completion must never remove or clear a newer confirmation.
+            mouseInteractionOverlayHost = nil
             UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseIn, animations: {
                 host.view.alpha = 0
-            }, completion: { [weak self] _ in
+            }, completion: { _ in
                 host.view.removeFromSuperview()
-                self?.mouseCaptureOverlayHost = nil
             })
         }
         #endif
@@ -3479,6 +3527,8 @@ extension Ghostty {
             super.didMoveToWindow()
 
             if window == nil {
+                keyboardAccessoryController?.dismissFloatingTouchKeyboard()
+                keyboardAccessoryController?.releaseTouchKeyboardState()
                 Ghostty.logger.warning("didMoveToWindow called but window is nil!")
                 unregisterWindowFocusObservers()
                 applyGhosttyFocus(false)
@@ -3698,6 +3748,7 @@ extension Ghostty {
             // Apply the window's hide intent before acquiring first responder
             // so inputView already returns the toolbar/empty view and the
             // keyboard never flashes on tab switch or overlay dismissal.
+            keyboardAccessoryController?.activateTouchKeyboardState()
             keyboardAccessoryController?.reconcileWithHideIntent()
 
             // Tmux focus reconciliation may reassert focus on the current
@@ -3720,6 +3771,7 @@ extension Ghostty {
                 // ROOTSHELL-TMUX (id=tmux-focus-stale-flag)
                 shouldBecomeFirstResponderWhenReady = false
                 clearInputAssistantsRecursively()
+                keyboardAccessoryController?.scheduleFloatingTouchKeyboardUpdate()
                 EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
             }
 
@@ -3736,6 +3788,7 @@ extension Ghostty {
                 // window rather than the one actually receiving keystrokes.
                 installSequenceTrackerTimeoutHandler()
             } else if !result {
+                keyboardAccessoryController?.abandonTouchKeyboardActivation()
                 Ghostty.logger.info("becomeFirstResponder() FAILED on terminal \(self.uuid.uuidString.prefix(8)) - not setting Ghostty focus")
             }
 
@@ -3768,8 +3821,13 @@ extension Ghostty {
                 keyboardToolbarCollapsed = false
             }
             Ghostty.logger.info("resignFirstResponder() called on terminal \(self.uuid.uuidString.prefix(8))")
+            keyboardAccessoryController?.cancelTouchKeyboardInteraction()
             let result = super.resignFirstResponder()
             if result {
+                // Ownership ends only on a real focus loss. An incoming
+                // terminal has usually claimed the keyboard already, in which
+                // case this is a no-op and its floating card survives.
+                keyboardAccessoryController?.releaseTouchKeyboardState()
                 EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
                 #if targetEnvironment(macCatalyst)
                 CatalystAppDelegate.noteContinuityPasteboardTargetResigned(self)
@@ -3799,6 +3857,10 @@ extension Ghostty {
 #if !os(visionOS)
         override var inputAccessoryView: UIView? {
             return keyboardAccessoryController.inputAccessoryView
+        }
+
+        override var inputViewController: UIInputViewController? {
+            keyboardAccessoryController.inputViewController
         }
 
         override var inputView: UIView? {
@@ -3976,6 +4038,8 @@ extension Ghostty {
         }
         #endif
         
+        func resetDoubleSpaceTracking() { lastSpaceInsertTime = nil }
+
         func insertText(_ text: String) {
             // Software-keyboard and input-method text arrives here, not through
             // `pressesBegan`, and the terminal is not a UITextField, so this is
@@ -4017,6 +4081,16 @@ extension Ghostty {
                 didHandleOptionKey = false
                 return
             }
+            #if targetEnvironment(macCatalyst)
+            // Native text repeat can have a different cadence from our timer.
+            // A held control-action binding owns every delivery, even when
+            // Option normally composes characters instead of acting as Alt.
+            if heldOptionSide != .none, text.count == 1,
+               TerminalCorrectionContext.isPrintable(text),
+               !inputController.controlCharacterPresses.isEmpty {
+                return
+            }
+            #endif
 
             // If processKeyPress already handled a session picker digit key, skip insertText.
             if didHandleSessionPickerKey {
@@ -4139,7 +4213,7 @@ extension Ghostty {
                     guard let self else { return }
                     self.notifyInputDelegateOfExternalChange { /* buffer already reset */ }
                 }
-                activeToolbarView?.clearOneShotModifiers()
+                keyboardAccessoryController?.clearOneShotModifiers()
                 return
             }
 
@@ -4168,7 +4242,7 @@ extension Ghostty {
                    let localSession = session as? LocalShellSession,
                    !localSession.hasActiveEmbeddedSession {
                     localSession.interrupt()
-                    activeToolbarView?.clearOneShotModifiers()
+                    keyboardAccessoryController?.clearOneShotModifiers()
                     return
                 }
                 #endif
@@ -4176,7 +4250,7 @@ extension Ghostty {
                 // Try routing through Ghostty's key encoder first
                 if text.count == 1, let char = text.first,
                    sendViaGhosttyKeyEvent(char, modifiers: activeKeyboardModifiers) {
-                    activeToolbarView?.clearOneShotModifiers()
+                    keyboardAccessoryController?.clearOneShotModifiers()
                     return
                 }
 
@@ -4215,7 +4289,7 @@ extension Ghostty {
                 }
 
                 // Clear one-shot modifiers after applying (locked modifiers persist)
-                activeToolbarView?.clearOneShotModifiers()
+                keyboardAccessoryController?.clearOneShotModifiers()
             }
 
             // Apply active mod-tap virtual modifier when input is routed through UITextInput.
@@ -4302,14 +4376,13 @@ extension Ghostty {
             sendUserInput(data, documentMutation: .backspace(eligible: assistanceEligible))
 
             // Clear one-shot modifiers (backspace consumes them too)
-            activeToolbarView?.clearOneShotModifiers()
+            keyboardAccessoryController?.clearOneShotModifiers()
         }
         
-        func handleSpecialKey(_ key: UIKey) -> String? {
-            let modifiers = key.modifierFlags
+        func handleSpecialKey(_ key: UIKey, characters: String, modifiers: UIKeyModifierFlags) -> String? {
             // Sentinel characters are a key name; the keyCode branches below
             // still resolve the real key.
-            let characters = KeyCode.isUIKeyInputSentinel(key.characters) ? "" : key.characters
+            let characters = KeyCode.isUIKeyInputSentinel(characters) ? "" : characters
 
             // Check for Tab with Shift modifier FIRST (before control character check)
             // iOS converts Shift+Tab to control character 0x19, but we need to catch it as Tab
@@ -4413,7 +4486,10 @@ extension Ghostty {
         /// Updates the PTY/SSH session with the current terminal grid size
         /// Note: Only needed for external I/O mode (SSH, iOS local shell)
         /// In Catalyst PTY mode, Ghostty manages window size internally
-        func updatePTYSize() {
+        /// `applied` is the grid the IO thread just resized to (pty_resize
+        /// action). Without it the surface's requested size is used, which a
+        /// queued resize may not have reached yet.
+        func updatePTYSize(applied: (rows: UInt16, cols: UInt16, widthPx: UInt16, heightPx: UInt16)? = nil) {
             guard let surfaceSize = surfaceSize else {
                 if Self.logFrequentLayout {
                     Ghostty.logger.debug("   surfaceSize is nil, cannot update PTY size")
@@ -4468,7 +4544,8 @@ extension Ghostty {
 
             // If the session instance changed (e.g., reconnect), resend size even if unchanged.
             let sessionID = ObjectIdentifier(session as AnyObject)
-            let gridSize = (rows: surfaceSize.rows, cols: surfaceSize.columns)
+            let gridSize = applied.map { (rows: $0.rows, cols: $0.cols) }
+                ?? (rows: surfaceSize.rows, cols: surfaceSize.columns)
             if !surfaceController.shouldSendPTYSize(for: sessionID, gridSize: gridSize) {
                 // Debug log for cursor position bug investigation
                 Ghostty.logger.debug("updatePTYSize: skipped (cache hit) \(gridSize.rows)x\(gridSize.cols)")
@@ -4499,10 +4576,10 @@ extension Ghostty {
             let size = bounds.size
 
             let ptySize = TerminalPTY.TerminalSize(
-                rows: surfaceSize.rows,
-                cols: surfaceSize.columns,
-                pixelWidth: UInt16(size.width * scale),
-                pixelHeight: UInt16(size.height * scale)
+                rows: gridSize.rows,
+                cols: gridSize.cols,
+                pixelWidth: applied?.widthPx ?? UInt16(size.width * scale),
+                pixelHeight: applied?.heightPx ?? UInt16(size.height * scale)
             )
             do {
                 invalidateWritingAssistance()
@@ -4804,7 +4881,6 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
                 if self.userOverrideTitle == nil {
                     self.title = title
                 }
-                Ghostty.logger.debug("Title changed: \(title)")
             }
         }
     }
@@ -4925,6 +5001,15 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         }
     }
     
+    func handlePTYResize(rows: Int, cols: Int, widthPx: Int, heightPx: Int) {
+        let grid = (rows: UInt16(clamping: rows), cols: UInt16(clamping: cols))
+        updatePTYSize(applied: (
+            rows: grid.rows, cols: grid.cols,
+            widthPx: UInt16(clamping: widthPx), heightPx: UInt16(clamping: heightPx)))
+        // Releases the layout-deferred replay once its own grid is applied.
+        surfaceController.notePtyResizeApplied(rows: grid.rows, cols: grid.cols)
+    }
+
     func handleCellSizeChange(width: CGFloat, height: CGFloat) {
         let metricsChanged = cellSize != CGSize(width: width, height: height)
         self.cellSize = CGSize(width: width, height: height)

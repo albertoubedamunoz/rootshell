@@ -134,7 +134,7 @@ enum LocalMultiplexerRecovery {
     }
 
     static func hasOriginalServer(_ attachment: LocalMultiplexerAttachment, records: [Record]) -> Bool {
-        guard attachment.isValid, FileManager.default.isExecutableFile(atPath: attachment.executable),
+        guard attachment.isValid, FileManager.default.isExecutableFile(atPath: attachment.launchExecutable),
               let socket = socketIdentity(attachment.socketPath),
               socket.device == attachment.socketDevice, socket.inode == attachment.socketInode,
               records.contains(where: {
@@ -168,7 +168,7 @@ enum LocalMultiplexerRecovery {
         guard target.isValid else { return nil }
         let output: String?
         if let attachment = target.attachment {
-            output = cache.run(attachment.executable, ["status", "--json"],
+            output = cache.run(attachment.launchExecutable, ["status", "--json"],
                                environment: attachment.launchEnvironment, deadline: deadline)
         } else {
             output = cache.run("/bin/zsh", ["-lc", "exec " + target.statusCommand], environment: [:], deadline: deadline)
@@ -218,13 +218,13 @@ enum LocalMultiplexerRecovery {
             return output.split(separator: "\n").contains(Substring(attachment.sessionName))
         case "herdr":
             if attachment.isHerdrControl {
-                guard let output = cache.run(attachment.executable, ["status", "--json"],
+                guard let output = cache.run(attachment.launchExecutable, ["status", "--json"],
                                             environment: attachment.launchEnvironment, deadline: deadline),
                       let status = HerdrStatus.parse(output) else { return false }
                 return status.server.running && canonical(status.server.socket) == canonical(attachment.socketPath)
                     && (status.server.session ?? status.client.session ?? "default") == attachment.sessionName
             }
-            guard let output = cache.run(attachment.executable, ["session", "list", "--json"], environment: attachment.launchEnvironment, deadline: deadline),
+            guard let output = cache.run(attachment.launchExecutable, ["session", "list", "--json"], environment: attachment.launchEnvironment, deadline: deadline),
                   let data = output.data(using: .utf8), let json = try? JSONSerialization.jsonObject(with: data) else { return false }
             let rows = (json as? [[String: Any]]) ?? ((json as? [String: Any])?["sessions"] as? [[String: Any]]) ?? []
             guard let apiSocket = attachment.launchEnvironment["HERDR_SOCKET_PATH"] else { return false }

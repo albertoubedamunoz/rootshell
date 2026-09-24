@@ -39,6 +39,9 @@ nonisolated extension Settings {
         static let resumeDebugLogging = SettingKey(
             "resumeDebugLoggingEnabled", default: false, group: .system, policy: .deviceOnly,
             title: String(localized: "Resume Debug Logging", comment: "Setting title"))
+        static let screenshotMode = SettingKey(
+            "screenshotModeEnabled", default: false, group: .system, policy: .deviceOnly,
+            title: String(localized: "Screenshot Mode", comment: "Setting title"))
         static let lifecycleDebugLogging = SettingKey(
             "lifecycleDebugLoggingEnabled", default: false, group: .system, policy: .deviceOnly,
             title: String(localized: "Lifecycle Debug Logging", comment: "Setting title"))
@@ -98,7 +101,7 @@ nonisolated extension Settings {
             cloudKitSyncEnabled.erased, cloudKitSyncHistory.erased, cloudKitSyncKnownHosts.erased,
             cloudKitSyncProfiles.erased, cloudKitSyncAppSettings.erased, cloudKitDeviceID.erased,
             cloudKitMigratedToCustomZone.erased, cloudKitZoneChangeToken.erased, cloudKitLastSyncDate,
-            resumeDebugLogging.erased, lifecycleDebugLogging.erased, lifecycleSyncRendererDrain.erased,
+            resumeDebugLogging.erased, screenshotMode.erased, lifecycleDebugLogging.erased, lifecycleSyncRendererDrain.erased,
             lifecycleVerboseWiFiPollLogging.erased, sshDebugLogging.erased, vncDebugLogging.erased,
             tmuxDebugLogging.erased, herdrForceFallback.erased, agentDetectionCapture.erased,
             ghosttyBookmarkNames, applePressAndHold.erased,

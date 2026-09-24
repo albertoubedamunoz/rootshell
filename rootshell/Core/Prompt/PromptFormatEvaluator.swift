@@ -385,7 +385,7 @@ struct PromptFormatEvaluator {
             if let fmt = config.time.timeFormat {
                 let formatter = DateFormatter()
                 formatter.dateFormat = fmt
-                return formatter.string(from: Date())
+                return formatter.string(from: PromptStyle.promptDate)
             }
             return PromptStyle.promptCurrentTime()
         default: return nil

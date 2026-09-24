@@ -18,9 +18,6 @@ enum SessionDiscoveryPlaceholder: Equatable {
     case failed
     /// Every multiplexer's discovery setting is off, so nothing was scanned.
     case disabled
-    /// The local shell is scannable but "Discover Local Sessions" is off. Distinct
-    /// from `disabled`: the per-multiplexer toggles may all be on.
-    case localDisabled
     /// This surface cannot be scanned at all (not SSH-backed, no local shell).
     case unsupported
 }
@@ -45,12 +42,13 @@ struct SessionPickerOverlay: View {
 
     @State private var showAttachConfirmation = false
     @State private var pendingSession: MultiplexerSession?
-    // List height excluding the selected preview, so growing that preview
-    // cannot feed back into its own available-space calculation.
+    // List height excluding the selected preview. Subtraction still introduces
+    // floating-point noise, so measurements must settle before updating state.
     @State private var listDetailsHeight: CGFloat?
     @State private var fixedHeaderHeight: CGFloat = 0
     @State private var fixedFooterHeight: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.displayScale) private var displayScale
 
     private var title: String {
         if sessionTypes.count == 1, let type = sessionTypes.first {
@@ -129,7 +127,11 @@ struct SessionPickerOverlay: View {
                         }
                         .fixedSize(horizontal: false, vertical: true)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                            fixedHeaderHeight = $0
+                            if let height = SessionPickerGeometry.updatedHeight(
+                                previous: fixedHeaderHeight, measured: $0, displayScale: displayScale
+                            ) {
+                                fixedHeaderHeight = height
+                            }
                         }
                     }
 
@@ -148,7 +150,11 @@ struct SessionPickerOverlay: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                        fixedFooterHeight = $0
+                        if let height = SessionPickerGeometry.updatedHeight(
+                            previous: fixedFooterHeight, measured: $0, displayScale: displayScale
+                        ) {
+                            fixedFooterHeight = height
+                        }
                     }
                 }
                 .frame(maxWidth: isNarrow ? .infinity : 540)
@@ -237,7 +243,11 @@ struct SessionPickerOverlay: View {
                     .onGeometryChange(for: CGFloat.self) {
                         max(0, $0.size.height - previewHeight)
                     } action: {
-                        listDetailsHeight = $0
+                        if let height = SessionPickerGeometry.updatedHeight(
+                            previous: listDetailsHeight, measured: $0, displayScale: displayScale
+                        ) {
+                            listDetailsHeight = height
+                        }
                     }
                 }
                 .scrollBounceBehavior(.basedOnSize)
@@ -325,7 +335,7 @@ struct SessionPickerOverlay: View {
     private var placeholderIcon: String {
         switch placeholder {
         case .failed: return "exclamationmark.triangle"
-        case .disabled, .localDisabled: return "slider.horizontal.3"
+        case .disabled: return "slider.horizontal.3"
         case .unsupported: return "minus.circle"
         default: return "magnifyingglass"
         }
@@ -334,7 +344,7 @@ struct SessionPickerOverlay: View {
     private var placeholderTitle: String {
         switch placeholder {
         case .failed: return String(localized: "Could not check for sessions")
-        case .disabled, .localDisabled: return String(localized: "Session discovery is off")
+        case .disabled: return String(localized: "Session discovery is off")
         case .unsupported: return String(localized: "This tab cannot be checked")
         default: return String(localized: "No sessions found")
         }
@@ -346,10 +356,6 @@ struct SessionPickerOverlay: View {
             return String(localized: "The host did not answer in time, or the connection could not be reused.")
         case .disabled:
             return String(localized: "Turn on discovery for tmux, zellij, herdr or zmx in Settings.")
-        case .localDisabled:
-            // Names the setting that actually gates this, which is not one of the
-            // per-multiplexer toggles. Interpolated so it tracks the Settings row.
-            return String(localized: "Turn on \(Settings.Multiplexer.localSessionDiscovery.title) in Settings.")
         case .unsupported:
             // The local shell is only a discovery surface on unsandboxed Catalyst,
             // where the helper can run the scan.
@@ -584,18 +590,8 @@ struct SessionPickerOverlay: View {
         return session.isAttached ? .orange : .green
     }
 
-    @ViewBuilder
     private func hintBadge(_ key: String, label: String, compact: Bool = false) -> some View {
-        HStack(spacing: compact ? 4 : 6) {
-            Text(key)
-                .font(.system(size: compact ? 10 : 12, weight: .medium, design: .monospaced))
-                .padding(.horizontal, compact ? 4 : 6)
-                .padding(.vertical, compact ? 2 : 3)
-                .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 3))
-            Text(label)
-                .font(.system(size: compact ? 10 : 12))
-                .foregroundStyle(.tertiary)
-        }
+        KeyHintBadge(key: key, label: label, compact: compact)
     }
 
     /// Returns the digit key hint string if all session names are single digits (e.g. "0,2,5"),

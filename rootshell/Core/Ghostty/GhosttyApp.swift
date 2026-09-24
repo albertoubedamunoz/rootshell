@@ -110,6 +110,11 @@ protocol GhosttyActionDelegate: AnyObject {
     /// Called when terminal cell size changes
     func handleCellSizeChange(width: CGFloat, height: CGFloat)
 
+    /// Called after the IO thread resized the terminal of a pipe-backed
+    /// surface. The session's window change follows from here, never from
+    /// the ghostty_surface_set_size call, which only queues the resize.
+    func handlePTYResize(rows: Int, cols: Int, widthPx: Int, heightPx: Int)
+
     /// Called when renderer health status changes
     func handleRendererHealth(healthy: Bool)
 
@@ -380,6 +385,10 @@ extension Ghostty {
         /// Observer token for palette config changes
         private var paletteObserver: NSObjectProtocol?
 
+        /// Host tint setting and fingerprint observation
+        private var hostTintSettingsTask: Task<Void, Never>?
+        private var hostTintFingerprintTask: Task<Void, Never>?
+
         /// Observer token for HDR brightness-boost changes
         private var brightnessObserver: NSObjectProtocol?
 
@@ -565,6 +574,9 @@ extension Ghostty {
             // Listen for palette config changes
             self.setupPaletteSubscription()
 
+            // Listen for host tint setting and fingerprint changes
+            self.setupHostTintSubscription()
+
             // Listen for HDR brightness-boost changes
             self.setupBrightnessSubscription()
 
@@ -699,10 +711,13 @@ extension Ghostty {
                     continue
                 }
                 #endif
-                guard source != .global else { continue }
+                let tintFingerprint = hostTintFingerprint(for: surface)
+                guard source != .global || tintFingerprint != nil else { continue }
 
                 overridden += 1
-                if let surfaceConfig = Ghostty.Config.createConfigForTheme(themeName) {
+                if let surfaceConfig = makeSurfaceConfig(
+                    themeName: themeName, source: source,
+                    tintFingerprint: tintFingerprint, globalConfig: globalConfig) {
                     overrideSurfaces.append((surface, surfaceConfig))
                 }
             }
@@ -892,6 +907,16 @@ extension Ghostty {
             #endif
             let (themeName, source) = ThemeOverrideManager.shared.resolveTheme(tabId: tabId, windowId: windowId)
 
+            if let tintFingerprint = hostTintFingerprint(for: surface), let globalConfig = config.config {
+                if let surfaceConfig = makeSurfaceConfig(
+                    themeName: themeName, source: source,
+                    tintFingerprint: tintFingerprint, globalConfig: globalConfig) {
+                    pushConfig(toSurface: surface, config: surfaceConfig, owned: true)
+                    logger.info("Surface theme refreshed with host tint: \(themeName)")
+                }
+                return
+            }
+
             switch source {
             case .global:
                 // No override - use the shared global config
@@ -904,6 +929,71 @@ extension Ghostty {
                 applyThemeToSurface(surface, themeName: themeName)
                 let sourceStr = source == .tab ? "tab" : "window"
                 logger.info("Surface theme refreshed to \(sourceStr) override: \(themeName)")
+            }
+        }
+
+        // MARK: - Host Tint
+
+        /// The remote host key fingerprint for a surface's connection when host tinting is on.
+        private func hostTintFingerprint(for surface: ghostty_surface_t) -> String? {
+            guard SettingsStore.shared.get(Settings.Theme.hostTint),
+                  let ssh = surfaceView(for: surface)?.connectionConfig.underlyingSSHConfig else { return nil }
+            return HostFingerprintRegistry.shared.fingerprint(hostname: ssh.host, port: ssh.port)
+        }
+
+        /// Owned config for a surface that is off the plain global config: its
+        /// override theme and/or a host tint over the resolved background.
+        private func makeSurfaceConfig(
+            themeName: String,
+            source: ThemeOverrideManager.ThemeSource,
+            tintFingerprint: String?,
+            globalConfig: ghostty_config_t
+        ) -> ghostty_config_t? {
+            let themed = source == .global ? nil : Ghostty.Config.createConfigForTheme(themeName)
+            guard let tintFingerprint else { return themed }
+            let tinted = Self.makeHostTintConfig(themed ?? globalConfig, fingerprint: tintFingerprint)
+            if let themed, tinted != nil { ghostty_config_free(themed) }
+            return tinted ?? themed
+        }
+
+        /// Clone `base` with its background shifted toward the fingerprint's hue.
+        private static func makeHostTintConfig(_ base: ghostty_config_t, fingerprint: String) -> ghostty_config_t? {
+            var background = ghostty_config_color_s()
+            let key = "background"
+            guard ghostty_config_get(base, &background, key, UInt(key.utf8.count)),
+                  let result = ghostty_config_clone(base) else { return nil }
+            let hex = HostTint.tintedBackground(
+                red: background.r, green: background.g, blue: background.b, fingerprint: fingerprint)
+            let file = FileManager.default.temporaryDirectory
+                .appendingPathComponent("host-tint-\(UUID().uuidString).conf")
+            defer { try? FileManager.default.removeItem(at: file) }
+            do {
+                try "background = \(hex)\n".write(to: file, atomically: true, encoding: .utf8)
+                file.path.withCString { ghostty_config_load_file(result, $0) }
+                ghostty_config_finalize(result)
+                return result
+            } catch {
+                ghostty_config_free(result)
+                return nil
+            }
+        }
+
+        /// Re-push when the setting flips or a handshake reports a new fingerprint.
+        private func setupHostTintSubscription() {
+            let settingChanges = SettingsStore.shared.changes()
+            hostTintSettingsTask = Task { @MainActor [weak self] in
+                for await change in settingChanges {
+                    // External batches already reload the whole config via SettingsRefreshHub.
+                    guard change.origin == .local, change.contains(Settings.Theme.hostTint.name) else { continue }
+                    self?.pushGlobalConfigToApp()
+                }
+            }
+            let fingerprintChanges = HostFingerprintRegistry.shared.changes()
+            hostTintFingerprintTask = Task { @MainActor [weak self] in
+                for await _ in fingerprintChanges {
+                    guard SettingsStore.shared.get(Settings.Theme.hostTint) else { continue }
+                    self?.pushGlobalConfigToApp()
+                }
             }
         }
 
@@ -2564,6 +2654,20 @@ extension Ghostty {
                     Ghostty.logger.warning("Cell size action but target is not SURFACE (tag=\(target.tag.rawValue))")
                 }
 
+                return true
+
+            case GHOSTTY_ACTION_PTY_RESIZE:
+                // Delivered while backgrounded too: updatePTYSize applies the
+                // suppression gate itself, as the set_size hop used to.
+                let resize = action.action.pty_resize
+                guard target.tag == GHOSTTY_TARGET_SURFACE else { return true }
+                let surfaceId = Int(bitPattern: target.target.surface)
+                Task { @MainActor in
+                    appInstance.surfaceDelegates[surfaceId]?.delegate?.handlePTYResize(
+                        rows: Int(resize.rows), cols: Int(resize.cols),
+                        widthPx: Int(resize.width_px), heightPx: Int(resize.height_px)
+                    )
+                }
                 return true
 
             case GHOSTTY_ACTION_PROGRESS_REPORT:

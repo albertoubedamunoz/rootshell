@@ -272,9 +272,10 @@ final class PaneFullScreenController {
             return
         }
 
-        let overlay = VNCPaneThemedSurface(pane: pane) {
+        let subtitle = pane.config.displayName
+        let overlay = VNCPaneThemedSurface(pane: pane) { [weak self, weak pane] in
             VNCConnectionFailureCard(
-                subtitle: pane.config.displayName,
+                subtitle: subtitle,
                 message: message,
                 onRetry: { [weak self] in self?.retryConnection() },
                 onCancel: { [weak pane] in pane?.cancelFailedConnection() },

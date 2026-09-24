@@ -11,9 +11,64 @@ extension Ghostty.OptionKeyAsAlt: SettingValue {}
 extension DrawerToggleMode: SettingValue {}
 extension TerminalWritingAssistanceMode: SettingValue {}
 extension KeyboardArrowJoystickButton.Mode: SettingValue {}
+extension TerminalTouchKeyboardModel.FloatingGlassStyle: SettingValue {}
+extension TerminalTouchKeyboardModel.Style: SettingValue {}
+extension TerminalTouchKeyboardModel.PhosphorColor: SettingValue {}
 
 nonisolated extension Settings {
     enum Keyboard {
+        static let touchEnabled = SettingKey(
+            "terminalTouchKeyboardEnabled", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard", title: String(localized: "Terminal Keyboard"))
+        static let touchStatePerTab = SettingKey(
+            "terminalTouchKeyboardStatePerTab", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-state-per-tab", title: String(localized: "Separate Keyboard State per Tab"))
+        static let touchSuggestions = SettingKey(
+            "terminalTouchKeyboardSuggestions", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-suggestions", title: String(localized: "Terminal Keyboard Suggestions"))
+        static let touchLetterPrediction = SettingKey(
+            "terminalTouchKeyboardLetterPrediction", default: true, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-letter-prediction", title: String(localized: "Letter Prediction"))
+        static let touchHaptics = SettingKey(
+            "terminalTouchKeyboardHaptics", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-haptics", title: String(localized: "Terminal Keyboard Haptics"))
+        static let touchCompactHeight = SettingKey(
+            "terminalTouchKeyboardCompactHeight", default: true, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-compact-height", title: String(localized: "Compact Keyboard Height"))
+        static let touchGlyphs = SettingKey(
+            "terminalTouchKeyboardGlyphs", default: true, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-glyphs", title: String(localized: "Keyboard Key Glyphs"))
+        static let touchStyle = SettingKey(
+            "terminalTouchKeyboardStyle", default: TerminalTouchKeyboardModel.Style.flat,
+            group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-style", title: String(localized: "Keyboard Style"))
+        static let touchThemeAware = SettingKey(
+            "terminalTouchKeyboardThemeAware", default: true, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-theme-aware", title: String(localized: "Follow Terminal Theme"))
+        static let touchSteampunkThemeAwareKeycaps = SettingKey(
+            "terminalTouchKeyboardSteampunkThemeAwareKeycaps", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-steampunk-theme-aware-keycaps", title: String(localized: "Theme-Aware Keycaps"))
+        static let touchPhosphorColor = SettingKey(
+            "terminalTouchKeyboardPhosphorColor", default: TerminalTouchKeyboardModel.PhosphorColor.green,
+            group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-phosphor-color", title: String(localized: "Phosphor Color"))
+        static let touchClickSound = SettingKey(
+            "terminalTouchKeyboardClickSound", default: false, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-click-sound", title: String(localized: "Key Click Sounds"))
+        static let touchSystemFloating = SettingKey(
+            "terminalTouchKeyboardSystemFloating", default: true, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-system-floating", title: String(localized: "Use System Detached Keyboard"))
+        static let touchFloatingGlassStyle = SettingKey(
+            "terminalTouchKeyboardFloatingGlassStyle", default: TerminalTouchKeyboardModel.FloatingGlassStyle.regular,
+            group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-floating-glass-style", title: String(localized: "Detached Keyboard Glass Style"))
+        static let touchFloatingGlassTintOpacity = SettingKey(
+            "terminalTouchKeyboardFloatingGlassTintOpacity", default: 0.25, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-floating-glass-tint-opacity", title: String(localized: "Detached Keyboard Tint Strength"))
+        static let touchChooserPresented = SettingKey(
+            "terminalTouchKeyboardChooserPresented", default: false, group: .keyboard, policy: .deviceOnly,
+            title: String(localized: "Keyboard Chooser Presented"))
+
         static let writingAssistance = SettingKey(
             "terminalWritingAssistanceMode", default: TerminalWritingAssistanceMode.off, group: .keyboard,
             configKey: "terminal-writing-assistance",
@@ -34,7 +89,11 @@ nonisolated extension Settings {
 
         static let all: [AnySettingDefinition] = [
             optionKeyAsAlt.erased, forceASCIIKeyboard.erased, doubleSpaceForPeriod.erased, composeAutocorrect.erased,
-            writingAssistance.erased,
+            writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased,
+            touchCompactHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
+            touchSteampunkThemeAwareKeycaps.erased, touchPhosphorColor.erased, touchClickSound.erased,
+            touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
+            touchChooserPresented.erased,
         ]
     }
 

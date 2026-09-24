@@ -275,7 +275,7 @@ extension MainView {
                 if UIDevice.current.userInterfaceIdiom == .pad {
                     createLocalShellTabInternal()
                     LaunchSignposts.event("mainView.firstShell.local")
-                } else {
+                } else if !deferConnectionSheetForKeyboardChooser() {
                     addNewTab()
                     LaunchSignposts.event("mainView.firstShell.sheet")
                 }
@@ -322,6 +322,9 @@ extension MainView {
     func performWindowCleanup(reason: String) {
         guard !didCleanUpWindow else { return }
         didCleanUpWindow = true
+
+        // Release this window's file manager connections; queued transfers keep their own.
+        fileManagerModel?.tearDown()
 
         // Release this window's overlay keyboard-preservation claim (no-op
         // unless it owns the latch) so surviving windows don't stay frozen
@@ -584,7 +587,14 @@ extension MainView {
             // empty state with no way to connect (no tab bar + button to tap).
             if terminals.isEmpty && tabBarHidden {
                 Ghostty.logger.info("Sheet dismissed with no terminals (tab bar hidden) - re-showing")
+                pendingFileManagerOpen = nil
                 showConnectionSidebar = true
+                return
+            }
+
+            // A Files-tab choice takes focus instead of the terminal.
+            if pendingFileManagerOpen != nil {
+                if !connectionViewIsSheet { flushPendingFileManagerOpen() }
                 return
             }
 

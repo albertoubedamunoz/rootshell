@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct MPTCPSetupGuideView: View {
-    @Environment(\.sheetThemeColors) private var sheetThemeColors
-
     var body: some View {
         List {
             // MARK: - Overview
@@ -49,26 +47,15 @@ struct MPTCPSetupGuideView: View {
             // MARK: - Check MPTCP Support
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Verify that your kernel has MPTCP enabled:")
-                        .font(.subheadline)
-
-                    codeBlock("sysctl net.mptcp.enabled")
+                    GuideCodeBlock(title: "Verify that your kernel has MPTCP enabled", code: "sysctl net.mptcp.enabled")
 
                     Text("Should return: net.mptcp.enabled = 1")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    Text("If it returns 0, enable it temporarily:")
-                        .font(.subheadline)
-                        .padding(.top, 4)
+                    GuideCodeBlock(title: "If it returns 0, enable it temporarily", code: "sudo sysctl -w net.mptcp.enabled=1")
 
-                    codeBlock("sudo sysctl -w net.mptcp.enabled=1")
-
-                    Text("To persist across reboots, add to /etc/sysctl.conf:")
-                        .font(.subheadline)
-                        .padding(.top, 4)
-
-                    codeBlock("net.mptcp.enabled=1")
+                    GuideCodeBlock(title: "To persist across reboots, add to /etc/sysctl.conf", code: "net.mptcp.enabled=1")
                 }
                 .padding(.vertical, 4)
                 .themedRow()
@@ -79,7 +66,7 @@ struct MPTCPSetupGuideView: View {
             // MARK: - Ubuntu / Debian
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 1,
                         title: "Install mptcpize",
                         code: "sudo apt install mptcpd",
@@ -99,20 +86,19 @@ struct MPTCPSetupGuideView: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
 
-                        instructionStep(
+                        GuideInstructionStep(
                             number: 2,
                             title: "Override ssh.socket to use MPTCP",
                             code: "sudo systemctl edit ssh.socket",
                             note: "Add the following in the editor that opens:"
                         )
 
-                        codeBlock("[Socket]\nSocketProtocol=mptcp")
+                        GuideCodeBlock(title: "ssh.socket override", code: "[Socket]\nSocketProtocol=mptcp")
 
-                        instructionStep(
+                        GuideInstructionStep(
                             number: 3,
                             title: "Restart the socket",
-                            code: "sudo systemctl restart ssh.socket",
-                            note: nil
+                            code: "sudo systemctl restart ssh.socket"
                         )
                     }
 
@@ -124,25 +110,24 @@ struct MPTCPSetupGuideView: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
 
-                        instructionStep(
+                        GuideInstructionStep(
                             number: 2,
                             title: "Disable socket activation, enable service",
                             code: "sudo systemctl disable --now ssh.socket\nsudo systemctl enable --now ssh.service",
                             note: "Switches from socket-activated to service-managed SSH."
                         )
 
-                        instructionStep(
+                        GuideInstructionStep(
                             number: 3,
                             title: "Wrap sshd with mptcpize",
                             code: "sudo mptcpize enable ssh.service",
                             note: "Creates a systemd override that launches sshd under the mptcpize wrapper."
                         )
 
-                        instructionStep(
+                        GuideInstructionStep(
                             number: 4,
                             title: "Restart SSH",
-                            code: "sudo systemctl restart ssh.service",
-                            note: nil
+                            code: "sudo systemctl restart ssh.service"
                         )
                     }
                 }
@@ -155,25 +140,23 @@ struct MPTCPSetupGuideView: View {
             // MARK: - Fedora / RHEL
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 1,
                         title: "Install mptcpd and mptcpize",
-                        code: "sudo dnf install mptcpd mptcpize",
-                        note: nil
+                        code: "sudo dnf install mptcpd mptcpize"
                     )
 
                     Divider()
 
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 2,
                         title: "Wrap sshd with mptcpize",
-                        code: "sudo mptcpize enable sshd.service",
-                        note: nil
+                        code: "sudo mptcpize enable sshd.service"
                     )
 
                     Divider()
 
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 3,
                         title: "Restart SSH",
                         code: "sudo systemctl restart sshd.service",
@@ -189,29 +172,26 @@ struct MPTCPSetupGuideView: View {
             // MARK: - Arch Linux
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 1,
                         title: "Install mptcpd",
-                        code: "sudo pacman -S mptcpd",
-                        note: nil
+                        code: "sudo pacman -S mptcpd"
                     )
 
                     Divider()
 
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 2,
                         title: "Wrap sshd with mptcpize",
-                        code: "sudo mptcpize enable sshd.service",
-                        note: nil
+                        code: "sudo mptcpize enable sshd.service"
                     )
 
                     Divider()
 
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 3,
                         title: "Restart SSH",
-                        code: "sudo systemctl restart sshd.service",
-                        note: nil
+                        code: "sudo systemctl restart sshd.service"
                     )
                 }
                 .padding(.vertical, 8)
@@ -223,10 +203,7 @@ struct MPTCPSetupGuideView: View {
             // MARK: - Verify
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("After restarting SSH, connect with the MPTCP toggle enabled, then run on the server:")
-                        .font(.subheadline)
-
-                    codeBlock("ss -nti | grep mptcp")
+                    GuideCodeBlock(title: "After restarting SSH, connect with the MPTCP toggle enabled, then run on the server", code: "ss -nti | grep mptcp")
 
                     Text("You should see mptcp listed in the connection info for your SSH session. If no output appears, the server is not accepting MPTCP connections.")
                         .font(.caption)
@@ -255,50 +232,6 @@ struct MPTCPSetupGuideView: View {
             Text(version)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundColor(.secondary)
-        }
-    }
-
-    private func codeBlock(_ code: String) -> some View {
-        HStack(alignment: .top, spacing: 0) {
-            Text(code)
-                .font(.system(.caption, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button {
-                UIPasteboard.general.string = code
-            } label: {
-                Image(systemName: "doc.on.doc")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(8)
-        .background(sheetThemeColors?.rowBackground ?? Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-
-    private func instructionStep(number: Int, title: String, code: String, note: String?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 8) {
-                Text("\(number).")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                    .frame(width: 20, alignment: .leading)
-
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-
-            codeBlock(code)
-
-            if let note {
-                Text(note)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
         }
     }
 }

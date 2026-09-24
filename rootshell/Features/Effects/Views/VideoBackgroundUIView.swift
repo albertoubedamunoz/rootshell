@@ -224,7 +224,7 @@ class VideoBackgroundUIView: UIView {
             layer.addSublayer(playerLayer)
         }
 
-        queuePlayer?.rate = currentRate
+        queuePlayer?.rate = window == nil ? 0 : currentRate
 
         Self.logger.debug("Setup seamless loop for video: \(self.videoURL.lastPathComponent)")
     }
@@ -268,7 +268,7 @@ class VideoBackgroundUIView: UIView {
         // Setup end-time observer for crossfade
         setupCrossfadeObserver()
 
-        primaryPlayer?.rate = currentRate
+        primaryPlayer?.rate = window == nil ? 0 : currentRate
 
         Self.logger.debug("Setup crossfade loop for video: \(self.videoURL.lastPathComponent)")
     }
@@ -492,23 +492,14 @@ class VideoBackgroundUIView: UIView {
 
     /// Check if player needs to be recreated due to failed state
     private func needsRecreation() -> Bool {
+        // Reattachment can happen while an item is still loading. Unknown or
+        // missing items during async setup are not failures; rebuilding them
+        // here would restart playback on a fast keyboard/tab handoff.
         if seamlessLoop {
-            // Check queue player and looper health
-            guard let player = queuePlayer,
-                  let item = player.currentItem,
-                  item.status == .readyToPlay else {
-                return true
-            }
-            return false
-        } else {
-            // Check primary player health
-            guard let player = primaryPlayer,
-                  let item = player.currentItem,
-                  item.status == .readyToPlay else {
-                return true
-            }
-            return false
+            return queuePlayer?.status == .failed || queuePlayer?.currentItem?.status == .failed
+                || looper?.status == .failed
         }
+        return primaryPlayer?.status == .failed || primaryPlayer?.currentItem?.status == .failed
     }
 
     /// Recreate the player when it's in a failed state
@@ -526,6 +517,7 @@ class VideoBackgroundUIView: UIView {
     }
 
     func resume() {
+        guard window != nil else { return }
         Self.logger.debug("Resuming video playback...")
 
         // Check if player needs recreation
@@ -553,6 +545,7 @@ class VideoBackgroundUIView: UIView {
 
     func updatePlaybackRate(_ rate: Double) {
         currentRate = Float(rate)
+        guard window != nil else { return }
 
         if seamlessLoop {
             queuePlayer?.rate = currentRate
@@ -565,6 +558,7 @@ class VideoBackgroundUIView: UIView {
     }
 
     private func resumeAfterForegroundQuietWindow(attempt: Int = 0) {
+        guard window != nil else { return }
         guard !Ghostty.isAppBackgroundedAtomic, !Ghostty.isInResumeQuietWindowAtomic else {
             LifecycleDebugLogger.shared.checkpoint("Video.resume.deferred", ms: nil, [
                 ("backgrounded", Ghostty.isAppBackgroundedAtomic),
@@ -605,6 +599,13 @@ class VideoBackgroundUIView: UIView {
             cleanupPlayers()
             setupVideo()
         }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        // Cached keyboard effects retain their player while detached. Pause
+        // decoding offscreen, then resume at the same playback position.
+        if window == nil { pause() } else { resumeAfterForegroundQuietWindow() }
     }
 
     // MARK: - Layout

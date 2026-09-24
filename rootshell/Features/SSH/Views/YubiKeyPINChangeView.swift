@@ -261,11 +261,7 @@ struct YubiKeyPINChangeView: View {
 
 #Preview {
     YubiKeyPINChangeView(
-        onSubmit: { old, new in
-            print("Change PIN from \(old) to \(new)")
-        },
-        onCancel: {
-            print("Cancelled")
-        }
+        onSubmit: { _, _ in },
+        onCancel: {}
     )
 }

@@ -66,7 +66,7 @@ enum HeadlessSSHExecutor {
 
     /// Both live clients for a session; the jump client must outlive the
     /// target client and be closed with it.
-    private struct Connection {
+    fileprivate struct Connection {
         let client: SSHClient
         let jumpClient: SSHClient?
     }
@@ -88,43 +88,12 @@ enum HeadlessSSHExecutor {
     ) async throws -> CommandOutput {
         let timeout = max(1, timeout)
         let maxOutputBytes = max(1024, maxOutputBytes)
-        let targetAuthBuilder = buildTargetAuth ?? { try await SSHConnectionHelper.buildAuthMethod(for: $0) }
-        let jumpAuthBuilder = buildJumpAuth ?? { try await SSHConnectionHelper.buildAuthMethod(for: $0) }
-
-        let connection: Connection
-        do {
-            if let jumpConfig = config.jumpHost {
-                connection = try await connectViaJumpHost(
-                    config: config,
-                    jumpConfig: jumpConfig,
-                    logLabel: logLabel,
-                    buildTargetAuth: targetAuthBuilder,
-                    buildJumpAuth: jumpAuthBuilder
-                )
-            } else {
-                connection = Connection(
-                    client: try await connectDirect(
-                        config: config,
-                        logLabel: logLabel,
-                        buildTargetAuth: targetAuthBuilder
-                    ),
-                    jumpClient: nil
-                )
-            }
-        } catch let error as ExecError {
-            throw error
-        } catch let failure as AuthBuilderFailure {
-            // Auth builders throw caller-typed errors — pass them through.
-            throw failure.underlying
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            Self.logger.error("SSH connection failed: \(error.localizedDescription)")
-            if error is HostKeyRejectedError || error is InvalidHostKey {
-                throw ExecError.hostKeyUntrusted(host: config.host, port: config.port)
-            }
-            throw ExecError.connectionFailed(error.localizedDescription)
-        }
+        let connection = try await connect(
+            config: config,
+            logLabel: logLabel,
+            buildTargetAuth: buildTargetAuth ?? { try await SSHConnectionHelper.buildAuthMethod(for: $0) },
+            buildJumpAuth: buildJumpAuth ?? { try await SSHConnectionHelper.buildAuthMethod(for: $0) }
+        )
 
         // SSHClient is thread-safe via its event loop but not marked
         // Sendable; boxes carry the references into the @Sendable timeout
@@ -181,6 +150,104 @@ enum HeadlessSSHExecutor {
             await closeConnection()
             throw ExecError.commandFailed(error.localizedDescription)
         }
+    }
+
+    /// Connects directly or through the jump host, mapping failures to ExecError.
+    private static func connect(
+        config: SSHConfig,
+        logLabel: String,
+        buildTargetAuth: TargetAuthBuilder,
+        buildJumpAuth: JumpAuthBuilder
+    ) async throws -> Connection {
+        do {
+            if let jumpConfig = config.jumpHost {
+                return try await connectViaJumpHost(
+                    config: config,
+                    jumpConfig: jumpConfig,
+                    logLabel: logLabel,
+                    buildTargetAuth: buildTargetAuth,
+                    buildJumpAuth: buildJumpAuth
+                )
+            }
+            return Connection(
+                client: try await connectDirect(config: config, logLabel: logLabel, buildTargetAuth: buildTargetAuth),
+                jumpClient: nil
+            )
+        } catch let error as ExecError {
+            throw error
+        } catch let failure as AuthBuilderFailure {
+            // Auth builders throw caller-typed errors — pass them through.
+            throw failure.underlying
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            Self.logger.error("SSH connection failed: \(error.localizedDescription)")
+            if error is HostKeyRejectedError || error is InvalidHostKey {
+                throw ExecError.hostKeyUntrusted(host: config.host, port: config.port)
+            }
+            throw ExecError.connectionFailed(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Live Connection
+
+    /// A connection held open across several short commands (Open in Folder
+    /// browsing on a mosh host, which has no exec channel of its own). One
+    /// authentication for the palette's lifetime instead of one per listing.
+    final class LiveConnection {
+        private let clientBox: CancellationSSHClientBox
+        private let jumpClientBox: CancellationSSHClientBox?
+        private var closed = false
+
+        fileprivate init(connection: Connection) {
+            clientBox = CancellationSSHClientBox(connection.client)
+            jumpClientBox = connection.jumpClient.map { CancellationSSHClientBox($0) }
+        }
+
+        func execute(command: String, timeout: TimeInterval, maxOutputBytes: Int) async throws -> CommandOutput {
+            guard !closed else { throw ExecError.connectionFailed("closed") }
+            let clientBox = clientBox
+            let startTime = Date()
+            do {
+                let collected = try await withTimeout(seconds: timeout) {
+                    try await HeadlessSSHExecutor.collectOutput(
+                        clientBox: clientBox, command: command, maxOutputBytes: maxOutputBytes
+                    )
+                }
+                return CommandOutput(
+                    exitCode: collected.exitCode,
+                    stdout: String(buffer: collected.stdout),
+                    stderr: String(buffer: collected.stderr),
+                    durationMs: Int(Date().timeIntervalSince(startTime) * 1000),
+                    truncated: collected.truncated
+                )
+            } catch is TimeoutError {
+                throw ExecError.timedOut(seconds: Int(timeout))
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                throw ExecError.commandFailed(error.localizedDescription)
+            }
+        }
+
+        func close() async {
+            guard !closed else { return }
+            closed = true
+            await HeadlessSSHExecutor.closeQuietly(clientBox)
+            if let jumpClientBox { await HeadlessSSHExecutor.closeQuietly(jumpClientBox) }
+        }
+    }
+
+    /// Opens a connection the caller closes. Same strict host-key policy and
+    /// configured auth as `execute`.
+    static func open(config: SSHConfig, logLabel: String) async throws -> LiveConnection {
+        let connection = try await connect(
+            config: config,
+            logLabel: logLabel,
+            buildTargetAuth: { try await SSHConnectionHelper.buildAuthMethod(for: $0) },
+            buildJumpAuth: { try await SSHConnectionHelper.buildAuthMethod(for: $0) }
+        )
+        return LiveConnection(connection: connection)
     }
 
     // MARK: - Output Collection

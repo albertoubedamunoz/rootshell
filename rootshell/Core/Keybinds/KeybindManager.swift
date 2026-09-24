@@ -129,6 +129,8 @@ final class KeybindManager: ObservableObject {
             // Split Management
             Keybind(key: .enter, modifiers: [.command, .shift], action: .toggle_split_zoom),
             Keybind(key: .e, modifiers: [.command, .shift], action: .equalize_splits),
+            Keybind(key: .p, modifiers: [.command, .option], action: .choose_pane_to_zoom),
+            Keybind(key: .s, modifiers: [.command, .option], action: .choose_pane_to_swap),
 
             // View
             Keybind(key: .equal, modifiers: .command, action: .increase_font_size),
@@ -166,6 +168,8 @@ final class KeybindManager: ObservableObject {
             // Shell Operations
             Keybind(key: .comma, modifiers: .command, action: .open_settings),
             Keybind(key: .comma, modifiers: [.command, .shift], action: .toggle_quick_settings),
+            Keybind(key: .j, modifiers: [.command, .shift], action: .open_in_folder),
+            Keybind(key: .u, modifiers: [.command, .shift], action: .toggle_file_manager),
             Keybind(key: .b, modifiers: .command, action: .browse_hosts),
             Keybind(key: .p, modifiers: [.command, .shift], action: .browse_profiles),
             Keybind(key: .i, modifiers: .command, action: .toggle_ai_agent),

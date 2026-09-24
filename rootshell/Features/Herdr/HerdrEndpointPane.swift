@@ -146,7 +146,8 @@ final class HerdrEndpointPane {
     }
 
     func beginSelection(at location: CGPoint, extending: Bool = false) {
-        guard let pane, channel != nil, pending == nil, frame?.popup == nil else { return }
+        guard let pane, pane.inner.width > 0, pane.inner.height > 0,
+              channel != nil, pending == nil, frame?.popup == nil else { return }
         endDrag()
         let point = point(at: location, pane: pane)
         if extending, selection != nil {
@@ -264,7 +265,8 @@ final class HerdrEndpointPane {
         case "copy_to_clipboard": copy()
         case "clear_selection": clearSelection()
         case "select_all":
-            guard let pane, frame?.popup == nil else { return true }
+            guard let pane, pane.inner.width > 0, pane.inner.height > 0,
+                  frame?.popup == nil else { return true }
             endDrag()
             selection = .init(anchor: .init(row: 0, column: 0),
                 cursor: .init(row: min(UInt64(UInt32.max), max(1, pane.scroll?.total ?? UInt64(pane.inner.height)) - 1),
@@ -395,7 +397,7 @@ final class HerdrEndpointPane {
     }
 
     func mouse(kind: UInt64, button: UInt64? = nil, at location: CGPoint, lines: Int = 1, repeatCount: Int = 1) {
-        guard let pane, let view else { return }
+        guard let pane, pane.inner.width > 0, pane.inner.height > 0, let view else { return }
         if let frame, let popup = frame.popup, let geometry {
             let originX = max(0, (frame.grid.width - popup.grid.width) / 2)
             let originY = max(0, (frame.grid.height - popup.grid.height) / 2)
@@ -421,7 +423,7 @@ final class HerdrEndpointPane {
     }
 
     func mouseDown(at location: CGPoint, right: Bool) {
-        guard let view, let pane else { return }
+        guard let view, let pane, pane.inner.width > 0, pane.inner.height > 0 else { return }
         view.invalidateWritingAssistance()
         view.stopCaptureAutoScroll()
         NotificationCenter.default.post(name: .focusSplit, object: view)
@@ -461,7 +463,7 @@ final class HerdrEndpointPane {
     }
 
     private func link(at location: CGPoint) -> String? {
-        guard let pane, let frame else { return nil }
+        guard let pane, pane.inner.width > 0, pane.inner.height > 0, let frame else { return nil }
         let point = point(at: location, pane: pane)
         let row = Int(point.row - (pane.scroll?.top ?? 0))
         let cell = frame.grid.cells[(pane.inner.y + row) * frame.grid.width + pane.inner.x + point.column]
@@ -470,7 +472,8 @@ final class HerdrEndpointPane {
     }
 
     private func selectUnit(at location: CGPoint, line: Bool) {
-        guard let pane, let frame, frame.popup == nil else { return }
+        guard let pane, pane.inner.width > 0, pane.inner.height > 0,
+              let frame, frame.popup == nil else { return }
         let point = point(at: location, pane: pane)
         let row = Int(point.row - (pane.scroll?.top ?? 0))
         let index = (pane.inner.y + row) * frame.grid.width + pane.inner.x

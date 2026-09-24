@@ -46,7 +46,7 @@ extension HerdrController {
 
     /// Choose a transport before writing. Never retry on a different route
     /// after a timeout or connection failure: the mutation may have succeeded.
-    func managementRequest<P: Encodable, R: Decodable>(
+    func managementRequest<P: Encodable & Sendable, R: Decodable & Sendable>(
         _ method: String, _ params: P, as: R.Type, legacyArgs: String? = nil
     ) async throws -> R {
         guard isActive, !didEnd else { throw HerdrChannelError.closed }

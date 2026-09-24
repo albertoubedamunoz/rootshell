@@ -55,10 +55,13 @@ extension HerdrController {
         attachRetries.removeValue(forKey: session.terminalId)?.cancel()
         attachesInFlight.removeValue(forKey: session.terminalId)
         panesNeedingSnapshot.remove(session.terminalId)
+        resizeRecoveries.removeValue(forKey: session.terminalId)
         clientDetourMinimums.removeValue(forKey: session.terminalId)
         legacyPaneDidStop(session)
         attachQueue.removeAll { $0 == session.terminalId }
         if let attachId = attachIds.removeValue(forKey: session.terminalId) {
+            snapshotRequestsInFlight.removeValue(forKey: attachId)
+            snapshotRetryWanted.remove(attachId)
             terminalByAttach.removeValue(forKey: attachId)
             attachAnswersQueries.removeValue(forKey: attachId)
             router.unregister(attachId: attachId)
@@ -238,9 +241,28 @@ extension HerdrController {
     // MARK: - Records
 
     func snapshotDidArrive(_ record: HerdrControl.SnapshotRecord) {
-        snapshotRequestDidFinish(attachId: record.attach_id)
+        let requestID = snapshotRequestsInFlight.removeValue(forKey: record.attach_id)
+        let retry = snapshotRetryWanted.remove(record.attach_id) != nil
+        if let terminalID = terminalByAttach[record.attach_id],
+           let recovery = resizeRecoveries[terminalID] {
+            let grid = TerminalGridReports.Grid(cols: record.snapshot.state.cols, rows: record.snapshot.state.rows)
+            guard recovery.acceptsSnapshot(requestID: requestID, grid: grid),
+                  paneGeometryIsReady(terminalID), resizeRecoveryIsReady(terminalID) else {
+                // An older request can have the same dimensions after A -> B
+                // -> A. It must drain before a replacement request is issued.
+                invalidateResizeOutput(terminalID: terminalID, cols: recovery.grid.cols, rows: recovery.grid.rows)
+                requestSnapshotsForReadyPanes()
+                return
+            }
+            resizeRecoveries.removeValue(forKey: terminalID)
+            Self.logger.debug("herdr resize snapshot accepted \(terminalID) grid=\(grid.cols)x\(grid.rows)")
+        }
+        // Admission and replay share the main actor. The channel awaits this
+        // callback before routing subsequent output. Initial snapshots can
+        // precede terminalByAttach registration and still queue in the router.
+        router.applySnapshot(record)
         guard let terminalId = terminalByAttach[record.attach_id], let view = paneViews[terminalId] else { return }
-        if router.isWaitingForGrid(attachId: record.attach_id) {
+        if retry || router.isWaitingForGrid(attachId: record.attach_id) {
             panesNeedingSnapshot.insert(terminalId)
         } else {
             panesNeedingSnapshot.remove(terminalId)
@@ -253,38 +275,75 @@ extension HerdrController {
         requestSnapshotsForReadyPanes()
     }
 
+    /// Do not request a repair until the committed layout has crossed the
+    /// parser. The renderer can already report the new size before that.
+    private func resizeRecoveryIsReady(_ terminalID: String) -> Bool {
+        guard let recovery = resizeRecoveries[terminalID] else { return true }
+        guard let view = paneViews[terminalID], let target = view.herdrTargetGrid,
+              target.cols == recovery.grid.cols, target.rows == recovery.grid.rows,
+              !view.suppressPTYSizeUpdates, !Ghostty.isAppBackgroundedAtomic,
+              let tabID = view.herdrPaneBinding?.tabId,
+              !layoutReleases.values.contains(where: { $0.tabId == tabID }) else { return false }
+        return true
+    }
+
     /// Asks for a fresh snapshot after the server reported dropped output.
     func requestSnapshot(attachId: String) {
         guard let channel, let terminalId = terminalByAttach[attachId] else { return }
-        guard paneGeometryIsReady(terminalId) else {
+        guard paneGeometryIsReady(terminalId), resizeRecoveryIsReady(terminalId) else {
             panesNeedingSnapshot.insert(terminalId)
             return
         }
         // A request while one is in flight is not lost: it re-runs when the
         // current snapshot lands (or fails), so a snapshot that arrived
         // already stale still gets its replacement.
-        guard !snapshotRequestsInFlight.contains(attachId) else {
+        guard snapshotRequestsInFlight[attachId] == nil else {
             snapshotRetryWanted.insert(attachId)
             return
         }
-        snapshotRequestsInFlight.insert(attachId)
-        if let terminalId = terminalByAttach[attachId], let view = paneViews[terminalId] {
+        let requestID = UUID()
+        snapshotRequestsInFlight[attachId] = requestID
+        resizeRecoveries[terminalId]?.requestedSnapshot(requestID)
+        if resizeRecoveries[terminalId] != nil {
+            Self.logger.info("herdr resize repair snapshot \(terminalId) request=\(requestID.uuidString)")
+        }
+        if let view = paneViews[terminalId] {
             TerminalBellSuppressor.suppressRebuild(view.uuid)
         }
         Task { [weak self] in
+            guard let self, self.channel === channel,
+                  self.snapshotRequestsInFlight[attachId] == requestID else { return }
             do {
                 try await channel.request("terminal.snapshot", HerdrControl.AttachTarget(attach_id: attachId))
+                // The RPC acknowledgement alone does not rebuild the pane.
+                // Arm every request, even if recovery has not started yet:
+                // a later resize repair must not wait forever on it.
+                if try await HerdrSnapshotRecordDeadline.waitForExpiry(
+                    requestID: requestID,
+                    pendingRequest: {
+                        self.channel === channel ? self.snapshotRequestsInFlight[attachId] : nil
+                    }
+                ) {
+                    // A late pushed record has no request ID. Retire the
+                    // stream so it cannot satisfy a replacement request.
+                    await self.streamDidFail(channel, error: HerdrChannelError.timedOut(method: "terminal.snapshot record"))
+                }
             } catch {
-                guard let self, self.channel === channel else { return }
-                self.snapshotRequestDidFinish(attachId: attachId)
+                guard self.channel === channel,
+                      self.snapshotRequestsInFlight[attachId] == requestID else { return }
+                self.snapshotRequestsInFlight.removeValue(forKey: attachId)
+                let timedOut: Bool
+                if case HerdrChannelError.timedOut = error { timedOut = true }
+                else { timedOut = false }
+                if timedOut || self.resizeRecoveries[terminalId] != nil {
+                    // A timed-out request may still produce a pushed snapshot
+                    // without a request ID. Reconnect instead of mistaking it
+                    // for a later repair, or leaving this pane gated forever.
+                    await self.streamDidFail(channel, error: error)
+                } else if self.snapshotRetryWanted.remove(attachId) != nil {
+                    self.requestSnapshot(attachId: attachId)
+                }
             }
-        }
-    }
-
-    private func snapshotRequestDidFinish(attachId: String) {
-        snapshotRequestsInFlight.remove(attachId)
-        if snapshotRetryWanted.remove(attachId) != nil, terminalByAttach[attachId] != nil {
-            requestSnapshot(attachId: attachId)
         }
     }
 
@@ -296,7 +355,8 @@ extension HerdrController {
         router.unregister(attachId: detached.attach_id)
         paneViews[terminalId]?.endHerdrTitleAttachment()
         paneSessions[terminalId]?.attachId = nil
-        snapshotRequestsInFlight.remove(detached.attach_id)
+        snapshotRequestsInFlight.removeValue(forKey: detached.attach_id)
+        resizeRecoveries.removeValue(forKey: terminalId)
         snapshotRetryWanted.remove(detached.attach_id)
         switch detached.reason {
         case "closed":
@@ -316,6 +376,19 @@ extension HerdrController {
 
     // MARK: - Geometry
 
+    /// An unacknowledged resize can overtake output in Ghostty's input pipe.
+    /// Discard subsequent increments and rebuild from the server after its
+    /// new grid is parser-confirmed; SIGWINCH does not guarantee a full redraw.
+    func invalidateResizeOutput(terminalID: String, cols: Int, rows: Int) {
+        guard mode == .raw, capabilities.supportsSharedViewing,
+              let attachID = attachIds[terminalID] else { return }
+        resizeRecoveries[terminalID] = HerdrResizeRecovery(grid: .init(cols: cols, rows: rows))
+        paneSessions[terminalID]?.readFence = nil
+        router.invalidate(attachId: attachID)
+        panesNeedingSnapshot.insert(terminalID)
+        Self.logger.debug("herdr resize repair pending \(terminalID) grid=\(cols)x\(rows)")
+    }
+
     /// A pane surface reported its grid. The tab's geometry is derived from
     /// the container the panes share, so herdr lays the tab out to the space
     /// rootshell actually shows.
@@ -328,11 +401,15 @@ extension HerdrController {
         }
         if let target = paneViews[session.terminalId]?.herdrTargetGrid,
            cols != target.cols || rows != target.rows {
-            let low = clientDetourMinimums[session.terminalId] ?? target
-            clientDetourMinimums[session.terminalId] = (min(low.cols, cols), min(low.rows, rows))
+            if capabilities.supportsSharedViewing {
+                invalidateResizeOutput(terminalID: session.terminalId, cols: target.cols, rows: target.rows)
+            } else {
+                let low = clientDetourMinimums[session.terminalId] ?? target
+                clientDetourMinimums[session.terminalId] = (min(low.cols, cols), min(low.rows, rows))
+            }
         }
-        // Live output keeps flowing onto the reflowed grid, as it would in a
-        // native terminal; the program's SIGWINCH redraw settles the screen.
+        // Raw v2 output cannot run on a client-only grid. Recovery above
+        // keeps it gated until a fresh snapshot agrees with the parser.
         let awaitingLayout = layoutReleases.values.contains { $0.expected[session.terminalId] != nil }
         if !awaitingLayout, session.parserGrid != TerminalGridReports.Grid(cols: cols, rows: rows) {
             session.confirmParserGrid(cols: cols, rows: rows)
@@ -644,7 +721,8 @@ extension HerdrController {
         defer { reconcileReturnToLive() }
         for terminalId in panesNeedingSnapshot where paneGeometryIsReady(terminalId) {
             guard let attachId = attachIds[terminalId],
-                  !snapshotRequestsInFlight.contains(attachId) else { continue }
+                  snapshotRequestsInFlight[attachId] == nil,
+                  resizeRecoveryIsReady(terminalId) else { continue }
             panesNeedingSnapshot.remove(terminalId)
             requestSnapshot(attachId: attachId)
         }
