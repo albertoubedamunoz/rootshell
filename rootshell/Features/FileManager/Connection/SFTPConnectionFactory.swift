@@ -15,6 +15,7 @@ import os.log
 
 enum FileManagerConnectionError: LocalizedError {
     case profileUnavailable
+    case storageProviderUnavailable
     case notRemote
     case cancelled
     case sftpServerMissing(host: String)
@@ -23,6 +24,8 @@ enum FileManagerConnectionError: LocalizedError {
         switch self {
         case .profileUnavailable:
             String(localized: "This profile is unavailable.", comment: "File manager connection error")
+        case .storageProviderUnavailable:
+            String(localized: "This storage provider was removed.", comment: "File manager connection error")
         case .notRemote:
             String(localized: "This connection doesn't support file transfer.", comment: "File manager connection error")
         case .cancelled:
@@ -36,9 +39,9 @@ enum FileManagerConnectionError: LocalizedError {
 enum SFTPConnectionFactory {
     private nonisolated static let logger = Logger(subsystem: "com.rootshell", category: "FileManagerConnection")
 
-    static func open(_ endpoint: SFTPEndpoint, prompts: FileManagerPrompts) async throws -> SFTPConnection {
+    static func open(_ endpoint: FileEndpoint, prompts: FileManagerPrompts) async throws -> SFTPConnection {
         switch endpoint {
-        case .local:
+        case .local, .storage:
             throw FileManagerConnectionError.notRemote
         case .profile(let id):
             return try await openProfile(id, prompts: prompts)
@@ -200,7 +203,7 @@ enum SFTPConnectionFactory {
     // MARK: - Panes
 
     /// SFTP over the pane's own connection, or nil when it has none to lend.
-    private static func borrowPane(_ source: SFTPEndpoint.PaneSource) async throws -> SFTPConnection? {
+    private static func borrowPane(_ source: FileEndpoint.PaneSource) async throws -> SFTPConnection? {
         guard let terminal = source.terminal else { return nil }
         let label = source.displayName
 

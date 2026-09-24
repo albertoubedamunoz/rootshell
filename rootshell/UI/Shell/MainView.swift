@@ -142,6 +142,9 @@ struct MainView: View {
     /// original target if focus or tab selection changes while the dialog is up.
     @State var pendingClosePaneID: UUID?
     @State var pendingNewTabRequest: NewTabRequest?
+    /// Transient post-detach / already-attached banner.
+    @State var muxDetachBanner: MuxDetachBannerState?
+    @State var muxDetachBannerDismissTask: Task<Void, Never>?
     @State var unavailableNewTabRequest: NewTabRequest?
     @State var authenticationRetryRequest: SSHAuthenticationRetryRequest?
     @State var reconnectConfig: SSHConfig?
@@ -304,7 +307,7 @@ struct MainView: View {
     @State var fileManagerSidebarWidth: CGFloat = CGFloat(SettingsStore.shared.value(Settings.Transfer.fileManagerSidebarWidth))
     @State var fileManagerSidebarIsDragging = false
     /// A Files-tab choice waiting for the connection sheet to finish dismissing.
-    @State var pendingFileManagerOpen: (endpoint: SFTPEndpoint, presentation: FileManagerPresentation?)?
+    @State var pendingFileManagerOpen: (endpoint: FileEndpoint, presentation: FileManagerPresentation?)?
 
     // Clipboard manager overlay state
     @State var showClipboardManager = false
@@ -529,23 +532,31 @@ struct MainView: View {
                         }
                     }
                     
-                    // Terminal view
-                    if ghosttyApp.readiness == .ready, !terminals.isEmpty {
-                        terminalAndSidebarContent(geometry: geometry)
-                    } else if ghosttyApp.readiness == .ready, terminals.isEmpty, !windowClosingAfterTabTransfer {
-                        // Empty state - shown when all tabs are closed
-                        EmptyStateResponder(
-                            onNewTab: addNewTab,
-                            onNewLocalShell: handleNewTabCommand
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if ghosttyApp.readiness == .ready, terminals.isEmpty {
-                        Color.clear
+                    // Terminal view (detach banner overlays empty state too —
+                    // tmux -CC prune removes every tab in one go).
+                    Group {
+                        if ghosttyApp.readiness == .ready, !terminals.isEmpty {
+                            terminalAndSidebarContent(geometry: geometry)
+                        } else if ghosttyApp.readiness == .ready, terminals.isEmpty, !windowClosingAfterTabTransfer {
+                            // Empty state - shown when all tabs are closed
+                            EmptyStateResponder(
+                                onNewTab: addNewTab,
+                                onNewLocalShell: handleNewTabCommand
+                            )
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if ghosttyApp.readiness == .loading {
-                        loadingView
-                    } else if ghosttyApp.readiness == .error {
-                        errorView
+                        } else if ghosttyApp.readiness == .ready, terminals.isEmpty {
+                            Color.clear
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else if ghosttyApp.readiness == .loading {
+                            loadingView
+                        } else if ghosttyApp.readiness == .error {
+                            errorView
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        if ghosttyApp.readiness == .ready {
+                            muxDetachBannerOverlay
+                        }
                     }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)

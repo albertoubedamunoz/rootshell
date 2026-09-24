@@ -183,7 +183,11 @@ final class LocalMultiplexerRecoveryTests: XCTestCase {
         XCTAssertTrue(LocalMultiplexerRecovery.isAvailable(saved))
         let target = LocalHerdrControlTarget(sessionName: "ignored", attachment: saved)
         let observed = LocalMultiplexerRecovery.inspectHerdrControl(target, records: LocalMultiplexerRecovery.processes(), deadline: Date().addingTimeInterval(3))
-        XCTAssertEqual(observed, saved)
+        // Recovery prefers the installed rootshell client, while retaining the
+        // verified server/socket/session identity from the original client.
+        var expected = saved
+        expected.executable = saved.launchExecutable
+        XCTAssertEqual(observed, expected)
         // A raw-capable server accepts two fresh pipe clients with the same
         // boot identity. EOF closes each bridge; the original server survives.
         let status = try XCTUnwrap(LocalMultiplexerRecovery.run(executable, ["status", "--json"],

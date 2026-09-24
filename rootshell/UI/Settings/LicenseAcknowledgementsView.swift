@@ -110,6 +110,13 @@ struct LicenseAcknowledgementsView: View {
                 }
             }
 
+            Section("Cloud Storage") {
+                ForEach(storageLicenses) { entry in
+                    LicenseRow(entry: entry)
+                        .themedRow()
+                }
+            }
+
             Section("Sounds") {
                 ForEach(soundLicenses) { entry in
                     LicenseRow(entry: entry)
@@ -626,6 +633,114 @@ struct LicenseAcknowledgementsView: View {
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. \
         See the License for the specific language governing permissions and \
         limitations under the License.
+        """
+    }
+
+    private var storageLicenses: [LicenseEntry] {
+        [
+            LicenseEntry(
+                name: "Soto for AWS",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) 2017-2026 the Soto project authors",
+                repositoryURL: "https://github.com/soto-project/soto",
+                licenseText: apache2LicenseText + "\n\n" + sotoNoticeText
+            ),
+            LicenseEntry(
+                name: "Soto Core",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) 2017-2026 the Soto project authors",
+                repositoryURL: "https://github.com/soto-project/soto-core",
+                licenseText: apache2LicenseText + "\n\n" + sotoCoreNoticeText
+            ),
+            LicenseEntry(
+                name: "Perfect-INIParser",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) 2017 - 2018 PerfectlySoft Inc. and the Perfect project authors",
+                repositoryURL: "https://github.com/PerfectlySoft/Perfect-INIParser",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "Expat",
+                licenseType: "MIT",
+                copyright: "Copyright (c) 1998-2000 Thai Open Source Software Center Ltd and Clark Cooper\nCopyright (c) 2001-2019 Expat maintainers",
+                repositoryURL: "https://github.com/libexpat/libexpat",
+                licenseText: mitLicenseText
+            ),
+            LicenseEntry(
+                name: "swift-extras-base64",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) the swift-extras-base64 project authors",
+                repositoryURL: "https://github.com/swift-extras/swift-extras-base64",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "fastbase64",
+                licenseType: "BSD 2-Clause",
+                copyright: "Copyright (c) 2015-2016, Wojciech Muła, Alfred Klomp, Daniel Lemire",
+                repositoryURL: "https://github.com/lemire/fastbase64",
+                licenseText: bsd2ClauseLicenseText
+            ),
+            LicenseEntry(
+                name: "stringencoders (modp_b64)",
+                licenseType: "MIT",
+                copyright: "Copyright (c) 2016 Nick Galbreath",
+                repositoryURL: "https://github.com/client9/stringencoders",
+                licenseText: mitLicenseText
+            ),
+            LicenseEntry(
+                name: "JMESPath for Swift",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) Adam Fowler",
+                repositoryURL: "https://github.com/jmespath/jmespath.swift",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "AsyncHTTPClient",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) Apple Inc. and the AsyncHTTPClient project authors",
+                repositoryURL: "https://github.com/swift-server/async-http-client",
+                licenseText: apache2LicenseText
+            ),
+        ]
+    }
+
+    private var sotoNoticeText: String {
+        """
+        NOTICE
+
+        This product uses HummingbirdMustache to generate its source files
+
+          * LICENSE (Apache-2.0):
+            * https://github.com/hummingbird-project/hummingbird-mustache/blob/main/LICENSE
+          * HOMEPAGE:
+            * https://github.com/hummingbird-project/hummingbird-mustache
+        """
+    }
+
+    private var sotoCoreNoticeText: String {
+        """
+        NOTICE
+
+        This product contains a copy of INIParser from PerfectlySoft
+
+          * LICENSE (Apache License 2.0):
+            * https://github.com/PerfectlySoft/Perfect-INIParser/blob/master/LICENSE
+          * HOMEPAGE:
+            * https://github.com/PerfectlySoft/Perfect-INIParser
+
+        This product contains a copy of libexpat
+
+          * LICENSE (MIT):
+            * https://github.com/libexpat/libexpat/blob/master/expat/COPYING
+          * HOMEPAGE:
+            * https://libexpat.github.io/
+
+        This product contains a copy of base64.swift from swift-extras-base64
+
+          * LICENSE (Apache License 2.0):
+            * https://github.com/swift-extras/swift-extras-base64/blob/main/LICENSE
+          * HOMEPAGE:
+            * https://github.com/swift-extras/swift-extras-base64
         """
     }
 

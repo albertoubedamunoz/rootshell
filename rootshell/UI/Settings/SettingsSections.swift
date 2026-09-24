@@ -888,6 +888,19 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
 
+                NavigationLink(value: SettingsSearchDestination.storageProviders) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "externaldrive.connected.to.line.below")
+                        Text(String(localized: "Storage Providers", comment: "Settings row: S3-compatible storage accounts"))
+                        Spacer()
+                        let storageCount = StorageProviderStore.shared.providers.count
+                        Text(storageCount == 0 ? String(localized: "None", comment: "Settings status: none configured") : "\(storageCount)")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
+                }
+                .themedRow()
+
                 NavigationLink(value: SettingsSearchDestination.wifiAPProviders) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "wifi.router")

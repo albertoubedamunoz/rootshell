@@ -23,6 +23,7 @@ enum UserDefaultsMigration {
 
     static func migrateIfNeeded() {
         migrateTouchScrollMode()
+        migrateTouchKeyboardCompactHeight()
         // The migration may have written an explicit value to `scrollModeEnabled`.
         // Notify any TerminalView constructed during the deferred-launch window so it
         // re-runs `applyTouchMode()` against the new value.
@@ -49,6 +50,18 @@ enum UserDefaultsMigration {
         }
 
         defaults.removeObject(forKey: "touchScrollMode")
+    }
+
+    /// Fold the "terminalTouchKeyboardCompactHeight" toggle (default on) into
+    /// "terminalTouchKeyboardHeight"; only an explicit off needs a value.
+    private static func migrateTouchKeyboardCompactHeight() {
+        let defaults = UserDefaults.standard
+        let legacyKey = "terminalTouchKeyboardCompactHeight"
+        guard defaults.object(forKey: legacyKey) != nil else { return }
+        if !persistentDomainContains("terminalTouchKeyboardHeight"), !defaults.bool(forKey: legacyKey) {
+            defaults.set(TerminalTouchKeyboardModel.Height.full.rawValue, forKey: "terminalTouchKeyboardHeight")
+        }
+        defaults.removeObject(forKey: legacyKey)
     }
 
     private static func persistentDomainContains(_ key: String) -> Bool {

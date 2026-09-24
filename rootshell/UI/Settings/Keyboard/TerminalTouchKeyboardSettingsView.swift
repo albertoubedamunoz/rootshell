@@ -5,6 +5,7 @@ struct TerminalTouchKeyboardSettingsView: View {
     @Setting(Settings.Keyboard.touchStyle) private var keyboardStyle
     @Setting(Settings.Keyboard.touchThemeAware) private var themeAware
     @Setting(Settings.Keyboard.touchPhosphorColor) private var phosphorColor
+    @Setting(Settings.Keyboard.touchHeight) private var keyboardHeight
     @Setting(Settings.Keyboard.touchFloatingGlassStyle) private var floatingGlassStyle
     @Setting(Settings.Keyboard.touchFloatingGlassTintOpacity) private var floatingGlassTintOpacity
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -84,14 +85,19 @@ struct TerminalTouchKeyboardSettingsView: View {
                 Text("Letter Prediction uses recent English typing to help choose between nearby letters. Turn it off for literal key targeting. Suggestions are local spelling guesses and completions; tap to apply one. Words are never automatically replaced. The double-space period shortcut follows your Terminal keyboard setting. Key Click Sounds match the keyboard style and are muted in Silent Mode.")
             }
             Section {
-                SettingToggle(Settings.Keyboard.touchCompactHeight, title: "Compact Height", icon: "arrow.down.to.line")
-                    .themedRow()
+                Picker("Keyboard Height", selection: $keyboardHeight) {
+                    ForEach(TerminalTouchKeyboardModel.Height.allCases, id: \.self) { height in
+                        Text(height.displayName).tag(height)
+                    }
+                }
+                .settingContextMenu(Settings.Keyboard.touchHeight)
+                .themedRow()
                 SettingToggle(Settings.Keyboard.touchGlyphs, title: "Key Glyphs", icon: "command")
                     .themedRow()
             } header: {
                 Text("Layout")
             } footer: {
-                Text("Compact Height moves every row, including Space, down into the bottom safe area without reducing key height. The bottom corners adapt to your iPhone. Key Glyphs shows symbols for Escape, Tab, and modifiers; turn it off to show their names.")
+                Text("Compact moves every row, including Space, down into the bottom safe area without reducing key height. The bottom corners adapt to your iPhone. Shorter and Shortest also reduce the height of the keys and toolbar to leave more room for the terminal. Full keeps the keyboard above the bottom safe area. Key Glyphs shows symbols for Escape, Tab, and modifiers; turn it off to show their names.")
             }
             Section {
                 Picker("Keyboard Style", selection: $keyboardStyle) {

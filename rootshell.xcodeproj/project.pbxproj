@@ -197,6 +197,9 @@
 		47F11E0000000000000000B1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift */; };
 		47F11E0000000000000000B2 /* rootshell/Features/FileManager/Model/FileListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A2 /* rootshell/Features/FileManager/Model/FileListSelection.swift */; };
 		47F11E0000000000000000B3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift */; };
+		47F11E0000000000000000B4 /* rootshell/Features/FileManager/Storage/StorageProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A4 /* rootshell/Features/FileManager/Storage/StorageProvider.swift */; };
+		47F11E0000000000000000B5 /* rootshell/Features/FileManager/Storage/StorageProviderPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A5 /* rootshell/Features/FileManager/Storage/StorageProviderPreset.swift */; };
+		47F11E0000000000000000B6 /* rootshell/Features/FileManager/Storage/S3KeyLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A6 /* rootshell/Features/FileManager/Storage/S3KeyLogic.swift */; };
 		47FF768D2F33DD6900DFD408 /* TrzszSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 47TSSH0112FC00000AABB0001 /* TrzszSSH */; };
 		47FONT022ED92ABC009B57F8 /* fonts in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47FONT012ED92ABC009B57F8 /* fonts */; };
 		47IOS0032FA00000AABB0003 /* ios_system in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47IOS0012FA00000AABB0001 /* ios_system */; };
@@ -213,6 +216,9 @@
 		47PSH0192F900000AABB0019 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47PSH0292F900000AABB0029 /* PushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47PSH0022F900000AABB0002 /* PushNotificationService.appex */; platformFilters = (ios, maccatalyst, xros, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47RG00012F680000AABB0001 /* ripgrep_ios in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47RGP0012F680000AABB0001 /* ripgrep_ios */; };
+		47S3PKG22FF40000AABB0002 /* SotoS3 in Frameworks */ = {isa = PBXBuildFile; productRef = 47S3PKG12FF40000AABB0001 /* SotoS3 */; };
+		47S3PKG32FF40000AABB0003 /* SotoS3 in Frameworks */ = {isa = PBXBuildFile; productRef = 47S3PKG12FF40000AABB0001 /* SotoS3 */; };
+		47S3PKG42FF40000AABB0004 /* SotoS3 in Frameworks */ = {isa = PBXBuildFile; productRef = 47S3PKG12FF40000AABB0001 /* SotoS3 */; };
 		47SHADER22F01AAA0009B57F8 /* shaders in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47SHADER12F01AAA0009B57F8 /* shaders */; };
 		47TINFO022F0000AABB000002 /* terminfo in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47TINFO012F0000AABB000001 /* terminfo */; };
 		47TINFO032F0000AABB000003 /* terminfo in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47TINFO012F0000AABB000001 /* terminfo */; };
@@ -274,6 +280,8 @@
 		F95F66F45A2A58F968B83428 /* VimRuntime.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 47A51A922EEDC704000D76E0 /* VimRuntime.bundle */; platformFilters = (ios, xros, ); };
 		F9641A2175775B2B2284EFF2 /* AppIconRadicalDracula.icon in Resources */ = {isa = PBXBuildFile; fileRef = 478D16DE2F9FC42B007B574B /* AppIconRadicalDracula.icon */; };
 		FA804455DA96B007ACED884C /* network_ios in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47NWPKG12FF10000AABB0001 /* network_ios */; };
+		47AF04300000000000000A01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04300000000000000B01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift */; };
+		47AF04310000000000000A01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -631,6 +639,9 @@
 		47F11E0000000000000000A1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Transfers/FileTransferLogic.swift; sourceTree = SOURCE_ROOT; };
 		47F11E0000000000000000A2 /* rootshell/Features/FileManager/Model/FileListSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Model/FileListSelection.swift; sourceTree = SOURCE_ROOT; };
 		47F11E0000000000000000A3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift; sourceTree = SOURCE_ROOT; };
+		47F11E0000000000000000A4 /* rootshell/Features/FileManager/Storage/StorageProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Storage/StorageProvider.swift; sourceTree = SOURCE_ROOT; };
+		47F11E0000000000000000A5 /* rootshell/Features/FileManager/Storage/StorageProviderPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Storage/StorageProviderPreset.swift; sourceTree = SOURCE_ROOT; };
+		47F11E0000000000000000A6 /* rootshell/Features/FileManager/Storage/S3KeyLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/FileManager/Storage/S3KeyLogic.swift; sourceTree = SOURCE_ROOT; };
 		47FONT012ED92ABC009B57F8 /* fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fonts; path = Resources/fonts; sourceTree = "<group>"; };
 		47IDCFG012F000000AABB0001 /* Identity.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Identity.xcconfig; sourceTree = "<group>"; };
 		47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SessionActivityWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -641,6 +652,8 @@
 		47WASM00000000000000001 /* Wasm */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Wasm; path = Resources/Wasm; sourceTree = "<group>"; };
 		992A6D1173F54B70A4EDBA3E /* joe */ = {isa = PBXFileReference; lastKnownFileType = folder; name = joe; path = Resources/joe; sourceTree = "<group>"; };
 		DD1249A5776E91521A4BEA8A /* rootshell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshell.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		47AF04300000000000000B01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Multiplexer/MuxSessionTarget.swift; sourceTree = SOURCE_ROOT; };
+		47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxWindowCloseState.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -911,6 +924,7 @@
 				32C1AF05A7FD2B7BDCE991EE /* vim in Frameworks */,
 				94D505F620F9D627A4647594 /* Yams in Frameworks */,
 				A535239D82EE41FD0C9E2B42 /* CryptoSwift in Frameworks */,
+				47S3PKG22FF40000AABB0002 /* SotoS3 in Frameworks */,
 				827CBEA17215FD6C0884854B /* libarchive_ios in Frameworks */,
 				0C0B51031524B8BC4C420F0D /* curl_ios in Frameworks */,
 				25CCC0D42A0A366F028CC1D0 /* xz_ios in Frameworks */,
@@ -996,6 +1010,7 @@
 				47A0B0042F8A000000000004 /* vim in Frameworks */,
 				47CD00001900000000000000 /* Yams in Frameworks */,
 				47CD00001A00000000000000 /* CryptoSwift in Frameworks */,
+				47S3PKG32FF40000AABB0003 /* SotoS3 in Frameworks */,
 				47CD00001B00000000000000 /* libarchive_ios in Frameworks */,
 				47CD00001C00000000000000 /* curl_ios in Frameworks */,
 				47CD00001D00000000000000 /* xz_ios in Frameworks */,
@@ -1035,6 +1050,7 @@
 				47A0B0032F8A000000000003 /* vim in Frameworks */,
 				477408932ED51B9F0035CE92 /* Yams in Frameworks */,
 				472253712F2BB891000B8D2E /* CryptoSwift in Frameworks */,
+				47S3PKG42FF40000AABB0004 /* SotoS3 in Frameworks */,
 				47511A1C2EDD496700696C18 /* libarchive_ios in Frameworks */,
 				4711C29C2F496F5F00FE521D /* curl_ios in Frameworks */,
 				47XZ00012F6A0000AA000001 /* xz_ios in Frameworks */,
@@ -1211,6 +1227,7 @@
 				47ABC10D2FF50000AABB000D /* rootshell-helper/Sources/PTYManagerImpl.m */,
 				47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */,
 				47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */,
+				47AF04300000000000000B01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift */,
 				47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */,
 				47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */,
 				47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */,
@@ -1229,6 +1246,7 @@
 				47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */,
 				47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */,
 				47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */,
+				47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */,
 				47AF04990000000000000B01 /* rootshell/Core/Keybinds/MenuKeyEquivalentPolicy.swift */,
 				47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */,
 				47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */,
@@ -1236,6 +1254,9 @@
 				47F11E0000000000000000A1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift */,
 				47F11E0000000000000000A2 /* rootshell/Features/FileManager/Model/FileListSelection.swift */,
 				47F11E0000000000000000A3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift */,
+				47F11E0000000000000000A4 /* rootshell/Features/FileManager/Storage/StorageProvider.swift */,
+				47F11E0000000000000000A5 /* rootshell/Features/FileManager/Storage/StorageProviderPreset.swift */,
+				47F11E0000000000000000A6 /* rootshell/Features/FileManager/Storage/S3KeyLogic.swift */,
 				47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */,
 				47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */,
 				47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */,
@@ -1439,6 +1460,7 @@
 				47280D7A2EEEFF6200624984 /* SwiftOpenAI */,
 				4747A10A2F2ADF800080DE63 /* YubiKit */,
 				472253702F2BB891000B8D2E /* CryptoSwift */,
+				47S3PKG12FF40000AABB0001 /* SotoS3 */,
 				47564E4300000000000000B1 /* rootshellVNC */,
 				47564E4300000000000000B2 /* RFBTransport */,
 				47RGP0012F680000AABB0001 /* ripgrep_ios */,
@@ -1514,6 +1536,7 @@
 				47280D7A2EEEFF6200624984 /* SwiftOpenAI */,
 				4747A10A2F2ADF800080DE63 /* YubiKit */,
 				472253702F2BB891000B8D2E /* CryptoSwift */,
+				47S3PKG12FF40000AABB0001 /* SotoS3 */,
 				47564E4300000000000000B1 /* rootshellVNC */,
 				47564E4300000000000000B2 /* RFBTransport */,
 				47RGP0012F680000AABB0001 /* ripgrep_ios */,
@@ -1637,6 +1660,7 @@
 				47280D7A2EEEFF6200624984 /* SwiftOpenAI */,
 				4747A10A2F2ADF800080DE63 /* YubiKit */,
 				472253702F2BB891000B8D2E /* CryptoSwift */,
+				47S3PKG12FF40000AABB0001 /* SotoS3 */,
 				47564E4300000000000000B1 /* rootshellVNC */,
 				47564E4300000000000000B2 /* RFBTransport */,
 				47RGP0012F680000AABB0001 /* ripgrep_ios */,
@@ -1761,6 +1785,7 @@
 				47280D792EEEFF6200624984 /* XCRemoteSwiftPackageReference "SwiftOpenAI-rootshell" */,
 				4747A1092F2ADF800080DE63 /* XCRemoteSwiftPackageReference "yubikit-swift-rootshell" */,
 				4722536F2F2BB891000B8D2E /* XCRemoteSwiftPackageReference "CryptoSwift" */,
+				47S3PKG02FF40000AABB0000 /* XCRemoteSwiftPackageReference "soto" */,
 				47564E4300000000000000A1 /* XCRemoteSwiftPackageReference "rootshell-vnc" */,
 				47RGP0002F680000AABB0000 /* XCRemoteSwiftPackageReference "ripgrep-rootshell" */,
 				47BTP0002F680000AABB0000 /* XCRemoteSwiftPackageReference "bat-rootshell" */,
@@ -2228,14 +2253,19 @@
 				47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */,
 				47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */,
 				47AF04870000000000000A01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift in Sources */,
+				47AF04310000000000000A01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift in Sources */,
 				47AF04990000000000000A01 /* rootshell/Core/Keybinds/MenuKeyEquivalentPolicy.swift in Sources */,
 				47AF04960000000000000A01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift in Sources */,
 				47AF04850000000000000A01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift in Sources */,
 				47AEC0020000000000000003 /* rootshell/Core/Shell/LoginShellCommand.swift in Sources */,
+				47AF04300000000000000A01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift in Sources */,
 				47AF0F1D0000000000000B01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift in Sources */,
 				47F11E0000000000000000B1 /* rootshell/Features/FileManager/Transfers/FileTransferLogic.swift in Sources */,
 				47F11E0000000000000000B2 /* rootshell/Features/FileManager/Model/FileListSelection.swift in Sources */,
 				47F11E0000000000000000B3 /* rootshell/Features/FileManager/Connection/SFTPServerLauncher.swift in Sources */,
+				47F11E0000000000000000B4 /* rootshell/Features/FileManager/Storage/StorageProvider.swift in Sources */,
+				47F11E0000000000000000B5 /* rootshell/Features/FileManager/Storage/StorageProviderPreset.swift in Sources */,
+				47F11E0000000000000000B6 /* rootshell/Features/FileManager/Storage/S3KeyLogic.swift in Sources */,
 				47AF0F1D0000000000000B02 /* rootshell/Core/Terminal/TerminalTargetKey.swift in Sources */,
 				47AF0F1D0000000000000B03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift in Sources */,
 				47AF0F1D0000000000000B04 /* rootshell/Features/OpenInFolder/DirectoryListingProbe.swift in Sources */,
@@ -6919,6 +6949,14 @@
 				version = 0.1.0;
 			};
 		};
+		47S3PKG02FF40000AABB0000 /* XCRemoteSwiftPackageReference "soto" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/soto-project/soto.git";
+			requirement = {
+				kind = exactVersion;
+				version = 7.15.0;
+			};
+		};
 		47TSSH0002FC00000AABB0000 /* XCRemoteSwiftPackageReference "trzsz-ssh-rootshell" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kitknox/trzsz-ssh-rootshell.git";
@@ -7075,6 +7113,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 47RGP0002F680000AABB0000 /* XCRemoteSwiftPackageReference "ripgrep-rootshell" */;
 			productName = ripgrep_ios;
+		};
+		47S3PKG12FF40000AABB0001 /* SotoS3 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47S3PKG02FF40000AABB0000 /* XCRemoteSwiftPackageReference "soto" */;
+			productName = SotoS3;
 		};
 		47TSSH0112FC00000AABB0001 /* TrzszSSH */ = {
 			isa = XCSwiftPackageProductDependency;

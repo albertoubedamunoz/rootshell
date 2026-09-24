@@ -42,9 +42,9 @@ final class TransferJob: Identifiable {
 
     let id = UUID()
     let operation: Operation
-    let source: SFTPEndpoint
+    let source: FileEndpoint
     let sourcePaths: [String]
-    let destination: SFTPEndpoint?
+    let destination: FileEndpoint?
     let destinationDirectory: String?
     let createdAt = Date()
     /// Resolution applied to every conflict; nil asks per item.
@@ -68,9 +68,9 @@ final class TransferJob: Identifiable {
 
     init(
         operation: Operation,
-        source: SFTPEndpoint,
+        source: FileEndpoint,
         sourcePaths: [String],
-        destination: SFTPEndpoint? = nil,
+        destination: FileEndpoint? = nil,
         destinationDirectory: String? = nil,
         conflictPolicy: TransferConflictResolution? = nil
     ) {

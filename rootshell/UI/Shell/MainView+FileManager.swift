@@ -58,7 +58,7 @@ extension MainView {
         let model = fileManagerModel ?? makeFileManagerModel()
         fileManagerModel = model
         if let terminal = focusedTerminalForFileManager {
-            let source = SFTPEndpoint.PaneSource(terminal: terminal, openInFolderTarget: captureOpenInFolderTarget())
+            let source = FileEndpoint.PaneSource(terminal: terminal, openInFolderTarget: captureOpenInFolderTarget())
             let directory = terminal.pwd.flatMap { $0.hasPrefix("/") ? $0 : nil }
             model.present(from: source, directory: directory)
         }
@@ -66,7 +66,7 @@ extension MainView {
     }
 
     /// Opens (or retargets) the manager on `endpoint`, reusing a pane already on that file system.
-    func openFileManager(at endpoint: SFTPEndpoint, presentation: FileManagerPresentation?) {
+    func openFileManager(at endpoint: FileEndpoint, presentation: FileManagerPresentation?) {
         let model = fileManagerModel ?? makeFileManagerModel()
         fileManagerModel = model
         if let existing = [model.left, model.right].first(where: { $0.endpoint.sharesFileSystem(with: endpoint) }) {
@@ -149,7 +149,7 @@ extension MainView {
 
     /// "Open in Terminal": a new tab (or the user's last Open in Folder placement)
     /// in `directory` on the pane's connection.
-    private func openTerminal(at directory: String, on endpoint: SFTPEndpoint) -> Bool {
+    private func openTerminal(at directory: String, on endpoint: FileEndpoint) -> Bool {
         let opened: Bool
         switch endpoint {
         case .local:
@@ -165,6 +165,8 @@ extension MainView {
             }
         case .profile(let id):
             opened = openProfile(id, at: directory)
+        case .storage:
+            opened = false
         }
         if opened { closeFileManager() }
         return opened

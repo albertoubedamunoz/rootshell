@@ -2,12 +2,8 @@
 //  VerticalTabSidebar.swift
 //  rootshell
 //
-//  Vertical tab list shown in the left-side tab sidebar (replaces the old
-//  bottom TabSwitcherPanel). tmux -CC gateways render as collapsible groups
-//  with their projected window tabs indented beneath them; everything else
-//  renders as flat rows in tab order. Selecting a tab keeps the sidebar
-//  open (browser-style vertical tabs); dismissal is via the toggle
-//  button/shortcut, Escape, or the backdrop.
+//  Vertical tab list in the left sidebar. tmux -CC gateways render as
+//  collapsible groups with their window tabs indented beneath them.
 //
 
 import SwiftUI
@@ -16,9 +12,7 @@ import UniformTypeIdentifiers
 
 // MARK: - Collapse State Persistence
 
-/// Persists which gateway groups are collapsed, keyed by the gateway's
-/// owner terminal UUID (stable across restore: it round-trips through
-/// window persistence with the tmux placeholders).
+/// Keyed by the gateway's owner terminal UUID, which is stable across restore.
 @MainActor
 enum TabSidebarCollapseStore {
     static func load() -> Set<UUID> {
@@ -26,9 +20,7 @@ enum TabSidebarCollapseStore {
         return Set(strings.compactMap(UUID.init(uuidString:)))
     }
 
-    /// Saves the collapsed set, pruning gateways that no longer exist so the
-    /// stored list cannot grow without bound. Resumable gateways survive app
-    /// restarts as placeholder tabs, so they are still "known" here.
+    /// Prunes unknown gateways so the list can't grow without bound.
     static func save(_ collapsed: Set<UUID>, knownGateways: Set<UUID>) {
         let pruned = collapsed.intersection(knownGateways)
         SettingsStore.shared.set(Settings.Sidebar.collapsedGateways, pruned.map(\.uuidString).sorted())
@@ -122,15 +114,10 @@ private struct TabGroupHeaderIcon: View {
 
 // MARK: - Control Density
 
-/// Every size in the sidebar derives from one of these two sets so the
-/// density toggle flips the whole panel coherently.
-///
-/// Equatable so the row views can compare it in their own `==`: metrics are a
-/// parent-supplied input, and a density or title-lines change must defeat the
-/// equality short-circuit and repaint every row.
+/// All sidebar sizes. Equatable so a density change defeats the rows' `==`
+/// short-circuit and repaints them.
 struct SidebarMetrics: Equatable {
-    /// How many lines each tab title may wrap to (uniform across rows so the
-    /// list stays symmetric). Section headers ignore this.
+    /// Uniform across rows; section headers ignore it.
     var titleLineLimit: Int = 1
 
     let rowHeight: CGFloat
@@ -179,8 +166,7 @@ struct SidebarMetrics: Equatable {
         searchFontSize: 17
     )
 
-    /// Tab-row height: the base height plus one title line-height per extra
-    /// line, so a multi-line title fits without per-row dynamic sizing.
+    /// Base height plus a line-height per extra title line.
     var tabRowHeight: CGFloat {
         rowHeight + CGFloat(titleLineLimit - 1) * ceil(UIFont.systemFont(ofSize: titleSize).lineHeight)
     }
@@ -192,16 +178,12 @@ struct SidebarMetrics: Equatable {
         return copy
     }
 
-    /// Agent-card row height: the tab row plus a status line above and a
-    /// context line below (subtitle-sized, 2pt spacing each).
+    /// Tab row plus a status line above and a context line below.
     var agentCardRowHeight: CGFloat {
         tabRowHeight + 2 * (ceil(UIFont.systemFont(ofSize: subtitleSize).lineHeight) + 2)
     }
 
-    /// One shared trailing rail for every row/header accessory. Header
-    /// controls are four points larger than row controls at both densities,
-    /// so using their target as the slot keeps button glyphs, counts, and
-    /// agent marks on one vertical center line without shrinking hit targets.
+    /// Shared trailing rail so every accessory centers on one line.
     var trailingAccessoryWidth: CGFloat { headerButtonTarget }
 }
 
@@ -211,51 +193,26 @@ struct VerticalTabSidebar: View {
     let tabsModel: TabsModel
     let windowId: String
     @Binding var collapsedGateways: Set<UUID>
-    /// Whether selecting a tab leaves the sidebar on screen (iPad/Catalyst,
-    /// browser-style) or closes it (phone/visionOS, where the panel covers the
-    /// terminal). Provided synchronously by the parent so a post-tap focus
-    /// re-anchor can be skipped when the tap will dismiss the panel — otherwise
-    /// `requestSearchFocus()` would re-grab the off-screen field before the
-    /// dismissal notification flips `isPanelVisible`.
+    /// Synchronous so a tap that will dismiss the panel skips re-focusing search.
     let staysOpenOnSelect: Bool
-    /// Rendered as a docked left column (shrinks the terminal) rather than the
-    /// floating overlay. Suppresses the floating-panel affordances: no
-    /// swipe-down dismiss, no phone grab handle, and — critically — no
-    /// auto-focus of the search field on appear (the terminal beside the
-    /// docked column must keep the keyboard).
+    /// Docked columns never auto-focus search; the terminal keeps the keyboard.
     let isDocked: Bool
-    /// Docked only: bottom inset that keeps the column's content (tab rows,
-    /// agent usage footer) clear of whatever occupies the window's bottom
-    /// edge — the docked software keyboard, or the keyboard toolbar when the
-    /// accessory docks there (hardware keyboard, toolbar-only mode, floating
-    /// keyboard). The sidebar ignores the keyboard safe area so SwiftUI's
-    /// avoidance can't fight the overlay-preservation machinery; the parent
-    /// supplies the exact clearance instead, mirroring the terminal's own
-    /// bottom padding (see MainView.dockedSidebarBottomClearance). 0 when
-    /// floating or on other platforms.
+    /// Docked only: clearance for the keyboard or toolbar, since the sidebar
+    /// ignores the keyboard safe area (see MainView.dockedSidebarBottomClearance).
     var dockedBottomClearance: CGFloat = 0
-    /// Whether to show the pin button at all (iPad/Catalyst only).
+    /// iPad/Catalyst only.
     let canPin: Bool
-    /// Current pinned state, for the button's icon/label.
     let isPinned: Bool
-    /// Toggle docked ⇄ floating.
     let onTogglePin: () -> Void
     let onSelectTab: (UUID) -> Void
     /// Selects the containing tab and focuses one exact split pane.
     let onSelectPane: (UUID, UUID) -> Void
     let onCloseTab: (UUID) -> Void
-    /// Live drag-reorder step for tmux windows or herdr workspace tabs:
-    /// sibling membership in its new order, plus the dragged tab. Slot-permutation
-    /// semantics — unrelated tabs keep their raw indices
-    /// (reorderTabsPreservingSlots). Local-only; the server commit happens
-    /// once via `onReorderEnded`.
+    /// Live reorder of tmux/herdr siblings within their slots; local-only until
+    /// `onReorderEnded` commits to the server.
     let onReorderClass: ([UUID], UUID) -> Void
-    /// Live drag-reorder step for regular (.local) tabs: a raw array move
-    /// (from, to), matching the top tab bar — lets a regular tab cross tmux
-    /// gateway groups. Wired to `moveTab(from:to:)`.
+    /// Raw array move for regular tabs, which may cross gateway groups.
     let onMoveTab: (Int, Int) -> Void
-    /// Drop finished: commit the dragged tab's final multiplexer order
-    /// (user gesture, never reconcile-driven).
     let onReorderEnded: (UUID) -> Void
     let onNewTab: () -> Void
     let onDismiss: () -> Void
@@ -263,8 +220,6 @@ struct VerticalTabSidebar: View {
     let onNewTmuxWindow: (TabModel) -> Void
     let tmuxController: (TabModel) -> TmuxController?
     let onShowConnectionInfo: (TabModel) -> Void
-    /// Predicate: should the "Transfer to Nearby Device" item appear in this
-    /// tab's context menu? Evaluated lazily when the menu is presented.
     let canTransferToNearby: (TabModel) -> Bool
     let onTransferToNearby: (TabModel) -> Void
     let tabHasThemeOverride: (UUID) -> Bool
@@ -272,79 +227,49 @@ struct VerticalTabSidebar: View {
     let onMoveTabToNewWindow: (TabModel) -> Void
     let onMoveTabsToNewWindow: ([UUID]) -> Void
 
-    // Theme passthrough for the locally presented sessions-dashboard sheet
-    // (a sheet presented from inside the fullScreenCover does not get the
-    // themedSheet treatment MainView applies to its own sheets).
+    // Sheets presented from here don't get MainView's themedSheet treatment.
     let sheetThemeColors: SheetThemeColors?
     let sheetAccentColor: Color?
     let sheetColorScheme: ColorScheme?
-    /// Open the tab exposé (shown with the header actions when the top tab bar is hidden).
     var onExposeRequested: () -> Void = {}
-    /// Pointer hover over a tab row (id, entered), for the hover preview card.
     var onTabHover: ((UUID, Bool) -> Void)? = nil
-    /// Where each row's hover preview anchors (nil: previews off).
+    /// Nil disables hover previews.
     var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
 
     @Setting(Settings.Tabs.showShortcutIndicators) private var showTabShortcutIndicators
     @Setting(Settings.Tabs.barHidden) private var tabBarHidden
 
-    /// Live keybinds, for handling the toggle shortcut INSIDE the sidebar:
-    /// the terminal resigned first responder when this presented, so its
-    /// UIKeyCommand for `toggle_tab_switcher` can't deliver the second
-    /// (dismiss) press; a local SwiftUI shortcut catches it regardless of
-    /// what the menu/responder chain does with it.
+    /// The terminal resigned first responder, so the toggle shortcut's second
+    /// press must be caught locally.
     @ObservedObject private var menuShortcuts = MenuShortcutState.shared
 
     @State private var searchText = ""
     @State private var dashboardRequest: TmuxDashboardRequest?
 
-    /// Gateways whose "Hidden (N)" group is expanded. Session-scoped (not
-    /// persisted): the disclosure defaults collapsed each presentation.
+    /// Session-scoped; not persisted.
     @State private var expandedHiddenGroups: Set<UUID> = []
     @State private var collapsedGroups: Set<String> = TabSidebarGroupCollapseStore.load()
 
-    // Context-menu dialog state (rename window/session, detach). Shared
-    // with the top tab bar via TmuxTabMenu.swift.
     @State private var tmuxDialogs = TmuxTabDialogCoordinator()
     @State private var herdrDialogs = HerdrTabDialogCoordinator()
 
-    // Keyboard navigation: arrow keys move the highlight, Return selects,
-    // typing filters. The search field is a UIKit-backed `SidebarSearchField`
-    // (a real UITextField) rather than a SwiftUI TextField, so focus and key
-    // handling are deterministic on iPad AND Mac Catalyst — no timers, no
-    // @FocusState. Arrows/Return route through the field's own UIKit callbacks
-    // (`pressesBegan` / delegate), not SwiftUI `.onKeyPress`.
+    // Keys route through the UIKit-backed `SidebarSearchField`, not `.onKeyPress`.
     @State private var highlightedRowID: String?
 
-    /// Whether the search field currently holds first responder, i.e. the
-    /// sidebar — not the terminal beside it — owns the keyboard. The
-    /// keyboard-cursor highlight (`highlightedRowID`) only renders while this is
-    /// true: docked, the terminal usually owns the keyboard, so showing a second
-    /// highlight disconnected from the selected tab is just confusing. Driven by
-    /// `SidebarSearchField.onFocusChange`.
+    /// The keyboard highlight only renders while the sidebar owns the keyboard.
     @State private var searchFieldFocused = false
 
-    /// Monotonic first-responder request handed to `SidebarSearchField`. Bumped
-    /// (via `requestSearchFocus()`) on real events — panel open, row tap, sheet
-    /// dismiss — and the field claims first responder on the next UIKit
-    /// lifecycle event with a window. Deterministic: no `Task.sleep`, no retry.
+    /// Bumped by `requestSearchFocus()`; the field claims first responder once it has a window.
     @State private var searchFocusRequestID = 0
 
-    /// Whether the panel is currently presented. The overlay controller keeps
-    /// this SwiftUI view MOUNTED (just transformed off-screen) after dismissal
-    /// — it only swaps the hosted root on the next *open*. Used to refuse a
-    /// re-focus request once the panel is dismissed (e.g. a sheet closing as
-    /// the panel itself goes away).
+    /// The view stays mounted off-screen after dismissal, so gate re-focus on this.
     @State private var isPanelVisible = true
 
-    /// Timer-driven arrow repeat, same as the profiles list: SwiftUI's
-    /// `.repeat` key phase does not arrive on iPad hardware keyboards.
+    /// `.repeat` key phases don't arrive from iPad hardware keyboards.
     @State private var arrowKeyRepeatManager = ArrowKeyRepeatManager()
 
 
-    // System drag-and-drop reorder (the top tab bar's pattern). A custom
-    // long-press+drag gesture was tried first and rejected: it eats the
-    // touch on every draggable row, blocking scroll initiation there.
+    // System drag and drop; a custom drag gesture blocked scrolling.
     @State private var draggingRowID: UUID? = nil
     @State private var draggingSectionID: String? = nil
     @State private var dragAssignedGroup = false
@@ -352,32 +277,19 @@ struct VerticalTabSidebar: View {
     @State private var dragStateExpirationTask: Task<Void, Never>?
     @State private var dragPreviewWidth = TabSidebarLayout.defaultWidth - 24
 
-    /// Control density: compact (dense list, small affordances) or large
-    /// (body-size text, HIG-standard 44pt-class touch targets). Toggled by
-    /// the textformat.size button in the header, persisted. Defaults large
-    /// on iPhone (touch-first, full-screen panel) and compact on
-    /// iPad/macOS/visionOS (pointer/keyboard, dense sidebar).
     @Setting(Settings.Sidebar.largeControls) private var largeControls
 
-    /// Uniform title line count for every tab row (Settings > Appearance >
-    /// Window > Tab Bar).
     @Setting(Settings.Sidebar.rowLines) private var titleLines
 
-    /// The top tab bar already provides Settings and New Tab in its trailing
-    /// corner. Keep those actions in the sidebar only when the top bar is
-    /// hidden, or on iPhone where the full-width sidebar obscures it.
+    /// Duplicates the top bar's actions only when it is hidden or obscured (iPhone).
     private var showsHeaderActionButtons: Bool {
         tabBarHidden || UIDevice.current.userInterfaceIdiom == .phone
     }
 
-    /// Gates all attention rendering (dots, agent cards, rollup summary);
-    /// the engine itself is gated separately by the master detection
-    /// toggle. (id=agent-attention)
+    /// Rendering only; detection has its own toggle. (id=agent-attention)
     @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
 
-    /// "static" keeps tab order (t3code rule: activity never reorders);
-    /// "priority" bubbles blocked/failed/done/working rows up within
-    /// their section. Visual-only — the tabs array never moves.
+    /// "static", "priority", or "project". Visual-only; the tabs array never moves.
     @Setting(Settings.CodingAgents.inboxSort) private var agentSortRaw
 
     private var attentionSortActive: Bool { agentSortRaw == "priority" }
@@ -393,25 +305,16 @@ struct VerticalTabSidebar: View {
         return "Sort tabs by attention"
     }
 
-    /// Group the inbox into one collapsible section per project. Visual-only,
-    /// like the attention sort.
-    ///
-    /// Deliberately NOT gated on the user's own tab groups being off. Making
-    /// the two mutually exclusive left the mode unreachable for anyone with
-    /// grouping enabled, with no indication why. While this is active it
-    /// simply REPLACES the hierarchy: it already drops group and gateway
-    /// headers, because an inbox grouped by project has no use for them.
+    /// Replaces the group/gateway hierarchy rather than requiring grouping off.
     /// (id=agent-project)
     private var projectGroupingActive: Bool {
         agentSortRaw == "project" && hasAnyProject
     }
 
-    /// Includes ordinary herdr shells and named workspaces without a directory.
     private var hasAnyProject: Bool {
         tabsModel.hasAnyProject
     }
 
-    /// Collapsed project sections, keyed by project label.
     @State private var collapsedProjects: Set<String> = []
 
     private var metrics: SidebarMetrics {
@@ -419,14 +322,8 @@ struct VerticalTabSidebar: View {
         return base.withTitleLines(titleLines)
     }
 
-    /// The theme accent as an explicit color value. The sidebar is hosted in a
-    /// `UIHostingController` (not a SwiftUI `.sheet`), so the panel's
-    /// `.tint(...)` does not reach `Color.accentColor` here the way it does in
-    /// the themed sheets — `Color.accentColor` falls back to the (empty) app
-    /// accent asset, i.e. system blue. Reading the accent the parent already
-    /// resolved makes the sidebar's accents match the connection / profiles
-    /// views exactly (e.g. gold on the 3024 Day theme). Falls back to the
-    /// system accent when no theme is active.
+    /// Explicit because `.tint` doesn't reach `Color.accentColor` in this
+    /// UIHostingController; it would fall back to system blue.
     private var accentTint: Color {
         sheetAccentColor ?? .accentColor
     }
@@ -446,19 +343,14 @@ struct VerticalTabSidebar: View {
         case windowRow
         /// A pane-scoped agent card nested beneath a multi-pane tab.
         case agentPane(paneID: UUID)
-        /// "Hidden (N)" disclosure under a gateway group. `tab` is the
-        /// GATEWAY tab (the disclosure has no tab of its own), so the row id
-        /// is kind-disambiguated below. (id=tmux-hidden-windows)
+        /// `tab` is the gateway tab, so the row id is kind-disambiguated.
+        /// (id=tmux-hidden-windows)
         case hiddenHeader(ownerID: UUID, count: Int, expanded: Bool)
-        /// A hidden tmux window, listed under the expanded disclosure.
         case hiddenWindowRow
-        /// A herdr workspace inside a gateway family, when the session has
-        /// more than one. `tab` is the workspace's first projected tab.
+        /// Only when the session has several workspaces; `tab` is the first one's.
         case herdrWorkspaceHeader(ownerID: UUID, workspaceId: String, title: String, count: Int, collapsed: Bool)
-        /// Section header for the project-grouped inbox. `count` is the number
-        /// of agent tabs inside; `rollup` is their worst attention state, shown
-        /// in place of the chevron while collapsed so a folded section still
-        /// reports that something needs you. (id=agent-project)
+        /// `rollup` is the worst attention state, shown while collapsed.
+        /// (id=agent-project)
         case projectHeader(
             key: String,
             title: String,
@@ -467,13 +359,8 @@ struct VerticalTabSidebar: View {
             rollup: AgentAttentionStatus?)
     }
 
-    /// Classifies how a dragged row reorders. Flat (.local) tabs move freely
-    /// across the WHOLE list — including past gateway groups — exactly like
-    /// the top tab bar (raw array move). tmux window rows (.window) reorder
-    /// only among their own gateway's siblings (committed to the server via
-    /// `move-window`). Gateway headers / hidden rows (.none) aren't draggable
-    /// (whole-group drag is a follow-up), but a .local tab CAN be dropped onto
-    /// a gateway header to land above/below the group.
+    /// `.local` tabs move anywhere; `.window` rows only among their gateway's
+    /// siblings; `.none` rows aren't draggable but accept `.local` drops.
     private enum DragClass: Equatable {
         case none
         case local
@@ -497,8 +384,7 @@ struct VerticalTabSidebar: View {
             SidebarRow(tab: tab, kind: kind, flatIndex: flatIndex, indentLevel: indentLevel + levels)
         }
 
-        /// Kind-disambiguated: the hidden-disclosure row reuses the gateway
-        /// TAB, so a bare tab UUID would collide with the gateway header.
+        /// Kind-prefixed, since several row kinds reuse the same tab.
         var id: String {
             if case .groupHeader(let groupID, _, _, _, _) = kind { return "group-\(groupID.rawValue)" }
             if case .hiddenHeader = kind { return "hidden-\(tab.id.uuidString)" }
@@ -565,11 +451,7 @@ struct VerticalTabSidebar: View {
 
     var body: some View {
         let rows = buildRows()
-        // Resolved ONCE per render and reused for every row: the per-tab
-        // `badge(for:allTabs:)` walks every other tab's split tree, so calling
-        // it per row was O(n^2) and gave the sidebar body an Observation
-        // dependency on every tab's split tree. Same treatment the top tab bar
-        // already applies. (See TmuxTabBadgeResolver.badge(for:gatewayOwnerIDs:).)
+        // Once per render; per-row resolution is O(n^2) and observes every split tree.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabsModel.tabs)
 
         ScrollViewReader { proxy in
@@ -591,49 +473,30 @@ struct VerticalTabSidebar: View {
                     rowList(rows, gatewayOwnerIDs: gatewayOwnerIDs)
                 }
 
-                // Subscription usage for live agents. Self-hiding: renders
-                // nothing when the feature is off or nothing is fetched, so
-                // it costs the sidebar no space at rest.
+                // Self-hiding when off or empty.
                 SidebarAgentUsageFooter(
                     metrics: metrics,
                     accentTint: accentTint,
                     isDocked: isDocked
                 )
             }
-            // Keep the column's bottom content (usage footer, last tab row)
-            // above the keyboard or its toolbar: both span the full window
-            // width, and `.ignoresSafeArea(.keyboard)` below means the safe
-            // area won't supply this clearance. See `dockedBottomClearance`.
             .padding(.bottom, dockedBottomClearance)
-            // Synced on EVERY render, not just on mode change or appear:
-            // `projectGroupingActive` also depends on a project having resolved
-            // asynchronously, so an event-only
-            // sync let the sidebar group by project while the tab bar stayed
-            // unscoped, or kept it scoped after grouping stopped.
-            // The setter is equality-guarded, so this is free at steady state.
+            // Projects resolve asynchronously, so sync on value change, not events.
             .onChange(of: projectGroupingActive, initial: true) { _, active in
                 tabsModel.projectScopedInboxEnabled = active
             }
             .onAppear {
                 loadGroupOrder()
-                // The overlay reuses this view's @State across presentations
-                // (it keeps the hosting view mounted off-screen), so re-assert
-                // visibility on every appear — this is the authoritative "panel
-                // is on screen" signal, since onAppear fires on each open.
+                // @State survives presentations; onAppear fires on each open.
                 isPanelVisible = true
                 highlightedRowID = tabsModel.selectedTabID?.uuidString
                 if let selectedID = tabsModel.selectedTabID {
                     proxy.scrollTo(selectedID.uuidString, anchor: .center)
                 }
-                // Docked, the terminal beside the column owns the keyboard:
-                // auto-grabbing the search field on appear (incl. launch
-                // restore) would yank focus off the terminal. Tapping the
-                // field still focuses it (user intent).
                 if !isDocked {
                     requestSearchFocus()
                 }
-                // Warm each gateway's session cache so the "Move to Session"
-                // context-menu pickers (synchronous ViewBuilders) have data.
+                // Context-menu pickers read the cache synchronously.
                 for tab in tabsModel.tabs where tab.isTmuxGateway {
                     tmuxController(tab)?.refreshSessionsCache()
                 }
@@ -642,14 +505,7 @@ struct VerticalTabSidebar: View {
                 arrowKeyRepeatManager.stop()
                 clearLocalDragState()
             }
-            // Docked: a tap on the panel's empty / header area anchors keyboard
-            // focus in the search field so arrow keys navigate tabs — clicking
-            // the small filter field is no longer the only way in. Tab rows,
-            // header buttons, and the search field consume their own taps first,
-            // so this only fires on otherwise-empty regions (tap ≠ drag, so it
-            // does not block scrolling or row drag-reorder). Floating already
-            // auto-focuses on open (see onAppear), so the isDocked gate keeps it
-            // a no-op there.
+            // Docked: tapping empty space focuses search for arrow-key navigation.
             .contentShape(Rectangle())
             .onTapGesture {
                 if isDocked { requestSearchFocus() }
@@ -677,8 +533,7 @@ struct VerticalTabSidebar: View {
             TabSidebarCollapseStore.save(newValue, knownGateways: known)
         }
         .onChange(of: collapsedGroups) { _, newValue in
-            // herdr workspace headers collapse under their own keys, which
-            // no group id carries.
+            // herdr workspace headers have their own keys.
             var known = Set(tabsModel.availableGroups.map { $0.id.rawValue })
             for tab in tabsModel.tabs where tab.isHerdrWindow {
                 guard let ownerID = tab.owningGatewayTerminalUUID, let workspaceId = tab.herdrWorkspaceId else { continue }
@@ -696,10 +551,6 @@ struct VerticalTabSidebar: View {
                 draggingSectionID = nil
             }
         }
-        // Track presentation so a re-focus request refuses to fire once the
-        // panel is dismissed. The field resigns first responder on dismiss via
-        // the overlay controller's `endEditing(true)` (TabSidebarPresentation),
-        // so nothing is needed here on hide.
         .onReceive(NotificationCenter.default.publisher(for: .tabSwitcherVisibilityChanged)) { note in
             guard let visible = note.userInfo?["visible"] as? Bool else { return }
             isPanelVisible = visible
@@ -711,32 +562,20 @@ struct VerticalTabSidebar: View {
             }
             clearLocalDragState()
         }
-        // The tmux sessions dashboard (a real .sheet presented over the panel)
-        // takes first responder while it is up. When it dismisses with the
-        // panel still open, re-anchor first responder in the search field so
-        // arrow-key navigation resumes. Keyed on the sheet binding (not a lagged
-        // guard) → deterministic.
+        // The dashboard sheet took first responder; reclaim it on dismiss.
         .onChange(of: dashboardRequest != nil) { wasPresented, isPresented in
             guard wasPresented, !isPresented, isPanelVisible else { return }
             requestSearchFocus()
         }
     }
 
-    /// Only where no menu bar carries these chords. `menuToggleTabSwitcher` and
-    /// `menuToggleGroupMode` both post notifications rather than walking the
-    /// responder chain, so the menu items already fire with the sidebar focused.
+    /// Menu items already fire with the sidebar focused where a menu bar exists.
     private var needsShortcutCatchers: Bool {
         !MenuShortcutState.menuRailOwnsShortcuts
     }
 
-    /// Hidden buttons for shortcuts that must keep working while the floating
-    /// sidebar owns first responder (see `menuShortcuts`).
-    ///
-    /// Single-chord bindings only: `MenuShortcutState` collapses multi-key
-    /// sequences (e.g. `ctrl+a > t`) to their FIRST trigger, so installing one
-    /// here would fire on a bare `ctrl+a`. Sequence bindings keep
-    /// working through the normal KeySequenceTracker path instead — the
-    /// same exclusion KeybindCommandGenerator applies to menu shortcuts.
+    /// Single-chord only: sequences collapse to their first trigger here, so
+    /// `ctrl+a > t` would fire on a bare `ctrl+a`.
     @ViewBuilder
     private var sidebarShortcutCatchers: some View {
         ZStack {
@@ -782,11 +621,7 @@ struct VerticalTabSidebar: View {
         #endif
     }
 
-    /// SwiftUI's `.onDrag` exposes drag start but not a reliable drag-ended or
-    /// drag-cancelled callback. Hiding the source row is therefore only safe on
-    /// Catalyst, where row drops reliably complete through our drop delegates.
-    /// On iPad/iPhone a touch or trackpad drag can end without `performDrop`,
-    /// leaving local visual state stale until a watchdog fires.
+    /// `.onDrag` has no reliable end callback; only Catalyst drops always complete.
     private var usesHiddenSourceDragPreview: Bool {
         #if targetEnvironment(macCatalyst)
         return true
@@ -795,9 +630,7 @@ struct VerticalTabSidebar: View {
         #endif
     }
 
-    /// Live progress of a dismiss drag, posted to the overlay controller which
-    /// translates the UIKit hosting view (see the swipe-down notification
-    /// design notes in `TabSidebarPresentation.swift`).
+    /// See `TabSidebarPresentation.swift`.
     private func postDismissDragChanged(_ value: DragGesture.Value) {
         NotificationCenter.default.post(
             name: .tabSidebarDismissDragChanged,
@@ -806,14 +639,9 @@ struct VerticalTabSidebar: View {
         )
     }
 
-    /// End of a dismiss drag: commit only past about a third of the screen, or
-    /// on a genuine downward flick — matching the native sheet feel. (The old
-    /// bottom panel's 80pt threshold dismissed a full-screen panel from a tiny
-    /// nudge.) Otherwise spring back via the cancelled notification.
+    /// Commits past a third of the screen or on a flick, like a native sheet.
     private func commitOrCancelDismissDrag(_ value: DragGesture.Value) {
-        // `UIScreen.main` is unavailable on visionOS, but the dismiss drag only
-        // exists on iPhone (`isPhone` is always false on visionOS), so the
-        // 120pt floor is a harmless fallback there.
+        // No UIScreen.main on visionOS, which never has the dismiss drag anyway.
         #if os(visionOS)
         let dismissDistance: CGFloat = 120
         #else
@@ -826,16 +654,8 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Drag down to dismiss. GLOBAL coordinate space, and the movement is
-    /// applied by the overlay controller to the UIKit hosting view (via the
-    /// dismiss-drag notifications): tracking in local space while offsetting
-    /// the view under the finger feeds the motion back into the gesture
-    /// (jitter), and a SwiftUI offset here would move only the content, not
-    /// the panel chrome.
-    ///
-    /// `minimumDistance` is a parameter so the dedicated grab handle can use a
-    /// 0pt threshold (instant, native-feeling) while the broad header keeps a
-    /// safe 10pt threshold to coexist with its buttons.
+    /// Global space, since local tracking of a moving view jitters. The overlay
+    /// controller moves the hosting view so the chrome moves too.
     private func dismissDragGesture(minimumDistance: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: minimumDistance, coordinateSpace: .global)
             .onChanged { postDismissDragChanged($0) }
@@ -844,16 +664,8 @@ struct VerticalTabSidebar: View {
 
     private var header: some View {
         VStack(spacing: 0) {
-            // The grab handle + swipe-down dismiss belong to the floating panel.
-            // Docked, the sidebar is a fixed column with no slide-to-dismiss.
             if isPhone && !isDocked {
-                // A dedicated, button-free grab strip so the handle drags like a
-                // native sheet grabber: a 0pt drag threshold begins tracking
-                // instantly (no dead-zone), and — because nothing here is
-                // tappable — SwiftUI never delays the drag to disambiguate it
-                // from a button press the way the broad header gesture must.
-                // `highPriorityGesture` makes this strip win over the parent
-                // header gesture for touches that land on the capsule.
+                // Button-free, so a 0pt threshold tracks instantly like a sheet grabber.
                 Capsule()
                     .fill(Color.primary.opacity(0.25))
                     .frame(width: 36, height: 5)
@@ -868,15 +680,10 @@ struct VerticalTabSidebar: View {
             headerRow
         }
         .contentShape(Rectangle())
-        // Disable the swipe-down dismiss when docked (keep subview/button
-        // gestures); `.subviews` masks this gesture off the header itself.
-        // The broad header keeps a 10pt threshold so a drag and the header's
-        // buttons can share the region; the capsule strip above handles the
-        // instant grab.
+        // 10pt so the header's buttons still work; `.subviews` disables it when docked.
         .gesture(dismissDragGesture(minimumDistance: 10), including: isDocked ? .subviews : .all)
     }
 
-    /// A header icon button at the current density's target size.
     private func headerButton(
         _ systemImage: String,
         help: LocalizedStringKey? = nil,
@@ -885,10 +692,6 @@ struct VerticalTabSidebar: View {
         let button = Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: metrics.headerIconSize, weight: .medium))
-                // Tinted like a standard toolbar button, matching how the
-                // connection / profiles views color their leading icons. Uses
-                // the explicit theme accent (see `accentTint`) rather than
-                // `.accentColor`, which would render system blue here.
                 .foregroundColor(accentTint)
                 .frame(width: metrics.headerButtonTarget, height: metrics.headerButtonTarget)
                 .contentShape(Rectangle())
@@ -938,8 +741,7 @@ struct VerticalTabSidebar: View {
             headerButton("xmark", action: onDismiss)
         }
         .padding(.leading, 16)
-        // Match the list's 8pt outer inset plus each row's 8pt trailing
-        // inset, so the header actions land on the same global rail.
+        // List inset + row inset, to share the rows' trailing rail.
         .padding(.trailing, 16)
         .padding(.top, 12)
         .padding(.bottom, 4)
@@ -947,9 +749,7 @@ struct VerticalTabSidebar: View {
 
     // MARK: Agent Summary
 
-    /// Agent rollup and the shared sort control. Keep the control available
-    /// for ordinary project shells even when agent badges are disabled.
-    /// (id=agent-attention)
+    /// Shown for project shells even with badges off. (id=agent-attention)
     @ViewBuilder
     private var agentSummaryBar: some View {
         if attentionBadgesEnabled || hasAnyProject {
@@ -984,10 +784,7 @@ struct VerticalTabSidebar: View {
                 .font(.system(size: metrics.searchFontSize - 1))
                 .foregroundColor(.secondary)
 
-            // UIKit-backed (see SidebarSearchField): deterministic focus + key
-            // handling on iPad and Mac Catalyst. Arrows drive the highlight
-            // (with hold-to-repeat via ArrowKeyRepeatManager), Escape is
-            // two-stage (clear filter, then dismiss), Return selects.
+            // Escape clears the filter first, then dismisses.
             SidebarSearchField(
                 text: $searchText,
                 placeholder: String(localized: "Filter tabs"),
@@ -1021,24 +818,16 @@ struct VerticalTabSidebar: View {
                     selectHighlighted(rows: rows)
                 },
                 onFocusChange: { focused in
-                    // Defer off this runloop: the begin-editing callback can
-                    // fire synchronously from `becomeFirstResponder()` inside
-                    // `updateUIView`, where a direct @State write would be
-                    // "modifying state during view update". Main-queue FIFO
-                    // preserves begin/end ordering.
+                    // Async: this can fire inside `updateUIView`. FIFO keeps ordering.
                     DispatchQueue.main.async {
                         searchFieldFocused = focused
-                        // Reacquiring focus: start the cursor from the live
-                        // selection so it reappears connected to the active tab,
-                        // never at a stale row.
                         if focused {
                             highlightedRowID = tabsModel.selectedTabID?.uuidString
                         }
                     }
                 }
             )
-            // Fill the row width; pin the height so gaining focus cannot
-            // reflow the rows below.
+            // Fixed height so focus can't reflow the rows below.
             .frame(maxWidth: .infinity)
             .frame(height: metrics.searchFieldHeight)
 
@@ -1076,14 +865,9 @@ struct VerticalTabSidebar: View {
             .frame(width: metrics.trailingAccessoryWidth, alignment: .center)
             .help("Group tabs")
         }
-        // Inset the icon/text off the pill's curved ends (matches the
-        // Settings search field's leading padding). The smaller trailing
-        // inset compensates for the capsule's own 12pt outer padding so the
-        // final accessory slot shares the tab/header rail.
+        // Small trailing inset keeps the last accessory on the shared rail.
         .padding(.leading, 14)
         .padding(.trailing, 4)
-        // Fixed container height (not vertical padding around a variable
-        // field): the search bar must never change size on focus.
         .frame(height: metrics.searchBarHeight)
         .background(
             Capsule()
@@ -1102,15 +886,8 @@ struct VerticalTabSidebar: View {
                         .id(row.id)
                 }
             }
-            // The docked sidebar is user-resizable. Capture the rendered row
-            // width so Catalyst's custom drag preview matches its source
-            // instead of assuming the floating panel's default width.
-            //
-            // Measured on the stack, not per row: rows stretch to the stack's
-            // content width so the number is identical, and a per-row reader
-            // let a single row's re-layout (a drag or context-menu lift) write
-            // this parent @State and re-render the whole sidebar mid-gesture.
-            // Applied INSIDE the horizontal padding, matching what a row spans.
+            // Drag preview width, since the docked column is resizable. Measured on
+            // the stack; a per-row reader re-rendered the sidebar mid-gesture.
             .onGeometryChange(for: CGFloat.self) { geometry in
                 geometry.size.width
             } action: { width in
@@ -1120,8 +897,7 @@ struct VerticalTabSidebar: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
         }
-        // Catch-all so a drop released over the list (but not over a row)
-        // still commits the arrangement and clears the drag state.
+        // Catches drops between rows.
         .onDrop(of: [TabTransferCoordinator.dragUTType, .text], delegate: SidebarContainerDropDelegate(
             onPerform: {
                 if TabTransferCoordinator.shared.canAcceptActiveDrag(in: windowId) {
@@ -1144,8 +920,7 @@ struct VerticalTabSidebar: View {
         proxy.scrollTo(rows[next].id, anchor: nil)
     }
 
-    /// Selects the highlighted row (or the first visible row, e.g. the top
-    /// filter match) and keeps the keyboard anchored in the panel.
+    /// Falls back to the first row, e.g. the top filter match.
     @discardableResult
     private func selectHighlighted(rows: [SidebarRow]) -> Bool {
         let validHighlight = highlightedRowID.flatMap { id in
@@ -1155,9 +930,7 @@ struct VerticalTabSidebar: View {
               let row = rows.first(where: { $0.id == id }) else { return false }
         highlightedRowID = id
         activateHighlightedRow(row)
-        // No re-grab needed: while the sidebar stays open, handleSelectedTabChange
-        // skips the terminal's becomeFirstResponder and the overlayOwnsKeyboard
-        // gate would refuse it anyway, so the search field keeps first responder.
+        // The search field keeps first responder while the sidebar stays open.
         return true
     }
 
@@ -1180,9 +953,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Row activation for pointer/touch selection and non-section keyboard
-    /// activation: hidden disclosure toggles, hidden windows show-and-select,
-    /// everything else selects.
     private func activateRow(_ row: SidebarRow) {
         switch row.kind {
         case .groupHeader(let groupID, _, _, _, _):
@@ -1200,16 +970,14 @@ struct VerticalTabSidebar: View {
         case .herdrWorkspaceHeader(let ownerID, let workspaceId, _, _, _):
             toggleHerdrWorkspaceCollapse(ownerID: ownerID, workspaceId: workspaceId)
         case .gatewayHeader:
-            // A hidden gateway keeps its header as the group's structure;
-            // activating it shows + selects. (id=tmux-hidden-gateway)
+            // (id=tmux-hidden-gateway)
             if row.tab.isHiddenTmuxWindow {
                 showHiddenGateway(row.tab)
             } else {
                 onSelectTab(row.tab.id)
             }
         case .projectHeader(let key, _, _, let collapsed, _):
-            // Reached by keyboard navigation; the header's own tap gesture
-            // handles pointer input.
+            // Keyboard only; the header handles its own taps.
             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                 if collapsed {
                     collapsedProjects.remove(key)
@@ -1276,17 +1044,14 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Restore a hidden tmux window and select its tab.
     private func showHiddenWindow(_ tab: TabModel) {
         guard let windowId = tab.tmuxWindowId,
               let controller = tmuxController(tab) else { return }
         controller.showWindow(windowId: windowId, andSelect: true)
     }
 
-    /// Restore a hidden GATEWAY tab and select it. Routed through the
-    /// controller (NOT onSelectTab — MainView's selection closure never
-    /// unhides); if the controller is somehow gone, clear the flag directly so
-    /// a tab can never be left unreachable. (id=tmux-hidden-gateway)
+    /// Via the controller, since onSelectTab never unhides; without one, clear
+    /// the flag so the tab can't become unreachable. (id=tmux-hidden-gateway)
     private func showHiddenGateway(_ tab: TabModel) {
         if let controller = tmuxController(tab) {
             controller.showGatewayTab(andSelect: true)
@@ -1298,23 +1063,15 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Re-anchors first responder inside the panel. Selecting a tab makes
-    /// Ask the search field to take first responder by bumping its focus
-    /// request. `SidebarSearchField` claims it on the next UIKit lifecycle event
-    /// that has a window — deterministically, with no timer or retry. Selecting
-    /// a tab focuses that tab's terminal, but while the sidebar stays open the
-    /// panel owns the keyboard (MainView's overlayOwnsKeyboard gate refuses the
-    /// terminal), so re-anchoring here keeps arrow-key navigation alive. No-op
-    /// without a hardware keyboard (would pop the software keyboard).
+    /// Keeps arrow-key navigation alive. No-op without a hardware keyboard,
+    /// where it would pop the software keyboard.
     private func requestSearchFocus() {
         guard KeyboardTracker.shared.isHardwareKeyboard else { return }
         searchFocusRequestID += 1
     }
 
-    /// Only parent-supplied presentation and routing inputs belong in the
-    /// menu owner's equality check. Live tab/menu state is read by children.
-    /// In particular, omit flatIndex: drag/drop stays outside this boundary
-    /// and row actions address tabs by identity.
+    /// Parent-supplied inputs only; children read live state. Omits flatIndex
+    /// because row actions address tabs by identity.
     private struct SidebarMenuRowIdentity<Presentation: Equatable>: Equatable {
         let tab: ObjectIdentifier
         let kind: RowKind
@@ -1344,8 +1101,7 @@ struct VerticalTabSidebar: View {
         )
     }
 
-    /// Header text/count/collapse state lives in RowKind. These are the
-    /// remaining inputs used by group and herdr workspace header labels.
+    /// Header inputs not already carried by RowKind.
     private struct SidebarHeaderMenuPresentation: Equatable {
         let indentLevel: Int
         let isHighlighted: Bool
@@ -1360,13 +1116,7 @@ struct VerticalTabSidebar: View {
         let isDragging = isDraggingTab || isDraggingSection
         let hidesSourceDuringDrag = usesHiddenSourceDragPreview
         let isSelected = tabsModel.selectedTabID == row.tab.id && !row.isHiddenKind
-        // The keyboard-cursor highlight only renders when a hardware keyboard
-        // is driving the list AND the sidebar's search field actually owns the
-        // keyboard. Docked, the terminal beside the column usually holds first
-        // responder, so without the focus gate the cursor highlight would linger
-        // disconnected from the selected tab whenever the user switched tabs from
-        // the terminal — two highlights at once. (Floating auto-focuses the
-        // field on open and keeps it, so this stays true throughout normal use.)
+        // Only while the sidebar owns the keyboard, or docked shows two highlights.
         let isHighlighted = highlightedRowID == row.id
             && KeyboardTracker.shared.isHardwareKeyboard
             && searchFieldFocused
@@ -1474,8 +1224,6 @@ struct VerticalTabSidebar: View {
                     }
                 }
             case .flat, .windowRow, .hiddenWindowRow:
-                // The owner uses the row item's presentation equality without
-                // reading its live title, agent state, or hover state.
                 let item = SidebarTabRowItem(
                     tab: row.tab,
                     tmuxBadge: TmuxTabBadgeResolver.badge(for: row.tab, gatewayOwnerIDs: gatewayOwnerIDs),
@@ -1493,8 +1241,6 @@ struct VerticalTabSidebar: View {
                 SidebarContextMenuRow(identity: menuRowIdentity(for: row, presentation: item)) {
                     item
                 } menu: {
-                    // Reconciling tmux rows retain Connection Info and Close;
-                    // the shared menu items gate their own window actions.
                     switch row.kind {
                     case .windowRow:
                         windowRowMenu(for: row.tab)
@@ -1509,13 +1255,8 @@ struct VerticalTabSidebar: View {
                 .onTapGesture {
                     highlightedRowID = row.id
                     activateRow(row)
-                    // Skip when the tap dismisses the panel (phone/visionOS):
-                    // re-anchoring would steal first responder back to the
-                    // off-screen field. iPad/Catalyst keeps the panel open.
-                    // Also skip when docked: a row tap there should focus the
-                    // terminal beside the column for typing (handleSelectedTabChange
-                    // grants it), not race the search field back. Tap empty
-                    // sidebar space to drive arrow-key navigation instead.
+                    // Not when the tap dismisses the panel, nor docked, where the
+                    // terminal should get focus.
                     if staysOpenOnSelect && !isDocked {
                         requestSearchFocus()
                     }
@@ -1555,9 +1296,6 @@ struct VerticalTabSidebar: View {
                 return TabTransferCoordinator.shared.beginDrag(sourceWindowId: windowId, tabID: row.tab.id)
             },
             dropDelegate: SidebarRowDropDelegate(
-                // Disambiguated row id (not tab.id): the "Hidden (N)"
-                // disclosure reuses the gateway tab's UUID, so a bare tab id
-                // can't tell it apart from the gateway header.
                 targetRowID: row.id,
                 onEntered: { targetRowID in
                     handleDragEntered(targetRowID: targetRowID, rows: rows)
@@ -1597,11 +1335,8 @@ struct VerticalTabSidebar: View {
     }
 
     private func scheduleDragStateExpiration(rowID: UUID?, sectionID: String?) {
-        // SwiftUI exposes drag start and successful drops, but no dependable
-        // cancellation callback. Keep one hard failsafe aligned with
-        // TabTransferCoordinator's 30-second lifetime. This is deliberately
-        // not refreshed from `dropUpdated`: those callbacks are movement-driven,
-        // and a stationary drag remains valid.
+        // No reliable cancel callback, so expire with TabTransferCoordinator's
+        // lifetime. Not refreshed on movement; a stationary drag is valid.
         cancelDragStateExpiration()
         let generation = dragStateGeneration
         dragStateExpirationTask = Task { @MainActor in
@@ -1655,9 +1390,7 @@ struct VerticalTabSidebar: View {
     }
 
     @ViewBuilder
-    /// Built from the SAME `SidebarTabRowItem` as the live row so the two
-    /// construction sites can't drift. No `.equatable()`: this renders once per
-    /// drag, so the equality gate would only add work.
+    /// Same `SidebarTabRowItem` as the live row; no `.equatable()` for a one-off render.
     private func dragPreview(for row: SidebarRow, gatewayOwnerIDs: [UUID]) -> some View {
         let isSelected = tabsModel.selectedTabID == row.tab.id && !row.isHiddenKind
 
@@ -1729,9 +1462,7 @@ struct VerticalTabSidebar: View {
 
     private func rowIsDraggable(_ row: SidebarRow) -> Bool {
         guard searchText.isEmpty else { return false }
-        // Attention sort shows rows out of model order; a drag-commit
-        // there would permute the wrong slots. Section headers stay
-        // draggable (sections never visually move).
+        // Sorted rows are out of model order, so only section headers drag.
         if projectGroupingActive {
             switch row.kind {
             case .projectHeader, .flat, .windowRow:
@@ -1749,8 +1480,6 @@ struct VerticalTabSidebar: View {
 
     // MARK: Context Menus
 
-    /// Connection Info item shared by every row menu. Mirrors the top tab
-    /// bar: always present, disabled when the tab has nothing to show.
     @ViewBuilder
     private func connectionInfoItem(for tab: TabModel) -> some View {
         Button {
@@ -1776,8 +1505,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Transfer + theme-override items shared by every row menu, both
-    /// conditional. Mirrors the top tab bar.
     @ViewBuilder
     private func transferAndThemeItems(for tab: TabModel) -> some View {
         if canTransferToNearby(tab) {
@@ -1829,16 +1556,10 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// "Move to Window" for an entire group, or a whole tmux gateway (the
-    /// gateway tab plus all its window tabs). Members come from
-    /// `availableGroups`, which buckets by EFFECTIVE group id — so a child the
-    /// user has overridden into a different group is naturally excluded.
     @ViewBuilder
     private func moveGroupToWindowItems(for groupID: TabGroupID, isGateway: Bool) -> some View {
-        // Gateways move the WHOLE tmux family by owner id (hidden windows,
-        // placeholders, and children the user moved into another group) so
-        // tmux adoption stays coherent after the gateway's baseWindowId moves;
-        // regular groups use the visible effective-group membership.
+        // Gateways move their whole tmux family, including hidden and regrouped
+        // tabs, so adoption stays coherent; groups use effective membership.
         let tabIDs: [UUID] = {
             if isGateway, let ownerID = groupID.tmuxOwnerID {
                 return tabsModel.tmuxFamilyTabIDs(ownerID: ownerID)
@@ -1846,11 +1567,7 @@ struct VerticalTabSidebar: View {
             return tabsModel.availableGroups.first(where: { $0.id == groupID })?.tabIDs ?? []
         }()
         let members = tabIDs.compactMap { tabsModel.tab(withID: $0) }
-        // A single-member regular group is redundant with the per-tab "Move to
-        // Window"; only offer it for multi-tab groups. Gateways always travel
-        // as a unit (even with one window). `canTransferEntireBatch` keeps the
-        // offer all-or-nothing — a regular group with a stray gateway-bound
-        // tmux child is not offered rather than moved partially.
+        // All-or-nothing; single-tab groups already have the per-tab item.
         if TabTransferCoordinator.canOfferWindowTransfers,
            (isGateway || members.count >= 2),
            TabTransferCoordinator.shared.canTransferEntireBatch(tabIDs, in: windowId) {
@@ -1885,9 +1602,7 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Local routing for the shared tmux items' "tmux Sessions" entry: the
-    /// sidebar lives in an embedded hosting controller, so the dashboard
-    /// presents from a sidebar-local sheet rather than MainView's.
+    /// Presents from a sidebar-local sheet, since this is an embedded hosting controller.
     private func showTmuxSessionsLocally(_ tab: TabModel) {
         guard let controller = tmuxController(tab) else { return }
         dashboardRequest = TmuxDashboardRequest(controller: controller)
@@ -1970,7 +1685,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Context menu for a regular (non-tmux) tab row.
     @ViewBuilder
     private func flatRowMenu(for tab: TabModel) -> some View {
         connectionAddressCopyItems(for: tab)
@@ -1981,6 +1695,9 @@ struct VerticalTabSidebar: View {
         groupOverrideMenuItem(for: tab)
         Divider()
         HerdrGatewayDetachMenuItem(tab: tab, dialogs: herdrDialogs)
+        MultiplexerDetachMenuItem(tab: tab) { tab in
+            _ = MuxSessionDetach.detach(tab: tab, tmuxController: tmuxController)
+        }
         Button(role: .destructive) {
             onCloseTab(tab.id)
         } label: {
@@ -1988,9 +1705,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Context menu for a VISIBLE tmux window row: connection info, the
-    /// shared tmux admin section (rename, move to session, new tab,
-    /// sessions, hide), close (configurable tmux tab-close action).
     @ViewBuilder
     private func windowRowMenu(for tab: TabModel) -> some View {
         connectionAddressCopyItems(for: tab)
@@ -2006,6 +1720,11 @@ struct VerticalTabSidebar: View {
         moveToWindowItems(for: tab)
         groupOverrideMenuItem(for: tab)
         Divider()
+        TmuxGatewayDetachMenuItem(
+            tab: tab,
+            controller: tmuxController(tab),
+            dialogs: tmuxDialogs
+        )
         Button(role: .destructive) {
             onCloseTab(tab.id)
         } label: {
@@ -2013,7 +1732,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Context menu for a HIDDEN tmux window row.
     @ViewBuilder
     private func hiddenWindowRowMenu(for tab: TabModel) -> some View {
         connectionAddressCopyItems(for: tab)
@@ -2031,9 +1749,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Context menu for a gateway header: connection info, the shared tmux
-    /// admin section (new tab, sessions, rename-session), then the
-    /// destructive section — graceful Detach before Close.
     @ViewBuilder
     private func gatewayHeaderMenu(for tab: TabModel, ownerID: UUID) -> some View {
         connectionAddressCopyItems(for: tab)
@@ -2046,9 +1761,7 @@ struct VerticalTabSidebar: View {
             onShowTmuxSessions: { showTmuxSessionsLocally($0) }
         )
         transferAndThemeItems(for: tab)
-        // Whole gateway (gateway tab + all its window tabs), not just the
-        // gateway tab — moving it alone would split the live controller's
-        // baseWindowId from its windows.
+        // The whole family, or the controller's baseWindowId splits from its windows.
         moveGroupToWindowItems(for: .tmux(ownerID: ownerID), isGateway: true)
         groupOverrideMenuItem(for: tab)
         Divider()
@@ -2064,8 +1777,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Context menu for a herdr gateway header: the family's admin items,
-    /// then detach ahead of the gateway's own close.
     @ViewBuilder
     private func herdrGatewayHeaderMenu(for tab: TabModel) -> some View {
         connectionAddressCopyItems(for: tab)
@@ -2082,8 +1793,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// A workspace inside a herdr gateway family, between the gateway
-    /// header and the workspace's projected tabs.
     private func herdrWorkspaceHeaderRow(
         row: SidebarRow,
         title: String,
@@ -2129,7 +1838,6 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// "Hidden (N)" disclosure row at the bottom of a gateway group.
     private func hiddenGroupHeaderRow(
         isHighlighted: Bool,
         indentLevel: Int,
@@ -2173,13 +1881,8 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Section header for the project-grouped inbox.
-    ///
-    /// While COLLAPSED the chevron gives way to the section's worst attention
-    /// state, so a folded project still tells you something needs you rather
-    /// than hiding it. Colour is state only, never project identity: there is
-    /// no per-project hue or generated icon anywhere in this UI.
-    /// (id=agent-project)
+    /// Collapsed, the chevron becomes the worst attention state. Colour is state
+    /// only, never project identity. (id=agent-project)
     private func projectHeaderRow(
         key: String,
         title: String,
@@ -2236,12 +1939,7 @@ struct VerticalTabSidebar: View {
         }
     }
 
-    /// Live reorder while hovering. A regular (.local) tab moves freely among
-    /// the sidebar's TOP-LEVEL rows (flat tabs + gateway headers), so it can
-    /// cross tmux gateway GROUPS — matching the top tab bar (raw array move;
-    /// dropping onto a gateway header lands above/below the whole group by drag
-    /// direction). A tmux window tab reorders only within its gateway's
-    /// siblings. Local-only; the server commit happens once at drop.
+    /// Live, local-only reorder while hovering; the server commit happens at drop.
     private func handleDragEntered(targetRowID: String, rows: [SidebarRow]) {
         if let movingProjectID = tabsModel.draggingProjectGroupID {
             guard let target = rows.first(where: { $0.id == targetRowID }),
@@ -2311,8 +2009,6 @@ struct VerticalTabSidebar: View {
             return
 
         case .window:
-            // tmux window tabs reorder only within their own gateway's
-            // siblings (server-routed at drop). Cross-class targets ignored.
             guard target.dragClass == source.dragClass else { return }
             var orderedIDs = rows.filter { $0.dragClass == source.dragClass }.map(\.tab.id)
             guard let from = orderedIDs.firstIndex(of: draggingID),
@@ -2323,15 +2019,11 @@ struct VerticalTabSidebar: View {
             onReorderClass(orderedIDs, draggingID)
 
         case .local:
-            // A projected herdr tab nested under its gateway reorders only
-            // among its workspace siblings: the sidebar nests the family by
-            // workspace, so a move across that boundary would show nowhere.
-            // One the user moved into an ordinary group renders flat there
-            // and drags like any other tab.
+            // Nested herdr tabs reorder only among workspace siblings; a move
+            // across workspaces would show nowhere.
             if isNestedUnderHerdrGateway(source.tab) {
                 let sourceGroup = tabsModel.effectiveGroupID(for: source.tab)
-                // Expanded custom groups may contain other tabs from this
-                // workspace. Only the source's displayed group participates.
+                // Only siblings in the source's displayed group.
                 let siblingIDs = rows.filter { row in
                     row.dragClass == .local
                         && Self.isHerdrWorkspaceSibling(source.tab, row.tab)
@@ -2355,13 +2047,7 @@ struct VerticalTabSidebar: View {
                 return
             }
 
-            // Only top-level rows are drop targets. Inside-group rows (window
-            // rows, the "Hidden (N)" disclosure, hidden window rows) are
-            // hoisted under their gateway in buildRows() regardless of raw
-            // array order, so their raw index doesn't match their visual
-            // position — using it would land the tab outside the row the user
-            // targeted (and the disclosure/header share a UUID). The gateway
-            // header alone reaches both sides of the group via drag direction.
+            // Only top-level rows: nested rows' raw indices don't match their position.
             switch target.kind {
             case .flat, .gatewayHeader:
                 break
@@ -2369,8 +2055,6 @@ struct VerticalTabSidebar: View {
                     .herdrWorkspaceHeader:
                 return
             }
-            // Live indices from the model (robust to a stale captured `rows`);
-            // the drop commit's tmux sync is a no-op for a non-window tab.
             moveDraggedTab(draggingID, near: target.tab.id)
         }
     }
@@ -2420,9 +2104,7 @@ struct VerticalTabSidebar: View {
         return group.tabIDs.first { $0 != draggingID }
     }
 
-    /// Mirrors the row builders: grouped mode nests a projected tab under its
-    /// gateway only while its effective group is that family; flat mode
-    /// nests it whenever the gateway is in the list.
+    /// Mirrors the row builders' nesting rules.
     private func isNestedUnderHerdrGateway(_ tab: TabModel) -> Bool {
         guard tab.isHerdrWindow, let owner = tab.owningGatewayTerminalUUID else { return false }
         if tabsModel.isGroupedModeEnabled {
@@ -2478,10 +2160,7 @@ struct VerticalTabSidebar: View {
         return "\u{2318}\(flatIndex + 1)"
     }
 
-    /// Shortcut hint for a sidebar row, or nil when none should be shown.
-    /// In grouped mode the live ⌘1–9 key commands map to `navigationTabs`
-    /// (the active group only), so showing per-group hints on inactive groups
-    /// produces duplicate, non-functional indicators. Suppress those.
+    /// In grouped mode ⌘1–9 only address the active group, so others get no hint.
     private func shortcutHint(for row: SidebarRow) -> String? {
         guard !row.isHiddenKind else { return nil }
         if projectGroupingActive {
@@ -2515,8 +2194,7 @@ struct VerticalTabSidebar: View {
 
     // MARK: Gateway Header Row
 
-    /// Concrete return type (not `some View`) so the live-row call site can
-    /// apply `.equatable()` while the drag preview skips it.
+    /// Concrete type so the live row can apply `.equatable()`.
     private func gatewayHeaderRow(
         row: SidebarRow,
         isSelected: Bool,
@@ -2532,8 +2210,7 @@ struct VerticalTabSidebar: View {
         let isActive = tabsModel.effectiveGroupID(for: tabsModel.selectedTab) == familyID
         let host: String? = isHerdr
             ? tabsModel.groupHostLabel(for: row.tab)
-            // TmuxController is not observable, so this is a plain read and is
-            // safe to resolve at parent scope and compare in `==`.
+            // Not observable, so safe to resolve here and compare in `==`.
             : controller?.connectionKey ?? controller?.gatewaySourceDisplayName
         return SidebarGatewayHeaderItem(
             tab: row.tab,
@@ -2564,17 +2241,13 @@ struct VerticalTabSidebar: View {
             onClose: { onCloseTab(row.tab.id) },
             onTap: {
                 highlightedRowID = row.id
-                // Tapping a hidden gateway's header shows + selects it,
-                // mirroring hidden window rows. (id=tmux-hidden-gateway)
+                // (id=tmux-hidden-gateway)
                 if row.tab.isHiddenTmuxWindow {
                     showHiddenGateway(row.tab)
                 } else {
                     onSelectTab(row.tab.id)
                 }
-                // See the tab row's tap: skip the re-anchor when selecting will
-                // dismiss the panel (phone/visionOS), and when docked (the
-                // terminal beside the column takes focus; empty-space tap
-                // drives arrow-nav).
+                // Same rule as the tab row's tap.
                 if staysOpenOnSelect && !isDocked {
                     requestSearchFocus()
                 }
@@ -2587,9 +2260,7 @@ struct VerticalTabSidebar: View {
     // MARK: Grouping
 
     private func buildRows() -> [SidebarRow] {
-        // Project mode always builds from the FLAT tab list: grouped mode can
-        // scope the list to the active group, which would silently hide agents
-        // in other groups from an inbox that claims to show them all.
+        // Project mode uses the flat list; grouped mode would hide other groups' agents.
         let baseRows = tabsModel.isGroupedModeEnabled && !projectGroupingActive
             ? buildGroupedRows()
             : buildRows(from: tabsModel.tabs)
@@ -2599,10 +2270,7 @@ struct VerticalTabSidebar: View {
             : addingPaneChildren(
                 to: baseRows,
                 omitNonmatchingParents: projectSearchActive)
-        // Rows carry .contextMenu / .onDrag, so a duplicate id in `ForEach(rows)`
-        // is a display-list identity collision SwiftUI kills the app over. Two
-        // gateway tabs resolving to the same ownerID each re-emit that owner's
-        // whole window list, so keep the first row per id.
+        // Duplicate ids crash SwiftUI; two gateways sharing an owner re-emit its windows.
         var seen = Set<String>()
         var result = rows.filter { seen.insert($0.id).inserted }
         if projectGroupingActive {
@@ -2614,9 +2282,8 @@ struct VerticalTabSidebar: View {
         return result
     }
 
-    /// Rebuilds the list from the same stable project projection used by the
-    /// top bar. A tab has one primary project row; additional panes may
-    /// appear under their own projects without duplicating the tab itself.
+    /// Same projection as the top bar. Each tab has one primary project; extra
+    /// panes may appear under other projects without duplicating the tab.
     private func applyProjectGrouping(_ rows: [SidebarRow]) -> [SidebarRow] {
         guard searchText.isEmpty else { return rows }
         let sections = tabsModel.projectSections
@@ -2631,9 +2298,7 @@ struct VerticalTabSidebar: View {
                       !tab.isHiddenTmuxWindow else { continue }
                 let flatIndex = tabsModel.index(of: tab.id) ?? 0
                 let kind: RowKind = tab.isTmuxWindow ? .windowRow : .flat
-                // Window rows already add one visual level for their gateway.
-                // Here that level belongs to the project header, so both
-                // providers' tabs sit at the same depth with panes below them.
+                // Window rows already add a level, so both kinds end up level.
                 let parent = SidebarRow(tab: tab, kind: kind, flatIndex: flatIndex,
                                         indentLevel: tab.isTmuxWindow ? 0 : 1)
                 if seenRows.insert(parent.id).inserted {
@@ -2641,9 +2306,6 @@ struct VerticalTabSidebar: View {
                 }
             }
 
-            // Pane rows keep pane navigation available for multi-project split
-            // tabs, but the action-bearing parent remains only in its primary
-            // project so top/sidebar tab order stays duplicate-free.
             for tab in tabsModel.visibleTabs where tab.splitTree.count > 1 {
                 let flatIndex = tabsModel.index(of: tab.id) ?? 0
                 for paneID in paneIDsForRows(in: tab) where
@@ -2679,8 +2341,6 @@ struct VerticalTabSidebar: View {
         return result
     }
 
-    /// Worst attention state inside a section, so a collapsed one still
-    /// reports that something needs the user.
     private static func sectionRollup(_ rows: [SidebarRow]) -> AgentAttentionStatus? {
         let statuses = rows.compactMap { row in
             attentionStatus(for: row)
@@ -2701,10 +2361,7 @@ struct VerticalTabSidebar: View {
         let children: [SidebarRow]
     }
 
-    /// Visual-only attention sort. Sort action-bearing TAB blocks within each
-    /// structural section, keeping a multi-pane tab's child cards attached to
-    /// their parent. This covers the normal single-pane case as well as split
-    /// tabs, grouped sections, and tmux window runs.
+    /// Sorts tab blocks within each section, keeping pane cards with their tab.
     private static func applyAttentionSort(_ rows: [SidebarRow]) -> [SidebarRow] {
         var result: [SidebarRow] = []
         var index = 0
@@ -2801,9 +2458,7 @@ struct VerticalTabSidebar: View {
         return (status?.attentionPriority ?? 0, sequence)
     }
 
-    /// Project mode reads the split tree independently of agent detection.
-    /// Filtering and row generation must use this same source so searching
-    /// cannot discard a visible secondary pane.
+    /// Filtering and row generation must share this source.
     private func paneIDsForRows(in tab: TabModel) -> [UUID] {
         guard projectGroupingActive else { return tab.agentPaneIDs }
         return tab.splitTree.map(\.uuid)
@@ -3009,9 +2664,7 @@ struct VerticalTabSidebar: View {
         return rows
     }
 
-    /// A herdr gateway family: the gateway header, then its projected tabs
-    /// nested under workspace headers when the session has more than one
-    /// workspace. Same shape as a tmux family. (id=herdr-gateway-family)
+    /// Workspace headers appear only with several workspaces. (id=herdr-gateway-family)
     private func buildHerdrGatewayGroupRows(from tabs: [TabModel], ownerID: UUID) -> [SidebarRow] {
         let isFiltering = !normalizedSearchFilter.isEmpty
 
@@ -3106,15 +2759,12 @@ struct VerticalTabSidebar: View {
         let filter = normalizedSearchFilter
         let isFiltering = !filter.isEmpty
 
-        // Gateway owner UUID → gateway tab id, in tab order.
         var gatewayByOwner: [UUID: TabModel] = [:]
         for tab in tabs where tab.isTmuxGateway {
             if let ownerID = TmuxTabBadgeResolver.ownerID(for: tab) {
                 gatewayByOwner[ownerID] = tab
             }
         }
-        // herdr families nest under their gateway here too; a projected tab
-        // whose gateway is absent from this list renders flat.
         var herdrGatewayByOwner: [UUID: TabModel] = [:]
         for tab in tabs where tab.isHerdrGateway {
             if let ownerID = TmuxTabBadgeResolver.herdrOwnerID(for: tab) {
@@ -3122,11 +2772,8 @@ struct VerticalTabSidebar: View {
             }
         }
 
-        // Bucket window tabs under their gateway, preserving array order
-        // (already index-sorted by the controller's reconcile). Window tabs
-        // are NOT guaranteed contiguous after their gateway, so bucket by
-        // UUID rather than walking a span. Orphans (owner not present, e.g.
-        // restored placeholders whose gateway hasn't resumed) render flat.
+        // Windows aren't contiguous after their gateway, so bucket by owner.
+        // Orphans render flat.
         var windowsByOwner: [UUID: [TabModel]] = [:]
         for tab in tabs where tab.isTmuxWindow {
             if let owner = tab.owningGatewayTerminalUUID, gatewayByOwner[owner] != nil {
@@ -3162,8 +2809,7 @@ struct VerticalTabSidebar: View {
 
             if tab.isTmuxGateway, let ownerID = TmuxTabBadgeResolver.ownerID(for: tab) {
                 let allWindows = windowsByOwner[ownerID] ?? []
-                // Hidden windows render in their own disclosure group, not
-                // among the normal window rows. (id=tmux-hidden-windows)
+                // (id=tmux-hidden-windows)
                 let windows = allWindows.filter { !$0.isHiddenTmuxWindow }
                 let hiddenWindows = allWindows.filter { $0.isHiddenTmuxWindow }
                 let matchingWindows = windows.filter(matches)
@@ -3181,17 +2827,13 @@ struct VerticalTabSidebar: View {
                 ))
 
                 if !collapsed {
-                    // A filter hit on the gateway itself reveals the whole
-                    // group; otherwise only the matching windows.
+                    // A gateway match reveals the whole group.
                     let shownWindows = isFiltering ? (headerMatches ? windows : matchingWindows) : windows
                     for window in shownWindows {
                         guard let windowFlatIndex = tabsModel.index(of: window.id) else { continue }
                         rows.append(SidebarRow(tab: window, kind: .windowRow, flatIndex: windowFlatIndex))
                     }
 
-                    // "Hidden (N)" disclosure, then the hidden rows when
-                    // expanded. Filtering reveals matching hidden rows
-                    // directly (the disclosure auto-expands like the groups).
                     let shownHidden = isFiltering ? (headerMatches ? hiddenWindows : matchingHidden) : hiddenWindows
                     if !shownHidden.isEmpty {
                         let expanded = isFiltering || expandedHiddenGroups.contains(ownerID)
@@ -3209,12 +2851,8 @@ struct VerticalTabSidebar: View {
                     }
                 }
             } else {
-                // Orphaned hidden placeholders (gateway not resumed yet)
-                // would otherwise fall through to a flat row; keep them out
-                // of the list until their gateway adopts them. A hidden
-                // GATEWAY that failed ownerID resolution must still render,
-                // though — the sidebar is its only recovery affordance.
-                // (id=tmux-hidden-gateway)
+                // Hide orphaned hidden placeholders, but always show a hidden
+                // gateway: this is its only recovery path. (id=tmux-hidden-gateway)
                 guard matches(tab), !tab.isHiddenTmuxWindow || tab.isTmuxGateway else { continue }
                 rows.append(SidebarRow(tab: tab, kind: .flat, flatIndex: flatIndex))
             }
@@ -3226,9 +2864,7 @@ struct VerticalTabSidebar: View {
 
 // MARK: - Drag & Drop Reorder
 
-/// Attaches system drag-and-drop only to draggable rows. System DnD (the
-/// top tab bar's mechanism) coexists with scrolling: the lift gesture needs
-/// a press-and-hold, so vertical pans scroll the list normally.
+/// System drag and drop needs a press-and-hold, so pans still scroll.
 private struct SidebarRowDragModifier<DragPreview: View>: ViewModifier {
     let isDraggable: Bool
     let usesCustomPreview: Bool
@@ -3252,9 +2888,7 @@ private struct SidebarRowDragModifier<DragPreview: View>: ViewModifier {
                     .onDrop(of: [TabTransferCoordinator.dragUTType, .text], delegate: dropDelegate)
             }
         } else {
-            // Non-draggable rows still take drops so releasing over them
-            // commits the arrangement (the delegate validates the class on
-            // dropEntered, so they never become reorder targets).
+            // Still accept drops so releasing here commits the arrangement.
             content
                 .onDrop(of: [TabTransferCoordinator.dragUTType, .text], delegate: dropDelegate)
         }
@@ -3262,9 +2896,7 @@ private struct SidebarRowDragModifier<DragPreview: View>: ViewModifier {
 }
 
 private struct SidebarRowDropDelegate: DropDelegate {
-    /// The hovered row's DISAMBIGUATED id (SidebarRow.id), so the handler can
-    /// tell the gateway header apart from its "Hidden (N)" disclosure (both
-    /// reuse the gateway tab's UUID).
+    /// `SidebarRow.id`, not the tab id, which several rows share.
     let targetRowID: String
     let onEntered: @MainActor (String) -> Void
     let onPerform: @MainActor () -> Bool
@@ -3299,11 +2931,8 @@ private struct SidebarContainerDropDelegate: DropDelegate {
 
 // MARK: - Sidebar Context Menu Isolation
 
-/// The menu modifier belongs to an equatable owner, not to the frequently
-/// updating row label or directly to VerticalTabSidebar.rowView. Parent
-/// renders with unchanged presentation/routing inputs leave this body alone.
-/// `content` is a view value: its body (and its Observation reads) still runs
-/// in its own child scope, so live titles and hover effects keep updating.
+/// Equatable owner for `.contextMenu`, so neither live label updates nor parent
+/// renders rebuild the menu. `content` still observes in its own scope.
 private struct SidebarContextMenuRow<Identity: Equatable, RowContent: View, MenuContent: View>: View, Equatable {
     let identity: Identity
     let content: RowContent
@@ -3330,10 +2959,7 @@ private struct SidebarContextMenuRow<Identity: Equatable, RowContent: View, Menu
     }
 }
 
-/// Evaluate availability in a separate body, rather than eagerly building
-/// the menu while evaluating its owner. Keep this view non-equatable and
-/// retain the builder: model reads stay live and each presentation can read
-/// current controller/session/window state instead of an initial snapshot.
+/// Non-equatable and lazily built, so each presentation reads current state.
 private struct SidebarContextMenuContents<Content: View>: View {
     @ViewBuilder let build: () -> Content
 
@@ -3343,34 +2969,14 @@ private struct SidebarContextMenuContents<Content: View>: View {
 }
 
 // MARK: - Sidebar Tab Row
-//
-// One `SidebarTabRowItem` is rendered per tab inside the sidebar's `ForEach`.
-// Per-tab reads on the `@Observable TabModel` (`title`, `activeRoamProtocol`,
-// `agentRow`, `attentionBadge`) happen HERE, so SwiftUI scopes their
-// Observation to this single instance. These display reads do not invalidate
-// siblings or the menu owner. Grouping and attention sorting can separately
-// invalidate VerticalTabSidebar, which is why the menu also needs an outer
-// equality boundary.
-//
-// SidebarContextMenuRow adds a second boundary around this live label:
-// unrelated sidebar renders are equality-gated there, and title/agent/hover
-// updates stay here below the menu modifier. Putting `.contextMenu` inside
-// this body would bring spinner-rate menu rebuilds back; putting it outside
-// the equatable owner would let parent renders rebuild it again.
+
+/// Per-tab observed reads happen here, scoping invalidation to this row.
+/// `.contextMenu` stays outside, or spinner updates would rebuild the menu.
 private struct SidebarTabRowItem: View, Equatable {
     let tab: TabModel
-    /// Resolved tmux gateway/window badge, precomputed at parent scope from the
-    /// live gateway ordering (`TmuxTabBadgeResolver.badge(for:gatewayOwnerIDs:)`).
-    /// Stored — rather than derived in `body` from an `allTabs` array — for two
-    /// reasons: `==` can compare it directly, so a reorder that recolors the
-    /// badge (its order-derived `groupIndex`) can't go stale behind the
-    /// equality short-circuit; and deriving it here would walk every tab's
-    /// split tree per row, which is both O(n^2) and a fresh Observation
-    /// dependency on every other tab.
+    /// Precomputed by the parent so `==` catches recolors and rows don't each
+    /// walk every split tree.
     let tmuxBadge: TmuxTabBadge?
-    /// The agent-badges preference. Passed as a value rather than redeclared as
-    /// `@AppStorage` in every row instance, and compared so turning badges off
-    /// collapses the cards immediately.
     let attentionBadgesEnabled: Bool
     let isSelected: Bool
     let isHighlighted: Bool
@@ -3382,22 +2988,9 @@ private struct SidebarTabRowItem: View, Equatable {
     var onHoverChange: ((Bool) -> Void)? = nil
     var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
 
-    // Equality gates *parent-driven* re-evaluation only. It does NOT suppress
-    // @Observable-driven invalidation: the body reads `tab.title` /
-    // `tab.activeRoamProtocol` / `tab.agentRow` / `tab.attentionBadge` and
-    // those still update this row live. So `==` deliberately ignores both the
-    // closure and those observed properties — comparing only the inputs that
-    // change a row's appearance from the parent's side.
-    //
-    // Two deliberate divergences from `TabBarItem`:
-    //  - No `index` field. TabBarItem needs one because its `onTap`/`onClose`
-    //    capture the raw array index; here `onClose` captures `tab.id`, which
-    //    is identity-stable, and the drag/drop delegates that do care about
-    //    position stay at parent scope.
-    //  - No `tmuxBadgeColor` field. TabBar threads a resolved theme value, but
-    //    the sidebar passes `.currentTheme`, which reads the @Observable
-    //    ThemeManager inside this body — so a palette change invalidates this
-    //    row on its own and needs no equality input.
+    // Parent inputs only; observed reads in `body` still update live. Unlike
+    // TabBarItem, no index (onClose captures tab.id) and no badge color (the
+    // theme is observed in `body`).
     static func == (lhs: SidebarTabRowItem, rhs: SidebarTabRowItem) -> Bool {
         lhs.tab === rhs.tab
             && lhs.tmuxBadge == rhs.tmuxBadge
@@ -3413,9 +3006,7 @@ private struct SidebarTabRowItem: View, Equatable {
     }
 
     var body: some View {
-        // Preserve the compact single-pane card. Once a tab is split, the
-        // parent becomes a stable rollup row and each agent gets its own
-        // pane-scoped child card below it.
+        // Split tabs become a rollup row with pane cards below.
         let solePane = tab.splitTree.count == 1 ? tab.splitTree.first : nil
         let agentRow: AgentRowState? = attentionBadgesEnabled ? solePane?.presentation.agentRow : nil
         SidebarTabRow(
@@ -3425,11 +3016,7 @@ private struct SidebarTabRowItem: View, Equatable {
             tmuxBadgePalette: .currentTheme,
             agentRow: agentRow,
             attentionBadge: attentionBadgesEnabled ? tab.attentionBadge : nil,
-            // Card footer context: the project the engine resolved for the pane
-            // that actually owns the agent (the old code read the FOCUSED
-            // pane's pwd, so a split could describe one pane and show another
-            // pane's directory). nil collapses the footer text rather than
-            // showing a placeholder. (id=agent-project)
+            // The agent's own pane's project, not the focused pane's. (id=agent-project)
             contextLine: agentRow?.project,
             isSelected: isSelected,
             isHighlighted: isHighlighted,
@@ -3446,8 +3033,7 @@ private struct SidebarTabRowItem: View, Equatable {
     }
 }
 
-/// Pane-scoped card for a multi-pane tab. Its observed reads live here so a
-/// spinner/title update invalidates only this card, not the sidebar hierarchy.
+/// Observed reads live here so updates invalidate only this card.
 private struct SidebarPaneRowItem: View, Equatable {
     let tab: TabModel
     let paneID: UUID
@@ -3499,13 +3085,7 @@ private struct SidebarPaneRowItem: View, Equatable {
 
 // MARK: - Agent Summary Bar
 
-/// Rollup line and sort control shared by agent cards and ordinary projects.
-///
-/// A separate view purely so the `AgentAttentionCenter.revision` read that
-/// drives its visibility is scoped here instead of to `VerticalTabSidebar.body`.
-/// `revision` only bumps on a real state transition (the center's publish pass
-/// is equality-guarded), so this is hygiene rather than a fix for the row churn.
-/// (id=agent-attention)
+/// Separate view to scope the `AgentAttentionCenter.revision` read. (id=agent-attention)
 private struct SidebarAgentSummaryBar: View {
     let metrics: SidebarMetrics
     let accentTint: Color
@@ -3549,31 +3129,23 @@ private struct SidebarAgentSummaryBar: View {
 
 // MARK: - Sidebar Gateway Header Row
 
-/// The tmux gateway group header. Same isolation contract as
-/// `SidebarTabRowItem`: `tab.title`, `tab.tmuxSessionName` and
-/// `tab.isHiddenTmuxWindow` are read HERE so a tmux session rename or gateway
-/// title change re-renders this row alone, below its stable menu owner.
+/// Same isolation contract as `SidebarTabRowItem`.
 private struct SidebarGatewayHeaderItem: View, Equatable {
     let tab: TabModel
-    /// Precomputed from the shared per-render gateway ordering — see the note
-    /// on `SidebarTabRowItem.tmuxBadge`.
     let tmuxBadge: TmuxTabBadge?
-    /// Resolved at parent scope from the (non-observable) TmuxController.
     let host: String?
     let collapsed: Bool
     let windowCount: Int
     let isSelected: Bool
-    /// True when the selected tab belongs to this gateway's tmux group,
-    /// even when the selected tab is one of its child windows.
+    /// The selected tab is in this family, possibly a child window.
     let isActive: Bool
     let isHighlighted: Bool
     let indentLevel: Int
     let metrics: SidebarMetrics
     let accentTint: Color
-    /// tmux offers its sessions dashboard; a herdr gateway has none.
+    /// False for herdr, which has no sessions dashboard.
     var showsDashboard: Bool = true
-    /// Included in equality because the tap callback's focus routing captures
-    /// these values, even when the header's appearance is otherwise identical.
+    /// Compared because `onTap`'s focus routing captures them.
     let isDocked: Bool
     let staysOpenOnSelect: Bool
     let onToggleCollapse: () -> Void
@@ -3588,8 +3160,6 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
     @State private var isCloseHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    // Parent-supplied inputs only; the observed reads in `body` keep updating
-    // live. See `SidebarTabRowItem.==` for the full rationale.
     static func == (lhs: SidebarGatewayHeaderItem, rhs: SidebarGatewayHeaderItem) -> Bool {
         lhs.tab === rhs.tab
             && lhs.tmuxBadge == rhs.tmuxBadge
@@ -3610,8 +3180,7 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
     }
 
     var body: some View {
-        // The tab's mirror, not controller.currentSessionName: TmuxController
-        // isn't observable, so a rename wouldn't re-render this row.
+        // The tab's observable mirror; TmuxController isn't observable.
         let subtitle = Self.subtitle(
             sessionName: tab.tmuxSessionName ?? tab.herdrSessionName,
             host: host,
@@ -3648,8 +3217,6 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
 
             Spacer(minLength: 4)
 
-            // Match the header toolbar's right-anchored columns: every action
-            // gets the same outer slot and the same inter-slot spacing.
             HStack(spacing: 4) {
                 Button(action: onNewWindow) {
                     Image(systemName: "plus.square.on.square")
@@ -3711,9 +3278,6 @@ private struct SidebarGatewayHeaderItem: View, Equatable {
         .onTapGesture(perform: onTap)
     }
 
-    /// Match regular grouped headers: keyboard highlight is strongest, the
-    /// active tmux group is accent-tinted, and inactive groups retain the
-    /// subtle grouped-header fill.
     private var backgroundFill: Color {
         if isHighlighted { return accentTint.opacity(0.22) }
         if isActive { return accentTint.opacity(0.10) }
@@ -3740,27 +3304,22 @@ private struct SidebarTabRow: View {
     var roamProtocol: MainView.RoamProtocol = .none
     var tmuxBadge: TmuxTabBadge? = nil
     var tmuxBadgePalette: TmuxTabBadgePalette = .fallback
-    /// Agent inbox card state: non-nil turns the row into a three-line
-    /// t3code-style card (status line / title / context). (id=agent-attention)
+    /// Non-nil makes a three-line card. (id=agent-attention)
     var agentRow: AgentRowState? = nil
-    /// Attention dot for plain rows (failed command, rollup) — shown only
-    /// when there is no full card.
+    /// Dot shown only on plain rows; cards show status on line 1.
     var attentionBadge: AgentAttentionStatus? = nil
-    /// Card footer context (cwd/host), head-truncated.
     var contextLine: AgentProjectIdentity? = nil
     let isSelected: Bool
     var isHighlighted: Bool = false
     var indentLevel: Int = 0
     let shortcutHint: String?
     let metrics: SidebarMetrics
-    /// Explicit theme accent (see `VerticalTabSidebar.accentTint`) — the row is
-    /// hosted in a UIHostingController where `Color.accentColor` would resolve
-    /// to system blue rather than the theme accent.
+    /// See `VerticalTabSidebar.accentTint`.
     let accentTint: Color
     var showsCloseButton: Bool = true
     let onClose: () -> Void
     var onHoverChange: ((Bool) -> Void)? = nil
-    /// Tab rows register a hover-preview anchor; pane rows don't.
+    /// Nil for pane rows, which have no hover preview.
     var previewAnchorTabID: UUID? = nil
     var previewAnchors: TabHoverPreviewAnchorRegistry? = nil
 
@@ -3810,8 +3369,6 @@ private struct SidebarTabRow: View {
 
     // MARK: Card lines
 
-    /// Line 1: status dot + agent name left, status label + live elapsed
-    /// right.
     private func agentStatusLine(_ row: AgentRowState) -> some View {
         HStack(spacing: 5) {
             AttentionStatusDotView(status: row.status, size: 7)
@@ -3824,11 +3381,7 @@ private struct SidebarTabRow: View {
         }
     }
 
-    /// Line 3: project and branch, receding, with the agent's brand mark.
-    ///
-    /// The project is the identity and truncates LAST; the branch is
-    /// secondary and gives up room first. An unknown project collapses to a
-    /// spacer — never a placeholder string — so the three-line rhythm holds.
+    /// The branch truncates before the project; no project leaves a blank line.
     private func agentContextFooter(_ row: AgentRowState) -> some View {
         HStack(spacing: 5) {
             if let contextLine {
@@ -3857,8 +3410,6 @@ private struct SidebarTabRow: View {
         }
     }
 
-    /// The classic single-line row (line 2 of the card): pip, badges,
-    /// title, shortcut, close.
     private var mainLine: some View {
         HStack(spacing: 10) {
             Circle()
@@ -3866,8 +3417,6 @@ private struct SidebarTabRow: View {
                 .frame(width: 6, height: 6)
                 .opacity(recedingOpacity)
 
-            // Plain rows carry the attention state as a dot (failed
-            // command, rollup); cards already say it on line 1.
             if agentRow == nil, let attentionBadge {
                 AttentionStatusDotView(status: attentionBadge, size: 7)
                     .opacity(recedingOpacity)
@@ -3881,8 +3430,7 @@ private struct SidebarTabRow: View {
                     .opacity(recedingOpacity)
             }
 
-            // Keep agent-card titles consistent with regular inactive tabs.
-            // Only the supporting agent metadata recedes.
+            // Titles never recede; only agent metadata does.
             Text(title)
                 .font(.system(size: metrics.titleSize, weight: titleWeight))
                 .foregroundColor(.primary)
@@ -3912,9 +3460,7 @@ private struct SidebarTabRow: View {
         }
     }
 
-    /// Keeps rows without a visible final control on the same accessory rail
-    /// as close buttons and agent marks. Color.clear preserves layout while
-    /// remaining non-interactive and absent from accessibility.
+    /// Holds the accessory rail's width on rows without a close button.
     private var trailingAccessoryPlaceholder: some View {
         Color.clear
             .frame(width: metrics.trailingAccessoryWidth, height: 1)
@@ -3928,8 +3474,6 @@ private struct SidebarTabRow: View {
         return .regular
     }
 
-    /// Inbox-zero prominence: in-flight and already-seen agent metadata
-    /// recedes while the tab title stays consistent with regular rows.
     private var recedingOpacity: Double {
         recedes ? 0.72 : 1
     }
@@ -3943,8 +3487,6 @@ private struct SidebarTabRow: View {
         }
     }
 
-    /// Matches the profiles view's list-highlight idiom: keyboard highlight
-    /// and selection are both accent-tinted fills (the selection lighter).
     private var backgroundFill: Color {
         if isHighlighted { return accentTint.opacity(0.22) }
         if isSelected { return accentTint.opacity(0.12) }
@@ -3952,8 +3494,7 @@ private struct SidebarTabRow: View {
     }
 }
 
-/// Row fill plus a hover wash for inactive rows, mirroring the integrated
-/// tab strip: the fill itself is static, only the hover layer animates.
+/// Only the hover layer animates.
 private struct SidebarRowHoverBackground: View {
     let fill: Color
     let isHovered: Bool

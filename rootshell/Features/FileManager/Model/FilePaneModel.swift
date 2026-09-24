@@ -31,7 +31,7 @@ final class FilePaneModel: Identifiable {
     let id: Side
     private let prompts: FileManagerPrompts
 
-    private(set) var endpoint: SFTPEndpoint = .local
+    private(set) var endpoint: FileEndpoint = .local
     private(set) var path = ""
     private(set) var entries: [RFEntry] = []
     private(set) var visibleEntries: [RFEntry] = []
@@ -53,7 +53,7 @@ final class FilePaneModel: Identifiable {
     @ObservationIgnored private var backStack: [String] = []
     @ObservationIgnored private var forwardStack: [String] = []
     @ObservationIgnored private var loadTask: Task<Void, Never>?
-    @ObservationIgnored private var retainedEndpoint: SFTPEndpoint?
+    @ObservationIgnored private var retainedEndpoint: FileEndpoint?
 
     init(side: Side, prompts: FileManagerPrompts) {
         id = side
@@ -80,15 +80,15 @@ final class FilePaneModel: Identifiable {
         path.isEmpty ? endpoint.displayName : "\(endpoint.displayName):\(path)"
     }
 
-    func fileSystem(purpose: SFTPConnectionPool.Purpose = .browse) async throws -> FileSystemEndpoint {
-        try await SFTPConnectionPool.shared.fileSystem(for: endpoint, purpose: purpose, prompts: prompts)
+    func fileSystem(purpose: FileConnectionPool.Purpose = .browse) async throws -> FileSystemEndpoint {
+        try await FileConnectionPool.shared.fileSystem(for: endpoint, purpose: purpose, prompts: prompts)
     }
 
     // MARK: - Navigation
 
     /// Points the pane at `endpoint`, starting at `path` or its home directory.
-    func connect(to endpoint: SFTPEndpoint, path: String? = nil) {
-        let pool = SFTPConnectionPool.shared
+    func connect(to endpoint: FileEndpoint, path: String? = nil) {
+        let pool = FileConnectionPool.shared
         if let retainedEndpoint { pool.release(retainedEndpoint) }
         pool.retain(endpoint)
         retainedEndpoint = endpoint
@@ -168,7 +168,7 @@ final class FilePaneModel: Identifiable {
         loadTask?.cancel()
         if let focus { pendingCursor = focus }
         let endpoint = endpoint
-        status = SFTPConnectionPool.shared.isConnected(endpoint) ? .loading : .connecting
+        status = FileConnectionPool.shared.isConnected(endpoint) ? .loading : .connecting
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -216,12 +216,13 @@ final class FilePaneModel: Identifiable {
 
     // MARK: - Restore
 
-    @ObservationIgnored private var pendingRestore: (endpoint: SFTPEndpoint, path: String)?
+    @ObservationIgnored private var pendingRestore: (endpoint: FileEndpoint, path: String)?
 
-    var hasPendingRestore: Bool { pendingRestore != nil }
+    /// Still on the default endpoint with nothing loaded or waiting to connect.
+    var isUnopened: Bool { retainedEndpoint == nil && pendingRestore == nil }
 
     /// Shows a remembered remote location without connecting yet.
-    func restorePending(endpoint: SFTPEndpoint, path: String) {
+    func restorePending(endpoint: FileEndpoint, path: String) {
         pendingRestore = (endpoint, path)
         self.endpoint = endpoint
     }
@@ -235,7 +236,7 @@ final class FilePaneModel: Identifiable {
     /// Releases the pane's hold on its connection.
     func detach() {
         loadTask?.cancel()
-        if let retainedEndpoint { SFTPConnectionPool.shared.release(retainedEndpoint) }
+        if let retainedEndpoint { FileConnectionPool.shared.release(retainedEndpoint) }
         retainedEndpoint = nil
     }
 }

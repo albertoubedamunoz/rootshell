@@ -191,6 +191,87 @@ extension MainView {
         target.discoverSessionsIfConfigured(manual: true)
     }
 
+    /// Leave the multiplexer on the selected tab. Works for tmux -CC (including
+    /// window tabs when the gateway is auto-hidden), raw tmux / zellij / herdr,
+    /// and zmx. Sessions keep running for later reattach.
+    func detachSessionForSelectedTab() {
+        guard terminals.indices.contains(selectedTabIndex) else { return }
+        let tab = terminals[selectedTabIndex]
+        _ = MuxSessionDetach.detach(tab: tab, tmuxController: tmuxControllerForTab)
+    }
+
+    func scheduleMuxDetachBannerDismiss() {
+        muxDetachBannerDismissTask?.cancel()
+        muxDetachBannerDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            dismissMuxDetachBanner()
+        }
+    }
+
+    func dismissMuxDetachBanner() {
+        muxDetachBannerDismissTask?.cancel()
+        muxDetachBannerDismissTask = nil
+        muxDetachBanner = nil
+    }
+
+    /// If a live mux auto-start attachment already matches `config`, focus it
+    /// and show a short banner. Returns true when a new connection was skipped.
+    @discardableResult
+    func focusLiveMuxAttachmentIfPresent(for config: SSHConfig) -> Bool {
+        guard let match = MuxSessionResume.findLiveAttachment(for: config) else {
+            return false
+        }
+        _ = MuxSessionResume.focus(match, in: windowId) { id in
+            selectTab(id: id)
+        }
+        muxDetachBanner = MuxDetachBannerState(
+            message: String(
+                localized: "Already attached to \(match.displayName)",
+                comment: "Banner when opening a mux profile that is already live"
+            ),
+            offer: nil
+        )
+        scheduleMuxDetachBannerDismiss()
+        return true
+    }
+
+    func reconnectFromMuxDetachBanner() {
+        guard let offer = muxDetachBanner?.offer else { return }
+        dismissMuxDetachBanner()
+        if let gateway = offer.herdrGateway, reattachHerdrGateway(gateway) { return }
+        let config = offer.sshConfig.resumingMultiplexer(offer.target)
+        if let profileID = offer.profileID,
+           var profile = ConnectionProfileManager.shared.profiles.first(where: { $0.id == profileID }) {
+            // A temporary copy keeps the profile's authentication prompts and
+            // transport options without reopening its original mux/default.
+            profile.sshConfig = config
+            profile.connectionProtocol = offer.connectionProtocol
+            connectToProfile(profile, splitOption: .newTab)
+            return
+        }
+        connectWithConfig(
+            config,
+            connectionProtocol: offer.connectionProtocol,
+            splitOption: .newTab
+        )
+    }
+
+    /// Restarts herdr control mode as a new exec channel on the gateway's
+    /// still-open connection. False when that connection is gone.
+    private func reattachHerdrGateway(_ gateway: MuxSessionResume.ReconnectOffer.HerdrGateway) -> Bool {
+        for tab in terminals {
+            guard let view = tab.splitTree.terminalLeaves.first(where: { $0.uuid == gateway.terminalUUID }) else { continue }
+            guard view.herdrController == nil, view.session?.isRunning == true,
+                  HerdrChannelFactory.canOpen(for: view) else { return false }
+            view.startHerdrControlMode(sessionName: gateway.sessionName)
+            guard view.herdrController != nil else { return false }
+            selectTab(id: tab.id)
+            return true
+        }
+        return false
+    }
+
     /// Evict every OTHER tmux client (`detach-client -a`) for the selected
     /// tab's gateway, keeping this client attached. Works from ANY tmux CC tab:
     /// `tmuxControllerForTab` resolves a window tab through its pane binding to

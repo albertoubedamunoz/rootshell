@@ -39,6 +39,13 @@ struct PaletteSettingsView: View {
                 }
             }
 
+            Section {
+                SettingToggle(Settings.Theme.hostTint, title: "Tint by Host", icon: "paintpalette")
+                    .themedRow()
+            } footer: {
+                Text("Shift the terminal background per server, derived from its host key, so each destination keeps its own shade of the active theme.")
+            }
+
             palettePreviewSection
         }
         .themedList()
