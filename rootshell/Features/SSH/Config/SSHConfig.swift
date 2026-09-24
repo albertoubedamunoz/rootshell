@@ -177,7 +177,7 @@ struct SSHConfig: Codable, Hashable {
     /// existing profile decodes.
     var multiplexerSessionName: String? = nil
 
-    /// One-shot reconnect target captured at detach, never saved to a profile.
+    /// Captured at detach and saved with tab state, never with a profile.
     var muxResumeTarget: MuxSessionTarget? = nil
 
     /// Command to run when the session starts. The mode controls whether this is
@@ -1062,6 +1062,23 @@ struct SSHConfig: Codable, Hashable {
 }
 
 extension SSHConfig {
+    var tmuxSocketForResume: TmuxSocketIdentity? {
+        if let target = muxResumeTarget { return target.tmuxSocket }
+        if let remoteCommand, !remoteCommand.isEmpty {
+            return TmuxSocketIdentity.fromStartupCommand(remoteCommand)
+        }
+        if let initialLaunchCommand {
+            return TmuxSocketIdentity.fromStartupCommand(initialLaunchCommand)
+        }
+        if tmuxAutoEnable {
+            if let custom = Self.tmuxGlobalCustomCommand {
+                return TmuxSocketIdentity.fromStartupCommand(custom)
+            }
+            return .defaultServer
+        }
+        return launchCommand.flatMap(TmuxSocketIdentity.fromStartupCommand)
+    }
+
     /// Keep connection/authentication settings while replacing startup behavior
     /// with the attachment the user actually detached from.
     func resumingMultiplexer(_ target: MuxSessionTarget) -> SSHConfig {

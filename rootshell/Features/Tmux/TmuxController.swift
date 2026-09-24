@@ -275,6 +275,11 @@ final class TmuxController {
     private(set) var gatewaySourceSystemImage = "terminal"
     /// Identifies this tmux server lifetime; combined with pane IDs for push routing.
     var pushRouteServerIdentity: String?
+    var configuredResumeSocket: TmuxSocketIdentity?
+    var startupResumeSocket: TmuxSocketIdentity?
+    var resumeSocket: TmuxSocketIdentity? {
+        pushRouteServerIdentity.flatMap(TmuxSocketIdentity.fromServerIdentity) ?? startupResumeSocket
+    }
     var pushRouteServerIdentityTask: Task<Void, Never>?
     /// Tag 0 is never used.
     var nextReplyTag: UInt32 = 1
@@ -1823,7 +1828,9 @@ final class TmuxController {
         MuxSessionDetach.notifyControlModeDetached(
             sessionName: currentSessionName,
             windowId: baseWindowId,
-            terminal: bannerTerminal
+            terminal: bannerTerminal,
+            tmuxSocket: resumeSocket,
+            tmuxSocketSelector: configuredResumeSocket
         )
 
         // Recheck after the async hops; the surface can be freed in between.
@@ -2828,6 +2835,8 @@ extension Ghostty.TerminalView {
             // Flush session info that arrived before the controller existed.
             // ROOTSHELL-TMUX (id=tmux-session-info-stash)
             if let ssh = connectionConfig.underlyingSSHConfig {
+                controller.startupResumeSocket = ssh.tmuxSocketForResume
+                controller.configuredResumeSocket = ssh.muxResumeTarget?.configuredTmuxSocket ?? ssh.tmuxSocketForResume
                 controller.connectionKey = TmuxGatewaySessionStore.connectionKey(
                     host: ssh.host, port: ssh.port, username: ssh.username)
             }

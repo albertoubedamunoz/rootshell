@@ -480,6 +480,8 @@ extension Ghostty {
             /// Known when the app issued the attach; nil when the binding came
             /// from a corroborating screen signal.
             let sessionName: String?
+            var tmuxSocket: TmuxSocketIdentity? = .defaultServer
+            var tmuxSocketSelector: TmuxSocketIdentity?
             /// True once the multiplexer has actually taken the alternate
             /// screen. The binding is recorded at session-ready, before the
             /// remote command has run, so the surface is legitimately on the

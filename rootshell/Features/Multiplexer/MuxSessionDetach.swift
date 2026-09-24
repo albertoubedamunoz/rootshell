@@ -35,15 +35,19 @@ enum MuxSessionDetach {
         let kind: Kind
         let sessionName: String?
         let displayName: String
+        var tmuxSocket: TmuxSocketIdentity? = .defaultServer
+        var tmuxSocketSelector: TmuxSocketIdentity?
 
         var resumeTarget: MuxSessionTarget? {
             switch kind {
             case .tmuxControlMode:
-                return MuxSessionTarget(type: .tmux, sessionName: sessionName, controlMode: true)
+                return MuxSessionTarget(type: .tmux, sessionName: sessionName, controlMode: true, tmuxSocket: tmuxSocket,
+                                        tmuxSocketSelector: tmuxSocketSelector)
             case .herdrControlMode:
                 return MuxSessionTarget(type: .herdr, sessionName: sessionName ?? "default", controlMode: true)
             case .keySequence(let type):
-                return MuxSessionTarget(type: type, sessionName: sessionName)
+                return MuxSessionTarget(type: type, sessionName: sessionName, tmuxSocket: tmuxSocket,
+                                        tmuxSocketSelector: tmuxSocketSelector)
             }
         }
     }
@@ -78,7 +82,9 @@ enum MuxSessionDetach {
             return Attachment(
                 kind: .tmuxControlMode,
                 sessionName: name,
-                displayName: displayName(for: .tmux, sessionName: name)
+                displayName: displayName(for: .tmux, sessionName: name),
+                tmuxSocket: terminal.tmuxController?.resumeSocket,
+                tmuxSocketSelector: terminal.tmuxController?.configuredResumeSocket
             )
         }
         if let controller = HerdrController.controller(for: terminal), controller.isActive {
@@ -93,14 +99,18 @@ enum MuxSessionDetach {
             return Attachment(
                 kind: .keySequence(binding.type),
                 sessionName: binding.sessionName,
-                displayName: displayName(for: binding.type, sessionName: binding.sessionName)
+                displayName: displayName(for: binding.type, sessionName: binding.sessionName),
+                tmuxSocket: binding.tmuxSocket,
+                tmuxSocketSelector: binding.tmuxSocketSelector
             )
         }
         if let binding = terminal.rawMultiplexer {
             return Attachment(
                 kind: .keySequence(binding.type),
                 sessionName: binding.sessionName,
-                displayName: displayName(for: binding.type, sessionName: binding.sessionName)
+                displayName: displayName(for: binding.type, sessionName: binding.sessionName),
+                tmuxSocket: binding.tmuxSocket,
+                tmuxSocketSelector: binding.tmuxSocketSelector
             )
         }
         return nil
@@ -133,7 +143,9 @@ enum MuxSessionDetach {
             return Attachment(
                 kind: .tmuxControlMode,
                 sessionName: name,
-                displayName: displayName(for: .tmux, sessionName: name)
+                displayName: displayName(for: .tmux, sessionName: name),
+                tmuxSocket: controller.resumeSocket,
+                tmuxSocketSelector: controller.configuredResumeSocket
             )
         }
         for view in tab.splitTree.terminalLeaves {
@@ -198,7 +210,9 @@ enum MuxSessionDetach {
             let attachment = Attachment(
                 kind: .tmuxControlMode,
                 sessionName: name,
-                displayName: displayName(for: .tmux, sessionName: name)
+                displayName: displayName(for: .tmux, sessionName: name),
+                tmuxSocket: controller.resumeSocket,
+                tmuxSocketSelector: controller.configuredResumeSocket
             )
             // Banner is posted inside requestGracefulDetach.
             controller.requestGracefulDetach(source: "keybind")
@@ -338,13 +352,17 @@ enum MuxSessionDetach {
         type: MultiplexerType = .tmux,
         sessionName: String?,
         windowId: String,
-        terminal: Ghostty.TerminalView?
+        terminal: Ghostty.TerminalView?,
+        tmuxSocket: TmuxSocketIdentity? = nil,
+        tmuxSocketSelector: TmuxSocketIdentity? = nil
     ) {
         let kind: Kind = type == .herdr ? .herdrControlMode : .tmuxControlMode
         let attachment = Attachment(
             kind: kind,
             sessionName: sessionName,
-            displayName: displayName(for: type, sessionName: sessionName)
+            displayName: displayName(for: type, sessionName: sessionName),
+            tmuxSocket: tmuxSocket,
+            tmuxSocketSelector: tmuxSocketSelector
         )
         announce(attachment, reconnectFrom: terminal, windowId: windowId)
     }

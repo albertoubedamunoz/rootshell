@@ -112,7 +112,8 @@ enum MuxSessionResume {
             return MuxSessionTarget(
                 type: .tmux,
                 sessionName: config.tmuxSessionNameForConnection,
-                controlMode: config.tmuxAutoMode == .control
+                controlMode: config.tmuxAutoMode == .control,
+                tmuxSocket: config.tmuxSocketForResume
             )
         }
         if config.herdrAutoEnable {
@@ -145,7 +146,9 @@ enum MuxSessionResume {
             ?? TmuxController.controller(forGatewayTab: tab)
             ?? tab.splitTree.terminalLeaves.first(where: { $0.tmuxController != nil })?.tmuxController
         guard let controller else { return nil }
-        let attached = MuxSessionTarget(type: .tmux, sessionName: controller.currentSessionName, controlMode: true)
+        let attached = MuxSessionTarget(type: .tmux, sessionName: controller.currentSessionName,
+                                       controlMode: true, tmuxSocket: controller.resumeSocket,
+                                       tmuxSocketSelector: controller.configuredResumeSocket)
         guard target.matchesLiveAttachment(attached, connectionKey: controller.connectionKey,
                                            requestedConnectionKey: gatewayKey, isActive: controller.isActive) else { return nil }
         let ownerID = controller.ownerTerminalUUIDForNotifications
@@ -215,7 +218,8 @@ enum MuxSessionResume {
             let connectionKey = view.connectionConfig.sshConfigForHistory.map {
                 TmuxGatewaySessionStore.connectionKey(host: $0.host, port: $0.port, username: $0.username)
             }
-            let attached = MuxSessionTarget(type: binding.type, sessionName: binding.sessionName)
+            let attached = MuxSessionTarget(type: binding.type, sessionName: binding.sessionName, tmuxSocket: binding.tmuxSocket,
+                                           tmuxSocketSelector: binding.tmuxSocketSelector)
             guard target.matchesLiveAttachment(attached, connectionKey: connectionKey,
                                                requestedConnectionKey: gatewayKey,
                                                isActive: view.session?.isRunning == true) else { continue }
