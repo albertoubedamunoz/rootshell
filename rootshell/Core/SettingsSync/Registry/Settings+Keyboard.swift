@@ -33,6 +33,9 @@ nonisolated extension Settings {
         static let touchHaptics = SettingKey(
             "terminalTouchKeyboardHaptics", default: false, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-haptics", title: String(localized: "Terminal Keyboard Haptics"))
+        static let touchCharacterPreview = SettingKey(
+            "terminalTouchKeyboardCharacterPreview", default: true, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-character-preview", title: String(localized: "Character Preview"))
         static let touchHeight = SettingKey(
             "terminalTouchKeyboardHeight", default: TerminalTouchKeyboardModel.Height.compact,
             group: .keyboard, policy: .localByDefault,
@@ -91,7 +94,7 @@ nonisolated extension Settings {
 
         static let all: [AnySettingDefinition] = [
             optionKeyAsAlt.erased, forceASCIIKeyboard.erased, doubleSpaceForPeriod.erased, composeAutocorrect.erased,
-            writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased,
+            writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased, touchCharacterPreview.erased,
             touchHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
             touchSteampunkThemeAwareKeycaps.erased, touchPhosphorColor.erased, touchClickSound.erased,
             touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,

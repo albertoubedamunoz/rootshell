@@ -139,14 +139,40 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertTrue(contact.move(to: CGPoint(x: 96, y: 27), in: g, dockedPad: true))
     }
 
-    func testReleaseOutsideTypingAreaOrOnActionDoesNotEmitText() {
+    func testReleaseOnActionKeyDoesNotEmitText() {
         let g = geometry()
-        for end in [CGPoint(x: -1, y: 27), CGPoint(x: 20, y: -1), CGPoint(x: 20, y: 217),
-                    CGPoint(x: 10, y: 135), CGPoint(x: 380, y: 135), CGPoint(x: 380, y: 189)] {
+        for end in [CGPoint(x: 10, y: 135), CGPoint(x: 380, y: 135), CGPoint(x: 380, y: 189)] {
             var contact = Model.TouchSelection(point: CGPoint(x: 20, y: 27), selected: 0, modifiers: 0)
             XCTAssertNil(contact.finish(at: end, in: g, dockedPad: false))
             XCTAssertTrue(contact.consumed)
         }
+    }
+
+    func testReleaseOutsideTypingAreaKeepsLastKey() {
+        let g = geometry()
+        for end in [CGPoint(x: -1, y: 27), CGPoint(x: 20, y: -1), CGPoint(x: 20, y: -40)] {
+            var contact = Model.TouchSelection(point: CGPoint(x: 20, y: 27), selected: 0, modifiers: 0)
+            XCTAssertEqual(contact.finish(at: end, in: g, dockedPad: false), 0)
+            XCTAssertTrue(contact.consumed)
+        }
+        let space = g.targets.firstIndex { $0.key.action == .text(" ") }!
+        var contact = Model.TouchSelection(point: CGPoint(x: 195, y: 189), selected: space, modifiers: 0)
+        XCTAssertEqual(contact.finish(at: CGPoint(x: 195, y: 230), in: g, dockedPad: false), space)
+    }
+
+    func testTopRowClaimsOverhangAboveIt() {
+        let rows = geometry(typingTop: 48)
+        let g = Model.TypingGeometry(targets: rows.targets, bounds: CGRect(
+            x: 0, y: 48 - Model.topRowOverhang, width: 390, height: 216 + Model.topRowOverhang))
+        XCTAssertEqual(g.hit(at: CGPoint(x: 20, y: 48 - Model.topRowOverhang + 0.5)), 0)
+        XCTAssertNil(g.hit(at: CGPoint(x: 20, y: 48 - Model.topRowOverhang - 0.5)))
+    }
+
+    func testTouchJumpSeparatesMergedTapsFromMovement() {
+        XCTAssertFalse(Model.isTouchJump(from: CGPoint(x: 20, y: 27), to: CGPoint(x: 60, y: 27)))
+        XCTAssertFalse(Model.isTouchJump(from: CGPoint(x: 20, y: 27), to: CGPoint(x: 80, y: 27)))
+        XCTAssertTrue(Model.isTouchJump(from: CGPoint(x: 20, y: 27), to: CGPoint(x: 370, y: 27)))
+        XCTAssertTrue(Model.isTouchJump(from: CGPoint(x: 20, y: 27), to: CGPoint(x: 70, y: 70)))
     }
 
     func testCancelledAndEarlyCommittedContactsCannotEmitAgain() {
@@ -166,18 +192,20 @@ final class TerminalTouchKeyboardTests: XCTestCase {
     func testLeavingAndReenteringTypingAreaCanSelectAgain() {
         let g = geometry()
         var contact = Model.TouchSelection(point: CGPoint(x: 20, y: 27), selected: 0, modifiers: 0)
-        contact.move(to: CGPoint(x: -30, y: 27), in: g, dockedPad: false)
-        XCTAssertNil(contact.selected)
+        // Returning true lets the view cancel pending hold actions.
+        XCTAssertTrue(contact.move(to: CGPoint(x: -30, y: 27), in: g, dockedPad: false))
+        XCTAssertEqual(contact.selected, 0)
+        XCTAssertTrue(contact.dragged)
         contact.move(to: CGPoint(x: 60, y: 27), in: g, dockedPad: false)
         XCTAssertEqual(contact.finish(at: CGPoint(x: 60, y: 27), in: g, dockedPad: false), 1)
     }
 
-    func testSubthresholdExitRemainsCancellableBeforeRollover() {
+    func testTopRowDriftAboveTypingAreaStillTypesAtRollover() {
         let g = geometry()
         var contact = Model.TouchSelection(point: CGPoint(x: 20, y: 2), selected: 0, modifiers: 0)
         XCTAssertFalse(contact.move(to: CGPoint(x: 20, y: -2), in: g, dockedPad: false))
         XCTAssertEqual(contact.selected, 0)
-        XCTAssertNil(contact.finish(at: contact.latestPoint, in: g, dockedPad: false))
+        XCTAssertEqual(contact.finish(at: contact.latestPoint, in: g, dockedPad: false), 0)
     }
 
     func testHitTargetsRecoverMarginsButNeverCrossActionCellsOrBounds() {
