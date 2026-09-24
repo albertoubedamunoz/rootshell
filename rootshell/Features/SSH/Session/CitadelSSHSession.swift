@@ -1870,6 +1870,11 @@ final class CitadelHostKeyValidatorDelegate: NIOSSHClientServerAuthenticationDel
                     validationCallback: validationCallback
                 )
                 if result {
+                    // Certificates tint by their base key so reissued certs keep the host's color.
+                    let identityKey = NIOSSHCertifiedPublicKey(hostKey)?.key ?? hostKey
+                    HostFingerprintRegistry.shared.record(
+                        hostname: hostnameCopy, port: portCopy,
+                        fingerprint: SSHHostKeyFormatter.fingerprint(for: identityKey))
                     validationCompletePromise.succeed(())
                 } else {
                     validationCompletePromise.fail(HostKeyRejectedError())
