@@ -402,13 +402,17 @@ enum MuxSessionDetach {
             default:
                 proto = .ssh
             }
-            userInfo["offer"] = MuxSessionResume.ReconnectOffer(
+            var offer = MuxSessionResume.ReconnectOffer(
                 displayName: attachment.displayName,
                 sshConfig: ssh,
                 connectionProtocol: proto,
                 profileID: terminal.sourceProfileID,
                 target: target
             )
+            if attachment.kind == .herdrControlMode, terminal.herdrController != nil {
+                offer.herdrGateway = .init(terminalUUID: terminal.uuid, sessionName: attachment.sessionName)
+            }
+            userInfo["offer"] = offer
         }
         // object: nil — do not require the pane to still be in the tab tree.
         // tmux -CC prune tears windows down as soon as control mode ends.

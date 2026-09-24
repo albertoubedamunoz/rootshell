@@ -25,6 +25,14 @@ enum MuxSessionResume {
         let connectionProtocol: ConnectionProtocol
         let profileID: UUID?
         let target: MuxSessionTarget
+        /// herdr control mode leaves its gateway connected; reattach over it.
+        var herdrGateway: HerdrGateway? = nil
+
+        struct HerdrGateway: Equatable {
+            let terminalUUID: UUID
+            /// The controller's own name; nil is herdr's default session.
+            let sessionName: String?
+        }
     }
 
     /// Find a live multiplexer attachment that matches this profile's auto-start

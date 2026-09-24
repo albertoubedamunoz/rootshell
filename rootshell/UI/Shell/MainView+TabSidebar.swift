@@ -239,6 +239,7 @@ extension MainView {
     func reconnectFromMuxDetachBanner() {
         guard let offer = muxDetachBanner?.offer else { return }
         dismissMuxDetachBanner()
+        if let gateway = offer.herdrGateway, reattachHerdrGateway(gateway) { return }
         let config = offer.sshConfig.resumingMultiplexer(offer.target)
         if let profileID = offer.profileID,
            var profile = ConnectionProfileManager.shared.profiles.first(where: { $0.id == profileID }) {
@@ -254,6 +255,21 @@ extension MainView {
             connectionProtocol: offer.connectionProtocol,
             splitOption: .newTab
         )
+    }
+
+    /// Restarts herdr control mode as a new exec channel on the gateway's
+    /// still-open connection. False when that connection is gone.
+    private func reattachHerdrGateway(_ gateway: MuxSessionResume.ReconnectOffer.HerdrGateway) -> Bool {
+        for tab in terminals {
+            guard let view = tab.splitTree.terminalLeaves.first(where: { $0.uuid == gateway.terminalUUID }) else { continue }
+            guard view.herdrController == nil, view.session?.isRunning == true,
+                  HerdrChannelFactory.canOpen(for: view) else { return false }
+            view.startHerdrControlMode(sessionName: gateway.sessionName)
+            guard view.herdrController != nil else { return false }
+            selectTab(id: tab.id)
+            return true
+        }
+        return false
     }
 
     /// Evict every OTHER tmux client (`detach-client -a`) for the selected
