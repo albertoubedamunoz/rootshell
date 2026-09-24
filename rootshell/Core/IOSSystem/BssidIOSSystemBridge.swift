@@ -1,10 +1,8 @@
 #if !targetEnvironment(macCatalyst)
 
 import CoreLocation
-import Darwin
 import Foundation
 import NetworkExtension
-import OSLog
 import UIKit
 
 // MARK: - ios_system entry point
@@ -18,122 +16,26 @@ func bssid_main(_ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutablePointer
 
 // MARK: - Implementation
 
-private let logger = Logger(subsystem: "com.kk2.rootshell", category: "bssid-bridge")
-
-private func outputStreamForCurrentThread() -> UnsafeMutablePointer<FILE>? {
-    if let stream = ios_get_thread_stdout() {
-        return stream
-    }
-    if let stream = ios_get_thread_stderr() {
-        return stream
-    }
-    return Darwin.stdout
-}
-
-private func writeToCurrentThreadOutput(_ text: String) {
-    guard let stream = outputStreamForCurrentThread() else {
-        logger.error("No output stream available for bssid ios_system bridge")
-        return
-    }
-    fputs(text, stream)
-    fflush(stream)
-}
-
 private func bssidIOSSystemEntry(
     argc: Int32,
     argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
-    // Parse arguments
-    let args = extractBssidArgs(argc: argc, argv: argv)
+    let args = IOSSystemBridge.arguments(argc: argc, argv: argv)
     let argSet = Set(args.map { $0.lowercased() })
 
     if argSet.contains("-h") || argSet.contains("--help") {
-        writeToCurrentThreadOutput(bssidHelpText)
+        IOSSystemBridge.write(bssidHelpText)
         return 0
     }
 
     let verbose = argSet.contains("-v")
 
-    // Create a pipe for bridging MainActor output → this thread's stdout
-    var pipeFds: [Int32] = [0, 0]
-    guard pipe(&pipeFds) == 0 else {
-        writeToCurrentThreadOutput("bssid: failed to create pipe\n")
-        return 1
-    }
-    let pipeReadFd = pipeFds[0]
-    let pipeWriteFd = pipeFds[1]
-
-    guard let threadStdout = outputStreamForCurrentThread() else {
-        close(pipeReadFd)
-        close(pipeWriteFd)
-        logger.error("No output stream available after pipe setup")
-        return 1
-    }
-
-    _ = fcntl(pipeWriteFd, F_SETNOSIGPIPE, 1)
-
-    let writeQueue = DispatchQueue(label: "com.rootshell.bssid-bridge.write")
-    let writeFd = pipeWriteFd
-
-    nonisolated(unsafe) var exitStatus: Int32 = 0
-    nonisolated(unsafe) var writeClosed = false
-
-    Task { @MainActor in
-        let writeText: @Sendable (String) -> Void = { text in
-            guard let data = text.data(using: .utf8) else { return }
-            writeQueue.async {
-                guard !writeClosed else { return }
-                data.withUnsafeBytes { buf in
-                    guard let ptr = buf.baseAddress else { return }
-                    var remaining = buf.count
-                    var offset = 0
-                    while remaining > 0 {
-                        let written = write(writeFd, ptr + offset, remaining)
-                        if written < 0 {
-                            if errno == EINTR { continue }
-                            writeClosed = true
-                            break
-                        }
-                        if written == 0 { break }
-                        offset += written
-                        remaining -= written
-                    }
-                }
-            }
-        }
-
-        let success = await performBssidLookup(verbose: verbose, output: writeText)
-
-        writeQueue.async {
-            exitStatus = success ? 0 : 1
-            guard !writeClosed else { return }
-            writeClosed = true
-            close(writeFd)
+    return IOSSystemBridge.pump(name: "bssid") { writer in
+        Task { @MainActor in
+            let success = await performBssidLookup(verbose: verbose) { writer.write($0) }
+            writer.finish(exitStatus: success ? 0 : 1)
         }
     }
-
-    // Read loop: pipe read-end → ios_get_thread_stdout()
-    let bufferSize = 4096
-    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-    defer {
-        buffer.deallocate()
-        close(pipeReadFd)
-    }
-
-    while true {
-        let bytesRead = read(pipeReadFd, buffer, bufferSize)
-        if bytesRead > 0 {
-            fwrite(buffer, 1, bytesRead, threadStdout)
-            fflush(threadStdout)
-        } else if bytesRead == 0 {
-            break
-        } else {
-            if errno == EINTR { continue }
-            break
-        }
-    }
-
-    return exitStatus
 }
 
 // MARK: - BSSID lookup
@@ -279,22 +181,6 @@ private func performBssidLookup(
 }
 
 // MARK: - Helpers
-
-private func extractBssidArgs(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?) -> [String] {
-    let safeArgc = max(0, Int(argc))
-    guard safeArgc > 1, let argv else { return [] }
-
-    var args: [String] = []
-    args.reserveCapacity(safeArgc - 1)
-
-    for i in 1..<safeArgc {
-        if let arg = argv[i], let decoded = String(validatingUTF8: arg) {
-            args.append(decoded)
-        }
-    }
-
-    return args
-}
 
 private let bssidHelpText = """
     usage: bssid [-v]

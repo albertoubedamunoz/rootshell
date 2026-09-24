@@ -123,8 +123,6 @@ public final class TerminalPTY {
         // 7. Set initial window size
         windowSize = size
         try setWindowSize(size)
-
-        print("✅ PTY opened: master=\(masterFd), slave=\(slaveFd), path=\(path)")
     }
 
     /// Configures terminal attributes (termios) for the PTY
@@ -221,13 +219,7 @@ public final class TerminalPTY {
 
     /// Closes the PTY pair (only if we own the FDs)
     nonisolated func close() {
-        print("🔒 close() called, ownsFds = \(ownsFds)")
-        guard ownsFds else {
-            print("🔒 PTY not owned, skipping close (external FD)")
-            return
-        }
-
-        print("🔒 Closing PTY (we own the FDs)")
+        guard ownsFds else { return }
 
         if slaveFd >= 0 {
             Darwin.close(slaveFd)
@@ -238,21 +230,17 @@ public final class TerminalPTY {
         if masterFd >= 0 {
             Darwin.close(masterFd)
         }
-
-        print("🔒 PTY closed")
     }
 
     /// Mark this PTY as using external file descriptors (e.g., from Ghostty)
     /// When using external FDs, this PTY won't close them on deinit
     public func useExternalFd(_ fd: Int32) {
-        print("📎 Setting external PTY master FD: \(fd), setting ownsFds = false")
         self.masterFd = fd
         self.ownsFds = false
         // The helper opened the pair, but the master fd names its slave here too.
         if let name = ptsname(fd) {
             slavePath = String(cString: name)
         }
-        print("📎 ownsFds is now: \(self.ownsFds)")
     }
 
     nonisolated deinit {

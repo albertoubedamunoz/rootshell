@@ -75,6 +75,15 @@ struct SidebarSearchField: UIViewRepresentable {
     var onQuickSelect: ((Int) -> Void)? = nil   // Ctrl+1..9 (1-based)
     var onTogglePin: (() -> Void)? = nil        // Ctrl+P
     var onDeleteEntry: (() -> Void)? = nil      // Ctrl+Delete
+    var onTab: (() -> Void)? = nil              // Tab (beats UIKit focus movement)
+    var onBackTab: (() -> Void)? = nil          // Shift+Tab
+    /// Caller-defined chords (e.g. the user's split shortcuts) claimed while
+    /// the field is first responder.
+    var extraCommands: [SidebarSearchExtraCommand] = []
+    /// ⌘A while the field is empty; nil keeps text select-all.
+    var onSelectAll: (() -> Void)? = nil
+    /// While focused, terminal focus recovery yields to this field as it does to a HUD's.
+    var claimsKeyboard = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -133,6 +142,7 @@ struct SidebarSearchField: UIViewRepresentable {
 
     private func applyHandlers(to field: SidebarSearchTextField) {
         field.capturesNavigationKeys = capturesNavigationKeys
+        field.claimsKeyboard = claimsKeyboard
         field.handlers = SidebarSearchTextField.Handlers(
             onMoveUpBegan: onMoveUpBegan,
             onMoveUpEnded: onMoveUpEnded,
@@ -142,7 +152,11 @@ struct SidebarSearchField: UIViewRepresentable {
             onModifiedSubmit: onModifiedSubmit,
             onQuickSelect: onQuickSelect,
             onTogglePin: onTogglePin,
-            onDeleteEntry: onDeleteEntry
+            onDeleteEntry: onDeleteEntry,
+            onTab: onTab,
+            onBackTab: onBackTab,
+            extraCommands: extraCommands,
+            onSelectAll: onSelectAll
         )
     }
 
@@ -208,6 +222,22 @@ struct SidebarSearchField: UIViewRepresentable {
     }
 }
 
+/// A chord a panel claims while its field is first responder.
+struct SidebarSearchExtraCommand {
+    let input: String
+    let modifiers: UIKeyModifierFlags
+    /// Listed in the iPad hold-⌘ shortcut overlay when non-empty.
+    var title: String = ""
+    let handler: () -> Void
+
+    init(input: String, modifiers: UIKeyModifierFlags, title: String = "", handler: @escaping () -> Void) {
+        self.input = input
+        self.modifiers = modifiers
+        self.title = title
+        self.handler = handler
+    }
+}
+
 /// UITextField that routes list-navigation keys (Up/Down/Escape) to closures
 /// while letting everything else — typing, Return — behave normally.
 final class SidebarSearchTextField: UITextField {
@@ -221,11 +251,16 @@ final class SidebarSearchTextField: UITextField {
         var onQuickSelect: ((Int) -> Void)?
         var onTogglePin: (() -> Void)?
         var onDeleteEntry: (() -> Void)?
+        var onTab: (() -> Void)?
+        var onBackTab: (() -> Void)?
+        var extraCommands: [SidebarSearchExtraCommand] = []
+        var onSelectAll: (() -> Void)?
     }
 
     var handlers: Handlers?
     var onWindowAttached: (() -> Void)?
     var capturesNavigationKeys = true
+    var claimsKeyboard = false
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
@@ -285,7 +320,39 @@ final class SidebarSearchTextField: UITextField {
                 action: #selector(handleDeleteEntryCommand)
             )))
         }
+        // Tab must be claimed here or the focus system moves focus off the field.
+        if handlers.onTab != nil {
+            commands.append(prioritized(UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(handleTabCommand))))
+        }
+        if handlers.onBackTab != nil {
+            commands.append(prioritized(UIKeyCommand(input: "\t", modifierFlags: .shift, action: #selector(handleBackTabCommand))))
+        }
+        for (index, extra) in handlers.extraCommands.enumerated() {
+            let command = UIKeyCommand(
+                title: "", image: nil, action: #selector(handleExtraCommand(_:)),
+                input: extra.input, modifierFlags: extra.modifiers, propertyList: index
+            )
+            if !extra.title.isEmpty { command.discoverabilityTitle = extra.title }
+            commands.append(prioritized(command))
+        }
         return commands
+    }
+
+    /// ⌘A arrives as the Edit menu's selectAll:, which beats any key command,
+    /// so a panel that selects list items claims it here while the field is empty.
+    override func selectAll(_ sender: Any?) {
+        if let onSelectAll = handlers?.onSelectAll, text?.isEmpty ?? true {
+            onSelectAll()
+        } else {
+            super.selectAll(sender)
+        }
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(selectAll(_:)), handlers?.onSelectAll != nil, text?.isEmpty ?? true {
+            return true
+        }
+        return super.canPerformAction(action, withSender: sender)
     }
 
     /// Chords must beat system text-editing behavior (Ctrl+P caret-up, etc.).
@@ -313,6 +380,20 @@ final class SidebarSearchTextField: UITextField {
 
     @objc private func handleDeleteEntryCommand() {
         handlers?.onDeleteEntry?()
+    }
+
+    @objc private func handleTabCommand() {
+        handlers?.onTab?()
+    }
+
+    @objc private func handleBackTabCommand() {
+        handlers?.onBackTab?()
+    }
+
+    @objc private func handleExtraCommand(_ command: UIKeyCommand) {
+        guard let index = command.propertyList as? Int,
+              let extra = handlers?.extraCommands, extra.indices.contains(index) else { return }
+        extra[index].handler()
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -347,7 +428,19 @@ final class SidebarSearchTextField: UITextField {
         guard capturesNavigationKeys else { return false }
         // While composing (IME marked text), arrows navigate the candidate UI.
         guard markedTextRange == nil else { return false }
-        guard let key = press.key, isPlain(key), let handlers else { return false }
+        guard let key = press.key, let handlers else { return false }
+        // Fallback for platforms where the Tab keyCommand does not fire.
+        if key.keyCode == .keyboardTab, key.modifierFlags.intersection([.command, .control, .alternate]).isEmpty {
+            if key.modifierFlags.contains(.shift) {
+                guard let onBackTab = handlers.onBackTab else { return false }
+                onBackTab()
+            } else {
+                guard let onTab = handlers.onTab else { return false }
+                onTab()
+            }
+            return true
+        }
+        guard isPlain(key) else { return false }
         switch key.keyCode {
         case .keyboardUpArrow:
             handlers.onMoveUpBegan()

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DebugSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
+    @Setting(Settings.System.screenshotMode) private var screenshotMode
     @AppStorage(ResumeDebugLogger.enabledKey) private var resumeDebugLogging: Bool = false
     @AppStorage(LifecycleDebugLogger.enabledKey) private var lifecycleDebugLogging: Bool = false
     @AppStorage(LifecycleDebugLogger.syncRendererDrainEnabledKey) private var syncRendererDrain: Bool = false
@@ -16,6 +17,7 @@ struct DebugSettingsView: View {
     @AppStorage(VNCDebugLogger.enabledKey) private var vncDebugLogging: Bool = false
     @AppStorage(TmuxDebugLogger.enabledKey) private var tmuxDebugLogging: Bool = false
     @Setting(Settings.System.herdrForceFallback) private var herdrForceFallback
+    @Setting(Settings.Keyboard.touchChooserPresented) private var keyboardChooserPresented
     @AppStorage(AgentDetectionCapture.enabledKey) private var agentCaptureEnabled: Bool = false
     @AppStorage(
         "vpnConnectionDebugLoggingEnabled",
@@ -37,6 +39,40 @@ struct DebugSettingsView: View {
 
     var body: some View {
         List {
+            Section {
+                Toggle("Screenshot Mode", isOn: $screenshotMode)
+                    .themedRow()
+            } header: {
+                Text("Screenshots")
+            } footer: {
+                Text("Sets the local shell prompt clock to 9:41 on the next prompt and hides the version and build date in Settings. This setting stays on this device.")
+            }
+
+            // MARK: - Onboarding
+
+            #if !os(visionOS) && !targetEnvironment(macCatalyst)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                Section {
+                    HStack {
+                        Text("Keyboard Chooser Shown")
+                        Spacer()
+                        Text(keyboardChooserPresented ? "Yes" : "No")
+                            .foregroundColor(.secondary)
+                    }
+                    .themedRow()
+
+                    Button("Reset Keyboard Chooser", role: .destructive) {
+                        KeyboardChooserLaunch.reset()
+                    }
+                    .themedRow()
+                } header: {
+                    Text("Onboarding")
+                } footer: {
+                    Text("Shows the keyboard chooser again when you close Settings. Your saved keyboard choice is not changed.")
+                }
+            }
+            #endif
+
             // MARK: - Agent Detection Capture
 
             Section {

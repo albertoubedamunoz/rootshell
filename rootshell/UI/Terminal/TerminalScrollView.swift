@@ -1026,7 +1026,7 @@ extension Ghostty {
     private func observeTrzszSession(_ trzszSession: TrzszSession) {
         roamBannerCancellable = trzszSession.$roamBannerState
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] trzszState in
+            .sink { [weak self, weak trzszSession] trzszState in
                 // Convert TrzszRoamBannerState to MoshRoamBannerState for UI reuse
                 let moshState = trzszState.map { state in
                     MoshRoamBannerState(
@@ -1038,7 +1038,7 @@ extension Ghostty {
                     )
                 }
                 self?.updateRoamBanner(state: moshState)
-                if trzszSession.canRebuildJumpConnection {
+                if trzszSession?.canRebuildJumpConnection == true {
                     self?.roamBannerHostView?.rebuildJumpConnection = { [weak trzszSession] in
                         trzszSession?.rebuildJumpConnection()
                     }
@@ -1366,6 +1366,16 @@ extension Ghostty {
         }
 
         guard let scrollbar = terminalView.scrollbar else {
+            // Preserve geometry only when there is no tmux surface to query.
+            // An existing surface's query returns false for empty history;
+            // that must clear any previously observed scrollback geometry.
+            if TerminalScrollbarAvailabilityPolicy.preservesExistingDocument(
+                isTmuxPane: terminalView.isTmuxPane,
+                hasSurface: terminalView.surface != nil,
+                hasValidSample: lastObservedScrollbar != nil
+            ) {
+                return
+            }
             // Reset case (e.g., tmux tracking just ended with no native
             // scrollback to restore, or fresh terminal). Shrink the
             // document view back to the visible viewport so we don't

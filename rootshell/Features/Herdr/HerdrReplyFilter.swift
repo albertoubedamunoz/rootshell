@@ -158,14 +158,22 @@ nonisolated struct HerdrParserFence {
     // Ghostty stores private mode numbers in 15 bits.
     private var nextID = 16_000
     private var issued: Set<Int> = []
+    private var acknowledgedIDs: [Int] = []
     private var carry = Data()
 
     mutating func issue() -> (id: Int, bytes: Data)? {
-        // Never reuse a number on a surface: a delayed reply must not satisfy
-        // a later request. Exhaustion simply leaves the viewport alone.
-        guard nextID <= 32_767 else { return nil }
-        let id = nextID
-        nextID += 1
+        // Live resizing can issue many fences on a long-lived surface. Only
+        // reuse IDs whose reply was consumed; a timed-out/cancelled probe
+        // remains issued so its late reply cannot confirm a new boundary.
+        let id: Int
+        if nextID <= 32_767 {
+            id = nextID
+            nextID += 1
+        } else if let acknowledged = acknowledgedIDs.popLast() {
+            id = acknowledged
+        } else {
+            return nil
+        }
         issued.insert(id)
         return (id, Data("\u{1b}[?\(id)$p".utf8))
     }
@@ -200,6 +208,7 @@ nonisolated struct HerdrParserFence {
                let id = Int(String(decoding: bytes[(start + 3)..<numberEnd], as: UTF8.self)),
                issued.remove(id) != nil {
                 acknowledged.append(id)
+                acknowledgedIDs.append(id)
                 i += j
             } else {
                 forward.append(contentsOf: bytes[start..<i])

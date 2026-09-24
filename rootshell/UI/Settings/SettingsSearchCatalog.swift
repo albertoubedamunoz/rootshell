@@ -24,9 +24,11 @@ enum SettingsSearchDestination: String, Hashable, CaseIterable {
     case battery
     case visor
     case toolbarKeys
+    case touchKeyboard
     case newTabAction
     case keyboardShortcuts
     case modTap
+    case gestureHelp
     case swipeGestures
     case promptAndUsername
     case bookmarkedLocations
@@ -43,6 +45,7 @@ enum SettingsSearchDestination: String, Hashable, CaseIterable {
     case localSSHAgent
     case externalSSHAgents
     case cloudProviders
+    case storageProviders
     case wifiAPProviders
     case kubernetesClusters
     case backgroundTunnels
@@ -152,6 +155,15 @@ extension SettingsSearchDestination {
         case .visor:
             Meta(section: .appearance, title: String(localized: "Visor"), systemImage: "rectangle.topthird.inset.filled",
                  keywords: ["hotkey", "drop-down", "quake", "slide", "overlay", "global shortcut"])
+        case .touchKeyboard:
+            Meta(section: .terminal, title: String(localized: "Terminal Keyboard"), systemImage: "keyboard.badge.ellipsis",
+                 keywords: ["custom keyboard", "qwerty", "vim", "emacs", "nano", "agent", "suggestions", "haptics",
+                            "letter prediction", "typing accuracy", "touch accuracy", "detached", "floating",
+                            "glass", "tint", "transparency", "system detached keyboard", "app window",
+                            "keyboard style", "flat", "sculpted", "3d", "skeuomorphic", "steampunk",
+                            "phosphor", "crt", "retro", "beige box", "neon grid", "synthwave", "circuit board",
+                            "key click", "click sound", "typing sound",
+                            "separate state per tab", "shared keyboard", "sticky modifiers"])
         case .toolbarKeys:
             Meta(section: .terminal, title: String(localized: "Toolbar Keys"), systemImage: "keyboard",
                  keywords: ["toolbar", "custom keys"])
@@ -164,6 +176,15 @@ extension SettingsSearchDestination {
         case .modTap:
             Meta(section: .terminal, title: String(localized: "Mod-Tap Keys"), systemImage: "hand.tap",
                  keywords: ["caps lock", "modifier", "tap hold", "escape", "rules", "threshold", "input source", "hold"])
+        case .gestureHelp:
+            Meta(section: .terminal, title: String(localized: "Gesture Help"), systemImage: "hand.tap",
+                 keywords: ["gestures", "help", "walkthrough", "tutorial", "long press", "double tap",
+                            "two fingers", "chevron", "hide keyboard", "collapse toolbar", "modifiers",
+                            "joystick", "space", "cursor", "floating keyboard", "dock", "swipe", "pinch",
+                            "font size", "selection", "scroll mode", "context menu", "new connection",
+                            "right click", "right-click", "secondary click", "loupe", "magnifier",
+                            "tab expose", "pull down", "previews", "sidebar", "split", "pane",
+                            "screen sharing", "pencil"])
         case .swipeGestures:
             Meta(section: .terminal, title: String(localized: "Swipe Gestures"), systemImage: "hand.draw",
                  keywords: ["swipe", "gesture", "left swipe", "right swipe", "app tabs", "tmux windows",
@@ -215,6 +236,9 @@ extension SettingsSearchDestination {
         case .cloudProviders:
             Meta(section: .connections, title: String(localized: "Cloud Providers"), systemImage: "cloud",
                  keywords: ["aws", "azure", "digitalocean", "linode", "add account", "accounts"])
+        case .storageProviders:
+            Meta(section: .connections, title: String(localized: "Storage Providers"), systemImage: "externaldrive.connected.to.line.below",
+                 keywords: ["s3", "bucket", "object storage", "r2", "backblaze", "b2", "wasabi", "minio", "spaces", "file manager"])
         case .wifiAPProviders:
             Meta(section: .connections, title: String(localized: "WiFi AP Providers"), systemImage: "wifi.router",
                  keywords: ["wireless", "access point", "manual ap", "bssid", "vendor", "add account"])
@@ -324,6 +348,8 @@ extension SettingsSearchDestination {
             return AppIconManager.isSupported
         case .transparency:
             return SearchBuild.isCatalyst
+        case .touchKeyboard:
+            return !SearchBuild.isCatalyst && !SearchBuild.isVisionOS
         case .toolbarKeys, .promptAndUsername, .bookmarkedLocations, .locationDiary:
             return !SearchBuild.isCatalyst
         case .liveActivity:
@@ -368,7 +394,7 @@ extension SettingsSection {
         switch self {
         case .appearance: ["theme", "font", "cursor", "window", "colors"]
         case .terminal: ["keyboard", "locale", "prompt", "sessions"]
-        case .connections: ["ssh", "cloud", "vpn", "hosts", "tmux", "vnc", "screen sharing", "remote desktop"]
+        case .connections: ["ssh", "cloud", "vpn", "hosts", "tmux", "vnc", "screen sharing", "remote desktop", "storage", "s3"]
         case .aiAssistant: ["providers", "mcp", "agent", "text size"]
         case .privacyData: ["icloud", "location", "sync", "live activity"]
         case .notifications: ["sound", "bell", "reminders"]
@@ -631,6 +657,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["generate", "256", "ansi"]),
             row("palette-harmonious", String(localized: "Harmonious Mode"), in: .palette, icon: "circle.lefthalf.filled",
                 keywords: ["harmonious", "harmony"]),
+            row("host-tint", String(localized: "Tint by Host"), in: .palette, icon: "paintpalette",
+                keywords: ["host color", "server color", "fingerprint", "per host", "background tint"]),
 
             // MARK: Battery
             row("battery-refresh-rate", String(localized: "Maximum Refresh Rate"), in: .battery, icon: "gauge.with.dots.needle.67percent",
@@ -639,8 +667,10 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["saver", "low power"]),
 
             // MARK: Background Effect
-            row("effect-pinned-sidebar", String(localized: "Include Pinned Sidebar"), in: .backgroundEffect,
-                keywords: ["layout", "sidebar", "effect"]),
+            row("effect-pinned-sidebar", String(localized: "Sidebar Effect"), in: .backgroundEffect,
+                keywords: ["layout", "sidebar", "effect", "sidebar only", "include pinned sidebar"], available: isTouch && !onPhone || isCatalyst),
+            row("effect-keyboard", String(localized: "Custom Keyboard Background"), in: .backgroundEffect, icon: "keyboard",
+                keywords: ["custom keyboard", "toolbar", "effect", "background", "aquarium", "keyboard only"], available: isTouch),
             row("effect-photo", String(localized: "Photo Background"), in: .backgroundEffect, icon: "photo",
                 keywords: ["photo", "image", "wallpaper", "ken burns", "filter", "tint"]),
             row("effect-video", String(localized: "Video Background"), in: .backgroundEffect, icon: "film",
@@ -682,6 +712,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["meta", "modifier", "keyboard"]),
 
             // MARK: Terminal › Gestures (inline)
+            row("gesture-loupe-right-click", String(localized: "Right click with the loupe"), in: .gestureHelp, icon: "hand.tap",
+                keywords: ["right click", "right-click", "secondary click", "loupe", "magnifier", "hold", "touch", "no mouse"], available: isTouch),
             row("tab-expose-gesture", String(localized: "Pull Down for Tab Exposé"), in: .terminal, icon: "rectangle.stack",
                 keywords: ["expose", "tab previews", "pull down", "swipe down", "gesture"], available: !isVisionOS),
             row("two-finger-long-press", String(localized: "Two-Finger Long Press"), in: .terminal, icon: "hand.point.up.left",
@@ -1039,6 +1071,12 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         #else
         EmptyView()
         #endif
+    case .touchKeyboard:
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        TerminalTouchKeyboardSettingsView()
+        #else
+        EmptyView()
+        #endif
     case .toolbarKeys:
         #if !targetEnvironment(macCatalyst)
         KeyboardToolbarSettingsView()
@@ -1051,6 +1089,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         KeyboardShortcutsSettingsView()
     case .modTap:
         ModTapSettingsView()
+    case .gestureHelp:
+        GestureHelpView()
     case .swipeGestures:
         SwipeGesturesSettingsView()
     case .promptAndUsername:
@@ -1103,6 +1143,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         #endif
     case .cloudProviders:
         CloudProvidersSettingsView()
+    case .storageProviders:
+        StorageProvidersSettingsView()
     case .wifiAPProviders:
         WiFiAPProvidersSettingsView()
     case .kubernetesClusters:

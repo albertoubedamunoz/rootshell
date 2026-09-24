@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct MoshHolePunchGuideView: View {
-    @Environment(\.sheetThemeColors) private var sheetThemeColors
-
     var body: some View {
         List {
             // MARK: - Server Requirements
@@ -32,7 +30,7 @@ struct MoshHolePunchGuideView: View {
             // MARK: - Setup Instructions
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 1,
                         title: "Install hping3",
                         code: "sudo apt install hping3",
@@ -41,16 +39,15 @@ struct MoshHolePunchGuideView: View {
 
                     Divider()
 
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 2,
                         title: "Configure passwordless sudo",
-                        code: "sudo visudo",
-                        note: nil
+                        code: "sudo visudo"
                     )
 
                     Divider()
 
-                    instructionStep(
+                    GuideInstructionStep(
                         number: 3,
                         title: "Add this line (replace 'username')",
                         code: "username ALL=(ALL) NOPASSWD: /usr/sbin/hping3",
@@ -66,7 +63,7 @@ struct MoshHolePunchGuideView: View {
             // MARK: - How It Works
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    howItWorksRow(
+                    GuideRow(
                         icon: "network",
                         title: "1. STUN Discovery",
                         description: "Client discovers its public IP:port via STUN servers (Google, Cloudflare)"
@@ -74,7 +71,7 @@ struct MoshHolePunchGuideView: View {
 
                     Divider()
 
-                    howItWorksRow(
+                    GuideRow(
                         icon: "lock.shield",
                         title: "2. SSH Command (TCP)",
                         description: "Client sends hping3 command over the existing SSH connection to the server"
@@ -82,7 +79,7 @@ struct MoshHolePunchGuideView: View {
 
                     Divider()
 
-                    howItWorksRow(
+                    GuideRow(
                         icon: "arrow.up.arrow.down",
                         title: "3. Server Punch (UDP)",
                         description: "Server runs hping3 to send UDP packet to client's public address, creating the return NAT mapping"
@@ -90,7 +87,7 @@ struct MoshHolePunchGuideView: View {
 
                     Divider()
 
-                    howItWorksRow(
+                    GuideRow(
                         icon: "wifi.exclamationmark",
                         title: "4. Network Recovery",
                         description: "On WiFi/Cellular switch, client re-discovers STUN and re-punches via SSH"
@@ -107,18 +104,9 @@ struct MoshHolePunchGuideView: View {
             // MARK: - Troubleshooting
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Verify hping3 installation:")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                    GuideCodeBlock(title: "Verify hping3 installation", code: "which hping3")
 
-                    codeBlock("which hping3")
-
-                    Text("Test sudo access:")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .padding(.top, 4)
-
-                    codeBlock("sudo hping3 --version")
+                    GuideCodeBlock(title: "Test sudo access", code: "sudo hping3 --version")
                 }
                 .padding(.vertical, 4)
                 .themedRow()
@@ -131,70 +119,6 @@ struct MoshHolePunchGuideView: View {
         .themedList()
         .navigationTitle("Mosh Hole-Punch")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Helper Views
-
-    private func codeBlock(_ code: String) -> some View {
-        HStack(alignment: .top, spacing: 0) {
-            Text(code)
-                .font(.system(.caption, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button {
-                UIPasteboard.general.string = code
-            } label: {
-                Image(systemName: "doc.on.doc")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(8)
-        .background(sheetThemeColors?.rowBackground ?? Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-
-    private func instructionStep(number: Int, title: String, code: String, note: String?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 8) {
-                Text("\(number).")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                    .frame(width: 20, alignment: .leading)
-
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-
-            codeBlock(code)
-
-            if let note {
-                Text(note)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
-    private func howItWorksRow(icon: String, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(.accentColor)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
     }
 }
 

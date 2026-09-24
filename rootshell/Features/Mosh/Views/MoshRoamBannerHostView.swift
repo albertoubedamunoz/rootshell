@@ -2,42 +2,27 @@
 //  MoshRoamBannerHostView.swift
 //  rootshell
 //
-//  UIKit wrapper for hosting MoshRoamBannerView SwiftUI component
+//  UIKit wrapper for hosting MoshRoamBannerView inside TerminalScrollView.
 //
 
-import UIKit
 import SwiftUI
+import UIKit
 
-/// UIKit view that hosts the MoshRoamBannerView SwiftUI component
-///
-/// This wrapper enables embedding the modern SwiftUI roam banner
-/// (with liquid glass effect) within the UIKit-based TerminalScrollView.
-/// Follows the same pattern as ProgressBarView for consistency.
 @MainActor
-final class MoshRoamBannerHostView: UIView {
-
-    // MARK: - Properties
-
-    /// The hosting controller for the SwiftUI view
-    private var hostingController: UIHostingController<MoshRoamBannerView>?
-
-    /// Parent view controller (needed for hosting controller lifecycle)
-    private weak var parentViewController: UIViewController?
+final class MoshRoamBannerHostView: SwiftUIBannerHostView<MoshRoamBannerView> {
 
     /// Current banner state (readable for cleanup checks)
     private(set) var currentState: MoshRoamBannerState?
+
     var rebuildJumpConnection: (() -> Void)? {
         didSet {
             isUserInteractionEnabled = rebuildJumpConnection != nil
-            if let currentState { showBanner(with: currentState) }
+            if let currentState { show(rootView(for: currentState)) }
         }
     }
 
-    // MARK: - Initialization
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .clear
+    init() {
+        super.init(layout: .topCentered)
         isUserInteractionEnabled = false  // Banner is display-only
     }
 
@@ -45,83 +30,14 @@ final class MoshRoamBannerHostView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // MARK: - Public Methods
-
-    /// Updates the banner with new state
-    ///
-    /// - Parameter state: The new banner state, or nil to hide the banner
+    /// Updates the banner with new state; nil hides it.
     func update(state: MoshRoamBannerState?) {
-        // Early exit if state hasn't changed
-        if state == currentState {
-            return
-        }
+        if state == currentState { return }
         currentState = state
-
-        if let state = state {
-            showBanner(with: state)
-        } else {
-            hideBanner()
-        }
+        update(content: state.map(rootView(for:)))
     }
 
-    /// Sets the parent view controller for hosting controller lifecycle management
-    func setParentViewController(_ viewController: UIViewController?) {
-        parentViewController = viewController
-    }
-
-    // MARK: - Private Methods
-
-    private func showBanner(with state: MoshRoamBannerState) {
-        if let hc = hostingController {
-            // Update existing hosting controller's root view
-            hc.rootView = MoshRoamBannerView(state: state, rebuildJumpConnection: rebuildJumpConnection)
-            hc.view.invalidateIntrinsicContentSize()
-        } else {
-            // Create new hosting controller
-            let swiftUIView = MoshRoamBannerView(state: state, rebuildJumpConnection: rebuildJumpConnection)
-            let hc = UIHostingController(rootView: swiftUIView)
-            hc.view.backgroundColor = .clear
-            hc.view.translatesAutoresizingMaskIntoConstraints = false
-
-            // Add as child of parent view controller if available
-            if let parent = parentViewController {
-                parent.addChild(hc)
-                addSubview(hc.view)
-                hc.didMove(toParent: parent)
-            } else {
-                addSubview(hc.view)
-            }
-
-            // Center the banner horizontally, pin to top
-            NSLayoutConstraint.activate([
-                hc.view.centerXAnchor.constraint(equalTo: centerXAnchor),
-                hc.view.topAnchor.constraint(equalTo: topAnchor)
-            ])
-
-            hostingController = hc
-
-            // Animate in
-            hc.view.alpha = 0
-            hc.view.transform = CGAffineTransform(translationX: 0, y: -10)
-            UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseOut]) {
-                hc.view.alpha = 1
-                hc.view.transform = .identity
-            }
-        }
-    }
-
-    private func hideBanner() {
-        guard let hc = hostingController else { return }
-
-        // Animate out
-        UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseIn]) {
-            hc.view.alpha = 0
-            hc.view.transform = CGAffineTransform(translationX: 0, y: -10)
-        } completion: { [weak self] _ in
-            hc.willMove(toParent: nil)
-            hc.view.removeFromSuperview()
-            hc.removeFromParent()
-            self?.hostingController = nil
-        }
+    private func rootView(for state: MoshRoamBannerState) -> MoshRoamBannerView {
+        MoshRoamBannerView(state: state, rebuildJumpConnection: rebuildJumpConnection)
     }
 }

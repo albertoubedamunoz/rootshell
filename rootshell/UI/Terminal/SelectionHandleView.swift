@@ -152,6 +152,25 @@ extension Ghostty {
         private var presentationAnimator: UIViewPropertyAnimator?
         private var dismissalAnimator: UIViewPropertyAnimator?
         private(set) var placement: Placement?
+        var onSecondaryClick: (() -> Void)? {
+            didSet {
+                isUserInteractionEnabled = onSecondaryClick != nil
+                isAccessibilityElement = onSecondaryClick != nil
+                accessibilityTraits = .button
+                accessibilityLabel = String(localized: "Right Click")
+                accessibilityHint = String(localized: "Tap while holding the terminal to switch to a secondary click.")
+            }
+        }
+
+        @objc private func secondaryClickTapped() {
+            onSecondaryClick?()
+        }
+
+        override func accessibilityActivate() -> Bool {
+            guard let onSecondaryClick else { return false }
+            onSecondaryClick()
+            return true
+        }
 
         override init(frame: CGRect) {
             let selectedEffect: UIVisualEffect
@@ -221,6 +240,10 @@ extension Ghostty {
             reticleView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
             reticleView.layer.borderWidth = 1.25
             addSubview(reticleView)
+
+            let tap = UITapGestureRecognizer(target: self, action: #selector(secondaryClickTapped))
+            tap.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+            addGestureRecognizer(tap)
 
             transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
             contentClipView.alpha = 0

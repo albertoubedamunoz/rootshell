@@ -23,7 +23,7 @@ nonisolated struct HerdrExposeAdapter: MultiplexerExposeAdapter {
     /// `hx` runs herdr against the bound session; nil means the default one.
     private func prelude(session: String?) -> String {
         if let commandPrefix = commandPrefix ?? localAttachment?.command(arguments: []) {
-            let executable = localAttachment?.executable ?? "herdr"
+            let executable = localAttachment?.launchExecutable ?? "herdr"
             return "hx() { \(commandPrefix) \"$@\" 2>/dev/null; }; command -v \(MuxScript.dq(executable)) >/dev/null 2>&1 || echo \(MuxScript.dq(MuxScript.unsupportedMarker))"
         }
         let env = session.map { "HERDR_SESSION=\(MuxScript.dq($0)) " } ?? ""

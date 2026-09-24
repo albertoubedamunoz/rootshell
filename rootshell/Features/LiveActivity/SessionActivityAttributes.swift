@@ -10,9 +10,9 @@
 import ActivityKit
 import Foundation
 
-struct SessionActivityAttributes: ActivityAttributes {
+nonisolated struct SessionActivityAttributes: ActivityAttributes, Sendable {
     /// Static context — empty since all data is dynamic
-    struct ContentState: Codable, Hashable {
+    struct ContentState: Codable, Hashable, Sendable {
         /// Total non-resilient session count
         var sessionCount: Int
 

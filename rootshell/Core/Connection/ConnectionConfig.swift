@@ -332,3 +332,64 @@ enum ConnectionConfig: Equatable {
         }
     }
 }
+
+// MARK: - Open in Folder
+
+/// How well "start in directory" can be honoured for a new pane on a target.
+enum InitialDirectorySupport: Equatable {
+    case full
+    /// Honoured when the multiplexer session is created, not when attaching.
+    case onCreateOnly(multiplexer: String)
+    case unsupported
+}
+
+extension ConnectionConfig {
+    /// Config for a NEW pane on the same target that starts in `directory`
+    /// (absolute, on the target's filesystem). Call on `forNewSplit()` output.
+    /// nil for targets that cannot honour a start directory.
+    func startingIn(directory: String) -> ConnectionConfig? {
+        switch self {
+        case .local:
+            return .local(workingDirectory: directory)
+        case .ssh(var config):
+            config.initialDirectory = directory
+            return .ssh(config)
+        case .mosh(var config):
+            config.sshConfig.initialDirectory = directory
+            return .mosh(config)
+        case .trzsz(var config):
+            config.sshConfig.initialDirectory = directory
+            return .trzsz(config)
+        case .shellLaunchedSSH(var config, let shellCwd):
+            config.initialDirectory = directory
+            return .shellLaunchedSSH(sshConfig: config, shellWorkingDirectory: shellCwd)
+        case .shellLaunchedMosh(var config, let shellCwd):
+            config.sshConfig.initialDirectory = directory
+            return .shellLaunchedMosh(moshConfig: config, shellWorkingDirectory: shellCwd)
+        case .shellLaunchedTrzsz(var config, let shellCwd):
+            config.sshConfig.initialDirectory = directory
+            return .shellLaunchedTrzsz(trzszConfig: config, shellWorkingDirectory: shellCwd)
+        case .kubernetes, .console, .ec2Console, .trzszTransfer, .vnc:
+            return nil
+        }
+    }
+
+    var initialDirectorySupport: InitialDirectorySupport {
+        switch self {
+        case .local:
+            return .full
+        case .kubernetes, .console, .ec2Console, .trzszTransfer, .vnc:
+            return .unsupported
+        default:
+            guard let ssh = underlyingSSHConfig else { return .unsupported }
+            if let command = ssh.remoteCommand, !command.isEmpty { return .full }
+            if ssh.launchCommandMode == .initialCommandWithPTY, let command = ssh.launchCommand, !command.isEmpty {
+                return .full
+            }
+            if ssh.tmuxAutoEnable { return .onCreateOnly(multiplexer: "tmux") }
+            if ssh.herdrAutoEnable && !ssh.herdrControlModeEnabled { return .onCreateOnly(multiplexer: "herdr") }
+            if ssh.zmxAutoEnable { return .onCreateOnly(multiplexer: "zmx") }
+            return .full
+        }
+    }
+}

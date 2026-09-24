@@ -315,6 +315,7 @@ struct PromptCache {
     var lastTheme: StarshipTheme?
     var lastUsername: String?
     var lastClockFormat: String?
+    var lastScreenshotMode: Bool?
     var lastColumns: Int?
     var lastShowTime: Bool?
 
@@ -331,6 +332,7 @@ struct PromptCache {
         guard lastShowTime == showTime else { return false }
         guard lastUsername == UserPreferences.effectiveUsername else { return false }
         guard lastClockFormat == UserPreferences.clockFormat.rawValue else { return false }
+        guard lastScreenshotMode == SettingsStore.shared.value(Settings.System.screenshotMode) else { return false }
 
         // Check time (invalidate on minute boundary for clock update)
         let currentMinute = Calendar.current.component(.minute, from: Date())
@@ -358,6 +360,7 @@ struct PromptCache {
         lastMinute = Calendar.current.component(.minute, from: Date())
         lastUsername = UserPreferences.effectiveUsername
         lastClockFormat = UserPreferences.clockFormat.rawValue
+        lastScreenshotMode = SettingsStore.shared.value(Settings.System.screenshotMode)
         lastGitInfo = gitInfo
         return prompt
     }

@@ -197,6 +197,59 @@ final class YubiKeyKeyConverter {
         }
     }
 
+    // MARK: - RSA Public Key Parsing
+
+    /// Splits a PKCS#1 RSAPublicKey (SEQUENCE { modulus INTEGER, publicExponent INTEGER }),
+    /// as returned by SecKeyCopyExternalRepresentation, into its two integers.
+    /// Every read is bounds-checked so a truncated or malformed cert throws instead of trapping.
+    nonisolated static func rsaPublicKeyComponents(fromPKCS1 derData: Data) throws -> (exponent: Data, modulus: Data) {
+        let bytes = [UInt8](derData)
+        var index = 0
+
+        func readLength() throws -> Int {
+            guard index < bytes.count else {
+                throw YubiKeyError.keyConversionFailed("Truncated RSA key")
+            }
+            let first = Int(bytes[index])
+            index += 1
+            guard first & 0x80 != 0 else { return first }
+            let count = first & 0x7F
+            guard count > 0, count <= 4, count <= bytes.count - index else {
+                throw YubiKeyError.keyConversionFailed("Invalid RSA key length encoding")
+            }
+            var length = 0
+            for _ in 0..<count {
+                length = length << 8 | Int(bytes[index])
+                index += 1
+            }
+            return length
+        }
+
+        /// Consumes a tag and its length; returns the content length, guaranteed to fit the buffer.
+        func readHeader(tag: UInt8, _ expected: String) throws -> Int {
+            guard index < bytes.count, bytes[index] == tag else {
+                throw YubiKeyError.keyConversionFailed("Expected \(expected)")
+            }
+            index += 1
+            let length = try readLength()
+            guard length <= bytes.count - index else {
+                throw YubiKeyError.keyConversionFailed("Truncated RSA key")
+            }
+            return length
+        }
+
+        _ = try readHeader(tag: 0x30, "SEQUENCE for RSA key")
+
+        let modulusLen = try readHeader(tag: 0x02, "INTEGER for modulus")
+        let modulus = Data(bytes[index..<index + modulusLen])
+        index += modulusLen
+
+        let exponentLen = try readHeader(tag: 0x02, "INTEGER for exponent")
+        let exponent = Data(bytes[index..<index + exponentLen])
+
+        return (exponent, modulus)
+    }
+
     // MARK: - Private Helpers
 
     /// Extract Ed25519 seed from NIOSSHPrivateKey

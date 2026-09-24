@@ -101,7 +101,7 @@ extension HerdrController {
         if mode == .legacy { legacySnapshotFingerprint = nil }
     }
 
-    private func send<P: Encodable>(_ method: String, _ params: P) {
+    private func send<P: Encodable & Sendable>(_ method: String, _ params: P) {
         guard let channel else { return }
         Task {
             do {
@@ -130,16 +130,18 @@ extension HerdrController {
         send("pane.focus", HerdrControl.PaneTarget(pane_id: binding.paneId))
     }
 
-    func requestSplit(_ view: Ghostty.TerminalView, horizontal: Bool) {
+    func requestSplit(_ view: Ghostty.TerminalView, horizontal: Bool, cwd: String? = nil) {
         guard let binding = view.herdrPaneBinding else { return }
         let direction = horizontal ? "right" : "down"
         if mode == .legacy {
-            legacyCommand("pane split \(binding.paneId) --direction \(direction) --focus")
+            let cwdFlag = cwd.map { " --cwd \(LoginShellCommand.singleQuoted($0))" } ?? ""
+            legacyCommand("pane split \(binding.paneId) --direction \(direction)\(cwdFlag) --focus")
             return
         }
         send("pane.split", HerdrControl.PaneSplitParams(
             target_pane_id: binding.paneId,
-            direction: direction
+            direction: direction,
+            cwd: cwd
         ))
     }
 
@@ -171,7 +173,8 @@ extension HerdrController {
     func requestNewTab(
         workspaceID preferredWorkspaceID: String?,
         afterTabID: String? = nil,
-        isAutomatic: Bool = false
+        isAutomatic: Bool = false,
+        cwd: String? = nil
     ) -> Bool {
         guard !didEnd, isActive, hasProcessedInitialSnapshot else { return false }
         guard emptySessionCreationID == nil else { return true }
@@ -199,7 +202,7 @@ extension HerdrController {
                 let created: HerdrControl.TabCreatedResult
                 do {
                     created = try await self.createTab(
-                        workspaceID: self.newTabWorkspace(preferred: preferredWorkspaceID), channel: channel
+                        workspaceID: self.newTabWorkspace(preferred: preferredWorkspaceID), channel: channel, cwd: cwd
                     )
                 } catch HerdrChannelError.remote(let code, _) where code == "workspace_not_found" {
                     let statusRevision = self.agentStatusRevision
@@ -207,7 +210,7 @@ extension HerdrController {
                     guard self.creationIsCurrent(generation) else { return }
                     self.applySnapshot(snapshot, preservingAgentUpdatesAfter: statusRevision)
                     created = try await self.createTab(
-                        workspaceID: self.newTabWorkspace(preferred: preferredWorkspaceID), channel: channel
+                        workspaceID: self.newTabWorkspace(preferred: preferredWorkspaceID), channel: channel, cwd: cwd
                     )
                 }
                 guard self.creationIsCurrent(generation) else { return }
@@ -315,20 +318,23 @@ extension HerdrController {
             ?? workspaces.values.min(by: { ($0.number, $0.workspace_id) < ($1.number, $1.workspace_id) })?.workspace_id
     }
 
-    private func createTab(workspaceID: String?, channel: HerdrControlChannel?) async throws -> HerdrControl.TabCreatedResult {
+    private func createTab(
+        workspaceID: String?, channel: HerdrControlChannel?, cwd: String? = nil
+    ) async throws -> HerdrControl.TabCreatedResult {
         if let channel {
             if let workspaceID {
                 return try await channel.request(
-                    "tab.create", HerdrControl.TabCreateParams(workspace_id: workspaceID),
+                    "tab.create", HerdrControl.TabCreateParams(workspace_id: workspaceID, cwd: cwd),
                     as: HerdrControl.TabCreatedResult.self
                 )
             }
             return try await channel.request(
-                "workspace.create", HerdrControl.WorkspaceCreateParams(), as: HerdrControl.TabCreatedResult.self
+                "workspace.create", HerdrControl.WorkspaceCreateParams(cwd: cwd), as: HerdrControl.TabCreatedResult.self
             )
         }
-        let args = workspaceID.map { "tab create --workspace \(LoginShellCommand.singleQuoted($0)) --focus" }
-            ?? "workspace create --focus"
+        let cwdFlag = cwd.map { " --cwd \(LoginShellCommand.singleQuoted($0))" } ?? ""
+        let args = workspaceID.map { "tab create --workspace \(LoginShellCommand.singleQuoted($0))\(cwdFlag) --focus" }
+            ?? "workspace create\(cwdFlag) --focus"
         return try await legacyRequest(args: args, as: HerdrControl.TabCreatedResult.self)
     }
 
@@ -353,6 +359,98 @@ extension HerdrController {
     func requestRenameTab(_ tab: TabModel, label: String) {
         guard let tabId = tab.herdrTabId else { return }
         runManagement { [self] in try await renameManagedTab(tabId, label: label) }
+    }
+
+    func requestEqualizeSplits(_ tab: TabModel) {
+        guard let tabID = tab.herdrTabId, tabs[tabID] === tab,
+              isActive, !didEnd, !management.isBusy else { return }
+        runManagement { [self] in
+            guard tabs[tabID] === tab else { return }
+            let original = try await managementRequest(
+                "layout.export", HerdrControl.TabTarget(tab_id: tabID),
+                as: HerdrControl.LayoutDescriptionResult.self
+            ).layout
+            guard original.tab_id == tabID else {
+                throw HerdrChannelError.malformed("herdr returned a layout for another tab")
+            }
+            for params in original.root.equalizationRequests(tabID: tabID) {
+                guard tabs[tabID] === tab else { return }
+                let updated = try await managementRequest(
+                    "layout.set_split_ratio", params, as: HerdrControl.LayoutDescriptionResult.self
+                ).layout
+                // A concurrent split/close/move invalidates the remaining paths.
+                // Stop and let performManagement refresh authoritative geometry.
+                guard updated.hasSameTopology(as: original) else {
+                    throw HerdrChannelError.remote(
+                        code: "layout_changed",
+                        message: String(localized: "The herdr layout changed while equalizing. Try again.")
+                    )
+                }
+            }
+        }
+    }
+
+    func canChoosePaneToZoom(tabID: String) -> Bool {
+        guard isActive, !didEnd, !management.isBusy,
+              let tab = tabs[tabID], tabsModel.selectedTabID == tab.id,
+              !tab.paneMove.isPending, tab.splitTree.count > 1,
+              !tabIsControlledElsewhere(tab) else { return false }
+        return true
+    }
+
+    /// Focus and ensure zoom through the same transport selection as other
+    /// management actions (control stream, endpoint, or upstream socket API).
+    /// Never toggle: choosing the current zoomed pane must leave it zoomed.
+    func requestZoomPane(binding: Ghostty.TerminalView.HerdrPaneBinding, expectedPaneIDs: Set<String>) {
+        guard binding.gatewayUUID == gatewayUUID,
+              canChoosePaneToZoom(tabID: binding.tabId),
+              let tab = tabs[binding.tabId],
+              let pane = paneViews[binding.terminalId], pane.herdrPaneBinding == binding,
+              expectedPaneIDs.contains(binding.paneId),
+              let topology = tab.splitTree.root?.structuralIdentity else { return }
+        let generation = streamGeneration
+        let selectionRevision = tabsModel.selectionRevision
+        runManagement { [self, weak tab, weak pane] in
+            guard let tab, let pane else { throw CancellationError() }
+            @MainActor func validate() throws {
+                guard !Task.isCancelled, isActive, !didEnd, streamGeneration == generation,
+                      tabs[binding.tabId] === tab, tabsModel.selectedTabID == tab.id,
+                      tabsModel.selectionRevision == selectionRevision,
+                      !tab.paneMove.isPending, !tabIsControlledElsewhere(tab),
+                      paneViews[binding.terminalId] === pane, pane.herdrPaneBinding == binding,
+                      tab.splitTree.root?.structuralIdentity == topology,
+                      Set(tab.splitTree.terminalLeaves.compactMap { $0.herdrPaneBinding?.paneId }) == expectedPaneIDs
+                else { throw CancellationError() }
+            }
+            try validate()
+            // Export includes hidden panes even when the geometry snapshot is
+            // zoomed. Check server membership before targeting a stable pane ID.
+            let original = try await managementRequest(
+                "layout.export", HerdrControl.TabTarget(tab_id: binding.tabId),
+                as: HerdrControl.LayoutDescriptionResult.self
+            ).layout
+            try validate()
+            guard original.tab_id == binding.tabId, Set(original.root.paneIDs) == expectedPaneIDs else {
+                throw CancellationError()
+            }
+            let _: HerdrControl.OKResult = try await managementRequest(
+                "pane.focus", HerdrControl.PaneTarget(pane_id: binding.paneId),
+                as: HerdrControl.OKResult.self
+            )
+            try validate()
+            let current = try await managementRequest(
+                "layout.export", HerdrControl.TabTarget(tab_id: binding.tabId),
+                as: HerdrControl.LayoutDescriptionResult.self
+            ).layout
+            try validate()
+            guard current.hasSameTopology(as: original) else { throw CancellationError() }
+            let _: HerdrControl.OKResult = try await managementRequest(
+                "pane.zoom", HerdrControl.PaneZoomParams(pane_id: binding.paneId, mode: "on"),
+                as: HerdrControl.OKResult.self
+            )
+            try validate()
+            focusPane(pane, in: tab)
+        }
     }
 
     func requestToggleZoom(_ view: Ghostty.TerminalView) {

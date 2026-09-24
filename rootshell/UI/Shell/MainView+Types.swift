@@ -98,12 +98,10 @@ extension MainView {
             if TabTransferCoordinator.shared.canAcceptActiveDrag(in: item.windowId) {
                 return
             }
-            print("TabDrag: dropEntered on \(item.title), draggingTab: \(tabsModel.draggingTabID?.uuidString ?? "nil")")
             guard let draggingID = tabsModel.draggingTabID,
                   draggingID != item.id,
                   tabsModel.tab(withID: draggingID) != nil
             else {
-                print("TabDrag: dropEntered guard failed")
                 return
             }
 
@@ -126,7 +124,6 @@ extension MainView {
                     isDestinationWindowFocused: true
                 )
             }
-            print("TabDrag: performDrop called, clearing draggingTab")
             // The incremental dropEntered moves above are local-only; commit
             // a dragged multiplexer tab's final position to the server once,
             // at drop time (user gesture, never reconcile-driven).
@@ -142,12 +139,10 @@ extension MainView {
         }
 
         func dropUpdated(info: DropInfo) -> DropProposal? {
-            print("TabDrag: dropUpdated on \(item.title)")
-            return DropProposal(operation: .move)
+            DropProposal(operation: .move)
         }
 
         func dropExited(info: DropInfo) {
-            print("TabDrag: dropExited from \(item.title)")
             // Don't clear draggingTabID here - it might be entering another tab
             // The drag session ending will be handled by performDrop or validateDrop
         }
@@ -157,7 +152,6 @@ extension MainView {
             if TabTransferCoordinator.shared.canAcceptActiveDrag(in: item.windowId) {
                 return true
             }
-            print("TabDrag: validateDrop on \(item.title), draggingTab: \(tabsModel.draggingTabID?.uuidString ?? "nil")")
             // If validation fails, clear the dragging state
             if tabsModel.draggingTabID == nil {
                 return false

@@ -172,6 +172,11 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         /// Per-profile multiplexer session name. Optional for backward compat —
         /// older serialized sessions decode as nil and use the global default.
         let multiplexerSessionName: String?
+        /// Captured attachment target belongs to tab restoration, not profiles.
+        let muxResumeTarget: MuxSessionTarget?
+        /// Folder the pane was opened in (Open in Folder). Optional for
+        /// backward compat; nil restores in the login directory.
+        let initialDirectory: String?
 
         /// Auth method that doesn't store actual passwords
         nonisolated enum AuthMethodSafe: Codable, Equatable, Sendable {
@@ -208,6 +213,8 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             self.launchCommandMode = config.launchCommandMode
             self.terminalType = config.terminalType
             self.multiplexerSessionName = config.multiplexerSessionName
+            self.muxResumeTarget = config.muxResumeTarget
+            self.initialDirectory = config.initialDirectory
 
             // Convert auth method, stripping passwords
             switch config.authMethod {
@@ -292,6 +299,8 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             config.launchCommandMode = launchCommandMode ?? .afterConnect
             config.terminalType = terminalType
             config.multiplexerSessionName = multiplexerSessionName
+            config.muxResumeTarget = muxResumeTarget
+            config.initialDirectory = initialDirectory
 
             if let jump = jumpHost {
                 let jumpAuth: SSHConfig.AuthMethod

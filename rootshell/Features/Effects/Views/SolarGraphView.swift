@@ -16,6 +16,7 @@ import CoreLocation
 struct SolarGraphView: View {
     @ObservedObject var effect: SolarGraphEffect
     var effectManager = EffectManager.shared
+    @Environment(\.terminalEffectAvoidsKeyboard) private var avoidsKeyboard
 
     /// Combined ID for settings that should trigger immediate re-render
     private var settingsId: String {
@@ -39,7 +40,8 @@ struct SolarGraphView: View {
         let animationTime = date.timeIntervalSinceReferenceDate
 
         GeometryReader { geometry in
-            let keyboardOffset = effectManager.keyboardOverlapHeight(in: geometry.frame(in: .global))
+            let keyboardOffset = avoidsKeyboard
+                ? effectManager.keyboardOverlapHeight(in: geometry.frame(in: .global)) : 0
             let adjustedHeight = max(0, geometry.size.height - keyboardOffset)
             let adjustedSize = CGSize(
                 width: geometry.size.width,

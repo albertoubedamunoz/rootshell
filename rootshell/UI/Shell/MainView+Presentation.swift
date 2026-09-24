@@ -20,6 +20,16 @@ extension MainView {
 
     // MARK: - Sheet Presentation Predicates
 
+    private var pendingClosePaneExists: Bool {
+        // Avoid observing every tab's split tree during ordinary rendering.
+        // Topology changes matter here only while a confirmation is pending.
+        guard pendingClosePaneID != nil else { return false }
+        return PaneCloseConfirmationPolicy.targetExists(
+            pendingID: pendingClosePaneID,
+            livePaneIDs: terminals.flatMap { $0.splitTree.map(\.uuid) }
+        )
+    }
+
     /// Whether the pending "Ask Each Time" tab is already hidden — used to omit
     /// the Hide Tab dialog button (hiding it is a no-op). (id=tmux-tab-close-action)
     private var pendingTmuxCloseTabIsHidden: Bool {
@@ -54,6 +64,9 @@ extension MainView {
             showYubiKeyPINPrompt ||
             showThemePickerOverlay ||
             showQuickSettingsOverlay ||
+            showKeyboardChooser ||
+            showOpenInFolderOverlay ||
+            fileManagerOwnsKeyboard ||
             // The iPhone presentation is a sheet that owns the keyboard. On
             // regular width the clipboard manager is a passthrough glass HUD (like
             // the Find HUD, which is intentionally absent here) and must NOT count
@@ -174,10 +187,18 @@ extension MainView {
                 .presentationDetents([.medium, .large])
                 .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
             }
+            // File manager: iPhone presentation. Larger screens use the sidebar or HUD.
+            .modifier(fileManagerPhoneSheetModifier(sheetTheme: sheetTheme))
             .sheet(item: $connectionInfoToShow) { info in
                 ConnectionInfoSheet(info: info)
                     .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
             }
+            // Keep the dialog's view builder outside this large modifier chain.
+            .modifier(PaneCloseDialogModifier(
+                pendingPaneID: $pendingClosePaneID,
+                targetExists: pendingClosePaneExists,
+                confirm: { confirmPendingPaneClose() }
+            ))
             // "Ask Each Time" tmux tab-close action sheet. (id=tmux-tab-close-action)
             .confirmationDialog(
                 "Close tmux Tab",
@@ -302,6 +323,7 @@ extension MainView {
                 themeColors: sheetTheme.themeColors,
                 accentColor: sheetTheme.accentColor,
                 colorScheme: sheetTheme.colorScheme,
+                onSheetDismiss: { flushPendingFileManagerOpen() },
                 phoneContent: { connectionSheetContentForPhone },
                 // Same SidePanelOverlay re-hosting as the tab sidebar above:
                 // inject so @EnvironmentObject reads under this overlay can
@@ -443,17 +465,26 @@ extension MainView {
             }
             #endif
             .onChange(of: showSettings) { _, presented in
-                if presented { showQuickSettingsOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
             }
             .onChange(of: showClipboardManager) { _, presented in
-                if presented { showQuickSettingsOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
             }
             .onChange(of: showConnectionSidebar) { _, presented in
-                if presented { showQuickSettingsOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
             }
             .onChange(of: showQuickSettingsOverlay) { _, presented in
                 setOverlayOwnsKeyboardForAllTerminals(isAnySheetPresented)
                 if !presented { restoreFirstResponderAfterSheetDismissal() }
+            }
+            .onChange(of: showOpenInFolderOverlay) { _, presented in
+                setOverlayOwnsKeyboardForAllTerminals(isAnySheetPresented)
+                if !presented {
+                    openInFolderModel?.end()
+                    openInFolderModel = nil
+                    openInFolderShortcut = nil
+                    restoreFirstResponderAfterSheetDismissal()
+                }
             }
             .onChange(of: showThemePickerOverlay) { _, newValue in
                 handleThemePickerOverlayChange(newValue)
@@ -492,6 +523,36 @@ private struct HerdrCloseTabDialogModifier: ViewModifier {
                 .keyboardShortcut(.cancelAction)
         } message: {
             Text("Closing removes the tab from the herdr session on the host. Detaching leaves the session running and returns the gateway tab to its shell.")
+        }
+    }
+}
+
+/// Optional confirmation for a user-requested close in a multi-pane tab.
+private struct PaneCloseDialogModifier: ViewModifier {
+    @Binding var pendingPaneID: UUID?
+    let targetExists: Bool
+    let confirm: () -> Void
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Close Pane?",
+            isPresented: Binding(
+                get: { targetExists },
+                set: { if !$0 { pendingPaneID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Close Pane", role: .destructive, action: confirm)
+                .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) { pendingPaneID = nil }
+                .keyboardShortcut(.cancelAction)
+        } message: {
+            Text("Closing this pane will end its current session.")
+        }
+        .onChange(of: targetExists) { _, exists in
+            // Server reconciliation and tab removal bypass closeSplit.
+            // Observe the live tree so those paths dismiss the dialog too.
+            if !exists { pendingPaneID = nil }
         }
     }
 }

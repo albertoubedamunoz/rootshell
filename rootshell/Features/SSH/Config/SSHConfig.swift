@@ -177,6 +177,9 @@ struct SSHConfig: Codable, Hashable {
     /// existing profile decodes.
     var multiplexerSessionName: String? = nil
 
+    /// Captured at detach and saved with tab state, never with a profile.
+    var muxResumeTarget: MuxSessionTarget? = nil
+
     /// Command to run when the session starts. The mode controls whether this is
     /// sent as terminal input or used as the initial PTY exec command.
     var launchCommand: String? = nil
@@ -205,6 +208,11 @@ struct SSHConfig: Codable, Hashable {
     /// Controls how `remoteCommand` is emitted over SSH exec.
     /// Not persisted — this is chosen by the call site at runtime.
     var remoteCommandPolicy: RemoteCommandPolicy = .verbatim
+
+    /// Absolute directory the remote shell (or exec command) starts in.
+    /// Not in CodingKeys: profiles never store it, but tab restore carries it
+    /// through SerializableConnectionConfig. nil = the account's login directory.
+    var initialDirectory: String? = nil
 
     /// Tracks if the password was loaded from Keychain (for history recording)
     /// Not persisted - only used at runtime to determine auth type for connection history
@@ -782,7 +790,7 @@ struct SSHConfig: Codable, Hashable {
     /// with a control error line instead of a bare non-zero exit so the
     /// client can tell "not installed" from "connection dropped".
     static func herdrControlCommandLine(sessionName: String?, localAttachment: LocalMultiplexerAttachment? = nil) -> String {
-        let executable = localAttachment.map { LoginShellCommand.singleQuoted($0.executable) } ?? "herdr"
+        let executable = localAttachment.map { LoginShellCommand.singleQuoted($0.launchExecutable) } ?? "herdr"
         let bridge = localAttachment?.command(arguments: ["control"]) ?? "herdr\(herdrSessionArgument(sessionName)) control"
         // Identity rides in the environment: a flag would make an older
         // binary exit 2, which reads as "no control stream".
@@ -825,7 +833,7 @@ struct SSHConfig: Codable, Hashable {
     /// Reads "herdrCustomCommand" and "herdrSessionName" from UserDefaults.
     static var herdrExecCommand: String {
         if let custom = herdrGlobalCustomCommand {
-            return custom
+            return LoginShellCommand.runInLoginShell(custom, prependPATH: true)
         }
         return herdrExecCommandLine(sessionName: herdrGlobalSessionName)
     }
@@ -855,7 +863,7 @@ struct SSHConfig: Codable, Hashable {
     /// "herdrCustomCommand" still wins.
     var herdrExecCommandForConnection: String {
         if let custom = Self.herdrGlobalCustomCommand {
-            return custom
+            return LoginShellCommand.runInLoginShell(custom, prependPATH: true)
         }
         return Self.herdrExecCommandLine(sessionName: herdrRawSessionNameForConnection)
     }
@@ -971,7 +979,7 @@ struct SSHConfig: Codable, Hashable {
     /// Whether the channel replaced the interactive shell with a command.
     var hasExecTakeoverCommand: Bool {
         !MuxDetachGate.hasFallbackShell(
-            hasRemoteCommand: !(remoteCommand?.isEmpty ?? true),
+            hasRemoteCommand: !(remoteCommand?.isEmpty ?? true) || muxResumeTarget?.execCommand != nil,
             hasInitialCommandLaunch: initialLaunchCommand != nil,
             tmuxAutoEnable: tmuxAutoEnable,
             // Control mode keeps the interactive shell; herdr runs out of band.
@@ -980,11 +988,28 @@ struct SSHConfig: Codable, Hashable {
         )
     }
 
-    /// Returns the exec command to use, if any.
+    /// Returns the exec command to use, if any. An initial directory wraps the
+    /// base command (or the login shell) in a `cd`.
+    var effectiveExecCommand: String? {
+        guard let initialDirectory, InitialDirectoryCommand.isSupportedDirectory(initialDirectory) else {
+            return baseExecCommand
+        }
+        return InitialDirectoryCommand.execCommand(directory: initialDirectory, wrapping: baseExecCommand)
+    }
+
+    /// Returns the command mosh-server should run inside the mosh session.
+    var effectiveMoshSessionCommand: String {
+        guard let initialDirectory, InitialDirectoryCommand.isSupportedDirectory(initialDirectory) else {
+            return baseMoshSessionCommand
+        }
+        return InitialDirectoryCommand.moshSessionCommand(directory: initialDirectory, wrapping: baseMoshSessionCommand)
+    }
+
     /// Remote command takes precedence over profile launch command and
     /// multiplexer auto-start; precedence among multiplexers is tmux, then
     /// herdr, then zmx.
-    var effectiveExecCommand: String? {
+    private var baseExecCommand: String? {
+        if let muxResumeTarget { return muxResumeTarget.execCommand }
         if let remoteCommand, !remoteCommand.isEmpty {
             return Self.command(remoteCommand, applying: remoteCommandPolicy)
         }
@@ -1008,8 +1033,8 @@ struct SSHConfig: Codable, Hashable {
         return nil
     }
 
-    /// Returns the command mosh-server should run inside the mosh session.
-    var effectiveMoshSessionCommand: String {
+    private var baseMoshSessionCommand: String {
+        if let muxResumeTarget { return muxResumeTarget.execCommand ?? "$SHELL -l" }
         if let remoteCommand, !remoteCommand.isEmpty {
             let script = remoteCommandPolicy == .prependPATH ? Self.remoteExecPathPrefix + remoteCommand : remoteCommand
             return LoginShellCommand.runInPOSIXShell(script, login: true)
@@ -1033,5 +1058,41 @@ struct SSHConfig: Codable, Hashable {
             return zmxExecCommandForConnection
         }
         return "$SHELL -l"
+    }
+}
+
+extension SSHConfig {
+    var tmuxSocketForResume: TmuxSocketIdentity? {
+        if let target = muxResumeTarget { return target.tmuxSocket }
+        if let remoteCommand, !remoteCommand.isEmpty {
+            return TmuxSocketIdentity.fromStartupCommand(remoteCommand)
+        }
+        if let initialLaunchCommand {
+            return TmuxSocketIdentity.fromStartupCommand(initialLaunchCommand)
+        }
+        if tmuxAutoEnable {
+            if let custom = Self.tmuxGlobalCustomCommand {
+                return TmuxSocketIdentity.fromStartupCommand(custom)
+            }
+            return .defaultServer
+        }
+        return launchCommand.flatMap(TmuxSocketIdentity.fromStartupCommand)
+    }
+
+    /// Keep connection/authentication settings while replacing startup behavior
+    /// with the attachment the user actually detached from.
+    func resumingMultiplexer(_ target: MuxSessionTarget) -> SSHConfig {
+        var config = self
+        config.muxResumeTarget = target
+        config.tmuxAutoEnable = target.type == .tmux
+        config.tmuxAutoMode = target.controlMode ? .control : .regular
+        config.herdrAutoEnable = target.type == .herdr
+        config.herdrAutoMode = target.controlMode ? .control : .regular
+        config.zmxAutoEnable = target.type == .zmx
+        config.multiplexerSessionName = target.sessionName
+        config.remoteCommand = nil
+        config.launchCommand = nil
+        config.launchCommandMode = .afterConnect
+        return config
     }
 }

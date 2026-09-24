@@ -141,6 +141,10 @@ final class AIAgentSession {
     /// Unique identifier for this session
     let id: UUID
 
+    /// Built on the first request and reused until the conversation resets. Fable 5.1 and
+    /// Opus 5.5 reject replayed thinking blocks once the system prompt changes.
+    private var conversationSystemPrompt: String?
+
     /// Available tools for the AI
     private var availableTools: [AIAgentTool] {
         var tools: [AIAgentTool] = [AIAgentTool.executeCommand, AIAgentTool.askUser]
@@ -361,9 +365,12 @@ final class AIAgentSession {
         streamingText = ""
         streamingThinking = nil
 
+        let systemPrompt = conversationSystemPrompt ?? buildSystemPrompt()
+        conversationSystemPrompt = systemPrompt
+
         let stream = provider.sendMessageStream(
             messages: messages,
-            systemPrompt: buildSystemPrompt(),
+            systemPrompt: systemPrompt,
             tools: availableTools
         )
 
@@ -940,6 +947,7 @@ final class AIAgentSession {
     /// Clear conversation history
     func clearHistory() {
         messages.removeAll()
+        conversationSystemPrompt = nil
         state = .idle
         totalTokensUsed = 0
         lastPromptTokens = 0
@@ -955,6 +963,7 @@ final class AIAgentSession {
 
         // Clear conversation history
         messages.removeAll()
+        conversationSystemPrompt = nil
         pendingFileToolCall = nil
         state = .idle
         totalTokensUsed = 0

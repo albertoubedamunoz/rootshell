@@ -199,6 +199,25 @@ nonisolated final class HerdrOutputRouter: @unchecked Sendable {
         }
     }
 
+    /// Acknowledges the old grid's output before UIKit resizes the surface.
+    /// Unlike `inject`, this stays behind all bytes preceding the layout.
+    /// The unfinished carry stays held: the probe runs at a sequence boundary
+    /// and the rest of that sequence belongs after the resize.
+    func enqueueLayoutFence(attachId: String, barrier: UInt64, bytes: Data) -> Bool {
+        let queued = lock.withLock {
+            guard sinks[attachId] != nil, !overflowed.contains(attachId),
+                  let index = queues[attachId]?.firstIndex(where: {
+                      if case .barrier(let id) = $0 { return id == barrier }
+                      return false
+                  }) else { return false }
+            queues[attachId]?.insert(.control(bytes), at: index)
+            queuedBytes += bytes.count
+            return true
+        }
+        if queued { flush(attachId) }
+        return queued
+    }
+
     /// Drops an attach's queued bytes but keeps its layout barriers, so a
     /// recovery snapshot still waits for a resize that is in flight.
     private func dropQueue(_ attachId: String) {
@@ -473,6 +492,44 @@ final class HerdrPaneSession: TerminalSession {
     }
     var readFence: ReadFence?
 
+    private struct LayoutFence {
+        let id: Int
+        let continuation: CheckedContinuation<Bool, Never>
+        let deadline: Task<Void, Never>
+    }
+    private var layoutFence: LayoutFence?
+
+    /// The output pipe and Ghostty's resize mailbox are separate queues.
+    /// Crossing the API queue cannot prove that old-grid bytes were parsed.
+    func drainBeforeLayout(barrier: UInt64, attachID: String, generation: UUID,
+                           router: HerdrOutputRouter) async -> Bool {
+        // The task can start after a reconnect. Never put an old layout's
+        // probe on the replacement stream, even if its attach ID is reused.
+        guard isRunning, attachId == attachID,
+              controller?.streamGeneration == generation, controller?.router === router,
+              let probe = parserFence.issue() else { return false }
+        finishLayoutFence(drained: false)
+        return await withCheckedContinuation { continuation in
+            let deadline = Task { [weak self] in
+                do { try await Task.sleep(for: .milliseconds(750)) }
+                catch { return }
+                guard self?.layoutFence?.id == probe.id else { return }
+                self?.finishLayoutFence(drained: false)
+            }
+            layoutFence = LayoutFence(id: probe.id, continuation: continuation, deadline: deadline)
+            if !router.enqueueLayoutFence(attachId: attachID, barrier: barrier, bytes: probe.bytes) {
+                finishLayoutFence(drained: false)
+            }
+        }
+    }
+
+    private func finishLayoutFence(drained: Bool) {
+        guard let fence = layoutFence else { return }
+        layoutFence = nil
+        fence.deadline.cancel()
+        fence.continuation.resume(returning: drained)
+    }
+
     func requestReadFence(generation: UUID, snapshot: UUID) {
         guard let attachId, let probe = parserFence.issue() else { return }
         readFence = ReadFence(id: probe.id, generation: generation, snapshot: snapshot)
@@ -521,6 +578,7 @@ final class HerdrPaneSession: TerminalSession {
     func stop() {
         guard isRunning else { return }
         isRunning = false
+        finishLayoutFence(drained: false)
         readFence = nil
         gridProbeTask?.cancel()
         gridProbeTask = nil
@@ -563,6 +621,10 @@ final class HerdrPaneSession: TerminalSession {
         for segment in queryAuthority.consume(pending) {
             let fences = parserFence.consume(segment.bytes)
             for id in fences.acknowledged {
+                if layoutFence?.id == id {
+                    finishLayoutFence(drained: true)
+                    continue
+                }
                 guard let fence = readFence, fence.id == id else { continue }
                 readFence = nil
                 controller?.parserDidDrain(self, fence: fence)
@@ -635,6 +697,7 @@ final class HerdrPaneSession: TerminalSession {
     func endedRemotely() {
         guard isRunning else { return }
         isRunning = false
+        finishLayoutFence(drained: false)
         readFence = nil
         gridProbeTask?.cancel()
         gridProbeTask = nil

@@ -24,6 +24,7 @@ enum MuxSessionResume {
         let sshConfig: SSHConfig
         let connectionProtocol: ConnectionProtocol
         let profileID: UUID?
+        let target: MuxSessionTarget
     }
 
     /// Find a live multiplexer attachment that matches this profile's auto-start
@@ -44,8 +45,7 @@ enum MuxSessionResume {
                     model: model,
                     windowId: windowId,
                     gatewayKey: gatewayKey,
-                    sessionName: target.sessionName,
-                    wantsControl: target.wantsControlMode && target.type == .tmux
+                    target: target
                 ) {
                     return match
                 }
@@ -53,24 +53,20 @@ enum MuxSessionResume {
                     tab: tab,
                     model: model,
                     windowId: windowId,
-                    config: config,
-                    sessionName: target.sessionName,
-                    wantsControl: target.wantsControlMode && target.type == .herdr
+                    gatewayKey: gatewayKey,
+                    target: target
                 ) {
                     return match
                 }
-                // herdr (control) is a gateway + projected tabs, not a raw
-                // binding. Skip the herdrAutoEnable shell fallback so a
-                // leftover gateway after detach is not treated as still live.
-                if target.type == .herdr, target.wantsControlMode {
+                // A raw attachment cannot satisfy a request for native panes.
+                if target.controlMode {
                     continue
                 }
                 if let match = matchRawOrPassthrough(
                     tab: tab,
                     windowId: windowId,
-                    config: config,
-                    type: target.type,
-                    sessionName: target.sessionName
+                    gatewayKey: gatewayKey,
+                    target: target
                 ) {
                     return match
                 }
@@ -110,32 +106,28 @@ enum MuxSessionResume {
 
     // MARK: - Private
 
-    private struct AutoStartTarget {
-        let type: MultiplexerType
-        let sessionName: String?
-        let wantsControlMode: Bool
-    }
-
-    private static func autoStartTarget(for config: SSHConfig) -> AutoStartTarget? {
+    private static func autoStartTarget(for config: SSHConfig) -> MuxSessionTarget? {
+        if let target = config.muxResumeTarget { return target }
         if config.tmuxAutoEnable {
-            return AutoStartTarget(
+            return MuxSessionTarget(
                 type: .tmux,
                 sessionName: config.tmuxSessionNameForConnection,
-                wantsControlMode: config.tmuxAutoMode == .control
+                controlMode: config.tmuxAutoMode == .control,
+                tmuxSocket: config.tmuxSocketForResume
             )
         }
         if config.herdrAutoEnable {
-            return AutoStartTarget(
+            return MuxSessionTarget(
                 type: .herdr,
                 sessionName: config.herdrSessionNameForConnection,
-                wantsControlMode: config.herdrControlModeEnabled
+                controlMode: config.herdrControlModeEnabled
             )
         }
         if config.zmxAutoEnable {
-            return AutoStartTarget(
+            return MuxSessionTarget(
                 type: .zmx,
                 sessionName: config.zmxSessionNameForConnection,
-                wantsControlMode: false
+                controlMode: false
             )
         }
         return nil
@@ -146,21 +138,19 @@ enum MuxSessionResume {
         model: TabsModel,
         windowId: String,
         gatewayKey: String,
-        sessionName: String?,
-        wantsControl: Bool
+        target: MuxSessionTarget
     ) -> Match? {
-        guard wantsControl else { return nil }
+        guard target.type == .tmux, target.controlMode else { return nil }
         let controller =
             TmuxController.controller(forWindowTab: tab)
             ?? TmuxController.controller(forGatewayTab: tab)
             ?? tab.splitTree.terminalLeaves.first(where: { $0.tmuxController != nil })?.tmuxController
-        guard let controller, controller.isActive else { return nil }
-        if let key = controller.connectionKey, key != gatewayKey { return nil }
-        if let sessionName,
-           let current = controller.currentSessionName,
-           current != sessionName {
-            return nil
-        }
+        guard let controller else { return nil }
+        let attached = MuxSessionTarget(type: .tmux, sessionName: controller.currentSessionName,
+                                       controlMode: true, tmuxSocket: controller.resumeSocket,
+                                       tmuxSocketSelector: controller.configuredResumeSocket)
+        guard target.matchesLiveAttachment(attached, connectionKey: controller.connectionKey,
+                                           requestedConnectionKey: gatewayKey, isActive: controller.isActive) else { return nil }
         let ownerID = controller.ownerTerminalUUIDForNotifications
         let focusTab = model.tabs.first(where: {
             $0.isTmuxWindow
@@ -170,7 +160,7 @@ enum MuxSessionResume {
             $0.isTmuxGateway
                 && $0.splitTree.terminalLeaves.contains(where: { $0.tmuxController === controller })
         }) ?? tab
-        let name = controller.currentSessionName ?? sessionName ?? "tmux"
+        let name = target.sessionName
         return Match(
             windowId: windowId,
             tabID: focusTab.id,
@@ -185,28 +175,19 @@ enum MuxSessionResume {
         tab: TabModel,
         model: TabsModel,
         windowId: String,
-        config: SSHConfig,
-        sessionName: String?,
-        wantsControl: Bool
+        gatewayKey: String,
+        target: MuxSessionTarget
     ) -> Match? {
-        guard wantsControl else { return nil }
-        guard let controller = HerdrController.controller(forAnyTab: tab),
-              controller.isActive else {
-            return nil
-        }
+        guard target.type == .herdr, target.controlMode,
+              let controller = HerdrController.controller(forAnyTab: tab) else { return nil }
         let ssh = controller.gateway?.connectionConfig.sshConfigForHistory
             ?? controller.gateway?.connectionConfig.underlyingSSHConfig
-        if let ssh {
-            guard ssh.host == config.host,
-                  ssh.port == config.port,
-                  ssh.username == config.username else {
-                return nil
-            }
+        let connectionKey = ssh.map {
+            TmuxGatewaySessionStore.connectionKey(host: $0.host, port: $0.port, username: $0.username)
         }
-        if let sessionName {
-            let current = controller.sessionName ?? "default"
-            if current != sessionName { return nil }
-        }
+        let attached = MuxSessionTarget(type: .herdr, sessionName: controller.sessionName ?? "default", controlMode: true)
+        guard target.matchesLiveAttachment(attached, connectionKey: connectionKey,
+                                           requestedConnectionKey: gatewayKey, isActive: controller.isActive) else { return nil }
         let focusTab = model.tabs.first(where: {
             $0.isHerdrWindow
                 && !$0.isHiddenTmuxWindow
@@ -215,7 +196,7 @@ enum MuxSessionResume {
             $0.isHerdrGateway
                 && $0.splitTree.terminalLeaves.contains(where: { $0.herdrController === controller })
         }) ?? tab
-        let name = controller.sessionName ?? sessionName ?? "herdr"
+        let name = target.sessionName
         return Match(
             windowId: windowId,
             tabID: focusTab.id,
@@ -226,47 +207,25 @@ enum MuxSessionResume {
     private static func matchRawOrPassthrough(
         tab: TabModel,
         windowId: String,
-        config: SSHConfig,
-        type: MultiplexerType,
-        sessionName: String?
+        gatewayKey: String,
+        target: MuxSessionTarget
     ) -> Match? {
         for view in tab.splitTree.terminalLeaves {
-            guard let ssh = view.connectionConfig.sshConfigForHistory,
-                  ssh.host == config.host,
-                  ssh.port == config.port,
-                  ssh.username == config.username else { continue }
-
-            let bindingType: MultiplexerType?
-            let bindingSession: String?
-            if let raw = view.rawMultiplexer {
-                bindingType = raw.type
-                bindingSession = raw.sessionName
-            } else if let pass = view.passthroughMultiplexer {
-                bindingType = pass.type
-                bindingSession = pass.sessionName
-            } else if type == .zmx, ssh.zmxAutoEnable {
-                // Binding may not be applied yet on a just-opened pane; still
-                // treat an in-flight zmx auto-start as the live attachment.
-                bindingType = .zmx
-                bindingSession = ssh.zmxSessionNameForConnection
-            } else if type == .herdr, ssh.herdrAutoEnable {
-                bindingType = .herdr
-                bindingSession = ssh.herdrSessionNameForConnection
-            } else if type == .tmux, ssh.tmuxAutoEnable, ssh.tmuxAutoMode == .regular {
-                bindingType = .tmux
-                bindingSession = ssh.tmuxSessionNameForConnection
-            } else {
-                bindingType = nil
-                bindingSession = nil
+            // Configuration alone is not proof of an attachment: failed
+            // connections and shells left after detach retain that config.
+            guard view.herdrController == nil, view.tmuxController == nil,
+                  let binding = view.rawMultiplexer ?? view.passthroughMultiplexer else { continue }
+            let connectionKey = view.connectionConfig.sshConfigForHistory.map {
+                TmuxGatewaySessionStore.connectionKey(host: $0.host, port: $0.port, username: $0.username)
             }
-            guard bindingType == type else { continue }
-            if let sessionName, let bindingSession, sessionName != bindingSession {
-                continue
-            }
-            let label = bindingSession.map { "\(type.rawValue) “\($0)”" } ?? type.rawValue
-            return Match(windowId: windowId, tabID: tab.id, displayName: label)
+            let attached = MuxSessionTarget(type: binding.type, sessionName: binding.sessionName, tmuxSocket: binding.tmuxSocket,
+                                           tmuxSocketSelector: binding.tmuxSocketSelector)
+            guard target.matchesLiveAttachment(attached, connectionKey: connectionKey,
+                                               requestedConnectionKey: gatewayKey,
+                                               isActive: view.session?.isRunning == true) else { continue }
+            return Match(windowId: windowId, tabID: tab.id,
+                         displayName: "\(target.type.rawValue) “\(target.sessionName)”")
         }
         return nil
     }
 }
-

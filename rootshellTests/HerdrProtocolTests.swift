@@ -1,6 +1,111 @@
 import Foundation
 import XCTest
 
+final class HerdrEqualizationTests: XCTestCase {
+    private typealias Node = HerdrControl.ExportedLayoutNode
+
+    func testExportAndRatioResponsesDecodeFullTreeWhileZoomed() throws {
+        for type in ["layout_export", "layout_split_ratio_set"] {
+            let json = """
+            {"id":"equalize","result":{"type":"\(type)","layout":{
+              "workspace_id":"w1","tab_id":"w1:t1","zoomed":true,"focused_pane_id":"p2",
+              "root":{"type":"split","direction":"right","ratio":0.8,
+                "first":{"type":"pane","pane_id":"p1","cwd":"/tmp","env":{}},
+                "second":{"type":"pane","pane_id":"p2"}}
+            }}}
+            """
+            let response = try HerdrControl.decoder.decode(
+                HerdrControl.Response<HerdrControl.LayoutDescriptionResult>.self, from: Data(json.utf8)
+            )
+            // Pane selection must validate against the full exported tree,
+            // including the pane hidden by zoom, rather than visible geometry.
+            XCTAssertEqual(response.result.layout.root.paneIDs, ["p1", "p2"])
+            XCTAssertEqual(response.result.layout.root.equalizationRequests(tabID: "w1:t1"), [
+                .init(tab_id: "w1:t1", path: [], ratio: 0.5)
+            ])
+        }
+    }
+
+    func testRatioRequestEncodesExplicitTabAndBooleanPath() throws {
+        let request = HerdrControl.Request(id: "equalize", method: "layout.set_split_ratio",
+            params: HerdrControl.LayoutSetSplitRatioParams(tab_id: "w1:t2", path: [false, true], ratio: 0.5))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        let params = try XCTUnwrap(object["params"] as? [String: Any])
+        XCTAssertEqual(object["method"] as? String, "layout.set_split_ratio")
+        XCTAssertEqual(params["tab_id"] as? String, "w1:t2")
+        XCTAssertEqual(params["path"] as? [Bool], [false, true])
+        XCTAssertEqual(params["ratio"] as? Double, 0.5)
+        XCTAssertNil(params["pane_id"])
+    }
+
+    func testThreePanesBecomeEqualThirdsAlongEitherAxis() {
+        for axis in [Node.Direction.right, .down] {
+            let root = Node.split(direction: axis, ratio: 0.7, first: .pane("a"),
+                second: .split(direction: axis, ratio: 0.7, first: .pane("b"), second: .pane("c")))
+            let requests = root.equalizationRequests(tabID: "tab")
+            XCTAssertEqual(requests.map(\.path), [[], [true]])
+            XCTAssertEqual(requests.map(\.ratio), [1.0 / 3.0, 0.5])
+            XCTAssertTrue(requests.allSatisfy { $0.tab_id == "tab" })
+        }
+    }
+
+    func testPerpendicularGroupCountsAsOneAndBothChildrenAreEqualized() {
+        let root = Node.split(direction: .right, ratio: 0.8,
+            first: .split(direction: .down, ratio: 0.8, first: .pane("a"), second: .pane("b")),
+            second: .split(direction: .right, ratio: 0.8, first: .pane("c"), second: .pane("d")))
+        let requests = root.equalizationRequests(tabID: "tab")
+        XCTAssertEqual(requests.map(\.path), [[], [false], [true]])
+        XCTAssertEqual(requests.map(\.ratio), [1.0 / 3.0, 0.5, 0.5])
+    }
+
+    func testSinglePaneAndAlreadyEqualFloatRatiosNeedNoWrites() {
+        XCTAssertTrue(Node.pane("a").equalizationRequests(tabID: "tab").isEmpty)
+        let root = Node.split(direction: .right, ratio: Double(Float(1.0 / 3.0)), first: .pane("a"),
+            second: .split(direction: .right, ratio: 0.5, first: .pane("b"), second: .pane("c")))
+        XCTAssertTrue(root.equalizationRequests(tabID: "tab").isEmpty)
+    }
+
+    func testEqualizationRespectsServerRatioLimits() {
+        let row = (1...10).reduce(Node.pane("0")) { first, index in
+            .split(direction: .right, ratio: 0.5, first: first, second: .pane(String(index)))
+        }
+        let leftHeavy = Node.split(direction: .right, ratio: 0.5, first: row, second: .pane("last"))
+        let rightHeavy = Node.split(direction: .right, ratio: 0.5, first: .pane("first"), second: row)
+        XCTAssertEqual(leftHeavy.equalizationRequests(tabID: "tab").first?.ratio, 0.9)
+        XCTAssertEqual(rightHeavy.equalizationRequests(tabID: "tab").first?.ratio, 0.1)
+    }
+
+    func testTopologyComparisonIgnoresRatiosButDetectsChangedPathsAndTargets() {
+        let root = Node.split(direction: .right, ratio: 0.8, first: .pane("a"), second: .pane("b"))
+        let equalized = Node.split(direction: .right, ratio: 0.5, first: .pane("a"), second: .pane("b"))
+        XCTAssertTrue(root.hasSameTopology(as: equalized))
+        XCTAssertFalse(root.hasSameTopology(as: .pane("a")))
+        XCTAssertFalse(root.hasSameTopology(as: .split(direction: .down, ratio: 0.8, first: .pane("a"), second: .pane("b"))))
+        XCTAssertFalse(root.hasSameTopology(as: .split(direction: .right, ratio: 0.8, first: .pane("b"), second: .pane("a"))))
+        let layout = HerdrControl.LayoutDescription(workspace_id: "workspace", tab_id: "tab", root: root)
+        XCTAssertTrue(layout.hasSameTopology(as: .init(workspace_id: "workspace", tab_id: "tab", root: equalized)))
+        XCTAssertFalse(layout.hasSameTopology(as: .init(workspace_id: "workspace", tab_id: "other", root: root)))
+        XCTAssertFalse(layout.hasSameTopology(as: .init(workspace_id: "other", tab_id: "tab", root: root)))
+    }
+
+    func testExportedPaneOrderIncludesNestedHiddenPanes() {
+        let root = Node.split(direction: .right, ratio: 0.5, first: .pane("p9"),
+            second: .split(direction: .down, ratio: 0.5, first: .pane("p2"), second: .pane("p7")))
+        XCTAssertEqual(root.paneIDs, ["p9", "p2", "p7"])
+    }
+
+    func testMalformedExportedTreesAreRejected() {
+        for json in [
+            #"{"type":"unknown"}"#,
+            #"{"type":"pane"}"#,
+            #"{"type":"split","direction":"left","ratio":0.5,"first":{"type":"pane","pane_id":"a"},"second":{"type":"pane","pane_id":"b"}}"#,
+            #"{"type":"split","direction":"right","ratio":2,"first":{"type":"pane","pane_id":"a"},"second":{"type":"pane","pane_id":"b"}}"#
+        ] {
+            XCTAssertThrowsError(try HerdrControl.decoder.decode(Node.self, from: Data(json.utf8)))
+        }
+    }
+}
+
 final class HerdrProtocolTests: XCTestCase {
 
     // MARK: Version requirement
@@ -162,6 +267,55 @@ final class HerdrProtocolTests: XCTestCase {
         // Ownership metadata does not make two identical layouts differ.
         XCTAssertNotEqual(plain, owned)
         XCTAssertEqual(plain.panes, owned.panes)
+    }
+
+    func testLayoutSnapshotRejectsGeometryOutsideHerdrWireRange() throws {
+        func layout(x: Int, width: Int) -> String {
+            "{\"workspace_id\":\"w\",\"tab_id\":\"t\",\"zoomed\":false,\"area\":{\"x\":0,\"y\":0,\"width\":65535,\"height\":24},\"focused_pane_id\":\"p\",\"panes\":[{\"pane_id\":\"p\",\"focused\":true,\"rect\":{\"x\":\(x),\"y\":0,\"width\":\(width),\"height\":24}}],\"splits\":[]}"
+        }
+
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, layout(x: -1, width: 80)))
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, layout(x: 0, width: 65_536)))
+        XCTAssertNoThrow(try decode(HerdrControl.LayoutSnapshot.self, layout(x: 0, width: 65_535)))
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, layout(x: 65_535, width: 1)))
+    }
+
+    func testLayoutSnapshotRejectsInvalidSplitAndDuplicatePaneIDs() throws {
+        let invalidRatio = #"{"workspace_id":"w","tab_id":"t","zoomed":false,"area":{"x":0,"y":0,"width":80,"height":24},"focused_pane_id":"p","panes":[{"pane_id":"p","focused":true,"rect":{"x":0,"y":0,"width":80,"height":24}}],"splits":[{"id":"s","direction":"right","ratio":1e300,"rect":{"x":0,"y":0,"width":80,"height":24}}]}"#
+        let duplicatePanes = #"{"workspace_id":"w","tab_id":"t","zoomed":false,"area":{"x":0,"y":0,"width":80,"height":24},"focused_pane_id":"p","panes":[{"pane_id":"p","focused":true,"rect":{"x":0,"y":0,"width":40,"height":24}},{"pane_id":"p","focused":false,"rect":{"x":40,"y":0,"width":40,"height":24}}],"splits":[]}"#
+
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, invalidRatio))
+        XCTAssertThrowsError(try decode(HerdrControl.LayoutSnapshot.self, duplicatePanes))
+    }
+
+    func testSessionSnapshotPreservesCollapsedPaneGeometry() throws {
+        let snapshot = try decode(HerdrControl.SessionSnapshot.self, #"""
+        {"version":"0.9.0","protocol":2,"focused_workspace_id":"w","focused_tab_id":"t","focused_pane_id":"visible",
+         "workspaces":[{"workspace_id":"w","label":"one","number":1,"focused":true,"active_tab_id":"t","agent_status":"idle"}],
+         "tabs":[{"tab_id":"t","workspace_id":"w","number":1,"label":"one","focused":true,"pane_count":2,"agent_status":"idle"}],
+         "panes":[
+           {"pane_id":"collapsed","terminal_id":"tc","workspace_id":"w","tab_id":"t","focused":false,"agent_status":"idle"},
+           {"pane_id":"visible","terminal_id":"tv","workspace_id":"w","tab_id":"t","focused":true,"agent_status":"idle"}],
+         "layouts":[{"workspace_id":"w","tab_id":"t","zoomed":false,"area":{"x":0,"y":0,"width":4,"height":2},"focused_pane_id":"visible",
+           "panes":[
+             {"pane_id":"collapsed","focused":false,"rect":{"x":0,"y":0,"width":0,"height":0}},
+             {"pane_id":"visible","focused":true,"rect":{"x":0,"y":0,"width":4,"height":2}}],
+           "splits":[{"id":"s","direction":"right","ratio":0.1,"rect":{"x":0,"y":0,"width":4,"height":2}}]}],
+         "agents":[]}
+        """#)
+
+        XCTAssertEqual(snapshot.layouts.first?.panes.first?.rect.width, 0)
+        XCTAssertEqual(snapshot.layouts.first?.panes.first?.rect.height, 0)
+    }
+
+    func testSessionSnapshotRejectsDuplicateTopologyIDs() throws {
+        let duplicateWorkspaces = #"""
+        {"version":"0.9.0","protocol":2,"workspaces":[
+          {"workspace_id":"w","label":"one","number":1,"focused":true,"active_tab_id":"","agent_status":"idle"},
+          {"workspace_id":"w","label":"two","number":2,"focused":false,"active_tab_id":"","agent_status":"idle"}],
+         "tabs":[],"panes":[],"layouts":[],"agents":[]}
+        """#
+        XCTAssertThrowsError(try decode(HerdrControl.SessionSnapshot.self, duplicateWorkspaces))
     }
 
     func testRecordsAndEventsRoute() throws {
@@ -640,6 +794,104 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertTrue(state.select("restored", panes: ["p", "q"]))
     }
 
+    // MARK: Live resize
+
+    func testLiveResizeKeepsTheCommittedGridUntilServerLayoutArrives() {
+        for scale: CGFloat in [1, 2, 3] {
+            let cellPixels = UInt32(8 * scale)
+            let chrome: CGFloat = 16
+            // The host negotiates its new budget from these bounds, while
+            // the pane still renders output for the server's 100 columns.
+            for viewport: CGFloat in [336, 656, 815, 817, 976] {
+                let drawable = HerdrGeometry.clampedExtent(
+                    viewport, cells: 100, cellPixels: cellPixels,
+                    chrome: chrome, scale: scale, preserveGrid: true)
+                XCTAssertEqual(HerdrGeometry.cellBudget(extent: drawable, chrome: chrome, cell: 8), 100)
+                XCTAssertEqual(Int((drawable * scale).rounded(.down) - chrome * scale) / Int(cellPixels), 100)
+            }
+            // The committed layout finally changes; only now may the pane
+            // shrink to 80 columns, independently of the continuing drag.
+            let resized = HerdrGeometry.clampedExtent(
+                620, cells: 80, cellPixels: cellPixels,
+                chrome: chrome, scale: scale, preserveGrid: true)
+            XCTAssertEqual(HerdrGeometry.cellBudget(extent: resized, chrome: chrome, cell: 8), 80)
+        }
+    }
+
+    func testPinnedGridPreservesPartialCellsAndOtherModesStillShrink() {
+        let pinned = HerdrGeometry.clampedExtent(
+            819, cells: 100, cellPixels: 16, chrome: 16, scale: 2, preserveGrid: true)
+        XCTAssertEqual(pinned, 819)
+        let unpinned = HerdrGeometry.clampedExtent(
+            656, cells: 100, cellPixels: 16, chrome: 16, scale: 2)
+        XCTAssertEqual(unpinned, 656)
+    }
+
+    func testResizeRepairRequiresSnapshotRequestedAfterTheLatestGridChange() {
+        let wide = TerminalGridReports.Grid(cols: 100, rows: 40)
+        let narrow = TerminalGridReports.Grid(cols: 80, rows: 30)
+        let oldRequest = UUID(), narrowRequest = UUID(), finalRequest = UUID()
+        var recovery = HerdrResizeRecovery(grid: wide)
+        recovery.requestedSnapshot(oldRequest)
+        recovery = HerdrResizeRecovery(grid: narrow)
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: oldRequest, grid: narrow))
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: nil, grid: narrow))
+        recovery.requestedSnapshot(narrowRequest)
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: narrowRequest, grid: wide))
+        XCTAssertTrue(recovery.acceptsSnapshot(requestID: narrowRequest, grid: narrow))
+        // A -> B -> A does not make the first snapshot fresh again.
+        recovery = HerdrResizeRecovery(grid: wide)
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: oldRequest, grid: wide))
+        XCTAssertFalse(recovery.acceptsSnapshot(requestID: narrowRequest, grid: narrow))
+        recovery.requestedSnapshot(finalRequest)
+        XCTAssertTrue(recovery.acceptsSnapshot(requestID: finalRequest, grid: wide))
+    }
+
+    // MARK: Snapshot record deadlines
+
+    @MainActor
+    func testSnapshotAcknowledgedBeforeBackgroundStillExpiresOnResume() async throws {
+        let request = UUID()
+        var foregroundRecoveryActive = false
+        var waited = false
+        let expired = try await HerdrSnapshotRecordDeadline.waitForExpiry(
+            requestID: request,
+            pendingRequest: { request },
+            wait: {
+                // The RPC was acknowledged with no recovery active. The
+                // pushed record never arrives, even though health pings do.
+                XCTAssertFalse(foregroundRecoveryActive)
+                waited = true
+                foregroundRecoveryActive = true
+            }
+        )
+        XCTAssertTrue(waited)
+        XCTAssertTrue(foregroundRecoveryActive)
+        XCTAssertTrue(expired)
+    }
+
+    @MainActor
+    func testSnapshotRecordDeadlineIgnoresArrivedAndReplacedRequests() async throws {
+        let request = UUID()
+        // A record arrives, the pane detaches, or the stream changes while
+        // waiting; an old deadline must not tear down the current stream.
+        for replacement: UUID? in [nil, UUID()] {
+            var pending: UUID? = request
+            let expired = try await HerdrSnapshotRecordDeadline.waitForExpiry(
+                requestID: request,
+                pendingRequest: { pending },
+                wait: { pending = replacement }
+            )
+            XCTAssertFalse(expired)
+        }
+        let alreadyArrived = try await HerdrSnapshotRecordDeadline.waitForExpiry(
+            requestID: request,
+            pendingRequest: { nil },
+            wait: { XCTFail("A record already received needs no deadline") }
+        )
+        XCTAssertFalse(alreadyArrived)
+    }
+
     // MARK: Ordered local parser acknowledgements
 
     func testParserFenceConsumesEveryPossibleSplitWithoutLeakingToServer() throws {
@@ -679,6 +931,24 @@ final class HerdrProtocolTests: XCTestCase {
             XCTAssertTrue(result.acknowledged.isEmpty)
         }
         XCTAssertEqual(forwarded, unrelated)
+    }
+
+    func testRepeatedResizeFencesReuseOnlyAcknowledgedIDs() throws {
+        var fence = HerdrParserFence()
+        // This cancelled probe can reply at any time, even after the ID
+        // range has been used up by successful resizes.
+        let delayed = try XCTUnwrap(fence.issue())
+        for _ in 0..<20_000 {
+            let resize = try XCTUnwrap(fence.issue())
+            XCTAssertNotEqual(resize.id, delayed.id)
+            let result = fence.consume(Data("\u{1b}[?\(resize.id);0$y".utf8))
+            XCTAssertEqual(result.acknowledged, [resize.id])
+            XCTAssertTrue(result.forward.isEmpty)
+        }
+        let replacement = try XCTUnwrap(fence.issue())
+        let late = fence.consume(Data("\u{1b}[?\(delayed.id);0$y".utf8))
+        XCTAssertEqual(late.acknowledged, [delayed.id])
+        XCTAssertNotEqual(replacement.id, delayed.id)
     }
 
 }

@@ -137,7 +137,9 @@ extension MainView {
         }
     }
 
-    func createSplit(direction: SplitTree<SplitPaneView>.NewDirection) {
+    /// `startDirectory` (absolute, on the pane's target) makes the new shell
+    /// start there instead of inheriting; nil keeps today's behaviour.
+    func createSplit(direction: SplitTree<SplitPaneView>.NewDirection, startDirectory: String? = nil) {
         guard terminals.indices.contains(selectedTabIndex) else { return }
         if let vnc = terminals[selectedTabIndex].focusedPane as? VNCPaneView {
             createVNCSplit(with: vnc.config, direction: direction, sourceProfileID: vnc.sourceProfileID)
@@ -152,13 +154,13 @@ extension MainView {
         // has no such pane). The gateway tab itself has no tmuxPaneBinding, so it
         // still splits locally.
         if focusedTerminal.isTmuxPane {
-            focusedTerminal.requestTmuxSplit(direction)
+            focusedTerminal.requestTmuxSplit(direction, startDirectory: startDirectory)
             return
         }
         // herdr control mode: same round trip; the `tab.layout` record that
         // follows `pane.split` builds the pane surface and the native split.
         if focusedTerminal.isHerdrPane {
-            focusedTerminal.requestHerdrSplit(direction)
+            focusedTerminal.requestHerdrSplit(direction, cwd: startDirectory)
             return
         }
 
@@ -166,7 +168,10 @@ extension MainView {
 
         // Get connection config from FOCUSED terminal (not tab level)
         // Use forNewSplit() to create fresh session IDs for K8s, etc.
-        let connectionConfig = focusedTerminal.connectionConfig.forNewSplit()
+        var connectionConfig = focusedTerminal.connectionConfig.forNewSplit()
+        if let startDirectory, let redirected = connectionConfig.startingIn(directory: startDirectory) {
+            connectionConfig = redirected
+        }
 
         // Create a new terminal view for the split with inherited connection config
         let newTerminalView = Ghostty.TerminalView(
@@ -261,7 +266,17 @@ extension MainView {
 
     func equalizeSplits() {
         guard terminals.indices.contains(selectedTabIndex) else { return }
-        terminals[selectedTabIndex].splitTree = terminals[selectedTabIndex].splitTree.equalize()
+        let tab = terminals[selectedTabIndex]
+        if tab.isTmuxWindow {
+            TmuxController.controller(forWindowTab: tab)?.requestEqualizeSplits(tab)
+            return
+        }
+        // Herdr owns these ratios; a local edit is lost on its next layout.
+        if tab.isHerdrWindow {
+            HerdrController.controller(forTab: tab)?.requestEqualizeSplits(tab)
+            return
+        }
+        tab.splitTree = tab.splitTree.equalize()
     }
 
     func toggleSplitZoom() {
@@ -312,6 +327,12 @@ extension MainView {
             }
             tabIndex = selectedTabIndex
             paneToClose = focused
+        }
+
+        // An automatic session-end may win the race while the confirmation is
+        // visible. Dismiss the stale dialog before tearing down its target.
+        if pendingClosePaneID == paneToClose.uuid {
+            pendingClosePaneID = nil
         }
 
         // tmux control mode: route a tmux PANE close to the tmux server. tmux
@@ -518,6 +539,51 @@ extension MainView {
                 setupTitleObservation(at: tabIndex)
             }
         }
+    }
+
+    /// Applies the optional confirmation only to an explicit Close Tab/Split
+    /// command and only while another pane will remain in the tab. Automatic
+    /// session-end teardown calls `closeSplit` directly and never reaches here.
+    func requestUserCloseSplit(targeting targetPane: SplitPaneView? = nil) {
+        let resolved: (tabIndex: Int, pane: SplitPaneView)?
+        if let targetPane,
+           let tabIndex = terminals.firstIndex(where: {
+               $0.splitTree.contains(where: { $0 === targetPane })
+           }) {
+            resolved = (tabIndex, targetPane)
+        } else if terminals.indices.contains(selectedTabIndex),
+                  let focusedPane = terminals[selectedTabIndex].focusedPane {
+            resolved = (selectedTabIndex, focusedPane)
+        } else {
+            resolved = nil
+        }
+
+        guard let resolved else {
+            closeSplit(targeting: targetPane)
+            return
+        }
+        guard PaneCloseConfirmationPolicy.shouldConfirm(
+            isEnabled: SettingsStore.shared.value(Settings.Window.confirmBeforeClosingPane),
+            paneCount: terminals[resolved.tabIndex].splitTree.count
+        ) else {
+            closeSplit(targeting: resolved.pane)
+            return
+        }
+
+        pendingClosePaneID = resolved.pane.uuid
+    }
+
+    /// Closes the pane captured when the confirmation was requested, rather
+    /// than whichever pane happens to be focused when the user responds.
+    func confirmPendingPaneClose() {
+        guard let paneID = pendingClosePaneID else { return }
+        pendingClosePaneID = nil
+
+        guard let pane = terminals.lazy.compactMap({ tab in
+            tab.splitTree.first(where: { $0.uuid == paneID })
+        }).first else { return }
+
+        closeSplit(targeting: pane)
     }
 
     /// Closes the current window/scene properly

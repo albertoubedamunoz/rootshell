@@ -10,6 +10,7 @@ import SwiftUI
 import GhosttyKit
 import os
 import UIKit
+import rootshellVNC
 
 // MARK: - Observer Token Bag
 
@@ -115,6 +116,30 @@ extension MainView {
         // re-registering so a second call doesn't double up handlers.
         observerBag.removeAll()
 
+        observerBag.observeOnMainActor(GhosttyCommandRouting.paneCommandNotification) { [self] notification in
+            guard self.shouldHandleNotification(notification),
+                  let command = notification.userInfo?[GhosttyCommandRouting.paneCommandKey] as? GhosttyCommandRouting.PaneCommand,
+                  self.terminals.indices.contains(self.selectedTabIndex),
+                  let pane = self.terminals[self.selectedTabIndex].focusedPane
+            else { return }
+
+            if command == .toggleMouseCapture, let vncPane = pane as? VNCPaneView {
+                vncPane.keyboardCapture.toggleCaptureMode()
+                return
+            }
+            guard let terminal = pane as? Ghostty.TerminalView else { return }
+            switch command {
+            case .clearScreen: terminal.menuClearScreen(nil)
+            case .scrollPageUp: terminal.menuScrollPageUp(nil)
+            case .scrollPageDown: terminal.menuScrollPageDown(nil)
+            case .scrollToTop: terminal.menuScrollToTop(nil)
+            case .scrollToBottom: terminal.menuScrollToBottom(nil)
+            case .toggleCompose: terminal.menuToggleCompose(nil)
+            case .toggleMouseCapture: terminal.menuToggleMouseCapture(nil)
+            case .cycleInputSource: terminal.menuCycleInputSource(nil)
+            }
+        }
+
         #if !targetEnvironment(macCatalyst)
         observerBag.observeOnMainActor(UIScene.didDisconnectNotification) { [self] notification in
             self.handleSceneDisconnectNotification(notification)
@@ -133,6 +158,9 @@ extension MainView {
             case "down": splitDirection = .down
             default: return
             }
+            // On the 26+ rails the menu item wins over the palette's own key
+            // command, so the split chord lands here while the palette is up.
+            if self.redirectToOpenInFolder(direction: splitDirection) { return }
             self.createSplit(direction: splitDirection)
         }
 
@@ -164,7 +192,11 @@ extension MainView {
             // switched to. nil object → fall back to the focused split.
             let target = notification.object as? SplitPaneView
             let leaveMux = notification.userInfo?[MuxSessionDetach.leaveMuxSessionUserInfoKey] as? Bool ?? false
-            self.closeSplit(targeting: target, leaveMuxSession: leaveMux)
+            if notification.userInfo?[GhosttyCommandRouting.userInitiatedCloseSplitKey] as? Bool == true {
+                self.requestUserCloseSplit(targeting: target)
+            } else {
+                self.closeSplit(targeting: target, leaveMuxSession: leaveMux)
+            }
         }
 
         observerBag.observeOnMainActor(.vncToggleFullScreen) { [self] notification in
@@ -197,6 +229,27 @@ extension MainView {
             // Handle both UIKeyCommand (with terminal) and SwiftUI Commands (nil object)
             guard self.shouldHandleNotification(notification) else { return }
             self.equalizeSplits()
+        }
+
+        observerBag.observeOnMainActor(.choosePaneToZoom) { [self] notification in
+            guard self.shouldHandleNotification(notification),
+                  !isAnySheetPresented,
+                  terminals.indices.contains(selectedTabIndex) else { return }
+            let tab = terminals[selectedTabIndex]
+            // The remembered focus can be a hidden/detached pane while zoom
+            // or menu focus is settling. Any mounted leaf identifies the host.
+            let host = tab.focusedPane?.enclosingSplitHost
+                ?? tab.splitTree.terminalLeaves.compactMap(\.enclosingSplitHost).first
+            host?.showPaneZoomPicker()
+        }
+
+        observerBag.observeOnMainActor(.choosePaneToSwap) { [self] notification in
+            guard self.shouldHandleNotification(notification), !isAnySheetPresented,
+                  terminals.indices.contains(selectedTabIndex) else { return }
+            let tab = terminals[selectedTabIndex]
+            let host = tab.focusedPane?.enclosingSplitHost
+                ?? tab.splitTree.terminalLeaves.compactMap(\.enclosingSplitHost).first
+            host?.showPaneSwapPicker()
         }
 
         observerBag.observeOnMainActor(.focusSplit) { [self] notification in
@@ -418,6 +471,7 @@ extension MainView {
         observerBag.observeOnMainActor(.createLocalShell) { [self] notification in
             // Handle both UIKeyCommand (with terminal) and SwiftUI Commands (nil object)
             guard self.shouldHandleNotification(notification) else { return }
+            if self.redirectToOpenInFolder(direction: nil) { return }
             // The legacy notification now dispatches the global New Tab action.
             self.handleNewTabCommand()
         }
@@ -480,6 +534,7 @@ extension MainView {
                 // their keyboard ownership before Quick Settings takes focus.
                 self.showThemePickerOverlay = false
                 self.showClipboardManager = false
+                self.showOpenInFolderOverlay = false
                 guard !self.isSheetPresentedBesidesFloatingTabSidebar else { return }
                 if !self.tabSidebarIsDocked { self.showingTabSwitcher = false }
                 if self.terminals.indices.contains(self.selectedTabIndex) {
@@ -493,9 +548,43 @@ extension MainView {
             }
         }
 
+        observerBag.observeOnMainActor(.openInFolder) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            if self.showOpenInFolderOverlay {
+                self.showOpenInFolderOverlay = false
+                return
+            }
+            // Same hygiene as Quick Settings: floating tools yield the keyboard first.
+            self.showThemePickerOverlay = false
+            self.showClipboardManager = false
+            self.showQuickSettingsOverlay = false
+            guard !self.isSheetPresentedBesidesFloatingTabSidebar else { return }
+            if !self.tabSidebarIsDocked { self.showingTabSwitcher = false }
+            if self.terminals.indices.contains(self.selectedTabIndex) {
+                for terminal in self.terminals[self.selectedTabIndex].splitTree.terminalLeaves {
+                    terminal.closeSearch()
+                    terminal.showComposeOverlay = false
+                }
+            }
+            // The HUD opens even for an unsupported pane, with a message, so a
+            // chord press always gets a response.
+            let target = self.captureOpenInFolderTarget() ?? self.unsupportedOpenInFolderTarget()
+            self.openInFolderModel = OpenInFolderModel(target: target)
+            self.showOpenInFolderOverlay = true
+            self.setOverlayOwnsKeyboardForAllTerminals(true)
+        }
+
+        observerBag.observeOnMainActor(.toggleFileManager) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            // Another sheet owns the screen; the manager's own sheets are fine.
+            if !self.showFileManager, self.isSheetPresentedBesidesFloatingTabSidebar { return }
+            self.toggleFileManager()
+        }
+
         observerBag.observeOnMainActor(.toggleThemePicker) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
             self.showQuickSettingsOverlay = false
+            self.showOpenInFolderOverlay = false
             self.showThemePickerOverlay.toggle()
         }
 

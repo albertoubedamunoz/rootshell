@@ -1071,20 +1071,7 @@ final class AgentAttentionCenter {
     /// tmux -CC or herdr pane rides its gateway's session.
     private func sessionOwner(for monitor: AgentPaneMonitor) -> Ghostty.TerminalView? {
         guard let terminal = monitor.terminal else { return nil }
-        if let herdr = terminal.herdrPaneBinding {
-            // A herdr pane's surface is local; its host is the gateway's.
-            return HerdrController.controller(forGateway: herdr.gatewayUUID)?.gateway
-        }
-        guard let binding = terminal.tmuxPaneBinding else { return terminal }
-        for model in TmuxWindowRegistry.allTabsModels() {
-            for tab in model.tabs {
-                for candidate in tab.splitTree.terminalLeaves
-                where candidate.uuid == binding.parentUUID {
-                    return candidate
-                }
-            }
-        }
-        return nil
+        return TerminalConnectionOwner.resolve(for: terminal)
     }
 
     /// Asks a tmux gateway for its panes' directories, on behalf of a pane
@@ -1192,17 +1179,14 @@ final class AgentAttentionCenter {
     /// entries so identically-named repositories on different machines stay
     /// distinct.
     static func hostKey(for terminal: Ghostty.TerminalView) -> String {
-        guard let ssh = terminal.connectionConfig.underlyingSSHConfig else {
-            // This machine is a host too. Returning nil here made every
-            // local pane fail the probe's guard, so a local tmux gateway got
-            // its project name from tmux and could never resolve a branch.
-            return localHostKey
-        }
-        return "\(ssh.username)@\(ssh.host):\(ssh.port)"
+        // This machine is a host too. Returning nil here made every local
+        // pane fail the probe's guard, so a local tmux gateway got its
+        // project name from tmux and could never resolve a branch.
+        TerminalConnectionOwner.targetKey(for: terminal)
     }
 
     /// Cache scope for panes whose commands run on this device.
-    static let localHostKey = "local"
+    static let localHostKey = TerminalTargetKey.local
 
     /// Ends a raw-multiplexer binding once the multiplexer gives the screen
     /// back, so the pane returns to ordinary per-pane semantics.

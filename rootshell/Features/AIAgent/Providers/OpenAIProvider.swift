@@ -90,7 +90,17 @@ final class OpenAIProvider: AIProvider {
         guard let service = service else {
             throw AIProviderError.notConfigured
         }
-        
+
+        // GPT-6 only supports tool calling over the Responses API.
+        if !isCustomEndpoint {
+            return try await sendMessageViaResponsesAPI(
+                service: service,
+                messages: messages,
+                systemPrompt: systemPrompt,
+                tools: tools
+            )
+        }
+
         // Convert messages to OpenAI format
         var openAIMessages = [ChatCompletionParameters.Message]()
         
@@ -318,45 +328,10 @@ final class OpenAIProvider: AIProvider {
                 }
 
                 do {
-                    // Convert messages to Responses API InputItem format
-                    let inputItems = Self.convertMessagesToInputItems(messages, isCustomEndpoint: isCustomEndpoint)
-
-                    // Debug: log the input items being sent
-                    Self.logger.debug("sendMessageNonStream: Sending \(inputItems.count) input items")
-                    for (index, item) in inputItems.enumerated() {
-                        Self.logger.debug("  Item \(index): \(String(describing: item))")
-                    }
-
-                    // Convert tools to Responses API Tool format
-                    let responsesTools = Self.convertToolsToResponsesFormat(tools)
-
-                    // Get model info
-                    let modelInfo: AIProviderModel?
-                    if isCustomEndpoint {
-                        modelInfo = AICredentialsManager.shared.findCustomModel(id: selectedModelID)
-                    } else {
-                        modelInfo = AIProviderModel.openAIModel(id: selectedModelID)
-                    }
-
-                    let modelSupportsTemperature = modelInfo?.supportsTemperature ?? isCustomEndpoint
-                    let maxTokens = modelInfo?.effectiveMaxCompletionTokens ?? AIProviderModel.ModelTier.standard.defaultMaxCompletionTokens
-
-                    // Get user-configured or default temperature
-                    let effectiveTemperature = AICredentialsManager.shared.effectiveTemperature(
-                        for: OpenAIProvider.providerID,
-                        supportsTemperature: modelSupportsTemperature
-                    )
-
-                    Self.logger.debug("sendMessageNonStream: Using maxTokens=\(maxTokens) for model \(self.selectedModelID)")
-
-                    // Create parameters for Responses API (non-streaming)
-                    let parameters = ModelResponseParameter(
-                        input: .array(inputItems),
-                        model: .custom(selectedModelID),
-                        instructions: systemPrompt,
-                        maxOutputTokens: maxTokens,
-                        temperature: effectiveTemperature,
-                        tools: responsesTools.isEmpty ? nil : responsesTools
+                    let parameters = self.responsesParameters(
+                        messages: messages,
+                        systemPrompt: systemPrompt,
+                        tools: tools
                     )
 
                     // Call non-streaming Responses API
@@ -393,6 +368,106 @@ final class OpenAIProvider: AIProvider {
         response: ResponseModel,
         continuation: AsyncThrowingStream<AIProviderStreamEvent, Error>.Continuation
     ) throws {
+        let (text, toolCalls) = Self.parseResponseOutput(response)
+
+        if !text.isEmpty {
+            continuation.yield(.textDelta(text))
+        }
+        for toolCall in toolCalls {
+            continuation.yield(.toolCallComplete(toolCall))
+        }
+
+        // Extract usage and finish reason
+        let usage = Self.extractUsage(from: response)
+        let finishReason = Self.extractFinishReason(from: response)
+
+        continuation.yield(.responseComplete(usage: usage, finishReason: finishReason))
+        continuation.finish()
+    }
+
+    /// Non-streaming Responses API call returning a whole response.
+    private func sendMessageViaResponsesAPI(
+        service: OpenAIService,
+        messages: [AIAgentMessage],
+        systemPrompt: String,
+        tools: [AIAgentTool]
+    ) async throws -> AIProviderResponse {
+        let parameters = responsesParameters(messages: messages, systemPrompt: systemPrompt, tools: tools)
+
+        let task = Task<AIProviderResponse, Error> {
+            let response = try await service.responseCreate(parameters)
+            let (text, toolCalls) = Self.parseResponseOutput(response)
+            let content: AIProviderResponse.Content
+            if toolCalls.isEmpty {
+                content = .text(text)
+            } else if text.isEmpty {
+                content = .toolCalls(toolCalls)
+            } else {
+                content = .textAndToolCalls(text, toolCalls)
+            }
+            return AIProviderResponse(
+                content: content,
+                usage: Self.extractUsage(from: response),
+                finishReason: Self.extractFinishReason(from: response)
+            )
+        }
+
+        currentTask = task
+
+        do {
+            let response = try await task.value
+            currentTask = nil
+            return response
+        } catch is CancellationError {
+            throw AIProviderError.cancelled
+        } catch {
+            currentTask = nil
+            throw Self.mapError(error, modelID: selectedModelID)
+        }
+    }
+
+    /// Responses API parameters for the selected model.
+    private func responsesParameters(
+        messages: [AIAgentMessage],
+        systemPrompt: String,
+        tools: [AIAgentTool]
+    ) -> ModelResponseParameter {
+        let inputItems = Self.convertMessagesToInputItems(messages, isCustomEndpoint: isCustomEndpoint)
+        Self.logger.debug("responsesParameters: Sending \(inputItems.count) input items")
+        for (index, item) in inputItems.enumerated() {
+            Self.logger.debug("  Item \(index): \(String(describing: item))")
+        }
+
+        let responsesTools = Self.convertToolsToResponsesFormat(tools)
+
+        let modelInfo: AIProviderModel?
+        if isCustomEndpoint {
+            modelInfo = AICredentialsManager.shared.findCustomModel(id: selectedModelID)
+        } else {
+            modelInfo = AIProviderModel.openAIModel(id: selectedModelID)
+        }
+
+        let modelSupportsTemperature = modelInfo?.supportsTemperature ?? isCustomEndpoint
+        let maxTokens = modelInfo?.effectiveMaxCompletionTokens ?? AIProviderModel.ModelTier.standard.defaultMaxCompletionTokens
+        let effectiveTemperature = AICredentialsManager.shared.effectiveTemperature(
+            for: OpenAIProvider.providerID,
+            supportsTemperature: modelSupportsTemperature
+        )
+
+        Self.logger.debug("responsesParameters: Using maxTokens=\(maxTokens) for model \(self.selectedModelID)")
+
+        return ModelResponseParameter(
+            input: .array(inputItems),
+            model: .custom(selectedModelID),
+            instructions: systemPrompt,
+            maxOutputTokens: maxTokens,
+            temperature: effectiveTemperature,
+            tools: responsesTools.isEmpty ? nil : responsesTools
+        )
+    }
+
+    /// Text and tool calls (including MiniMax XML calls in the text) from a Responses API result.
+    private static func parseResponseOutput(_ response: ResponseModel) -> (text: String, toolCalls: [AIToolCall]) {
         var accumulatedText = ""
         var toolCalls: [AIToolCall] = []
 
@@ -433,31 +508,13 @@ final class OpenAIProvider: AIProvider {
             }
         }
 
-        // Emit text if present
-        if !accumulatedText.isEmpty {
-            continuation.yield(.textDelta(accumulatedText))
-        }
-
         // Check for MiniMax XML tool calls in accumulated text
         let miniMaxResult = MiniMaxToolCallParser.parse(accumulatedText)
         if !miniMaxResult.toolCalls.isEmpty {
             Self.logger.debug("NonStream: Found \(miniMaxResult.toolCalls.count) MiniMax XML tool call(s)")
-            for toolCall in miniMaxResult.toolCalls {
-                continuation.yield(.toolCallComplete(toolCall))
-            }
         }
 
-        // Emit tool calls
-        for toolCall in toolCalls {
-            continuation.yield(.toolCallComplete(toolCall))
-        }
-
-        // Extract usage and finish reason
-        let usage = Self.extractUsage(from: response)
-        let finishReason = Self.extractFinishReason(from: response)
-
-        continuation.yield(.responseComplete(usage: usage, finishReason: finishReason))
-        continuation.finish()
+        return (accumulatedText, miniMaxResult.toolCalls + toolCalls)
     }
 
     /// Streaming Responses API implementation

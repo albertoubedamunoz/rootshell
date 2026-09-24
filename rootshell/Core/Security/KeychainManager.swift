@@ -958,6 +958,59 @@ class KeychainManager {
         }
     }
 
+    // MARK: - Storage Provider Storage
+
+    /// Whole provider configs (credentials included), synced through iCloud Keychain.
+    private let storageProviderService = "com.rootshell.storage.provider"
+
+    private func storageProviderQuery(identifier: String?) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: storageProviderService,
+            kSecAttrAccessGroup as String: accessGroup,
+            kSecAttrSynchronizable as String: true
+        ]
+        if let identifier { query[kSecAttrAccount as String] = identifier }
+        return query
+    }
+
+    /// Adds or replaces the provider stored under `identifier`.
+    func saveStorageProvider(_ data: Data, identifier: String, label: String) throws {
+        let query = storageProviderQuery(identifier: identifier)
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrLabel as String: label
+        ]
+        var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if status == errSecItemNotFound {
+            var add = query.merging(attributes) { $1 }
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            status = SecItemAdd(add as CFDictionary, nil)
+        }
+        guard status == errSecSuccess else {
+            Self.logger.error("saveStorageProvider failed - Status: \(status) (\(Self.keychainErrorString(status)))")
+            throw KeychainError.unexpectedStatus(status)
+        }
+    }
+
+    func loadAllStorageProviders() throws -> [Data] {
+        var query = storageProviderQuery(identifier: nil)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitAll
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound { return [] }
+        guard status == errSecSuccess else { throw KeychainError.unexpectedStatus(status) }
+        return result as? [Data] ?? []
+    }
+
+    func deleteStorageProvider(identifier: String) throws {
+        let status = SecItemDelete(storageProviderQuery(identifier: identifier) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.unexpectedStatus(status)
+        }
+    }
+
     // MARK: - Scrollback Encryption Key Storage
 
     private let scrollbackEncryptionService = "com.ghostty.scrollback.encryptionkey"

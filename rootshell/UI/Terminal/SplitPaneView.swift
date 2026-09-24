@@ -104,6 +104,10 @@ class SplitPaneView: UIView, Identifiable {
     /// Used with the reported keyboard frame to reserve the complete input area.
     var keyboardAccessoryFrameInScreen: CGRect? { nil }
 
+    /// Authoritative destination frame for a docked custom keyboard. Its
+    /// self-sizing height can change without a system keyboard notification.
+    var dockedTouchKeyboardFrameInScreen: CGRect? { nil }
+
     /// Live interaction state for bottom-edge system-gesture arbitration.
     /// Unlike the reserved height, this must never remain latched after focus
     /// leaves the pane.
