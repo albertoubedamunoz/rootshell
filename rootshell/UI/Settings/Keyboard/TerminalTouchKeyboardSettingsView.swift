@@ -79,10 +79,12 @@ struct TerminalTouchKeyboardSettingsView: View {
                     .themedRow()
                 SettingToggle(Settings.Keyboard.touchClickSound, title: "Key Click Sounds", icon: "speaker.wave.2")
                     .themedRow()
+                SettingToggle(Settings.Keyboard.touchCharacterPreview, title: "Character Preview", icon: "character.magnify")
+                    .themedRow()
             } header: {
                 Text("Typing")
             } footer: {
-                Text("Letter Prediction uses recent English typing to help choose between nearby letters. Turn it off for literal key targeting. Suggestions are local spelling guesses and completions; tap to apply one. Words are never automatically replaced. The double-space period shortcut follows your Terminal keyboard setting. Key Click Sounds match the keyboard style and are muted in Silent Mode.")
+                Text("Letter Prediction uses recent English typing to help choose between nearby letters. Turn it off for literal key targeting. Suggestions are local spelling guesses and completions; tap to apply one. Words are never automatically replaced. The double-space period shortcut follows your Terminal keyboard setting. Key Click Sounds match the keyboard style and are muted in Silent Mode. Character Preview shows the pressed letter above your finger; turn it off to only highlight the key.")
             }
             Section {
                 Picker("Keyboard Height", selection: $keyboardHeight) {

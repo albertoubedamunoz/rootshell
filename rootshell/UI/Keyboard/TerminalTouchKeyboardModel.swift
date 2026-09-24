@@ -338,6 +338,13 @@ nonisolated enum TerminalTouchKeyboardModel {
             let displacement = max(abs(point.x - anchor.x), abs(point.y - anchor.y))
             // Fractional cell origins must not move an exact boundary below its threshold.
             guard displacement + 0.0001 >= threshold else { return false }
+            // Leaving the typing area keeps the last key, as the system keyboard does,
+            // but still counts as a slide so holds (accents, cursor) disarm.
+            guard geometry.bounds.contains(point) else {
+                anchor = point
+                dragged = true
+                return true
+            }
             let next = geometry.textHit(at: point) == nil ? nil : geometry.predictedHit(at: point, prior: prior)
             if let next, next != selected, selected != nil {
                 let frame = geometry.targets[next].frame
@@ -360,8 +367,12 @@ nonisolated enum TerminalTouchKeyboardModel {
 
         mutating func finish(at point: CGPoint, in geometry: TypingGeometry, dockedPad: Bool,
                              cancelled: Bool = false) -> Int? {
-            guard !cancelled, geometry.textHit(at: point) != nil else { cancel(); return nil }
-            move(to: point, in: geometry, dockedPad: dockedPad)
+            guard !cancelled else { cancel(); return nil }
+            if geometry.bounds.contains(point) {
+                // Releasing on an action key still cancels the letter.
+                guard geometry.textHit(at: point) != nil else { cancel(); return nil }
+                move(to: point, in: geometry, dockedPad: dockedPad)
+            }
             return takeSelection()
         }
 
@@ -469,6 +480,16 @@ nonisolated enum TerminalTouchKeyboardModel {
         guard abs(translation.x) >= 70, abs(translation.x) > abs(translation.y) * 2 else { return nil }
         return translation.x < 0 ? 1 : -1
     }
+
+    /// One thumb lifting as another lands can arrive as a single touch that
+    /// jumps. No finger covers this distance between two digitizer samples.
+    static func isTouchJump(from previous: CGPoint, to point: CGPoint) -> Bool {
+        hypot(point.x - previous.x, point.y - previous.y) > 60
+    }
+
+    /// The top row also claims the bottom strip of the row above it:
+    /// a stray letter costs less than a stray Esc or Ctrl.
+    static let topRowOverhang: CGFloat = 6
 
     enum ToolbarDrawerState: Equatable {
         case closed, stacked(Int), cycling(Int)
