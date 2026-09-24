@@ -535,6 +535,17 @@ extension Ghostty.TerminalView {
     func applyConfiguredMultiplexerBinding() {
         guard let sshConfig = connectionConfig.sshConfigForHistory else { return }
 
+        if let target = sshConfig.muxResumeTarget {
+            if !target.controlMode {
+                if target.type.ownsAlternateScreen {
+                    bindRawMultiplexer(target.type, sessionName: target.sessionName)
+                } else {
+                    bindPassthroughMultiplexer(target.type, sessionName: target.sessionName, canDetachSwitch: false)
+                }
+            }
+            return
+        }
+
         // Keep zmx's transparent identity separate from raw multiplexer
         // bindings, since raw bindings also suppress agent attention.
         if sshConfig.zmxAutoEnable, let name = sshConfig.zmxSessionNameForConnection {
@@ -826,7 +837,8 @@ extension Ghostty.TerminalView {
         //
         // A manual run overrides all of it: the user asked for the picker, so an
         // already-started multiplexer or launch command must not swallow it.
-        let multiplexerAutoStart = sshConfig.tmuxAutoEnable || sshConfig.herdrAutoEnable || sshConfig.zmxAutoEnable
+        let multiplexerAutoStart = sshConfig.muxResumeTarget != nil
+            || sshConfig.tmuxAutoEnable || sshConfig.herdrAutoEnable || sshConfig.zmxAutoEnable
         let allowSessionPickerOverlay = manual
             || (!hasLaunchCommand && !hasRemoteCommand && !wasResumed && !multiplexerAutoStart)
         let skipTmuxSessions = !tmuxEnabled || !allowSessionPickerOverlay

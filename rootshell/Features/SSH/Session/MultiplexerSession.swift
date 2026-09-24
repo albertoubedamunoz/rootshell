@@ -7,34 +7,6 @@
 
 import Foundation
 
-// MARK: - Multiplexer Type
-
-enum MultiplexerType: String, Sendable, Equatable, Hashable {
-    case tmux
-    case zellij
-    case herdr
-    case zmx
-
-    /// Whether the multiplexer, rather than its inner program, owns the screen.
-    var ownsAlternateScreen: Bool {
-        switch self {
-        case .tmux, .zellij, .herdr: return true
-        case .zmx: return false
-        }
-    }
-
-    /// SF Symbol representing this multiplexer.
-    ///
-    var iconName: String {
-        switch self {
-        case .tmux: return "rectangle.split.2x1"
-        case .zellij: return "rectangle.split.3x1"
-        case .herdr: return "square.grid.2x2"
-        case .zmx: return "rectangle"
-        }
-    }
-}
-
 // MARK: - Unified Session Model
 
 struct MultiplexerSession: Identifiable, Equatable, Sendable {

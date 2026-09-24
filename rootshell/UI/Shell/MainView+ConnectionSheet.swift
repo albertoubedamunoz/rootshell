@@ -582,7 +582,9 @@ extension MainView {
         }
 
         // Update profile auth method to reflect saved password preference
-        var updatedProfile = profile
+        // Reconnect can carry a temporary startup override. Save only the auth
+        // change to the stored profile, not that one-shot attachment target.
+        var updatedProfile = ConnectionProfileManager.shared.profile(for: profile.id) ?? profile
         updatedProfile.sshConfig.authMethod = savedSuccessfully ? .savedPassword : .password("")
         try? ConnectionProfileManager.shared.updateProfile(updatedProfile)
 

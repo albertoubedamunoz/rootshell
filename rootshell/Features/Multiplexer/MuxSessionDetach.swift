@@ -35,6 +35,17 @@ enum MuxSessionDetach {
         let kind: Kind
         let sessionName: String?
         let displayName: String
+
+        var resumeTarget: MuxSessionTarget? {
+            switch kind {
+            case .tmuxControlMode:
+                return MuxSessionTarget(type: .tmux, sessionName: sessionName, controlMode: true)
+            case .herdrControlMode:
+                return MuxSessionTarget(type: .herdr, sessionName: sessionName ?? "default", controlMode: true)
+            case .keySequence(let type):
+                return MuxSessionTarget(type: type, sessionName: sessionName)
+            }
+        }
     }
 
     /// Result of attempting a detach.
@@ -361,6 +372,7 @@ enum MuxSessionDetach {
             userInfo["windowId"] = windowId
         }
         if let terminal,
+           let target = attachment.resumeTarget,
            let ssh = terminal.connectionConfig.sshConfigForHistory
             ?? terminal.connectionConfig.underlyingSSHConfig {
             let proto: ConnectionProtocol
@@ -376,7 +388,8 @@ enum MuxSessionDetach {
                 displayName: attachment.displayName,
                 sshConfig: ssh,
                 connectionProtocol: proto,
-                profileID: terminal.sourceProfileID
+                profileID: terminal.sourceProfileID,
+                target: target
             )
         }
         // object: nil — do not require the pane to still be in the tab tree.

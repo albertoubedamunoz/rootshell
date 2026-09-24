@@ -239,13 +239,18 @@ extension MainView {
     func reconnectFromMuxDetachBanner() {
         guard let offer = muxDetachBanner?.offer else { return }
         dismissMuxDetachBanner()
+        let config = offer.sshConfig.resumingMultiplexer(offer.target)
         if let profileID = offer.profileID,
-           let profile = ConnectionProfileManager.shared.profiles.first(where: { $0.id == profileID }) {
+           var profile = ConnectionProfileManager.shared.profiles.first(where: { $0.id == profileID }) {
+            // A temporary copy keeps the profile's authentication prompts and
+            // transport options without reopening its original mux/default.
+            profile.sshConfig = config
+            profile.connectionProtocol = offer.connectionProtocol
             connectToProfile(profile, splitOption: .newTab)
             return
         }
         connectWithConfig(
-            offer.sshConfig,
+            config,
             connectionProtocol: offer.connectionProtocol,
             splitOption: .newTab
         )
