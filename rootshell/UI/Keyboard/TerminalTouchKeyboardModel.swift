@@ -71,6 +71,47 @@ nonisolated enum TerminalTouchKeyboardModel {
         }
     }
 
+    /// Docked keyboard height. Every size but `full` extends into the bottom safe area.
+    enum Height: String, CaseIterable, Sendable {
+        case full, compact, shorter, shortest
+
+        var displayName: String {
+            switch self {
+            case .full: String(localized: "Full", comment: "Terminal keyboard height")
+            case .compact: String(localized: "Compact", comment: "Terminal keyboard height")
+            case .shorter: String(localized: "Shorter", comment: "Terminal keyboard height")
+            case .shortest: String(localized: "Shortest", comment: "Terminal keyboard height")
+            }
+        }
+
+        var usesBottomSafeArea: Bool { self != .full }
+
+        func rowHeight(verticallyCompact: Bool, pad: Bool) -> CGFloat {
+            switch self {
+            case .full, .compact: verticallyCompact ? 40 : (pad ? 60 : 54)
+            case .shorter: verticallyCompact ? 36 : (pad ? 52 : 47)
+            case .shortest: verticallyCompact ? 32 : (pad ? 46 : 41)
+            }
+        }
+
+        /// Main toolbar row, before any drawer rows.
+        var toolbarRowHeight: CGFloat {
+            switch self {
+            case .full, .compact: 48
+            case .shorter: 42
+            case .shortest: 38
+            }
+        }
+
+        var toolbarDrawerRowHeight: CGFloat {
+            switch self {
+            case .full, .compact: 44
+            case .shorter: 40
+            case .shortest: 36
+            }
+        }
+    }
+
     enum FloatingGlassStyle: String, CaseIterable, Sendable {
         case regular, clear, solid
 

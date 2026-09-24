@@ -25,6 +25,7 @@ nonisolated extension Settings {
             "location_diary_always_on",
             "restoration.consecutiveSkips",
             "singleFingerAction",
+            "terminalTouchKeyboardCompactHeight",
             "trzszSafeDetachOnBackground",
         ]
 
