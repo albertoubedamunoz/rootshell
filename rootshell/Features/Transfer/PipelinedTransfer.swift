@@ -59,6 +59,13 @@ enum PipelinedTransfer {
         let underlying: Error
     }
 
+    /// The source ended before its known size.
+    nonisolated struct TruncatedSourceError: LocalizedError {
+        var errorDescription: String? {
+            String(localized: "The file got shorter while it was being copied.", comment: "File transfer error")
+        }
+    }
+
     // MARK: - Sendable Wrapper
 
     /// Wrapper around SFTPFile for use in task group closures.
@@ -162,7 +169,9 @@ enum PipelinedTransfer {
                     while offset < rangeEnd {
                         try Task.checkCancellation()
                         let data = try await reader.read(at: offset, length: UInt32(rangeEnd - offset))
-                        if data.isEmpty { break }
+                        // The file shrank mid-copy: fail, which also cancels chunks
+                        // still waiting on this one, rather than finish short.
+                        if data.isEmpty { throw TruncatedSourceError() }
                         try await writer.write(data, at: offset)
                         offset += UInt64(data.count)
                     }

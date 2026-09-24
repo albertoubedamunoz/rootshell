@@ -66,13 +66,29 @@ final class StorageProviderTests: XCTestCase {
         var a = StorageProvider()
         var b = StorageProvider()
         b.region = "eu-west-1"
-        XCTAssertTrue(a.reachesSameNamespace(as: b), "AWS bucket names are global")
+        XCTAssertTrue(a.reachesSameNamespace(as: b), "AWS bucket names are global within a partition")
         b.bucket = "photos"
-        XCTAssertFalse(a.reachesSameNamespace(as: b), "a fixed bucket changes what paths mean")
-        a.bucket = "/photos/"
-        XCTAssertTrue(a.reachesSameNamespace(as: b))
+        XCTAssertTrue(a.reachesSameNamespace(as: b), "a bucket limit doesn't change what a path names")
+        b.region = "cn-north-1"
+        XCTAssertFalse(a.reachesSameNamespace(as: b), "AWS China is a separate partition")
         a.presetID = "wasabi"
+        XCTAssertFalse(a.reachesSameNamespace(as: StorageProvider()))
+    }
+
+    func testEndpointIdentityKeepsSchemePortAndPath() {
+        var a = StorageProvider()
+        a.presetID = StorageProviderPreset.custom.id
+        var b = a
+        a.customEndpoint = "https://minio.local:9000"
+        b.customEndpoint = "https://MINIO.local:9001"
+        XCTAssertFalse(a.reachesSameNamespace(as: b), "different ports are different servers")
+        b.customEndpoint = "http://minio.local:9000"
         XCTAssertFalse(a.reachesSameNamespace(as: b))
+        b.customEndpoint = "https://minio.local:9000/tenant"
+        XCTAssertFalse(a.reachesSameNamespace(as: b))
+        a.customEndpoint = "https://minio.local"
+        b.customEndpoint = "minio.local:443/"
+        XCTAssertTrue(a.reachesSameNamespace(as: b), "default port and trailing slash are equivalent")
     }
 
     func testDecodingToleratesMissingFields() throws {
@@ -93,6 +109,25 @@ final class StorageProviderTests: XCTestCase {
         XCTAssertNil(S3KeyLogic.childName("docs/sub/a.txt", under: "docs/"))
         XCTAssertNil(S3KeyLogic.childName("other/a.txt", under: "docs/"))
         XCTAssertEqual(S3KeyLogic.childName("top.txt", under: ""), "top.txt")
+    }
+
+    func testKeyClassification() {
+        XCTAssertEqual(S3KeyLogic.classify("docs/", under: "docs/"), .ignored, "the folder's own marker")
+        XCTAssertEqual(S3KeyLogic.classify("other/a", under: "docs/"), .ignored)
+        XCTAssertEqual(S3KeyLogic.classify("docs/a/", under: "docs/"), .child("a"))
+        // Strict listings fail on these so a move never deletes what it couldn't copy.
+        XCTAssertEqual(S3KeyLogic.classify("docs/./", under: "docs/"), .unrepresentable)
+        XCTAssertEqual(S3KeyLogic.classify("docs/..", under: "docs/"), .unrepresentable)
+        XCTAssertEqual(S3KeyLogic.classify("docs//", under: "docs/"), .unrepresentable)
+    }
+
+    func testDotSegmentsAreNotListed() {
+        // Path normalization would turn these into their parent folder.
+        XCTAssertNil(S3KeyLogic.childName("docs/./", under: "docs/"))
+        XCTAssertNil(S3KeyLogic.childName("docs/../", under: "docs/"))
+        XCTAssertNil(S3KeyLogic.childName("docs//", under: "docs/"))
+        XCTAssertEqual(S3KeyLogic.childName("docs/.hidden", under: "docs/"), ".hidden")
+        XCTAssertEqual(S3KeyLogic.childName("docs/...", under: "docs/"), "...")
     }
 
     func testCopySourceIsURLEncoded() {

@@ -206,7 +206,7 @@ struct StorageProviderEditView: View {
             } header: {
                 Text("Location")
             } footer: {
-                Text("Set a bucket when your keys can't list buckets, or to open straight into one.")
+                Text("Set a bucket when your keys can't list buckets, or to open straight into one. Start In is a folder within that bucket.")
             }
 
             Section {

@@ -23,25 +23,31 @@ nonisolated struct S3FileSystem: Sendable {
         let key: String
     }
 
-    /// nil for the root of an unrestricted provider, which lists buckets.
+    /// Paths are always `/bucket/key`, even for a provider limited to one bucket,
+    /// so one object has one path on every provider that reaches it. nil is the root.
     func location(of path: String) -> Location? {
         let components = FileTransferLogic.normalize(path).split(separator: "/").map(String.init)
-        if let bucket = provider.effectiveBucket {
-            return Location(bucket: bucket, key: components.joined(separator: "/"))
-        }
         guard let bucket = components.first else { return nil }
         return Location(bucket: bucket, key: components.dropFirst().joined(separator: "/"))
     }
 
+    /// A bucket-limited provider starts inside its bucket; `initialPath` is relative to it.
     var homeDirectory: String {
-        FileTransferLogic.normalize(provider.initialPath)
+        let start = provider.effectiveBucket.map { $0 + "/" + provider.initialPath } ?? provider.initialPath
+        return FileTransferLogic.normalize(start)
     }
 
     // MARK: - Listing and metadata
 
-    func list(_ path: String) async throws -> [RFEntry] {
+    /// With `strict`, objects whose names a path can't hold fail the listing
+    /// instead of being hidden, so a transfer never silently leaves them behind.
+    func list(_ path: String, strict: Bool = false) async throws -> [RFEntry] {
         let base = FileTransferLogic.normalize(path)
-        guard let location = location(of: base) else { return try await listBuckets() }
+        guard let location = location(of: base) else {
+            // Keys limited to one bucket often can't list buckets at all.
+            if let bucket = provider.effectiveBucket { return [Self.entry(bucket, in: "/", isDirectory: true)] }
+            return try await listBuckets()
+        }
         let service = await session.service(for: location.bucket)
         let prefix = location.key.isEmpty ? "" : location.key + "/"
         var entries: [RFEntry] = []
@@ -53,11 +59,11 @@ nonisolated struct S3FileSystem: Sendable {
                 ))
             }
             for common in page.commonPrefixes ?? [] {
-                guard let name = common.prefix.flatMap({ S3KeyLogic.childName($0, under: prefix) }) else { continue }
+                guard let name = try Self.listedName(common.prefix, under: prefix, in: base, strict: strict) else { continue }
                 entries.append(Self.entry(name, in: base, isDirectory: true))
             }
             for object in page.contents ?? [] {
-                guard let name = object.key.flatMap({ S3KeyLogic.childName($0, under: prefix) }) else { continue }
+                guard let name = try Self.listedName(object.key, under: prefix, in: base, strict: strict) else { continue }
                 entries.append(Self.entry(name, in: base, isDirectory: false, size: object.size ?? 0, modified: object.lastModified))
             }
             token = page.isTruncated == true ? page.nextContinuationToken : nil
@@ -204,7 +210,8 @@ nonisolated struct S3FileSystem: Sendable {
         let service = await session.service(for: target.bucket)
         let copySource = S3KeyLogic.copySource(bucket: source.bucket, key: source.key)
         guard size > 5 << 30 else {
-            _ = try await mapped(path) { try await service.copyObject(.init(bucket: target.bucket, copySource: copySource, key: target.key)) }
+            let output = try await mapped(path) { try await service.copyObject(.init(bucket: target.bucket, copySource: copySource, key: target.key)) }
+            try StorageError.requireETag(output.copyObjectResult.eTag)
             return
         }
         let upload = try await mapped(path) { try await service.createMultipartUpload(.init(bucket: target.bucket, key: target.key)) }
@@ -221,11 +228,13 @@ nonisolated struct S3FileSystem: Sendable {
                     bucket: target.bucket, copySource: copySource, copySourceRange: "bytes=\(start)-\(end)",
                     key: target.key, partNumber: index + 1, uploadId: uploadID
                 ))
+                try StorageError.requireETag(output.copyPartResult.eTag)
                 parts.append(S3.CompletedPart(eTag: output.copyPartResult.eTag, partNumber: index + 1))
             }
-            _ = try await service.completeMultipartUpload(.init(
+            let output = try await service.completeMultipartUpload(.init(
                 bucket: target.bucket, key: target.key, multipartUpload: .init(parts: parts), uploadId: uploadID
             ))
+            try StorageError.requireETag(output.eTag)
         } catch {
             // Unstructured so a cancelled job still cleans up.
             await Task {
@@ -299,6 +308,21 @@ nonisolated struct S3FileSystem: Sendable {
         }
     }
 
+    private static func listedName(_ key: String?, under prefix: String, in directory: String, strict: Bool) throws -> String? {
+        switch key.map({ S3KeyLogic.classify($0, under: prefix) }) ?? .ignored {
+        case .child(let name):
+            return name
+        case .ignored:
+            return nil
+        case .unrepresentable:
+            guard strict else { return nil }
+            throw StorageError.unsupported(String(
+                localized: "“\(directory)” contains objects named “.” or “..” or with empty folder names, which can't be copied or moved.",
+                comment: "Storage error; argument is a folder path"
+            ))
+        }
+    }
+
     private static func entry(_ name: String, in directory: String, isDirectory: Bool, size: Int64 = 0, modified: Date? = nil) -> RFEntry {
         RFEntry(
             name: name, path: FileTransferLogic.join(directory, name), isDirectory: isDirectory, isSymlink: false,
@@ -331,6 +355,14 @@ nonisolated enum StorageError: LocalizedError {
     static let noPermissions = StorageError.unsupported(
         String(localized: "Cloud storage doesn't keep permissions or modification dates.", comment: "Storage error")
     )
+
+    /// CopyObject, UploadPartCopy and CompleteMultipartUpload can report failure
+    /// inside an HTTP 200; the result then decodes without an ETag.
+    static func requireETag(_ eTag: String?) throws {
+        guard eTag?.isEmpty == false else {
+            throw StorageError.service(String(localized: "The server reported the copy as failed.", comment: "Storage error"))
+        }
+    }
 
     static func isNotFound(_ error: Error) -> Bool {
         (error as? AWSErrorType)?.context?.responseCode == .notFound

@@ -48,6 +48,8 @@ actor S3ObjectWriter: ChunkWriter {
     private static let maxPartSize = 64 << 20
     /// Bytes buffered in parts not yet uploaded before writes wait.
     private static let inFlightBudget = 64 << 20
+    /// Bytes parked ahead of a missing earlier chunk before later writes wait for it.
+    private static let outOfOrderBudget = 16 << 20
 
     nonisolated let service: S3
     nonisolated let bucket: String
@@ -55,6 +57,7 @@ actor S3ObjectWriter: ChunkWriter {
     private let contentType: String?
 
     private var outOfOrder: [UInt64: Data] = [:]
+    private var outOfOrderBytes = 0
     private var nextOffset: UInt64 = 0
     private var buffer = Data()
     private var uploadID: Task<String, Error>?
@@ -81,8 +84,10 @@ actor S3ObjectWriter: ChunkWriter {
             throw StorageError.incompleteUpload
         }
         outOfOrder[offset] = data
+        outOfOrderBytes += data.count
         while let next = outOfOrder.removeValue(forKey: nextOffset) {
             buffer.append(next)
+            outOfOrderBytes -= next.count
             nextOffset += UInt64(next.count)
         }
         while buffer.count >= partSize(for: parts.count + 1) {
@@ -90,6 +95,13 @@ actor S3ObjectWriter: ChunkWriter {
             startPart(Data(buffer.prefix(size)))
             buffer = Data(buffer.dropFirst(size))
         }
+        // A stalled earlier chunk mustn't let later ones pile up: while this chunk
+        // is still parked, hold the pipeline. The missing chunk never waits here.
+        while outOfOrderBytes > Self.outOfOrderBudget, nextOffset <= offset, !isFinished, failure == nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        if let failure { throw failure }
+        if isFinished { throw StorageError.incompleteUpload }
         // Back-pressure: reading stalls until uploads catch up.
         while inFlightBytes > Self.inFlightBudget, settledCount < parts.count {
             try await settleNextPart()
@@ -113,9 +125,10 @@ actor S3ObjectWriter: ChunkWriter {
                 while settledCount < parts.count { try await settleNextPart() }
                 let id = try await uploadID.value
                 let sorted = completed.sorted { ($0.partNumber ?? 0) < ($1.partNumber ?? 0) }
-                _ = try await service.completeMultipartUpload(.init(
+                let output = try await service.completeMultipartUpload(.init(
                     bucket: bucket, key: key, multipartUpload: .init(parts: sorted), uploadId: id
                 ))
+                try StorageError.requireETag(output.eTag)
             } else {
                 // Small files: one request, no upload to create or abort.
                 _ = try await service.putObject(.init(
@@ -135,6 +148,7 @@ actor S3ObjectWriter: ChunkWriter {
         isFinished = true
         buffer = Data()
         outOfOrder = [:]
+        outOfOrderBytes = 0
         for part in parts { part.task.cancel() }
         guard let uploadID else { return }
         let (service, bucket, key) = (service, bucket, key)

@@ -96,14 +96,16 @@ nonisolated struct FileSystemEndpoint: Sendable {
 
     // MARK: - Listing and metadata
 
-    func list(_ path: String) async throws -> [RFEntry] {
+    /// With `strict`, entries the listing would otherwise hide (S3 keys a path
+    /// can't hold) fail it instead; transfers use it so nothing is left behind.
+    func list(_ path: String, strict: Bool = false) async throws -> [RFEntry] {
         switch backend {
         case .local(let resolver):
             return try await Self.listLocal(path, resolver: resolver)
         case .sftp(let sftp):
             return try await SFTPOperations.listDirectoryEntries(sftp: sftp, path: path)
         case .s3(let s3):
-            return try await s3.list(path)
+            return try await s3.list(path, strict: strict)
         }
     }
 

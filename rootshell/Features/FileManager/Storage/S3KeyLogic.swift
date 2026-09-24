@@ -8,13 +8,28 @@
 import Foundation
 
 nonisolated enum S3KeyLogic {
+    enum ListedKey: Equatable {
+        case child(String)
+        /// The folder's own marker, or a key outside the prefix.
+        case ignored
+        /// A name a path can't hold literally ("", ".", ".."): normalization would
+        /// turn it into its parent, so it is never offered as an item.
+        case unrepresentable
+    }
+
+    static func classify(_ key: String, under prefix: String) -> ListedKey {
+        guard key.hasPrefix(prefix) else { return .ignored }
+        var rest = key.dropFirst(prefix.count)
+        if rest.isEmpty { return .ignored }
+        if rest.hasSuffix("/") { rest = rest.dropLast() }
+        if rest.isEmpty || rest == "." || rest == ".." { return .unrepresentable }
+        return rest.contains("/") ? .ignored : .child(String(rest))
+    }
+
     /// `key` relative to `prefix` when it is a direct child, without a trailing slash.
     static func childName(_ key: String, under prefix: String) -> String? {
-        guard key.hasPrefix(prefix) else { return nil }
-        var rest = key.dropFirst(prefix.count)
-        if rest.hasSuffix("/") { rest = rest.dropLast() }
-        guard !rest.isEmpty, !rest.contains("/") else { return nil }
-        return String(rest)
+        if case .child(let name) = classify(key, under: prefix) { return name }
+        return nil
     }
 
     /// `bucket/key`, URL-encoded as the x-amz-copy-source header requires.

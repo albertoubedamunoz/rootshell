@@ -51,7 +51,8 @@ enum FileTreeCopier {
     }
 
     private static func walk(_ directory: String, into target: String, fs: FileSystemEndpoint, items: inout [Item]) async throws {
-        for entry in try await fs.list(directory) {
+        // Strict: a move deletes the source tree afterwards, so nothing may be skipped.
+        for entry in try await fs.list(directory, strict: true) {
             try Task.checkCancellation()
             let destination = FileTransferLogic.join(target, entry.name)
             if entry.isSymlink {

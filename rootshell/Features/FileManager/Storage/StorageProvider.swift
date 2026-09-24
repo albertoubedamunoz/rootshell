@@ -124,13 +124,29 @@ nonisolated struct StorageProvider: Codable, Identifiable, Hashable, Sendable {
         return nil
     }
 
-    /// True when paths on both providers name the same objects.
+    /// True when both providers reach the same objects. Paths are always
+    /// `/bucket/key`, so a bucket limit doesn't change what a path names.
     func reachesSameNamespace(as other: StorageProvider) -> Bool {
-        endpointIdentity == other.endpointIdentity && effectiveBucket == other.effectiveBucket
+        endpointIdentity == other.endpointIdentity
     }
 
-    /// AWS bucket names are global, so every AWS region is one namespace.
+    /// The server as scheme, host, port and path, so two servers sharing a host
+    /// name stay distinct. AWS bucket names are global within a partition.
     var endpointIdentity: String {
-        resolvedEndpoint.flatMap { URL(string: $0)?.host?.lowercased() } ?? "aws"
+        guard let endpoint = resolvedEndpoint, let url = URL(string: endpoint), let host = url.host?.lowercased() else {
+            return "aws:" + Self.awsPartition(of: effectiveRegion)
+        }
+        let scheme = url.scheme?.lowercased() ?? "https"
+        let port = url.port ?? (scheme == "http" ? 80 : 443)
+        let path = url.path.hasSuffix("/") ? String(url.path.dropLast()) : url.path
+        return "\(scheme)://\(host):\(port)\(path)"
+    }
+
+    private static func awsPartition(of region: String) -> String {
+        if region.hasPrefix("cn-") { return "aws-cn" }
+        if region.hasPrefix("us-gov-") { return "aws-us-gov" }
+        if region.hasPrefix("us-isob-") { return "aws-iso-b" }
+        if region.hasPrefix("us-iso-") { return "aws-iso" }
+        return "aws"
     }
 }
