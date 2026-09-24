@@ -8,7 +8,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct FileRowView: View {
+struct FileRowView: View, Equatable {
     let entry: RFEntry
     let isSelected: Bool
     let isCursor: Bool
