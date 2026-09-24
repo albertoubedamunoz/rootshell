@@ -522,7 +522,7 @@ struct MainView: View {
                     .padding(workspace.terminalInsets)
                     Color.clear.frame(height: workspace.lowerReservation)
                 }
-                .background(DuoInputRegionReporter(region: workspace.inputRegion))
+                .background(DuoInputRegionReporter(region: workspace.inputRegion, fold: workspace.fold))
                 .onChange(of: workspace.tabletopAvailable, initial: true) { _, available in
                     duoTabletopAvailable = available
                     if !available { duoTabletopDisabled = false }

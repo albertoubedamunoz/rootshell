@@ -172,6 +172,7 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
             context: DuoLayoutContext(hasHinge: true), headerHeight: 44
         )
         XCTAssertTrue(layout.tabletopAvailable)
+        XCTAssertEqual(layout.fold, division)
         XCTAssertEqual(bounds.maxY - layout.lowerReservation, division.minY)
         XCTAssertEqual(layout.inputRegion, CGRect(x: 56, y: 520, width: 490, height: 416))
     }
@@ -185,6 +186,8 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
             context: context, headerHeight: 44
         )
         XCTAssertTrue(layout.tabletopAvailable)
+        // The keyboard still rests below the fold without a reservation.
+        XCTAssertEqual(layout.fold, division)
         XCTAssertEqual(layout.lowerReservation, 0)
         XCTAssertNil(layout.inputRegion)
     }

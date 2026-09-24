@@ -42,7 +42,9 @@ struct DuoWorkspaceLayout: Equatable {
     var cameraClearance: CGFloat = 0
     var lowerReservation: CGFloat = 0
     var inputRegion: CGRect?
-    var tabletopAvailable = false
+    /// The horizontal fold, reported even while tabletop mode is disabled.
+    var fold: CGRect?
+    var tabletopAvailable: Bool { fold != nil }
 
     static func resolve(
         bounds: CGRect, safeFrame: CGRect, occlusions: [CGRect], divisions: [CGRect],
@@ -121,7 +123,7 @@ struct DuoWorkspaceLayout: Equatable {
                    && $0.minY - bounds.minY - headerHeight >= 120
                    && bounds.maxY - $0.maxY >= 216
            }) {
-            result.tabletopAvailable = true
+            result.fold = division
             if !context.tabletopDisabled {
                 result.lowerReservation = bounds.maxY - division.minY
                 result.inputRegion = CGRect(

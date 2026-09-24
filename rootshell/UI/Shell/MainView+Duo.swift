@@ -14,30 +14,11 @@ extension MainView {
 
     var showsDuoSideRail: Bool { duoLayout.usesSideRail && !tabBarHidden }
 
-    var duoTabletopButton: some View {
-        Button {
-            duoTabletopDisabled.toggle()
-        } label: {
-            Image(systemName: "rectangle.split.2x1")
-                .frame(width: TabMetrics.tabBarHeight, height: TabMetrics.tabBarHeight)
-                .foregroundStyle(duoTabletopDisabled ? Color.secondary : Color.accentColor)
-        }
-        .accessibilityLabel("Tabletop Mode")
-        .accessibilityValue(duoTabletopDisabled ? "Off" : "On")
-        .help("Tabletop Mode")
-    }
-
     @ViewBuilder
     func applyDuoChrome<Content: View>(_ content: Content) -> some View {
         #if !targetEnvironment(macCatalyst) && !os(visionOS)
         if #available(iOS 27.1, *) {
             content
-                .overlay(alignment: .topTrailing) {
-                    if duoTabletopAvailable && !showsDuoSideRail && !showsHorizontalTabHeader {
-                        duoTabletopButton
-                            .padding(8)
-                    }
-                }
                 .toolbarVisibility(showsDuoSideRail ? .visible : .hidden, for: .navigationBar)
                 .toolbar {
                     if showsDuoSideRail {
@@ -141,16 +122,21 @@ private struct DuoTabProgress: View {
 /// the custom keyboard's lower-region constraints.
 struct DuoInputRegionReporter: UIViewRepresentable {
     let region: CGRect?
+    /// UIKit places every keyboard below the fold whether or not tabletop mode
+    /// reserves a region for it.
+    let fold: CGRect?
 
     func makeUIView(context: Context) -> RegionView { RegionView() }
     func updateUIView(_ view: RegionView, context: Context) {
         view.region = region
+        view.fold = fold
         view.setNeedsLayout()
     }
     static func dismantleUIView(_ view: RegionView, coordinator: ()) { view.clear() }
 
     final class RegionView: UIView {
         var region: CGRect?
+        var fold: CGRect?
         private weak var previousWindow: UIWindow?
         override func layoutSubviews() {
             super.layoutSubviews()
@@ -158,15 +144,15 @@ struct DuoInputRegionReporter: UIViewRepresentable {
             if previousWindow !== window { clear() }
             previousWindow = window
             if let window {
-                TerminalTouchKeyboardWindowState.forWindow(window)
-                    .setInputRegion(region.map { convert($0, to: window) })
+                TerminalTouchKeyboardWindowState.forWindow(window).setInputRegion(
+                    region.map { convert($0, to: window) }, fold: fold.map { convert($0, to: window) })
             }
             #endif
         }
         func clear() {
             #if !targetEnvironment(macCatalyst) && !os(visionOS)
             if let previousWindow {
-                TerminalTouchKeyboardWindowState.forWindow(previousWindow).setInputRegion(nil)
+                TerminalTouchKeyboardWindowState.forWindow(previousWindow).setInputRegion(nil, fold: nil)
             }
             #endif
             previousWindow = nil

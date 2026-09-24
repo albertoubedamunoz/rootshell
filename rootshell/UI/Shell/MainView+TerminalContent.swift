@@ -1343,8 +1343,10 @@ extension MainView {
         }
         .frame(width: width)
         // Disable SwiftUI's automatic keyboard avoidance - we handle it manually via terminalBottomPadding
-        // which correctly distinguishes docked vs undocked keyboards
-        .ignoresSafeArea(.keyboard)
+        // which correctly distinguishes docked vs undocked keyboards.
+        // A tabletop keyboard frame starts at the terminal's bottom edge, so
+        // ignoring it would expand the terminal across the reserved pane.
+        .ignoresSafeArea(.keyboard, edges: duoTabletopAvailable && !duoTabletopDisabled ? [] : .all)
     }
 
     /// Default width of the docked (pinned) tab sidebar column, and the target

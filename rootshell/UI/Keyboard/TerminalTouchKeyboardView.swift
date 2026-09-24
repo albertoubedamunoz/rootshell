@@ -254,6 +254,18 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     var floatingAvailableHeight: CGFloat = 1000 {
         didSet { if abs(oldValue - floatingAvailableHeight) > 0.5 { setNeedsLayout() } }
     }
+    /// UIKit fixes a docked input view's height while the Duo's fold divides
+    /// the display, ignoring self-sizing. Set by the owning window.
+    var fillsHostHeight = false {
+        didSet {
+            guard oldValue != fillsHostHeight else { return }
+            if !fillsHostHeight { hostFill = nil }
+            setNeedsLayout()
+        }
+    }
+    /// Row height and top remainder for a height UIKit fixed; nil when self-sizing.
+    private var hostFill: (rowHeight: CGFloat, top: CGFloat)?
+    private var contentTop: CGFloat { hostFill?.top ?? 0 }
 
     private(set) var isToolbarOnly = false
     private var toolbarBottomInset: CGFloat = 0
@@ -460,6 +472,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
     private var compact: Bool { traitCollection.verticalSizeClass == .compact }
     private var rowHeight: CGFloat {
+        if let hostFill, !isToolbarOnly { return hostFill.rowHeight }
         if isFloating {
             return min(44, max(28, (floatingAvailableHeight - toolbarHeight - 44 - (suggestionsEnabled ? 36 : 0)) / 4))
         }
@@ -473,10 +486,27 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         return max(safeAreaInsets.bottom, window.safeAreaInsets.bottom)
     }
-    private var bottomInset: CGFloat { isFloating ? 44 : (heightSetting.usesBottomSafeArea ? 6 : max(6, deviceBottomInset)) }
+    /// Shorter heights reclaim the home-indicator strip; a fixed height has room to spare.
+    private var extendsIntoBottomSafeArea: Bool { heightSetting.usesBottomSafeArea && !fillsHostHeight }
+    private var bottomInset: CGFloat { isFloating ? 44 : (extendsIntoBottomSafeArea ? 6 : max(6, deviceBottomInset)) }
     private var desiredHeight: CGFloat {
-        isToolbarOnly ? toolbarHeight + toolbarBottomInset
+        // Claim all of a fixed height so the terminal pads for what UIKit shows.
+        if hostFill != nil { return bounds.height }
+        return isToolbarOnly ? toolbarHeight + toolbarBottomInset
             : toolbarHeight + rowHeight * 4 + bottomInset + (suggestionsEnabled ? 36 : 0)
+    }
+
+    private func updateHostFill() {
+        guard fillsHostHeight, !isFloating else {
+            hostFill = nil
+            return
+        }
+        // Keep the last fill through UIKit's zero-size interim layouts.
+        guard bounds.height > 0 else { return }
+        let chrome = toolbarHeight
+            + (isToolbarOnly ? toolbarBottomInset : bottomInset + (suggestionsEnabled ? 36 : 0))
+        let fill = Model.fixedHeightLayout(height: bounds.height, chrome: chrome, rowCount: isToolbarOnly ? 0 : 4)
+        hostFill = (CGFloat(fill.rowHeight), CGFloat(fill.top))
     }
 
     init() {
@@ -895,7 +925,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     /// These are artwork bands, not hit cells: the final band includes the
     /// bottom safe area (or floating grabber) so row-based details reach the edge.
     private var styleBackdropBands: [CGRect] {
-        var bands = [CGRect(x: 0, y: 0, width: bounds.width, height: toolbarHeight)]
+        var bands = [CGRect(x: 0, y: contentTop, width: bounds.width, height: toolbarHeight)]
         if !isToolbarOnly {
             if drawerOpen {
                 bands.append(drawer.frame)
@@ -1063,15 +1093,17 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             rebuildKeys()
             rebuildDrawer()
         }
+        updateHostFill()
+        let top = contentTop
         let leading = isFloating ? 0 : max(safeAreaInsets.left, window?.safeAreaInsets.left ?? 0)
         let trailing = isFloating ? 0 : max(safeAreaInsets.right, window?.safeAreaInsets.right ?? 0)
         let width = max(0, bounds.width - leading - trailing)
-        background.frame = isFloating ? bounds : CGRect(x: 0, y: toolbarHeight, width: bounds.width, height: max(0, bounds.height - toolbarHeight))
+        background.frame = isFloating ? bounds : CGRect(x: 0, y: top + toolbarHeight, width: bounds.width, height: max(0, bounds.height - top - toolbarHeight))
         background.layer.maskedCorners = isFloating ? [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner] : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         if isFloating { layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: 24).cgPath }
         grabber.isHidden = !isFloating
         grabber.frame = CGRect(x: (bounds.width - 88) / 2, y: bounds.height - 44, width: 88, height: 44)
-        controlGlass.frame = CGRect(x: leading + 2, y: 2, width: max(0, width - 4), height: toolbarHeight - 4)
+        controlGlass.frame = CGRect(x: leading + 2, y: top + 2, width: max(0, width - 4), height: toolbarHeight - 4)
         controlGlass.layer.cornerRadius = min(22, (keyboardHeight.toolbarRowHeight - 4) / 2)
         layoutBackgroundEffect()
         let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: width, drawerToggle: configuredDrawerToggle)
@@ -1081,7 +1113,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             rebuildDrawer()
             setNeedsLayout()
         }
-        for (cap, rect) in zip(controls, Model.frames(keys: controls.map(\.key), width: width, y: toolbarDrawerHeight, height: keyboardHeight.toolbarRowHeight, inset: 5)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
+        for (cap, rect) in zip(controls, Model.frames(keys: controls.map(\.key), width: width, y: top + toolbarDrawerHeight, height: keyboardHeight.toolbarRowHeight, inset: 5)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
         if let cap = controls.first(where: { $0.key.action == .toolbar(KeyID.writingAssistance.keyValue) }) {
             writingAssistanceButton.frame = cap.frame
             writingAssistanceButton.isHidden = false
@@ -1090,10 +1122,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             layoutToolbarDrawer(row, buttons: toolbarDrawerButtons[index], position: index,
                                 leading: leading, width: width)
         }
-        var y = toolbarHeight
+        var y = top + toolbarHeight
         let contentHeight = rowHeight * 4 + (suggestionsEnabled ? 36 : 0)
         // This HUD floats over the keys; it never contributes to keyboard height.
-        pageIndicator.frame = CGRect(x: leading + (width - 160) / 2, y: toolbarHeight + (contentHeight - 64) / 2, width: 160, height: 64)
+        pageIndicator.frame = CGRect(x: leading + (width - 160) / 2, y: y + (contentHeight - 64) / 2, width: 160, height: 64)
         let dotSpacing: CGFloat = 14
         func styleDot(_ dot: UIView, center: CGPoint, current: Bool) {
             let size: CGFloat = current ? 8 : 6
@@ -1157,7 +1189,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         rows.flatMap { $0 }.forEach { $0.isHidden = isToolbarOnly || drawerOpen }
         for (index, row) in rows.enumerated() {
             var inset: CGFloat = index == 1 && page == .letters ? width / 20 + 2 : 2
-            if index == 3, heightSetting.usesBottomSafeArea, traitCollection.userInterfaceIdiom == .phone {
+            if index == 3, extendsIntoBottomSafeArea, traitCollection.userInterfaceIdiom == .phone {
                 // Keep the entire bottom row at its normal height while fitting
                 // its end keys inside the rounded screen corners.
                 inset = max(2, min(width / 10, deviceBottomInset - min(leading, trailing)))
@@ -1807,7 +1839,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         let point = touch.location(in: self)
         // Toolbar joysticks, presets, and the floating handle
         // keep their own gestures. Only the key surface changes pages.
-        guard point.y >= toolbarHeight, point.y < bounds.height - bottomInset,
+        guard point.y >= contentTop + toolbarHeight, point.y < bounds.height - bottomInset,
               touch.view !== presets, touch.view?.isDescendant(of: presets) != true else { return false }
         #if canImport(FluidAudio) && !CHINA_BUILD
         // A held mic is push-to-talk; sliding off it must not change pages.
@@ -1960,7 +1992,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private func layoutToolbarDrawer(_ row: UIScrollView, buttons: [TerminalTouchDrawerButton],
                                      position: Int, leading: CGFloat, width: CGFloat) {
         let rowHeight = keyboardHeight.toolbarDrawerRowHeight
-        row.frame = CGRect(x: leading + 5, y: CGFloat(position) * rowHeight, width: max(0, width - 10), height: rowHeight)
+        row.frame = CGRect(x: leading + 5, y: contentTop + CGFloat(position) * rowHeight, width: max(0, width - 10), height: rowHeight)
         // Snap to the main toolbar row's columns so drawer keys sit under its keys,
         // whether or not the row scrolls. Long titles span whole columns.
         let unit = max(1, row.bounds.width / max(1, controls.reduce(0) { $0 + $1.key.weight }))

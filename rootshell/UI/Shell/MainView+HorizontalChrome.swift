@@ -36,9 +36,6 @@ extension MainView {
                 .blockWindowDrag(when: usesTitlebarTabs)
 #endif
 
-            if duoTabletopAvailable && !showsDuoSideRail {
-                duoTabletopButton
-            }
             if usesCompactTabSpacing {
                 tabBarAddButton(theme: resolvedTheme)
                 integratedTabBarDragRegion()

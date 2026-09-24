@@ -924,6 +924,22 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         }
     }
 
+    func testFixedHostHeightKeepsKeysOnTheBottomEdge() {
+        // Duo laptop pose: UIKit fixes the input view at 445pt.
+        // Full height: 48pt toolbar and a 34pt home-indicator inset.
+        let roomy = Model.fixedHeightLayout(height: 445, chrome: 82, rowCount: 4)
+        XCTAssertEqual(roomy.rowHeight, 80, accuracy: 0.001)
+        XCTAssertEqual(roomy.top, 43, accuracy: 0.001)
+        // Two drawer rows: rows shrink to fit instead of spilling below.
+        let drawers = Model.fixedHeightLayout(height: 445, chrome: 170, rowCount: 4)
+        XCTAssertEqual(drawers.rowHeight, 68.75, accuracy: 0.001)
+        XCTAssertEqual(drawers.top, 0, accuracy: 0.001)
+        XCTAssertEqual(drawers.top + 170 + drawers.rowHeight * 4, 445, accuracy: 0.001)
+        // A toolbar-only host moves its toolbar down to the bottom edge.
+        let toolbar = Model.fixedHeightLayout(height: 445, chrome: 48, rowCount: 0)
+        XCTAssertEqual(toolbar.top, 397, accuracy: 0.001)
+    }
+
     func testQWERTYOrderAndSpaceWidth() {
         let rows = Model.rows(page: .letters)
         XCTAssertEqual(rows[0].map(\.title).joined(), "qwertyuiop")

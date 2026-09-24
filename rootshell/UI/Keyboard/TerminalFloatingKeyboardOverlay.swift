@@ -1,6 +1,11 @@
 #if !os(visionOS) && !targetEnvironment(macCatalyst)
 import UIKit
 
+extension Notification.Name {
+    /// Posted with the window whose Duo fold appeared, moved, or went away.
+    static let terminalFoldRegionDidChange = Notification.Name("terminalFoldRegionDidChange")
+}
+
 /// Keyboard events forwarded to whichever controller currently owns the
 /// window's keyboard. Owners change on every focus handoff; the closures
 /// installed on the keyboard never do.
@@ -31,6 +36,9 @@ final class TerminalTouchKeyboardWindowState {
     var overlay: TerminalFloatingKeyboardOverlay?
     /// Optional tabletop input region, expressed in this app window's coordinates.
     private(set) var inputRegion: CGRect?
+    /// The Duo's fold in this window's coordinates, even when tabletop mode
+    /// reserves no region.
+    private(set) var foldRegion: CGRect?
 
     private(set) lazy var keyboard: TerminalTouchKeyboardView = makeKeyboard()
     private(set) lazy var input: TerminalTouchKeyboardInputView = makeInput()
@@ -55,7 +63,14 @@ final class TerminalTouchKeyboardWindowState {
         return state
     }
 
-    func setInputRegion(_ region: CGRect?) {
+    func setInputRegion(_ region: CGRect?, fold: CGRect?) {
+        if foldRegion != fold {
+            let changesActivity = (foldRegion == nil) != (fold == nil)
+            foldRegion = fold
+            // Never create the keyboard just to clear a flag it would default to.
+            if changesActivity { keyboard.fillsHostHeight = fold != nil }
+            NotificationCenter.default.post(name: .terminalFoldRegionDidChange, object: window)
+        }
         guard inputRegion != region else { return }
         inputRegion = region
         overlay?.inputRegion = region
@@ -112,6 +127,7 @@ final class TerminalTouchKeyboardWindowState {
 
     private func makeKeyboard() -> TerminalTouchKeyboardView {
         let keyboard = TerminalTouchKeyboardView()
+        keyboard.fillsHostHeight = foldRegion != nil
         keyboard.setBackgroundEffectSurface(nil)
         keyboard.onModifiersChanged = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.modifiersChanged($0)) }
         keyboard.onDismiss = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.dismiss) }
