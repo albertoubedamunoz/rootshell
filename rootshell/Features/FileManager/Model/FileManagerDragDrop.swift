@@ -38,7 +38,10 @@ extension FileManagerModel {
         provider.suggestedName = first.name
         if pane.endpoint.isLocal, !first.isDirectory {
             let url = URL(fileURLWithPath: LocalPathResolver.current().resolve(first.path))
-            return NSItemProvider(contentsOf: url) ?? provider
+            guard let fileProvider = NSItemProvider(contentsOf: url) else { return provider }
+            // handleDrop recognizes a pane-to-pane drag by this name.
+            fileProvider.suggestedName = first.name
+            return fileProvider
         }
         guard !first.isDirectory else { return provider }
         let type = UTType(filenameExtension: first.fileExtension) ?? .data
