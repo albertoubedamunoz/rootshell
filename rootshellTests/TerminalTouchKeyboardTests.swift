@@ -89,13 +89,15 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertTrue(state.modifiers.isActive(.alt), "Saving must not mutate the outgoing value")
     }
 
-    private func geometry(width: Double = 390, page: Model.Page = .letters, typingTop: Double = 0) -> Model.TypingGeometry {
-        let targets = Model.rows(page: page).enumerated().flatMap { index, row in
-            let frames = Model.frames(keys: row, width: width, y: typingTop + Double(index) * 54, height: 54,
+    /// Production hit geometry, including row touch correction.
+    private func geometry(width: Double = 390, page: Model.Page = .letters, typingTop: Double = 0,
+                          overhang: CGFloat = 0) -> Model.TypingGeometry {
+        let keys = Model.rows(page: page)
+        let frames = keys.enumerated().map { index, row in
+            Model.frames(keys: row, width: width, y: typingTop + Double(index) * 54, height: 54,
                 inset: page == .letters && index == 1 ? width / 20 + 2 : 2)
-            return zip(row, frames).map { Model.HitTarget(key: $0.0, frame: $0.1) }
         }
-        return .init(targets: targets, bounds: CGRect(x: 0, y: typingTop, width: width, height: 216))
+        return Model.typingGeometry(keys: keys, frames: frames, minX: 0, width: width, overhang: overhang)
     }
 
     func testSmallDriftAcrossLetterBoundaryKeepsOriginalSelectionAtRelease() {
@@ -161,9 +163,7 @@ final class TerminalTouchKeyboardTests: XCTestCase {
     }
 
     func testTopRowClaimsOverhangAboveIt() {
-        let rows = geometry(typingTop: 48)
-        let g = Model.TypingGeometry(targets: rows.targets, bounds: CGRect(
-            x: 0, y: 48 - Model.topRowOverhang, width: 390, height: 216 + Model.topRowOverhang))
+        let g = geometry(typingTop: 48, overhang: Model.topRowOverhang)
         XCTAssertEqual(g.hit(at: CGPoint(x: 20, y: 48 - Model.topRowOverhang + 0.5)), 0)
         XCTAssertNil(g.hit(at: CGPoint(x: 20, y: 48 - Model.topRowOverhang - 0.5)))
     }
@@ -242,6 +242,27 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         }
     }
 
+    func testPredictionReachScalesWithPriorStrengthButNeverEntersTheCore() {
+        let g = geometry()
+        let w = g.targets[1].frame
+        let strong = Model.LetterPrior(prefix: "th", completions: ["the", "there", "them", "then"])
+        let weak = Model.LetterPrior(prefix: "th", completions: ["the", "thw"])
+        XCTAssertEqual(g.predictedHit(at: CGPoint(x: w.maxX - 0.5, y: w.midY), prior: weak), 2)
+        XCTAssertEqual(g.predictedHit(at: CGPoint(x: w.maxX - 4, y: w.midY), prior: weak), 1)
+        XCTAssertEqual(g.predictedHit(at: CGPoint(x: w.maxX - 4, y: w.midY), prior: strong), 2)
+        let core = CGPoint(x: w.maxX - w.width * 0.25 - 0.5, y: w.midY)
+        XCTAssertEqual(g.predictedHit(at: core, prior: strong), 1)
+    }
+
+    func testRowChangeNeedsDeeperSlideThanColumnChange() {
+        let g = geometry()
+        var contact = Model.TouchSelection(point: CGPoint(x: 40, y: 27), selected: 0, modifiers: 0)
+        XCTAssertFalse(contact.move(to: CGPoint(x: 40, y: 66), in: g, dockedPad: false))
+        XCTAssertEqual(contact.selected, 0)
+        XCTAssertTrue(contact.move(to: CGPoint(x: 40, y: 80), in: g, dockedPad: false))
+        XCTAssertEqual(contact.selected, 10)
+    }
+
     func testPredictionCannotPullFromDistantKeysOrOverrideDeliberateSlides() {
         let g = geometry()
         let prior = Model.LetterPrior(prefix: "th", completions: ["the", "there", "them"])
@@ -304,7 +325,8 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         for (letter, start, end) in traces {
             let initial = g.hit(at: start)!
             XCTAssertEqual(g.targets[initial].key.letter, letter)
-            XCTAssertEqual(g.targets[g.hit(at: end)!].key.letter, "k")
+            // Row correction can already keep the lowest end on the initial key.
+            XCTAssertTrue(["k", letter].contains(g.targets[g.hit(at: end)!].key.letter))
             for prior in [nil, Model.LetterPrior(prefix: "ttp", completions: [])] {
                 var contact = Model.TouchSelection(point: start, selected: initial, modifiers: 0, prior: prior)
                 XCTAssertEqual(contact.finish(at: end, in: g, dockedPad: false), initial)
@@ -685,12 +707,47 @@ final class TerminalTouchKeyboardTests: XCTestCase {
     }
 
     func testPageSwipeRequiresDeliberateHorizontalMovement() {
-        XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: -100, y: 10)), 1)
-        XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: 100, y: -10)), -1)
-        XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: 40, y: 0)))
-        XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: 100, y: 70)))
-        XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: 100, y: 0)), -1)
-        XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: 0, y: 100)))
+        XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: -100, y: 10), duration: 0.1), 1)
+        XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: 100, y: -10), duration: 0.1), -1)
+        XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: 40, y: 0), duration: 0.1))
+        XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: 100, y: 70), duration: 0.1))
+        XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: 100, y: 0), duration: 0.1), -1)
+        XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: 0, y: 100), duration: 0.1))
+        XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: -100, y: 0), duration: 0.5), "A slow drag is not a swipe")
+    }
+
+    func testBounceFilterOnlyDropsImmediateNearbyDowns() {
+        let up = CGPoint(x: 100, y: 100)
+        XCTAssertTrue(Model.isTouchBounce(down: CGPoint(x: 105, y: 104), at: 1.03, lastUp: up, at: 1))
+        XCTAssertFalse(Model.isTouchBounce(down: CGPoint(x: 105, y: 104), at: 1.05, lastUp: up, at: 1))
+        XCTAssertFalse(Model.isTouchBounce(down: CGPoint(x: 120, y: 100), at: 1.01, lastUp: up, at: 1))
+    }
+
+    func testMidWordToolbarHitsMustBeClearlyInside() {
+        let frame = CGRect(x: 0, y: 0, width: 40, height: 48)
+        XCTAssertTrue(Model.isClearlyInside(CGPoint(x: 20, y: 24), frame))
+        XCTAssertFalse(Model.isClearlyInside(CGPoint(x: 3, y: 24), frame))
+        XCTAssertFalse(Model.isClearlyInside(CGPoint(x: 20, y: 45), frame))
+    }
+
+    func testMergedDriftIsFastHorizontalTravel() {
+        let key = CGSize(width: 38.6, height: 54)
+        let origin = CGPoint(x: 20, y: 27)
+        XCTAssertTrue(Model.isMergedDrift(from: origin, to: CGPoint(x: 60, y: 30), elapsed: 0.03, keySize: key))
+        XCTAssertFalse(Model.isMergedDrift(from: origin, to: CGPoint(x: 60, y: 30), elapsed: 0.2, keySize: key), "Deliberate slide")
+        XCTAssertFalse(Model.isMergedDrift(from: origin, to: CGPoint(x: 30, y: 27), elapsed: 0.03, keySize: key), "Finger roll")
+        XCTAssertFalse(Model.isMergedDrift(from: origin, to: CGPoint(x: 30, y: 70), elapsed: 0.03, keySize: key), "Vertical")
+    }
+
+    func testLetterRowHitFramesShiftDownWithoutGaps() {
+        let rows = (0..<4).map { row in [CGRect(x: 0, y: Double(row) * 54, width: 40, height: 54)] }
+        let frames = Model.touchCorrectedFrames(rows).map { $0[0] }
+        XCTAssertEqual(frames[0].minY, 0)
+        XCTAssertEqual(frames[0].maxY, 54 + 0.038 * 54, accuracy: 0.001)
+        XCTAssertEqual(frames[1].maxY, 108 + 0.088 * 54, accuracy: 0.001)
+        for index in 1..<4 { XCTAssertEqual(frames[index].minY, frames[index - 1].maxY, accuracy: 0.001) }
+        XCTAssertEqual(frames[2].maxY, 162, "Space's top edge stays put")
+        XCTAssertEqual(frames[3], rows[3][0])
     }
 
     func testChangingPagesKeepsLatchedModifiersButReleasesHeldTouches() {
