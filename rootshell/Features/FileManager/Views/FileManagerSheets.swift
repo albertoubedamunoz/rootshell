@@ -11,19 +11,20 @@ import SwiftUI
 
 // MARK: - Locations
 
-/// A place the file manager can open: this device, the origin pane's session, or an SSH profile.
+/// A place the file manager can open: this device, the origin pane's session,
+/// an SSH profile, or a storage provider.
 struct FileManagerLocation: Identifiable {
     let id: String
-    let endpoint: SFTPEndpoint
+    let endpoint: FileEndpoint
     let title: String
     let detail: String?
     let symbol: String
 
-    static func all(origin: SFTPEndpoint.PaneSource?) -> [FileManagerLocation] {
+    static func all(origin: FileEndpoint.PaneSource?) -> [FileManagerLocation] {
         var result: [FileManagerLocation] = [
-            FileManagerLocation(id: "local", endpoint: .local, title: SFTPEndpoint.local.displayName, detail: nil, symbol: "internaldrive"),
+            FileManagerLocation(id: "local", endpoint: .local, title: FileEndpoint.local.displayName, detail: nil, symbol: "internaldrive"),
         ]
-        if let origin, origin.terminal != nil, !SFTPEndpoint.pane(origin).isLocal {
+        if let origin, origin.terminal != nil, !FileEndpoint.pane(origin).isLocal {
             result.append(FileManagerLocation(
                 id: "pane", endpoint: .pane(origin), title: origin.displayName,
                 detail: String(localized: "Current terminal connection", comment: "File manager location picker: reuse the pane's session"),
@@ -40,6 +41,14 @@ struct FileManagerLocation: Identifiable {
             result.append(FileManagerLocation(
                 id: profile.id.uuidString, endpoint: .profile(profile.id), title: profile.name,
                 detail: host + via + transport, symbol: profile.iconName ?? profile.connectionProtocol.iconName
+            ))
+        }
+        for provider in StorageProviderStore.shared.providers {
+            let endpoint = FileEndpoint.storage(provider.id)
+            let scope = provider.effectiveBucket ?? String(localized: "All buckets", comment: "File manager location picker: storage provider without a fixed bucket")
+            result.append(FileManagerLocation(
+                id: "storage:\(provider.id.uuidString)", endpoint: endpoint, title: provider.displayName,
+                detail: "\(provider.preset.name) · \(scope)", symbol: endpoint.symbol
             ))
         }
         return result
@@ -77,7 +86,7 @@ struct EndpointPickerSheet: View {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                     SidebarSearchField(
                         text: $query,
-                        placeholder: String(localized: "Search profiles", comment: "File manager location picker placeholder"),
+                        placeholder: String(localized: "Search locations", comment: "File manager location picker placeholder"),
                         fontSize: 16,
                         canFocus: true,
                         focusRequestID: KeyboardTracker.shared.isHardwareKeyboard ? focusRequest : 0,

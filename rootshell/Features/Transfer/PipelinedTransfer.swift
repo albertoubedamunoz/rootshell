@@ -24,6 +24,18 @@ nonisolated protocol ChunkReader: Sendable {
 nonisolated protocol ChunkWriter: Sendable {
     func write(_ data: Data, at offset: UInt64) async throws
     func close() async throws
+    /// Gives up on a failed copy instead of closing.
+    func abort() async
+    /// True when a failed or aborted write leaves any existing destination untouched.
+    var replacesAtomically: Bool { get }
+}
+
+nonisolated extension ChunkWriter {
+    func abort() async {
+        try? await close()
+    }
+
+    var replacesAtomically: Bool { false }
 }
 
 /// Pipelined transfer operations that overlap multiple read/write requests
@@ -45,6 +57,13 @@ enum PipelinedTransfer {
     /// Wraps local filesystem I/O failures so callers can distinguish them from SFTP errors.
     nonisolated struct LocalIOError: Error {
         let underlying: Error
+    }
+
+    /// The source ended before its known size.
+    nonisolated struct TruncatedSourceError: LocalizedError {
+        var errorDescription: String? {
+            String(localized: "The file got shorter while it was being copied.", comment: "File transfer error")
+        }
     }
 
     // MARK: - Sendable Wrapper
@@ -150,7 +169,9 @@ enum PipelinedTransfer {
                     while offset < rangeEnd {
                         try Task.checkCancellation()
                         let data = try await reader.read(at: offset, length: UInt32(rangeEnd - offset))
-                        if data.isEmpty { break }
+                        // The file shrank mid-copy: fail, which also cancels chunks
+                        // still waiting on this one, rather than finish short.
+                        if data.isEmpty { throw TruncatedSourceError() }
                         try await writer.write(data, at: offset)
                         offset += UInt64(data.count)
                     }

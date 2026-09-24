@@ -37,6 +37,20 @@ nonisolated enum FileTransferLogic {
         return slash == trimmed.startIndex ? "/" : String(trimmed[..<slash])
     }
 
+    /// Absolute form with `.`, `..` and repeated slashes removed, purely lexically
+    /// (unlike `standardizingPath`, which consults the local disk).
+    static func normalize(_ path: String) -> String {
+        var components: [Substring] = []
+        for component in path.split(separator: "/", omittingEmptySubsequences: true) {
+            switch component {
+            case ".": continue
+            case "..": _ = components.popLast()
+            default: components.append(component)
+            }
+        }
+        return "/" + components.joined(separator: "/")
+    }
+
     /// Maps `path` under `sourceRoot` to the same place under `destinationRoot`.
     static func destination(for path: String, sourceRoot: String, destinationRoot: String) -> String {
         guard path != sourceRoot else { return destinationRoot }
