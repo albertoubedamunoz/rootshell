@@ -91,13 +91,14 @@ final class TerminalTouchKeyboardTests: XCTestCase {
 
     /// Production hit geometry, including row touch correction.
     private func geometry(width: Double = 390, page: Model.Page = .letters, typingTop: Double = 0,
-                          overhang: CGFloat = 0) -> Model.TypingGeometry {
+                          overhang: CGFloat = 0, touchCorrection: Bool = true) -> Model.TypingGeometry {
         let keys = Model.rows(page: page)
         let frames = keys.enumerated().map { index, row in
             Model.frames(keys: row, width: width, y: typingTop + Double(index) * 54, height: 54,
                 inset: page == .letters && index == 1 ? width / 20 + 2 : 2)
         }
-        return Model.typingGeometry(keys: keys, frames: frames, minX: 0, width: width, overhang: overhang)
+        return Model.typingGeometry(keys: keys, frames: frames, minX: 0, width: width, overhang: overhang,
+                                    touchCorrection: touchCorrection)
     }
 
     func testSmallDriftAcrossLetterBoundaryKeepsOriginalSelectionAtRelease() {
@@ -737,6 +738,33 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertFalse(Model.isMergedDrift(from: origin, to: CGPoint(x: 60, y: 30), elapsed: 0.2, keySize: key), "Deliberate slide")
         XCTAssertFalse(Model.isMergedDrift(from: origin, to: CGPoint(x: 30, y: 27), elapsed: 0.03, keySize: key), "Finger roll")
         XCTAssertFalse(Model.isMergedDrift(from: origin, to: CGPoint(x: 30, y: 70), elapsed: 0.03, keySize: key), "Vertical")
+    }
+
+    func testMergedDriftUsesTypicalKeyAndNeedsANewKey() {
+        for width in [320.0, 390, 1024] {
+            let g = geometry(width: width)
+            XCTAssertEqual(g.typicalKeySize.width, g.targets[0].frame.width, accuracy: 0.5, "width=\(width)")
+            let space = g.targets.firstIndex { $0.key.action == .text(" ") }!
+            let spaceFrame = g.targets[space].frame
+            let returnFrame = g.targets.first { $0.key.action == .key("\r") }!.frame
+            // Measured against Space's own size, this split would be out of reach.
+            let edge = CGPoint(x: spaceFrame.maxX - 10, y: spaceFrame.midY)
+            XCTAssertTrue(g.splitsMergedDrift(from: edge, to: CGPoint(x: returnFrame.midX, y: returnFrame.midY),
+                                              elapsed: 0.03, selected: space), "width=\(width)")
+            // A fast slide that stays on Space is still one press, so one space.
+            let center = CGPoint(x: spaceFrame.midX, y: spaceFrame.midY)
+            XCTAssertFalse(g.splitsMergedDrift(from: center, to: CGPoint(x: center.x + 40, y: center.y),
+                                               elapsed: 0.03, selected: space), "width=\(width)")
+        }
+        XCTAssertFalse(Model.isMergedDrift(from: .zero, to: CGPoint(x: 90, y: 0), elapsed: 0.03, keySize: .zero))
+    }
+
+    func testDockedTabletKeepsUncorrectedHitFrames() {
+        let g = geometry(width: 1024, touchCorrection: false)
+        for (index, target) in g.targets.enumerated() {
+            XCTAssertEqual(target.frame.minY, CGFloat(index < 10 ? 0 : index < 19 ? 54 : index < 28 ? 108 : 162))
+            XCTAssertEqual(target.frame.height, 54)
+        }
     }
 
     func testLetterRowHitFramesShiftDownWithoutGaps() {

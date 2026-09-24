@@ -260,6 +260,17 @@ nonisolated enum TerminalTouchKeyboardModel {
     struct TypingGeometry {
         let targets: [HitTarget]
         let bounds: CGRect
+        /// An ordinary one-unit key (LatinIME's "most common key"), so size-relative
+        /// rules don't loosen on wide keys like Space.
+        let typicalKeySize: CGSize
+
+        init(targets: [HitTarget], bounds: CGRect) {
+            self.targets = targets
+            self.bounds = bounds
+            let sizes = targets.filter { $0.key.isText && $0.key.weight == 1 }.map(\.frame.size)
+            func median(_ values: [CGFloat]) -> CGFloat { values.isEmpty ? 0 : values.sorted()[values.count / 2] }
+            typicalKeySize = CGSize(width: median(sizes.map(\.width)), height: median(sizes.map(\.height)))
+        }
 
         private func distance(_ point: CGPoint, to rect: CGRect) -> CGFloat {
             hypot(max(rect.minX - point.x, 0, point.x - rect.maxX),
@@ -272,6 +283,13 @@ nonisolated enum TerminalTouchKeyboardModel {
             // Recover unclaimed margins without enlarging action keys.
             return targets.indices.filter { targets[$0].key.isText && distance(point, to: targets[$0].frame) <= 17 }
                 .min { distance(point, to: targets[$0].frame) < distance(point, to: targets[$1].frame) }
+        }
+
+        /// Fast drift onto another key is two merged taps; drift within one
+        /// wide key such as Space is still a single press.
+        func splitsMergedDrift(from origin: CGPoint, to point: CGPoint, elapsed: TimeInterval, selected: Int?) -> Bool {
+            guard let destination = hit(at: point), destination != selected else { return false }
+            return TerminalTouchKeyboardModel.isMergedDrift(from: origin, to: point, elapsed: elapsed, keySize: typicalKeySize)
         }
 
         func textHit(at point: CGPoint) -> Int? {
@@ -509,7 +527,8 @@ nonisolated enum TerminalTouchKeyboardModel {
     /// mostly horizontal travel of half a key diagonal is not a finger roll.
     static func isMergedDrift(from origin: CGPoint, to point: CGPoint, elapsed: TimeInterval, keySize: CGSize) -> Bool {
         let dx = abs(point.x - origin.x), dy = abs(point.y - origin.y)
-        return elapsed <= mergeWindow && dx >= dy && hypot(dx, dy) >= 0.53 * hypot(keySize.width, keySize.height)
+        let diagonal = hypot(keySize.width, keySize.height)
+        return diagonal > 0 && elapsed <= mergeWindow && dx >= dy && hypot(dx, dy) >= 0.53 * diagonal
     }
 
     /// Taps land below key centres on the letter rows, so the boundaries under
@@ -529,11 +548,13 @@ nonisolated enum TerminalTouchKeyboardModel {
     }
 
     /// Hit geometry for laid-out rows. `overhang` extends the top row upward.
+    /// The row correction is phone data; LatinIME ships none for tablets.
     static func typingGeometry(keys: [[Key]], frames: [[CGRect]], minX: CGFloat, width: CGFloat,
-                               overhang: CGFloat) -> TypingGeometry {
+                               overhang: CGFloat, touchCorrection: Bool) -> TypingGeometry {
         let top = frames.first?.first?.minY ?? 0
         let bottom = frames.last?.first?.maxY ?? top
-        let targets = zip(keys.flatMap { $0 }, touchCorrectedFrames(frames).flatMap { $0 })
+        let hitFrames = touchCorrection ? touchCorrectedFrames(frames) : frames
+        let targets = zip(keys.flatMap { $0 }, hitFrames.flatMap { $0 })
             .map { HitTarget(key: $0, frame: $1) }
         return TypingGeometry(targets: targets, bounds: CGRect(x: minX, y: top - overhang, width: width,
                                                               height: bottom - top + overhang))

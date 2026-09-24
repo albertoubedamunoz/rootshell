@@ -1078,7 +1078,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         // Only overhang the toolbar; suggestion buttons keep their full height.
         let geometry = Model.typingGeometry(keys: rows.map { $0.map(\.key) }, frames: rows.map { $0.map(\.frame) },
-            minX: leading, width: width, overhang: suggestionsEnabled ? 0 : Model.topRowOverhang)
+            minX: leading, width: width, overhang: suggestionsEnabled ? 0 : Model.topRowOverhang,
+            touchCorrection: traitCollection.userInterfaceIdiom != .pad || isFloating)
         if typingGeometry.bounds != geometry.bounds || typingGeometry.targets.map(\.frame) != geometry.targets.map(\.frame)
             || typingGeometry.targets.map(\.key) != geometry.targets.map(\.key) {
             if !contacts.isEmpty { cancelInteraction() }
@@ -1246,9 +1247,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             guard validateToolbarContact(contact, touch: touch) else { continue }
             let point = touch.location(in: self)
             if contact.selection != nil, !contact.trackpad, !contact.accent,
-               touchJumped(touch, with: event, in: self) || (contact.fastTyping && Model.isMergedDrift(
+               touchJumped(touch, with: event, in: self) || (contact.fastTyping && typingGeometry.splitsMergedDrift(
                    from: contact.origin, to: point, elapsed: touch.timestamp - contact.began,
-                   keySize: contact.initial.frame.size)) {
+                   selected: contact.selection?.selected)) {
                 rollOver(contact, touch: touch)
                 continue
             }
