@@ -91,6 +91,40 @@ CryptoSwift requires the following acknowledgement:
 | [Yams](https://github.com/kitknox/Yams-rootshell) | Copyright (c) 2016 JP Simard | MIT |
 | [SwiftOpenAI](https://github.com/kitknox/SwiftOpenAI-rootshell) | Copyright (c) 2023 James Rochabrun | MIT; excluded from China builds |
 
+## Cloud storage
+
+| Project | Copyright or acknowledgement | License |
+| --- | --- | --- |
+| [Soto for AWS](https://github.com/soto-project/soto) | Copyright (c) 2017-2026 the Soto project authors | Apache 2.0 |
+| [Soto Core](https://github.com/soto-project/soto-core) | Copyright (c) 2017-2026 the Soto project authors | Apache 2.0 |
+| [Perfect-INIParser](https://github.com/PerfectlySoft/Perfect-INIParser) (in Soto Core) | Copyright (c) 2017 - 2018 PerfectlySoft Inc. and the Perfect project authors | Apache 2.0 |
+| [Expat](https://github.com/libexpat/libexpat) (in Soto Core) | Copyright (c) 1998-2000 Thai Open Source Software Center Ltd and Clark Cooper; Copyright (c) 2001-2019 Expat maintainers | MIT |
+| [swift-extras-base64](https://github.com/swift-extras/swift-extras-base64) (in Soto Core) | Copyright (c) the swift-extras-base64 project authors | Apache 2.0 |
+| [fastbase64](https://github.com/lemire/fastbase64) (in Soto Core) | Copyright (c) 2015-2016, Wojciech Muła, Alfred Klomp, Daniel Lemire | BSD 2-Clause |
+| [stringencoders](https://github.com/client9/stringencoders) (in Soto Core) | Copyright (c) 2016 Nick Galbreath | MIT |
+| [JMESPath for Swift](https://github.com/jmespath/jmespath.swift) | Copyright (c) Adam Fowler | Apache 2.0 |
+| [AsyncHTTPClient](https://github.com/swift-server/async-http-client) | Copyright (c) Apple Inc. and the AsyncHTTPClient project authors | Apache 2.0 |
+
+Soto's NOTICE file states:
+
+> This product uses HummingbirdMustache to generate its source files
+> ([license](https://github.com/hummingbird-project/hummingbird-mustache/blob/main/LICENSE),
+> [homepage](https://github.com/hummingbird-project/hummingbird-mustache)).
+
+Soto Core's NOTICE file states:
+
+> This product contains a copy of INIParser from PerfectlySoft
+> ([license](https://github.com/PerfectlySoft/Perfect-INIParser/blob/master/LICENSE),
+> [homepage](https://github.com/PerfectlySoft/Perfect-INIParser)).
+>
+> This product contains a copy of libexpat
+> ([license](https://github.com/libexpat/libexpat/blob/master/expat/COPYING),
+> [homepage](https://libexpat.github.io/)).
+>
+> This product contains a copy of base64.swift from swift-extras-base64
+> ([license](https://github.com/swift-extras/swift-extras-base64/blob/main/LICENSE),
+> [homepage](https://github.com/swift-extras/swift-extras-base64)).
+
 ## Apple open-source projects
 
 | Project | Copyright or acknowledgement | License |

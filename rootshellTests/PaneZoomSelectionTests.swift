@@ -1,6 +1,50 @@
 import XCTest
 
 final class PaneZoomSelectionTests: XCTestCase {
+    func testSwapExcludesSourceAndKeepsDisplayOrder() throws {
+        var selection = try XCTUnwrap(PaneZoomSelection(paneIDs: [42, 7, 91], excludingPaneID: 7))
+        XCTAssertEqual(selection.paneIDs, [42, 91])
+        XCTAssertEqual(selection.labels, ["1", "2"])
+        XCTAssertEqual(selection.consume("2"), .selected(91))
+    }
+
+    func testTwoPaneSwapHasOneSelectableTarget() throws {
+        var selection = try XCTUnwrap(PaneZoomSelection(paneIDs: [42, 7], excludingPaneID: 42))
+        XCTAssertEqual(selection.labels, ["1"])
+        XCTAssertEqual(selection.consume("1"), .selected(7))
+    }
+
+    func testMissingSwapSourceIsRejected() {
+        XCTAssertNil(PaneZoomSelection(paneIDs: [42, 7], excludingPaneID: 91))
+    }
+
+    func testSwapUsesSameCancellationRulesIncludingEscape() throws {
+        for input in ["\u{1b}", "x", "0", "2", "\r", "\t", "12"] {
+            var selection = try XCTUnwrap(PaneZoomSelection(paneIDs: [42, 7], excludingPaneID: 42))
+            XCTAssertEqual(selection.consume(input), .cancelled)
+            XCTAssertEqual(selection.consume("1"), .cancelled)
+        }
+        var modified = try XCTUnwrap(PaneZoomSelection(paneIDs: [42, 7], excludingPaneID: 42))
+        XCTAssertEqual(modified.consume("1", modified: true), .cancelled)
+    }
+
+    func testSwapPaddingUsesTargetCountNotTotalPaneCount() throws {
+        let nine = try XCTUnwrap(PaneZoomSelection(paneIDs: Array(0..<10), excludingPaneID: 3))
+        XCTAssertEqual(nine.labels, (1...9).map(String.init))
+        var ten = try XCTUnwrap(PaneZoomSelection(paneIDs: Array(0..<11), excludingPaneID: 3))
+        XCTAssertEqual(ten.labels.first, "01")
+        XCTAssertEqual(ten.consume("1"), .pending)
+        XCTAssertEqual(ten.consume("0"), .selected(10))
+    }
+
+    func testSwapCommandPreservesFocusZoomAndScopesBothTargets() throws {
+        XCTAssertEqual(try TmuxPaneZoomCommand.swapCommand(windowID: 4, sourcePaneID: 17, targetPaneID: 29),
+                       "swap-pane -d -Z -s @4.%17 -t @4.%29")
+        for (window, source, target) in [(-1, 1, 2), (0, -1, 2), (0, 1, -1), (0, 1, 1)] {
+            XCTAssertThrowsError(try TmuxPaneZoomCommand.swapCommand(windowID: window, sourcePaneID: source, targetPaneID: target))
+        }
+    }
+
     func testRejectsSinglePaneAndDuplicateIDs() {
         for ids in [[], [1], [1, 1]] {
             XCTAssertNil(PaneZoomSelection(paneIDs: ids))

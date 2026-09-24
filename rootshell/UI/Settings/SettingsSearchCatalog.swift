@@ -45,6 +45,7 @@ enum SettingsSearchDestination: String, Hashable, CaseIterable {
     case localSSHAgent
     case externalSSHAgents
     case cloudProviders
+    case storageProviders
     case wifiAPProviders
     case kubernetesClusters
     case backgroundTunnels
@@ -235,6 +236,9 @@ extension SettingsSearchDestination {
         case .cloudProviders:
             Meta(section: .connections, title: String(localized: "Cloud Providers"), systemImage: "cloud",
                  keywords: ["aws", "azure", "digitalocean", "linode", "add account", "accounts"])
+        case .storageProviders:
+            Meta(section: .connections, title: String(localized: "Storage Providers"), systemImage: "externaldrive.connected.to.line.below",
+                 keywords: ["s3", "bucket", "object storage", "r2", "backblaze", "b2", "wasabi", "minio", "spaces", "file manager"])
         case .wifiAPProviders:
             Meta(section: .connections, title: String(localized: "WiFi AP Providers"), systemImage: "wifi.router",
                  keywords: ["wireless", "access point", "manual ap", "bssid", "vendor", "add account"])
@@ -390,7 +394,7 @@ extension SettingsSection {
         switch self {
         case .appearance: ["theme", "font", "cursor", "window", "colors"]
         case .terminal: ["keyboard", "locale", "prompt", "sessions"]
-        case .connections: ["ssh", "cloud", "vpn", "hosts", "tmux", "vnc", "screen sharing", "remote desktop"]
+        case .connections: ["ssh", "cloud", "vpn", "hosts", "tmux", "vnc", "screen sharing", "remote desktop", "storage", "s3"]
         case .aiAssistant: ["providers", "mcp", "agent", "text size"]
         case .privacyData: ["icloud", "location", "sync", "live activity"]
         case .notifications: ["sound", "bell", "reminders"]
@@ -653,6 +657,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["generate", "256", "ansi"]),
             row("palette-harmonious", String(localized: "Harmonious Mode"), in: .palette, icon: "circle.lefthalf.filled",
                 keywords: ["harmonious", "harmony"]),
+            row("host-tint", String(localized: "Tint by Host"), in: .palette, icon: "paintpalette",
+                keywords: ["host color", "server color", "fingerprint", "per host", "background tint"]),
 
             // MARK: Battery
             row("battery-refresh-rate", String(localized: "Maximum Refresh Rate"), in: .battery, icon: "gauge.with.dots.needle.67percent",
@@ -1137,6 +1143,8 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         #endif
     case .cloudProviders:
         CloudProvidersSettingsView()
+    case .storageProviders:
+        StorageProvidersSettingsView()
     case .wifiAPProviders:
         WiFiAPProvidersSettingsView()
     case .kubernetesClusters:

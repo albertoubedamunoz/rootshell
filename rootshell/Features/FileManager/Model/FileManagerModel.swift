@@ -69,11 +69,11 @@ final class FileManagerModel {
     }
 
     /// Opens a pane directory in a terminal; wired by MainView.
-    @ObservationIgnored var openInTerminal: ((SFTPEndpoint, String) -> Bool)?
+    @ObservationIgnored var openInTerminal: ((FileEndpoint, String) -> Bool)?
     /// The in-flight pane-to-pane drag, read by the drop target.
     @ObservationIgnored var dragPayload: DragPayload?
     /// The terminal pane the manager was last opened from, offered in the location picker.
-    private(set) var originPane: SFTPEndpoint.PaneSource?
+    private(set) var originPane: FileEndpoint.PaneSource?
 
     @ObservationIgnored private var finishedObserver: Task<Void, Never>?
 
@@ -108,10 +108,10 @@ final class FileManagerModel {
     /// Brings the focused terminal's host into view. A pane already showing that
     /// host keeps its folder (state survives reopening); otherwise the host opens
     /// on the right at the terminal's working directory, local stays on the left.
-    func present(from source: SFTPEndpoint.PaneSource?, directory: String?) {
+    func present(from source: FileEndpoint.PaneSource?, directory: String?) {
         guard let source else { return }
         originPane = source
-        let endpoint: SFTPEndpoint = source.fallbackConfig.underlyingSSHConfig == nil ? .local : .pane(source)
+        let endpoint: FileEndpoint = source.fallbackConfig.underlyingSSHConfig == nil ? .local : .pane(source)
         if let existing = [left, right].first(where: { $0.endpoint.sharesFileSystem(with: endpoint) }) {
             activeSide = existing.id
             return
@@ -224,7 +224,7 @@ final class FileManagerModel {
     }
 
     /// Drops onto a pane: items from the other pane, or local files dragged in.
-    func receive(paths: [String], from endpoint: SFTPEndpoint, into side: FilePaneModel.Side, directory: String? = nil, move: Bool = false) {
+    func receive(paths: [String], from endpoint: FileEndpoint, into side: FilePaneModel.Side, directory: String? = nil, move: Bool = false) {
         let destination = pane(side)
         guard let directory = directory ?? (destination.path.isEmpty ? nil : destination.path) else { return }
         enqueue(TransferJob(
@@ -296,7 +296,7 @@ final class FileManagerModel {
     }
 
     var canOpenActiveInTerminal: Bool {
-        openInTerminal != nil && !activePane.path.isEmpty
+        openInTerminal != nil && !activePane.path.isEmpty && activePane.endpoint.supportsTerminal
     }
 
     func openActiveInTerminal() {
@@ -348,7 +348,7 @@ final class FileManagerModel {
         if let json = SettingsStore.shared.value(Settings.Transfer.fileManagerPaneState),
            let state = try? JSONDecoder().decode(SavedState.self, from: Data(json.utf8)) {
             for (pane, saved) in [(left, state.left), (right, state.right)] {
-                guard let saved, let endpoint = SFTPEndpoint(persistentKey: saved.endpoint) else { continue }
+                guard let saved, let endpoint = FileEndpoint(persistentKey: saved.endpoint) else { continue }
                 // Remote panes reconnect lazily on first show, so restoring never prompts.
                 if endpoint.isLocal {
                     pane.connect(to: endpoint, path: saved.path.isEmpty ? nil : saved.path)

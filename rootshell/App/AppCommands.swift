@@ -19,7 +19,15 @@ private struct CanChoosePaneToZoomKey: FocusedValueKey {
     typealias Value = Bool
 }
 
+private struct CanChoosePaneToSwapKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
 extension FocusedValues {
+    var canChoosePaneToSwap: Bool? {
+        get { self[CanChoosePaneToSwapKey.self] }
+        set { self[CanChoosePaneToSwapKey.self] = newValue }
+    }
     var canChoosePaneToZoom: Bool? {
         get { self[CanChoosePaneToZoomKey.self] }
         set { self[CanChoosePaneToZoomKey.self] = newValue }
@@ -37,6 +45,10 @@ final class MenuShortcutState: ObservableObject {
     /// Nested count so overlapping capture views don't restore the menu rail
     /// while another is still recording.
     private var recordingCaptureCount = 0
+
+    /// Whether a capture view is recording. The Catalyst menu items built in
+    /// CatalystAppDelegate.buildMenu(with:) drop their key equivalents too.
+    var isRecordingCapture: Bool { recordingCaptureCount > 0 }
 
     /// Whether a menu bar exists to carry app shortcuts. Both menu rails dispatch
     /// through UIApplication notifications rather than the responder chain, so a
@@ -235,10 +247,10 @@ struct DynamicShortcut: ViewModifier {
     }
 }
 
-// Note: Close (Cmd-W) is handled by:
-// 1. System-provided Close menu item
-// 2. UIKeyCommand in TerminalViewKeyboard.swift with wantsPriorityOverSystemBehavior
-// 3. pressesBegan fallback for macOS Sequoia compatibility
+// Note: On Mac Catalyst, Close Tab is the Close menu item that
+// CatalystAppDelegate.buildMenu(with:) installs. Its key equivalent follows
+// the close_tab keybind, because AppKit dispatches menu key equivalents
+// before any responder UIKeyCommand.
 
 // MARK: - Edit Commands
 
@@ -410,6 +422,7 @@ struct AppViewCommands: Commands {
 struct TerminalCommands: Commands {
     @ObservedObject var shortcutState: MenuShortcutState
     @FocusedValue(\.canChoosePaneToZoom) private var canChoosePaneToZoom
+    @FocusedValue(\.canChoosePaneToSwap) private var canChoosePaneToSwap
 
     var body: some Commands {
         CommandMenu("Terminal") {
@@ -493,6 +506,14 @@ struct TerminalCommands: Commands {
             }
             .modifier(DynamicShortcut(action: .choose_pane_to_zoom, shortcuts: shortcutState.shortcuts))
             .disabled(canChoosePaneToZoom != true)
+
+            Button("Choose Pane to Swap") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuChoosePaneToSwap(_:)), from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .choose_pane_to_swap, shortcuts: shortcutState.shortcuts))
+            .disabled(canChoosePaneToSwap != true)
 
             Divider()
 

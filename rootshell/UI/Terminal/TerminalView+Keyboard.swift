@@ -2387,6 +2387,11 @@ extension Ghostty.TerminalView {
         NotificationCenter.default.post(name: .choosePaneToZoom, object: self)
     }
 
+    @objc func menuChoosePaneToSwap(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
+        NotificationCenter.default.post(name: .choosePaneToSwap, object: self)
+    }
+
     @objc func menuOpenSettings(_ sender: Any?) {
         noteModTapCommand(sender as? UIKeyCommand)
         NotificationCenter.default.post(name: .openSettings, object: self)

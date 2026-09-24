@@ -218,7 +218,7 @@ final class FileTransferCenter {
 /// other reads or writes, on the same filesystem, including beneath a folder.
 fileprivate struct TransferPathClaim {
     struct Root {
-        let endpoint: SFTPEndpoint
+        let endpoint: FileEndpoint
         let path: String
     }
 
@@ -276,7 +276,7 @@ private struct TransferExecutor {
         var renamed = false
     }
 
-    private var pool: SFTPConnectionPool { .shared }
+    private var pool: FileConnectionPool { .shared }
 
     func run() async {
         let endpoints = [job.source] + (job.destination.map { [$0] } ?? [])

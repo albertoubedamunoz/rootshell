@@ -53,6 +53,9 @@ struct FilePaneView: View {
                 Rectangle().fill(Color.accentColor).frame(height: 2)
             }
         }
+        // Clear backgrounds and the empty-folder view aren't hit-testable; without
+        // this an empty pane only accepts drops on its label.
+        .contentShape(Rectangle())
         .onDrop(of: FileManagerDragDrop.acceptedTypes, isTargeted: $isDropTargeted) { providers in
             manager.handleDrop(providers, onto: pane.id, directory: nil)
         }
@@ -65,7 +68,7 @@ struct FilePaneView: View {
         HStack(spacing: 6) {
             Button { manager.sheet = .connect(pane.id) } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: endpointSymbol)
+                    Image(systemName: pane.endpoint.symbol)
                     Text(pane.endpoint.displayName).fontWeight(.semibold).lineLimit(1)
                     if pane.status == .connecting {
                         ProgressView().controlSize(.mini)
@@ -107,15 +110,6 @@ struct FilePaneView: View {
         .disabled(!enabled)
         .help(shortcut.helpText)
         .accessibilityLabel(shortcut.title)
-    }
-
-    private var endpointSymbol: String {
-        guard pane.endpoint.isLocal else { return "server.rack" }
-        #if targetEnvironment(macCatalyst)
-        return "laptopcomputer"
-        #else
-        return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
-        #endif
     }
 
     // MARK: - Filter field
@@ -343,20 +337,33 @@ struct FilePaneView: View {
     }
 
     private func row(_ entry: RFEntry) -> some View {
-        FileRowView(
-            entry: entry,
-            isSelected: pane.selection.contains(entry.path),
-            isCursor: pane.selection.cursor == entry.path,
-            showsCursor: isActive && (fieldFocused || usesPointerSemantics),
-            showsCheckbox: isSelecting,
-            columns: columns
-        )
-        .id(entry.path)
-        .onTapGesture { tap(entry) }
-        .contextMenu { contextMenu(for: entry) }
-        .onDrag { manager.beginDrag(of: dragEntries(for: entry), from: pane.id) }
-        .onDrop(of: entry.isDirectory ? FileManagerDragDrop.acceptedTypes : [], isTargeted: nil) { providers in
-            manager.handleDrop(providers, onto: pane.id, directory: entry.path)
+        folderDropTarget(for: entry) {
+            FileRowView(
+                entry: entry,
+                isSelected: pane.selection.contains(entry.path),
+                isCursor: pane.selection.cursor == entry.path,
+                showsCursor: isActive && (fieldFocused || usesPointerSemantics),
+                showsCheckbox: isSelecting,
+                columns: columns
+            )
+            .id(entry.path)
+            .onTapGesture { tap(entry) }
+            .contextMenu { contextMenu(for: entry) }
+            .onDrag { manager.beginDrag(of: dragEntries(for: entry), from: pane.id) }
+        }
+    }
+
+    /// Only folder rows are drop targets. A file row must have none at all: an
+    /// empty-typed target still wins the hit test and refuses the drop, so the
+    /// pane behind it never sees drops over files.
+    @ViewBuilder
+    private func folderDropTarget(for entry: RFEntry, @ViewBuilder content: () -> some View) -> some View {
+        if entry.isDirectory {
+            content().onDrop(of: FileManagerDragDrop.acceptedTypes, isTargeted: nil) { providers in
+                manager.handleDrop(providers, onto: pane.id, directory: entry.path)
+            }
+        } else {
+            content()
         }
     }
 
@@ -427,7 +434,7 @@ struct FilePaneView: View {
                 Label(FileManagerShortcut.shortcut(for: .info).title, systemImage: "info.circle")
             }
         }
-        if entry.isDirectory, manager.openInTerminal != nil {
+        if entry.isDirectory, manager.openInTerminal != nil, pane.endpoint.supportsTerminal {
             Button { manager.activeSide = pane.id; pane.selection.setCursor(entry.path); manager.perform(.openInTerminal) } label: {
                 Label(FileManagerShortcut.shortcut(for: .openInTerminal).title, systemImage: "terminal")
             }
