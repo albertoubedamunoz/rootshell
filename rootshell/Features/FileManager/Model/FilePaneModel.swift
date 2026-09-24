@@ -218,7 +218,8 @@ final class FilePaneModel: Identifiable {
 
     @ObservationIgnored private var pendingRestore: (endpoint: FileEndpoint, path: String)?
 
-    var hasPendingRestore: Bool { pendingRestore != nil }
+    /// Still on the default endpoint with nothing loaded or waiting to connect.
+    var isUnopened: Bool { retainedEndpoint == nil && pendingRestore == nil }
 
     /// Shows a remembered remote location without connecting yet.
     func restorePending(endpoint: FileEndpoint, path: String) {

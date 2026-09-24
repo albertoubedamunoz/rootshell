@@ -345,23 +345,21 @@ final class FileManagerModel {
     }
 
     private func restore() {
-        guard let json = SettingsStore.shared.value(Settings.Transfer.fileManagerPaneState),
-              let state = try? JSONDecoder().decode(SavedState.self, from: Data(json.utf8))
-        else {
-            left.connect(to: .local)
-            return
-        }
-        for (pane, saved) in [(left, state.left), (right, state.right)] {
-            guard let saved, let endpoint = FileEndpoint(persistentKey: saved.endpoint) else { continue }
-            // Remote panes reconnect lazily on first show, so restoring never prompts.
-            if endpoint.isLocal {
-                pane.connect(to: endpoint, path: saved.path.isEmpty ? nil : saved.path)
-            } else {
-                pane.restorePending(endpoint: endpoint, path: saved.path)
+        if let json = SettingsStore.shared.value(Settings.Transfer.fileManagerPaneState),
+           let state = try? JSONDecoder().decode(SavedState.self, from: Data(json.utf8)) {
+            for (pane, saved) in [(left, state.left), (right, state.right)] {
+                guard let saved, let endpoint = FileEndpoint(persistentKey: saved.endpoint) else { continue }
+                // Remote panes reconnect lazily on first show, so restoring never prompts.
+                if endpoint.isLocal {
+                    pane.connect(to: endpoint, path: saved.path.isEmpty ? nil : saved.path)
+                } else {
+                    pane.restorePending(endpoint: endpoint, path: saved.path)
+                }
             }
+            activeSide = FilePaneModel.Side(rawValue: state.activeSide) ?? .left
         }
-        if left.path.isEmpty, !left.hasPendingRestore { left.connect(to: .local) }
-        activeSide = FilePaneModel.Side(rawValue: state.activeSide) ?? .left
+        // A pane with nothing to restore would otherwise show this device, empty, until refreshed.
+        for pane in [left, right] where pane.isUnopened { pane.connect(to: .local) }
     }
 
     /// Connects panes whose remote endpoint was restored but not yet opened.
