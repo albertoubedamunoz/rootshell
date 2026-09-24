@@ -670,7 +670,7 @@ final class MoshTransport {
 
         do {
             // Decrypt packet
-            let (plaintext, nonce) = try crypto.decrypt(data)
+            let (plaintext, nonce, isInOrder) = try crypto.decrypt(data)
 
             // Need at least 4 bytes timestamps + 10 bytes fragment header = 14 bytes
             guard plaintext.count >= 14 else {
@@ -682,6 +682,19 @@ final class MoshTransport {
             // Parse timestamps (first 4 bytes)
             guard let (timestamp, replyTimestamp) = MoshTimestamp.decode(plaintext) else {
                 throw MoshError.invalidPacketFormat(reason: "Failed to decode timestamps")
+            }
+
+            // As C++ mosh's Connection::recv_one: timestamps come from every in-order packet,
+            // fragment or not, and never from reordered ones, so a late or
+            // replayed packet can't skew RTT or the echo.
+            if isInOrder {
+                // Skip the 0xFFFF sentinel. Use the pre-captured receiveTimestamp
+                // to avoid inflated RTT from async delays.
+                if replyTimestamp != UInt16.max {
+                    rttEstimator.recordReply(replyTimestamp: replyTimestamp, receiveTimestamp: receiveTimestamp)
+                }
+                // Save the server's timestamp for the next outgoing packet to echo
+                timestampEcho.save(timestamp, receivedAtMs: receivedAtMs)
             }
 
             // Parse fragment (everything after 4-byte timestamp)
@@ -703,17 +716,8 @@ final class MoshTransport {
                 payload: payload
             )
 
-            // Update RTT estimate from reply timestamp (skip sentinel 0xFFFF).
-            // Pass the pre-captured receiveTimestamp to avoid inflated RTT from async delays.
-            if packet.replyTimestamp != UInt16.max {
-                rttEstimator.recordReply(replyTimestamp: packet.replyTimestamp, receiveTimestamp: receiveTimestamp)
-            }
-
             // Get the updated RTT estimate to pass to delegate (for synchronous sendInterval update)
             let estimatedRTT = rttEstimator.estimatedRTT
-
-            // Save the server's timestamp for the next outgoing packet to echo
-            timestampEcho.save(packet.timestamp, receivedAtMs: receivedAtMs)
 
             // Track packets received
             packetsReceived += 1
