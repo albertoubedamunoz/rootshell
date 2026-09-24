@@ -142,14 +142,21 @@ struct StorageProviderEditView: View {
     var body: some View {
         Form {
             Section {
-                Picker(String(localized: "Service", comment: "Storage provider field"), selection: $draft.presetID) {
-                    ForEach(StorageProviderPreset.all) { preset in
-                        Text(preset.name).tag(preset.id)
-                    }
+                // Full-width row and pushed list: service names are too long for a menu picker's trailing value.
+                NavigationLink {
+                    StorageServicePicker(selection: $draft.presetID)
+                } label: {
+                    Text(preset.name)
                 }
                 .themedRow()
-                TextField(String(localized: "Name", comment: "Storage provider field"), text: $draft.name, prompt: Text(preset.name))
-                    .themedRow()
+                labeledRow(String(localized: "Name", comment: "Storage provider field")) {
+                    TextField(String(localized: "Name", comment: "Storage provider field"), text: $draft.name, prompt: Text(optionalPrompt))
+                }
+                .themedRow()
+            } header: {
+                Text("Service")
+            } footer: {
+                Text("The name defaults to the service name.")
             }
 
             Section {
@@ -170,7 +177,7 @@ struct StorageProviderEditView: View {
                     .themedRow()
                 }
                 if let label = preset.accountIDLabel {
-                    plainField(label, text: $draft.accountID, prompt: "")
+                    plainField(label, text: $draft.accountID, prompt: requiredPrompt)
                         .themedRow()
                 }
                 if preset.requiresCustomEndpoint {
@@ -187,9 +194,9 @@ struct StorageProviderEditView: View {
             }
 
             Section {
-                plainField(String(localized: "Access Key ID", comment: "Storage provider field"), text: $draft.accessKeyID, prompt: "")
+                plainField(String(localized: "Access Key ID", comment: "Storage provider field"), text: $draft.accessKeyID, prompt: optionalPrompt)
                     .themedRow()
-                SecureField(String(localized: "Secret Access Key", comment: "Storage provider field"), text: $draft.secretAccessKey)
+                secureField(String(localized: "Secret Access Key", comment: "Storage provider field"), text: $draft.secretAccessKey)
                     .themedRow()
             } header: {
                 Text("Credentials")
@@ -211,7 +218,7 @@ struct StorageProviderEditView: View {
 
             Section {
                 Picker(String(localized: "Addressing", comment: "Storage provider field: path or virtual-host style URLs"), selection: $draft.addressingStyle) {
-                    Text("Default (\(title(for: preset.addressing)))").tag(StorageProvider.AddressingStyle?.none)
+                    Text("Automatic").tag(StorageProvider.AddressingStyle?.none)
                     ForEach(StorageProvider.AddressingStyle.allCases, id: \.self) { style in
                         Text(title(for: style)).tag(StorageProvider.AddressingStyle?.some(style))
                     }
@@ -228,13 +235,16 @@ struct StorageProviderEditView: View {
                                text: $draft.signingRegion, prompt: preset.signingRegion ?? draft.effectiveRegion)
                         .themedRow()
                 }
-                SecureField(String(localized: "Session Token", comment: "Storage provider field: temporary credentials token"), text: $draft.sessionToken)
+                secureField(String(localized: "Session Token", comment: "Storage provider field: temporary credentials token"), text: $draft.sessionToken)
                     .themedRow()
             } header: {
                 Text("Advanced")
             } footer: {
-                if !preset.isAWS {
-                    Text("Change the signing region only if the service reports that the request signature doesn't match.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Automatic addressing uses \(title(for: preset.addressing)) for \(preset.name).")
+                    if !preset.isAWS {
+                        Text("Change the signing region only if the service reports that the request signature doesn't match.")
+                    }
                 }
             }
 
@@ -292,10 +302,31 @@ struct StorageProviderEditView: View {
         }
     }
 
+    private var requiredPrompt: String { String(localized: "Required", comment: "Storage provider: placeholder for a required field") }
+    private var optionalPrompt: String { String(localized: "Optional", comment: "Storage provider: placeholder for an optional field") }
+
+    /// iOS forms hide a text field's title once it has a prompt, so the label is drawn separately.
+    private func labeledRow<Field: View>(_ title: String, @ViewBuilder field: () -> Field) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            field()
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
     private func plainField(_ title: String, text: Binding<String>, prompt: String) -> some View {
-        TextField(title, text: text, prompt: Text(prompt))
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
+        labeledRow(title) {
+            TextField(title, text: text, prompt: Text(prompt))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        }
+    }
+
+    private func secureField(_ title: String, text: Binding<String>) -> some View {
+        labeledRow(title) {
+            SecureField(title, text: text, prompt: Text(optionalPrompt))
+        }
     }
 
     private func title(for style: StorageProvider.AddressingStyle) -> String {
@@ -336,5 +367,37 @@ struct StorageProviderEditView: View {
             guard !Task.isCancelled else { return }
             test = result
         }
+    }
+}
+
+private struct StorageServicePicker: View {
+    @Binding var selection: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        List {
+            ForEach(StorageProviderPreset.all) { preset in
+                Button {
+                    selection = preset.id
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(preset.name)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if preset.id == selection {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.tint)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .themedRow()
+            }
+        }
+        .themedList()
+        .navigationTitle(String(localized: "Service", comment: "Storage provider field"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
