@@ -380,6 +380,8 @@ final class TmuxController {
     /// ROOTSHELL-TMUX (id=tmux-gateway-surface-freed)
     private(set) var ownerSurfaceFreed = false
 
+    private var windowCloseState = TmuxWindowCloseState()
+
     /// Whether ESC on the gateway should detach.
     var isActive: Bool { !isDetaching && !windowTabs.isEmpty }
 
@@ -742,7 +744,8 @@ final class TmuxController {
     private func topologyStateCoherent() -> Bool {
         guard !windowTabs.isEmpty, !isDetaching, !didEnd else { return true }
         let coherent = windowTabs.allSatisfy { windowId, tab in
-            hostTabsModel(forWindowId: windowId).tabs.contains(where: { $0.id == tab.id })
+            windowCloseState.contains(windowId) ||
+                hostTabsModel(forWindowId: windowId).tabs.contains(where: { $0.id == tab.id })
         }
         if !coherent {
             TmuxDebugLogger.shared.event("RECONCILE", "dedup bypass: stale window tab; applying")
@@ -788,6 +791,13 @@ final class TmuxController {
 
     private func ensureWindow(_ windowId: Int, index: Int) {
         let hostModel = hostTabsModel(forWindowId: windowId)
+
+        // Keep the retained projection out of the UI until confirmation or rollback.
+        if windowCloseState.contains(windowId) {
+            windowTabs[windowId]?.tmuxWindowIndex = index
+            return
+        }
+
         // (id=tmux-window-order)
         if let existing = windowTabs[windowId] {
             if hostModel.tabs.contains(where: { $0 === existing }) || isDetaching || didEnd {
@@ -1468,7 +1478,7 @@ final class TmuxController {
     }
 
     private func setFocus(windowId: Int, paneId: Int) {
-        guard let tab = windowTabs[windowId] else { return }
+        guard !windowCloseState.contains(windowId), let tab = windowTabs[windowId] else { return }
         let hostModel = hostTabsModel(forWindowId: windowId)
         // ROOTSHELL-TMUX (id=tmux-session-switch-focus)
         let isSessionSwitchFocus = pendingSessionSwitchWindowSelection == nil
@@ -1526,6 +1536,8 @@ final class TmuxController {
         let priorPaneCount = paneViews.count
         let priorWindowCount = windowTabs.count
         let hostIdsBeforePrune = Set(windowHostIds.values + [baseWindowId])
+
+        windowCloseState.prune(keeping: windowIds)
 
         // Snapshot order and selection so a closed selected tab lands on its
         // neighbor. ROOTSHELL-TMUX (id=grouped-close-neighbor)
@@ -2072,11 +2084,39 @@ final class TmuxController {
         windowTabs[windowId]?.splitTree.zoomed != nil
     }
 
-    /// Nil for non-tmux tabs and placeholders without live panes.
+    /// Resolve the controller projecting a tmux window TAB. Prefer a live pane
+    /// binding whose parent surface still maps to an active controller; when the
+    /// tree is empty or bindings are stale (common for background windows right
+    /// after detach → reattach), fall back to `owningGatewayTerminalUUID`, then
+    /// to whichever active controller still projects this tab.
     static func controller(forWindowTab tab: TabModel) -> TmuxController? {
         for view in tab.splitTree.terminalLeaves {
-            if let binding = view.tmuxPaneBinding {
-                return controller(forOwnerSurface: binding.parentSurface)
+            if let binding = view.tmuxPaneBinding,
+               let controller = controller(forOwnerSurface: binding.parentSurface),
+               controller.isActive, !controller.ownerSurfaceFreed,
+               TmuxWindowCloseState.matchesGateway(
+                   owner: controller.ownerTerminalUUID, bindingParent: binding.parentUUID,
+                   tabOwner: tab.owningGatewayTerminalUUID) {
+                return controller
+            }
+        }
+        if let owner = tab.owningGatewayTerminalUUID {
+            for (_, weak) in controllersByOwnerSurface {
+                guard let controller = weak.controller,
+                      controller.ownerTerminalUUIDForNotifications == owner,
+                      controller.isActive, !controller.ownerSurfaceFreed else { continue }
+                return controller
+            }
+        }
+        // Last resort: identity in windowTabs (UUID may be missing after a
+        // reconnect race, but the controller still owns the projection).
+        if let windowId = tab.tmuxWindowId {
+            for (_, weak) in controllersByOwnerSurface {
+                guard let controller = weak.controller, controller.isActive,
+                      !controller.ownerSurfaceFreed else { continue }
+                if controller.windowTabs[windowId] === tab {
+                    return controller
+                }
             }
         }
         return nil
@@ -2091,13 +2131,87 @@ final class TmuxController {
     // MARK: - Hidden-window bridges (state is private; the logic lives in
     // TmuxController+HiddenWindows.swift) (id=tmux-hidden-windows)
 
+    /// Remove the tab immediately, retaining its projection until server prune.
+    /// A failed command or missing confirmation restores it without a reconcile.
+    @discardableResult
+    func requestKillWindow(windowId: Int) -> Bool {
+        guard !didEnd, !isDetaching, !ownerSurfaceFreed,
+              ghosttyApp?.surfaceView(for: ownerSurface)?.uuid == ownerTerminalUUID,
+              let tab = windowTabs[windowId] else { return false }
+        if windowCloseState.contains(windowId) { return true }
+        let hostModel = hostTabsModel(forWindowId: windowId)
+        guard let index = hostModel.tabs.firstIndex(where: { $0 === tab }),
+              let request = windowCloseState.begin(windowID: windowId, tabIndex: index) else { return false }
+
+        let hostId = hostWindowId(forWindowId: windowId)
+        let priorOrder = hostModel.tabs.map(\.id)
+        let selectedID = hostModel.selectedTabID
+        let groupedNeighborID = selectedID.flatMap { hostModel.groupedCloseNeighbor(for: $0) }
+        clearPendingSplitFocus(windowId: windowId)
+        for view in tab.splitTree.terminalLeaves {
+            view.isLogicallyFocused = false
+            view.shouldBecomeFirstResponderWhenReady = false
+            view.setOcclusion(false)
+        }
+        hostModel.tabs.removeAll { $0.id == tab.id }
+        // Keep windowTabs/paneViews and their host mapping until prune, including
+        // the last window: prune must still run the control-mode end teardown.
+        enforceGatewayVisibleWhenGroupHidden()
+        if let selectedID, selectedID == tab.id,
+           let neighborID = survivingGroupedOrNearestNeighbor(
+                in: hostModel, groupedCandidateID: groupedNeighborID,
+                priorOrder: priorOrder, removedID: tab.id) {
+            hostModel.selectedTabID = neighborID
+            hostModel.pendingScrollToTabID = neighborID
+        } else {
+            hostModel.repairSelectionIfNeeded()
+        }
+        TerminalWindowRegistry.refreshSelectionAfterMutation(in: hostId, allowFocus: true)
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard !self.didEnd, !self.isDetaching, !self.ownerSurfaceFreed,
+                  self.ghosttyApp?.surfaceView(for: self.ownerSurface)?.uuid == self.ownerTerminalUUID else {
+                self.restorePendingWindowClose(windowId: windowId, request: request)
+                return
+            }
+            do {
+                self.lastCommandAt = Date()
+                _ = try await self.sendCommandWithReply("kill-window -t @\(windowId)", timeout: .seconds(2))
+                // A successful reply normally follows a confirming prune. Allow
+                // delayed delivery, then restore if the window is still known.
+                try await Task.sleep(for: .seconds(2))
+            } catch {
+                TmuxDebugLogger.shared.event("CLOSE", "kill-window @\(windowId) failed: \(error)")
+            }
+            self.restorePendingWindowClose(windowId: windowId, request: request)
+        }
+        return true
+    }
+
+    private func restorePendingWindowClose(windowId: Int, request: TmuxWindowCloseState.Request) {
+        guard !didEnd, !isDetaching, !ownerSurfaceFreed, weakTabsModel != nil,
+              let index = windowCloseState.restore(windowID: windowId, request: request),
+              let tab = windowTabs[windowId] else { return }
+        let hostModel = hostTabsModel(forWindowId: windowId)
+        if !hostModel.tabs.contains(where: { $0 === tab }) {
+            hostModel.tabs.insert(tab, at: min(index, hostModel.tabs.count))
+        }
+        reArmWindowSize(windowId: windowId)
+        reorderTmuxTabsByIndex()
+        hostModel.repairSelectionIfNeeded()
+        TerminalWindowRegistry.refreshSelectionAfterMutation(
+            in: hostWindowId(forWindowId: windowId), allowFocus: false)
+    }
+
+    /// The tab projecting a tmux window, if any.
     func windowTab(forWindowId windowId: Int) -> TabModel? {
         windowTabs[windowId]
     }
 
     /// Gates hiding the gateway tab. (id=tmux-hidden-gateway)
     var hasVisibleWindowTabs: Bool {
-        windowTabs.values.contains { !$0.isHiddenTmuxWindow }
+        windowTabs.contains { !windowCloseState.contains($0.key) && !$0.value.isHiddenTmuxWindow }
     }
 
     /// Re-flags tabs created before the `@hidden` reply landed.
@@ -2187,7 +2301,8 @@ final class TmuxController {
 
     /// `refresh-client -C @win:WxH`, pinning each window independently.
     func pushWindowSize(windowId: Int, cols: UInt16, rows: UInt16) {
-        guard !didEnd, !isDetaching, !ownerSurfaceFreed else { return }
+        guard !didEnd, !isDetaching, !ownerSurfaceFreed,
+              !windowCloseState.contains(windowId) else { return }
         guard cols >= Self.minPushCols, rows >= Self.minPushRows else {
             // Transient; don't latch the dedup.
             TmuxDebugLogger.shared.event("CMD-REJECT", "window size below floor win=\(windowId) cols=\(cols) rows=\(rows)")
