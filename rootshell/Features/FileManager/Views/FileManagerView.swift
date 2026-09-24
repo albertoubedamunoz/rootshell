@@ -119,7 +119,8 @@ struct FileManagerView: View {
                 FileManagerPresentationMenu(current: style == .sidebar ? .sidebar : .overlay, onSwitch: onSwitchPresentation)
                     .equatable()
             }
-            moreMenu
+            FileManagerMoreMenu(manager: manager)
+                .equatable()
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary)
             }
@@ -129,56 +130,6 @@ struct FileManagerView: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-    }
-
-    private var moreMenu: some View {
-        let pane = manager.activePane
-        return Menu {
-            Button { manager.sheet = .newFolder } label: {
-                Label(FileManagerShortcut.shortcut(for: .newFolder).title, systemImage: "folder.badge.plus")
-            }
-            .disabled(pane.path.isEmpty)
-            Button { manager.sheet = .goToPath } label: {
-                Label(FileManagerShortcut.shortcut(for: .goToPath).title, systemImage: "arrow.right.circle")
-            }
-            if manager.canOpenActiveInTerminal {
-                Button { manager.perform(.openInTerminal) } label: {
-                    Label(FileManagerShortcut.shortcut(for: .openInTerminal).title, systemImage: "terminal")
-                }
-            }
-            Divider()
-            Toggle(isOn: Binding(get: { pane.showHidden }, set: { _ in manager.perform(.toggleHidden) })) {
-                Label(FileManagerShortcut.shortcut(for: .toggleHidden).title, systemImage: "eye")
-            }
-            Picker(selection: Binding(get: { pane.sortOrder }, set: { pane.sortOrder = $0 })) {
-                Text("Name").tag(RFSortOrder.nameAsc)
-                Text("Size").tag(RFSortOrder.sizeDesc)
-                Text("Date Modified").tag(RFSortOrder.modifiedDesc)
-                Text("Kind").tag(RFSortOrder.typeAsc)
-            } label: {
-                Label(String(localized: "Sort By", comment: "File manager sort menu"), systemImage: "arrow.up.arrow.down")
-            }
-            Divider()
-            if !pane.endpoint.isLocal {
-                Button {
-                    FileConnectionPool.shared.disconnect(pane.endpoint)
-                    pane.connect(to: .local)
-                } label: {
-                    Label(String(localized: "Disconnect", comment: "File manager: close the pane's connection"), systemImage: "bolt.horizontal.circle")
-                }
-            }
-            if FileTransferCenter.shared.jobs.contains(where: { $0.state.isFinished }) {
-                Button { FileTransferCenter.shared.clearFinished() } label: {
-                    Label(String(localized: "Clear Finished Transfers", comment: "File manager menu"), systemImage: "checklist")
-                }
-            }
-            Button { manager.sheet = .shortcuts } label: {
-                Label(FileManagerShortcut.shortcut(for: .showShortcuts).title, systemImage: "keyboard")
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-        }
-        .accessibilityLabel(String(localized: "More", comment: "File manager overflow menu"))
     }
 
     // MARK: - Single-pane switcher
@@ -393,5 +344,73 @@ private struct FileManagerPresentationMenu: View, Equatable {
             Image(systemName: current == .sidebar ? "sidebar.right" : "macwindow")
         }
         .accessibilityLabel(String(localized: "Presentation", comment: "File manager presentation menu"))
+    }
+}
+
+/// Equatable owner for the overflow menu, same contract as the presentation
+/// menu. The items read live pane/transfer state in their own child scope.
+private struct FileManagerMoreMenu: View, Equatable {
+    let manager: FileManagerModel
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.manager === rhs.manager
+    }
+
+    var body: some View {
+        Menu {
+            FileManagerMoreMenuItems(manager: manager)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .accessibilityLabel(String(localized: "More", comment: "File manager overflow menu"))
+    }
+}
+
+private struct FileManagerMoreMenuItems: View {
+    let manager: FileManagerModel
+
+    var body: some View {
+        let pane = manager.activePane
+        Button { manager.sheet = .newFolder } label: {
+            Label(FileManagerShortcut.shortcut(for: .newFolder).title, systemImage: "folder.badge.plus")
+        }
+        .disabled(pane.path.isEmpty)
+        Button { manager.sheet = .goToPath } label: {
+            Label(FileManagerShortcut.shortcut(for: .goToPath).title, systemImage: "arrow.right.circle")
+        }
+        if manager.canOpenActiveInTerminal {
+            Button { manager.perform(.openInTerminal) } label: {
+                Label(FileManagerShortcut.shortcut(for: .openInTerminal).title, systemImage: "terminal")
+            }
+        }
+        Divider()
+        Toggle(isOn: Binding(get: { pane.showHidden }, set: { _ in manager.perform(.toggleHidden) })) {
+            Label(FileManagerShortcut.shortcut(for: .toggleHidden).title, systemImage: "eye")
+        }
+        Picker(selection: Binding(get: { pane.sortOrder }, set: { pane.sortOrder = $0 })) {
+            Text("Name").tag(RFSortOrder.nameAsc)
+            Text("Size").tag(RFSortOrder.sizeDesc)
+            Text("Date Modified").tag(RFSortOrder.modifiedDesc)
+            Text("Kind").tag(RFSortOrder.typeAsc)
+        } label: {
+            Label(String(localized: "Sort By", comment: "File manager sort menu"), systemImage: "arrow.up.arrow.down")
+        }
+        Divider()
+        if !pane.endpoint.isLocal {
+            Button {
+                FileConnectionPool.shared.disconnect(pane.endpoint)
+                pane.connect(to: .local)
+            } label: {
+                Label(String(localized: "Disconnect", comment: "File manager: close the pane's connection"), systemImage: "bolt.horizontal.circle")
+            }
+        }
+        if FileTransferCenter.shared.jobs.contains(where: { $0.state.isFinished }) {
+            Button { FileTransferCenter.shared.clearFinished() } label: {
+                Label(String(localized: "Clear Finished Transfers", comment: "File manager menu"), systemImage: "checklist")
+            }
+        }
+        Button { manager.sheet = .shortcuts } label: {
+            Label(FileManagerShortcut.shortcut(for: .showShortcuts).title, systemImage: "keyboard")
+        }
     }
 }

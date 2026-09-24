@@ -159,35 +159,9 @@ struct FilePaneView: View {
         .padding(.bottom, 6)
     }
 
-    /// Ancestors of the current folder, tappable.
     private var breadcrumb: some View {
-        Menu {
-            ForEach(ancestors, id: \.self) { path in
-                Button(path) { pane.navigate(to: path) }
-            }
-            Divider()
-            Button(FileManagerShortcut.shortcut(for: .goToPath).title) { manager.sheet = .goToPath }
-        } label: {
-            Text(pane.path.isEmpty ? "…" : pane.path)
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.borderless)
-    }
-
-    private var ancestors: [String] {
-        var result: [String] = []
-        var current = pane.path
-        while !current.isEmpty, current != "/" {
-            result.append(current)
-            current = FileTransferLogic.parent(of: current)
-        }
-        if !pane.path.isEmpty { result.append("/") }
-        return result
+        FilePaneBreadcrumbMenu(pane: pane, manager: manager, path: pane.path)
+            .equatable()
     }
 
     private var keyCommands: [SidebarSearchExtraCommand] {
@@ -338,17 +312,23 @@ struct FilePaneView: View {
 
     private func row(_ entry: RFEntry) -> some View {
         folderDropTarget(for: entry) {
-            FileRowView(
-                entry: entry,
-                isSelected: pane.selection.contains(entry.path),
-                isCursor: pane.selection.cursor == entry.path,
-                showsCursor: isActive && (fieldFocused || usesPointerSemantics),
-                showsCheckbox: isSelecting,
-                columns: columns
-            )
+            FileRowContextMenuRow(
+                row: FileRowView(
+                    entry: entry,
+                    isSelected: pane.selection.contains(entry.path),
+                    isCursor: pane.selection.cursor == entry.path,
+                    showsCursor: isActive && (fieldFocused || usesPointerSemantics),
+                    showsCheckbox: isSelecting,
+                    columns: columns
+                ),
+                pane: pane,
+                otherPaneName: otherPaneName
+            ) {
+                contextMenu(for: entry)
+            }
+            .equatable()
             .id(entry.path)
             .onTapGesture { tap(entry) }
-            .contextMenu { contextMenu(for: entry) }
             .onDrag { manager.beginDrag(of: dragEntries(for: entry), from: pane.id) }
         }
     }
@@ -475,5 +455,81 @@ struct FilePaneView: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Menu isolation
+//
+// FilePaneView re-renders on every FileManagerView/MainView render (its
+// closure input never compares equal) and on filter, focus and selection
+// changes. Menus live in equatable owners so those renders never rebuild one
+// that is open.
+
+/// Ancestors of the current folder, tappable.
+private struct FilePaneBreadcrumbMenu: View, Equatable {
+    let pane: FilePaneModel
+    let manager: FileManagerModel
+    let path: String
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.pane === rhs.pane && lhs.manager === rhs.manager && lhs.path == rhs.path
+    }
+
+    var body: some View {
+        Menu {
+            ForEach(ancestors, id: \.self) { ancestor in
+                Button(ancestor) { pane.navigate(to: ancestor) }
+            }
+            Divider()
+            Button(FileManagerShortcut.shortcut(for: .goToPath).title) { manager.sheet = .goToPath }
+        } label: {
+            Text(path.isEmpty ? "…" : path)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.head)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.borderless)
+    }
+
+    private var ancestors: [String] {
+        var result: [String] = []
+        var current = path
+        while !current.isEmpty, current != "/" {
+            result.append(current)
+            current = FileTransferLogic.parent(of: current)
+        }
+        if !path.isEmpty { result.append("/") }
+        return result
+    }
+}
+
+/// Row plus its context menu. `menu` is excluded from equality; it reads the
+/// live selection and endpoint when presented.
+private struct FileRowContextMenuRow<MenuContent: View>: View, Equatable {
+    let row: FileRowView
+    let pane: FilePaneModel
+    let otherPaneName: String
+    @ViewBuilder let menu: () -> MenuContent
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.row == rhs.row && lhs.pane === rhs.pane && lhs.otherPaneName == rhs.otherPaneName
+    }
+
+    var body: some View {
+        row.contextMenu {
+            FileRowContextMenuContents(build: menu)
+        }
+    }
+}
+
+/// Non-equatable so availability is evaluated per presentation, not snapshotted.
+private struct FileRowContextMenuContents<Content: View>: View {
+    @ViewBuilder let build: () -> Content
+
+    var body: some View {
+        build()
     }
 }

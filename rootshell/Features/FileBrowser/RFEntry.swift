@@ -49,7 +49,7 @@ nonisolated enum RFSortOrder: Sendable {
 
 /// A single file or directory entry with metadata.
 /// `isDirectory` follows symlinks, so a link to a directory can be entered.
-nonisolated struct RFEntry: Sendable {
+nonisolated struct RFEntry: Sendable, Equatable {
     let name: String
     let path: String          // Absolute path
     let isDirectory: Bool
