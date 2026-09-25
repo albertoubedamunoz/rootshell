@@ -37,6 +37,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     var forwardsClipboardManagerToggle: Bool
     var forwardsOpenInFolderToggle: Bool
     var forwardsFileManagerToggle: Bool
+    var forwardsIPLookupToggle: Bool
     /// Handles a forwarded toggle menu action instead of `onDismiss`. Needed by
     /// the clipboard manager, whose toggle is a 3-state cycle (open → keyboard
     /// mode → close) rather than a plain dismiss: the HUD's field can hold
@@ -56,6 +57,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
          forwardsClipboardManagerToggle: Bool = false,
          forwardsOpenInFolderToggle: Bool = false,
          forwardsFileManagerToggle: Bool = false,
+         forwardsIPLookupToggle: Bool = false,
          onForwardedToggle: (() -> Void)? = nil,
          onFind: (() -> Void)? = nil,
          onDismiss: (() -> Void)? = nil,
@@ -69,6 +71,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         self.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         self.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         self.forwardsFileManagerToggle = forwardsFileManagerToggle
+        self.forwardsIPLookupToggle = forwardsIPLookupToggle
         self.onForwardedToggle = onForwardedToggle
         self.onFind = onFind
         self.onDismiss = onDismiss
@@ -86,6 +89,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         view.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         view.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         view.forwardsFileManagerToggle = forwardsFileManagerToggle
+        view.forwardsIPLookupToggle = forwardsIPLookupToggle
         view.onForwardedToggle = onForwardedToggle
         view.onFind = onFind
         view.onDismiss = onDismiss
@@ -117,6 +121,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         uiView.forwardsClipboardManagerToggle = forwardsClipboardManagerToggle
         uiView.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         uiView.forwardsFileManagerToggle = forwardsFileManagerToggle
+        uiView.forwardsIPLookupToggle = forwardsIPLookupToggle
         uiView.onForwardedToggle = onForwardedToggle
         uiView.setNeedsLayout()
     }
@@ -174,6 +179,7 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     var forwardsClipboardManagerToggle = false
     var forwardsOpenInFolderToggle = false
     var forwardsFileManagerToggle = false
+    var forwardsIPLookupToggle = false
     var onForwardedToggle: (() -> Void)?
     var onFind: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -200,10 +206,15 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
         if action == #selector(menuToggleClipboardManager(_:)) { return forwardsClipboardManagerToggle }
         if action == #selector(menuOpenInFolder(_:)) { return forwardsOpenInFolderToggle }
         if action == #selector(menuToggleFileManager(_:)) { return forwardsFileManagerToggle }
+        if action == #selector(menuToggleIPLookup(_:)) { return forwardsIPLookupToggle }
         return super.canPerformAction(action, withSender: sender)
     }
 
     @objc func menuToggleFileManager(_ sender: Any?) {
+        (onForwardedToggle ?? onDismiss)?()
+    }
+
+    @objc func menuToggleIPLookup(_ sender: Any?) {
         (onForwardedToggle ?? onDismiss)?()
     }
 
@@ -263,6 +274,14 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
            !sequence.isSequence, let trigger = sequence.first {
             let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
                                        action: #selector(menuToggleFileManager(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            commands.append(command)
+        }
+        if forwardsIPLookupToggle,
+           let sequence = KeybindManager.shared.sequence(for: .toggle_ip_lookup),
+           !sequence.isSequence, let trigger = sequence.first {
+            let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
+                                       action: #selector(menuToggleIPLookup(_:)))
             command.wantsPriorityOverSystemBehavior = true
             commands.append(command)
         }

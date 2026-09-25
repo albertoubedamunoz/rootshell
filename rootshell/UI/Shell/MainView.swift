@@ -309,6 +309,10 @@ struct MainView: View {
     /// A Files-tab choice waiting for the connection sheet to finish dismissing.
     @State var pendingFileManagerOpen: (endpoint: FileEndpoint, presentation: FileManagerPresentation?)?
 
+    /// IP Lookup HUD; the model reads the clipboard when it opens.
+    @State var showIPLookup = false
+    @State var ipLookupModel: IPLookupModel?
+
     // Clipboard manager overlay state
     @State var showClipboardManager = false
     /// Keyboard mode for the regular-width clipboard HUD (2nd Cmd+Shift+C

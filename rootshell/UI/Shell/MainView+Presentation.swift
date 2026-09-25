@@ -465,13 +465,20 @@ extension MainView {
             }
             #endif
             .onChange(of: showSettings) { _, presented in
-                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false; showIPLookup = false }
             }
             .onChange(of: showClipboardManager) { _, presented in
-                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false; showIPLookup = false }
             }
             .onChange(of: showConnectionSidebar) { _, presented in
-                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false }
+                if presented { showQuickSettingsOverlay = false; showOpenInFolderOverlay = false; showIPLookup = false }
+            }
+            .onChange(of: showIPLookup) { _, presented in
+                guard !presented else { return }
+                ipLookupModel?.end()
+                ipLookupModel = nil
+                // Passthrough HUD: hand the keyboard back if its field took it.
+                restoreFirstResponderAfterHUDDismissal()
             }
             .onChange(of: showQuickSettingsOverlay) { _, presented in
                 setOverlayOwnsKeyboardForAllTerminals(isAnySheetPresented)

@@ -535,6 +535,7 @@ extension MainView {
                 self.showThemePickerOverlay = false
                 self.showClipboardManager = false
                 self.showOpenInFolderOverlay = false
+                self.showIPLookup = false
                 guard !self.isSheetPresentedBesidesFloatingTabSidebar else { return }
                 if !self.tabSidebarIsDocked { self.showingTabSwitcher = false }
                 if self.terminals.indices.contains(self.selectedTabIndex) {
@@ -558,6 +559,7 @@ extension MainView {
             self.showThemePickerOverlay = false
             self.showClipboardManager = false
             self.showQuickSettingsOverlay = false
+            self.showIPLookup = false
             guard !self.isSheetPresentedBesidesFloatingTabSidebar else { return }
             if !self.tabSidebarIsDocked { self.showingTabSwitcher = false }
             if self.terminals.indices.contains(self.selectedTabIndex) {
@@ -581,10 +583,27 @@ extension MainView {
             self.toggleFileManager()
         }
 
+        observerBag.observeOnMainActor(.toggleIPLookup) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            if self.showIPLookup {
+                self.showIPLookup = false
+                return
+            }
+            // Floating tools share the HUD's top-right anchor; yield like Open in Folder.
+            self.showThemePickerOverlay = false
+            self.showClipboardManager = false
+            self.showQuickSettingsOverlay = false
+            self.showOpenInFolderOverlay = false
+            guard !self.isSheetPresentedBesidesFloatingTabSidebar else { return }
+            self.ipLookupModel = IPLookupModel(clipboardText: UIPasteboard.general.getOpinionatedStringContents())
+            self.showIPLookup = true
+        }
+
         observerBag.observeOnMainActor(.toggleThemePicker) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
             self.showQuickSettingsOverlay = false
             self.showOpenInFolderOverlay = false
+            self.showIPLookup = false
             self.showThemePickerOverlay.toggle()
         }
 

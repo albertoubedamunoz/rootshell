@@ -341,6 +341,11 @@ extension MainView {
                 keyboardMode: $clipboardManagerKeyboardMode
             )
 
+            if showIPLookup, let model = ipLookupModel {
+                IPLookupHUD(isPresented: $showIPLookup, model: model)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
             // Compose text overlay
             composeOverlay(composeStateVersion: composeStateVersion)
 
