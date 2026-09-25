@@ -153,6 +153,7 @@
 		47AF0F1D0000000000000B06 /* rootshell/Features/OpenInFolder/PathCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A06 /* rootshell/Features/OpenInFolder/PathCompletion.swift */; };
 		47AF0F1D0000000000000B07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift */; };
 		47AF0F1D0000000000000B08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift */; };
+		47AF1A7E0000000000000B01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF1A7E0000000000000A01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift */; };
 		47B9B9322F996A6D003FFF58 /* AppIconUnderscore.icon in Resources */ = {isa = PBXBuildFile; fileRef = 47B9B9312F996A6D003FFF58 /* AppIconUnderscore.icon */; };
 		47CD00000E00000000000000 /* SwiftkubeClient in Frameworks */ = {isa = PBXBuildFile; productRef = 477408A42ED5F6B60035CE92 /* SwiftkubeClient */; };
 		47CD00000F00000000000000 /* jq_ios in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47JQPKG12FB00000AABB0001 /* jq_ios */; };
@@ -629,6 +630,7 @@
 		47AF0F1D0000000000000A06 /* rootshell/Features/OpenInFolder/PathCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/OpenInFolder/PathCompletion.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/OpenInFolder/OpenInFolderRecents.swift; sourceTree = SOURCE_ROOT; };
+		47AF1A7E0000000000000A01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Networking/Geo/IPAddressExtractor.swift; sourceTree = SOURCE_ROOT; };
 		47B9B9312F996A6D003FFF58 /* AppIconUnderscore.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIconUnderscore.icon; sourceTree = "<group>"; };
 		47C100012F990000BBCC0001 /* Debug-China.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Debug-China.xcconfig"; sourceTree = "<group>"; };
 		47C100022F990000BBCC0002 /* Release-China.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release-China.xcconfig"; sourceTree = "<group>"; };
@@ -1270,6 +1272,7 @@
 				47AF0F1D0000000000000A06 /* rootshell/Features/OpenInFolder/PathCompletion.swift */,
 				47AF0F1D0000000000000A07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift */,
 				47AF0F1D0000000000000A08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift */,
+				47AF1A7E0000000000000A01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift */,
 				47AEC0010000000000000011 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift */,
 				47AEC0010000000000000015 /* rootshell-helper/Sources/LocaleHelper.swift */,
 				47AEC0010000000000000014 /* rootshell-helper/Sources/EnvironmentBuilder.swift */,
@@ -2274,6 +2277,7 @@
 				47AF0F1D0000000000000B06 /* rootshell/Features/OpenInFolder/PathCompletion.swift in Sources */,
 				47AF0F1D0000000000000B07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift in Sources */,
 				47AF0F1D0000000000000B08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift in Sources */,
+				47AF1A7E0000000000000B01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

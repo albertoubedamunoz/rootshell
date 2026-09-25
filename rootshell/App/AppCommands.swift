@@ -617,6 +617,14 @@ struct ShellCommands: Commands {
             }
             .modifier(DynamicShortcut(action: .browse_profiles, shortcuts: shortcutState.shortcuts))
 
+            Button("IP Lookup") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuToggleIPLookup(_:)),
+                    from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .toggle_ip_lookup, shortcuts: shortcutState.shortcuts))
+
             #if !CHINA_BUILD
             Divider()
 
