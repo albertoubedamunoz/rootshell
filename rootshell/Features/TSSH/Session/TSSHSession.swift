@@ -215,7 +215,7 @@ final class TrzszSession: TerminalSession {
     /// Go-backed transport layer (native KCP/QUIC implementation)
     private var goTransport: TrzszGoTransport?
 
-    /// A `tmux -CC` gateway is LIVE on this session, so the tsshd server must KEEP
+    /// A `tmux -CC` or herdr control gateway is LIVE on this session, so the tsshd server must KEEP
     /// pending input across a roam rather than discard it. Sticky across transport
     /// rebuilds while control mode lasts. ROOTSHELL-TMUX (id=tmux-keep-pending-rebind)
     private var controlModeKeepPendingInput = false
@@ -1092,7 +1092,7 @@ final class TrzszSession: TerminalSession {
     }
 
     /// Tell the Go transport to KEEP pending input across a roam (not discard it).
-    /// Called when this session is (or becomes) a tmux -CC gateway — the control
+    /// Called when this session is (or becomes) a tmux -CC or herdr control gateway — the control
     /// stream needs input preserved. Covers manually-typed `tmux -CC` (auto-start
     /// already forces it at connect via `isControlMode`). OUTPUT stays in discard
     /// mode (no back pressure); a lossy output discard is recovered by a full
@@ -1112,7 +1112,7 @@ final class TrzszSession: TerminalSession {
         pushKeepPendingInput()
     }
 
-    /// The `tmux -CC` gateway on this session has ended: drop the override and put
+    /// The `tmux -CC` or herdr control gateway on this session has ended: drop the override and put
     /// the transport back on the CONFIGURED behaviour. Without this the plain
     /// shell that replaces the gateway keeps replaying input typed during an
     /// outage even when the user asked for it to be discarded, and every later
