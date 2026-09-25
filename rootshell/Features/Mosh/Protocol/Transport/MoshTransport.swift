@@ -342,8 +342,8 @@ final class MoshTransport {
             if index == 0 {
                 rttEstimator.recordSent(timestamp: timestamp)
             }
-            // Per packet, as C++ mosh's new_packet: only the first fragment
-            // carries the echo, corrected for how long it was held.
+            // Consume the pending echo once, so only the first fragment can
+            // carry it, corrected for how long it was held.
             let replyTimestamp = timestampEcho.takeReply(nowMs: ProtocolTiming.monotonicNowMs())
 
             // Build plaintext: timestamps (4 bytes) + fragment header (10 bytes) + payload
@@ -653,9 +653,10 @@ final class MoshTransport {
     private static let minimumPacketSize = 24
 
     /// Handles received data
-    /// - Parameter data: The received UDP packet data
-    /// - Parameter receiveTimestamp: The local timestamp captured at packet arrival (before async hops)
-    /// - Parameter receivedAtMs: Monotonic arrival time, so the echo can be corrected for hold time
+    /// - Parameters:
+    ///   - data: The received UDP packet data
+    ///   - receiveTimestamp: The local timestamp captured at packet arrival (before async hops)
+    ///   - receivedAtMs: Monotonic arrival time, so the echo can be corrected for hold time
     private func handleReceivedData(_ data: Data, receiveTimestamp: UInt16, receivedAtMs: UInt64) {
         lastReceiveTime = ProtocolTiming.monotonicNowMs()
 
@@ -684,9 +685,9 @@ final class MoshTransport {
                 throw MoshError.invalidPacketFormat(reason: "Failed to decode timestamps")
             }
 
-            // As C++ mosh's Connection::recv_one: timestamps come from every in-order packet,
-            // fragment or not, and never from reordered ones, so a late or
-            // replayed packet can't skew RTT or the echo.
+            // Update timestamps for each packet that advances the incoming
+            // sequence, even before fragment assembly completes. Ignore older
+            // or duplicate packets so they cannot skew RTT or replace the echo.
             if isInOrder {
                 // Skip the 0xFFFF sentinel. Use the pre-captured receiveTimestamp
                 // to avoid inflated RTT from async delays.

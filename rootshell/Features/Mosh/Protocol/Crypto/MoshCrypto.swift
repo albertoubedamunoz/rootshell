@@ -140,8 +140,8 @@ final class MoshCryptoSession {
     /// Decrypts a received packet
     /// - Parameter packet: The received packet (8-byte nonce + ciphertext + tag)
     /// - Returns: The decrypted plaintext (timestamps + payload), and whether the
-    ///   packet arrived in order. Reordered packets within the window still
-    ///   decrypt, but C++ mosh ignores their timestamps.
+    ///   packet advances the incoming sequence. Reordered or duplicate packets
+    ///   within the window still decrypt, but must not update timestamp tracking.
     /// - Throws: MoshError.decryptionFailed if decryption or authentication fails
     func decrypt(_ packet: Data) throws -> (plaintext: Data, nonce: MoshNonce, isInOrder: Bool) {
         // Minimum packet size: 8 (nonce) + 16 (tag) = 24 bytes

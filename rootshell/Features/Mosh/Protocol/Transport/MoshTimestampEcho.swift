@@ -7,17 +7,15 @@
 //  an inflated echo slows every screen update it sends us.
 //
 
-import Foundation
-
-/// Mirrors the reference C++ mosh (mobile-shell/mosh, src/network/network.cc,
-/// Connection::new_packet): echo the peer's latest timestamp once, advanced
-/// by how long it was held, and only while fresh.
+/// Echoes the peer's latest timestamp once, advanced by how long it was held,
+/// so local processing and acknowledgment delays are excluded from the peer's RTT.
+/// Stale timestamps are discarded.
 /// Shared by the app and its standalone test target.
 nonisolated struct MoshTimestampEcho {
     /// "No timestamp reply" on the wire.
     static let none = UInt16.max
 
-    /// C++ mosh only echoes a timestamp received less than this long ago.
+    /// Timestamps held for this long or longer are too stale to echo.
     static let maxHoldMs: UInt64 = 1000
 
     private var saved: UInt16?

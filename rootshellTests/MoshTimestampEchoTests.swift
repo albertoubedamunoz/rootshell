@@ -9,7 +9,7 @@ final class MoshTimestampEchoTests: XCTestCase {
     func testReplyIsAdvancedByHoldTime() {
         var echo = MoshTimestampEcho()
         echo.save(1_000, receivedAtMs: 50_000)
-        // Held 100 ms (an ACK_DELAY): the server must not count that as RTT.
+        // Held 100 ms before acknowledgment: the server must not count that as RTT.
         XCTAssertEqual(echo.takeReply(nowMs: 50_100), 1_100)
     }
 
