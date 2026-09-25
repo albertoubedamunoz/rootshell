@@ -15,7 +15,7 @@ import SotoS3
 nonisolated struct S3FileSystem: Sendable {
     let session: S3Session
 
-    private var provider: StorageProvider { session.provider }
+    var provider: StorageProvider { session.provider }
 
     /// A bucket and the key within it; an empty key is the bucket itself.
     struct Location: Sendable {
@@ -132,14 +132,16 @@ nonisolated struct S3FileSystem: Sendable {
         _ = try await mapped(path) { try await service.deleteObject(.init(bucket: location.bucket, key: location.key)) }
     }
 
-    /// Removes a folder's marker; its contents are separate objects.
+    /// Removes a folder's marker; its contents are separate objects. A bucket is deleted only when empty.
     func removeDirectory(_ path: String) async throws {
+        if let bucket = bucketName(of: path) { return try await deleteBucket(bucket, path: path) }
         let (service, location) = try await object(path)
         _ = try await mapped(path) { try await service.deleteObject(.init(bucket: location.bucket, key: location.key + "/")) }
     }
 
-    /// Deletes a file, or every object under a folder in batches.
+    /// Deletes a file, or every object under a folder in batches. Never empties a bucket.
     func removeRecursively(_ path: String) async throws {
+        if let bucket = bucketName(of: path) { return try await deleteBucket(bucket, path: path) }
         let (service, location) = try await object(path)
         guard try await info(path).isDirectory else {
             return try await removeFile(path)
@@ -205,34 +207,107 @@ nonisolated struct S3FileSystem: Sendable {
         try await copyObject(from, to: to, size: Int64(size), path: sourcePath)
     }
 
-    /// CopyObject handles up to 5 GB; larger objects copy in 1 GB ranges.
-    private func copyObject(_ source: Location, to target: Location, size: Int64, path: String) async throws {
+    /// CopyObject handles up to 5 GB and keeps headers, metadata and tags; larger
+    /// objects copy in 1 GB ranges into an upload that starts blank, so those are
+    /// set explicitly. `headers` replaces the source's (an in-place edit), which
+    /// also keeps its storage class, encryption and ACL, and fails unless the
+    /// object is still `base`. `size` only picks the path for plain copies;
+    /// every other path re-reads it and copies only that exact version.
+    func copyObject(
+        _ source: Location, to target: Location, size: Int64, path: String,
+        headers: S3ObjectHeaders? = nil, base: S3ObjectDetails? = nil
+    ) async throws {
         let service = await session.service(for: target.bucket)
         let copySource = S3KeyLogic.copySource(bucket: source.bucket, key: source.key)
-        guard size > 5 << 30 else {
+        let inPlace = headers != nil
+        guard size > 5 << 30 || inPlace else {
             let output = try await mapped(path) { try await service.copyObject(.init(bucket: target.bucket, copySource: copySource, key: target.key)) }
             try StorageError.requireETag(output.copyObjectResult.eTag)
             return
         }
-        let upload = try await mapped(path) { try await service.createMultipartUpload(.init(bucket: target.bucket, key: target.key)) }
+        let sourceService = await session.service(for: source.bucket)
+        let head = try await mapped(path) { try await sourceService.headObject(.init(bucket: source.bucket, key: source.key)) }
+        guard let eTag = head.eTag, let currentSize = head.contentLength else {
+            throw StorageError.service(String(localized: "The server didn't describe “\(path)”.", comment: "Storage error; argument is a path"))
+        }
+        if let base, !base.isSameVersion(as: head) {
+            throw StorageError.changed(path)
+        }
+        // Pinning a versioned object's source also pins its metadata, which the ETag doesn't cover.
+        let versionID = head.versionId == "null" ? nil : head.versionId
+        let pinnedSource = S3KeyLogic.copySource(bucket: source.bucket, key: source.key, versionID: versionID)
+        // In place, the write itself is conditional too, so a newer upload is never overwritten.
+        let targetETag = inPlace ? eTag : nil
+        let isMultipart = currentSize > 5 << 30
+        guard isMultipart || inPlace else {
+            let output = try await mapped(path) {
+                try await service.copyObject(.init(bucket: target.bucket, copySource: pinnedSource, copySourceIfMatch: eTag, key: target.key))
+            }
+            try StorageError.requireETag(output.copyObjectResult.eTag)
+            return
+        }
+        let fields = headers ?? S3ObjectHeaders(head)
+        let storageClass = inPlace && head.storageClass != .standard ? head.storageClass : nil
+        let encryption = inPlace ? head.serverSideEncryption : nil
+        let kmsKeyID = inPlace ? head.ssekmsKeyId : nil
+        let bucketKey = inPlace ? head.bucketKeyEnabled : nil
+        // A self-copy gets a private ACL unless the grants are restated.
+        var grants: [String: String]?
+        if inPlace { grants = try await grantHeaders(of: source, versionID: versionID, service: sourceService, path: path) }
+        guard isMultipart else {
+            // REPLACE drops storage class and encryption unless restated; tags are kept.
+            let output = try await mapped(path) {
+                try await service.copyObject(.init(
+                    bucket: target.bucket, bucketKeyEnabled: bucketKey, cacheControl: fields.cacheControl.nonEmpty,
+                    contentDisposition: fields.contentDisposition.nonEmpty, contentEncoding: fields.contentEncoding.nonEmpty,
+                    contentLanguage: fields.contentLanguage.nonEmpty, contentType: fields.contentType.nonEmpty,
+                    copySource: pinnedSource, copySourceIfMatch: eTag, expires: head.expires,
+                    grantFullControl: grants?["FULL_CONTROL"], grantRead: grants?["READ"],
+                    grantReadACP: grants?["READ_ACP"], grantWriteACP: grants?["WRITE_ACP"],
+                    ifMatch: targetETag, key: target.key, metadata: fields.metadata,
+                    metadataDirective: .replace, serverSideEncryption: encryption, ssekmsKeyId: kmsKeyID,
+                    storageClass: storageClass, websiteRedirectLocation: head.websiteRedirectLocation
+                ))
+            }
+            try StorageError.requireETag(output.copyObjectResult.eTag)
+            return
+        }
+        let tags = try await tagging(of: source, versionID: versionID, service: sourceService, path: path)
+        let upload = try await mapped(path) {
+            try await service.createMultipartUpload(.init(
+                bucket: target.bucket, bucketKeyEnabled: bucketKey, cacheControl: fields.cacheControl.nonEmpty,
+                contentDisposition: fields.contentDisposition.nonEmpty, contentEncoding: fields.contentEncoding.nonEmpty,
+                contentLanguage: fields.contentLanguage.nonEmpty, contentType: fields.contentType.nonEmpty,
+                expires: head.expires, grantFullControl: grants?["FULL_CONTROL"], grantRead: grants?["READ"],
+                grantReadACP: grants?["READ_ACP"], grantWriteACP: grants?["WRITE_ACP"],
+                key: target.key, metadata: fields.metadata.isEmpty ? nil : fields.metadata,
+                serverSideEncryption: encryption, ssekmsKeyId: kmsKeyID, storageClass: storageClass,
+                tagging: tags, websiteRedirectLocation: head.websiteRedirectLocation
+            ))
+        }
         guard let uploadID = upload.uploadId else {
             throw StorageError.service(String(localized: "The server didn't start the upload.", comment: "Storage upload error"))
         }
         do {
             let partSize: Int64 = 1 << 30
             var parts: [S3.CompletedPart] = []
-            for (index, start) in stride(from: Int64(0), to: size, by: Int(partSize)).enumerated() {
+            for (index, start) in stride(from: Int64(0), to: currentSize, by: Int(partSize)).enumerated() {
                 try Task.checkCancellation()
-                let end = min(start + partSize, size) - 1
+                let end = min(start + partSize, currentSize) - 1
                 let output = try await service.uploadPartCopy(.init(
-                    bucket: target.bucket, copySource: copySource, copySourceRange: "bytes=\(start)-\(end)",
+                    bucket: target.bucket, copySource: pinnedSource, copySourceIfMatch: eTag, copySourceRange: "bytes=\(start)-\(end)",
                     key: target.key, partNumber: index + 1, uploadId: uploadID
                 ))
                 try StorageError.requireETag(output.copyPartResult.eTag)
                 parts.append(S3.CompletedPart(eTag: output.copyPartResult.eTag, partNumber: index + 1))
             }
+            // Copying parts takes minutes; If-Match below can't see a metadata-only change made meanwhile.
+            if inPlace {
+                let current = try await service.headObject(.init(bucket: target.bucket, key: target.key))
+                guard S3ObjectDetails(head).isSameVersion(as: current) else { throw StorageError.changed(path) }
+            }
             let output = try await service.completeMultipartUpload(.init(
-                bucket: target.bucket, key: target.key, multipartUpload: .init(parts: parts), uploadId: uploadID
+                bucket: target.bucket, ifMatch: targetETag, key: target.key, multipartUpload: .init(parts: parts), uploadId: uploadID
             ))
             try StorageError.requireETag(output.eTag)
         } catch {
@@ -251,11 +326,52 @@ nonisolated struct S3FileSystem: Sendable {
     )
 
     /// The service and location for an object; bucket roots aren't objects.
-    private func object(_ path: String) async throws -> (S3, Location) {
+    func object(_ path: String) async throws -> (S3, Location) {
         guard let location = location(of: path), !location.key.isEmpty else {
-            throw StorageError.unsupported(String(localized: "Buckets can't be created, changed or deleted here.", comment: "Storage error"))
+            throw StorageError.unsupported(String(localized: "Files and folders go inside a bucket, and buckets can't be renamed.", comment: "Storage error"))
         }
         return (await session.service(for: location.bucket), location)
+    }
+
+    /// The bucket `path` names when it is a bucket root.
+    func bucketName(of path: String) -> String? {
+        guard let location = location(of: path), location.key.isEmpty else { return nil }
+        return location.bucket
+    }
+
+    /// The source's tags in x-amz-tagging form, nil when it has none. HEAD's tag
+    /// count needs its own permission, so it's never trusted to mean "no tags";
+    /// only a provider without tagging at all is.
+    private func tagging(of source: Location, versionID: String?, service: S3, path: String) async throws -> String? {
+        do {
+            let output = try await service.getObjectTagging(.init(bucket: source.bucket, key: source.key, versionId: versionID))
+            return output.tagSet.isEmpty ? nil : S3KeyLogic.tagging(output.tagSet.map { (key: $0.key, value: $0.value) })
+        } catch where StorageError.isUnsupported(error) {
+            return nil
+        } catch {
+            throw StorageError.unreadable(path, String(localized: "tags", comment: "Storage error fragment: what couldn't be read"), error)
+        }
+    }
+
+    /// The source's ACL as x-amz-grant-* values, nil when a copy's default
+    /// (owner full control) already matches or the provider has no ACLs.
+    private func grantHeaders(of source: Location, versionID: String?, service: S3, path: String) async throws -> [String: String]? {
+        let acl: S3.GetObjectAclOutput
+        do {
+            acl = try await service.getObjectAcl(.init(bucket: source.bucket, key: source.key, versionId: versionID))
+        } catch where StorageError.isUnsupported(error) {
+            return nil
+        } catch {
+            throw StorageError.unreadable(path, String(localized: "permissions", comment: "Storage error fragment: what couldn't be read"), error)
+        }
+        let grants = (acl.grants ?? []).compactMap { grant -> S3KeyLogic.Grant? in
+            guard let permission = grant.permission?.rawValue, let grantee = grant.grantee else { return nil }
+            if let id = grantee.id { return .init(grantee: .id(id), permission: permission) }
+            if let uri = grantee.uri { return .init(grantee: .uri(uri), permission: permission) }
+            if let email = grantee.emailAddress { return .init(grantee: .email(email), permission: permission) }
+            return nil
+        }
+        return S3KeyLogic.grantHeaders(grants, ownerID: acl.owner?.id)
     }
 
     /// Every object whose key starts with the folder's prefix, marker included.
@@ -300,7 +416,7 @@ nonisolated struct S3FileSystem: Sendable {
         }
     }
 
-    private func mapped<T>(_ path: String, _ body: () async throws -> T) async throws -> T {
+    func mapped<T>(_ path: String, _ body: () async throws -> T) async throws -> T {
         do {
             return try await body()
         } catch {
@@ -337,11 +453,14 @@ nonisolated enum StorageError: LocalizedError {
     case misconfigured(String)
     case service(String)
     case incompleteUpload
+    case changed(String)
 
     var errorDescription: String? {
         switch self {
         case .notFound(let path):
             String(localized: "“\(path)” doesn't exist.", comment: "Storage error; argument is a path")
+        case .changed(let path):
+            String(localized: "“\(path)” changed on the server during this operation, so it was stopped. Try again.", comment: "Storage error; argument is a path")
         case .unsupported(let message), .misconfigured(let message), .service(let message):
             message
         case .incompleteUpload:
@@ -368,6 +487,23 @@ nonisolated enum StorageError: LocalizedError {
         (error as? AWSErrorType)?.context?.responseCode == .notFound
     }
 
+    /// The provider lacks the feature (tagging, ACLs) entirely, as opposed to refusing this request.
+    static func isUnsupported(_ error: Error) -> Bool {
+        guard let aws = error as? AWSErrorType else { return false }
+        return aws.context?.responseCode == .notImplemented
+            || ["NotImplemented", "AccessControlListNotSupported"].contains(aws.errorCode)
+    }
+
+    /// Carrying `what` over failed, so the rewrite stops instead of dropping it.
+    static func unreadable(_ path: String, _ what: String, _ error: Error) -> Error {
+        if error is CancellationError || Task.isCancelled { return CancellationError() }
+        let detail = from(error, path: path).localizedDescription
+        return StorageError.service(String(
+            localized: "Couldn't read the \(what) of “\(path)”, so it was left unchanged. \(detail)",
+            comment: "Storage error; arguments are what couldn't be read (tags, permissions), a path, and the server's reason"
+        ))
+    }
+
     static func from(_ error: Error, path: String) -> Error {
         if error is StorageError || error is CancellationError { return error }
         if Task.isCancelled { return CancellationError() }
@@ -375,6 +511,9 @@ nonisolated enum StorageError: LocalizedError {
         switch aws.context?.responseCode {
         case .notFound?:
             return StorageError.notFound(path)
+        case .preconditionFailed?:
+            // Only our If-Match conditions on reads and copies produce this.
+            return StorageError.changed(path)
         case .forbidden?:
             let detail = aws.context?.message ?? ""
             return StorageError.service(detail.isEmpty

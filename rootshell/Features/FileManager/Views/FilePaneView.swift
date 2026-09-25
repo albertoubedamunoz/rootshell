@@ -413,6 +413,17 @@ struct FilePaneView: View {
             Button { manager.activeSide = pane.id; manager.sheet = .info(entry) } label: {
                 Label(FileManagerShortcut.shortcut(for: .info).title, systemImage: "info.circle")
             }
+            if pane.endpoint.storageProvider != nil {
+                if !entry.isDirectory {
+                    Button { manager.activeSide = pane.id; manager.sheet = .shareLink(entry) } label: {
+                        Label(String(localized: "Share Link…", comment: "File manager context menu: presigned storage URL"), systemImage: "link")
+                    }
+                } else if FileTransferLogic.parent(of: entry.path) == "/" {
+                    Button { manager.activeSide = pane.id; manager.sheet = .incompleteUploads(entry) } label: {
+                        Label(String(localized: "Incomplete Uploads…", comment: "File manager context menu: a bucket's unfinished multipart uploads"), systemImage: "icloud.slash")
+                    }
+                }
+            }
         }
         if entry.isDirectory, manager.openInTerminal != nil, pane.endpoint.supportsTerminal {
             Button { manager.activeSide = pane.id; pane.selection.setCursor(entry.path); manager.perform(.openInTerminal) } label: {

@@ -86,6 +86,11 @@ actor S3Session {
         servicesByBucket[bucket] = service(inRegion: region)
     }
 
+    /// A deleted bucket's name can be taken again in another region.
+    func forget(_ bucket: String) {
+        servicesByBucket[bucket] = nil
+    }
+
     private func service(inRegion region: String) -> S3 {
         if region == provider.effectiveRegion { return defaultService }
         if let known = servicesByRegion[region] { return known }

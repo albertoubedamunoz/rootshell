@@ -30,6 +30,8 @@ final class FileManagerModel {
         case rename(RFEntry)
         case newFolder
         case info(RFEntry)
+        case shareLink(RFEntry)
+        case incompleteUploads(RFEntry)
         case confirmDelete([RFEntry])
         case shortcuts
 
@@ -40,6 +42,8 @@ final class FileManagerModel {
             case .rename(let entry): "rename-\(entry.path)"
             case .newFolder: "newFolder"
             case .info(let entry): "info-\(entry.path)"
+            case .shareLink(let entry): "share-\(entry.path)"
+            case .incompleteUploads(let entry): "uploads-\(entry.path)"
             case .confirmDelete: "delete"
             case .shortcuts: "shortcuts"
             }
@@ -264,7 +268,18 @@ final class FileManagerModel {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, !trimmed.contains("/"), !pane.path.isEmpty else { return }
         let target = FileTransferLogic.join(pane.path, trimmed)
-        await run(in: pane, focus: target) { try await $0.makeDirectory(target) }
+        await run(in: pane, focus: target) { fs in
+            if let s3 = fs.s3, s3.bucketName(of: target) != nil {
+                try await s3.createBucket(trimmed)
+            } else {
+                try await fs.makeDirectory(target)
+            }
+        }
+    }
+
+    /// At a storage provider's top level, New Folder creates a bucket.
+    var createsBucket: Bool {
+        activePane.endpoint.storageProvider != nil && FileTransferLogic.normalize(activePane.path) == "/"
     }
 
     /// Runs a quick metadata operation inline, then refreshes with the cursor on `focus`.
