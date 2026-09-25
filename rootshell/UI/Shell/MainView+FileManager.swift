@@ -98,6 +98,7 @@ extension MainView {
         showClipboardManager = false
         showQuickSettingsOverlay = false
         showOpenInFolderOverlay = false
+        showIPLookup = false
 
         if isPhone {
             resignFirstResponderForSheetPresentation()

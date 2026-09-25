@@ -128,10 +128,25 @@ enum SFTPConnectionFactory {
     // MARK: - Transports
 
     private static func openSSH(_ config: SSHConfig, label: String, prompts: FileManagerPrompts) async throws -> SFTPConnection {
-        let (client, jumpClient) = try await SSHConnectionHelper.connect(
-            config: config,
+        try await openSSH(
+            config,
+            label: label,
             onHostKeyValidation: prompts.hostKey.validate,
             onKeyboardInteractiveChallenge: { await prompts.keyboardInteractive($0, label: label) }
+        )
+    }
+
+    /// Also used by rf, which answers the prompts in its TUI.
+    static func openSSH(
+        _ config: SSHConfig,
+        label: String,
+        onHostKeyValidation: ((HostKeyValidationRequest) async -> HostKeyValidationResult)?,
+        onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)?
+    ) async throws -> SFTPConnection {
+        let (client, jumpClient) = try await SSHConnectionHelper.connect(
+            config: config,
+            onHostKeyValidation: onHostKeyValidation,
+            onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge
         )
         let teardown: @Sendable () async -> Void = {
             try? await withTimeout(seconds: 2) { try await client.close() }

@@ -3,8 +3,8 @@
 //  rootshell
 //
 //  Protocol abstracting filesystem I/O for the rf file browser.
-//  Allows local (FileManager) and remote (SFTP) backends to be
-//  used interchangeably.
+//  Allows local (FileManager) and remote (SFTP, cloud storage)
+//  backends to be used interchangeably.
 //
 
 #if !targetEnvironment(macCatalyst)
@@ -13,7 +13,7 @@ import Foundation
 
 /// Abstracts filesystem I/O for the rf file browser.
 /// Each RFTab holds a reference to its data source, enabling
-/// local and SFTP tabs to coexist within the same RFCommand.
+/// local and remote tabs to coexist within the same RFCommand.
 @MainActor
 protocol RFDataSource: AnyObject {
     /// Whether this data source operates over a network connection.
@@ -22,6 +22,9 @@ protocol RFDataSource: AnyObject {
 
     /// Display label for the connection (e.g., "user@host" or "Local").
     var connectionLabel: String { get }
+
+    /// The shared filesystem API, for copies between two data sources.
+    var fileSystem: FileSystemEndpoint { get throws }
 
     /// Whether `other` refers to the same underlying location — the same device
     /// for local sources, the same server for remote ones — so an identical path
@@ -72,22 +75,7 @@ protocol RFDataSource: AnyObject {
     /// Move a file within this data source.
     func moveFile(sourcePath: String, destPath: String, force: Bool) async throws
 
-    // MARK: - Cross-Source Transfer
-
-    /// Download a remote file to a local path.
-    /// For local sources, this is equivalent to copyFile.
-    func downloadToLocal(remotePath: String, localPath: String,
-                         onProgress: @escaping @Sendable (Int64) -> Void) async throws
-
-    /// Upload a local file to this data source's remote path.
-    /// For local sources, this is equivalent to copyFile.
-    func uploadFromLocal(localPath: String, remotePath: String,
-                         onProgress: @escaping @Sendable (Int64) -> Void) async throws
-
     // MARK: - Path Utilities
-
-    /// Resolve the home/initial directory path.
-    func resolveHomePath() async throws -> String
 
     /// Join two path components.
     func joinPath(_ base: String, _ component: String) -> String

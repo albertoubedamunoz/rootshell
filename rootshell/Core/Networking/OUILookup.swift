@@ -3,7 +3,6 @@ import Foundation
 enum OUILookup {
     struct Vendor {
         let name: String
-        let address: String
         let website: String?
     }
 
@@ -78,7 +77,6 @@ enum OUILookup {
         guard let entry = vendors[prefix] else { return nil }
         return Vendor(
             name: entry["n"] ?? "",
-            address: entry["a"] ?? "",
             website: entry["w"]
         )
     }

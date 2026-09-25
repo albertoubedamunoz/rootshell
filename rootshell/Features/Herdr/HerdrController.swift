@@ -449,6 +449,9 @@ final class HerdrController {
             guard try await prepareLocalControlAttachment() else { return }
             #endif
             guard !didEnd, !Task.isCancelled else { return }
+            // Exec channels share tsshd's input-discard-on-roam; keep typing
+            // across a resume. Re-asserted per connect like tmux's reconcile.
+            TmuxController.gatewayTrzszSession(for: gateway.session)?.enableControlModeKeepPendingInput()
             if SettingsStore.shared.value(Settings.System.herdrForceFallback) {
                 startLegacyMode(reason: "fallback forced in Debug settings", forced: true)
                 return
@@ -894,6 +897,8 @@ final class HerdrController {
         pruneAll()
         Self.controllers.removeValue(forKey: gatewayUUID)
         if let gateway {
+            // The plain shell honours the user's own setting again.
+            TmuxController.gatewayTrzszSession(for: gateway.session)?.disableControlModeKeepPendingInput()
             gateway.herdrController = nil
             gateway.updateHerdrGatewayOverlay()
             #if targetEnvironment(macCatalyst)

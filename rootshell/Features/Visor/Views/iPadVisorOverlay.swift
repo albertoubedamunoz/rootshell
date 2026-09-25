@@ -43,7 +43,7 @@ final class iPadVisorController {
              .previousTab, .nextTab, .selectTab, .previousGroup, .nextGroup,
              .showTabSwitcher, .toggleTabExpose, .toggleTabBar, .toggleGroupMode,
              .browseHosts, .browseProfiles, .toggleAIAgent, .toggleVoiceAgent,
-             .toggleThemePicker, .toggleClipboardManager, .toggleFullScreen,
+             .toggleThemePicker, .toggleClipboardManager, .toggleIPLookup, .toggleFullScreen,
              .toggleBackgroundEffect, .toggleTitleBar, .toggleTransparency, .toggleAutoRedact:
             owner.hide()
             return true

@@ -116,7 +116,7 @@ final class RFTab {
         return (currentDir.path as NSString).lastPathComponent
     }
 
-    /// Data source for filesystem operations (local or SFTP).
+    /// Data source for filesystem operations (local, SFTP or cloud storage).
     let dataSource: RFDataSource
 
     init(id: Int, path: String, dataSource: RFDataSource) {

@@ -133,4 +133,90 @@ final class StorageProviderTests: XCTestCase {
     func testCopySourceIsURLEncoded() {
         XCTAssertEqual(S3KeyLogic.copySource(bucket: "b", key: "dir/a file+1ü.txt"), "b/dir/a%20file%2B1%C3%BC.txt")
     }
+
+    func testCopySourcePinsVersion() {
+        XCTAssertEqual(S3KeyLogic.copySource(bucket: "b", key: "a", versionID: "3/L4kqtJl+x"), "b/a?versionId=3%2FL4kqtJl%2Bx")
+        XCTAssertEqual(S3KeyLogic.copySource(bucket: "b", key: "a", versionID: "null"), "b/a", "unversioned objects report \"null\"")
+        XCTAssertEqual(S3KeyLogic.copySource(bucket: "b", key: "a", versionID: nil), "b/a")
+    }
+
+    // MARK: - Object management
+
+    func testObjectURLAddressing() {
+        XCTAssertEqual(
+            S3KeyLogic.objectURL(endpoint: "https://s3.us-west-2.amazonaws.com", bucket: "b", key: "dir/a b.txt", forceVirtualHost: false)?.absoluteString,
+            "https://b.s3.us-west-2.amazonaws.com/dir/a%20b.txt"
+        )
+        XCTAssertEqual(
+            S3KeyLogic.objectURL(endpoint: "https://s3.us-west-2.amazonaws.com", bucket: "my.bucket", key: "a", forceVirtualHost: false)?.absoluteString,
+            "https://s3.us-west-2.amazonaws.com/my.bucket/a", "dotted buckets fall back to path style"
+        )
+        XCTAssertEqual(
+            S3KeyLogic.objectURL(endpoint: "http://minio.local:9000", bucket: "b", key: "a+1", forceVirtualHost: false)?.absoluteString,
+            "http://minio.local:9000/b/a%2B1"
+        )
+        XCTAssertEqual(
+            S3KeyLogic.objectURL(endpoint: "https://nyc3.digitaloceanspaces.com", bucket: "b", key: "a", forceVirtualHost: true)?.absoluteString,
+            "https://b.nyc3.digitaloceanspaces.com/a"
+        )
+        XCTAssertEqual(
+            S3KeyLogic.objectURL(endpoint: "https://mybucket.s3.us-west-2.amazonaws.com", bucket: "mybucket", key: "a", forceVirtualHost: true)?.absoluteString,
+            "https://mybucket.s3.us-west-2.amazonaws.com/a", "an endpoint that already names the bucket isn't prefixed twice"
+        )
+    }
+
+    func testGrantHeaders() {
+        typealias Grant = S3KeyLogic.Grant
+        XCTAssertNil(S3KeyLogic.grantHeaders([], ownerID: "o"))
+        XCTAssertNil(S3KeyLogic.grantHeaders([Grant(grantee: .id("o"), permission: "FULL_CONTROL")], ownerID: "o"),
+                     "owner-only full control is what a copy gets by default")
+        XCTAssertEqual(
+            S3KeyLogic.grantHeaders([
+                Grant(grantee: .id("o"), permission: "FULL_CONTROL"),
+                Grant(grantee: .uri("http://acs.amazonaws.com/groups/global/AllUsers"), permission: "READ"),
+                Grant(grantee: .email("a@example.com"), permission: "READ"),
+            ], ownerID: "o"),
+            [
+                "FULL_CONTROL": "id=\"o\"",
+                "READ": "uri=\"http://acs.amazonaws.com/groups/global/AllUsers\", emailAddress=\"a@example.com\"",
+            ]
+        )
+    }
+
+    func testUnquotedETag() {
+        XCTAssertEqual(S3KeyLogic.unquotedETag("\"abc-2\""), "abc-2")
+        XCTAssertEqual(S3KeyLogic.unquotedETag("abc"), "abc")
+    }
+
+    func testTaggingIsQueryEncoded() {
+        XCTAssertEqual(S3KeyLogic.tagging([("env", "prod"), ("owner", "a b&c")]), "env=prod&owner=a%20b%26c")
+    }
+
+    func testBucketNames() {
+        XCTAssertTrue(S3KeyLogic.isValidBucketName("my-bucket.2026"))
+        XCTAssertFalse(S3KeyLogic.isValidBucketName("ab"))
+        XCTAssertFalse(S3KeyLogic.isValidBucketName("MyBucket"))
+        XCTAssertFalse(S3KeyLogic.isValidBucketName("-bucket"))
+        XCTAssertFalse(S3KeyLogic.isValidBucketName("bucket."))
+        XCTAssertFalse(S3KeyLogic.isValidBucketName("my..bucket"))
+        XCTAssertFalse(S3KeyLogic.isValidBucketName("my.-bucket"))
+        XCTAssertFalse(S3KeyLogic.isValidBucketName(String(repeating: "a", count: 64)))
+    }
+
+    func testMetadataValidation() {
+        XCTAssertTrue(S3KeyLogic.isValidMetadata(key: "build-id_2.0", value: "abc 123"))
+        XCTAssertFalse(S3KeyLogic.isValidMetadata(key: "", value: "x"))
+        XCTAssertFalse(S3KeyLogic.isValidMetadata(key: "has space", value: "x"))
+        XCTAssertFalse(S3KeyLogic.isValidMetadata(key: "k", value: "café"))
+        XCTAssertFalse(S3KeyLogic.isValidHeaderValue("line\nbreak"))
+    }
+
+    func testRestoreState() {
+        XCTAssertEqual(S3KeyLogic.restoreState(nil), .none)
+        XCTAssertEqual(S3KeyLogic.restoreState("ongoing-request=\"true\""), .inProgress)
+        XCTAssertEqual(
+            S3KeyLogic.restoreState("ongoing-request=\"false\", expiry-date=\"Fri, 21 Dec 2012 00:00:00 GMT\""),
+            .restored(until: Date(timeIntervalSince1970: 1_356_048_000))
+        )
+    }
 }
