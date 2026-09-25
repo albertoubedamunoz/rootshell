@@ -1789,7 +1789,7 @@
 				4747A1092F2ADF800080DE63 /* XCRemoteSwiftPackageReference "yubikit-swift-rootshell" */,
 				4722536F2F2BB891000B8D2E /* XCRemoteSwiftPackageReference "CryptoSwift" */,
 				47S3PKG02FF40000AABB0000 /* XCRemoteSwiftPackageReference "soto" */,
-				47S3CORE2FF40000AABB0000 /* XCLocalSwiftPackageReference "Packages/soto-core" */,
+				47S3CORE2FF40000AABB0000 /* XCRemoteSwiftPackageReference "soto-core" */,
 				47564E4300000000000000A1 /* XCRemoteSwiftPackageReference "rootshell-vnc" */,
 				47RGP0002F680000AABB0000 /* XCRemoteSwiftPackageReference "ripgrep-rootshell" */,
 				47BTP0002F680000AABB0000 /* XCRemoteSwiftPackageReference "bat-rootshell" */,
@@ -6799,10 +6799,6 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/RootshellPushKit;
 		};
-		47S3CORE2FF40000AABB0000 /* XCLocalSwiftPackageReference "Packages/soto-core" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "Packages/soto-core";
-		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -6956,6 +6952,15 @@
 			requirement = {
 				kind = exactVersion;
 				version = 0.1.0;
+			};
+		};
+		47S3CORE2FF40000AABB0000 /* XCRemoteSwiftPackageReference "soto-core" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/soto-project/soto-core.git";
+			requirement = {
+				kind = revision;
+				/* visionOS fix: https://github.com/soto-project/soto-core/pull/709. Use a release once available. */
+				revision = b88bc5ccd50dc489f37b3568ba9c7c7c8c72714c;
 			};
 		};
 		47S3PKG02FF40000AABB0000 /* XCRemoteSwiftPackageReference "soto" */ = {
