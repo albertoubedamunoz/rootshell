@@ -261,10 +261,10 @@ Tabs:
   1-9           Switch to tab N
   Tab/S-Tab     Next/previous tab
 
-SFTP:
-  o             Open SFTP connection (user@host[:port])
-                Opens a new tab browsing a remote host via SFTP.
-                Yank/paste works across local and SFTP tabs.
+SFTP & Cloud Storage:
+  o             Open an SSH profile (SFTP) or storage provider (S3)
+                in a new tab. Add providers in Settings > Storage
+                Providers. Yank/paste works across all tab types.
 
 Other:
   .             Toggle hidden files
