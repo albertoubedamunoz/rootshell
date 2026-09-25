@@ -65,8 +65,9 @@ struct AIAgentSheetModifier: ViewModifier {
 /// instability would then re-invalidate the whole MainView graph just to
 /// re-evaluate whether to show the popover.
 struct HealthPopoverOverlay: View {
-    let tab: TabModel?
-    let tabFrame: CGRect?
+    let hover: TabHoverController
+    let tabsModel: TabsModel
+    @Binding var tabFrames: [UUID: CGRect]
     let geometryWidth: CGFloat
     let enabled: Bool
     /// The hover preview card takes the same spot; the tooltip yields to it.
@@ -75,11 +76,24 @@ struct HealthPopoverOverlay: View {
     let previews: TabHoverPreviewController
 
     var body: some View {
+        let hoveredTabId = hover.hoveredTabId
+        // Persistent container so the popover's insertion and removal animate.
+        // Fixed full size keeps `.position` coordinates stable as it empties.
+        ZStack {
+            popover(hoveredTabId: hoveredTabId)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .animation(.easeOut(duration: 0.2), value: hoveredTabId)
+    }
+
+    @ViewBuilder
+    private func popover(hoveredTabId: UUID?) -> some View {
         if enabled,
-           let tab,
+           let hoveredTabId,
+           let tab = tabsModel.tabs.first(where: { $0.id == hoveredTabId }),
            previews.previewedTabID != tab.id,
            let health = tab.connectionHealth,
-           let tabFrame {
+           let tabFrame = tabFrames[hoveredTabId] {
             ConnectionHealthPopover(health: health)
                 .fixedSize()
                 .position(
@@ -94,6 +108,24 @@ struct HealthPopoverOverlay: View {
                 )
                 .zIndex(1000)
         }
+    }
+}
+
+// MARK: - Session Census Observer
+
+/// Walks every tab's panes here rather than in MainView.body, keeping that
+/// census off every MainView body pass.
+struct SessionCensusObserver: View {
+    let tabsModel: TabsModel
+    let onChange: () -> Void
+
+    var body: some View {
+        Color.clear
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onChange(of: WindowSessionCensus.profileCounts(in: tabsModel.tabs)) { _, _ in
+                onChange()
+            }
     }
 }
 

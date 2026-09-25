@@ -54,7 +54,7 @@ extension MainView {
             // Multiplexer page IDs are not app-tab IDs; ignore them while
             // retaining the app hero and any app scope sliding beside it.
             visibleTabs = ids.compactMap { tabsModel.tab(withID: $0) }
-        } else if let swipe = appTabSwipeState {
+        } else if let swipe = appTabSwipe.phase {
             visibleTabs = [swipe.sourceTabID, swipe.targetTabID]
                 .compactMap { tabsModel.tab(withID: $0) }
         } else if let displayedTabID = tabsModel.displayedTabID,
@@ -1060,7 +1060,7 @@ extension MainView {
             // The escape used to sit under that modifier, which is what kept the
             // strip-driven resize off any ambient sheet animation.
             .transaction {
-                if appTabSwipeState?.isSettling != true {
+                if appTabSwipe.phase?.isSettling != true {
                     $0.animation = nil
                 }
             }
@@ -1108,7 +1108,7 @@ extension MainView {
             ForEach(Array(terminals.enumerated()), id: \.element.id) { index, tab in
                 if !tab.splitTree.isEmpty {
                     let terminalEffectsEnabled = tabAllowsTerminalEffects(tab)
-                    let visualMetrics = appTabSwipeVisualMetrics(for: tab.id, width: width)
+                    let visualMetrics = appTabSwipeVisualMetrics(for: tab.id)
                     let liveBottomToolbarHeight = tab.focusedPane?.reservedKeyboardToolbarHeightAtBottom ?? 0
                     // A herdr tab can be claimed while it is not showing (Take
                     // Control), and the size claimed is the size it lays out
@@ -1121,7 +1121,7 @@ extension MainView {
                     // same reservation. The target is not first responder yet,
                     // so its live value is otherwise 0 and its viewport appears
                     // taller beside the toolbar-shortened source tab.
-                    let reservedBottomToolbarHeight: CGFloat = appTabSwipeState?
+                    let reservedBottomToolbarHeight: CGFloat = appTabSwipe.phase?
                         .reservedBottomToolbarHeight(for: tab.id)
                         ?? ((index == selectedTabIndex || tab.id == tabsModel.displayedTabID)
                             ? liveBottomToolbarHeight
@@ -1152,7 +1152,7 @@ extension MainView {
                             handlePaneMove(tabID: tab.id, source: source, destination: destination, zone: zone)
                         },
                         allowsPaneRearrangement: !tab.paneMove.isPending && !isAnySheetPresented
-                            && appTabSwipeState == nil && !tabExpose.isActive
+                            && appTabSwipe.phase == nil && !tabExpose.isActive
                             && tabsModel.fullScreenPaneID == nil,
                         isActive: index == selectedTabIndex,
                         focusedPane: tab.focusedPane,
@@ -1198,15 +1198,15 @@ extension MainView {
                     // visible so they can slide beside each other, but input stays
                     // on the current selected/source tab until release commits.
                     .opacity(visualMetrics.opacity)
-                    .offset(x: visualMetrics.offsetX)
+                    .modifier(AppTabSwipeOffsetModifier(swipe: appTabSwipe, role: visualMetrics.role, width: width))
                     .zIndex(visualMetrics.zIndex)
-                    .allowsHitTesting(index == selectedTabIndex && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
+                    .allowsHitTesting(index == selectedTabIndex && (appTabSwipe.phase == nil || tab.id == appTabSwipe.phase?.sourceTabID))
                     .padding(.top, topPadding)
                     .padding(.bottom, bottomPadding.padding)
                     // The safe-area escape moved up to the reader in
                     // terminalTabsView that measures the expansion it grants.
                     .transaction {
-                        if appTabSwipeState?.isSettling != true {
+                        if appTabSwipe.phase?.isSettling != true {
                             $0.animation = nil
                         }
                     }
@@ -1219,27 +1219,18 @@ extension MainView {
         .clipped()
     }
 
-    private func appTabSwipeVisualMetrics(for tabID: UUID, width: CGFloat) -> (opacity: Double, offsetX: CGFloat, zIndex: Double) {
-        guard let state = appTabSwipeState else {
-            return (tabID == tabsModel.displayedTabID ? 1 : 0, 0, tabID == tabsModel.displayedTabID ? 1 : 0)
+    /// Structural swipe metrics only; the slide offset lives in AppTabSwipeOffsetModifier.
+    private func appTabSwipeVisualMetrics(for tabID: UUID) -> (opacity: Double, zIndex: Double, role: AppTabSwipeRole) {
+        guard let phase = appTabSwipe.phase else {
+            return (tabID == tabsModel.displayedTabID ? 1 : 0, tabID == tabsModel.displayedTabID ? 1 : 0, .none)
         }
-
-        let effectiveWidth = max(max(width, state.width), 1)
-        let translation: CGFloat = switch state.direction {
-        case .left:
-            min(0, max(-effectiveWidth, state.translationX))
-        case .right:
-            max(0, min(effectiveWidth, state.translationX))
+        if tabID == phase.sourceTabID {
+            return (1, 2, .source)
         }
-        let targetEntryOffset = state.direction == .left ? effectiveWidth : -effectiveWidth
-
-        if tabID == state.sourceTabID {
-            return (1, translation, 2)
+        if tabID == phase.targetTabID {
+            return (1, 1, .target)
         }
-        if tabID == state.targetTabID {
-            return (1, translation + targetEntryOffset, 1)
-        }
-        return (0, 0, 0)
+        return (0, 0, .none)
     }
 
     /// A pane may be a leaf of exactly one tab's split tree. Two tabs sharing a

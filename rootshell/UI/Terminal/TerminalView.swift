@@ -3778,7 +3778,10 @@ extension Ghostty {
                 shouldBecomeFirstResponderWhenReady = false
                 clearInputAssistantsRecursively()
                 keyboardAccessoryController?.scheduleFloatingTouchKeyboardUpdate()
+                #if !targetEnvironment(macCatalyst)
+                // No keyboard toolbar on Catalyst; a bump would only re-render every window.
                 EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+                #endif
             }
 
             // Sync Ghostty surface focus when UIKit grants us focus
@@ -3834,9 +3837,11 @@ extension Ghostty {
                 // terminal has usually claimed the keyboard already, in which
                 // case this is a no-op and its floating card survives.
                 keyboardAccessoryController?.releaseTouchKeyboardState()
-                EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
                 #if targetEnvironment(macCatalyst)
+                // No keyboard toolbar on Catalyst; a bump would only re-render every window.
                 CatalystAppDelegate.noteContinuityPasteboardTargetResigned(self)
+                #else
+                EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
                 #endif
             }
 

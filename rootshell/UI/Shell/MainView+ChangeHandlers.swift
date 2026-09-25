@@ -88,8 +88,8 @@ extension MainView {
             }
             // Splitting or closing a pane need not change the number of tabs.
             // Keep profile badges current for those topology changes as well.
-            .onChange(of: WindowSessionCensus.profileCounts(in: terminals)) { _, _ in
-                notifySessionCountChanged()
+            .background {
+                SessionCensusObserver(tabsModel: tabsModel, onChange: notifySessionCountChanged)
             }
             // A close can replace the selected tab without changing its index.
             // Focus follows identity; reordering the same tab needs no handoff.
