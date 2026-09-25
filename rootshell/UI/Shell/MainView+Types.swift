@@ -80,6 +80,94 @@ extension MainView {
         }
     }
 
+    /// Storage behind `appTabSwipeState`, split so MainView.body observes only
+    /// `phase`; the per-frame translation is read by AppTabSwipeOffsetModifier.
+    @MainActor @Observable final class AppTabSwipeModel {
+        struct Phase: Equatable {
+            let sourceTabID: UUID
+            let targetTabID: UUID
+            let direction: SwipeDirection
+            let reservedBottomToolbarHeight: CGFloat
+            let isSettling: Bool
+
+            func reservedBottomToolbarHeight(for tabID: UUID) -> CGFloat? {
+                guard tabID == sourceTabID || tabID == targetTabID else { return nil }
+                return reservedBottomToolbarHeight
+            }
+        }
+
+        private(set) var phase: Phase?
+        private(set) var translationX: CGFloat = 0
+        private(set) var width: CGFloat = 1
+        @ObservationIgnored private var lastEventAt: TimeInterval = 0
+
+        /// The whole state, for handlers. Reads every field, so body code must use `phase`.
+        var state: AppTabSwipeState? {
+            get {
+                guard let phase else { return nil }
+                return AppTabSwipeState(
+                    sourceTabID: phase.sourceTabID,
+                    targetTabID: phase.targetTabID,
+                    direction: phase.direction,
+                    reservedBottomToolbarHeight: phase.reservedBottomToolbarHeight,
+                    translationX: translationX,
+                    width: width,
+                    isSettling: phase.isSettling,
+                    lastEventAt: lastEventAt
+                )
+            }
+            set {
+                guard let newValue else {
+                    if phase != nil { phase = nil }
+                    return
+                }
+                let newPhase = Phase(
+                    sourceTabID: newValue.sourceTabID,
+                    targetTabID: newValue.targetTabID,
+                    direction: newValue.direction,
+                    reservedBottomToolbarHeight: newValue.reservedBottomToolbarHeight,
+                    isSettling: newValue.isSettling
+                )
+                if phase != newPhase { phase = newPhase }
+                if translationX != newValue.translationX { translationX = newValue.translationX }
+                if width != newValue.width { width = newValue.width }
+                lastEventAt = newValue.lastEventAt
+            }
+        }
+    }
+
+    /// A tab's part in an in-flight app-tab swipe.
+    enum AppTabSwipeRole {
+        case source
+        case target
+        case none
+    }
+
+    /// Applies the swipe's horizontal slide. Only tabs taking part read the
+    /// live translation, so a pan frame invalidates just these modifiers.
+    struct AppTabSwipeOffsetModifier: ViewModifier {
+        let swipe: AppTabSwipeModel
+        let role: AppTabSwipeRole
+        let width: CGFloat
+
+        func body(content: Content) -> some View {
+            content.offset(x: offsetX)
+        }
+
+        private var offsetX: CGFloat {
+            guard role != .none, let phase = swipe.phase else { return 0 }
+            let effectiveWidth = max(max(width, swipe.width), 1)
+            let translation: CGFloat = switch phase.direction {
+            case .left:
+                min(0, max(-effectiveWidth, swipe.translationX))
+            case .right:
+                max(0, min(effectiveWidth, swipe.translationX))
+            }
+            guard role == .target else { return translation }
+            return translation + (phase.direction == .left ? effectiveWidth : -effectiveWidth)
+        }
+    }
+
     // MARK: - Tab Drop Delegate
 
     /// Handles drag-and-drop reordering of tabs.

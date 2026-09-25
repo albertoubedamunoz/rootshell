@@ -232,7 +232,13 @@ struct MainView: View {
     // Tab indicator overlay (shown when switching tabs with tab bar hidden)
     // and its one-shot suppression flags (see TabIndicatorController).
     @State var tabIndicator = TabIndicatorController()
-    @State var appTabSwipeState: AppTabSwipeState?
+    @State var appTabSwipe = AppTabSwipeModel()
+    /// Handlers use the whole state; body code reads `appTabSwipe.phase` so
+    /// per-frame translation never invalidates MainView.body.
+    var appTabSwipeState: AppTabSwipeState? {
+        get { appTabSwipe.state }
+        nonmutating set { appTabSwipe.state = newValue }
+    }
 
     // Tab exposé (live previews of the current scope; see TabExposeController).
     @State var tabExpose = TabExposeController()
@@ -680,22 +686,17 @@ struct MainView: View {
             .overlay(alignment: .topLeading) {
                 // Health tooltip overlay - positioned using global coordinates.
                 // Placed in overlay to ensure it renders above all other content.
-                // The hovered TabModel lookup uses `id` (a `let UUID`) which is
-                // immutable and not Observation-tracked. The `connectionHealth`
-                // read happens inside HealthPopoverOverlay.body, scoping
-                // keepalive-ping invalidations to that overlay subview.
-                let hoveredTab = tabHover.hoveredTabId.flatMap { id in
-                    terminals.first(where: { $0.id == id })
-                }
+                // Hover, tab frame, and health reads all happen inside the
+                // overlay's body so hovering never invalidates MainView.body.
                 HealthPopoverOverlay(
-                    tab: hoveredTab,
-                    tabFrame: tabHover.hoveredTabId.flatMap { tabFrames[$0] },
+                    hover: tabHover,
+                    tabsModel: tabsModel,
+                    tabFrames: $tabFrames,
                     geometryWidth: geometry.size.width,
                     enabled: sshHealthMonitoringEnabled,
                     previews: tabHoverPreview
                 )
             }
-            .animation(.easeOut(duration: 0.2), value: tabHover.hoveredTabId)
         } // GeometryReader
         // The terminal manages keyboard clearance explicitly. Keep the root
         // layout stable when iOS hides/restores the keyboard around app
