@@ -35,6 +35,21 @@ nonisolated enum RFWidth {
         for ch in string { total += width(of: ch) }
         return total
     }
+
+    /// `string` cut to `maxWidth` display cells, ending in "…" when shortened.
+    static func truncate(_ string: String, to maxWidth: Int) -> String {
+        guard width(of: string) > maxWidth else { return string }
+        // Leave 1 cell for the ellipsis.
+        var used = 0
+        var truncated = ""
+        for char in string {
+            let w = width(of: char)
+            if used + w > maxWidth - 1 { break }
+            truncated.append(char)
+            used += w
+        }
+        return truncated + "…"
+    }
 }
 
 #endif

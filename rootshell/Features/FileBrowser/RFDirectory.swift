@@ -49,7 +49,7 @@ final class RFDirectory {
         allEntries = RFEntry.sorted(raw, by: sortOrder)
     }
 
-    /// Load entries via a data source (async — required for SFTP).
+    /// Load entries via a data source (async — required for remote sources).
     func load(using dataSource: RFDataSource) async throws {
         let raw = try await dataSource.loadDirectory(at: path)
         allEntries = RFEntry.sorted(raw, by: sortOrder)

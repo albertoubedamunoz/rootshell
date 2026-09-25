@@ -15,10 +15,10 @@ enum RFInputMode: Equatable {
     case createFile
     case createDirectory
     case cdPath
-    case sftpConnect      // SFTP connection prompt (profile or user@host)
+    case connectPicker    // Picking an SSH profile or storage provider to open
     case sftpHostKey      // Waiting for yes/no/once response to host key prompt
     case sftpPassword     // Waiting for password input (no echo)
-    case sftpConnecting   // Connection in progress (blocks input)
+    case connecting       // Connection in progress (blocks input)
     case bookmarkSet      // Waiting for bookmark key after 'm'
     case bookmarkJump     // Waiting for bookmark key after '''
     case deleteConfirm
@@ -33,9 +33,9 @@ enum RFInputMode: Equatable {
         switch (lhs, rhs) {
         case (.normal, .normal), (.filter, .filter), (.search, .search),
              (.createFile, .createFile), (.createDirectory, .createDirectory),
-             (.cdPath, .cdPath), (.sftpConnect, .sftpConnect),
+             (.cdPath, .cdPath), (.connectPicker, .connectPicker),
              (.sftpHostKey, .sftpHostKey), (.sftpPassword, .sftpPassword),
-             (.sftpConnecting, .sftpConnecting),
+             (.connecting, .connecting),
              (.bookmarkSet, .bookmarkSet),
              (.bookmarkJump, .bookmarkJump), (.deleteConfirm, .deleteConfirm),
              (.pasteOverwriteConfirm, .pasteOverwriteConfirm),
@@ -52,20 +52,19 @@ enum RFInputMode: Equatable {
 }
 
 /// Yank clipboard shared across tabs.
-/// Tracks the source data source to enable cross-source paste (local→SFTP, SFTP→local).
+/// Tracks the source data source to enable paste between any two sources.
 struct RFYankClipboard {
     var paths: [String]
     var isCut: Bool
-    weak var source: RFLocalDataSource?  // nil for SFTP sources (use sourceRemote)
-    var sourceRemote: RFSFTPDataSource?  // strong ref to keep SFTP alive for paste
-    var sourceDataSource: (any RFDataSource)? { (source as (any RFDataSource)?) ?? sourceRemote }
+    /// Strong, so a paste still works after the source's tab or rf session is gone.
+    var source: any RFDataSource
 }
 
 /// Tracks a remote file downloaded for editing, so we can detect changes and re-upload.
 struct PendingRemoteEdit {
     let tempPath: String        // Local temp file the editor operates on
     let remotePath: String      // Original remote path to upload back to
-    let dataSource: RFSFTPDataSource  // Connection to upload through
+    let dataSource: RFRemoteDataSource  // Connection to upload through
     let preEditHash: Data       // SHA256 of file content before editor opened
 }
 
@@ -73,8 +72,8 @@ struct PendingRemoteEdit {
 struct FailedRemoteUpload {
     let recoveryPath: String          // Durable path in Documents/.rf-recovery/
     let remotePath: String            // Where upload was headed
-    let host: String                  // user@host for display
-    let dataSource: RFSFTPDataSource  // For retry attempt
+    let host: String                  // Connection label for display
+    let dataSource: RFRemoteDataSource  // For retry attempt
     let errorMessage: String          // What went wrong
 }
 
@@ -123,19 +122,20 @@ final class RFCommand {
     private var themeSubscription: AnyCancellable?
     private var themeOverrideSubscription: AnyCancellable?
 
-    // SFTP profile picker state
-    private var sftpProfileList: [ConnectionProfile] = []
-    private var sftpFilteredProfiles: [ConnectionProfile] = []
-    private var sftpPickerCursor: Int = 0
-    private var sftpPickerScroll: Int = 0
+    // Connect picker state: the file manager's remote locations
+    private var connectTargets: [FileManagerLocation] = []
+    private var filteredConnectTargets: [FileManagerLocation] = []
+    private var connectPickerCursor: Int = 0
+    private var connectPickerScroll: Int = 0
 
-    // SFTP host key / password prompt state
+    // Connection progress, SFTP host key / password prompt state
+    private var connectingLabel: String = ""
+    private var connectError: String?
     private var sftpHostKeyContinuation: CheckedContinuation<HostKeyValidationResult, Never>?
     private var sftpHostKeyMessage: String = ""
     private var sftpHostKeyIsChanged: Bool = false
     private var sftpPasswordBuffer: String = ""
     private var sftpPendingProfile: ConnectionProfile?
-    private var sftpConnectError: String?
 
     // Pending remote edit state (download → edit → upload)
     private var pendingRemoteEdit: PendingRemoteEdit?
@@ -442,13 +442,13 @@ final class RFCommand {
             handleInputLineEvent(event, prompt: "new dir", onConfirm: confirmCreateDir, onCancel: cancelInput)
         case .cdPath:
             handleCdPathEvent(event)
-        case .sftpConnect:
-            handleSftpConnectEvent(event)
+        case .connectPicker:
+            handleConnectPickerEvent(event)
         case .sftpHostKey:
             handleSftpHostKeyEvent(event)
         case .sftpPassword:
             handleSftpPasswordEvent(event)
-        case .sftpConnecting:
+        case .connecting:
             // Block all input while connecting; only allow Ctrl-C to cancel
             if case .ctrlC = event {
                 cancelInput()
@@ -697,9 +697,9 @@ final class RFCommand {
         case .shiftTab:
             switchTab(to: (activeTabIndex - 1 + tabs.count) % tabs.count)
 
-        // SFTP connect — open new tab to remote host
+        // Open a new tab on an SFTP host or storage provider
         case .character("o"):
-            enterInputMode(.sftpConnect)
+            enterInputMode(.connectPicker)
 
         // Shell
         case .character(";"):
@@ -762,18 +762,18 @@ final class RFCommand {
         inputBuffer = ""
         inputCursorPos = 0
 
-        // Populate profile list when entering SFTP connect mode
-        if mode == .sftpConnect {
-            sftpProfileList = ConnectionProfileManager.shared.profiles
-            if sftpProfileList.isEmpty {
+        if mode == .connectPicker {
+            connectTargets = FileManagerLocation.all(origin: nil).filter { !$0.endpoint.isLocal }
+            if connectTargets.isEmpty {
                 inputMode = .normal
+                statusMessage = "No SSH profiles or storage providers"
                 fullRender()
                 return
             }
-            sftpFilteredProfiles = sftpProfileList
-            sftpPickerCursor = 0
-            sftpPickerScroll = 0
-            renderSftpPicker()
+            filteredConnectTargets = connectTargets
+            connectPickerCursor = 0
+            connectPickerScroll = 0
+            renderConnectPicker()
             return
         }
 
@@ -992,7 +992,7 @@ final class RFCommand {
         let ds = tab.dataSource
 
         if ds.isRemote {
-            // Remote: resolve path using SFTP semantics, navigate directly
+            // Remote: resolve path using POSIX semantics, navigate directly
             // (the async navigateTo will fail gracefully if path doesn't exist)
             if !path.hasPrefix("/") {
                 path = ds.joinPath(tab.currentDir.path, path)
@@ -1018,20 +1018,24 @@ final class RFCommand {
         }
     }
 
-    // MARK: - SFTP Connect (Profile Picker)
+    // MARK: - Connect Picker
 
-    /// Handle events in the SFTP profile picker mode.
+    /// Handle events in the connect picker (SSH profiles and storage providers).
     /// j/k or arrows navigate, typing filters, Enter selects, Escape cancels.
-    private func handleSftpConnectEvent(_ event: RFInputEvent) {
+    private func handleConnectPickerEvent(_ event: RFInputEvent) {
         let vc = Int(display.layout.currentRegion.height)
 
         switch event {
         case .enter:
-            guard !sftpFilteredProfiles.isEmpty,
-                  sftpPickerCursor < sftpFilteredProfiles.count else {
-                break
+            guard filteredConnectTargets.indices.contains(connectPickerCursor) else { break }
+            let endpoint = filteredConnectTargets[connectPickerCursor].endpoint
+            if let provider = endpoint.storageProvider {
+                inputMode = .normal
+                beginConnecting(provider.displayName)
+                openRemoteTab(RFRemoteDataSource(target: .storage(provider)))
+                return
             }
-            let profile = sftpFilteredProfiles[sftpPickerCursor]
+            guard let id = endpoint.profileID, let profile = ConnectionProfileManager.shared.profile(for: id) else { break }
             inputMode = .normal
             connectSFTPProfile(profile)
             return
@@ -1043,39 +1047,39 @@ final class RFCommand {
             return
 
         case .character("j"), .arrowDown(shift: false):
-            if sftpPickerCursor < sftpFilteredProfiles.count - 1 {
-                sftpPickerCursor += 1
-                adjustSftpPickerScroll(visibleCount: vc)
+            if connectPickerCursor < filteredConnectTargets.count - 1 {
+                connectPickerCursor += 1
+                adjustConnectPickerScroll(visibleCount: vc)
             }
 
         case .character("k"), .arrowUp(shift: false):
-            if sftpPickerCursor > 0 {
-                sftpPickerCursor -= 1
-                adjustSftpPickerScroll(visibleCount: vc)
+            if connectPickerCursor > 0 {
+                connectPickerCursor -= 1
+                adjustConnectPickerScroll(visibleCount: vc)
             }
 
         case .character("g"):
-            sftpPickerCursor = 0
-            sftpPickerScroll = 0
+            connectPickerCursor = 0
+            connectPickerScroll = 0
 
         case .character("G"):
-            sftpPickerCursor = max(0, sftpFilteredProfiles.count - 1)
-            adjustSftpPickerScroll(visibleCount: vc)
+            connectPickerCursor = max(0, filteredConnectTargets.count - 1)
+            adjustConnectPickerScroll(visibleCount: vc)
 
         case .pageDown:
-            sftpPickerCursor = min(sftpFilteredProfiles.count - 1, sftpPickerCursor + vc)
-            adjustSftpPickerScroll(visibleCount: vc)
+            connectPickerCursor = max(0, min(filteredConnectTargets.count - 1, connectPickerCursor + vc))
+            adjustConnectPickerScroll(visibleCount: vc)
 
         case .pageUp:
-            sftpPickerCursor = max(0, sftpPickerCursor - vc)
-            adjustSftpPickerScroll(visibleCount: vc)
+            connectPickerCursor = max(0, connectPickerCursor - vc)
+            adjustConnectPickerScroll(visibleCount: vc)
 
         case .tab:
             // Tab completion: fill input with current selection name
-            if !sftpFilteredProfiles.isEmpty, sftpPickerCursor < sftpFilteredProfiles.count {
-                inputBuffer = sftpFilteredProfiles[sftpPickerCursor].name
+            if filteredConnectTargets.indices.contains(connectPickerCursor) {
+                inputBuffer = filteredConnectTargets[connectPickerCursor].title
                 inputCursorPos = inputBuffer.count
-                refilterSftpProfiles()
+                refilterConnectTargets()
             }
 
         case .backspace:
@@ -1083,83 +1087,79 @@ final class RFCommand {
                 let idx = inputBuffer.index(inputBuffer.startIndex, offsetBy: inputCursorPos - 1)
                 inputBuffer.remove(at: idx)
                 inputCursorPos -= 1
-                refilterSftpProfiles()
+                refilterConnectTargets()
             }
 
         case .ctrlU:
             inputBuffer = ""
             inputCursorPos = 0
-            refilterSftpProfiles()
+            refilterConnectTargets()
 
         case .ctrlW:
             deleteWordBackward()
-            refilterSftpProfiles()
+            refilterConnectTargets()
 
         case .character(let c) where !c.isNewline:
             insertAtCursor(c)
-            refilterSftpProfiles()
+            refilterConnectTargets()
 
         default:
             break
         }
 
-        renderSftpPicker()
+        renderConnectPicker()
     }
 
-    /// Refilter the profile list based on current input text.
-    private func refilterSftpProfiles() {
-        let filter = inputBuffer.lowercased()
-        if filter.isEmpty {
-            sftpFilteredProfiles = sftpProfileList
-        } else {
-            sftpFilteredProfiles = sftpProfileList.filter {
-                $0.name.lowercased().contains(filter) ||
-                $0.sshConfig.host.lowercased().contains(filter) ||
-                $0.sshConfig.username.lowercased().contains(filter)
-            }
-        }
+    /// Refilter the picker by name or detail (user@host, provider and bucket).
+    private func refilterConnectTargets() {
+        filteredConnectTargets = connectTargets.filter { $0.matches(inputBuffer) }
         // Reset cursor if out of bounds
-        sftpPickerCursor = min(sftpPickerCursor, max(0, sftpFilteredProfiles.count - 1))
-        sftpPickerScroll = 0
+        connectPickerCursor = min(connectPickerCursor, max(0, filteredConnectTargets.count - 1))
+        connectPickerScroll = 0
     }
 
     /// Adjust scroll offset to keep cursor visible in the picker.
-    private func adjustSftpPickerScroll(visibleCount: Int) {
+    private func adjustConnectPickerScroll(visibleCount: Int) {
         let scrolloff = 2
-        if sftpPickerCursor < sftpPickerScroll + scrolloff {
-            sftpPickerScroll = max(0, sftpPickerCursor - scrolloff)
+        if connectPickerCursor < connectPickerScroll + scrolloff {
+            connectPickerScroll = max(0, connectPickerCursor - scrolloff)
         }
-        if sftpPickerCursor >= sftpPickerScroll + visibleCount - scrolloff {
-            sftpPickerScroll = max(0, sftpPickerCursor - visibleCount + scrolloff + 1)
+        if connectPickerCursor >= connectPickerScroll + visibleCount - scrolloff {
+            connectPickerScroll = max(0, connectPickerCursor - visibleCount + scrolloff + 1)
         }
     }
 
-    /// Render the SFTP profile picker into the current column + status bar.
-    private func renderSftpPicker() {
-        // Convert profiles to display entries for the file list renderer
-        let entries: [RFDisplayEntry] = sftpFilteredProfiles.map { profile in
-            let detail = "\(profile.sshConfig.username)@\(profile.sshConfig.host)"
+    /// Render the connect picker into the current column + status bar.
+    private func renderConnectPicker() {
+        // Convert targets to display entries for the file list renderer
+        let region = display.layout.currentRegion
+        let entries: [RFDisplayEntry] = filteredConnectTargets.map { location in
+            // Nerd Font cloud or ssh glyph
+            let icon = location.endpoint.storageProvider != nil ? "󰅟" : "󰣀"
+            // The list fits the name around the right text, so the detail gets only what the
+            // whole name leaves (row chrome is 6 cells plus the icon), or nothing when tight.
+            let room = region.width - 6 - RFWidth.width(of: icon) - RFWidth.width(of: location.title)
             return RFDisplayEntry(
-                name: profile.name,
-                path: profile.id.uuidString,
-                icon: "󰣀",
+                name: location.title,
+                path: location.id,
+                icon: icon,
                 iconColor: theme.directoryColor,
                 color: theme.directoryColor,
                 isDirectory: false,
-                rightText: detail,
+                rightText: room >= 8 ? RFWidth.truncate(location.detail ?? "", to: room) : "",
                 rightColor: nil
             )
         }
 
         // Draw header
-        display.drawHeader(path: "Select SFTP Profile", filterText: inputBuffer.isEmpty ? nil : inputBuffer)
+        display.drawHeader(path: "Open SFTP or Cloud Storage", filterText: inputBuffer.isEmpty ? nil : inputBuffer)
 
-        // Draw profiles in the current column using the existing file list renderer
+        // Draw targets in the current column using the existing file list renderer
         display.drawFileList(
             entries: entries,
-            cursorIndex: sftpPickerCursor,
-            scrollOffset: sftpPickerScroll,
-            region: display.layout.currentRegion,
+            cursorIndex: connectPickerCursor,
+            scrollOffset: connectPickerScroll,
+            region: region,
             isActive: true
         )
 
@@ -1171,10 +1171,18 @@ final class RFCommand {
         display.render()
 
         // Status bar: show filter input
-        let count = sftpFilteredProfiles.count
-        let total = sftpProfileList.count
-        let prompt = count == total ? "SFTP (\(total))" : "SFTP (\(count)/\(total))"
+        let count = filteredConnectTargets.count
+        let total = connectTargets.count
+        let prompt = count == total ? "open (\(total))" : "open (\(count)/\(total))"
         display.drawInputLine(prompt: prompt, text: inputBuffer, cursorPos: inputCursorPos)
+    }
+
+    /// Show the connecting spinner for `label`; input is blocked until the tab opens or fails.
+    private func beginConnecting(_ label: String) {
+        connectingLabel = label
+        connectError = nil
+        inputMode = .connecting
+        fullRender()
     }
 
     /// Connect to a profile via SFTP and open a new rf tab.
@@ -1188,17 +1196,12 @@ final class RFCommand {
             // Try to resolve from Keychain first
             if SSHPasswordManager.shared.hasPassword(host: config.host, port: config.port, username: config.username) {
                 // Have saved password — resolve and connect
-                sftpPendingProfile = profile
-                inputMode = .sftpConnecting
-                sftpConnectError = nil
-                fullRender()
+                beginConnecting(config.host)
                 Task { [weak self] in
                     guard let self else { return }
                     do {
                         let resolved = try await config.resolvedConfig()
-                        var updatedProfile = profile
-                        updatedProfile.sshConfig = resolved
-                        self.performSFTPConnect(updatedProfile)
+                        self.openRemoteTab(RFRemoteDataSource(target: .sftp(resolved)))
                     } catch {
                         Self.logger.error("Failed to resolve saved password for \(config.host): \(error.localizedDescription)")
                         // Fall back to password prompt
@@ -1225,18 +1228,13 @@ final class RFCommand {
 
         default:
             // Key auth, none auth, or password already inline — connect directly
-            sftpPendingProfile = profile
-            inputMode = .sftpConnecting
-            sftpConnectError = nil
-            fullRender()
-            performSFTPConnect(profile)
+            beginConnecting(config.host)
+            openRemoteTab(RFRemoteDataSource(target: .sftp(config)))
         }
     }
 
-    /// Perform the actual SFTP connection after auth is resolved.
-    private func performSFTPConnect(_ profile: ConnectionProfile) {
-        let dataSource = RFSFTPDataSource(config: profile.sshConfig)
-
+    /// Connect a remote data source and open it in a new tab, at `path` or its home directory.
+    private func openRemoteTab(_ dataSource: RFRemoteDataSource, path: String? = nil) {
         // Wire up interactive host key validation — prompt user in the rf TUI
         dataSource.onHostKeyValidation = { [weak self] request in
             guard let self else { return .reject }
@@ -1250,7 +1248,8 @@ final class RFCommand {
             return await handler(challenge)
         }
 
-        let host = profile.sshConfig.host
+        let label = dataSource.connectionLabel
+        let kind = dataSource.kindLabel
 
         Task { [weak self] in
             guard let self else { return }
@@ -1258,16 +1257,15 @@ final class RFCommand {
                 try await dataSource.connect()
                 guard !Task.isCancelled else { return }
 
-                let homePath = try await dataSource.resolveHomePath()
                 let newId = (self.tabs.map(\.id).max() ?? 0) + 1
-                let tab = RFTab(id: newId, path: homePath, dataSource: dataSource)
+                let tab = RFTab(id: newId, path: path ?? dataSource.homePath, dataSource: dataSource)
                 self.configureTabCallbacks(tab)
                 try await tab.loadInitial()
                 tab.showHidden = self.config.showHidden
                 tab.sortOrder = self.config.sortBy
 
                 self.sftpPendingProfile = nil
-                self.sftpConnectError = nil
+                self.connectError = nil
                 self.tabs.append(tab)
                 self.activeTabIndex = self.tabs.count - 1
                 self.display.layout.showTabBar = self.tabs.count > 1
@@ -1276,9 +1274,9 @@ final class RFCommand {
                 self.schedulePreview()
             } catch {
                 dataSource.disconnect()
-                Self.logger.error("SFTP connect to \(host) failed: \(error.localizedDescription)")
+                Self.logger.error("\(kind) connect to \(label) failed: \(error.localizedDescription)")
                 self.sftpPendingProfile = nil
-                self.sftpConnectError = error.localizedDescription
+                self.connectError = "\(kind) error: \(error.localizedDescription)"
                 self.inputMode = .normal
                 self.fullRender()
             }
@@ -1315,7 +1313,7 @@ final class RFCommand {
             }
             inputBuffer = ""
             inputCursorPos = 0
-            inputMode = .sftpConnecting
+            inputMode = .connecting
             renderStatusBar()
             let continuation = sftpHostKeyContinuation
             sftpHostKeyContinuation = nil
@@ -1325,7 +1323,7 @@ final class RFCommand {
         case .escape, .ctrlC:
             inputBuffer = ""
             inputCursorPos = 0
-            inputMode = .sftpConnecting
+            inputMode = .connecting
             renderStatusBar()
             let continuation = sftpHostKeyContinuation
             sftpHostKeyContinuation = nil
@@ -1359,17 +1357,13 @@ final class RFCommand {
                 fullRender()
                 return
             }
-            let password = sftpPasswordBuffer
+            // Build config with the entered password
+            var config = profile.sshConfig
+            config.authMethod = .password(sftpPasswordBuffer)
             sftpPasswordBuffer = ""
 
-            // Build config with the entered password
-            var updatedProfile = profile
-            updatedProfile.sshConfig.authMethod = .password(password)
-
-            inputMode = .sftpConnecting
-            sftpConnectError = nil
-            fullRender()
-            performSFTPConnect(updatedProfile)
+            beginConnecting(config.host)
+            openRemoteTab(RFRemoteDataSource(target: .sftp(config)))
 
         case .escape, .ctrlC:
             sftpPasswordBuffer = ""
@@ -1398,7 +1392,7 @@ final class RFCommand {
 
     private func cancelInput() {
         inputMode = .normal
-        sftpConnectError = nil
+        connectError = nil
         fullRender()
     }
 
@@ -1549,7 +1543,7 @@ final class RFCommand {
                     try await ds.uploadFromLocal(
                         localPath: recoveryPath,
                         remotePath: remotePath
-                    ) { _ in }
+                    )
                     // Success — clean up recovery file
                     try? FileManager.default.removeItem(atPath: recoveryPath)
                     Self.logger.info("Retry upload succeeded for \(remotePath)")
@@ -1633,12 +1627,7 @@ final class RFCommand {
     private func yankSelected(cut: Bool) {
         let paths = activeTab.operationPaths
         guard !paths.isEmpty else { return }
-        let ds = activeTab.dataSource
-        yankClipboard = RFYankClipboard(
-            paths: paths, isCut: cut,
-            source: ds as? RFLocalDataSource,
-            sourceRemote: ds as? RFSFTPDataSource
-        )
+        yankClipboard = RFYankClipboard(paths: paths, isCut: cut, source: activeTab.dataSource)
         Self.sharedYankClipboard = yankClipboard
         fullRender()
     }
@@ -1673,6 +1662,52 @@ final class RFCommand {
         return stem + " copy " + UUID().uuidString + ext  // last-resort fallback
     }
 
+    /// Replaces the existing `destPath` with what `copy` writes to a staged path beside it.
+    /// The original is moved aside rather than deleted until the copy is in place, so any
+    /// failure leaves the original at `destPath` or, if rollback fails too, recoverable.
+    private static func replaceItem(at destPath: String, in destination: any RFDataSource,
+                                    stagingWith copy: (String) async throws -> Void) async throws {
+        let destFS = try destination.fileSystem
+        let staged = siblingTempPath(for: destPath, in: destination)
+        let backup = siblingTempPath(for: destPath, in: destination)
+        do {
+            try await copy(staged)
+        } catch {
+            // Unstructured so a cancelled paste still cleans up.
+            await Task { try? await destFS.removeRecursively(staged) }.value
+            throw error
+        }
+        // Unstructured so a cancelled paste can't stop the swap halfway.
+        try await Task {
+            do {
+                try await destFS.rename(destPath, to: backup)
+            } catch {
+                try? await destFS.removeRecursively(staged)
+                throw error
+            }
+            do {
+                try await destFS.rename(staged, to: destPath)
+            } catch {
+                do {
+                    try await destFS.rename(backup, to: destPath)
+                } catch {
+                    Self.logger.error("Paste rollback failed; original kept at \(backup)")
+                }
+                try? await destFS.removeRecursively(staged)
+                throw error
+            }
+            try? await destFS.removeRecursively(backup)
+        }.value
+    }
+
+    /// A hidden, bounded-length name beside `path`. Keeps a short extension, which
+    /// storage uses for an object's content type.
+    private static func siblingTempPath(for path: String, in dataSource: any RFDataSource) -> String {
+        let ext = (path as NSString).pathExtension
+        let suffix = !ext.isEmpty && ext.utf8.count <= 16 ? "." + ext : ""
+        return dataSource.joinPath(dataSource.parentPath(of: path), ".rf-paste-\(UUID().uuidString)\(suffix)")
+    }
+
     private func pasteYankWithConflictCheck() {
         let yank = yankClipboard ?? Self.sharedYankClipboard
         guard let yank else { return }
@@ -1690,7 +1725,7 @@ final class RFCommand {
                 // auto-duplicates (copy) or no-ops (cut), so don't prompt overwrite.
                 // Compare by location, not identity: two tabs on the same host (or
                 // two local tabs) are distinct objects but the same filesystem.
-                let isSelfPaste = (yank.sourceDataSource?.isSameLocation(as: destDataSource) ?? false)
+                let isSelfPaste = yank.source.isSameLocation(as: destDataSource)
                     && srcPath == destPath
                 if isSelfPaste { continue }
                 if await destDataSource.fileExists(at: destPath) {
@@ -1714,9 +1749,9 @@ final class RFCommand {
         let tab = activeTab
         let destDataSource = tab.dataSource
         let destDir = tab.currentDir.path
-        let srcDataSource = yank.sourceDataSource
+        let srcDataSource = yank.source
 
-        if tab.dataSource.isRemote || (srcDataSource?.isRemote ?? false) {
+        if tab.dataSource.isRemote || srcDataSource.isRemote {
             let noun = yank.paths.count == 1 ? "item" : "items"
             tab.activityMessage = "Pasting \(yank.paths.count) \(noun)..."
             renderStatusBar()
@@ -1731,8 +1766,6 @@ final class RFCommand {
 
                 do {
                     let sameSource = srcDataSource === destDataSource
-                    let srcIsRemote = srcDataSource?.isRemote ?? false
-                    let destIsRemote = destDataSource.isRemote
 
                     // Pasting onto the source file itself: a cut is a no-op, a copy
                     // duplicates under a Finder-style "name copy" name. Never let the
@@ -1741,7 +1774,7 @@ final class RFCommand {
                     // tabs) are distinct objects pointing at the same filesystem, and a
                     // cut there would otherwise fall into the cross-source branch and
                     // delete the file.
-                    let isSelfPaste = (srcDataSource?.isSameLocation(as: destDataSource) ?? false)
+                    let isSelfPaste = srcDataSource.isSameLocation(as: destDataSource)
                         && srcPath == destPath
                     if isSelfPaste {
                         if yank.isCut {
@@ -1760,26 +1793,24 @@ final class RFCommand {
                         } else {
                             try await destDataSource.copyFile(sourcePath: srcPath, destPath: destPath, force: force)
                         }
-                    } else if !srcIsRemote && destIsRemote {
-                        if force { try? await destDataSource.delete(at: destPath) }
-                        try await destDataSource.uploadFromLocal(localPath: srcPath, remotePath: destPath) { _ in }
-                        // Only delete source after successful transfer, and only if not cancelled
-                        if yank.isCut, !Task.isCancelled { try? FileManager.default.removeItem(atPath: srcPath) }
-                    } else if srcIsRemote && !destIsRemote {
-                        if force, FileManager.default.fileExists(atPath: destPath) {
-                            try FileManager.default.removeItem(atPath: destPath)
-                        }
-                        guard let srcDS = srcDataSource else { continue }
-                        try await srcDS.downloadToLocal(remotePath: srcPath, localPath: destPath) { _ in }
-                        if yank.isCut, !Task.isCancelled { try? await srcDS.delete(at: srcPath) }
                     } else {
-                        let tempPath = NSTemporaryDirectory() + UUID().uuidString
-                        defer { try? FileManager.default.removeItem(atPath: tempPath) }
-                        guard let srcDS = srcDataSource else { continue }
-                        try await srcDS.downloadToLocal(remotePath: srcPath, localPath: tempPath) { _ in }
-                        if force { try? await destDataSource.delete(at: destPath) }
-                        try await destDataSource.uploadFromLocal(localPath: tempPath, remotePath: destPath) { _ in }
-                        if yank.isCut, !Task.isCancelled { try? await srcDS.delete(at: srcPath) }
+                        let copy: (String) async throws -> Void
+                        if !srcDataSource.isRemote && !destDataSource.isRemote {
+                            // Local sources of two rf sessions: FileManager keeps links, modes and dates.
+                            copy = { try await destDataSource.copyFile(sourcePath: srcPath, destPath: $0, force: false) }
+                        } else {
+                            // Streams between the two sources; storage copies on the server when it can.
+                            let srcFS = try srcDataSource.fileSystem
+                            let destFS = try destDataSource.fileSystem
+                            copy = { try await FileTreeCopier.copyTree(srcPath, to: $0, from: srcFS, to: destFS) }
+                        }
+                        if force, await destDataSource.fileExists(at: destPath) {
+                            try await Self.replaceItem(at: destPath, in: destDataSource, stagingWith: copy)
+                        } else {
+                            try await copy(destPath)
+                        }
+                        // Only delete source after successful transfer, and only if not cancelled
+                        if yank.isCut, !Task.isCancelled { try? await srcDataSource.delete(at: srcPath) }
                     }
                 } catch {
                     Self.logger.error("Paste failed for \(name): \(error.localizedDescription)")
@@ -1802,33 +1833,10 @@ final class RFCommand {
     private func createTab() {
         guard tabs.count < 9 else { return }
 
-        if activeTab.dataSource.isRemote {
-            // Remote: create an independent SFTP connection for the new tab
-            guard let sftpDS = activeTab.dataSource as? RFSFTPDataSource else { return }
-            let path = activeTab.currentDir.path
-            Task { [weak self] in
-                guard let self else { return }
-                let newDS = RFSFTPDataSource(config: sftpDS.config)
-                newDS.onHostKeyValidation = sftpDS.onHostKeyValidation
-                newDS.onKeyboardInteractiveChallenge = sftpDS.onKeyboardInteractiveChallenge
-                do {
-                    try await newDS.connect()
-                let newId = (self.tabs.map(\.id).max() ?? 0) + 1
-                let tab = RFTab(id: newId, path: path, dataSource: newDS)
-                self.configureTabCallbacks(tab)
-                try await tab.loadInitial()
-                tab.showHidden = self.config.showHidden
-                tab.sortOrder = self.config.sortBy
-                    self.tabs.append(tab)
-                    self.activeTabIndex = self.tabs.count - 1
-                    self.display.layout.showTabBar = self.tabs.count > 1
-                    self.fullRender()
-                    self.schedulePreview()
-                } catch {
-                    newDS.disconnect()
-                    Self.logger.error("Failed to create remote tab: \(error.localizedDescription)")
-                }
-            }
+        if let remote = activeTab.dataSource as? RFRemoteDataSource {
+            // Remote: create an independent connection for the new tab
+            beginConnecting(remote.connectionLabel)
+            openRemoteTab(RFRemoteDataSource(target: remote.target), path: activeTab.currentDir.path)
         } else {
             let newId = (tabs.map(\.id).max() ?? 0) + 1
             let tab = RFTab(id: newId, path: activeTab.currentDir.path, dataSource: activeTab.dataSource)
@@ -1848,11 +1856,11 @@ final class RFCommand {
         guard tabs.count > 1 else { return }
         // Delete kitty image from closing tab before removing it
         deleteKittyImage()
-        // Clean up SFTP connections and temp files
+        // Clean up remote connections and temp files
         let closingTab = tabs[activeTabIndex]
         closingTab.dataSource.cleanupTempFiles()
-        if let sftpDS = closingTab.dataSource as? RFSFTPDataSource {
-            sftpDS.disconnect()
+        if let remote = closingTab.dataSource as? RFRemoteDataSource {
+            remote.disconnect()
         }
         tabs.remove(at: activeTabIndex)
         if activeTabIndex >= tabs.count {
@@ -2055,7 +2063,7 @@ final class RFCommand {
         activeTab.previewSkip = 0
         activeTab.previewCache = nil
 
-        // Remote data source: use SFTP-based preview with debounce
+        // Remote data source: preview over the network with debounce
         if activeTab.dataSource.isRemote {
             scheduleRemotePreview(entry: entry)
             return
@@ -2495,7 +2503,7 @@ final class RFCommand {
     /// Download a remote file to temp, then open in the editor.
     /// On resume, `handlePostEditorReturn` detects changes and uploads.
     private func openRemoteInEditor(_ entry: RFEntry) {
-        guard let sftpDS = activeTab.dataSource as? RFSFTPDataSource else { return }
+        guard let remote = activeTab.dataSource as? RFRemoteDataSource else { return }
         let remotePath = entry.path
 
         // Show downloading status before suspending rf
@@ -2505,7 +2513,7 @@ final class RFCommand {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let tempPath = try await sftpDS.downloadToTemp(remotePath: remotePath, maxBytes: nil)
+                let tempPath = try await remote.downloadToTemp(remotePath: remotePath, maxBytes: nil)
 
                 // Hash file content before editing for reliable change detection
                 let preHash = Self.sha256OfFile(atPath: tempPath)
@@ -2513,7 +2521,7 @@ final class RFCommand {
                 self.pendingRemoteEdit = PendingRemoteEdit(
                     tempPath: tempPath,
                     remotePath: remotePath,
-                    dataSource: sftpDS,
+                    dataSource: remote,
                     preEditHash: preHash
                 )
 
@@ -2553,7 +2561,7 @@ final class RFCommand {
             try await edit.dataSource.uploadFromLocal(
                 localPath: edit.tempPath,
                 remotePath: edit.remotePath
-            ) { _ in }
+            )
         } catch {
             // Save edited file to durable recovery location before temp cleanup can destroy it
             let host = edit.dataSource.connectionLabel
@@ -2639,7 +2647,7 @@ final class RFCommand {
     }
 
     /// Cancel all in-flight tasks and disconnect remote connections.
-    /// Preserves any SFTP source referenced by the shared yank clipboard
+    /// Preserves any remote source referenced by the shared yank clipboard
     /// so cross-session paste remains functional.
     private func shutdownAllTasks() {
         stopSpinner()
@@ -2650,11 +2658,11 @@ final class RFCommand {
         fullHighlightTask?.cancel()
         pasteTask?.cancel()
         deleteKittyImage()
-        let keepAlive = Self.sharedYankClipboard?.sourceRemote
+        let keepAlive = Self.sharedYankClipboard?.source
         for tab in tabs {
             tab.dataSource.cleanupTempFiles()
-            if let sftpDS = tab.dataSource as? RFSFTPDataSource, sftpDS !== keepAlive {
-                sftpDS.disconnect()
+            if let remote = tab.dataSource as? RFRemoteDataSource, remote !== keepAlive {
+                remote.disconnect()
             }
         }
     }
@@ -2876,7 +2884,7 @@ final class RFCommand {
 
     private func renderStatusBarInner() {
         // Start/stop spinner based on whether a waiting state is active
-        let needsSpinner = (inputMode == .sftpConnecting) || (activeTab.activityMessage != nil)
+        let needsSpinner = (inputMode == .connecting) || (activeTab.activityMessage != nil)
         if needsSpinner { startSpinner() } else { stopSpinner() }
 
         // Check for input modes that use the status bar
@@ -2940,23 +2948,22 @@ final class RFCommand {
             return
 
         // Waiting state with spinner
-        case .sftpConnecting:
-            let host = sftpPendingProfile?.sshConfig.host ?? ""
-            display.drawStatusMessage("Connecting to \(host)...", spinnerChar: spinnerChar)
+        case .connecting:
+            display.drawStatusMessage("Connecting to \(connectingLabel)...", spinnerChar: spinnerChar)
             return
 
-        case .sftpConnect:
-            // Rendered by renderSftpPicker() directly
+        case .connectPicker:
+            // Rendered by renderConnectPicker() directly
             return
         default:
             break
         }
 
-        // Show SFTP connect error briefly in status bar if present
-        if let error = sftpConnectError {
-            display.drawStatusMessage("SFTP error: \(error)")
+        // Show connect error briefly in status bar if present
+        if let error = connectError {
+            display.drawStatusMessage(error)
             // Clear error after displaying it once in a full render cycle
-            sftpConnectError = nil
+            connectError = nil
             return
         }
 
@@ -2984,7 +2991,7 @@ final class RFCommand {
         let modeLabel: String
         if isVisual { modeLabel = " VIS " }
         else if isSearch { modeLabel = " SRC " }
-        else if tab.dataSource.isRemote { modeLabel = " SFTP " }
+        else if let remote = tab.dataSource as? RFRemoteDataSource { modeLabel = " \(remote.kindLabel) " }
         else { modeLabel = " NOR " }
 
         // Left segments

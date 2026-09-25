@@ -2,9 +2,9 @@
 //  SFTPOperations.swift
 //  rootshell
 //
-//  Shared, stateless SFTP utilities used by both SFTPSession (CLI) and
-//  RFSFTPDataSource (file browser). All methods are static to avoid
-//  duplicating logic across consumers.
+//  Shared, stateless SFTP utilities used by SFTPSession (CLI), SCPTransfer
+//  and FileSystemEndpoint (file manager and rf). All methods are static to
+//  avoid duplicating logic across consumers.
 //
 
 import Foundation
@@ -13,8 +13,8 @@ import NIOCore
 import NIOFoundationCompat
 
 /// Shared stateless SFTP operations.
-/// Both the interactive SFTP shell (SFTPSession) and the file browser
-/// SFTP backend (RFSFTPDataSource) call through to these methods.
+/// The interactive SFTP shell (SFTPSession), scp, and FileSystemEndpoint's
+/// SFTP backend call through to these methods.
 enum SFTPOperations {
 
     // MARK: - Directory Listing
@@ -161,121 +161,6 @@ enum SFTPOperations {
         }
 
         return results
-    }
-
-    // MARK: - File Reading
-
-    /// Read the first `maxBytes` of a remote file. Returns the data read.
-    /// Useful for preview (text, binary detection, etc.)
-    static func readFileHead(
-        sftp: SFTPClient,
-        path: String,
-        maxBytes: Int
-    ) async throws -> Data {
-        let file: SFTPFile
-        do {
-            file = try await sftp.openFile(filePath: path, flags: .read)
-        } catch {
-            throw SFTPError.from(sftpError: error, path: path)
-        }
-
-        defer {
-            Task { try? await file.close() }
-        }
-
-        // Read in one chunk up to maxBytes
-        let chunkSize = UInt32(min(maxBytes, 1_048_576))
-        let buffer = try await file.read(from: 0, length: chunkSize)
-        return Data(buffer: buffer)
-    }
-
-    /// Download an entire remote file to a local path.
-    /// Uses PipelinedTransfer for efficiency.
-    static func downloadFile(
-        sftp: SFTPClient,
-        remotePath: String,
-        localPath: String,
-        onProgress: (@Sendable (Int64) -> Void)? = nil
-    ) async throws {
-        // Ensure local directory exists
-        let localDir = (localPath as NSString).deletingLastPathComponent
-        if !localDir.isEmpty {
-            try FileManager.default.createDirectory(atPath: localDir, withIntermediateDirectories: true)
-        }
-
-        FileManager.default.createFile(atPath: localPath, contents: nil)
-        let handle = try FileHandle(forWritingTo: URL(fileURLWithPath: localPath))
-        try handle.truncate(atOffset: 0)
-        defer { try? handle.close() }
-
-        let file: SFTPFile
-        do {
-            file = try await sftp.openFile(filePath: remotePath, flags: .read)
-        } catch {
-            throw SFTPError.from(sftpError: error, path: remotePath)
-        }
-
-        do {
-            let attrs = try? await file.readAttributes()
-            try await PipelinedTransfer.downloadFile(
-                file: file,
-                fileSize: attrs?.size,
-                to: handle
-            ) { bytes in
-                onProgress?(bytes)
-            }
-            try await file.close()
-        } catch {
-            try? await file.close()
-            throw SFTPError.from(sftpError: error, path: remotePath)
-        }
-    }
-
-    /// Upload a local file to a remote path.
-    /// Uses PipelinedTransfer for efficiency.
-    static func uploadFile(
-        sftp: SFTPClient,
-        localPath: String,
-        remotePath: String,
-        onProgress: (@Sendable (Int64) -> Void)? = nil
-    ) async throws {
-        // Ensure remote directory exists
-        let remoteDir = (remotePath as NSString).deletingLastPathComponent
-        if !remoteDir.isEmpty && remoteDir != "." && remoteDir != "/" {
-            try await createDirectoryIfNeeded(sftp: sftp, path: remoteDir)
-        }
-
-        let handle: FileHandle
-        do {
-            handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: localPath))
-        } catch {
-            throw SFTPError.fileNotFound(path: localPath)
-        }
-        defer { try? handle.close() }
-
-        let attrs = try? FileManager.default.attributesOfItem(atPath: localPath)
-        let fileSize = attrs?[.size] as? UInt64
-
-        let file: SFTPFile
-        do {
-            file = try await sftp.openFile(filePath: remotePath, flags: [.create, .write, .truncate])
-        } catch {
-            throw SFTPError.from(sftpError: error, path: remotePath)
-        }
-
-        do {
-            try await PipelinedTransfer.uploadFile(
-                file: file,
-                from: handle,
-                fileSize: fileSize
-            ) { bytes in
-                onProgress?(bytes)
-            }
-            try await file.close()
-        } catch {
-            try? await file.close()
-            throw SFTPError.from(sftpError: error, path: remotePath)
-        }
     }
 
     // MARK: - Directory Operations

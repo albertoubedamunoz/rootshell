@@ -140,20 +140,7 @@ final class RFCellBuffer {
     @discardableResult
     func writeTruncated(row: Int, col: Int, _ text: String, style: TUIStyle, maxWidth: Int) -> Int {
         guard row >= 0, row < rows, maxWidth > 0 else { return col }
-        if RFWidth.width(of: text) <= maxWidth {
-            return write(row: row, col: col, text, style: style)
-        }
-        // Truncate by display width, leaving 1 cell for the ellipsis.
-        var used = 0
-        var truncated = ""
-        for char in text {
-            let w = RFWidth.width(of: char)
-            if used + w > maxWidth - 1 { break }
-            truncated.append(char)
-            used += w
-        }
-        truncated.append("…")
-        return write(row: row, col: col, truncated, style: style)
+        return write(row: row, col: col, RFWidth.truncate(text, to: maxWidth), style: style)
     }
 
     /// Fill a rectangular region with a cell.
