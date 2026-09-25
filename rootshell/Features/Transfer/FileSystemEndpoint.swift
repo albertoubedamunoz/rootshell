@@ -88,6 +88,12 @@ nonisolated struct FileSystemEndpoint: Sendable {
         return true
     }
 
+    /// The bucket namespace behind a storage endpoint, for operations only S3 has.
+    var s3: S3FileSystem? {
+        if case .s3(let s3) = backend { return s3 }
+        return nil
+    }
+
     /// Object storage has no links, so there are none to check for or create.
     var supportsSymlinks: Bool {
         if case .s3 = backend { return false }

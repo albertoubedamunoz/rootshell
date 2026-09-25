@@ -280,10 +280,14 @@ struct FileManagerView: View {
             )
         case .newFolder:
             FileNameEntrySheet(
-                title: FileManagerShortcut.shortcut(for: .newFolder).title,
+                title: manager.createsBucket
+                    ? String(localized: "New Bucket", comment: "File manager: create a storage bucket")
+                    : FileManagerShortcut.shortcut(for: .newFolder).title,
                 actionTitle: String(localized: "Create", comment: "File manager create folder button"),
                 initialText: "",
-                placeholder: String(localized: "Folder name", comment: "File manager new folder placeholder"),
+                placeholder: manager.createsBucket
+                    ? String(localized: "Bucket name", comment: "File manager new bucket placeholder")
+                    : String(localized: "Folder name", comment: "File manager new folder placeholder"),
                 onSubmit: { name in
                     dismiss()
                     Task { await manager.createFolder(named: name) }
@@ -291,12 +295,20 @@ struct FileManagerView: View {
                 onCancel: dismiss
             )
         case .info(let entry):
-            FileInfoSheet(
-                entry: entry,
-                endpointName: manager.activePane.endpoint.displayName,
-                onApplyPermissions: { mode in manager.setPermissions(mode, for: [entry]) },
-                onDismiss: dismiss
-            )
+            if manager.activePane.endpoint.storageProvider != nil, !entry.isDirectory {
+                StorageObjectInfoSheet(entry: entry, pane: manager.activePane, onDismiss: dismiss)
+            } else {
+                FileInfoSheet(
+                    entry: entry,
+                    endpointName: manager.activePane.endpoint.displayName,
+                    onApplyPermissions: { mode in manager.setPermissions(mode, for: [entry]) },
+                    onDismiss: dismiss
+                )
+            }
+        case .shareLink(let entry):
+            StorageShareLinkSheet(entry: entry, pane: manager.activePane, onDismiss: dismiss)
+        case .incompleteUploads(let entry):
+            StorageIncompleteUploadsSheet(bucket: entry.name, pane: manager.activePane, onDismiss: dismiss)
         case .shortcuts:
             FileManagerShortcutsSheet(onDismiss: dismiss)
         case .confirmDelete:
