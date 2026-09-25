@@ -10,14 +10,31 @@ struct DuoLayoutContext: Equatable {
     var tabletopDisabled = false
 
     var usesFullWidth: Bool { isFrontDisplay && frontMode != .sideRail }
+    var requiresImmersiveChrome: Bool {
+        hasHinge && isFrontDisplay && frontMode == .behindCamera
+    }
     var usesSideRail: Bool { verticalEdge != nil && !usesFullWidth }
     // The front terminal occupies the column beside the system rail. Its
     // rectangular grid can reach both vertical edges in this mode.
     var extendsTerminalToVerticalEdges: Bool { isFrontDisplay && usesSideRail }
+    /// Custom horizontal tabs can share the upper band with system UI on
+    /// either display. The side rail and Behind Camera keep their own layout.
+    var placesHeaderBesideTopRegions: Bool {
+        hasHinge && (isFrontDisplay ? frontMode == .belowCamera : !usesSideRail)
+    }
+
+    func workspaceIgnoredEdges(headerHeight: CGFloat) -> Edge.Set {
+        if extendsTerminalToVerticalEdges { return .vertical }
+        // Both full-width choices own their top inset. Behind Camera must
+        // underlap even with visible tabs and a visible system status bar.
+        if usesFullWidth { return [.horizontal, .top] }
+        if placesHeaderBesideTopRegions && headerHeight > 0 { return .top }
+        return []
+    }
 
     func showsHorizontalTabs(globallyHidden: Bool) -> Bool {
         if usesFullWidth {
-            return frontMode == .belowCamera || behindCameraShowsTabs
+            return frontMode == .belowCamera || (behindCameraShowsTabs && !globallyHidden)
         }
         return !usesSideRail && !globallyHidden
     }
@@ -49,7 +66,7 @@ struct DuoWorkspaceLayout: Equatable {
     static func resolve(
         bounds: CGRect, safeFrame: CGRect, occlusions: [CGRect], divisions: [CGRect],
         context: DuoLayoutContext, headerHeight: CGFloat, rightToLeft: Bool = false,
-        headerConnectsToTerminal: Bool = false
+        occlusionContentFrames: [CGRect]? = nil
     ) -> Self {
         guard bounds.width > 0, bounds.height > 0 else { return Self() }
         let left = max(0, safeFrame.minX - bounds.minX)
@@ -61,9 +78,11 @@ struct DuoWorkspaceLayout: Equatable {
         )
         var result = Self()
         result.headerInsets = sideInsets
-        result.headerInsets.top = headerHeight > 0 ? top : 0
+        let underlapsCamera = context.usesFullWidth && context.frontMode == .behindCamera
+        result.headerInsets.top = headerHeight > 0 && !underlapsCamera ? top : 0
 
-        if context.usesFullWidth {
+        let sharesTopBand = context.placesHeaderBesideTopRegions && headerHeight > 0
+        if context.usesFullWidth || sharesTopBand {
             if headerHeight > 0 {
                 // Disabling the system side bar can remove its horizontal
                 // safe inset. The terminal may reclaim that column, but its
@@ -96,18 +115,40 @@ struct DuoWorkspaceLayout: Equatable {
                     result.headerInsets.trailing = rightToLeft ? headerLeft : headerRight
                 }
             }
-            if context.frontMode == .belowCamera {
-                let cameraBottom = occlusions.filter {
+            if (context.usesFullWidth && context.frontMode == .belowCamera) || sharesTopBand {
+                let visibleRegions = (occlusionContentFrames ?? occlusions).filter {
                     !$0.isEmpty && !$0.isNull && $0.intersects(bounds)
-                }.map(\.maxY).max()
-                if let cameraBottom, bounds.maxY - cameraBottom >= 120 {
-                    result.cameraClearance = max(0, cameraBottom - bounds.minY - top - headerHeight)
-                    if headerConnectsToTerminal && headerHeight > 0 {
-                        // Integrated tabs must meet the terminal. Move the
-                        // existing clearance above the row without changing
-                        // the terminal's origin or available height.
-                        result.headerInsets.top += result.cameraClearance
-                        result.cameraClearance = 0
+                }
+                let visibleBand = visibleRegions.reduce(CGRect.null) { $0.union($1) }
+                if !visibleBand.isNull, bounds.maxY - visibleBand.maxY >= 120 {
+                    // The header owns the free column beside the camera/status
+                    // regions, including the area above the rectangular safe
+                    // frame. Only its horizontal insets apply there.
+                    let cameraBand = max(0, visibleBand.maxY - bounds.minY)
+                    // Keep a normal-height tab joined to the full-width terminal.
+                    // Its bottom edge must clear the entire visible reserved band;
+                    // statusBarFrame can describe a legacy top strip on Duo.
+                    result.headerInsets.top = headerHeight > 0 ? max(0, cameraBand - headerHeight) : 0
+                    result.cameraClearance = headerHeight > 0 ? 0 : cameraBand
+
+                    // Duo reports the camera separately, nested inside the
+                    // horizontal system bar's interaction envelope. That outer
+                    // envelope is useful for horizontal button clearance, but
+                    // its bottom isn't the camera/status items' visual baseline.
+                    // Keep vertical rails intact while the system changes pose.
+                    let alignmentRegions = visibleRegions.filter { region in
+                        !(region.width > region.height && visibleRegions.contains {
+                            $0 != region && region.contains($0)
+                        })
+                    }
+                    if headerHeight > 0, alignmentRegions.count < visibleRegions.count {
+                        let alignmentBand = alignmentRegions.reduce(CGRect.null) { $0.union($1) }
+                        // Center the normal-height row on the camera. If a live
+                        // region grows taller than the row, clear its bottom.
+                        result.headerInsets.top = max(
+                            0, alignmentBand.midY - bounds.minY - headerHeight / 2,
+                            alignmentBand.maxY - bounds.minY - headerHeight
+                        )
                     }
                 } else {
                     // Geometry can be absent during a display handoff. Keep the

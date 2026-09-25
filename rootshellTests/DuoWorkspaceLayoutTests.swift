@@ -25,7 +25,7 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
         XCTAssertFalse(front(.sideRail).showsHorizontalTabs(globallyHidden: false))
         for hidden in [true, false] {
             XCTAssertTrue(front(.belowCamera).showsHorizontalTabs(globallyHidden: hidden))
-            XCTAssertTrue(front(.behindCamera).showsHorizontalTabs(globallyHidden: hidden))
+            XCTAssertEqual(front(.behindCamera).showsHorizontalTabs(globallyHidden: hidden), !hidden)
             XCTAssertFalse(front(.behindCamera, showsTabs: false).showsHorizontalTabs(globallyHidden: hidden))
         }
         XCTAssertFalse(front(.belowCamera).usesSideRail)
@@ -45,6 +45,21 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
         }
     }
 
+    func testBehindCameraImmersionEndsWhenUnfoldedOrAnotherModeIsSelected() {
+        for showsTabs in [false, true] {
+            var context = front(.behindCamera, showsTabs: showsTabs)
+            XCTAssertTrue(context.requiresImmersiveChrome)
+            context.isFrontDisplay = false
+            XCTAssertFalse(context.requiresImmersiveChrome)
+            context.isFrontDisplay = true
+            context.frontMode = .belowCamera
+            XCTAssertFalse(context.requiresImmersiveChrome)
+            context.frontMode = .sideRail
+            XCTAssertFalse(context.requiresImmersiveChrome)
+        }
+        XCTAssertFalse(DuoLayoutContext().requiresImmersiveChrome)
+    }
+
     func testOnlyFrontSideRailExtendsTerminalToVerticalEdges() {
         XCTAssertTrue(front(.sideRail).extendsTerminalToVerticalEdges)
         XCTAssertFalse(front(.belowCamera).extendsTerminalToVerticalEdges)
@@ -62,7 +77,8 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
                 context: front(.belowCamera), headerHeight: headerHeight
             )
             let terminalTop = bounds.minY + layout.headerInsets.top + headerHeight + layout.cameraClearance
-            XCTAssertEqual(terminalTop, max(camera.maxY, safeFrame.minY + headerHeight))
+            XCTAssertEqual(layout.headerInsets.top, max(0, camera.maxY - bounds.minY - headerHeight))
+            XCTAssertEqual(terminalTop, max(camera.maxY, bounds.minY + headerHeight))
             XCTAssertEqual(layout.terminalInsets, EdgeInsets())
             XCTAssertEqual(layout.headerInsets.leading, 16)
             XCTAssertEqual(layout.headerInsets.trailing, 94)
@@ -77,33 +93,185 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
             )
             XCTAssertEqual(layout.cameraClearance, 0)
             XCTAssertEqual(layout.terminalInsets, EdgeInsets())
-            XCTAssertEqual(layout.headerInsets.top, headerHeight == 0 ? 0 : 20)
+            XCTAssertEqual(layout.headerInsets.top, 0)
         }
     }
 
-    func testIntegratedHeaderMeetsTerminalWithoutMovingItsOrigin() {
-        let display = CGRect(x: 0, y: 0, width: 600, height: 900)
-        for cameraOnLeft in [false, true] {
-            let region = CGRect(x: cameraOnLeft ? 0 : 520, y: 48, width: 80, height: 60)
-            for rtl in [false, true] {
-                for headerHeight: CGFloat in [44, 120] {
-                    let ordinary = DuoWorkspaceLayout.resolve(
-                        bounds: display, safeFrame: display, occlusions: [region], divisions: [],
-                        context: front(.belowCamera), headerHeight: headerHeight, rightToLeft: rtl
-                    )
-                    let integrated = DuoWorkspaceLayout.resolve(
-                        bounds: display, safeFrame: display, occlusions: [region], divisions: [],
-                        context: front(.belowCamera), headerHeight: headerHeight, rightToLeft: rtl,
-                        headerConnectsToTerminal: true
-                    )
-                    XCTAssertEqual(integrated.cameraClearance, 0)
-                    XCTAssertEqual(integrated.headerInsets.top + headerHeight,
-                                   ordinary.headerInsets.top + headerHeight + ordinary.cameraClearance)
-                    XCTAssertGreaterThanOrEqual(integrated.headerInsets.top + headerHeight, region.maxY)
-                    XCTAssertEqual(integrated.headerInsets.leading, ordinary.headerInsets.leading)
-                    XCTAssertEqual(integrated.headerInsets.trailing, ordinary.headerInsets.trailing)
-                    XCTAssertEqual(integrated.terminalInsets, EdgeInsets())
+    func testBehindCameraWithVisibleStatusBarMatchesFullscreenLayout() {
+        let display = CGRect(x: 0, y: 0, width: 466, height: 644)
+        let camera = CGRect(x: 399.6666666666667, y: 29.333333333333332, width: 37, height: 37)
+        let systemBar = CGRect(x: 276, y: 0, width: 190, height: 82)
+        for height: CGFloat in [0, 44] {
+            let context = front(.behindCamera, showsTabs: height > 0)
+            XCTAssertEqual(context.workspaceIgnoredEdges(headerHeight: height), [.horizontal, .top])
+            let layouts = [CGFloat(0), CGFloat(82)].map { top in
+                DuoWorkspaceLayout.resolve(
+                    bounds: display,
+                    safeFrame: CGRect(x: 0, y: top, width: 466, height: 644 - top),
+                    occlusions: [camera, systemBar], divisions: [], context: context,
+                    headerHeight: height
+                )
+            }
+            XCTAssertEqual(layouts[0], layouts[1])
+            for layout in layouts {
+                XCTAssertEqual(layout.headerInsets.top, 0)
+                XCTAssertEqual(layout.cameraClearance, 0)
+                XCTAssertEqual(layout.terminalInsets, EdgeInsets())
+                let terminalTop = layout.headerInsets.top + height + layout.cameraClearance
+                XCTAssertEqual(terminalTop, height)
+                XCTAssertLessThan(terminalTop, camera.maxY)
+                if height > 0 {
+                    XCTAssertEqual(layout.headerInsets.trailing, 190)
                 }
+            }
+        }
+    }
+
+    func testIgnoringTopInsetRemainsScopedToDuoWorkspaceModes() {
+        for height: CGFloat in [0, 44] {
+            XCTAssertEqual(DuoLayoutContext().workspaceIgnoredEdges(headerHeight: height), [])
+            XCTAssertEqual(front(.sideRail).workspaceIgnoredEdges(headerHeight: height), .vertical)
+            XCTAssertEqual(front(.belowCamera).workspaceIgnoredEdges(headerHeight: height), [.horizontal, .top])
+        }
+        XCTAssertEqual(DuoLayoutContext(hasHinge: true).workspaceIgnoredEdges(headerHeight: 44), .top)
+        XCTAssertEqual(DuoLayoutContext(hasHinge: true).workspaceIgnoredEdges(headerHeight: 0), [])
+    }
+
+    func testBelowCameraReclaimsTopSafeAreaForTabsAndActions() {
+        // Include a nonzero workspace origin and both physical camera edges.
+        let display = CGRect(x: 20, y: 30, width: 470, height: 680)
+        let safe = CGRect(x: 20, y: 118, width: 470, height: 558)
+        for cameraOnLeft in [false, true] {
+            let camera = CGRect(x: cameraOnLeft ? 20 : 350, y: 30, width: 140, height: 88)
+            for rtl in [false, true] {
+                let layout = DuoWorkspaceLayout.resolve(
+                    bounds: display, safeFrame: safe, occlusions: [camera], divisions: [],
+                    context: front(.belowCamera), headerHeight: 44, rightToLeft: rtl
+                )
+                let left = rtl ? layout.headerInsets.trailing : layout.headerInsets.leading
+                let right = rtl ? layout.headerInsets.leading : layout.headerInsets.trailing
+                let header = CGRect(x: display.minX + left, y: display.minY + layout.headerInsets.top,
+                                    width: display.width - left - right, height: 44)
+                XCTAssertLessThan(header.minY, safe.minY)
+                XCTAssertEqual(header.width, 330)
+                XCTAssertFalse(header.intersects(camera))
+                XCTAssertEqual(header.maxY, camera.maxY)
+                XCTAssertEqual(header.maxY + layout.cameraClearance, camera.maxY)
+                XCTAssertEqual(layout.terminalInsets, EdgeInsets())
+            }
+        }
+    }
+
+    func testHeaderAndTerminalBothClearCameraAndStatusRegions() {
+        let display = CGRect(x: 0, y: 0, width: 470, height: 680)
+        let safe = CGRect(x: 0, y: 88, width: 470, height: 558)
+        let camera = CGRect(x: 410, y: 20, width: 60, height: 60)
+        let reservedStatus = CGRect(x: 290, y: 24, width: 120, height: 64)
+        let layout = DuoWorkspaceLayout.resolve(
+            bounds: display, safeFrame: safe, occlusions: [camera, reservedStatus], divisions: [],
+            context: front(.belowCamera), headerHeight: 44
+        )
+        XCTAssertEqual(layout.headerInsets.top + 44, reservedStatus.maxY)
+        XCTAssertEqual(layout.headerInsets.trailing, 180)
+        // The normal-height tab ends at the full-width terminal boundary.
+        XCTAssertEqual(layout.cameraClearance, 0)
+        XCTAssertEqual(layout.headerInsets.top + 44 + layout.cameraClearance, 88)
+        XCTAssertEqual(layout.terminalInsets, EdgeInsets())
+    }
+
+    func testMeasuredDuoCameraAlignsNormalHeaderInsideHorizontalSystemBar() {
+        // Captured from the Duo simulator with Below Camera selected. The
+        // legacy statusBarFrame is only 2 points high and is not an anchor.
+        let display = CGRect(x: 0, y: 0, width: 466, height: 644)
+        let safe = CGRect(x: 0, y: 82, width: 466, height: 562)
+        let camera = CGRect(x: 399.6666666666667, y: 29.333333333333332, width: 37, height: 37)
+        let systemBar = CGRect(x: 276, y: 0, width: 190, height: 82)
+        for regions in [[camera, systemBar], [systemBar, camera]] {
+            for rtl in [false, true] {
+                let layout = DuoWorkspaceLayout.resolve(
+                    bounds: display, safeFrame: safe, occlusions: regions, divisions: [],
+                    context: front(.belowCamera), headerHeight: 44, rightToLeft: rtl
+                )
+                XCTAssertEqual(layout.headerInsets.top + 22, camera.midY, accuracy: 0.001)
+                XCTAssertEqual(layout.headerInsets.top, 25.833333333333332, accuracy: 0.001)
+                XCTAssertEqual(rtl ? layout.headerInsets.leading : layout.headerInsets.trailing, 190)
+                let terminalTop = layout.headerInsets.top + 44 + layout.cameraClearance
+                XCTAssertEqual(terminalTop, 69.83333333333333, accuracy: 0.001)
+                XCTAssertGreaterThan(terminalTop, camera.maxY)
+                XCTAssertEqual(layout.cameraClearance, 0) // integrated tab meets terminal
+            }
+        }
+    }
+
+    func testMeasuredDuoVerticalRailIsStillClearedDuringToolbarTransition() {
+        let display = CGRect(x: 0, y: 0, width: 466, height: 644)
+        let camera = CGRect(x: 399.6666666666667, y: 29.333333333333332, width: 37, height: 37)
+        let rail = CGRect(x: 382, y: 0, width: 84, height: 170)
+        for safe in [CGRect(x: 0, y: 24, width: 382, height: 620),
+                     CGRect(x: 0, y: 82, width: 382, height: 562),
+                     CGRect(x: 0, y: 82, width: 466, height: 562)] {
+            let layout = DuoWorkspaceLayout.resolve(
+                bounds: display, safeFrame: safe, occlusions: [camera, rail], divisions: [],
+                context: front(.belowCamera), headerHeight: 44
+            )
+            XCTAssertEqual(layout.headerInsets.top + 44, rail.maxY)
+            XCTAssertEqual(layout.headerInsets.trailing, 84)
+            XCTAssertEqual(layout.cameraClearance, 0)
+        }
+    }
+
+    func testUnfoldedHeaderSharesStatusBandForEveryFrontDisplayPreference() {
+        let display = CGRect(x: 0, y: 0, width: 680, height: 960)
+        let safe = CGRect(x: 0, y: 88, width: 680, height: 838)
+        let reserved = CGRect(x: 550, y: 20, width: 130, height: 68)
+        for mode in DuoFrontDisplayMode.allCases {
+            let context = DuoLayoutContext(hasHinge: true, frontMode: mode)
+            XCTAssertTrue(context.placesHeaderBesideTopRegions)
+            let layout = DuoWorkspaceLayout.resolve(
+                bounds: display, safeFrame: safe, occlusions: [reserved], divisions: [],
+                context: context, headerHeight: 44
+            )
+            XCTAssertEqual(layout.headerInsets.top + 44, reserved.maxY)
+            XCTAssertEqual(layout.headerInsets.trailing, 130)
+            XCTAssertEqual(layout.headerInsets.top + 44 + layout.cameraClearance, reserved.maxY)
+        }
+        XCTAssertFalse(front(.sideRail).placesHeaderBesideTopRegions)
+        XCTAssertFalse(front(.behindCamera).placesHeaderBesideTopRegions)
+        XCTAssertFalse(DuoLayoutContext().placesHeaderBesideTopRegions)
+        XCTAssertFalse(DuoLayoutContext(hasHinge: true, verticalEdge: .trailing).placesHeaderBesideTopRegions)
+    }
+
+    func testIntegratedHeaderEndsBelowVisibleRegionsWithoutAddingTouchMargins() {
+        let display = CGRect(x: 0, y: 0, width: 470, height: 680)
+        let safe = CGRect(x: 0, y: 88, width: 470, height: 558)
+        let padded = CGRect(x: 280, y: 0, width: 190, height: 88)
+        let visible = CGRect(x: 294, y: 28, width: 166, height: 40)
+        for context in [front(.belowCamera), DuoLayoutContext(hasHinge: true)] {
+            let layout = DuoWorkspaceLayout.resolve(
+                bounds: display, safeFrame: safe, occlusions: [padded], divisions: [],
+                context: context, headerHeight: 44,
+                occlusionContentFrames: [visible]
+            )
+            XCTAssertEqual(layout.headerInsets.top + 44, visible.maxY)
+            XCTAssertEqual(layout.headerInsets.trailing, 190)
+            XCTAssertEqual(layout.headerInsets.top + 44 + layout.cameraClearance, 68)
+            XCTAssertEqual(layout.cameraClearance, 0)
+        }
+    }
+
+    func testHeaderHiddenOrTallerThanCameraStillKeepsTerminalBelowOcclusion() {
+        let display = CGRect(x: 0, y: 0, width: 600, height: 900)
+        let region = CGRect(x: 520, y: 0, width: 80, height: 84)
+        for height: CGFloat in [0, 44, 120] {
+            let layout = DuoWorkspaceLayout.resolve(
+                bounds: display, safeFrame: display, occlusions: [region], divisions: [],
+                context: front(.belowCamera), headerHeight: height
+            )
+            let terminalTop = layout.headerInsets.top + height + layout.cameraClearance
+            XCTAssertEqual(terminalTop, max(height, region.maxY))
+            if height > 0 {
+                XCTAssertEqual(layout.cameraClearance, 0)
+                XCTAssertEqual(layout.headerInsets.top + height, terminalTop)
             }
         }
     }
@@ -130,7 +298,7 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
                         XCTAssertEqual(display.maxX - right, region.minX)
                     }
                     XCTAssertEqual(layout.terminalInsets, EdgeInsets())
-                    XCTAssertEqual(layout.cameraClearance, mode == .belowCamera ? 64 : 0)
+                    XCTAssertEqual(layout.cameraClearance, 0)
                 }
             }
         }
