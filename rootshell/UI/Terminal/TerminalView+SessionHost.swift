@@ -56,7 +56,9 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
         // Always cache so foreground replay has the latest value.
         self.sessionProvidedPwd = pwd
         guard !Ghostty.isAppBackgroundedAtomic else { return }
-        self.pwd = pwd
+        if self.pwd != pwd {
+            self.pwd = pwd
+        }
         // Keep connectionConfig in sync so CWD persists through serialization
         if case .local = self.connectionConfig {
             self.connectionConfig = .local(workingDirectory: pwd)
@@ -112,9 +114,6 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
         // Clear restoration state if we were reconnecting from restore
         if self.restorationState == .connectingFromRestore, restoredLocalMultiplexerAttachment == nil {
             self.restorationState = .none
-            // Notify SwiftUI to update the overlay visibility
-            // (TerminalView is a class, so @State doesn't observe its property changes)
-            NotificationCenter.default.post(name: .terminalRestorationStateChanged, object: self)
         }
         // Mark as connected in reconnection manager
         self.sessionController.handleSessionConnectedForReconnection()

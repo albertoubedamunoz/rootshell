@@ -53,7 +53,11 @@ struct TerminalSplitTreeView: UIViewRepresentable {
 
 final class SplitTreeHostingView: UIView {
     var dividerColor: UIColor = .separator {
-        didSet { setNeedsLayout() }
+        didSet {
+            // Assigned on every updateUIView; an unguarded relayout defeats update(tree:)'s guard.
+            guard oldValue != dividerColor else { return }
+            setNeedsLayout()
+        }
     }
 
     var highlightColor: UIColor = .systemBlue {
