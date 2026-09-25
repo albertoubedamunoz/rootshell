@@ -84,7 +84,6 @@ extension MainView {
                     if focusedTerminal.isLiveDisconnectionOverlay {
                         focusedTerminal.isLiveDisconnectionOverlay = false
                         focusedTerminal.restorationState = .none
-                        NotificationCenter.default.post(name: .terminalRestorationStateChanged, object: focusedTerminal)
                         focusedTerminal.manualReconnect()
                     } else {
                         TerminalRestorationReconnector.retryReconnection(for: focusedTerminal)

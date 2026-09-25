@@ -92,6 +92,13 @@ extension MainView {
 
     // MARK: - View Modifiers
 
+    // Stored once so body evaluations don't tear down and resubscribe (see NotificationHandlersModifier).
+    #if os(visionOS)
+    private static let toggleKeyboardToolbarPublisher = NotificationCenter.default.publisher(for: .toggleKeyboardToolbar)
+    #endif
+    private static let trzszTransferOfferPublisher = NotificationCenter.default.publisher(for: .trzszTransferOfferReceived)
+    private static let trzszTransferLeafShouldRemovePublisher = NotificationCenter.default.publisher(for: .trzszTransferLeafShouldRemove)
+
     @ViewBuilder
     func applySceneModifiers<V: View>(_ view: V) -> some View {
 #if targetEnvironment(macCatalyst)
@@ -119,7 +126,7 @@ extension MainView {
                     isVisible: $showKeyboardToolbar
                 )
             }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleKeyboardToolbar)) { _ in
+            .onReceive(Self.toggleKeyboardToolbarPublisher) { _ in
                 showKeyboardToolbar.toggle()
             }
 #endif
@@ -305,12 +312,12 @@ extension MainView {
                 )
                 .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .trzszTransferOfferReceived)) { note in
+            .onReceive(Self.trzszTransferOfferPublisher) { note in
                 if let offer = note.object as? TrzszTransferReceiver.Offer {
                     trzszTransferIncomingOffer = offer
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .trzszTransferLeafShouldRemove)) { note in
+            .onReceive(Self.trzszTransferLeafShouldRemovePublisher) { note in
                 guard let info = note.userInfo,
                       let tabId = info["tabId"] as? UUID,
                       let leafId = info["leafId"] as? UUID else { return }

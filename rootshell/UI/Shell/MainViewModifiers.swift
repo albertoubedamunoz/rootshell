@@ -58,6 +58,15 @@ struct NotificationHandlersModifier: ViewModifier {
     #endif
     var shouldHandleNotification: (Notification) -> Bool
 
+    /// The overlays read only the selected tab's focused terminal (mirroring
+    /// MainView.selectedTabIndex); selection and focus changes re-render on their own.
+    private func isOverlayTerminal(_ object: Any?) -> Bool {
+        guard let terminal = object as? Ghostty.TerminalView else { return false }
+        let index = tabsModel.selectedTabIndex ?? 0
+        guard tabsModel.tabs.indices.contains(index) else { return false }
+        return tabsModel.tabs[index].focusedTerminal === terminal
+    }
+
     func body(content: Content) -> some View {
         content
             .onReceive(Self.fileOpenPublisher) { _ in
@@ -100,11 +109,13 @@ struct NotificationHandlersModifier: ViewModifier {
                     tabsModel.isGroupedModeEnabled.toggle()
                 }
             }
-            .onReceive(Self.terminalRestorationStateChangedPublisher) { _ in
+            .onReceive(Self.terminalRestorationStateChangedPublisher) { notification in
                 // Force SwiftUI to re-evaluate reconnection overlay visibility
+                guard isOverlayTerminal(notification.object) else { return }
                 restorationVersion += 1
             }
-            .onReceive(Self.ghosttySessionDiscoveryChangedPublisher) { _ in
+            .onReceive(Self.ghosttySessionDiscoveryChangedPublisher) { notification in
+                guard isOverlayTerminal(notification.object) else { return }
                 sessionDiscoveryVersion += 1
             }
             #if targetEnvironment(macCatalyst)

@@ -870,6 +870,10 @@ extension Ghostty {
                 #if !targetEnvironment(macCatalyst)
                 syncSelectionHandlesForSurfaceActivity()
                 #endif
+                // MainView only refreshes the overlay for this signal; several writers never posted it.
+                if oldValue != restorationState {
+                    NotificationCenter.default.post(name: .terminalRestorationStateChanged, object: self)
+                }
             }
         }
 
@@ -4907,7 +4911,9 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         // Always cache so we don't lose the latest value while backgrounded.
         self.sessionProvidedPwd = pwd
         guard !Ghostty.isAppBackgroundedAtomic else { return }
-        self.pwd = pwd
+        if self.pwd != pwd {
+            self.pwd = pwd
+        }
         // Keep connectionConfig in sync (mirrors onWorkingDirectoryChange callback)
         if case .local = connectionConfig {
             connectionConfig = .local(workingDirectory: pwd)
@@ -5014,11 +5020,13 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
 
     func handleCellSizeChange(width: CGFloat, height: CGFloat) {
         let metricsChanged = cellSize != CGSize(width: width, height: height)
-        self.cellSize = CGSize(width: width, height: height)
         Ghostty.logger.info("Cell size changed: \(width)x\(height)")
-        // The grid's whole-row remainder (terminalTopGridAlignmentPadding)
-        // depends on the cell height, which SwiftUI does not otherwise observe.
-        EffectManager.shared.notifyGridMetricsChanged()
+        if metricsChanged {
+            self.cellSize = CGSize(width: width, height: height)
+            // The grid's whole-row remainder (terminalTopGridAlignmentPadding)
+            // depends on the cell height, which SwiftUI does not otherwise observe.
+            EffectManager.shared.notifyGridMetricsChanged()
+        }
         guard !isTmuxDetachInProgress else { return }
 
         // Cell size change means the grid dimensions (rows/cols) have changed

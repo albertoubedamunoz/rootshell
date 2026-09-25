@@ -234,17 +234,26 @@ extension MainView {
         applyTailHandlers(chained)
     }
 
+    // Stored once so body evaluations don't tear down and resubscribe (see NotificationHandlersModifier).
+    private static let herdrUpgradePromptPublisher = NotificationCenter.default.publisher(for: .herdrUpgradePromptRequested)
+    private static let herdrTakeControlPublisher = NotificationCenter.default.publisher(for: .herdrTakeControlRequested)
+    #if !targetEnvironment(macCatalyst)
+    private static let willResignActivePublisher = NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)
+    private static let didEnterBackgroundPublisher = NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+    private static let didBecomeActivePublisher = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+    #endif
+
     /// herdr controllers post per-window notifications; only the window that
     /// hosts the gateway answers them.
     @ViewBuilder
     private func applyHerdrAlertHandlers<V: View>(_ view: V) -> some View {
         view
-            .onReceive(NotificationCenter.default.publisher(for: .herdrUpgradePromptRequested)) { note in
+            .onReceive(Self.herdrUpgradePromptPublisher) { note in
                 guard note.userInfo?["windowId"] as? String == windowId,
                       let prompt = note.userInfo?["prompt"] as? HerdrUpgradePrompt else { return }
                 alerts.presentHerdrUpgrade(prompt)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .herdrTakeControlRequested)) { note in
+            .onReceive(Self.herdrTakeControlPublisher) { note in
                 guard note.userInfo?["windowId"] as? String == windowId,
                       let request = note.userInfo?["request"] as? MainAlertController.HerdrTakeControlRequest else { return }
                 alerts.presentHerdrTakeControl(request)
@@ -332,10 +341,10 @@ extension MainView {
             }
             #endif
             #if !targetEnvironment(macCatalyst)
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            .onReceive(Self.willResignActivePublisher) { _ in
                 transitionLifecycleScenePhase(to: .inactive)
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            .onReceive(Self.didEnterBackgroundPublisher) { _ in
                 transitionLifecycleScenePhase(to: .background)
                 // Cancel any in-flight Trzsz transfer so its Continuity
                 // streams close before the 5s graceful-termination watchdog
@@ -345,7 +354,7 @@ extension MainView {
                 trzszTransferOriginRequest = nil
                 NotificationCenter.default.post(name: .trzszTransferShouldCancelForBackground, object: nil)
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            .onReceive(Self.didBecomeActivePublisher) { _ in
                 transitionLifecycleScenePhase(to: .active)
             }
             #else
