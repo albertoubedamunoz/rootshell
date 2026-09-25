@@ -224,6 +224,18 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     var onToolbarAction: ((String) -> Void)?
     var onHeightChanged: (() -> Void)?
     var onPageChanged: ((Model.ToolPage) -> Void)?
+    /// SwiftUI already places embedded previews inside its safe area. Applying
+    /// the window's insets again squeezes their keys to one side on iPhone Duo.
+    var isEmbeddedPreview = false
+    private var horizontalContentInsets: (leading: CGFloat, trailing: CGFloat) {
+        if isFloating { return (0, 0) }
+        // The SwiftUI host owns clearance, including reserved-region checks
+        // when it extends below Duo's camera. UIKit's rectangular safe area
+        // still reserves the entire camera column there.
+        if isEmbeddedPreview { return (0, 0) }
+        return (max(safeAreaInsets.left, window?.safeAreaInsets.left ?? 0),
+                max(safeAreaInsets.right, window?.safeAreaInsets.right ?? 0))
+    }
     /// Renders this style instead of the saved one (onboarding previews).
     var styleOverride: Model.Style? {
         didSet { if oldValue != styleOverride { refreshSettings() } }
@@ -1095,8 +1107,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         updateHostFill()
         let top = contentTop
-        let leading = isFloating ? 0 : max(safeAreaInsets.left, window?.safeAreaInsets.left ?? 0)
-        let trailing = isFloating ? 0 : max(safeAreaInsets.right, window?.safeAreaInsets.right ?? 0)
+        let (leading, trailing) = horizontalContentInsets
         let width = max(0, bounds.width - leading - trailing)
         background.frame = isFloating ? bounds : CGRect(x: 0, y: top + toolbarHeight, width: bounds.width, height: max(0, bounds.height - top - toolbarHeight))
         background.layer.maskedCorners = isFloating ? [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner] : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
@@ -2025,8 +2036,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
         // Lay out new keys before fading them in. Existing rows retain their
         // frames and horizontal scroll offsets until the animation starts.
-        let leading = isFloating ? 0 : max(safeAreaInsets.left, window?.safeAreaInsets.left ?? 0)
-        let trailing = isFloating ? 0 : max(safeAreaInsets.right, window?.safeAreaInsets.right ?? 0)
+        let (leading, trailing) = horizontalContentInsets
         for (index, row) in toolbarDrawerRows.enumerated() where incoming.contains(row) {
             layoutToolbarDrawer(row, buttons: toolbarDrawerButtons[index], position: index,
                                 leading: leading, width: max(0, bounds.width - leading - trailing))

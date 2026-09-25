@@ -133,6 +133,7 @@ struct KeyboardChooserView: View {
                 }
             }
         }
+        .frame(height: 44)
         .padding(.horizontal, 16)
         .padding(.top, 4)
     }
@@ -195,26 +196,21 @@ private struct ChooseStep: View {
     private var index: Int { KeyboardChoice.all.firstIndex(of: selected) ?? 0 }
 
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                Text("Choose Your Keyboard")
-                    .font(.largeTitle.bold())
-                    .accessibilityAddTraits(.isHeader)
-                Text("rootshell’s Terminal Keyboard is compact and built for the terminal, with more pages a swipe away. Or keep the system keyboard.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        GeometryReader { geometry in
+            ScrollView(.vertical) {
+                VStack(spacing: 12) {
+                    introduction(compact: geometry.size.height < 650)
+                    carousel
+                        .frame(height: max(280, geometry.size.height - 240))
+                    PageDots(count: KeyboardChoice.all.count, index: index) { newIndex in
+                        withAnimation(.snappy) { selection = KeyboardChoice.all[newIndex] }
+                    }
+                }
+                .padding(.bottom, 12)
             }
-            .multilineTextAlignment(.center)
-            .minimumScaleFactor(0.8)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-
-            carousel
-
-            PageDots(count: KeyboardChoice.all.count, index: index) { newIndex in
-                withAnimation(.snappy) { selection = KeyboardChoice.all[newIndex] }
-            }
-
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             Button {
                 onChoose(selected)
             } label: {
@@ -226,6 +222,21 @@ private struct ChooseStep: View {
             .padding(.bottom, 12)
             .animation(.snappy, value: selected)
         }
+    }
+
+    private func introduction(compact: Bool) -> some View {
+        VStack(spacing: 8) {
+            Text("Choose Your Keyboard")
+                .font(compact ? .title2.bold() : .largeTitle.bold())
+                .accessibilityAddTraits(.isHeader)
+            Text("rootshell’s Terminal Keyboard is compact and built for the terminal, with more pages a swipe away. Or keep the system keyboard.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .multilineTextAlignment(.center)
+        .minimumScaleFactor(0.8)
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
     }
 
     private var carousel: some View {
@@ -294,7 +305,7 @@ private struct KeyboardChoiceCard: View {
             Spacer(minLength: 8)
 
             GeometryReader { geometry in
-                let scale = min(1, geometry.size.height / max(1, previewHeight))
+                let scale = max(0.01, min(1, geometry.size.height / max(1, previewHeight)))
                 preview
                     .frame(width: geometry.size.width / scale, height: previewHeight)
                     .scaleEffect(scale, anchor: .bottom)
@@ -315,6 +326,8 @@ private struct KeyboardChoiceCard: View {
         switch choice {
         case .system:
             SystemKeyboardMock()
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { previewHeight = $0 }
         case .custom(let style):
             TerminalTouchKeyboardPreview(
                 sample: .constant(""), height: $previewHeight, floating: false, style: style)
@@ -419,6 +432,7 @@ private struct ToolbarPreview: UIViewRepresentable {
 
     func makeUIView(context: Context) -> KeyboardToolbarView {
         let toolbar = KeyboardToolbarView(sizes: sizes)
+        toolbar.isEmbeddedPreview = true
         toolbar.isUserInteractionEnabled = false
         return toolbar
     }
@@ -445,12 +459,21 @@ private struct SwipeStep: View {
     private var allVisited: Bool { visited.isSuperset(of: pages) }
 
     var body: some View {
+        GeometryReader { geometry in
+            tutorial(compact: geometry.size.height < 650)
+        }
+        .ignoresSafeArea(.container, edges: .bottom)
+        .sensoryFeedback(.success, trigger: allVisited) { _, done in done }
+        .sensoryFeedback(.selection, trigger: currentPage)
+    }
+
+    private func tutorial(compact: Bool) -> some View {
         VStack(spacing: 0) {
             ScrollView(.vertical) {
-                VStack(spacing: 20) {
+                VStack(spacing: compact ? 12 : 20) {
                     VStack(spacing: 8) {
                         Text("Swipe Between Pages")
-                            .font(.largeTitle.bold())
+                            .font(compact ? .title2.bold() : .largeTitle.bold())
                             .accessibilityAddTraits(.isHeader)
                         Text("Swipe left or right across the keys to visit each page. Try it below.")
                             .font(.subheadline)
@@ -485,31 +508,35 @@ private struct SwipeStep: View {
             }
             .animation(.snappy, value: allVisited)
 
-            VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    Text("❯").foregroundStyle(.secondary)
-                    Text(sample.isEmpty ? "Type here to try it…" : sample)
-                        .foregroundStyle(sample.isEmpty ? .secondary : .primary)
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .font(.system(.body, design: .monospaced))
-                .padding(.horizontal, 16)
-                .frame(height: 44)
-                TerminalTouchKeyboardPreview(
-                    sample: $sample, height: $previewHeight, floating: false, style: style,
-                    onPageChanged: { page in
-                        currentPage = page
-                        visited.insert(page)
-                    })
-                    .frame(height: previewHeight)
+            ChooserAvailableWidth {
+                keyboard
             }
+            .frame(height: 44 + previewHeight)
             .background(.bar)
         }
-        .ignoresSafeArea(.container, edges: .bottom)
-        .sensoryFeedback(.success, trigger: allVisited) { _, done in done }
-        .sensoryFeedback(.selection, trigger: currentPage)
+    }
+
+    private var keyboard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text("❯").foregroundStyle(.secondary)
+                Text(sample.isEmpty ? "Type here to try it…" : sample)
+                    .foregroundStyle(sample.isEmpty ? .secondary : .primary)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .font(.system(.body, design: .monospaced))
+            .padding(.horizontal, 16)
+            .frame(height: 44)
+            TerminalTouchKeyboardPreview(
+                sample: $sample, height: $previewHeight, floating: false, style: style,
+                onPageChanged: { page in
+                    currentPage = page
+                    visited.insert(page)
+                })
+                .frame(height: previewHeight)
+        }
     }
 }
 
@@ -571,40 +598,44 @@ private struct FinishStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView(.vertical) {
-                VStack(spacing: 20) {
+            VStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 64))
+                        .font(.title)
                         .foregroundStyle(Color.accentColor)
                         .symbolEffect(.bounce, value: appeared)
-                        .padding(.top, 12)
                         .accessibilityHidden(true)
-
-                    VStack(spacing: 6) {
-                        Text("You’re All Set")
-                            .font(.largeTitle.bold())
-                            .accessibilityAddTraits(.isHeader)
-                        Text("Your keyboard: \(choice.title)")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .multilineTextAlignment(.center)
-
-                    settingsCard
-
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(tips.indices, id: \.self) { index in
-                            TipRow(symbol: tips[index].symbol, text: tips[index].text)
-                        }
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .chooserCardBackground(cornerRadius: 22)
+                    Text("You’re All Set")
+                        .font(.title2.bold())
+                        .accessibilityAddTraits(.isHeader)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 12)
+                Text("Your keyboard: \(choice.title)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .scrollBounceBehavior(.basedOnSize)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+
+            ChooserAvailableWidth(clearTopOcclusions: true) {
+                ScrollView(.vertical) {
+                    VStack(spacing: 16) {
+                        settingsCard
+                        VStack(alignment: .leading, spacing: 14) {
+                            ForEach(tips.indices, id: \.self) { index in
+                                TipRow(symbol: tips[index].symbol, text: tips[index].text)
+                            }
+                        }
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .chooserCardBackground(cornerRadius: 22)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .clipped()
+            }
 
             ChooserFooter(onBack: onBack) {
                 Button("Start Using rootshell", action: onStart)
@@ -667,31 +698,11 @@ private struct SettingsPath: View {
     let components: [String]
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) { chips }
-            VStack(alignment: .leading, spacing: 6) { chips }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(components.joined(separator: ", "))
-    }
-
-    @ViewBuilder
-    private var chips: some View {
-        ForEach(components.indices, id: \.self) { index in
-            HStack(spacing: 6) {
-                if index > 0 {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                }
-                Text(components[index])
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.accentColor.opacity(0.14), in: Capsule())
-            }
-        }
+        Text(components.joined(separator: " › "))
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel(components.joined(separator: ", "))
     }
 }
 
@@ -727,6 +738,50 @@ private struct ChooserFooter<Primary: View>: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 12)
+    }
+}
+
+/// The Duo's rectangular safe area reserves a whole side column even below
+/// the camera. Reclaim that column only for sections clear of reserved regions.
+/// Header text remains in the ordinary safe area above this container.
+private struct ChooserAvailableWidth<Content: View>: View {
+    var clearTopOcclusions = false
+    @ViewBuilder var content: () -> Content
+    @Environment(\.duoLayout) private var layout
+    @Environment(\.layoutDirection) private var direction
+
+    var body: some View {
+        GeometryReader { safe in
+            GeometryReader { expanded in
+                content()
+                    .padding(insets(safe: safe, expanded: expanded))
+                    .frame(width: expanded.size.width, height: expanded.size.height)
+            }
+            .ignoresSafeArea(.container, edges: layout.hasHinge ? .horizontal : [])
+        }
+    }
+
+    private func insets(safe: GeometryProxy, expanded: GeometryProxy) -> EdgeInsets {
+        let frame = expanded.frame(in: .global)
+        let safeFrame = safe.frame(in: .global)
+        let left = max(0, safeFrame.minX - frame.minX)
+        let right = max(0, frame.maxX - safeFrame.maxX)
+        let fallback = EdgeInsets(top: 0, leading: direction == .rightToLeft ? right : left,
+                                  bottom: 0, trailing: direction == .rightToLeft ? left : right)
+        if #available(iOS 27.1, *), layout.hasHinge {
+            let bounds = CGRect(origin: .zero, size: expanded.size)
+            let occlusions = expanded.reservedRegions(kind: .occlusion, layoutDirectionBehavior: .fixed)
+                .map(\.frame).filter { $0.intersects(bounds) }
+            let divisions = expanded.reservedRegions(kind: .division, layoutDirectionBehavior: .fixed)
+                .map(\.frame).filter { $0.intersects(bounds) }
+            guard divisions.isEmpty else { return fallback }
+            if occlusions.isEmpty { return EdgeInsets() }
+            let clearance = max(0, occlusions.map(\.maxY).max() ?? 0)
+            if clearTopOcclusions, bounds.height - clearance >= 200 {
+                return EdgeInsets(top: clearance, leading: 0, bottom: 0, trailing: 0)
+            }
+        }
+        return fallback
     }
 }
 

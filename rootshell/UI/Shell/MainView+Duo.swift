@@ -12,7 +12,7 @@ extension MainView {
         duoLayout.showsHorizontalTabs(globallyHidden: tabBarHidden)
     }
 
-    var showsDuoSideRail: Bool { duoLayout.usesSideRail && !tabBarHidden }
+    var showsDuoSideRail: Bool { duoLayout.usesSideRail && !tabBarHidden && !showKeyboardChooser }
 
     @ViewBuilder
     func applyDuoChrome<Content: View>(_ content: Content) -> some View {
