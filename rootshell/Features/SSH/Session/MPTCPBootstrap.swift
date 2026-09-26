@@ -56,6 +56,8 @@ enum MPTCPBootstrap {
 
     /// Create a pre-connected channel suitable for passing to SSHClient.connect(on:).
     /// No SSH handlers are added — Citadel adds those itself.
+    /// autoRead stays off until Citadel's `connect(on:)` installs them; an earlier read
+    /// would drop the server banner and hang the handshake (#535).
     ///
     /// Callers are responsible for pre-resolving CGNAT/`.local` hostnames to an
     /// IPv4 literal before invoking this function (see CitadelSSHSession and
@@ -70,6 +72,7 @@ enum MPTCPBootstrap {
     ) async throws -> Channel {
         var bootstrap = NIOTSConnectionBootstrap(group: tsEventLoopGroup)
             .connectTimeout(timeout)
+            .channelOption(ChannelOptions.autoRead, value: false)
         let mode: String
         if isEnabled {
             bootstrap = bootstrap.withMultipath(.interactive)
