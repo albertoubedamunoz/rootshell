@@ -58,6 +58,11 @@ actor DictationEngine {
     /// order, so the most recent request's model is the one left loaded.
     private var transition: Task<Void, Never>?
 
+    /// On 4 GB devices (A12X seen) the encoder falls back from the Neural Engine to
+    /// CPU, where it tops 2 GB and hits the memory limit; the GPU keeps weights fp16.
+    private nonisolated static let encoderComputeUnits: MLComputeUnits? =
+        ProcessInfo.processInfo.physicalMemory <= 5 * 1_073_741_824 ? .cpuAndGPU : nil
+
     var isLoaded: Bool { asr != nil }
 
     /// Takes a use of the speech and VAD models, loading them from disk if needed
@@ -112,7 +117,8 @@ actor DictationEngine {
             guard AsrModels.modelsExist(at: directory, version: version, encoderPrecision: wanted.precision) else {
                 throw DictationError.modelMissing
             }
-            let models = try await AsrModels.load(from: directory, version: version, encoderPrecision: wanted.precision)
+            let models = try await AsrModels.load(from: directory, version: version, encoderPrecision: wanted.precision,
+                                                  encoderComputeUnits: Self.encoderComputeUnits)
             let manager = AsrManager(config: .default)
             try await manager.loadModels(models)
             asr = manager

@@ -199,32 +199,11 @@ enum MoshError: LocalizedError, Equatable, Sendable {
         }
     }
 
-    /// Whether this error indicates a protocol/version incompatibility
-    var isProtocolError: Bool {
-        switch self {
-        case .protocolVersionMismatch, .invalidPacketFormat, .protobufDeserializationFailed,
-             .protobufSerializationFailed, .invalidServerResponse:
-            return true
-        default:
-            return false
-        }
-    }
-
     /// Whether this error requires starting a fresh session (new SSH spawn)
     /// These errors cannot be recovered by simple retry - the session state is corrupted
     var requiresFreshSession: Bool {
         switch self {
         case .stateDesync:
-            return true
-        default:
-            return false
-        }
-    }
-
-    /// Whether this error indicates mosh-server is not installed on the remote host
-    var isMoshServerNotInstalled: Bool {
-        switch self {
-        case .moshServerNotFound:
             return true
         default:
             return false

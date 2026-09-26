@@ -35,10 +35,6 @@ final class VTParser {
         }
     }
 
-    func resetInput() {
-        state = .ground
-    }
-
     func copy() -> VTParser {
         VTParser(state: state)
     }
@@ -84,11 +80,6 @@ final class VTUTF8Parser {
                 continue
             }
         }
-    }
-
-    func resetInput() {
-        parser.resetInput()
-        buffer.removeAll(keepingCapacity: true)
     }
 
     func copy() -> VTUTF8Parser {

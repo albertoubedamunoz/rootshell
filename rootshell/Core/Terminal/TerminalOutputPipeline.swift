@@ -6,7 +6,6 @@ struct TerminalOutputCoalescingConfig: Sendable {
     let inputDebounceMs: Int
     let minBatchIntervalMs: Int
     let maxBatchIntervalMs: Int
-    let useSynchronizedOutput: Bool
     let debug: Bool
 
     static func fromEnvironment(defaultMinMs: Int? = nil) -> TerminalOutputCoalescingConfig {
@@ -27,7 +26,6 @@ struct TerminalOutputCoalescingConfig: Sendable {
             inputDebounceMs: envInt("GHOSTTY_OUTPUT_COALESCE_INPUT_DEBOUNCE_MS") ?? 120,
             minBatchIntervalMs: minMs,
             maxBatchIntervalMs: maxMs,
-            useSynchronizedOutput: (envInt("GHOSTTY_OUTPUT_COALESCE_SYNC") ?? 0) != 0,
             debug: (envInt("GHOSTTY_OUTPUT_COALESCE_DEBUG") ?? 0) != 0
         )
     }
@@ -68,7 +66,6 @@ final class TerminalOutputPipeline {
         TerminalOutputCoalescer(
             minBatchIntervalMs: config.minBatchIntervalMs,
             maxBatchIntervalMs: config.maxBatchIntervalMs,
-            useSynchronizedOutput: config.useSynchronizedOutput,
             debug: config.debug,
             write: { [scrollbackRestoreOutputGate, bufferedWriter] data in
                 scrollbackRestoreOutputGate.writeOrBuffer(data, to: bufferedWriter)
@@ -217,133 +214,27 @@ final class TerminalOutputPipeline {
 // @unchecked Sendable: internal state is confined to the coalescer queue,
 // except for enabledForFastPath which uses os_unfair_lock for fast-path bypass.
 nonisolated final class TerminalOutputCoalescer: @unchecked Sendable {
-    private static let syncOutputStart = "\u{1B}[?2026h"
-    private static let syncOutputEnd = "\u{1B}[?2026l"
-
     private let queue = DispatchQueue(label: "com.rootshell.output.coalescer", qos: .userInitiated)
     private let minBatchInterval: DispatchTimeInterval
     private let maxBatchInterval: DispatchTimeInterval
-    private let useSynchronizedOutput: Bool
     private let debug: Bool
-    private let syncStart: Data
-    private let syncEnd: Data
     private let write: @Sendable (Data) -> Void
     private var pending = Data()
     private var timer: DispatchSourceTimer?
     private var firstEnqueueTime: DispatchTime?
     private var currentDeadline: DispatchTime?
-    private var parseState = VTParseState()
-    private var parseLock = os_unfair_lock()
     private var enabledForFastPath = false
     private var disableFlushInProgress = false
     private var transitionGeneration: UInt64 = 0
     private var fastPathLock = os_unfair_lock()
     private var isEnabled = false
 
-    private struct VTParseState {
-        private var escPending = false
-        private var escIntermediate = false
-        private var inCSI = false
-        private var inString = false
-        private var stringEsc = false
-
-        var isSafeForSync: Bool {
-            return !escPending && !escIntermediate && !inCSI && !inString
-        }
-
-        mutating func advance(_ byte: UInt8) {
-            if inString {
-                if stringEsc {
-                    stringEsc = false
-                    if byte == 0x5c {
-                        inString = false
-                    }
-                    return
-                }
-
-                if byte == 0x1b {
-                    stringEsc = true
-                    return
-                }
-
-                if byte == 0x07 || byte == 0x9c {
-                    inString = false
-                }
-                return
-            }
-
-            if inCSI {
-                if byte >= 0x40 && byte <= 0x7E {
-                    inCSI = false
-                }
-                return
-            }
-
-            if escIntermediate {
-                if byte >= 0x20 && byte <= 0x2F {
-                    return
-                }
-                escIntermediate = false
-                return
-            }
-
-            if escPending {
-                escPending = false
-                switch byte {
-                case 0x5b:
-                    inCSI = true
-                case 0x5d, 0x50, 0x5e, 0x5f, 0x58:
-                    inString = true
-                case 0x5c:
-                    break
-                default:
-                    if byte >= 0x20 && byte <= 0x2F {
-                        escIntermediate = true
-                    }
-                }
-                return
-            }
-
-            switch byte {
-            case 0x1b:
-                escPending = true
-            case 0x9b:
-                inCSI = true
-            case 0x9d, 0x90, 0x9e, 0x9f, 0x98:
-                inString = true
-            default:
-                break
-            }
-        }
-    }
-
-    private func updateParseState(_ data: Data) {
-        guard !data.isEmpty else { return }
-        os_unfair_lock_lock(&parseLock)
-        data.withUnsafeBytes { buffer in
-            for byte in buffer {
-                parseState.advance(byte)
-            }
-        }
-        os_unfair_lock_unlock(&parseLock)
-    }
-
-    private func isSafeForSynchronizedOutput() -> Bool {
-        os_unfair_lock_lock(&parseLock)
-        let safe = parseState.isSafeForSync
-        os_unfair_lock_unlock(&parseLock)
-        return safe
-    }
-
-    init(minBatchIntervalMs: Int, maxBatchIntervalMs: Int, useSynchronizedOutput: Bool, debug: Bool, write: @escaping @Sendable (Data) -> Void) {
+    init(minBatchIntervalMs: Int, maxBatchIntervalMs: Int, debug: Bool, write: @escaping @Sendable (Data) -> Void) {
         let minMs = max(1, minBatchIntervalMs)
         let maxMs = max(minMs, maxBatchIntervalMs)
         self.minBatchInterval = .milliseconds(minMs)
         self.maxBatchInterval = .milliseconds(maxMs)
-        self.useSynchronizedOutput = useSynchronizedOutput
         self.debug = debug
-        self.syncStart = Data(Self.syncOutputStart.utf8)
-        self.syncEnd = Data(Self.syncOutputEnd.utf8)
         self.write = write
     }
 
@@ -399,19 +290,16 @@ nonisolated final class TerminalOutputCoalescer: @unchecked Sendable {
                 let byteCount = data.count
                 Ghostty.logger.debug("OutputCoalescer direct bypass: \(byteCount) bytes")
             }
-            updateParseState(data)
             write(data)
             return
         }
 
         queue.async {
             if !self.isEnabled {
-                self.updateParseState(data)
                 self.write(data)
                 return
             }
 
-            self.updateParseState(data)
             self.pending.append(data)
             if self.firstEnqueueTime == nil {
                 self.firstEnqueueTime = .now()
@@ -455,16 +343,7 @@ nonisolated final class TerminalOutputCoalescer: @unchecked Sendable {
             return
         }
 
-        let shouldUseSync = useSynchronizedOutput && isSafeForSynchronizedOutput()
-        var output = Data()
-        if shouldUseSync {
-            output.append(syncStart)
-        }
-        output.append(pending)
-        if shouldUseSync {
-            output.append(syncEnd)
-        }
-
+        let output = pending
         pending.removeAll(keepingCapacity: true)
         cancelTimerLocked()
         firstEnqueueTime = nil

@@ -133,9 +133,4 @@ struct MoshPacket: Sendable {
 
     /// Minimum encrypted packet size (8 nonce + 4 timestamps + 16 tag)
     static let minimumSize = 28
-
-    /// Whether this packet has a payload
-    var hasPayload: Bool {
-        !payload.isEmpty
-    }
 }

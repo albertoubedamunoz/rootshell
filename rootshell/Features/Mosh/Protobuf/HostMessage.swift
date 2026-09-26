@@ -288,36 +288,3 @@ struct HostMessage: Sendable {
         return EchoAck(echoNum: echoNum)
     }
 }
-
-// MARK: - Convenience Methods
-
-extension HostMessage {
-    /// Extracts all terminal output from the message
-    var allOutput: Data {
-        var result = Data()
-        for instruction in instructions {
-            if case .hostBytes(let bytes) = instruction {
-                result.append(bytes.data)
-            }
-        }
-        return result
-    }
-
-    /// Returns true if this message contains any terminal output
-    var hasOutput: Bool {
-        instructions.contains { instruction in
-            if case .hostBytes = instruction { return true }
-            return false
-        }
-    }
-
-    /// Returns any resize instruction in the message
-    var resizeInfo: (width: UInt32, height: UInt32)? {
-        for instruction in instructions {
-            if case .resize(let w, let h) = instruction {
-                return (w, h)
-            }
-        }
-        return nil
-    }
-}

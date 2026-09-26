@@ -74,14 +74,9 @@ The rootshell MIT license does not apply to the font files under
 | --- | --- | --- |
 | [Citadel](https://github.com/orlandos-nl/Citadel) | Copyright (c) 2022 Orlandos | MIT |
 | [trzsz-ssh (tssh)](https://github.com/trzsz/trzsz-ssh) | Copyright (c) 2023-2026 The Trzsz SSH Authors | MIT |
-| [CryptoSwift](https://github.com/krzyzanowskim/CryptoSwift) | Copyright (c) 2014 Marcin Krzyżanowski | zlib License |
 | [YubiKit](https://github.com/kitknox/yubikit-swift-rootshell) | Copyright (c) Yubico AB | Apache 2.0 |
 | [IPinfo data](https://ipinfo.io) | IP address data powered by IPinfo | CC BY-SA 4.0 |
 | [croc](https://github.com/schollz/croc) | Copyright (c) 2017-2025 Zack Scholl | MIT |
-
-CryptoSwift requires the following acknowledgement:
-
-> This product includes software developed by Marcin Krzyzanowski.
 
 ## Cloud and Kubernetes
 
@@ -156,6 +151,6 @@ particular:
 - [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/)
 - [The Unlicense](https://unlicense.org)
 
-The Vim, curl, CryptoSwift, and libgit2 linking-exception terms are
+The Vim, curl, and libgit2 linking-exception terms are
 project-specific; use the license file in the linked project rather than a
 generic license summary.

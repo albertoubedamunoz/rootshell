@@ -144,7 +144,6 @@ final class VTSequenceDispatcher: Equatable {
     }
 
     func getDispatchChars() -> String { dispatchChars }
-    func getOSCString() -> [UInt32] { oscString }
 
     func oscPut(_ event: VTParserEvent) {
         guard event.hasCodepoint else { return }

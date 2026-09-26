@@ -290,13 +290,6 @@ struct LicenseAcknowledgementsView: View {
                 licenseText: mitLicenseText
             ),
             LicenseEntry(
-                name: "CryptoSwift",
-                licenseType: "zlib",
-                copyright: "Copyright (c) 2014 Marcin Krzyżanowski",
-                repositoryURL: "https://github.com/krzyzanowskim/CryptoSwift",
-                licenseText: cryptoSwiftLicenseText
-            ),
-            LicenseEntry(
                 name: "YubiKit",
                 licenseType: "Apache 2.0",
                 copyright: "Copyright (c) Yubico AB",
@@ -349,14 +342,15 @@ struct LicenseAcknowledgementsView: View {
         return entries
     }
 
-    /// FluidAudio and the third-party code it links into the app.
+    /// The dictation-only FluidAudio fork and its native text-normalization dependency.
+    /// TTS/G2P and diarization dependencies are excluded by the fork's package manifests.
     private var speechLicenses: [LicenseEntry] {
         [
             LicenseEntry(
                 name: "FluidAudio",
                 licenseType: "Apache 2.0",
                 copyright: "Copyright (c) FluidInference",
-                repositoryURL: "https://github.com/FluidInference/FluidAudio",
+                repositoryURL: "https://github.com/kitknox/fluidaudio-rootshell",
                 licenseText: apache2LicenseText
             ),
             LicenseEntry(
@@ -386,41 +380,6 @@ struct LicenseAcknowledgementsView: View {
                 copyright: "Copyright (c) Alex Crichton and the flate2 contributors",
                 repositoryURL: "https://github.com/rust-lang/flate2-rs",
                 licenseText: mitApache2LicenseText
-            ),
-            LicenseEntry(
-                name: "fastcluster",
-                licenseType: "BSD 2-Clause",
-                copyright: "Copyright (c) 2011 Daniel Müllner (until version 1.1.23); Copyright (c) Google Inc. (changes from version 1.1.24). All rights reserved.",
-                repositoryURL: "https://danifold.net/fastcluster.html",
-                licenseText: bsd2ClauseLicenseText
-            ),
-            LicenseEntry(
-                name: "VBx",
-                licenseType: "Apache 2.0",
-                copyright: "Copyright 2021-2024 BUT Speech@FIT",
-                repositoryURL: "https://github.com/BUTSpeechFIT/VBx",
-                licenseText: apache2LicenseText
-            ),
-            LicenseEntry(
-                name: "misaki",
-                licenseType: "Apache 2.0",
-                copyright: "Copyright (c) hexgrad",
-                repositoryURL: "https://github.com/hexgrad/misaki",
-                licenseText: apache2LicenseText
-            ),
-            LicenseEntry(
-                name: "cutlet",
-                licenseType: "MIT",
-                copyright: "Copyright (c) 2020 Paul O'Leary McCann",
-                repositoryURL: "https://github.com/polm/cutlet",
-                licenseText: mitLicenseText
-            ),
-            LicenseEntry(
-                name: "Convert-Numbers-to-Japanese",
-                licenseType: "MIT",
-                copyright: "Copyright (c) 2018 David Wilson",
-                repositoryURL: "https://github.com/Greatdane/Convert-Numbers-to-Japanese",
-                licenseText: mitLicenseText
             ),
         ]
     }
@@ -648,30 +607,6 @@ struct LicenseAcknowledgementsView: View {
         IV) It is not allowed to remove this license from the distribution of the Vim \
         sources, parts of it or from a modified version. You may use this license for \
         previous Vim releases instead of the license that they came with, at your option.
-        """
-    }
-
-    private var cryptoSwiftLicenseText: String {
-        """
-        This software is provided 'as-is', without any express or implied warranty. \
-        In no event will the authors be held liable for any damages arising from the \
-        use of this software.
-
-        Permission is granted to anyone to use this software for any purpose, including \
-        commercial applications, and to alter it and redistribute it freely, subject to \
-        the following restrictions:
-
-        1) The origin of this software must not be misrepresented; you must not claim \
-        that you wrote the original software. If you use this software in a product, an \
-        acknowledgment in the product documentation is required.
-
-        2) Altered source versions must be plainly marked as such, and must not be \
-        misrepresented as being the original software.
-
-        3) This notice may not be removed or altered from any source or binary distribution.
-
-        4) Redistributions of any form whatsoever must retain the following acknowledgment: \
-        'This product includes software developed by Marcin Krzyzanowski.'
         """
     }
 

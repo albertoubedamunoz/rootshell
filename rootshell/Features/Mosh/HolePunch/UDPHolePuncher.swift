@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Network
 import OSLog
 import Citadel
 
@@ -419,120 +418,6 @@ final class UDPHolePuncher {
 
     // MARK: - Private Methods
 
-    /// Creates a pre-punch UDP connection from client to server and sends initial packet
-    /// The connection is returned and stays alive to keep the NAT mapping warm
-    /// Caller is responsible for cancelling the connection when done
-    private func createPrePunchConnection(localPort: UInt16) async -> NWConnection? {
-        let host = sshConfig.cachedIP ?? sshConfig.host
-        let port = moshServerPort
-
-        Self.logger.info("Creating pre-punch connection to \(host):\(port) from local port \(localPort)")
-
-        // Create UDP connection to server
-        let endpoint = NWEndpoint.hostPort(
-            host: NWEndpoint.Host(host),
-            port: NWEndpoint.Port(rawValue: UInt16(port))!
-        )
-
-        let parameters = NWParameters.udp
-        parameters.allowLocalEndpointReuse = true
-
-        // Force same address family and bind to same local port
-        let addressFamily = resolveAddressFamily()
-        if let ipOptions = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options {
-            switch addressFamily {
-            case .ipv4, .auto:
-                ipOptions.version = .v4
-            case .ipv6:
-                ipOptions.version = .v6
-            }
-        }
-
-        let localHost: NWEndpoint.Host = switch addressFamily {
-        case .ipv4, .auto: .ipv4(.any)
-        case .ipv6: .ipv6(.any)
-        }
-        parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
-            host: localHost,
-            port: NWEndpoint.Port(rawValue: localPort)!
-        )
-
-        let connection = NWConnection(to: endpoint, using: parameters)
-        let networkQueue = DispatchQueue(label: "com.rootshell.holepunch.prepunch", qos: .userInitiated)
-
-        // Wait for connection to be ready and send initial packet
-        let success = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-            // Use a class-based wrapper for thread-safe resume tracking
-            final class ResumeGuard: @unchecked Sendable {
-                private let lock = NSLock()
-                private var resumed = false
-
-                func tryResume(_ block: () -> Void) -> Bool {
-                    lock.lock()
-                    defer { lock.unlock() }
-                    guard !resumed else { return false }
-                    resumed = true
-                    block()
-                    return true
-                }
-            }
-
-            let guard_ = ResumeGuard()
-
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    // Send a minimal punch packet
-                    let punchData = Data("P".utf8)
-                    connection.send(content: punchData, completion: .contentProcessed { error in
-                        if let error = error {
-                            Self.logger.warning("Pre-punch send failed: \(error.localizedDescription)")
-                        } else {
-                            Self.logger.info("Pre-punch packet sent to \(host):\(port)")
-                        }
-                        // Don't cancel - keep connection alive
-                        _ = guard_.tryResume {
-                            continuation.resume(returning: error == nil)
-                        }
-                    })
-
-                case .failed(let error):
-                    Self.logger.warning("Pre-punch connection failed: \(error.localizedDescription)")
-                    _ = guard_.tryResume {
-                        continuation.resume(returning: false)
-                    }
-
-                case .cancelled:
-                    _ = guard_.tryResume {
-                        continuation.resume(returning: false)
-                    }
-
-                default:
-                    break
-                }
-            }
-
-            connection.start(queue: networkQueue)
-
-            // Timeout for initial connection establishment
-            Task {
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                _ = guard_.tryResume {
-                    Self.logger.warning("Pre-punch connection timeout")
-                    continuation.resume(returning: false)
-                }
-            }
-        }
-
-        if success {
-            Self.logger.info("Pre-punch connection established, keeping alive for NAT mapping")
-            return connection
-        } else {
-            connection.cancel()
-            return nil
-        }
-    }
-
     /// Resolves the address family to use based on configuration and target host
     /// Prefers IPv6 when available (no NAT traversal needed)
     private func resolveAddressFamily() -> AddressFamily {
@@ -809,24 +694,6 @@ final class UDPHolePuncher {
         """
     }
 
-    /// Builds a server-side discovery command that listens for client packet and echoes back the source
-    /// This is more reliable than STUN for symmetric NAT because it discovers the actual mapping
-    /// for the mosh server destination
-    func buildDiscoveryListenerCommand(moshPort: Int, timeout: Int = 3) -> String {
-        return """
-        # Listen on mosh port for discovery packet and return the client's actual source IP:port
-        # Uses timeout to avoid hanging indefinitely
-        if command -v socat >/dev/null 2>&1; then
-          timeout \(timeout) socat -u UDP-LISTEN:\(moshPort),reuseaddr,fork SYSTEM:'echo $SOCAT_PEERADDR:$SOCAT_PEERPORT; kill $PPID' 2>/dev/null | head -1
-        elif command -v nc >/dev/null 2>&1; then
-          # netcat doesn't easily give us peer info, fall back to tcpdump if available
-          if command -v tcpdump >/dev/null 2>&1; then
-            timeout \(timeout) tcpdump -i any -c 1 -nn "udp dst port \(moshPort)" 2>/dev/null | grep -oP '\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+(?= >)' | sed 's/\\.\\([0-9]*\\)$/:\\1/'
-          fi
-        fi
-        """
-    }
-
     /// Builds a reactive punch command that watches for incoming UDP and punches back
     /// This handles symmetric NAT by discovering the actual client port from tcpdump
     /// Prefers raw sockets for the punch-back to avoid SO_REUSEPORT issues
@@ -888,47 +755,6 @@ final class UDPHolePuncher {
           echo 'No UDP method available' >&2 && exit 1
         fi
         echo "Punched to $PEER_IP:$PEER_PORT from port \(moshPort)"
-        """
-    }
-
-    /// Builds a combined command that discovers client's actual port and punches back
-    /// NOTE: This command is problematic because listening on moshPort interferes with mosh-server
-    /// Consider using buildReactivePunchCommand with tcpdump instead
-    func buildDiscoverAndPunchCommand(moshPort: Int, addressFamily: AddressFamily) -> String {
-        let udpType = addressFamily == .ipv6 ? "UDP6" : "UDP"
-        let hpingIPv6 = addressFamily == .ipv6 ? "-6 " : ""
-        let npingIPv6 = addressFamily == .ipv6 ? "-6 " : ""
-        let scapyIPClass = addressFamily == .ipv6 ? "IPv6" : "IP"
-
-        return """
-        # Wait for client discovery packet and punch back to actual source
-        # WARNING: This listens on mosh port which may interfere with mosh-server
-        # This handles symmetric NAT where STUN-discovered port differs from actual
-        PEER_INFO=$(timeout 3 socat -u \(udpType)-LISTEN:\(moshPort),reuseaddr SYSTEM:'echo $SOCAT_PEERADDR:$SOCAT_PEERPORT' 2>/dev/null | head -1)
-        if [ -n "$PEER_INFO" ]; then
-          PEER_IP=$(echo "$PEER_INFO" | cut -d: -f1)
-          PEER_PORT=$(echo "$PEER_INFO" | cut -d: -f2)
-          echo "Discovered client: $PEER_IP:$PEER_PORT" >&2
-          # Send punch packet back - prefer raw sockets (no SO_REUSEPORT needed)
-          if command -v hping3 >/dev/null 2>&1; then
-            sudo hping3 --udp \(hpingIPv6)-s \(moshPort) -p $PEER_PORT -c 1 -d 1 $PEER_IP 2>/dev/null
-          elif command -v nping >/dev/null 2>&1; then
-            sudo nping --udp \(npingIPv6)-g \(moshPort) -p $PEER_PORT --data-string 'P' -c 1 $PEER_IP 2>/dev/null
-          elif command -v python3 >/dev/null 2>&1 && python3 -c "from scapy.all import *" 2>/dev/null; then
-            sudo python3 -c "from scapy.all import *; send(\(scapyIPClass)(dst='$PEER_IP')/UDP(sport=\(moshPort),dport=int('$PEER_PORT'))/Raw(b'P'), verbose=0)" 2>/dev/null
-          # Fallback to socat (requires SO_REUSEPORT on mosh-server)
-          elif command -v socat >/dev/null 2>&1; then
-            (echo -n 'P' | socat -T1 - \(udpType):$PEER_IP:$PEER_PORT,sourceport=\(moshPort),so-reuseport 2>/dev/null) || \
-            (echo -n 'P' | socat -T1 - \(udpType):$PEER_IP:$PEER_PORT)
-          elif command -v nc >/dev/null 2>&1; then
-            (echo -n 'P' | nc -u -w 1 -p \(moshPort) $PEER_IP $PEER_PORT 2>/dev/null) || \
-            (echo -n 'P' | nc -u -w 1 $PEER_IP $PEER_PORT)
-          fi
-          echo "$PEER_IP:$PEER_PORT"
-        else
-          echo "No client packet received" >&2
-          exit 1
-        fi
         """
     }
 
@@ -1145,7 +971,6 @@ enum HolePunchError: LocalizedError, Sendable {
     case networkChanged
     case ipv6DiscoveryFailed(String)
     case upnpFailed(String)
-    case symmetricNATDetected
 
     var errorDescription: String? {
         switch self {
@@ -1163,8 +988,6 @@ enum HolePunchError: LocalizedError, Sendable {
             return "IPv6 address discovery failed: \(reason)"
         case .upnpFailed(let reason):
             return "UPnP/NAT-PMP port mapping failed: \(reason)"
-        case .symmetricNATDetected:
-            return "Symmetric NAT detected - UDP hole-punch not possible without UPnP or IPv6"
         }
     }
 }

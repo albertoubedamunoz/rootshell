@@ -69,11 +69,6 @@ final class MoshInputEventStream: MoshSyncableState, Equatable {
         return (try? message.serialize()) ?? Data()
     }
 
-    func encodeSnapshot() -> Data {
-        let empty = MoshInputEventStream()
-        return encodeDelta(since: empty)
-    }
-
     func applyDelta(_ payload: Data) {
         guard let msg = try? UserMessage.deserialize(payload) else { return }
         for instruction in msg.instructions {
@@ -86,14 +81,6 @@ final class MoshInputEventStream: MoshSyncableState, Equatable {
                 events.append(.resize(width: Int(width), height: Int(height)))
             }
         }
-    }
-
-    func resetParser() {
-        // No parser state to reset for user stream
-    }
-
-    func hasCellDifferences(from other: MoshInputEventStream) -> Bool {
-        return false
     }
 
     func copy() -> MoshInputEventStream {

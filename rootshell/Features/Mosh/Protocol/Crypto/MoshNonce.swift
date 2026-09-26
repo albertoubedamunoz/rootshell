@@ -172,14 +172,4 @@ final class MoshNonceGenerator {
     var currentSequence: UInt64 {
         nextSequence
     }
-
-    /// Resets the generator to the initial state
-    func reset() {
-        nextSequence = 0
-    }
-
-    /// Sets the sequence to a specific value (for session resume)
-    func setSequence(_ sequence: UInt64) {
-        nextSequence = sequence
-    }
 }

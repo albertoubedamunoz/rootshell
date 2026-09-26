@@ -37,15 +37,6 @@ final class MoshRTTEstimator {
     /// Time when last packet was sent
     private var lastSentTime: Date?
 
-    /// Total samples collected
-    private var sampleCount: Int = 0
-
-    /// Minimum observed RTT
-    private var minRTT: Double = Double.infinity
-
-    /// Maximum observed RTT
-    private var maxRTT: Double = 0
-
     // MARK: - Constants
 
     /// Alpha for EWMA (weight of new sample) - matches TCP
@@ -107,10 +98,6 @@ final class MoshRTTEstimator {
     /// Updates the RTT estimate with a new sample
     /// Uses TCP-style EWMA calculation from RFC 6298
     private func updateEstimate(sample: Double) -> Double {
-        sampleCount += 1
-        minRTT = min(minRTT, sample)
-        maxRTT = max(maxRTT, sample)
-
         if !hasEstimate {
             // First sample - initialize
             smoothedRTT = sample
@@ -150,52 +137,4 @@ final class MoshRTTEstimator {
     var latencyMs: Int? {
         hasEstimate ? Int(smoothedRTT) : nil
     }
-
-    /// Returns true if the connection appears to have high latency
-    var isHighLatency: Bool {
-        estimatedRTT > 150
-    }
-
-    /// Returns statistics about the RTT measurements
-    var statistics: RTTStatistics {
-        RTTStatistics(
-            smoothedRTT: estimatedRTT,
-            variance: variance,
-            minRTT: minRTT.isFinite ? minRTT : 0,
-            maxRTT: maxRTT > 0 ? maxRTT : 0,
-            sampleCount: sampleCount
-        )
-    }
-
-    /// Resets the estimator to initial state
-    func reset() {
-        smoothedRTT = 0
-        rttVariance = 0
-        hasEstimate = false
-        lastSentTimestamp = 0
-        lastSentTime = nil
-        sampleCount = 0
-        minRTT = .infinity
-        maxRTT = 0
-    }
-}
-
-// MARK: - Statistics
-
-/// RTT measurement statistics
-struct RTTStatistics: Sendable {
-    /// Smoothed RTT estimate (ms)
-    let smoothedRTT: Double
-
-    /// RTT variance (ms)
-    let variance: Double
-
-    /// Minimum observed RTT (ms)
-    let minRTT: Double
-
-    /// Maximum observed RTT (ms)
-    let maxRTT: Double
-
-    /// Number of samples collected
-    let sampleCount: Int
 }

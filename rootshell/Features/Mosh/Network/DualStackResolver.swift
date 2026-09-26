@@ -38,11 +38,6 @@ struct DualStackResolver {
         /// Port for connection
         let port: Int
 
-        /// Whether we have at least one address
-        var hasAnyAddress: Bool {
-            ipv4Address != nil || ipv6Address != nil
-        }
-
         /// Returns the preferred address (IPv4 first, then IPv6)
         ///
         /// IPv4 is preferred because:
@@ -59,18 +54,6 @@ struct DualStackResolver {
             if ipv4Address != nil { return .ipv4 }
             if ipv6Address != nil { return .ipv6 }
             return .auto
-        }
-
-        /// Returns the alternate address (opposite of preferred)
-        var alternateAddress: String? {
-            if ipv4Address != nil { return ipv6Address }
-            return nil
-        }
-
-        /// Returns the alternate address family
-        var alternateFamily: AddressFamily? {
-            if ipv4Address != nil && ipv6Address != nil { return .ipv6 }
-            return nil
         }
     }
 

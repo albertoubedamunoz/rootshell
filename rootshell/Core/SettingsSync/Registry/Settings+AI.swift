@@ -79,9 +79,6 @@ nonisolated extension Settings {
         static let mcpServerConfig = SettingKey<Data?>(
             "mcp_server_config", default: nil, group: .ai, policy: .localByDefault,
             title: String(localized: "MCP Server", comment: "Setting title"))
-        static let mcpAuthToken = SettingKey<String?>(
-            "mcp_auth_token", default: nil, group: .ai, policy: .deviceOnly,
-            title: String(localized: "MCP Auth Token", comment: "Setting title"))
         static let voiceConsultationMode = SettingKey(
             "voice.agent.consultationMode", default: VoiceConsultationMode.letFlashDecide, group: .ai,
             configKey: "voice-agent-consultation-mode",
@@ -106,7 +103,7 @@ nonisolated extension Settings {
             commitMessageModel.erased, bedrockRegion.erased, bedrockCloudAccountID.erased, openAIAuthMode.erased,
             customProviders.erased, openRouterFavorites.erased, openRouterDiscoveredModels.erased,
             chatGPTModels.erased, chatGPTModelsRefreshDate, yoloModeLegacy.erased, fullscreenModeLegacy.erased,
-            mcpServerConfig.erased, mcpAuthToken.erased, voiceConsultationMode.erased, voice.erased,
+            mcpServerConfig.erased, voiceConsultationMode.erased, voice.erased,
         ]
     }
 }

@@ -186,12 +186,6 @@ final class MoshSession: TerminalSession {
     /// Whether this session was resumed from saved credentials
     private(set) var wasResumed: Bool = false
 
-    /// Time when resume completed (for detecting early failure)
-    private var resumeCompletedAt: Date?
-
-    /// Grace period after resume - if disconnect happens within this window, auto-fallback to SSH
-    private static let resumeGracePeriod: TimeInterval = 30.0
-
     /// Whether we're currently in the process of auto-fallback after resume failure
     private var isAutoFallbackInProgress: Bool = false
 
@@ -388,9 +382,6 @@ final class MoshSession: TerminalSession {
             return false
         }
     }
-
-    /// Shorter timeout for initial direct connection during resume (before hole-punch)
-    private static let resumeDirectTimeout: TimeInterval = 0.5
 
     /// Timeout after hole-punch attempt during resume
     private static let resumePostPunchTimeout: TimeInterval = 0.5
