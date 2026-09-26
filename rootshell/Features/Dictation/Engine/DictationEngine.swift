@@ -54,8 +54,9 @@ actor DictationEngine {
     private var unloadTask: Task<Void, Never>?
     /// Sessions holding the models. Nothing unloads while this is above zero.
     private var users = 0
-    /// A load in flight, shared by sessions that want the same model.
-    private var loading: (model: LoadedModel, task: Task<Void, Error>)?
+    /// Tail of the load/unload queue. Model changes run one at a time in request
+    /// order, so the most recent request's model is the one left loaded.
+    private var transition: Task<Void, Never>?
 
     var isLoaded: Bool { asr != nil }
 
@@ -67,9 +68,11 @@ actor DictationEngine {
         unloadTask = nil
         let wanted = LoadedModel(model: model, precision: model.encoderPrecision(precision))
         do {
-            try await ensureLoaded(wanted)
+            try await serialized { try await self.load(wanted) }
         } catch {
             users -= 1
+            // Whatever did load (say, speech but not VAD) has no lease to release it.
+            if users == 0 { await unload() }
             throw error
         }
     }
@@ -86,23 +89,24 @@ actor DictationEngine {
         }
     }
 
-    private func ensureLoaded(_ wanted: LoadedModel) async throws {
-        if loaded == wanted, asr != nil, vad != nil { return }
-        if let pending = loading, pending.model == wanted {
-            try await pending.task.value
-            return
+    private func serialized(_ work: @escaping @Sendable () async throws -> Void) async throws {
+        let previous = transition
+        let task = Task<Void, Error> {
+            await previous?.value
+            try await work()
         }
-        let task = Task { try await self.load(wanted) }
-        loading = (wanted, task)
-        defer { if loading?.model == wanted { loading = nil } }
+        transition = Task { _ = await task.result }
         try await task.value
     }
 
     private func load(_ wanted: LoadedModel) async throws {
+        if loaded == wanted, asr != nil, vad != nil { return }
         if loaded != wanted || asr == nil {
-            await asr?.cleanup()
+            // Detach before the await so nothing can pick up a manager mid-cleanup.
+            let old = asr
             asr = nil
             loaded = nil
+            await old?.cleanup()
             let version = wanted.model.asrVersion
             let directory = AsrModels.defaultCacheDirectory(for: version)
             guard AsrModels.modelsExist(at: directory, version: version, encoderPrecision: wanted.precision) else {
@@ -162,18 +166,25 @@ actor DictationEngine {
         return DictationTranscript(text: text.trimmingCharacters(in: .whitespacesAndNewlines), confidence: result.confidence)
     }
 
-    /// Frees the models unless a session is using them.
+    /// Frees the models unless a session is using them. Queued behind any load.
     func unload() async {
-        guard users == 0, loading == nil else { return }
+        try? await serialized { await self.unloadIfIdle() }
+    }
+
+    private func unloadIfIdle() async {
+        // Rechecked in the queue: an acquire may have arrived since this was requested.
+        guard users == 0, asr != nil || vad != nil || ctcModels != nil else { return }
         unloadTask?.cancel()
         unloadTask = nil
-        await asr?.cleanup()
+        // Detach before the await so a new acquire loads fresh instead of reusing these.
+        let old = asr
         asr = nil
         loaded = nil
         vad = nil
         ctcModels = nil
         boosting = nil
         boostingTerms = []
+        await old?.cleanup()
         Self.logger.info("Unloaded dictation models")
     }
 }

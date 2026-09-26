@@ -261,6 +261,9 @@ final class DictationController {
         NotificationCenter.default.post(name: .microphoneCaptureWillBegin, object: self)
         let settings = SettingsStore.shared
         let engine = DictationEngine.shared
+        // Cancelled on every exit that doesn't hand it to self.recognizer; its task
+        // would otherwise wait forever for audio.
+        var pendingRecognizer: DictationRecognizer?
         do {
             try await engine.acquire(model: model, precision: settings.get(Settings.Dictation.encoderPrecision))
             guard self.session == session else {
@@ -288,12 +291,18 @@ final class DictationController {
                 autoStopSilence: silence,
                 normalizeNumbers: settings.get(Settings.Dictation.numberNormalization),
                 boost: boost))
+            pendingRecognizer = recognizer
             await recognizer.start()
+            guard self.session == session else {
+                await recognizer.cancel()
+                return
+            }
 
+            // No suspension from here to handoff, so a cancel cannot slip in between.
             try audioSession.activateForDictation()
             try capture.start { samples in recognizer.append(samples) }
-            guard self.session == session else { capture.stop(); return }
             self.recognizer = recognizer
+            pendingRecognizer = nil
             phase = .listening
             eventsTask = Task { [weak self] in
                 for await event in recognizer.events {
@@ -302,6 +311,7 @@ final class DictationController {
                 self?.finished(session: session)
             }
         } catch {
+            await pendingRecognizer?.cancel()
             fail(error, session: session)
         }
     }

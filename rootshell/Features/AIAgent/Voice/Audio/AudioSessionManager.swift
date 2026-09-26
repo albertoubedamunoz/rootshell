@@ -69,10 +69,11 @@ final class AudioSessionManager {
         previousCategory = session.category
         previousMode = session.mode
         previousOptions = session.categoryOptions
+        // Marked first so deactivate() restores the category even if activation throws.
+        isActivated = true
         try session.setCategory(.playAndRecord, mode: .default,
                                 options: [.defaultToSpeaker, .duckOthers, .allowBluetoothHFP])
         try session.setActive(true, options: [])
-        isActivated = true
         #endif
     }
 
