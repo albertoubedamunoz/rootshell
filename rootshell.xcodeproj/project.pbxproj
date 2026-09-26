@@ -6901,10 +6901,10 @@
 		};
 		47FLA0002FFA0000AABB0000 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			repositoryURL = "https://github.com/kitknox/fluidaudio-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.17.4;
+				version = "0.17.4-rootshell.1";
 			};
 		};
 		47HLX0002FD00000AABB0000 /* XCRemoteSwiftPackageReference "helix-rootshell" */ = {

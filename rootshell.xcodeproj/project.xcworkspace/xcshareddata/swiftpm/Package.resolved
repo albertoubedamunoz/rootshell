@@ -1,5 +1,5 @@
 {
-  "originHash" : "71ad6e7c5ecd10a4bec1f444dd590fc4528368c192f149acf66865d0e0b2e5e3",
+  "originHash" : "bedb1ee7fd3019686a4e196c1867d2914959a21146531b393017dc1c7dbd4847",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -47,12 +47,12 @@
       }
     },
     {
-      "identity" : "fluidaudio",
+      "identity" : "fluidaudio-rootshell",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/FluidInference/FluidAudio.git",
+      "location" : "https://github.com/kitknox/fluidaudio-rootshell.git",
       "state" : {
-        "revision" : "21493f8dac5a97e65742e6ff26f42f164c2fda0f",
-        "version" : "0.17.4"
+        "revision" : "a7088cd27552e0341834a292783b126c2be76cba",
+        "version" : "0.17.4-rootshell.1"
       }
     },
     {
