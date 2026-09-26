@@ -107,6 +107,76 @@ final class HerdrEqualizationTests: XCTestCase {
 }
 
 final class HerdrProtocolTests: XCTestCase {
+    func testIndependentFontZoomKeepsOtherPanesFullSize() throws {
+        let slot = CGSize(width: 600, height: 800)
+        let chrome = CGSize(width: 16, height: 16)
+        let normal = try XCTUnwrap(HerdrGeometry.paneGrid(slot: slot, chrome: chrome,
+            cellPixels: CGSize(width: 16, height: 32), scale: 2))
+        let enlarged = try XCTUnwrap(HerdrGeometry.paneGrid(slot: slot, chrome: chrome,
+            cellPixels: CGSize(width: 20, height: 40), scale: 2))
+        XCTAssertEqual(normal.cols, 73)
+        XCTAssertEqual(normal.rows, 49)
+        XCTAssertEqual(enlarged.cols, 58)
+        XCTAssertEqual(enlarged.rows, 39)
+        // The original bug gave the normal-font pane the enlarged pane's
+        // smaller grid. Its drawable lost 120 points of width and 160 height.
+        XCTAssertLessThan(HerdrGeometry.clampedExtent(slot.width, cells: enlarged.cols,
+            cellPixels: 16, chrome: chrome.width, scale: 2), slot.width - 100)
+        XCTAssertEqual(HerdrGeometry.clampedExtent(slot.width, cells: normal.cols,
+            cellPixels: 16, chrome: chrome.width, scale: 2), slot.width)
+        XCTAssertEqual(HerdrGeometry.clampedExtent(slot.height, cells: normal.rows,
+            cellPixels: 32, chrome: chrome.height, scale: 2), slot.height)
+    }
+
+    func testLayoutSeparatesTerminalGridFromSplitCoordinates() throws {
+        let json = #"{"pane_id":"p","focused":true,"rect":{"x":10,"y":0,"width":40,"height":20},"terminal_size":{"cols":80,"rows":40,"cell_width_px":8,"cell_height_px":16}}"#
+        let pane = try HerdrControl.decoder.decode(HerdrControl.LayoutPane.self, from: Data(json.utf8))
+        XCTAssertEqual(pane.rect.width, 40)
+        XCTAssertEqual(pane.terminalCols, 80)
+        XCTAssertEqual(pane.terminalRows, 40)
+        let old = try HerdrControl.decoder.decode(HerdrControl.LayoutPane.self,
+            from: Data(#"{"pane_id":"p","focused":true,"rect":{"x":0,"y":0,"width":40,"height":20}}"#.utf8))
+        XCTAssertEqual(old.terminalCols, 40)
+        XCTAssertEqual(old.terminalRows, 20)
+    }
+
+    func testPaneFontChangeRenegotiatesEvenWhenTabGridIsUnchanged() throws {
+        var size = HerdrTabGeometryState.Size(cols: 120, rows: 40, cellWidth: 16, cellHeight: 32)
+        var state = HerdrTabGeometryState()
+        state.update(size)
+        let first = try XCTUnwrap(state.beginRequest())
+        state.finish(first, succeeded: true)
+        XCTAssertTrue(state.isConfirmed)
+        size.panes["right"] = .init(cols: 45, rows: 30, cell_width_px: 20, cell_height_px: 40)
+        state.update(size)
+        XCTAssertFalse(state.isConfirmed)
+        let next = try XCTUnwrap(state.beginRequest())
+        XCTAssertFalse(next.claim, "font changes must not take ownership from another viewer")
+        XCTAssertEqual(next.size.panes["right"]?.cols, 45)
+    }
+
+    func testPaneGeometryCapabilityDoesNotDisableProtocolTwoSharing() {
+        let old = HerdrServerCapabilities(streamProtocol: 2,
+            features: ["shared_attach", "geometry_ownership", "geometry_controller", "pane_geometry"], serverPid: nil, liveHandoff: false)
+        XCTAssertTrue(old.supportsSharedViewing)
+        XCTAssertFalse(old.supports(.paneGeometry))
+        let new = HerdrServerCapabilities(streamProtocol: 3, features: old.features, serverPid: nil, liveHandoff: false)
+        XCTAssertTrue(new.supportsSharedViewing)
+        XCTAssertTrue(new.supports(.paneGeometry))
+    }
+
+    func testPaneGeometryRequestKeepsGeometryFieldsAtTopLevel() throws {
+        let params = HerdrControl.TabPaneGeometryParams(
+            geometry: .init(tab_id: "t", cols: 120, rows: 40, cell_width_px: 16, cell_height_px: 32, claim: false),
+            panes: ["p": .init(cols: 40, rows: 20, cell_width_px: 24, cell_height_px: 48)])
+        let data = try JSONEncoder().encode(params)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["tab_id"] as? String, "t")
+        XCTAssertEqual(json["claim"] as? Bool, false)
+        XCTAssertNil(json["geometry"])
+        XCTAssertNotNil(json["panes"])
+    }
+
 
     // MARK: Version requirement
 

@@ -17,8 +17,8 @@ nonisolated enum HerdrControl {
 
     /// Lowest `terminal_control_stream` capability value this client can drive.
     static let requiredStreamProtocol = 1
-    /// Stream protocol this client speaks in full (shared attaches, geometry ownership).
-    static let preferredStreamProtocol = 2
+    /// Preferred stream protocol; version 3 adds independent pane sizing.
+    static let preferredStreamProtocol = 3
 
     // MARK: - Requests
 
@@ -61,6 +61,47 @@ nonisolated enum HerdrControl {
         /// false stores this client's size without taking the tab's geometry.
         /// Omitted (nil) for servers that predate ownership; they always claim.
         var claim: Bool?
+    }
+
+    struct PaneTerminalSize: Codable, Sendable, Equatable {
+        let cols: Int
+        let rows: Int
+        let cell_width_px: Int
+        let cell_height_px: Int
+
+        init(cols: Int, rows: Int, cell_width_px: Int, cell_height_px: Int) {
+            self.cols = cols
+            self.rows = rows
+            self.cell_width_px = cell_width_px
+            self.cell_height_px = cell_height_px
+        }
+
+        private enum CodingKeys: String, CodingKey { case cols, rows, cell_width_px, cell_height_px }
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            cols = try values.decode(Int.self, forKey: .cols)
+            rows = try values.decode(Int.self, forKey: .rows)
+            cell_width_px = try values.decode(Int.self, forKey: .cell_width_px)
+            cell_height_px = try values.decode(Int.self, forKey: .cell_height_px)
+            guard (1...65535).contains(cols), (1...65535).contains(rows),
+                  (1...65535).contains(cell_width_px), (1...65535).contains(cell_height_px) else {
+                throw DecodingError.dataCorruptedError(forKey: .cols, in: values,
+                    debugDescription: "Herdr terminal grids and cell metrics must be positive 16-bit values")
+            }
+        }
+    }
+
+    /// A distinct method prevents old servers from silently ignoring pane sizes.
+    struct TabPaneGeometryParams: Encodable {
+        let geometry: TabGeometryParams
+        let panes: [String: PaneTerminalSize]
+
+        func encode(to encoder: Encoder) throws {
+            try geometry.encode(to: encoder)
+            var values = encoder.container(keyedBy: CodingKeys.self)
+            try values.encode(panes, forKey: .panes)
+        }
+        private enum CodingKeys: String, CodingKey { case panes }
     }
 
     struct ClaimGeometryParams: Encodable {
@@ -397,6 +438,10 @@ nonisolated enum HerdrControl {
         let pane_id: String
         let focused: Bool
         let rect: Rect
+        var terminal_size: PaneTerminalSize? = nil
+
+        var terminalCols: Int { terminal_size?.cols ?? rect.width }
+        var terminalRows: Int { terminal_size?.rows ?? rect.height }
     }
 
     struct LayoutSplit: Decodable, Sendable, Equatable {

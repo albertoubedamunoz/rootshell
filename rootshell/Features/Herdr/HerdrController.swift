@@ -942,7 +942,7 @@ final class HerdrController {
                 for pane in layout.panes {
                     guard let terminalID = paneInfos[pane.pane_id]?.terminal_id,
                           let view = paneViews[terminalID], let old = view.herdrTargetGrid,
-                          old.cols != pane.rect.width || old.rows != pane.rect.height,
+                          old.cols != pane.terminalCols || old.rows != pane.terminalRows,
                           let session = paneSessions[terminalID], let attachID = session.attachId else { continue }
                     guard view.window != nil, !view.suppressPTYSizeUpdates,
                           !Ghostty.isAppBackgroundedAtomic,
@@ -973,7 +973,7 @@ final class HerdrController {
                 paneSessions[terminalID]?.readFence = nil
                 paneSessions[terminalID]?.invalidateParserGrid()
                 if failedDrains.contains(terminalID) || resizeRecoveries[terminalID] != nil {
-                    invalidateResizeOutput(terminalID: terminalID, cols: pane.rect.width, rows: pane.rect.height)
+                    invalidateResizeOutput(terminalID: terminalID, cols: pane.terminalCols, rows: pane.terminalRows)
                 }
                 if let attachID = attachIds[terminalID] {
                     sourceRouter.updateGrid(attachId: attachID, cols: 0, rows: 0)

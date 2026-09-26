@@ -31,6 +31,8 @@ Fallback is not simply a screenshot poller: the normal upstream endpoint keeps f
 
 Shared viewing does not give every client a separately sized copy of the same terminal. One client controls a tab's geometry; other viewers follow that layout. The **Take Control** and **Fit to This Window** actions allow an explicit change of owner. On older single-owner forks, taking control can displace the previous attach.
 
+With a fork advertising control protocol 3 and `pane_geometry`, font zoom can size each pane independently. The owning client measures each pane using its own font size; other clients continue viewing the same terminals. Older control clients receive a cell-space projection of those terminal grids and can still take control. This requires the companion server implementation; a protocol 2 server does not gain independent pane sizing from a client update alone.
+
 **Detach Other Clients** (⇧⌘X by default) takes every tab in the session at once, and any pane another client holds. herdr has no method to close another client's connection, and shared viewing is deliberate, so unlike tmux's `detach-client -a` this does not empty the session: other clients keep viewing, but nothing else decides how the session is laid out. Every tab is claimed at once, including the tabs this window is not currently showing: those are claimed at the size they will have here, so they are laid out for this device the moment you switch to them.
 
 On every platform, opening or returning to the app, or selecting a terminal tab, automatically fits the selected tab to this device and returns its visible panes to live output. No typing is needed. Other clients stay attached. Each activation claims once; a later handoff to another client does not start a contest for control. Scrolling or selecting text cancels a pending return to live output for that pane.
@@ -134,13 +136,13 @@ This is a practical description of the client implemented in rootshell, not a se
 
 The fork's `herdr control` command bridges the host's herdr socket API over stdin/stdout. rootshell runs it through an auxiliary exec channel on the existing SSH or tssh connection, or through a helper-spawned local process on macOS. The gateway terminal remains separate. The bridge respects the chosen session and, for discovered local attachments, their executable and socket identity.
 
-rootshell sets `HERDR_CONTROL_CLIENT=rootshell/<app-version>` and `HERDR_CONTROL_PROTOCOL=2` in the bridge environment. The first output line is the response to `control.open`, containing `connection_id`, `boot_id`, the running server's `version`, base `protocol`, optional negotiated `control_protocol`, and `capabilities`.
+rootshell sets `HERDR_CONTROL_CLIENT=rootshell/<app-version>` and `HERDR_CONTROL_PROTOCOL=3` in the bridge environment. The first output line is the response to `control.open`, containing `connection_id`, `boot_id`, the running server's `version`, base `protocol`, optional negotiated `control_protocol`, and `capabilities`.
 
 These numbers have different meanings:
 
 - `version` is the herdr release, validated against the 0.9.0 minimum. A recognized fork suffix is accepted using its base release.
 - `protocol` is the server's base API protocol identifier, not the terminal-stream version.
-- `capabilities.terminal_control_stream` advertises the terminal control stream. rootshell supports protocol 1 and prefers protocol 2; `control_protocol` reports negotiation on newer servers.
+- `capabilities.terminal_control_stream` advertises the terminal control stream. rootshell supports protocols 1 and 2 and prefers protocol 3; `control_protocol` reports negotiation on newer servers.
 - `capabilities.control_features` gates individual additions. Shared viewing requires stream protocol 2 or later **and** `shared_attach`, `geometry_ownership`, and `geometry_controller`. The version number alone does not enable it.
 
 See [launch and environment selection](../rootshell/Features/SSH/Config/SSHConfig.swift), [channel transport](../rootshell/Features/Herdr/Transport/HerdrChannelFactory.swift), and [capability checks](../rootshell/Features/Herdr/HerdrServerCapabilities.swift).
@@ -215,3 +217,9 @@ The endpoint sends server-rendered surfaces and metadata, and accepts semantic p
 For compatible servers without the endpoint, the secondary path uses per-pane PTY attaches. Some management operations can use a one-shot JSON request to the resolved Unix socket through `python3` or Unix-socket-capable `nc`. Neither compatibility path bypasses the minimum server version.
 
 See the [endpoint wire codec](../rootshell/Features/Herdr/HerdrEndpointWire.swift), [endpoint channel](../rootshell/Features/Herdr/HerdrEndpointChannel.swift), and [fallback controller](../rootshell/Features/Herdr/HerdrController+Legacy.swift).
+
+### Independent pane geometry
+
+The optional `pane_geometry` feature uses `tab.set_pane_geometry`, with the existing tab geometry fields plus a `panes` object keyed by pane ID. Each entry contains `cols`, `rows`, `cell_width_px`, and `cell_height_px`. Requests retain the existing `claim` semantics. A distinct method prevents older servers from silently accepting and ignoring the per-pane sizes.
+
+Protocol 3 layouts may include `terminal_size` on each pane. The pane's `rect` remains its position in the tab's layout coordinate system; `terminal_size` specifies the grid used for snapshots, rendering, and output barriers. If absent, the grid remains `rect.width` by `rect.height`. Pane sizes are part of geometry negotiation, so changing a non-leading pane's font sends an update even if the tab's overall grid stays unchanged.
