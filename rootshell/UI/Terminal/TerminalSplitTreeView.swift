@@ -1690,6 +1690,7 @@ extension Notification.Name {
     static let bellTriggered = Notification.Name("com.rootshell.bellTriggered")
     static let toggleAIAgent = Notification.Name("com.rootshell.toggleAIAgent")
     static let toggleVoiceAgent = Notification.Name("com.rootshell.toggleVoiceAgent")
+    static let toggleDictation = Notification.Name("com.rootshell.toggleDictation")
     static let toggleTabBar = Notification.Name("com.rootshell.toggleTabBar")
     static let toggleGroupMode = Notification.Name("com.rootshell.toggleGroupMode")
     static let toggleTransparency = Notification.Name("com.rootshell.toggleTransparency")

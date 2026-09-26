@@ -643,6 +643,16 @@ struct ShellCommands: Commands {
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_voice_agent, shortcuts: shortcutState.shortcuts))
+
+            if DictationSupport.isCompiled {
+                Button("Dictation") {
+                    UIApplication.shared.sendMenuAction(
+                        #selector(Ghostty.TerminalView.menuToggleDictation(_:)),
+                        from: nil
+                    )
+                }
+                .modifier(DynamicShortcut(action: .toggle_dictation, shortcuts: shortcutState.shortcuts))
+            }
             #endif
         }
 

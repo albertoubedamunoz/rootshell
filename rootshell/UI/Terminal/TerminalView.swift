@@ -676,6 +676,9 @@ extension Ghostty {
             get { keyboardAccessoryController?.dismissTapStartPoint }
             set { keyboardAccessoryController?.dismissTapStartPoint = newValue }
         }
+        /// Bumped by every input path (bytes, key events, pastes). Dictation compares it
+        /// to tell its own insertions from typing that happened since.
+        var userInputGeneration: UInt64 = 0
         /// Whether AI Agent overlay is visible for this terminal's tab (suppresses keyboard toolbar)
         var aiAgentOverlayActive: Bool = false {
             didSet {
@@ -5667,6 +5670,7 @@ extension Ghostty.TerminalView {
         text: String? = nil,
         unshiftedCodepoint: UInt32 = 0
     ) -> Bool {
+        userInputGeneration &+= 1
         endDictationSession()
         invalidateWritingAssistance()
         // Covered herdr gateway: Ghostty would encode straight into the hidden

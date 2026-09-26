@@ -3,13 +3,19 @@
 //  AudioSessionManager.swift
 //  rootshell
 //
-//  Manages AVAudioSession category switching for voice agent mode.
-//  Switches from .playback to .playAndRecord when voice mode activates,
-//  and restores the previous category on exit.
+//  Manages AVAudioSession category switching for voice agent mode and
+//  dictation. Switches from .playback to .playAndRecord while the microphone
+//  is in use, and restores the previous category on exit.
 //
 
 @preconcurrency import AVFoundation
 import os.log
+
+extension Notification.Name {
+    /// Posted by a feature about to take the microphone; the object is the new owner.
+    /// Other capture owners stop so dictation and the voice agent never overlap.
+    static let microphoneCaptureWillBegin = Notification.Name("com.rootshell.microphoneCaptureWillBegin")
+}
 
 @MainActor
 final class AudioSessionManager {
@@ -52,6 +58,21 @@ final class AudioSessionManager {
         } else {
             Self.logger.info("Audio session activated for voice agent category=\(category) mode=\(mode) outputs=\(routeOutputs)")
         }
+        #endif
+    }
+
+    /// Activate audio session for dictation: record only, other audio ducked.
+    func activateForDictation() throws {
+        #if os(iOS) || os(visionOS)
+        AppAudioSession.ensureConfigured()
+        let session = AVAudioSession.sharedInstance()
+        previousCategory = session.category
+        previousMode = session.mode
+        previousOptions = session.categoryOptions
+        try session.setCategory(.playAndRecord, mode: .default,
+                                options: [.defaultToSpeaker, .duckOthers, .allowBluetoothHFP])
+        try session.setActive(true, options: [])
+        isActivated = true
         #endif
     }
 

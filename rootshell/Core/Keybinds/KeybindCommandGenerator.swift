@@ -129,7 +129,7 @@ final class KeybindCommandGenerator: ObservableObject {
              .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .choose_pane_to_swap,
              .open_settings, .toggle_quick_settings, .open_in_folder,
              .toggle_file_manager, .toggle_ip_lookup, .browse_hosts,
-             .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_tab_bar, .toggle_group_mode, .toggle_tab_switcher,
+             .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_dictation, .toggle_tab_bar, .toggle_group_mode, .toggle_tab_switcher,
              .toggle_tab_expose, .previous_group, .next_group, .show_tmux_sessions, .discover_sessions,
              .detach_session, .detach_other_clients,
              .toggle_transparency, .toggle_titlebar, .toggle_auto_redact, .toggle_background_effect, .toggle_compose,

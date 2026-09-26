@@ -1147,6 +1147,12 @@ final class AgentAttentionCenter {
         }
     }
 
+    /// The coding agent detected in a pane, if any. Tasks do not count.
+    func detectedAgentName(for terminal: Ghostty.TerminalView) -> String? {
+        guard let agent = monitors[terminal.uuid]?.agent, agent.kind == .agent else { return nil }
+        return agent.displayName
+    }
+
     /// herdr reported a pane's directory (snapshot or `pane_updated`).
     /// The directory is free server metadata; Git facts use the gateway's
     /// connection and the same repository cache as ordinary panes.

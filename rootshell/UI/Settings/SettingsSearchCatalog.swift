@@ -25,6 +25,9 @@ enum SettingsSearchDestination: String, Hashable, CaseIterable {
     case visor
     case toolbarKeys
     case touchKeyboard
+    case dictation
+    case dictationModels
+    case dictationVocabulary
     case newTabAction
     case keyboardShortcuts
     case modTap
@@ -167,6 +170,19 @@ extension SettingsSearchDestination {
         case .toolbarKeys:
             Meta(section: .terminal, title: String(localized: "Toolbar Keys"), systemImage: "keyboard",
                  keywords: ["toolbar", "custom keys"])
+        case .dictation:
+            Meta(section: .terminal, title: String(localized: "Dictation"), systemImage: "mic",
+                 keywords: ["dictation", "speech", "voice", "microphone", "speech to text", "transcribe", "parakeet",
+                            "fluidaudio", "on device", "offline", "voice typing", "preview", "live", "hands-free",
+                            "agent prompt", "voice commands", "press enter", "scratch that", "filler words"])
+        case .dictationModels:
+            Meta(section: .terminal, title: String(localized: "Speech Model"), systemImage: "cpu",
+                 keywords: ["parakeet", "ultra", "redux", "v2", "v3", "download", "delete", "model", "storage",
+                            "neural engine", "language"])
+        case .dictationVocabulary:
+            Meta(section: .terminal, title: String(localized: "Vocabulary Boost"), systemImage: "text.book.closed",
+                 keywords: ["vocabulary", "custom words", "boost", "kubectl", "hostnames", "identifiers",
+                            "context biasing", "sounds like"])
         case .newTabAction:
             Meta(section: .terminal, title: String(localized: "New Tab Action"), systemImage: "plus.rectangle.on.rectangle",
                  keywords: ["new tab", "local", "ssh", "tmux", "last connection", "default"])
@@ -350,6 +366,8 @@ extension SettingsSearchDestination {
             return SearchBuild.isCatalyst
         case .touchKeyboard:
             return !SearchBuild.isCatalyst && !SearchBuild.isVisionOS
+        case .dictation, .dictationModels, .dictationVocabulary:
+            return DictationSupport.isCompiled
         case .toolbarKeys, .promptAndUsername, .bookmarkedLocations, .locationDiary:
             return !SearchBuild.isCatalyst
         case .liveActivity:
@@ -936,6 +954,22 @@ struct SettingsSearchEntry: Identifiable, Hashable {
             row("ai-presentation", String(localized: "AI Presentation"), in: .aiConfiguration, icon: "sidebar.right",
                 keywords: ["display mode", "presentation", "layout"], available: !isVisionOS && !onPhone),
 
+            // MARK: Dictation
+            row("dictation-language", String(localized: "Dictation Language"), in: .dictation, icon: "globe",
+                keywords: ["language", "multilingual", "english", "german", "spanish", "french"]),
+            row("dictation-insert-text", String(localized: "Insert Text"), in: .dictation, icon: "text.insert",
+                keywords: ["preview", "live", "hands-free", "commit", "auto insert", "press return"]),
+            row("dictation-formatting", String(localized: "Dictation Formatting"), in: .dictation, icon: "textformat",
+                keywords: ["command", "prose", "agent prompt", "spoken symbols", "dash", "slash", "lowercase"]),
+            row("dictation-agent", String(localized: "Agent Prompts"), in: .dictation, icon: "sparkles",
+                keywords: ["claude code", "codex", "filler words", "camel case", "snake case", "file mention",
+                           "slash command", "quick replies", "new line"]),
+            row("dictation-voice-commands", String(localized: "Voice Commands"), in: .dictation, icon: "command",
+                keywords: ["press enter", "scratch that", "escape", "control c", "tab"]),
+            row("dictation-advanced", String(localized: "Stop After Silence"), in: .dictation, icon: "timer",
+                keywords: ["silence", "pause", "phrase", "threshold", "sensitivity", "keep loaded", "memory",
+                           "numbers", "digits", "precision", "int4"]),
+
             // MARK: Voice Agent
             row("voice-selection", String(localized: "Voice"), in: .voiceAgent,
                 keywords: ["voice selection", "speech", "tts"]),
@@ -1080,6 +1114,24 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
     case .toolbarKeys:
         #if !targetEnvironment(macCatalyst)
         KeyboardToolbarSettingsView()
+        #else
+        EmptyView()
+        #endif
+    case .dictation:
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        DictationSettingsView()
+        #else
+        EmptyView()
+        #endif
+    case .dictationModels:
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        DictationModelsView()
+        #else
+        EmptyView()
+        #endif
+    case .dictationVocabulary:
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        DictationVocabularyView()
         #else
         EmptyView()
         #endif

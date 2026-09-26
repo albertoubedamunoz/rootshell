@@ -309,6 +309,9 @@ struct MainView: View {
     /// A Files-tab choice waiting for the connection sheet to finish dismissing.
     @State var pendingFileManagerOpen: (endpoint: FileEndpoint, presentation: FileManagerPresentation?)?
 
+    /// Dictation HUD, used where the terminal keyboard's Dictation page is not showing.
+    @State var showDictationHUD = false
+
     /// IP Lookup HUD; the model reads the clipboard when it opens.
     @State var showIPLookup = false
     @State var ipLookupModel: IPLookupModel?

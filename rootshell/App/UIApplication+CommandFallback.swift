@@ -246,6 +246,10 @@ extension UIApplication {
         ghostty_postNotification(.toggleVoiceAgent)
     }
 
+    @objc func menuToggleDictation(_ sender: Any?) {
+        ghostty_postNotification(.toggleDictation)
+    }
+
     @objc func menuToggleTabBar(_ sender: Any?) {
         ghostty_postNotification(.toggleTabBar)
     }

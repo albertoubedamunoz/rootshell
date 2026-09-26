@@ -489,20 +489,27 @@ nonisolated enum TerminalTouchKeyboardModel {
     }
 
     enum ToolPage: Int, CaseIterable {
-        case typing, symbols, navigation, shortcuts
+        case typing, dictation, symbols, navigation, shortcuts
 
         var title: String {
             switch self {
             case .typing: return String(localized: "Keyboard")
+            case .dictation: return String(localized: "Dictation")
             case .symbols: return String(localized: "Symbols")
             case .navigation: return String(localized: "Navigation")
             case .shortcuts: return String(localized: "Shortcuts")
             }
         }
 
-        func moved(by offset: Int) -> Self {
-            let count = Self.allCases.count
-            return Self(rawValue: (rawValue + offset % count + count) % count)!
+        /// Pages in swipe order; Dictation only when the feature is available and on.
+        static func pages(dictation: Bool) -> [Self] {
+            dictation ? allCases : allCases.filter { $0 != .dictation }
+        }
+
+        func moved(by offset: Int, in pages: [Self] = Self.allCases) -> Self {
+            guard let index = pages.firstIndex(of: self) else { return .typing }
+            let count = pages.count
+            return pages[(index + offset % count + count) % count]
         }
     }
 

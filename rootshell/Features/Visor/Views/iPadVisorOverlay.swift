@@ -42,7 +42,7 @@ final class iPadVisorController {
         case .openSettings, .toggleQuickSettings, .openInFolder, .newTab, .createLocalShell, .newWindow,
              .previousTab, .nextTab, .selectTab, .previousGroup, .nextGroup,
              .showTabSwitcher, .toggleTabExpose, .toggleTabBar, .toggleGroupMode,
-             .browseHosts, .browseProfiles, .toggleAIAgent, .toggleVoiceAgent,
+             .browseHosts, .browseProfiles, .toggleAIAgent, .toggleVoiceAgent, .toggleDictation,
              .toggleThemePicker, .toggleClipboardManager, .toggleIPLookup, .toggleFullScreen,
              .toggleBackgroundEffect, .toggleTitleBar, .toggleTransparency, .toggleAutoRedact:
             owner.hide()

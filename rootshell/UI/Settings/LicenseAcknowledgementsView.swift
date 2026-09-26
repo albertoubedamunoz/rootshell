@@ -117,6 +117,26 @@ struct LicenseAcknowledgementsView: View {
                 }
             }
 
+            #if canImport(FluidAudio) && !CHINA_BUILD
+            Section("Speech Recognition") {
+                ForEach(speechLicenses) { entry in
+                    LicenseRow(entry: entry)
+                        .themedRow()
+                }
+            }
+
+            Section {
+                ForEach(speechModelLicenses) { entry in
+                    LicenseRow(entry: entry)
+                        .themedRow()
+                }
+            } header: {
+                Text("Speech Models")
+            } footer: {
+                Text("Downloaded on demand when you turn on dictation, not included in the app.")
+            }
+            #endif
+
             Section("Sounds") {
                 ForEach(soundLicenses) { entry in
                     LicenseRow(entry: entry)
@@ -343,6 +363,109 @@ struct LicenseAcknowledgementsView: View {
         ))
         #endif
         return entries
+    }
+
+    /// FluidAudio and the third-party code it links into the app.
+    private var speechLicenses: [LicenseEntry] {
+        [
+            LicenseEntry(
+                name: "FluidAudio",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) FluidInference",
+                repositoryURL: "https://github.com/FluidInference/FluidAudio",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "text-processing-rs",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) FluidInference. Grammars derived from NVIDIA NeMo Text Processing, Copyright (c) NVIDIA CORPORATION & AFFILIATES.",
+                repositoryURL: "https://github.com/FluidInference/text-processing-rs",
+                licenseText: apache2LicenseText + "\n\n" + nemoTextProcessingNoticeText
+            ),
+            LicenseEntry(
+                name: "NVIDIA NeMo Text Processing",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) NVIDIA CORPORATION & AFFILIATES.",
+                repositoryURL: "https://github.com/NVIDIA/NeMo-text-processing",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "rustfst",
+                licenseType: "MIT / Apache 2.0",
+                copyright: "Copyright (c) Alexandre Caulier and the rustfst contributors",
+                repositoryURL: "https://github.com/Garvys/rustfst",
+                licenseText: mitApache2LicenseText
+            ),
+            LicenseEntry(
+                name: "flate2",
+                licenseType: "MIT / Apache 2.0",
+                copyright: "Copyright (c) Alex Crichton and the flate2 contributors",
+                repositoryURL: "https://github.com/rust-lang/flate2-rs",
+                licenseText: mitApache2LicenseText
+            ),
+            LicenseEntry(
+                name: "fastcluster",
+                licenseType: "BSD 2-Clause",
+                copyright: "Copyright (c) 2011 Daniel Müllner (until version 1.1.23); Copyright (c) Google Inc. (changes from version 1.1.24). All rights reserved.",
+                repositoryURL: "https://danifold.net/fastcluster.html",
+                licenseText: bsd2ClauseLicenseText
+            ),
+            LicenseEntry(
+                name: "VBx",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright 2021-2024 BUT Speech@FIT",
+                repositoryURL: "https://github.com/BUTSpeechFIT/VBx",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "misaki",
+                licenseType: "Apache 2.0",
+                copyright: "Copyright (c) hexgrad",
+                repositoryURL: "https://github.com/hexgrad/misaki",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "cutlet",
+                licenseType: "MIT",
+                copyright: "Copyright (c) 2020 Paul O'Leary McCann",
+                repositoryURL: "https://github.com/polm/cutlet",
+                licenseText: mitLicenseText
+            ),
+            LicenseEntry(
+                name: "Convert-Numbers-to-Japanese",
+                licenseType: "MIT",
+                copyright: "Copyright (c) 2018 David Wilson",
+                repositoryURL: "https://github.com/Greatdane/Convert-Numbers-to-Japanese",
+                licenseText: mitLicenseText
+            ),
+        ]
+    }
+
+    /// Models fetched from Hugging Face at runtime; attribution per their licenses.
+    private var speechModelLicenses: [LicenseEntry] {
+        [
+            LicenseEntry(
+                name: "NVIDIA Parakeet TDT 0.6B v3 and v2, Parakeet TDT-CTC 110M",
+                licenseType: "CC BY 4.0",
+                copyright: "Copyright (c) NVIDIA Corporation. Converted to Core ML by FluidInference.",
+                repositoryURL: "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3",
+                licenseText: ccBy4LicenseText
+            ),
+            LicenseEntry(
+                name: "Parakeet Ultra and Parakeet Redux",
+                licenseType: "CC BY 4.0",
+                copyright: "By moondream, derived from NVIDIA Parakeet TDT 0.6B v3. Converted to Core ML by FluidInference.",
+                repositoryURL: "https://huggingface.co/moondream/parakeet-ultra",
+                licenseText: ccBy4LicenseText
+            ),
+            LicenseEntry(
+                name: "Silero VAD",
+                licenseType: "MIT",
+                copyright: "Copyright (c) 2020-present Silero Team. Converted to Core ML by FluidInference.",
+                repositoryURL: "https://github.com/snakers4/silero-vad",
+                licenseText: mitLicenseText
+            ),
+        ]
     }
 
     private var soundLicenses: [LicenseEntry] {
@@ -766,6 +889,28 @@ struct LicenseAcknowledgementsView: View {
 
         You should have received a copy of the GNU General Public License \
         along with this library; if not, see <https://www.gnu.org/licenses/>.
+        """
+    }
+
+    private var ccBy4LicenseText: String {
+        """
+        This work is licensed under the Creative Commons Attribution 4.0 \
+        International License. To view a copy of this license, visit \
+        https://creativecommons.org/licenses/by/4.0/
+
+        Changes: the original checkpoints were converted to Core ML and \
+        quantized by FluidInference (https://huggingface.co/FluidInference). \
+        Rootshell uses them unmodified.
+        """
+    }
+
+    private var nemoTextProcessingNoticeText: String {
+        """
+        The NemoTextProcessing framework statically links rustfst and flate2 \
+        (MIT OR Apache-2.0) and their permissively licensed dependencies, \
+        including nom, miniz_oxide, bitflags and anyhow (MIT and/or Apache-2.0). \
+        Compiled grammars are derived from NVIDIA NeMo Text Processing \
+        (Apache-2.0, Copyright (c) NVIDIA CORPORATION & AFFILIATES).
         """
     }
 
