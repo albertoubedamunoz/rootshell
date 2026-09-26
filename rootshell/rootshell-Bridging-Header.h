@@ -59,6 +59,9 @@ int rg_main(int argc, const char* const* argv);
 int jq_main(int argc, char* argv[]);
 #endif
 
+// AES-128-OCB kernel for Mosh packets
+#import "Features/Mosh/Protocol/Crypto/MoshOCB.h"
+
 // Import FD receiver for Catalyst helper integration
 #import "Core/Helper/FDReceiver.h"
 
