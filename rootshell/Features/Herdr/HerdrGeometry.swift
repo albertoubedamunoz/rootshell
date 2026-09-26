@@ -136,6 +136,17 @@ nonisolated enum HerdrGeometry {
         )
     }
 
+    /// Measure each native slot with its own font, independently of the tab's
+    /// layout coordinate system and the other panes' fonts.
+    static func paneGrid(slot: CGSize, chrome: CGSize, cellPixels: CGSize, scale: CGFloat) -> HerdrControl.PaneTerminalSize? {
+        guard scale > 0, cellPixels.width > 0, cellPixels.height > 0,
+              slot.width > 0, slot.height > 0 else { return nil }
+        return .init(
+            cols: min(65535, cellBudget(extent: slot.width, chrome: chrome.width, cell: cellPixels.width / scale)),
+            rows: min(65535, cellBudget(extent: slot.height, chrome: chrome.height, cell: cellPixels.height / scale)),
+            cell_width_px: Int(cellPixels.width), cell_height_px: Int(cellPixels.height))
+    }
+
     static func cellBudget(extent: CGFloat, chrome: CGFloat, cell: CGFloat) -> Int {
         guard cell > 0 else { return 1 }
         // A pixel divided by a 3x scale can land infinitesimally below the
@@ -195,6 +206,7 @@ nonisolated struct HerdrTabGeometryState {
         let rows: Int
         let cellWidth: Int
         let cellHeight: Int
+        var panes: [String: HerdrControl.PaneTerminalSize] = [:]
     }
 
     struct Request: Equatable, Sendable {

@@ -670,8 +670,22 @@ final class SplitTreeHostingView: UIView {
               hasLaidOutHerdrPane(pane), !pane.suppressPTYSizeUpdates,
               let size = pane.surfaceSize, size.cell_width_px > 0, size.cell_height_px > 0,
               let cells = tmuxWindowCells() else { return nil }
-        return .init(cols: Int(cells.cols), rows: Int(cells.rows),
+        var geometry = HerdrTabGeometryState.Size(cols: Int(cells.cols), rows: Int(cells.rows),
                      cellWidth: Int(size.cell_width_px), cellHeight: Int(size.cell_height_px))
+        if pane.supportsHerdrPaneGeometry, let root = tree.zoomed ?? tree.root {
+            for terminal in tree.terminalLeaves where hasLaidOutHerdrPane(terminal) {
+                guard let binding = terminal.herdrPaneBinding,
+                      let metrics = terminal.surfaceSize,
+                      let slot = slotFrame(for: terminal, node: root, in: bounds, layoutBounds: bounds, usePaneGrid: false)
+                else { continue }
+                let scale = terminal.contentScaleFactor > 0 ? terminal.contentScaleFactor : terminal.traitCollection.displayScale
+                geometry.panes[binding.paneId] = HerdrGeometry.paneGrid(
+                    slot: slot.size, chrome: terminal.herdrLayoutChrome,
+                    cellPixels: CGSize(width: CGFloat(metrics.cell_width_px), height: CGFloat(metrics.cell_height_px)),
+                    scale: scale)
+            }
+        }
+        return geometry
     }
 
     /// Surface creation can call back from insertSubview before the wrapper
@@ -765,6 +779,9 @@ final class SplitTreeHostingView: UIView {
               let size = pane.surfaceSize,
               size.cell_width_px > 0, size.cell_height_px > 0
         else { return nil }
+        // Independent grids are measured from full native slots. Retain the
+        // server's cell-space projection only while another client owns it.
+        if pane.supportsHerdrPaneGeometry, pane.herdrForeignAreaCells == nil { return nil }
         // Raw v2 panes retain the committed layout during local resizing,
         // including when this client owns geometry. Ratios must not squeeze
         // the old grid into the new viewport before tab.layout arrives.
