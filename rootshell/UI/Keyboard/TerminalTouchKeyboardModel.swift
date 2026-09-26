@@ -71,20 +71,26 @@ nonisolated enum TerminalTouchKeyboardModel {
         }
     }
 
-    /// Docked keyboard height. Every size but `full` extends into the bottom safe area.
+    /// Docked keyboard height, tallest first. Every size but `extraLarge` extends
+    /// into the bottom safe area. Raw values are the persisted pre-rename names.
     enum Height: String, CaseIterable, Sendable {
-        case full, compact, shorter, shortest
+        case extraLarge = "full"
+        case large = "compact"
+        case medium = "shorter"
+        case small = "shortest"
+        case extraSmall
 
         var displayName: String {
             switch self {
-            case .full: String(localized: "Full", comment: "Terminal keyboard height")
-            case .compact: String(localized: "Compact", comment: "Terminal keyboard height")
-            case .shorter: String(localized: "Shorter", comment: "Terminal keyboard height")
-            case .shortest: String(localized: "Shortest", comment: "Terminal keyboard height")
+            case .extraLarge: String(localized: "Extra Large", comment: "Terminal keyboard height")
+            case .large: String(localized: "Large", comment: "Terminal keyboard height")
+            case .medium: String(localized: "Medium", comment: "Terminal keyboard height")
+            case .small: String(localized: "Small", comment: "Terminal keyboard height")
+            case .extraSmall: String(localized: "Extra Small", comment: "Terminal keyboard height")
             }
         }
 
-        var usesBottomSafeArea: Bool { self != .full }
+        var usesBottomSafeArea: Bool { self != .extraLarge }
 
         /// Positive steps shrink the keyboard. Clamps at both ends.
         func stepped(by offset: Int) -> Self {
@@ -95,26 +101,29 @@ nonisolated enum TerminalTouchKeyboardModel {
 
         func rowHeight(verticallyCompact: Bool, pad: Bool) -> CGFloat {
             switch self {
-            case .full, .compact: verticallyCompact ? 40 : (pad ? 60 : 54)
-            case .shorter: verticallyCompact ? 36 : (pad ? 52 : 47)
-            case .shortest: verticallyCompact ? 32 : (pad ? 46 : 41)
+            case .extraLarge, .large: verticallyCompact ? 40 : (pad ? 60 : 54)
+            case .medium: verticallyCompact ? 36 : (pad ? 52 : 47)
+            case .small: verticallyCompact ? 32 : (pad ? 46 : 41)
+            case .extraSmall: verticallyCompact ? 29 : (pad ? 40 : 36)
             }
         }
 
         /// Main toolbar row, before any drawer rows.
         var toolbarRowHeight: CGFloat {
             switch self {
-            case .full, .compact: 48
-            case .shorter: 42
-            case .shortest: 38
+            case .extraLarge, .large: 48
+            case .medium: 42
+            case .small: 38
+            case .extraSmall: 34
             }
         }
 
         var toolbarDrawerRowHeight: CGFloat {
             switch self {
-            case .full, .compact: 44
-            case .shorter: 40
-            case .shortest: 36
+            case .extraLarge, .large: 44
+            case .medium: 40
+            case .small: 36
+            case .extraSmall: 33
             }
         }
     }

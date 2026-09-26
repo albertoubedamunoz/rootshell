@@ -381,6 +381,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let pageIndicator = UIVisualEffectView()
     private let pageIndicatorTitle = UILabel()
     private var pageIndicatorDots: [UIView] = []
+    private let heightIndicatorDots: [UIView] = Model.Height.allCases.map { _ in UIView() }
+    /// Set while the HUD reports a height swipe, which shows a vertical dot column.
+    private var pageIndicatorHeight: Model.Height?
     private var pageIndicatorHideTask: Task<Void, Never>?
     private let presets = UISegmentedControl(items: Model.Preset.allCases.map(\.rawValue))
     private let writingAssistanceButton = TerminalTouchRepeatingButton(type: .system)
@@ -419,7 +422,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var characterPreviewEnabled = SettingsStore.shared.value(Settings.Keyboard.touchCharacterPreview)
     private var heightSetting = SettingsStore.shared.value(Settings.Keyboard.touchHeight)
     /// The detached keyboard sizes itself, so it keeps the default metrics.
-    private var keyboardHeight: Model.Height { isFloating ? .compact : heightSetting }
+    private var keyboardHeight: Model.Height { isFloating ? .large : heightSetting }
     private var glyphsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
     #if !os(visionOS)
     private lazy var haptic = UIImpactFeedbackGenerator(style: .light, view: self)
@@ -524,6 +527,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         pageIndicatorTitle.textAlignment = .center
         pageIndicatorTitle.textColor = .white
         pageIndicator.contentView.addSubview(pageIndicatorTitle)
+        heightIndicatorDots.forEach { pageIndicator.contentView.addSubview($0) }
         rebuildPageIndicatorDots()
         addSubview(pageIndicator)
         suggestions.axis = .horizontal
@@ -1090,15 +1094,31 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         let contentHeight = rowHeight * 4 + (suggestionsEnabled ? 36 : 0)
         // This HUD floats over the keys; it never contributes to keyboard height.
         pageIndicator.frame = CGRect(x: leading + (width - 160) / 2, y: toolbarHeight + (contentHeight - 64) / 2, width: 160, height: 64)
-        pageIndicatorTitle.frame = CGRect(x: 8, y: 10, width: 144, height: 22)
         let dotSpacing: CGFloat = 14
-        let currentPage = toolPages.firstIndex(of: toolPage) ?? 0
-        for (index, dot) in pageIndicatorDots.enumerated() {
-            let size: CGFloat = index == currentPage ? 8 : 6
-            dot.frame = CGRect(x: 80 + (CGFloat(index) - CGFloat(pageIndicatorDots.count - 1) / 2) * dotSpacing - size / 2,
-                               y: 45 - size / 2, width: size, height: size)
+        func styleDot(_ dot: UIView, center: CGPoint, current: Bool) {
+            let size: CGFloat = current ? 8 : 6
+            dot.frame = CGRect(x: center.x - size / 2, y: center.y - size / 2, width: size, height: size)
             dot.layer.cornerRadius = size / 2
-            dot.backgroundColor = UIColor.white.withAlphaComponent(index == currentPage ? 1 : 0.4)
+            dot.backgroundColor = UIColor.white.withAlphaComponent(current ? 1 : 0.4)
+        }
+        // Heights step vertically (Full on top), so their dots stack in a column.
+        pageIndicatorDots.forEach { $0.isHidden = pageIndicatorHeight != nil }
+        heightIndicatorDots.forEach { $0.isHidden = pageIndicatorHeight == nil }
+        if let height = pageIndicatorHeight {
+            pageIndicatorTitle.frame = CGRect(x: 8, y: 21, width: 124, height: 22)
+            let currentHeight = Model.Height.allCases.firstIndex(of: height) ?? 0
+            let heightSpacing: CGFloat = 11
+            for (index, dot) in heightIndicatorDots.enumerated() {
+                let y = 32 + (CGFloat(index) - CGFloat(heightIndicatorDots.count - 1) / 2) * heightSpacing
+                styleDot(dot, center: CGPoint(x: 142, y: y), current: index == currentHeight)
+            }
+        } else {
+            pageIndicatorTitle.frame = CGRect(x: 8, y: 10, width: 144, height: 22)
+            let currentPage = toolPages.firstIndex(of: toolPage) ?? 0
+            for (index, dot) in pageIndicatorDots.enumerated() {
+                let x = 80 + (CGFloat(index) - CGFloat(pageIndicatorDots.count - 1) / 2) * dotSpacing
+                styleDot(dot, center: CGPoint(x: x, y: 45), current: index == currentPage)
+            }
         }
         drawer.isHidden = isToolbarOnly || !drawerOpen || toolPage == .dictation
         presets.isHidden = isToolbarOnly || toolPage != .shortcuts
@@ -1698,9 +1718,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         onPageChanged?(page)
     }
 
-    private func showPageIndicator(_ title: String? = nil) {
+    private func showPageIndicator(height: Model.Height? = nil) {
         pageIndicatorHideTask?.cancel()
-        pageIndicatorTitle.text = title ?? toolPage.title
+        pageIndicatorHeight = height
+        pageIndicatorTitle.text = height?.displayName ?? toolPage.title
         bringSubviewToFront(pageIndicator)
         setNeedsLayout()
         UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.15,
@@ -1731,7 +1752,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             guard height != heightSetting else { return }
             // settingsDidChange drives the relayout through refreshSettings.
             SettingsStore.shared.set(Settings.Keyboard.touchHeight, height)
-            showPageIndicator(height.displayName)
+            showPageIndicator(height: height)
             return
         }
         showPage(toolPage.moved(by: gesture.offset, in: toolPages))

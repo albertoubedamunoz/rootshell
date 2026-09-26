@@ -734,10 +734,12 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(Model.heightSwipe(translation: CGPoint(x: -10, y: -100), duration: 0.1), -1)
         XCTAssertNil(Model.heightSwipe(translation: CGPoint(x: 100, y: 0), duration: 0.1))
         XCTAssertNil(Model.heightSwipe(translation: CGPoint(x: 0, y: 100), duration: 0.5), "A slow drag is not a swipe")
-        XCTAssertEqual(Model.Height.compact.stepped(by: 1), .shorter)
-        XCTAssertEqual(Model.Height.compact.stepped(by: -1), .full)
-        XCTAssertEqual(Model.Height.full.stepped(by: -1), .full)
-        XCTAssertEqual(Model.Height.shortest.stepped(by: 1), .shortest)
+        XCTAssertEqual(Model.Height.large.stepped(by: 1), .medium)
+        XCTAssertEqual(Model.Height.large.stepped(by: -1), .extraLarge)
+        XCTAssertEqual(Model.Height.extraLarge.stepped(by: -1), .extraLarge)
+        XCTAssertEqual(Model.Height.small.stepped(by: 1), .extraSmall)
+        XCTAssertEqual(Model.Height.extraSmall.stepped(by: 1), .extraSmall)
+        XCTAssertEqual(Model.Height(rawValue: "compact"), .large, "Persisted names still decode")
     }
 
     func testBounceFilterOnlyDropsImmediateNearbyDowns() {

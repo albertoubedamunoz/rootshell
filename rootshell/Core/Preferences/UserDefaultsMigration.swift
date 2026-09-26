@@ -59,7 +59,7 @@ enum UserDefaultsMigration {
         let legacyKey = "terminalTouchKeyboardCompactHeight"
         guard defaults.object(forKey: legacyKey) != nil else { return }
         if !persistentDomainContains("terminalTouchKeyboardHeight"), !defaults.bool(forKey: legacyKey) {
-            defaults.set(TerminalTouchKeyboardModel.Height.full.rawValue, forKey: "terminalTouchKeyboardHeight")
+            defaults.set(TerminalTouchKeyboardModel.Height.extraLarge.rawValue, forKey: "terminalTouchKeyboardHeight")
         }
         defaults.removeObject(forKey: legacyKey)
     }

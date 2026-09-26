@@ -37,7 +37,7 @@ nonisolated extension Settings {
             "terminalTouchKeyboardCharacterPreview", default: true, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-character-preview", title: String(localized: "Character Preview"))
         static let touchHeight = SettingKey(
-            "terminalTouchKeyboardHeight", default: TerminalTouchKeyboardModel.Height.compact,
+            "terminalTouchKeyboardHeight", default: TerminalTouchKeyboardModel.Height.large,
             group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-height", title: String(localized: "Keyboard Height"))
         static let touchGlyphs = SettingKey(
