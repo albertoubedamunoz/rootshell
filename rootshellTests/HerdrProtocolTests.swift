@@ -107,6 +107,93 @@ final class HerdrEqualizationTests: XCTestCase {
 }
 
 final class HerdrProtocolTests: XCTestCase {
+    func testProjectedDividerDragDoesNotChangeOwnershipMeasurements() throws {
+        // A 50% server split appears at one third on this viewer. Sending the
+        // pointer ratio to handleSplitResize used to resize its ownership grid.
+        var treeRatio = 0.5
+        var drag = HerdrGeometry.DividerDrag(layoutRatio: treeRatio, displayRatio: 1.0 / 3.0,
+            parentBounds: CGRect(x: 100, y: 50, width: 1500, height: 600))
+        let chrome = CGSize(width: 16, height: 16)
+        let cell = CGSize(width: 16, height: 32)
+        func measuredGrid() -> HerdrControl.PaneTerminalSize? {
+            HerdrGeometry.paneGrid(slot: CGSize(width: 1000 * treeRatio, height: 600),
+                chrome: chrome, cellPixels: cell, scale: 2)
+        }
+        let before = try XCTUnwrap(measuredGrid())
+        for ratio in [1.0 / 3.0, 0.34, 0.35, 0.32] {
+            drag.update(ratio: ratio)
+            if let localRatio = drag.localLayoutRatio { treeRatio = localRatio }
+            XCTAssertEqual(treeRatio, 0.5)
+            XCTAssertEqual(measuredGrid(), before)
+        }
+        XCTAssertEqual(drag.startRatio, 1.0 / 3.0)
+        XCTAssertEqual(drag.previewOffset(horizontal: true), -20, accuracy: 0.0001)
+        XCTAssertEqual(drag.ratio - drag.startRatio, 0.32 - 1.0 / 3.0, accuracy: 0.0001)
+    }
+
+    func testProjectedDividerPreviewUsesTheNestedSplitAxis() {
+        var drag = HerdrGeometry.DividerDrag(layoutRatio: 0.5, displayRatio: 0.25,
+            parentBounds: CGRect(x: 200, y: 100, width: 800, height: 300))
+        XCTAssertEqual(drag.previewOffset(horizontal: false), 0)
+        drag.update(ratio: 0.3)
+        XCTAssertNil(drag.localLayoutRatio)
+        XCTAssertEqual(drag.previewOffset(horizontal: false), 15, accuracy: 0.0001)
+    }
+
+    func testOrdinaryDividerDragStillUpdatesTheLocalTree() {
+        var drag = HerdrGeometry.DividerDrag(layoutRatio: 0.5, displayRatio: nil,
+            parentBounds: CGRect(x: 0, y: 0, width: 1000, height: 600))
+        for ratio in [0.55, 0.6, 0.45] {
+            drag.update(ratio: ratio)
+            XCTAssertEqual(drag.localLayoutRatio, ratio)
+            XCTAssertEqual(drag.startRatio, 0.5)
+        }
+    }
+
+    func testPaneMeasurementHonorsRuntimeMinimumGrid() throws {
+        for slot in [CGSize(width: 1, height: 1), CGSize(width: 50, height: 50)] {
+            let grid = try XCTUnwrap(HerdrGeometry.paneGrid(slot: slot,
+                chrome: CGSize(width: 16, height: 16), cellPixels: CGSize(width: 40, height: 80), scale: 2))
+            XCTAssertEqual(grid.cols, 4)
+            XCTAssertEqual(grid.rows, 2)
+        }
+    }
+
+    func testForeignPaneProjectionUsesEachViewersFontAndGrid() throws {
+        // Both server layout rectangles are 50 columns. The second terminal
+        // actually has 100 columns; this viewer also uses a different font.
+        func pane(cols: Int, rows: Int, cellWidth: UInt32, cellHeight: UInt32) -> HerdrGeometry.ViewingLayout {
+            .pane(CGSize(
+                width: ceil(HerdrGeometry.requiredExtent(cells: cols, cellPixels: cellWidth, chrome: 16, scale: 2)),
+                height: ceil(HerdrGeometry.requiredExtent(cells: rows, cellPixels: cellHeight, chrome: 16, scale: 2))))
+        }
+        let left = pane(cols: 50, rows: 30, cellWidth: 20, cellHeight: 40)
+        let upper = pane(cols: 100, rows: 20, cellWidth: 16, cellHeight: 32)
+        let lower = pane(cols: 80, rows: 10, cellWidth: 24, cellHeight: 48)
+        let right = HerdrGeometry.ViewingLayout.joining(upper, lower, horizontal: false, divider: 2)
+        let layout = HerdrGeometry.ViewingLayout.joining(left, right, horizontal: true, divider: 2)
+        let horizontal = try XCTUnwrap(layout.frames(at: .zero, divider: 2))
+        let vertical = try XCTUnwrap(right.frames(at: horizontal.second.origin, divider: 2))
+        XCTAssertEqual(layout.size, CGSize(width: 1494, height: 616))
+        XCTAssertEqual(horizontal.first, CGRect(x: 0, y: 0, width: 516, height: 616))
+        XCTAssertEqual(vertical.first, CGRect(x: 518, y: 0, width: 816, height: 336))
+        XCTAssertEqual(vertical.second, CGRect(x: 518, y: 338, width: 976, height: 256))
+        XCTAssertFalse(horizontal.first.intersects(vertical.first))
+        XCTAssertFalse(horizontal.first.intersects(vertical.second))
+        XCTAssertFalse(vertical.first.intersects(vertical.second))
+        // A smaller host clips the packed result; it must not move panes
+        // back into overlapping 50-column slots to fit its own bounds.
+        let viewport = CGRect(x: 0, y: 0, width: 1000, height: 500)
+        XCTAssertEqual(vertical.first.intersection(viewport).width, 482)
+        XCTAssertTrue(CGRect(origin: .zero, size: layout.size).contains(vertical.second))
+    }
+
+    func testForeignZoomProjectionKeepsTheWholeTerminal() {
+        let layout = HerdrGeometry.ViewingLayout.pane(CGSize(width: 1200, height: 800))
+        XCTAssertEqual(layout.size, CGSize(width: 1200, height: 800))
+        XCTAssertNil(layout.frames(at: .zero, divider: 2))
+    }
+
     func testIndependentFontZoomKeepsOtherPanesFullSize() throws {
         let slot = CGSize(width: 600, height: 800)
         let chrome = CGSize(width: 16, height: 16)
