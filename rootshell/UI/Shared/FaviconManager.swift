@@ -570,3 +570,45 @@ struct FaviconImage: View {
         }
     }
 }
+
+// MARK: - FaviconIcon (SwiftUI View)
+
+/// A domain's favicon, showing an SF Symbol while it loads or when there is none.
+struct FaviconIcon: View {
+    let domain: String?
+    let fallbackSymbol: String
+    var size: CGFloat = 17
+    /// nil inherits the surrounding foreground style.
+    var tint: Color? = .accentColor
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size + 3, height: size + 3)
+                    .clipShape(RoundedRectangle(cornerRadius: size * 0.2))
+            } else {
+                Image(systemName: fallbackSymbol)
+                    .font(.system(size: size))
+                    .foregroundStyle(tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.foreground))
+            }
+        }
+        .accessibilityHidden(true)
+        .task(id: domain) {
+            image = nil
+            guard let domain else { return }
+            if let cached = FaviconManager.shared.cachedFavicon(for: domain) {
+                image = UIImage(data: cached)
+                return
+            }
+            // The fetch ignores cancellation; re-check before writing a stale domain's icon.
+            if let data = await FaviconManager.shared.favicon(for: domain), !Task.isCancelled {
+                image = UIImage(data: data)
+            }
+        }
+    }
+}

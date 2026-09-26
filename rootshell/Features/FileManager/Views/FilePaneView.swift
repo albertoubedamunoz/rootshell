@@ -68,7 +68,11 @@ struct FilePaneView: View {
         HStack(spacing: 6) {
             Button { manager.sheet = .connect(pane.id) } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: pane.endpoint.symbol)
+                    if let domain = pane.endpoint.faviconDomain {
+                        FaviconIcon(domain: domain, fallbackSymbol: pane.endpoint.symbol, size: 15, tint: nil)
+                    } else {
+                        Image(systemName: pane.endpoint.symbol)
+                    }
                     Text(pane.endpoint.displayName).fontWeight(.semibold).lineLimit(1)
                     if pane.status == .connecting {
                         ProgressView().controlSize(.mini)
