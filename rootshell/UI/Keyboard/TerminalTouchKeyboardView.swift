@@ -1961,12 +1961,16 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                                      position: Int, leading: CGFloat, width: CGFloat) {
         let rowHeight = keyboardHeight.toolbarDrawerRowHeight
         row.frame = CGRect(x: leading + 5, y: CGFloat(position) * rowHeight, width: max(0, width - 10), height: rowHeight)
+        // Snap to the main toolbar row's columns so drawer keys sit under its keys,
+        // whether or not the row scrolls. Long titles span whole columns.
+        let unit = max(1, row.bounds.width / max(1, controls.reduce(0) { $0 + $1.key.weight }))
         var x: CGFloat = 0
         for button in buttons {
-            let titleWidth = ((button.keycap.icon.image == nil ? button.keycap.key.title : "") as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 13)]).width
-            let buttonWidth = max(40, min(120, titleWidth + 20))
+            let title = button.keycap.icon.image == nil ? button.keycap.key.title : ""
+            let titleWidth = title.count <= 4 ? 0 : (title as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 13, weight: .medium)]).width + 20
+            let buttonWidth = unit * max(1, (min(120, titleWidth) / unit).rounded(.up))
             button.frame = CGRect(x: x, y: 2, width: buttonWidth, height: rowHeight - 4)
-            x += buttonWidth + 2
+            x += buttonWidth
         }
         row.contentSize = CGSize(width: x, height: rowHeight)
     }
