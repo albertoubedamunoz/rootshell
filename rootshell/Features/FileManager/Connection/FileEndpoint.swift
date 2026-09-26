@@ -95,10 +95,17 @@ enum FileEndpoint: Hashable {
         }
     }
 
+    static let storageSymbol = "externaldrive.connected.to.line.below"
+
+    /// Shown in place of `symbol` when it loads.
+    var faviconDomain: String? {
+        storageProvider?.faviconDomain
+    }
+
     var symbol: String {
         switch self {
         case .storage:
-            return "externaldrive.connected.to.line.below"
+            return Self.storageSymbol
         case .local, .pane, .profile:
             guard isLocal else { return "server.rack" }
             #if targetEnvironment(macCatalyst)

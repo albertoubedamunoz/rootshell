@@ -19,6 +19,7 @@ struct FileManagerLocation: Identifiable {
     let title: String
     let detail: String?
     let symbol: String
+    var faviconDomain: String? = nil
 
     static func all(origin: FileEndpoint.PaneSource?) -> [FileManagerLocation] {
         var result: [FileManagerLocation] = [
@@ -48,7 +49,8 @@ struct FileManagerLocation: Identifiable {
             let scope = provider.effectiveBucket ?? String(localized: "All buckets", comment: "File manager location picker: storage provider without a fixed bucket")
             result.append(FileManagerLocation(
                 id: "storage:\(provider.id.uuidString)", endpoint: endpoint, title: provider.displayName,
-                detail: "\(provider.preset.name) · \(scope)", symbol: endpoint.symbol
+                detail: "\(provider.preset.name) · \(scope)", symbol: endpoint.symbol,
+                faviconDomain: provider.faviconDomain
             ))
         }
         return result
@@ -109,7 +111,7 @@ struct EndpointPickerSheet: View {
                         ForEach(Array(choices.enumerated()), id: \.element.id) { index, choice in
                             Button { choose(choice) } label: {
                                 HStack(spacing: 12) {
-                                    Image(systemName: choice.symbol).frame(width: 24).foregroundStyle(Color.accentColor)
+                                    FaviconIcon(domain: choice.faviconDomain, fallbackSymbol: choice.symbol).frame(width: 24)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(choice.title).foregroundStyle(.primary)
                                         if let detail = choice.detail {
