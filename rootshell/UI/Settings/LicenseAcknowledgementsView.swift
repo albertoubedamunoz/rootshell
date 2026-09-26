@@ -66,22 +66,6 @@ struct LicenseRow: View {
 struct LicenseAcknowledgementsView: View {
     var body: some View {
         List {
-            Section {
-                HStack(alignment: .center, spacing: 8) {
-                    Image("AppIconImage")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 24, height: 24)
-                        .cornerRadius(6)
-
-                    Text("Terminal emulator based on libghostty by Mitchell Hashimoto")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .themedRow()
-            }
-
             Section("Core") {
                 ForEach(coreLicenses) { entry in
                     LicenseRow(entry: entry)

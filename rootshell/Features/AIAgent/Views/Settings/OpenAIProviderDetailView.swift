@@ -336,12 +336,24 @@ struct OpenAIProviderDetailView: View {
             }
             .disabled(modelStore.isRefreshing)
             .themedRow()
+
+            if let error = modelStore.refreshError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .themedRow()
+            }
         } header: {
             Text("Available Models")
         } footer: {
-            Text(modelStore.isUsingFallback
-                 ? "Showing the built-in list until the lineup is fetched from your subscription."
-                 : "Reasoning level applies per model and can also be changed from the model picker.")
+            VStack(alignment: .leading, spacing: 4) {
+                if modelStore.isUsingFallback {
+                    Text("Showing the built-in list until the lineup is fetched from your subscription.")
+                } else if let refreshed = modelStore.lastRefreshed {
+                    Text("Models updated \(refreshed.formatted(date: .abbreviated, time: .shortened)).")
+                }
+                Text("Reasoning level applies per model and can also be changed from the model picker.")
+            }
         }
     }
 

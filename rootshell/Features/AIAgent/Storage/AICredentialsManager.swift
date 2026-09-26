@@ -311,6 +311,9 @@ final class AICredentialsManager {
         Task { [weak self] in
             let signedIn = await ChatGPTCredentialStore.shared.refreshCachedState()
             self?._isChatGPTSignedIn = signedIn
+            if signedIn {
+                await ChatGPTModelStore.shared.refreshIfStale()
+            }
         }
 
         SettingsRefreshHub.shared.register(keys: Self.storeKeyNames) { [weak self] keys in

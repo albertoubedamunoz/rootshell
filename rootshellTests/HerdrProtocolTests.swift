@@ -107,6 +107,163 @@ final class HerdrEqualizationTests: XCTestCase {
 }
 
 final class HerdrProtocolTests: XCTestCase {
+    func testProjectedDividerDragDoesNotChangeOwnershipMeasurements() throws {
+        // A 50% server split appears at one third on this viewer. Sending the
+        // pointer ratio to handleSplitResize used to resize its ownership grid.
+        var treeRatio = 0.5
+        var drag = HerdrGeometry.DividerDrag(layoutRatio: treeRatio, displayRatio: 1.0 / 3.0,
+            parentBounds: CGRect(x: 100, y: 50, width: 1500, height: 600))
+        let chrome = CGSize(width: 16, height: 16)
+        let cell = CGSize(width: 16, height: 32)
+        func measuredGrid() -> HerdrControl.PaneTerminalSize? {
+            HerdrGeometry.paneGrid(slot: CGSize(width: 1000 * treeRatio, height: 600),
+                chrome: chrome, cellPixels: cell, scale: 2)
+        }
+        let before = try XCTUnwrap(measuredGrid())
+        for ratio in [1.0 / 3.0, 0.34, 0.35, 0.32] {
+            drag.update(ratio: ratio)
+            if let localRatio = drag.localLayoutRatio { treeRatio = localRatio }
+            XCTAssertEqual(treeRatio, 0.5)
+            XCTAssertEqual(measuredGrid(), before)
+        }
+        XCTAssertEqual(drag.startRatio, 1.0 / 3.0)
+        XCTAssertEqual(drag.previewOffset(horizontal: true), -20, accuracy: 0.0001)
+        XCTAssertEqual(drag.ratio - drag.startRatio, 0.32 - 1.0 / 3.0, accuracy: 0.0001)
+    }
+
+    func testProjectedDividerPreviewUsesTheNestedSplitAxis() {
+        var drag = HerdrGeometry.DividerDrag(layoutRatio: 0.5, displayRatio: 0.25,
+            parentBounds: CGRect(x: 200, y: 100, width: 800, height: 300))
+        XCTAssertEqual(drag.previewOffset(horizontal: false), 0)
+        drag.update(ratio: 0.3)
+        XCTAssertNil(drag.localLayoutRatio)
+        XCTAssertEqual(drag.previewOffset(horizontal: false), 15, accuracy: 0.0001)
+    }
+
+    func testOrdinaryDividerDragStillUpdatesTheLocalTree() {
+        var drag = HerdrGeometry.DividerDrag(layoutRatio: 0.5, displayRatio: nil,
+            parentBounds: CGRect(x: 0, y: 0, width: 1000, height: 600))
+        for ratio in [0.55, 0.6, 0.45] {
+            drag.update(ratio: ratio)
+            XCTAssertEqual(drag.localLayoutRatio, ratio)
+            XCTAssertEqual(drag.startRatio, 0.5)
+        }
+    }
+
+    func testPaneMeasurementHonorsRuntimeMinimumGrid() throws {
+        for slot in [CGSize(width: 1, height: 1), CGSize(width: 50, height: 50)] {
+            let grid = try XCTUnwrap(HerdrGeometry.paneGrid(slot: slot,
+                chrome: CGSize(width: 16, height: 16), cellPixels: CGSize(width: 40, height: 80), scale: 2))
+            XCTAssertEqual(grid.cols, 4)
+            XCTAssertEqual(grid.rows, 2)
+        }
+    }
+
+    func testForeignPaneProjectionUsesEachViewersFontAndGrid() throws {
+        // Both server layout rectangles are 50 columns. The second terminal
+        // actually has 100 columns; this viewer also uses a different font.
+        func pane(cols: Int, rows: Int, cellWidth: UInt32, cellHeight: UInt32) -> HerdrGeometry.ViewingLayout {
+            .pane(CGSize(
+                width: ceil(HerdrGeometry.requiredExtent(cells: cols, cellPixels: cellWidth, chrome: 16, scale: 2)),
+                height: ceil(HerdrGeometry.requiredExtent(cells: rows, cellPixels: cellHeight, chrome: 16, scale: 2))))
+        }
+        let left = pane(cols: 50, rows: 30, cellWidth: 20, cellHeight: 40)
+        let upper = pane(cols: 100, rows: 20, cellWidth: 16, cellHeight: 32)
+        let lower = pane(cols: 80, rows: 10, cellWidth: 24, cellHeight: 48)
+        let right = HerdrGeometry.ViewingLayout.joining(upper, lower, horizontal: false, divider: 2)
+        let layout = HerdrGeometry.ViewingLayout.joining(left, right, horizontal: true, divider: 2)
+        let horizontal = try XCTUnwrap(layout.frames(at: .zero, divider: 2))
+        let vertical = try XCTUnwrap(right.frames(at: horizontal.second.origin, divider: 2))
+        XCTAssertEqual(layout.size, CGSize(width: 1494, height: 616))
+        XCTAssertEqual(horizontal.first, CGRect(x: 0, y: 0, width: 516, height: 616))
+        XCTAssertEqual(vertical.first, CGRect(x: 518, y: 0, width: 816, height: 336))
+        XCTAssertEqual(vertical.second, CGRect(x: 518, y: 338, width: 976, height: 256))
+        XCTAssertFalse(horizontal.first.intersects(vertical.first))
+        XCTAssertFalse(horizontal.first.intersects(vertical.second))
+        XCTAssertFalse(vertical.first.intersects(vertical.second))
+        // A smaller host clips the packed result; it must not move panes
+        // back into overlapping 50-column slots to fit its own bounds.
+        let viewport = CGRect(x: 0, y: 0, width: 1000, height: 500)
+        XCTAssertEqual(vertical.first.intersection(viewport).width, 482)
+        XCTAssertTrue(CGRect(origin: .zero, size: layout.size).contains(vertical.second))
+    }
+
+    func testForeignZoomProjectionKeepsTheWholeTerminal() {
+        let layout = HerdrGeometry.ViewingLayout.pane(CGSize(width: 1200, height: 800))
+        XCTAssertEqual(layout.size, CGSize(width: 1200, height: 800))
+        XCTAssertNil(layout.frames(at: .zero, divider: 2))
+    }
+
+    func testIndependentFontZoomKeepsOtherPanesFullSize() throws {
+        let slot = CGSize(width: 600, height: 800)
+        let chrome = CGSize(width: 16, height: 16)
+        let normal = try XCTUnwrap(HerdrGeometry.paneGrid(slot: slot, chrome: chrome,
+            cellPixels: CGSize(width: 16, height: 32), scale: 2))
+        let enlarged = try XCTUnwrap(HerdrGeometry.paneGrid(slot: slot, chrome: chrome,
+            cellPixels: CGSize(width: 20, height: 40), scale: 2))
+        XCTAssertEqual(normal.cols, 73)
+        XCTAssertEqual(normal.rows, 49)
+        XCTAssertEqual(enlarged.cols, 58)
+        XCTAssertEqual(enlarged.rows, 39)
+        // The original bug gave the normal-font pane the enlarged pane's
+        // smaller grid. Its drawable lost 120 points of width and 160 height.
+        XCTAssertLessThan(HerdrGeometry.clampedExtent(slot.width, cells: enlarged.cols,
+            cellPixels: 16, chrome: chrome.width, scale: 2), slot.width - 100)
+        XCTAssertEqual(HerdrGeometry.clampedExtent(slot.width, cells: normal.cols,
+            cellPixels: 16, chrome: chrome.width, scale: 2), slot.width)
+        XCTAssertEqual(HerdrGeometry.clampedExtent(slot.height, cells: normal.rows,
+            cellPixels: 32, chrome: chrome.height, scale: 2), slot.height)
+    }
+
+    func testLayoutSeparatesTerminalGridFromSplitCoordinates() throws {
+        let json = #"{"pane_id":"p","focused":true,"rect":{"x":10,"y":0,"width":40,"height":20},"terminal_size":{"cols":80,"rows":40,"cell_width_px":8,"cell_height_px":16}}"#
+        let pane = try HerdrControl.decoder.decode(HerdrControl.LayoutPane.self, from: Data(json.utf8))
+        XCTAssertEqual(pane.rect.width, 40)
+        XCTAssertEqual(pane.terminalCols, 80)
+        XCTAssertEqual(pane.terminalRows, 40)
+        let old = try HerdrControl.decoder.decode(HerdrControl.LayoutPane.self,
+            from: Data(#"{"pane_id":"p","focused":true,"rect":{"x":0,"y":0,"width":40,"height":20}}"#.utf8))
+        XCTAssertEqual(old.terminalCols, 40)
+        XCTAssertEqual(old.terminalRows, 20)
+    }
+
+    func testPaneFontChangeRenegotiatesEvenWhenTabGridIsUnchanged() throws {
+        var size = HerdrTabGeometryState.Size(cols: 120, rows: 40, cellWidth: 16, cellHeight: 32)
+        var state = HerdrTabGeometryState()
+        state.update(size)
+        let first = try XCTUnwrap(state.beginRequest())
+        state.finish(first, succeeded: true)
+        XCTAssertTrue(state.isConfirmed)
+        size.panes["right"] = .init(cols: 45, rows: 30, cell_width_px: 20, cell_height_px: 40)
+        state.update(size)
+        XCTAssertFalse(state.isConfirmed)
+        let next = try XCTUnwrap(state.beginRequest())
+        XCTAssertFalse(next.claim, "font changes must not take ownership from another viewer")
+        XCTAssertEqual(next.size.panes["right"]?.cols, 45)
+    }
+
+    func testPaneGeometryCapabilityDoesNotDisableProtocolTwoSharing() {
+        let old = HerdrServerCapabilities(streamProtocol: 2,
+            features: ["shared_attach", "geometry_ownership", "geometry_controller", "pane_geometry"], serverPid: nil, liveHandoff: false)
+        XCTAssertTrue(old.supportsSharedViewing)
+        XCTAssertFalse(old.supports(.paneGeometry))
+        let new = HerdrServerCapabilities(streamProtocol: 3, features: old.features, serverPid: nil, liveHandoff: false)
+        XCTAssertTrue(new.supportsSharedViewing)
+        XCTAssertTrue(new.supports(.paneGeometry))
+    }
+
+    func testPaneGeometryRequestKeepsGeometryFieldsAtTopLevel() throws {
+        let params = HerdrControl.TabPaneGeometryParams(
+            geometry: .init(tab_id: "t", cols: 120, rows: 40, cell_width_px: 16, cell_height_px: 32, claim: false),
+            panes: ["p": .init(cols: 40, rows: 20, cell_width_px: 24, cell_height_px: 48)])
+        let data = try JSONEncoder().encode(params)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["tab_id"] as? String, "t")
+        XCTAssertEqual(json["claim"] as? Bool, false)
+        XCTAssertNil(json["geometry"])
+        XCTAssertNotNil(json["panes"])
+    }
+
 
     // MARK: Version requirement
 

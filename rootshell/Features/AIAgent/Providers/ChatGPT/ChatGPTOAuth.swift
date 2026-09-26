@@ -86,8 +86,10 @@ nonisolated enum ChatGPTOAuth {
     /// Sent both as an authorize-URL parameter and as a request header; the two
     /// must agree. `codex_cli_rs` is the value the official Codex CLI sends.
     static let originator = "codex_cli_rs"
-    /// Pinned `@openai/codex` version reported in the `version` header.
-    static let clientVersion = "0.144.1"
+    /// The backend filters model discovery and response access by this version.
+    /// Astra needs >= 0.153.0, and 0.155.1 exposes GPT-6 Sol and Luna.
+    /// Keep discovery's query and response headers in sync.
+    static let clientVersion = "0.155.1"
 
     private static let authClaim = "https://api.openai.com/auth"
     private static let profileClaim = "https://api.openai.com/profile"

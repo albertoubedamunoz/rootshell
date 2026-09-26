@@ -30,6 +30,7 @@ final class ChatGPTModelStore {
     // The ai. prefix keeps these keys inside the existing backup sweep.
     private static let cacheKey = "ai.chatgpt.models"
     private static let cacheDateKey = "ai.chatgpt.modelsRefreshDate"
+    private static let cacheVersionKey = "ai.chatgpt.modelsClientVersion"
 
     /// Codex discovery omits `context_window` for the gpt-5.6 SKUs; OpenAI's
     /// registry declares 372000 for those and 272000 elsewhere.
@@ -58,6 +59,10 @@ final class ChatGPTModelStore {
     private(set) var models: [CachedChatGPTModel]
     private(set) var isRefreshing = false
     private(set) var lastRefreshed: Date?
+    private(set) var refreshError: String?
+
+    @ObservationIgnored
+    private var cachedClientVersion: String?
 
     /// True while the picker is showing the built-in list rather than the
     /// backend's own lineup.
@@ -69,6 +74,7 @@ final class ChatGPTModelStore {
            !cached.isEmpty {
             models = cached
             lastRefreshed = UserDefaults.standard.object(forKey: Self.cacheDateKey) as? Date
+            cachedClientVersion = UserDefaults.standard.string(forKey: Self.cacheVersionKey)
         } else {
             models = Self.fallbackModels
         }
@@ -104,14 +110,19 @@ final class ChatGPTModelStore {
            !cached.isEmpty {
             models = cached
             lastRefreshed = UserDefaults.standard.object(forKey: Self.cacheDateKey) as? Date
+            cachedClientVersion = UserDefaults.standard.string(forKey: Self.cacheVersionKey)
         } else {
             models = Self.fallbackModels
             lastRefreshed = nil
+            cachedClientVersion = nil
         }
     }
 
     func refreshIfStale(maxAge: TimeInterval = 86_400) async {
-        if let last = lastRefreshed, Date().timeIntervalSince(last) < maxAge {
+        // A recent response from an older client version can still omit new
+        // models. Keep it available offline, but fetch again after an upgrade.
+        if cachedClientVersion == ChatGPTOAuth.clientVersion,
+           let last = lastRefreshed, Date().timeIntervalSince(last) < maxAge {
             return
         }
         await refresh()
@@ -121,12 +132,14 @@ final class ChatGPTModelStore {
         guard !isRefreshing else { return }
         guard ChatGPTCredentialStore.isSignedInCached else { return }
         isRefreshing = true
+        refreshError = nil
         defer { isRefreshing = false }
 
         let accessToken: String
         do {
             accessToken = try await ChatGPTCredentialStore.shared.validCredentials().accessToken
         } catch {
+            refreshError = String(localized: "Could not load models. Check your ChatGPT sign-in and try again.")
             Self.logger.error("Cannot list ChatGPT models: \(error.localizedDescription, privacy: .public)")
             return
         }
@@ -136,9 +149,11 @@ final class ChatGPTModelStore {
             if let discovered = await fetchModels(path: path, accessToken: accessToken), !discovered.isEmpty {
                 models = discovered
                 lastRefreshed = Date()
+                cachedClientVersion = ChatGPTOAuth.clientVersion
                 if let encoded = try? JSONEncoder().encode(discovered) {
                     UserDefaults.standard.set(encoded, forKey: Self.cacheKey)
                     UserDefaults.standard.set(lastRefreshed, forKey: Self.cacheDateKey)
+                    UserDefaults.standard.set(cachedClientVersion, forKey: Self.cacheVersionKey)
                 }
                 let count = discovered.count
                 Self.logger.info("Discovered \(count) ChatGPT models from \(path, privacy: .public)")
@@ -146,6 +161,7 @@ final class ChatGPTModelStore {
             }
         }
 
+        refreshError = String(localized: "Could not refresh models. The previous list is still available. Try again.")
         Self.logger.warning("ChatGPT model discovery failed; keeping the current list")
     }
 
@@ -158,7 +174,7 @@ final class ChatGPTModelStore {
         ]
         guard let url = components.url else { return nil }
 
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
         request.httpMethod = "GET"
         for (header, value) in ChatGPTOAuth.requestHeaders(accessToken: accessToken, sessionID: UUID().uuidString) {
             request.setValue(value, forHTTPHeaderField: header)
@@ -167,12 +183,18 @@ final class ChatGPTModelStore {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            guard let http = response as? HTTPURLResponse else { return nil }
+            guard http.statusCode == 200 else {
+                let status = http.statusCode
+                Self.logger.warning("ChatGPT model discovery at \(path, privacy: .public) returned HTTP \(status)")
+                return nil
+            }
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
 
             let entries = (json["models"] as? [[String: Any]]) ?? (json["data"] as? [[String: Any]]) ?? []
             return Self.normalize(entries)
         } catch {
+            Self.logger.warning("ChatGPT model discovery at \(path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }

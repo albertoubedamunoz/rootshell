@@ -112,6 +112,64 @@ final class HerdrLayoutRefresh {
 /// Catalyst. Ghostty's iOS/visionOS font backend uses 96 DPI; its configured
 /// window padding is in 72-DPI typographic points, not UIKit points.
 nonisolated enum HerdrGeometry {
+    /// Latch the coordinate system at gesture start. A foreign projection is
+    /// presentation only; it must never rewrite the tree used to claim a tab.
+    struct DividerDrag {
+        let startRatio: Double
+        let parentBounds: CGRect
+        let isProjected: Bool
+        private(set) var ratio: Double
+
+        init(layoutRatio: Double, displayRatio: Double?, parentBounds: CGRect) {
+            startRatio = displayRatio ?? layoutRatio
+            ratio = startRatio
+            isProjected = displayRatio != nil
+            self.parentBounds = parentBounds
+        }
+
+        mutating func update(ratio: Double) { self.ratio = ratio }
+
+        var localLayoutRatio: Double? { isProjected ? nil : ratio }
+
+        func previewOffset(horizontal: Bool) -> CGFloat {
+            CGFloat(ratio - startRatio) * (horizontal ? parentBounds.width : parentBounds.height)
+        }
+    }
+
+    /// A viewer packs the actual terminal grids in its own point metrics.
+    /// Server layout units still determine topology and ownership requests.
+    indirect enum ViewingLayout {
+        case pane(CGSize)
+        case split(horizontal: Bool, size: CGSize, first: ViewingLayout, second: ViewingLayout)
+
+        var size: CGSize {
+            switch self {
+            case .pane(let size), .split(_, let size, _, _): return size
+            }
+        }
+
+        static func joining(_ first: Self, _ second: Self, horizontal: Bool, divider: CGFloat) -> Self {
+            let size = CGSize(
+                width: horizontal ? first.size.width + divider + second.size.width : max(first.size.width, second.size.width),
+                height: horizontal ? max(first.size.height, second.size.height) : first.size.height + divider + second.size.height)
+            return .split(horizontal: horizontal, size: size, first: first, second: second)
+        }
+
+        func frames(at origin: CGPoint, divider: CGFloat) -> (first: CGRect, second: CGRect, divider: CGRect)? {
+            guard case let .split(horizontal, size, first, second) = self else { return nil }
+            let firstRect = CGRect(origin: origin, size: first.size)
+            let dividerRect = CGRect(
+                x: origin.x + (horizontal ? first.size.width : 0),
+                y: origin.y + (horizontal ? 0 : first.size.height),
+                width: horizontal ? divider : size.width,
+                height: horizontal ? size.height : divider)
+            let secondRect = CGRect(
+                origin: CGPoint(x: horizontal ? dividerRect.maxX : origin.x,
+                                y: horizontal ? origin.y : dividerRect.maxY), size: second.size)
+            return (firstRect, secondRect, dividerRect)
+        }
+    }
+
     static func frameMatches(_ contents: Any, width: UInt32, height: UInt32) -> Bool {
         guard CFGetTypeID(contents as CFTypeRef) == IOSurfaceGetTypeID() else { return false }
         let frame = unsafeBitCast(contents as CFTypeRef, to: IOSurfaceRef.self)
@@ -134,6 +192,19 @@ nonisolated enum HerdrGeometry {
             width: padding(paddingX, scale: scale) * 2,
             height: padding(paddingY, scale: scale) * 2 + CGFloat(bottom) / scale
         )
+    }
+
+    /// Measure each native slot with its own font, independently of the tab's
+    /// layout coordinate system and the other panes' fonts.
+    static func paneGrid(slot: CGSize, chrome: CGSize, cellPixels: CGSize, scale: CGFloat) -> HerdrControl.PaneTerminalSize? {
+        guard scale > 0, cellPixels.width > 0, cellPixels.height > 0,
+              slot.width > 0, slot.height > 0 else { return nil }
+        return .init(
+            // Match PaneRuntime.resize's minimums so advertised grids and
+            // snapshots cannot disagree when a heavily zoomed pane is tiny.
+            cols: min(65535, max(4, cellBudget(extent: slot.width, chrome: chrome.width, cell: cellPixels.width / scale))),
+            rows: min(65535, max(2, cellBudget(extent: slot.height, chrome: chrome.height, cell: cellPixels.height / scale))),
+            cell_width_px: Int(cellPixels.width), cell_height_px: Int(cellPixels.height))
     }
 
     static func cellBudget(extent: CGFloat, chrome: CGFloat, cell: CGFloat) -> Int {
@@ -195,6 +266,7 @@ nonisolated struct HerdrTabGeometryState {
         let rows: Int
         let cellWidth: Int
         let cellHeight: Int
+        var panes: [String: HerdrControl.PaneTerminalSize] = [:]
     }
 
     struct Request: Equatable, Sendable {

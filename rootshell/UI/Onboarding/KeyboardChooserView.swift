@@ -200,7 +200,7 @@ private struct ChooseStep: View {
                 Text("Choose Your Keyboard")
                     .font(.largeTitle.bold())
                     .accessibilityAddTraits(.isHeader)
-                Text("rootshell’s Terminal Keyboard is optimized for terminal use and more compact, leaving more room for your terminal. Swipe across the keys for its Symbols, Navigation, and Shortcuts pages. Or keep the system keyboard.")
+                Text("rootshell’s Terminal Keyboard is compact and built for the terminal, with more pages a swipe away. Or keep the system keyboard.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -219,12 +219,9 @@ private struct ChooseStep: View {
                 onChoose(selected)
             } label: {
                 Text("Use \(selected.title)")
-                    .font(.headline)
                     .contentTransition(.interpolate)
-                    .frame(maxWidth: .infinity, minHeight: 50)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
+            .chooserPrimaryButton()
             .padding(.horizontal, 24)
             .padding(.bottom, 12)
             .animation(.snappy, value: selected)
@@ -428,40 +425,38 @@ private struct SwipeStep: View {
     let onBack: () -> Void
 
     private typealias Page = TerminalTouchKeyboardModel.ToolPage
+    private let pages = Page.pages(dictation: DictationSupport.isEnabled)
     @State private var visited: Set<Page> = [.typing]
     @State private var currentPage: Page = .typing
     @State private var sample = ""
     @State private var previewHeight: CGFloat = 280
-    @State private var hintOffset: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var allVisited: Bool { visited.count == Page.allCases.count }
+    private var allVisited: Bool { visited.isSuperset(of: pages) }
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(.vertical) {
-                VStack(spacing: 18) {
+                VStack(spacing: 20) {
                     VStack(spacing: 8) {
                         Text("Swipe Between Pages")
                             .font(.largeTitle.bold())
                             .accessibilityAddTraits(.isHeader)
-                        Text("Swipe left or right across the keys to reach Symbols, Navigation, and Shortcuts. Try it below.")
+                        Text("Swipe left or right across the keys to visit each page. Try it below.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                     .multilineTextAlignment(.center)
 
-                    swipeHint
+                    PageTracker(pages: pages, visited: visited, current: currentPage)
 
-                    HStack(spacing: 8) {
-                        ForEach(Page.allCases, id: \.self) { page in
-                            PageChip(title: page.title, visited: visited.contains(page), current: page == currentPage)
-                        }
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Swipe up or down on the letter keys to make the keyboard taller or shorter.",
+                              systemImage: "arrow.up.and.down")
+                        Label("Hold Space and drag to move the cursor.", systemImage: "hand.draw")
                     }
-
-                    Label("Hold Space and drag to move the cursor.", systemImage: "hand.draw")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
@@ -470,20 +465,13 @@ private struct SwipeStep: View {
             }
             .scrollBounceBehavior(.basedOnSize)
 
-            HStack(spacing: 12) {
-                Button("Back", action: onBack)
-                    .frame(minWidth: 64, minHeight: 50)
+            ChooserFooter(onBack: onBack) {
                 Button(action: onContinue) {
                     Text(allVisited ? "Continue" : "Skip Tutorial")
-                        .font(.headline)
                         .contentTransition(.interpolate)
-                        .frame(maxWidth: .infinity, minHeight: 50)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+                .chooserPrimaryButton()
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
             .animation(.snappy, value: allVisited)
 
             VStack(spacing: 0) {
@@ -512,52 +500,51 @@ private struct SwipeStep: View {
         .sensoryFeedback(.success, trigger: allVisited) { _, done in done }
         .sensoryFeedback(.selection, trigger: currentPage)
     }
+}
 
-    private var swipeHint: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "chevron.left")
-            Image(systemName: "hand.point.up.left.fill")
-                .font(.system(size: 34))
-                .offset(x: hintOffset)
-            Image(systemName: "chevron.right")
+/// One icon per keyboard page (filled once visited) over the current page's name.
+private struct PageTracker: View {
+    let pages: [TerminalTouchKeyboardModel.ToolPage]
+    let visited: Set<TerminalTouchKeyboardModel.ToolPage>
+    let current: TerminalTouchKeyboardModel.ToolPage
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                ForEach(pages, id: \.self) { page in
+                    let isVisited = visited.contains(page)
+                    let isCurrent = page == current
+                    Image(systemName: page.chooserSymbol)
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(width: 40, height: 40)
+                        .foregroundStyle(isCurrent ? Color.white : isVisited ? Color.accentColor : Color.secondary)
+                        .background(
+                            Circle().fill(Color.accentColor.opacity(isCurrent ? 1 : isVisited ? 0.18 : 0)))
+                        .overlay(Circle().strokeBorder(Color.secondary.opacity(isVisited ? 0 : 0.35)))
+                }
+            }
+            Text(current.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .contentTransition(.interpolate)
         }
-        .font(.title3.weight(.semibold))
-        .foregroundStyle(Color.accentColor)
-        .frame(height: 56)
-        .accessibilityHidden(true)
-        .opacity(allVisited ? 0.35 : 1)
-        .task {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { hintOffset = 22 }
-        }
+        .animation(.snappy, value: current)
+        .animation(.snappy, value: visited)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Keyboard pages")
+        .accessibilityValue("\(current.title). Visited \(visited.intersection(pages).count) of \(pages.count).")
     }
 }
 
-private struct PageChip: View {
-    let title: String
-    let visited: Bool
-    let current: Bool
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: visited ? "checkmark.circle.fill" : "circle")
-                .contentTransition(.symbolEffect(.replace))
-            Text(title)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+private extension TerminalTouchKeyboardModel.ToolPage {
+    var chooserSymbol: String {
+        switch self {
+        case .typing: "keyboard"
+        case .dictation: "mic.fill"
+        case .symbols: "number"
+        case .navigation: "arrow.up.and.down.and.arrow.left.and.right"
+        case .shortcuts: "command"
         }
-        .font(.caption.weight(.semibold))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .foregroundStyle(visited ? Color.accentColor : Color.secondary)
-        .background(Color.accentColor.opacity(current ? 0.2 : visited ? 0.1 : 0), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.secondary.opacity(visited ? 0 : 0.3)))
-        .animation(.snappy, value: visited)
-        .animation(.snappy, value: current)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityValue(visited ? String(localized: "Visited") : String(localized: "Not visited"))
     }
 }
 
@@ -608,19 +595,10 @@ private struct FinishStep: View {
             }
             .scrollBounceBehavior(.basedOnSize)
 
-            HStack(spacing: 12) {
-                Button("Back", action: onBack)
-                    .frame(minWidth: 64, minHeight: 50)
-                Button(action: onStart) {
-                    Text("Start Using rootshell")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+            ChooserFooter(onBack: onBack) {
+                Button("Start Using rootshell", action: onStart)
+                    .chooserPrimaryButton()
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
         }
         .onAppear { appeared = true }
     }
@@ -653,10 +631,20 @@ private struct FinishStep: View {
         switch choice {
         case .system:
             [
-                ("keyboard.badge.ellipsis", "The toolbar above the system keyboard has Esc, Ctrl, Tab, and arrow keys."),            ]
+                ("keyboard.badge.ellipsis", "The toolbar above the system keyboard has Esc, Ctrl, Tab, and arrow keys."),
+            ]
+        case .custom where DictationSupport.isEnabled:
+            [
+                ("hand.draw", "Swipe left or right across the keys for Dictation, Symbols, Navigation, and Shortcuts."),
+                ("mic", "Dictation runs on this device. Audio never leaves it."),
+                ("arrow.up.and.down", "Swipe up or down on the letter keys to change the keyboard’s height."),
+                ("keyboard", "Tap the keyboard key beside 123 to use the system keyboard for emoji or other languages. It switches for this session only."),
+                ("arrow.left.and.right", "Hold Space and drag to move the cursor."),
+            ]
         case .custom:
             [
                 ("hand.draw", "Swipe left or right across the keys for Symbols, Navigation, and Shortcuts."),
+                ("arrow.up.and.down", "Swipe up or down on the letter keys to change the keyboard’s height."),
                 ("keyboard", "Tap the keyboard key beside 123 to use the system keyboard for dictation, emoji, or other languages. It switches for this session only."),
                 ("arrow.left.and.right", "Hold Space and drag to move the cursor."),
             ]
@@ -713,7 +701,32 @@ private struct TipRow: View {
     }
 }
 
+/// Back on the leading edge, the step's primary action on the trailing edge.
+private struct ChooserFooter<Primary: View>: View {
+    let onBack: () -> Void
+    @ViewBuilder let primary: Primary
+
+    var body: some View {
+        HStack {
+            Button("Back", action: onBack)
+                .font(.body.weight(.medium))
+                .frame(minWidth: 44, minHeight: 44)
+            Spacer(minLength: 12)
+            primary
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 12)
+    }
+}
+
 private extension View {
+    func chooserPrimaryButton() -> some View {
+        font(.body.weight(.semibold))
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+    }
+
     @ViewBuilder
     func chooserCardBackground(cornerRadius: CGFloat) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)

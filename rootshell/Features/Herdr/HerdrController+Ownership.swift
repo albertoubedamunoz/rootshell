@@ -168,7 +168,8 @@ extension HerdrController {
         // A hand-off to us applied our stored size already; do not re-send it.
         if ownership == .mine, let layout = controlLayouts[tabId],
            let desired = tabGeometryStates[tabId]?.desired,
-           layout.area.width == desired.cols, layout.area.height == desired.rows {
+           layout.area.width == desired.cols, layout.area.height == desired.rows,
+           desired.panes.allSatisfy({ id, size in layout.panes.contains { $0.pane_id == id && $0.terminal_size == size } }) {
             tabGeometryStates[tabId]?.noteServerApplied(desired)
         }
         syncControlledElsewhereBadge(tabId: tabId)

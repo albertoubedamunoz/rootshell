@@ -536,7 +536,7 @@ extension HerdrController {
             view.herdrTargetGrid = (mode == .raw && controlLayouts[layout.tab_id] != nil
                 && (tabGeometryStates[layout.tab_id]?.hasRequested == true || ownedElsewhere || layout.carriesRealGeometry))
                 || endpointLayouts[layout.tab_id] == layout
-                ? (cols: pane.rect.width, rows: pane.rect.height) : nil
+                ? (cols: pane.terminalCols, rows: pane.terminalRows) : nil
         }
         var zoomed: SplitTree<SplitPaneView>.Node?
         if layout.zoomed, let terminalId = paneInfos[layout.focused_pane_id]?.terminal_id,

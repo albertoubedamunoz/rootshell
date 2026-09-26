@@ -214,6 +214,7 @@ final class ChatGPTProvider: AIProvider {
         // header, so it is stripped from the extras.
         var extraHeaders = ChatGPTOAuth.requestHeaders(accessToken: accessToken, sessionID: UUID().uuidString)
         extraHeaders.removeValue(forKey: "Authorization")
+        extraHeaders["x-codex-routing-hint"] = "model=\(modelID)"
 
         let service = OpenAIServiceFactory.service(
             apiKey: accessToken,
