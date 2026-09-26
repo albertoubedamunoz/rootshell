@@ -1,5 +1,5 @@
 {
-  "originHash" : "5d77c55dc2029bd6f6f8c2ce9fe31ce6a39d0643dc3f7874e456f18a5ac7a4d5",
+  "originHash" : "da654f055f846de9296c30b1f94725204163435c8f8a44a101b6567b4c3fa70b",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/Citadel-rootshell.git",
       "state" : {
-        "revision" : "a53b1aeb35c6b9e2ef651d4208e0580fb4b0054f",
-        "version" : "0.12.7"
+        "revision" : "1cd839c2b8cad862f0488163299864dff0122b74",
+        "version" : "0.12.8"
       }
     },
     {
