@@ -139,12 +139,15 @@ private func touchJumped(_ touch: UITouch, with event: UIEvent?, in view: UIView
     return false
 }
 
-/// Wait for a full horizontal stroke before cancelling a key's pending tap.
-/// Failing early on vertical movement lets the tools grid scroll normally.
+/// Wait for a full stroke before cancelling a key's pending tap. Horizontal
+/// strokes change pages; vertical ones resize, but only when `allowsVertical`
+/// so the tools grid can still scroll.
 private final class TerminalKeyboardPageSwipe: UIGestureRecognizer {
     private var origin = CGPoint.zero
     private var originTime: TimeInterval = 0
+    var allowsVertical = false
     var offset = 0
+    var heightOffset = 0
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
         guard touches.count == 1, event.allTouches?.count == 1, let touch = touches.first else {
@@ -162,16 +165,20 @@ private final class TerminalKeyboardPageSwipe: UIGestureRecognizer {
         }
         let point = touch.location(in: view)
         let delta = CGPoint(x: point.x - origin.x, y: point.y - origin.y)
-        if let offset = TerminalTouchKeyboardModel.pageSwipe(translation: delta, duration: touch.timestamp - originTime) {
+        let duration = touch.timestamp - originTime
+        if let offset = TerminalTouchKeyboardModel.pageSwipe(translation: delta, duration: duration) {
             self.offset = offset
             state = .recognized
-        } else if abs(delta.y) > 35 {
+        } else if allowsVertical, let offset = TerminalTouchKeyboardModel.heightSwipe(translation: delta, duration: duration) {
+            heightOffset = offset
+            state = .recognized
+        } else if !allowsVertical, abs(delta.y) > 35 {
             state = .failed
         }
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { state = .failed }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { state = .cancelled }
-    override func reset() { super.reset(); offset = 0 }
+    override func reset() { super.reset(); offset = 0; heightOffset = 0 }
 
     override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool {
         // This includes UIKit's native floating-keyboard pinch recognizer on
@@ -357,6 +364,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var pageIndicatorHideTask: Task<Void, Never>?
     private let presets = UISegmentedControl(items: Model.Preset.allCases.map(\.rawValue))
     private let writingAssistanceButton = TerminalTouchRepeatingButton(type: .system)
+    /// Covers the Apple Keyboard key: tap switches keyboards, hold opens the style menu.
+    private let styleMenuButton = UIButton(type: .custom)
     private let grabber = UIButton(type: .system)
     private var drawerButtons: [TerminalTouchDrawerButton] = []
     private var drawerColumns = 6
@@ -513,6 +522,19 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         writingAssistanceButton.showsMenuAsPrimaryAction = true
         writingAssistanceButton.accessibilityLabel = String(localized: "Writing Assistance")
         addSubview(writingAssistanceButton)
+        // Built on open, so nothing observes settings and a pick writes once.
+        styleMenuButton.menu = UIMenu(title: String(localized: "Keyboard Style"), children: [
+            UIDeferredMenuElement.uncached { [weak self] completion in completion(self?.keyboardStyleMenuItems() ?? []) }
+        ])
+        styleMenuButton.isAccessibilityElement = false
+        styleMenuButton.addAction(UIAction { [weak self] _ in self?.pressKeyboardSwitch(true) }, for: .touchDown)
+        styleMenuButton.addAction(UIAction { [weak self] _ in self?.pressKeyboardSwitch(false) },
+                                  for: [.touchUpInside, .touchUpOutside, .touchCancel, .menuActionTriggered])
+        styleMenuButton.addAction(UIAction { [weak self] _ in
+            guard let self, let cap = self.keyboardSwitchCap else { return }
+            self.perform(cap.key)
+        }, for: .primaryActionTriggered)
+        addSubview(styleMenuButton)
         grabber.setImage(UIImage(systemName: "ellipsis"), for: .normal)
         grabber.accessibilityLabel = String(localized: "Move keyboard")
         grabber.accessibilityHint = String(localized: "Drag to move. Double-tap to dock.")
@@ -983,6 +1005,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         bringSubviewToFront(writingAssistanceButton)
         rows = Model.rows(page: page).map { $0.map { makeCap($0) } }
+        bringSubviewToFront(styleMenuButton)
         bringSubviewToFront(preview)
         bringSubviewToFront(accents)
         updateModifierAppearance()
@@ -1076,6 +1099,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             for (cap, rect) in zip(row, Model.frames(keys: row.map(\.key), width: width, y: y, height: rowHeight, inset: inset)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
             y += rowHeight
         }
+        if let cap = keyboardSwitchCap, !cap.isHidden, styleOverride == nil {
+            styleMenuButton.frame = cap.frame
+            styleMenuButton.isHidden = false
+        } else { styleMenuButton.isHidden = true }
         // Only overhang the toolbar; suggestion buttons keep their full height.
         let geometry = Model.typingGeometry(keys: rows.map { $0.map(\.key) }, frames: rows.map { $0.map(\.frame) },
             minX: leading, width: width, overhang: suggestionsEnabled ? 0 : Model.topRowOverhang,
@@ -1121,6 +1148,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard bounds.contains(point) else { return nil }
         // Typing bounds overhang the toolbar's bottom edge; letters win there.
+        // Before the typing grid, which also covers the Apple Keyboard key.
+        if !styleMenuButton.isHidden, styleMenuButton.frame.contains(point) { return styleMenuButton }
         if typingIndex(at: point) != nil { return self }
         if !writingAssistanceButton.isHidden, writingAssistanceButton.frame.contains(point) {
             return writingAssistanceButton.hitTest(convert(point, to: writingAssistanceButton), with: event)
@@ -1453,6 +1482,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         allKeycaps.forEach { $0.finishVisualTransition() }
         (drawerButtons + toolbarDrawerButtons.flatMap { $0 }).forEach { $0.cancelInteraction() }
         writingAssistanceButton.cancelInteraction()
+        styleMenuButton.cancelTracking(with: nil)
+        keyboardSwitchCap?.pressed = false
         steampunkMachinery?.resetContactFeedback()
         retroBackdrop?.resetContactFeedback()
         sequenceTask?.cancel(); sequenceTask = nil
@@ -1610,9 +1641,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         onPageChanged?(page)
     }
 
-    private func showPageIndicator() {
+    private func showPageIndicator(_ title: String? = nil) {
         pageIndicatorHideTask?.cancel()
-        pageIndicatorTitle.text = toolPage.title
+        pageIndicatorTitle.text = title ?? toolPage.title
         bringSubviewToFront(pageIndicator)
         setNeedsLayout()
         UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.15,
@@ -1638,12 +1669,22 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     @objc private func swipePage(_ gesture: TerminalKeyboardPageSwipe) {
+        if gesture.heightOffset != 0 {
+            let height = heightSetting.stepped(by: gesture.heightOffset)
+            guard height != heightSetting else { return }
+            // settingsDidChange drives the relayout through refreshSettings.
+            SettingsStore.shared.set(Settings.Keyboard.touchHeight, height)
+            showPageIndicator(height.displayName)
+            return
+        }
         showPage(toolPage.moved(by: gesture.offset))
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard !isToolbarOnly else { return false }
-        guard gestureRecognizer is TerminalKeyboardPageSwipe else { return true }
+        guard let swipe = gestureRecognizer as? TerminalKeyboardPageSwipe else { return true }
+        // Floating always uses the compact height, and tool pages scroll vertically.
+        swipe.allowsVertical = !isFloating && toolPage == .typing
         let point = touch.location(in: self)
         // Toolbar joysticks, presets, and the floating handle
         // keep their own gestures. Only the key surface changes pages.
@@ -1711,6 +1752,27 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         ].filter { $0.0 }.map { $0.1 }
         writingAssistanceButton.accessibilityValue = enabled.isEmpty ? String(localized: "Off") : enabled.joined(separator: ", ")
         writingAssistanceButton.menu = writingAssistanceMenu()
+    }
+
+    private var keyboardSwitchCap: TerminalTouchKeycap? {
+        rows.last?.first { $0.key.action == .switchKeyboard }
+    }
+
+    private func pressKeyboardSwitch(_ pressed: Bool) {
+        keyboardSwitchCap?.pressed = pressed
+        guard pressed else { return }
+        feedback()
+        if clickSoundEnabled { TerminalTouchKeyClick.shared.play(keyboardStyle.clickProfile) }
+    }
+
+    private func keyboardStyleMenuItems() -> [UIMenuElement] {
+        let current = keyboardStyle
+        return Model.Style.allCases.map { style in
+            UIAction(title: style.displayName, state: style == current ? .on : .off) { _ in
+                guard SettingsStore.shared.value(Settings.Keyboard.touchStyle) != style else { return }
+                SettingsStore.shared.set(Settings.Keyboard.touchStyle, style)
+            }
+        }
     }
 
     private func writingAssistanceMenu() -> UIMenu {

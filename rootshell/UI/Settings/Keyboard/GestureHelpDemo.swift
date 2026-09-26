@@ -19,7 +19,7 @@ struct GestureHelpDemo: View {
             case .joystickMode: "Hold for 1.5 seconds to switch modes."
             case .joystickMove: "Drag and hold to repeat arrow keys."
             case .spaceCursor: "Hold Space, then slide to move the cursor."
-            case .keyboardPages: "Swipe across the keys to change pages."
+            case .keyboardPages: "Swipe sideways across the keys to change pages, or up and down to resize."
             case .floatKeyboard: "Pinch in to float. Spread to dock."
             case .moveKeyboard: "Drag the handle. Double-tap to dock."
             case .menuTwoFinger: "Tap with two fingers to open the menu."
