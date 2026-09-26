@@ -359,6 +359,12 @@ struct SettingsTerminalSection: View {
         List {
             // MARK: - Keyboard
             Section {
+                #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                NavigationLink(value: SettingsSearchDestination.touchKeyboard) {
+                    Label("Terminal Keyboard", systemImage: "keyboard.badge.ellipsis")
+                }
+                .themedRow()
+                #endif
                 #if canImport(FluidAudio) && !CHINA_BUILD
                 NavigationLink(value: SettingsSearchDestination.dictation) {
                     HStack(spacing: 12) {
@@ -375,33 +381,6 @@ struct SettingsTerminalSection: View {
                 .settingGroupContextMenu(.dictation)
                 #endif
                 #if !targetEnvironment(macCatalyst)
-                #if !os(visionOS)
-                NavigationLink(value: SettingsSearchDestination.touchKeyboard) {
-                    Label("Terminal Keyboard", systemImage: "keyboard.badge.ellipsis")
-                }
-                .themedRow()
-                #endif
-                Picker(selection: $writingAssistance) {
-                    ForEach(TerminalWritingAssistanceMode.allCases, id: \.self) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemName: TerminalWritingAssistanceMode.toolbarIcon)
-                        Text("Writing Assistance")
-                            .layoutPriority(1)
-                        SettingPinTag(Settings.Keyboard.writingAssistance.erased)
-                    }
-                }
-                .pickerStyle(.menu)
-                .themedRow()
-                .settingContextMenu(Settings.Keyboard.writingAssistance)
-
-                Text("Assists direct typing with Apple's on-screen keyboard. Corrections are applied only while recent input can be safely tracked.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .themedRow()
-
                 NavigationLink(value: SettingsSearchDestination.toolbarKeys) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "keyboard")
@@ -471,6 +450,29 @@ struct SettingsTerminalSection: View {
 
                 OptionKeyAsAltPicker()
                     .themedRow()
+
+                #if !targetEnvironment(macCatalyst)
+                Picker(selection: $writingAssistance) {
+                    ForEach(TerminalWritingAssistanceMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: TerminalWritingAssistanceMode.toolbarIcon)
+                        Text("Writing Assistance")
+                            .layoutPriority(1)
+                        SettingPinTag(Settings.Keyboard.writingAssistance.erased)
+                    }
+                }
+                .pickerStyle(.menu)
+                .themedRow()
+                .settingContextMenu(Settings.Keyboard.writingAssistance)
+
+                Text("Assists direct typing with Apple's on-screen keyboard. Corrections are applied only while recent input can be safely tracked.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .themedRow()
+                #endif
             } header: {
                 Text("Keyboard")
             }
