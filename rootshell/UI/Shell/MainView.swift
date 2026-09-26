@@ -232,13 +232,7 @@ struct MainView: View {
     // Tab indicator overlay (shown when switching tabs with tab bar hidden)
     // and its one-shot suppression flags (see TabIndicatorController).
     @State var tabIndicator = TabIndicatorController()
-    @State var appTabSwipe = AppTabSwipeModel()
-    /// Handlers use the whole state; body code reads `appTabSwipe.phase` so
-    /// per-frame translation never invalidates MainView.body.
-    var appTabSwipeState: AppTabSwipeState? {
-        get { appTabSwipe.state }
-        nonmutating set { appTabSwipe.state = newValue }
-    }
+    @State var appTabSwipeState: AppTabSwipeState?
 
     // Tab exposé (live previews of the current scope; see TabExposeController).
     @State var tabExpose = TabExposeController()
@@ -314,6 +308,9 @@ struct MainView: View {
     @State var fileManagerSidebarIsDragging = false
     /// A Files-tab choice waiting for the connection sheet to finish dismissing.
     @State var pendingFileManagerOpen: (endpoint: FileEndpoint, presentation: FileManagerPresentation?)?
+
+    /// Dictation HUD, used where the terminal keyboard's Dictation page is not showing.
+    @State var showDictationHUD = false
 
     /// IP Lookup HUD; the model reads the clipboard when it opens.
     @State var showIPLookup = false

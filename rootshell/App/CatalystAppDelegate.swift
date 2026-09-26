@@ -339,6 +339,10 @@ extension UIApplication {
         sendAction(#selector(Ghostty.TerminalView.menuToggleVoiceAgent(_:)), to: nil, from: sender, for: nil)
     }
 
+    @objc func ghostty_toggleDictation(_ sender: Any?) {
+        sendAction(#selector(Ghostty.TerminalView.menuToggleDictation(_:)), to: nil, from: sender, for: nil)
+    }
+
     // MARK: Tabs Menu Actions
 
     @objc func ghostty_previousTab(_ sender: Any?) {
@@ -1555,6 +1559,13 @@ class CatalystAppDelegate: AppDelegate {
             input: "v",
             modifierFlags: [.command, .shift]
         )
+
+        let dictation = UIKeyCommand(
+            title: String(localized: "Dictation"),
+            action: #selector(UIApplication.ghostty_toggleDictation(_:)),
+            input: "r",
+            modifierFlags: [.command, .alternate]
+        )
         #endif
 
         let settings = UIKeyCommand(
@@ -1582,7 +1593,7 @@ class CatalystAppDelegate: AppDelegate {
         let shellMenu = UIMenu(
             title: String(localized: "Shell"),
             identifier: UIMenu.Identifier("com.rootshell.shell"),
-            children: [browseHosts, browseProfiles, aiAgent, voiceAgent, settings, quickSettings]
+            children: [browseHosts, browseProfiles, aiAgent, voiceAgent, dictation, settings, quickSettings]
         )
         #else
         let shellMenu = UIMenu(

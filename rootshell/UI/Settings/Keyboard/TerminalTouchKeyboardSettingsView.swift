@@ -99,7 +99,7 @@ struct TerminalTouchKeyboardSettingsView: View {
             } header: {
                 Text("Layout")
             } footer: {
-                Text("Compact moves every row, including Space, down into the bottom safe area without reducing key height. The bottom corners adapt to your iPhone. Shorter and Shortest also reduce the height of the keys and toolbar to leave more room for the terminal. Full keeps the keyboard above the bottom safe area. Key Glyphs shows symbols for Escape, Tab, and modifiers; turn it off to show their names.")
+                Text("Extra Large keeps the keyboard above the bottom safe area. Large moves every row, including Space, down into the bottom safe area without reducing key height. The bottom corners adapt to your iPhone. Medium, Small, and Extra Small also reduce the height of the keys and toolbar to leave more room for the terminal. Swipe up or down across the keys to step between heights. Key Glyphs shows symbols for Escape, Tab, and modifiers; turn it off to show their names.")
             }
             Section {
                 Picker("Keyboard Style", selection: $keyboardStyle) {

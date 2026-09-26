@@ -116,6 +116,8 @@
 		47AC7E57000000000000CB03 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */; };
 		47AC7E57000000000000CD01 /* rootshell/UI/Overlays/SessionPickerGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */; };
 		47AC7E57000000000000DA01 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000DA02 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift */; };
+		47AC7E57000000000000DC01 /* rootshell/Features/Dictation/Core/DictationFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000DC02 /* rootshell/Features/Dictation/Core/DictationFormatter.swift */; };
+		47AC7E57000000000000DC03 /* rootshell/Features/Dictation/Core/DictationVocabulary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000DC04 /* rootshell/Features/Dictation/Core/DictationVocabulary.swift */; };
 		47AE8FBE2F4BBBAA0032A651 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */; };
 		47AEC0010000000000000001 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */; };
 		47AEC0010000000000000002 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */; };
@@ -205,6 +207,8 @@
 		47F11E0000000000000000B5 /* rootshell/Features/FileManager/Storage/StorageProviderPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A5 /* rootshell/Features/FileManager/Storage/StorageProviderPreset.swift */; };
 		47F11E0000000000000000B6 /* rootshell/Features/FileManager/Storage/S3KeyLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F11E0000000000000000A6 /* rootshell/Features/FileManager/Storage/S3KeyLogic.swift */; };
 		47FF768D2F33DD6900DFD408 /* TrzszSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 47TSSH0112FC00000AABB0001 /* TrzszSSH */; };
+		47FLA0032FFA0000AABB0003 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, maccatalyst, ); productRef = 47FLA0012FFA0000AABB0001 /* FluidAudio */; };
+		47FLA0042FFA0000AABB0004 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; platformFilter = maccatalyst; productRef = 47FLA0022FFA0000AABB0002 /* FluidAudio */; };
 		47FONT022ED92ABC009B57F8 /* fonts in CopyFiles */ = {isa = PBXBuildFile; fileRef = 47FONT012ED92ABC009B57F8 /* fonts */; };
 		47IOS0032FA00000AABB0003 /* ios_system in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47IOS0012FA00000AABB0001 /* ios_system */; };
 		47IOS0042FA00000AABB0004 /* ios_system in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47IOS0012FA00000AABB0001 /* ios_system */; };
@@ -602,6 +606,8 @@
 		47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Overlays/SessionPickerGeometry.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000DA02 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Transfer/Attachments/PasteAttachment.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000DC02 /* rootshell/Features/Dictation/Core/DictationFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Dictation/Core/DictationFormatter.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000DC04 /* rootshell/Features/Dictation/Core/DictationVocabulary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Dictation/Core/DictationVocabulary.swift; sourceTree = SOURCE_ROOT; };
 		47AE8FBD2F4BBBAA0032A651 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		47AEC0010000000000000010 /* rootshell/Core/Persistence/LocalMultiplexerAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Persistence/LocalMultiplexerAttachment.swift; sourceTree = SOURCE_ROOT; };
 		47AEC0010000000000000011 /* rootshell-helper/Sources/LocalMultiplexerRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "rootshell-helper/Sources/LocalMultiplexerRecovery.swift"; sourceTree = SOURCE_ROOT; };
@@ -943,6 +949,7 @@
 				49A64D82640818B24D1124DF /* RFBTransport in Frameworks */,
 				0668A4F421BC22AFA165E265 /* GhosttyKitStandalone in Frameworks */,
 				47A810B22EE40000005A0B9C /* Sparkle in Frameworks */,
+				47FLA0042FFA0000AABB0004 /* FluidAudio in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1068,6 +1075,7 @@
 				47564E4300000000000000C1 /* rootshellVNC in Frameworks */,
 				47564E4300000000000000C2 /* RFBTransport in Frameworks */,
 				56DC6F220B1EEFB3D6E09182 /* GhosttyKitAppStore in Frameworks */,
+				47FLA0032FFA0000AABB0003 /* FluidAudio in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1238,6 +1246,8 @@
 				47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */,
 				47AC7E570000000000000010 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift */,
 				47AC7E57000000000000DA02 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift */,
+				47AC7E57000000000000DC02 /* rootshell/Features/Dictation/Core/DictationFormatter.swift */,
+				47AC7E57000000000000DC04 /* rootshell/Features/Dictation/Core/DictationVocabulary.swift */,
 				47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */,
 				47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */,
 				47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */,
@@ -1559,6 +1569,7 @@
 				47TSSH0112FC00000AABB0001 /* TrzszSSH */,
 				47HLX0012FD00000AABB0001 /* HelixKit */,
 				47B617122FF30000AABB0001 /* libgit2 */,
+				47FLA0012FFA0000AABB0001 /* FluidAudio */,
 			);
 			productName = rootshell;
 			productReference = 47D8B2422ECAAE7F00CA99EC /* rootshell.app */;
@@ -1683,6 +1694,7 @@
 				47TSSH0112FC00000AABB0001 /* TrzszSSH */,
 				47HLX0012FD00000AABB0001 /* HelixKit */,
 				47A810B12EE40000005A0B9C /* Sparkle */,
+				47FLA0022FFA0000AABB0002 /* FluidAudio */,
 			);
 			productName = rootshell;
 			productReference = DD1249A5776E91521A4BEA8A /* rootshell.app */;
@@ -1809,6 +1821,7 @@
 				47NWPKG02FF10000AABB0000 /* XCRemoteSwiftPackageReference "network_ios-rootshell" */,
 				47B617022FF30000AABB0000 /* XCRemoteSwiftPackageReference "libgit2-rootshell" */,
 				47A810B02EE40000005A0B9C /* XCRemoteSwiftPackageReference "Sparkle-rootshell" */,
+				47FLA0002FFA0000AABB0000 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				47PKG0002F900000AABB0000 /* XCLocalSwiftPackageReference "Packages/RootshellPushKit" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -2248,6 +2261,8 @@
 				47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */,
 				47AC7E570000000000000001 /* rootshell/Core/Terminal/TerminalCorrectionContext.swift in Sources */,
 				47AC7E57000000000000DA01 /* rootshell/Features/Transfer/Attachments/PasteAttachment.swift in Sources */,
+				47AC7E57000000000000DC01 /* rootshell/Features/Dictation/Core/DictationFormatter.swift in Sources */,
+				47AC7E57000000000000DC03 /* rootshell/Features/Dictation/Core/DictationVocabulary.swift in Sources */,
 				47AC7E57000000000000CB03 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift in Sources */,
 				47AC7E57000000000000CB01 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift in Sources */,
 				47AC7E57000000000000CD01 /* rootshell/UI/Overlays/SessionPickerGeometry.swift in Sources */,
@@ -2475,7 +2490,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -2537,7 +2552,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -2599,7 +2614,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -2653,7 +2668,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2700,7 +2715,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2747,7 +2762,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2794,7 +2809,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2842,7 +2857,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2890,7 +2905,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2938,7 +2953,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2986,7 +3001,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access may be used for YubiKey QR code provisioning.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Rootshell uses your local network for croc transfers, device discovery, and direct terminal connections.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSystemExtensionUsageDescription = "Enables rootshell to establish a VPN connection";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3724,7 +3739,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -3841,7 +3856,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -3969,7 +3984,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4099,7 +4114,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4449,7 +4464,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4508,7 +4523,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4745,7 +4760,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4811,7 +4826,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4876,7 +4891,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4936,7 +4951,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -4996,7 +5011,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -5057,7 +5072,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -5117,7 +5132,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -5175,7 +5190,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -5506,7 +5521,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -5571,7 +5586,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -6284,7 +6299,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -6350,7 +6365,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -6417,7 +6432,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -6479,7 +6494,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -6537,7 +6552,7 @@
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Optional diary of the places you use rootshell, and location data for solar background.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Rootshell uses the microphone for dictation, which is transcribed on this device, and for voice agent mode, allowing you to speak naturally with the AI terminal assistant.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -6902,6 +6917,14 @@
 				version = 0.2.1;
 			};
 		};
+		47FLA0002FFA0000AABB0000 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.17.4;
+			};
+		};
 		47HLX0002FD00000AABB0000 /* XCRemoteSwiftPackageReference "helix-rootshell" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kitknox/helix-rootshell.git";
@@ -7076,6 +7099,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 47CURL0002FE0000AABB0000 /* XCRemoteSwiftPackageReference "curl_ios-rootshell" */;
 			productName = curl_ios;
+		};
+		47FLA0012FFA0000AABB0001 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47FLA0002FFA0000AABB0000 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
+		47FLA0022FFA0000AABB0002 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47FLA0002FFA0000AABB0000 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
 		};
 		47HLX0012FD00000AABB0001 /* HelixKit */ = {
 			isa = XCSwiftPackageProductDependency;

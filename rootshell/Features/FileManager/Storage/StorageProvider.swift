@@ -99,6 +99,12 @@ nonisolated struct StorageProvider: Codable, Identifiable, Hashable, Sendable {
         return "https://" + host
     }
 
+    var faviconDomain: String? {
+        guard let endpoint = resolvedEndpoint else { return preset.faviconDomain }
+        guard let host = URL(string: endpoint)?.host else { return nil }
+        return StorageFaviconDomains.domain(forEndpointHost: host)
+    }
+
     var usesVirtualHost: Bool {
         (addressingStyle ?? preset.addressing) == .virtualHost
     }

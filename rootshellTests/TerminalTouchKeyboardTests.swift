@@ -707,6 +707,18 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(Model.ToolPage.navigation.moved(by: -1), .symbols)
     }
 
+    func testDictationIsTheFirstLeftSwipeOnlyWhenEnabled() {
+        let enabled = Model.ToolPage.pages(dictation: true)
+        let disabled = Model.ToolPage.pages(dictation: false)
+        XCTAssertEqual(Model.ToolPage.typing.moved(by: 1, in: enabled), .dictation)
+        XCTAssertEqual(Model.ToolPage.dictation.moved(by: 1, in: enabled), .symbols)
+        XCTAssertEqual(Model.ToolPage.typing.moved(by: 1, in: disabled), .symbols)
+        XCTAssertEqual(Model.ToolPage.symbols.moved(by: -1, in: disabled), .typing)
+        XCTAssertEqual(Model.ToolPage.typing.moved(by: -1, in: disabled), .shortcuts)
+        // A page that left the set falls back to typing rather than a neighbor.
+        XCTAssertEqual(Model.ToolPage.dictation.moved(by: 1, in: disabled), .typing)
+    }
+
     func testPageSwipeRequiresDeliberateHorizontalMovement() {
         XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: -100, y: 10), duration: 0.1), 1)
         XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: 100, y: -10), duration: 0.1), -1)
@@ -715,6 +727,19 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: 100, y: 0), duration: 0.1), -1)
         XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: 0, y: 100), duration: 0.1))
         XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: -100, y: 0), duration: 0.5), "A slow drag is not a swipe")
+    }
+
+    func testHeightSwipeStepsThroughClampedHeights() {
+        XCTAssertEqual(Model.heightSwipe(translation: CGPoint(x: 10, y: 100), duration: 0.1), 1)
+        XCTAssertEqual(Model.heightSwipe(translation: CGPoint(x: -10, y: -100), duration: 0.1), -1)
+        XCTAssertNil(Model.heightSwipe(translation: CGPoint(x: 100, y: 0), duration: 0.1))
+        XCTAssertNil(Model.heightSwipe(translation: CGPoint(x: 0, y: 100), duration: 0.5), "A slow drag is not a swipe")
+        XCTAssertEqual(Model.Height.large.stepped(by: 1), .medium)
+        XCTAssertEqual(Model.Height.large.stepped(by: -1), .extraLarge)
+        XCTAssertEqual(Model.Height.extraLarge.stepped(by: -1), .extraLarge)
+        XCTAssertEqual(Model.Height.small.stepped(by: 1), .extraSmall)
+        XCTAssertEqual(Model.Height.extraSmall.stepped(by: 1), .extraSmall)
+        XCTAssertEqual(Model.Height(rawValue: "compact"), .large, "Persisted names still decode")
     }
 
     func testBounceFilterOnlyDropsImmediateNearbyDowns() {

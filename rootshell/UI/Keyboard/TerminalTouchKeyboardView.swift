@@ -139,12 +139,15 @@ private func touchJumped(_ touch: UITouch, with event: UIEvent?, in view: UIView
     return false
 }
 
-/// Wait for a full horizontal stroke before cancelling a key's pending tap.
-/// Failing early on vertical movement lets the tools grid scroll normally.
+/// Wait for a full stroke before cancelling a key's pending tap. Horizontal
+/// strokes change pages; vertical ones resize, but only when `allowsVertical`
+/// so the tools grid can still scroll.
 private final class TerminalKeyboardPageSwipe: UIGestureRecognizer {
     private var origin = CGPoint.zero
     private var originTime: TimeInterval = 0
+    var allowsVertical = false
     var offset = 0
+    var heightOffset = 0
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
         guard touches.count == 1, event.allTouches?.count == 1, let touch = touches.first else {
@@ -162,16 +165,20 @@ private final class TerminalKeyboardPageSwipe: UIGestureRecognizer {
         }
         let point = touch.location(in: view)
         let delta = CGPoint(x: point.x - origin.x, y: point.y - origin.y)
-        if let offset = TerminalTouchKeyboardModel.pageSwipe(translation: delta, duration: touch.timestamp - originTime) {
+        let duration = touch.timestamp - originTime
+        if let offset = TerminalTouchKeyboardModel.pageSwipe(translation: delta, duration: duration) {
             self.offset = offset
             state = .recognized
-        } else if abs(delta.y) > 35 {
+        } else if allowsVertical, let offset = TerminalTouchKeyboardModel.heightSwipe(translation: delta, duration: duration) {
+            heightOffset = offset
+            state = .recognized
+        } else if !allowsVertical, abs(delta.y) > 35 {
             state = .failed
         }
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { state = .failed }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { state = .cancelled }
-    override func reset() { super.reset(); offset = 0 }
+    override func reset() { super.reset(); offset = 0; heightOffset = 0 }
 
     override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool {
         // This includes UIKit's native floating-keyboard pinch recognizer on
@@ -188,7 +195,12 @@ private final class TerminalKeyboardPageSwipe: UIGestureRecognizer {
 
 final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGestureRecognizerDelegate {
     typealias Model = TerminalTouchKeyboardModel
-    weak var host: TerminalTouchKeyboardHost? { didSet { updateAppearance() } }
+    weak var host: TerminalTouchKeyboardHost? {
+        didSet {
+            updateAppearance()
+            if toolPage == .dictation { configureDictationPane() }
+        }
+    }
     private var palette: TerminalTouchKeyboardPalette?
     /// Steampunk keeps its brass-matched ivory/enamel caps unless explicitly opted in.
     /// Retro styles keep their signature colors and blend their neutrals toward the palette.
@@ -294,7 +306,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         page = state.page
         preset = state.preset
         presets.selectedSegmentIndex = Model.Preset.allCases.firstIndex(of: preset) ?? 0
-        toolPage = state.toolPage
+        toolPage = toolPages.contains(state.toolPage) ? state.toolPage : .typing
         toolbarDrawerState = state.toolbarDrawer
         rebuildKeys()
         rebuildDrawer()
@@ -311,6 +323,21 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var preset = Model.Preset.shell
     private var toolPage = Model.ToolPage.typing
     private var drawerOpen: Bool { toolPage != .typing }
+    #if canImport(FluidAudio) && !CHINA_BUILD
+    /// Created on first visit so the speech stack stays untouched until used.
+    private var loadedDictationPane: TerminalDictationPaneView?
+    private var dictationPane: TerminalDictationPaneView {
+        if let pane = loadedDictationPane { return pane }
+        let pane = TerminalDictationPaneView()
+        pane.onFeedback = { [weak self] in self?.feedback() }
+        pane.isHidden = true
+        addSubview(pane)
+        loadedDictationPane = pane
+        return pane
+    }
+    #endif
+    private var dictationEnabled = DictationSupport.isEnabled
+    private var toolPages: [Model.ToolPage] { Model.ToolPage.pages(dictation: dictationEnabled) }
     private var toolbarDrawerKeys: [[Model.Key]] = []
     private var configuredDrawerToggle: Model.Key?
     private var toolbarDrawerState = Model.ToolbarDrawerState.closed
@@ -353,10 +380,15 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let drawer = UIScrollView()
     private let pageIndicator = UIVisualEffectView()
     private let pageIndicatorTitle = UILabel()
-    private let pageIndicatorDots = Model.ToolPage.allCases.map { _ in UIView() }
+    private var pageIndicatorDots: [UIView] = []
+    private let heightIndicatorDots: [UIView] = Model.Height.allCases.map { _ in UIView() }
+    /// Set while the HUD reports a height swipe, which shows a vertical dot column.
+    private var pageIndicatorHeight: Model.Height?
     private var pageIndicatorHideTask: Task<Void, Never>?
     private let presets = UISegmentedControl(items: Model.Preset.allCases.map(\.rawValue))
     private let writingAssistanceButton = TerminalTouchRepeatingButton(type: .system)
+    /// Covers the Apple Keyboard key: tap switches keyboards, hold opens the style menu.
+    private let styleMenuButton = UIButton(type: .custom)
     private let grabber = UIButton(type: .system)
     private var drawerButtons: [TerminalTouchDrawerButton] = []
     private var drawerColumns = 6
@@ -390,7 +422,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var characterPreviewEnabled = SettingsStore.shared.value(Settings.Keyboard.touchCharacterPreview)
     private var heightSetting = SettingsStore.shared.value(Settings.Keyboard.touchHeight)
     /// The detached keyboard sizes itself, so it keeps the default metrics.
-    private var keyboardHeight: Model.Height { isFloating ? .compact : heightSetting }
+    private var keyboardHeight: Model.Height { isFloating ? .large : heightSetting }
     private var glyphsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
     #if !os(visionOS)
     private lazy var haptic = UIImpactFeedbackGenerator(style: .light, view: self)
@@ -495,7 +527,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         pageIndicatorTitle.textAlignment = .center
         pageIndicatorTitle.textColor = .white
         pageIndicator.contentView.addSubview(pageIndicatorTitle)
-        pageIndicatorDots.forEach { pageIndicator.contentView.addSubview($0) }
+        heightIndicatorDots.forEach { pageIndicator.contentView.addSubview($0) }
+        rebuildPageIndicatorDots()
         addSubview(pageIndicator)
         suggestions.axis = .horizontal
         suggestions.distribution = .fillEqually
@@ -513,6 +546,19 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         writingAssistanceButton.showsMenuAsPrimaryAction = true
         writingAssistanceButton.accessibilityLabel = String(localized: "Writing Assistance")
         addSubview(writingAssistanceButton)
+        // Built on open, so nothing observes settings and a pick writes once.
+        styleMenuButton.menu = UIMenu(title: String(localized: "Keyboard Style"), children: [
+            UIDeferredMenuElement.uncached { [weak self] completion in completion(self?.keyboardStyleMenuItems() ?? []) }
+        ])
+        styleMenuButton.isAccessibilityElement = false
+        styleMenuButton.addAction(UIAction { [weak self] _ in self?.pressKeyboardSwitch(true) }, for: .touchDown)
+        styleMenuButton.addAction(UIAction { [weak self] _ in self?.pressKeyboardSwitch(false) },
+                                  for: [.touchUpInside, .touchUpOutside, .touchCancel, .menuActionTriggered])
+        styleMenuButton.addAction(UIAction { [weak self] _ in
+            guard let self, let cap = self.keyboardSwitchCap else { return }
+            self.perform(cap.key)
+        }, for: .primaryActionTriggered)
+        addSubview(styleMenuButton)
         grabber.setImage(UIImage(systemName: "ellipsis"), for: .normal)
         grabber.accessibilityLabel = String(localized: "Move keyboard")
         grabber.accessibilityHint = String(localized: "Drag to move. Double-tap to dock.")
@@ -713,6 +759,17 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             host?.touchKeyboardInvalidateSuggestions()
             updateSuggestions()
         }
+        let dictation = DictationSupport.isEnabled
+        if dictationEnabled != dictation {
+            dictationEnabled = dictation
+            if !dictation && toolPage == .dictation {
+                #if canImport(FluidAudio) && !CHINA_BUILD
+                loadedDictationPane?.paneWillHide()
+                #endif
+                toolPage = .typing
+            }
+            rebuildPageIndicatorDots()
+        }
         hapticsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchHaptics)
         clickSoundEnabled = SettingsStore.shared.value(Settings.Keyboard.touchClickSound)
         characterPreviewEnabled = SettingsStore.shared.value(Settings.Keyboard.touchCharacterPreview)
@@ -835,6 +892,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     /// Exclude suggestion and preset rows: their original text stays on its
     /// original background, not on a style's bed or moving artwork.
+    /// These are artwork bands, not hit cells: the final band includes the
+    /// bottom safe area (or floating grabber) so row-based details reach the edge.
     private var styleBackdropBands: [CGRect] {
         var bands = [CGRect(x: 0, y: 0, width: bounds.width, height: toolbarHeight)]
         if !isToolbarOnly {
@@ -846,6 +905,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                     return CGRect(x: 0, y: first.frame.minY, width: bounds.width, height: first.frame.height)
                 }
             }
+        }
+        if let last = bands.indices.last {
+            bands[last].size.height = max(bands[last].height, bounds.maxY - bands[last].minY)
         }
         return bands
     }
@@ -938,6 +1000,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 return Model.Key(title: custom.label, action: .custom(id), symbol: custom.iconName, accessibility: custom.label)
             case .builtIn(let id):
                 guard !manager.config.hiddenKeys.contains(id) else { return nil }
+                if id == .dictation, !DictationSupport.isEnabled { return nil }
                 let action: Model.Action
                 let title: String
                 switch id {
@@ -983,6 +1046,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         }
         bringSubviewToFront(writingAssistanceButton)
         rows = Model.rows(page: page).map { $0.map { makeCap($0) } }
+        bringSubviewToFront(styleMenuButton)
         bringSubviewToFront(preview)
         bringSubviewToFront(accents)
         updateModifierAppearance()
@@ -1030,17 +1094,42 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         let contentHeight = rowHeight * 4 + (suggestionsEnabled ? 36 : 0)
         // This HUD floats over the keys; it never contributes to keyboard height.
         pageIndicator.frame = CGRect(x: leading + (width - 160) / 2, y: toolbarHeight + (contentHeight - 64) / 2, width: 160, height: 64)
-        pageIndicatorTitle.frame = CGRect(x: 8, y: 10, width: 144, height: 22)
         let dotSpacing: CGFloat = 14
-        for (index, dot) in pageIndicatorDots.enumerated() {
-            let size: CGFloat = index == toolPage.rawValue ? 8 : 6
-            dot.frame = CGRect(x: 80 + (CGFloat(index) - CGFloat(pageIndicatorDots.count - 1) / 2) * dotSpacing - size / 2,
-                               y: 45 - size / 2, width: size, height: size)
+        func styleDot(_ dot: UIView, center: CGPoint, current: Bool) {
+            let size: CGFloat = current ? 8 : 6
+            dot.frame = CGRect(x: center.x - size / 2, y: center.y - size / 2, width: size, height: size)
             dot.layer.cornerRadius = size / 2
-            dot.backgroundColor = UIColor.white.withAlphaComponent(index == toolPage.rawValue ? 1 : 0.4)
+            dot.backgroundColor = UIColor.white.withAlphaComponent(current ? 1 : 0.4)
         }
-        drawer.isHidden = isToolbarOnly || !drawerOpen
+        // Heights step vertically (Full on top), so their dots stack in a column.
+        pageIndicatorDots.forEach { $0.isHidden = pageIndicatorHeight != nil }
+        heightIndicatorDots.forEach { $0.isHidden = pageIndicatorHeight == nil }
+        if let height = pageIndicatorHeight {
+            pageIndicatorTitle.frame = CGRect(x: 8, y: 21, width: 124, height: 22)
+            let currentHeight = Model.Height.allCases.firstIndex(of: height) ?? 0
+            let heightSpacing: CGFloat = 11
+            for (index, dot) in heightIndicatorDots.enumerated() {
+                let y = 32 + (CGFloat(index) - CGFloat(heightIndicatorDots.count - 1) / 2) * heightSpacing
+                styleDot(dot, center: CGPoint(x: 142, y: y), current: index == currentHeight)
+            }
+        } else {
+            pageIndicatorTitle.frame = CGRect(x: 8, y: 10, width: 144, height: 22)
+            let currentPage = toolPages.firstIndex(of: toolPage) ?? 0
+            for (index, dot) in pageIndicatorDots.enumerated() {
+                let x = 80 + (CGFloat(index) - CGFloat(pageIndicatorDots.count - 1) / 2) * dotSpacing
+                styleDot(dot, center: CGPoint(x: x, y: 45), current: index == currentPage)
+            }
+        }
+        drawer.isHidden = isToolbarOnly || !drawerOpen || toolPage == .dictation
         presets.isHidden = isToolbarOnly || toolPage != .shortcuts
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        if toolPage == .dictation && !isToolbarOnly {
+            dictationPane.isHidden = false
+            dictationPane.frame = CGRect(x: leading + 5, y: y, width: max(0, width - 10), height: max(0, contentHeight))
+        } else {
+            loadedDictationPane?.isHidden = true
+        }
+        #endif
         if drawerOpen {
             if toolPage == .shortcuts {
                 presets.frame = CGRect(x: leading + 8, y: y + 3, width: max(0, width - 16), height: 30)
@@ -1076,6 +1165,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             for (cap, rect) in zip(row, Model.frames(keys: row.map(\.key), width: width, y: y, height: rowHeight, inset: inset)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
             y += rowHeight
         }
+        if let cap = keyboardSwitchCap, !cap.isHidden, styleOverride == nil {
+            styleMenuButton.frame = cap.frame
+            styleMenuButton.isHidden = false
+        } else { styleMenuButton.isHidden = true }
         // Only overhang the toolbar; suggestion buttons keep their full height.
         let geometry = Model.typingGeometry(keys: rows.map { $0.map(\.key) }, frames: rows.map { $0.map(\.frame) },
             minX: leading, width: width, overhang: suggestionsEnabled ? 0 : Model.topRowOverhang,
@@ -1115,12 +1208,20 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     override var isHidden: Bool {
-        didSet { if oldValue != isHidden { updateBackgroundEffect() } }
+        didSet {
+            guard oldValue != isHidden else { return }
+            updateBackgroundEffect()
+            #if canImport(FluidAudio) && !CHINA_BUILD
+            if isHidden { loadedDictationPane?.paneWillHide() }
+            #endif
+        }
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard bounds.contains(point) else { return nil }
         // Typing bounds overhang the toolbar's bottom edge; letters win there.
+        // Before the typing grid, which also covers the Apple Keyboard key.
+        if !styleMenuButton.isHidden, styleMenuButton.frame.contains(point) { return styleMenuButton }
         if typingIndex(at: point) != nil { return self }
         if !writingAssistanceButton.isHidden, writingAssistanceButton.frame.contains(point) {
             return writingAssistanceButton.hitTest(convert(point, to: writingAssistanceButton), with: event)
@@ -1453,6 +1554,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         allKeycaps.forEach { $0.finishVisualTransition() }
         (drawerButtons + toolbarDrawerButtons.flatMap { $0 }).forEach { $0.cancelInteraction() }
         writingAssistanceButton.cancelInteraction()
+        styleMenuButton.cancelTracking(with: nil)
+        keyboardSwitchCap?.pressed = false
         steampunkMachinery?.resetContactFeedback()
         retroBackdrop?.resetContactFeedback()
         sequenceTask?.cancel(); sequenceTask = nil
@@ -1542,7 +1645,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         case .tabs: cancelInteraction(preservingModifiers: true); onTabs?()
         case .toolbar(let action):
             guard action != KeyID.writingAssistance.keyValue else { return }
-            cancelInteraction(); onToolbarAction?(action)
+            cancelInteraction()
+            if action == KeyID.dictation.keyValue { beginDictationFromToolbar(); return }
+            onToolbarAction?(action)
         case .custom(let id):
             guard let custom = KeyboardToolbarManager.shared.customKey(for: id) else { return }
             if let character = custom.plainCharacter {
@@ -1601,6 +1706,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private func showPage(_ page: Model.ToolPage) {
         guard !isToolbarOnly, page != toolPage else { return }
         cancelInteraction(preservingModifiers: true)
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        if toolPage == .dictation { loadedDictationPane?.paneWillHide() }
+        #endif
         toolPage = page
         drawer.contentOffset = .zero
         rebuildDrawer()
@@ -1610,9 +1718,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         onPageChanged?(page)
     }
 
-    private func showPageIndicator() {
+    private func showPageIndicator(height: Model.Height? = nil) {
         pageIndicatorHideTask?.cancel()
-        pageIndicatorTitle.text = toolPage.title
+        pageIndicatorHeight = height
+        pageIndicatorTitle.text = height?.displayName ?? toolPage.title
         bringSubviewToFront(pageIndicator)
         setNeedsLayout()
         UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.15,
@@ -1638,17 +1747,73 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     @objc private func swipePage(_ gesture: TerminalKeyboardPageSwipe) {
-        showPage(toolPage.moved(by: gesture.offset))
+        if gesture.heightOffset != 0 {
+            let height = heightSetting.stepped(by: gesture.heightOffset)
+            guard height != heightSetting else { return }
+            // settingsDidChange drives the relayout through refreshSettings.
+            SettingsStore.shared.set(Settings.Keyboard.touchHeight, height)
+            showPageIndicator(height: height)
+            return
+        }
+        showPage(toolPage.moved(by: gesture.offset, in: toolPages))
+    }
+
+    private func rebuildPageIndicatorDots() {
+        pageIndicatorDots.forEach { $0.removeFromSuperview() }
+        pageIndicatorDots = toolPages.map { _ in UIView() }
+        pageIndicatorDots.forEach { pageIndicator.contentView.addSubview($0) }
+        setNeedsLayout()
+    }
+
+    private func configureDictationPane() {
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        let pane = dictationPane
+        pane.target = host as? DictationTarget
+        pane.agentHint = preset == .agent
+        pane.configure(style: keyboardStyle, palette: keycapPalette, ink: palette?.toolbarInk ?? .label)
+        bringSubviewToFront(pageIndicator)
+        #endif
+    }
+
+    /// Opens the Dictation page and starts listening, or stops if already
+    /// listening there. False when only the toolbar is showing.
+    @discardableResult
+    func beginDictation() -> Bool {
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        guard dictationEnabled, !isToolbarOnly else { return false }
+        if toolPage == .dictation, DictationController.shared.isActive {
+            DictationController.shared.stop()
+            return true
+        }
+        showPage(.dictation)
+        dictationPane.startListening()
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    /// The toolbar mic key; toolbar-only mode falls back to the HUD.
+    private func beginDictationFromToolbar() {
+        guard !beginDictation() else { return }
+        NotificationCenter.default.post(name: .toggleDictation, object: host)
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard !isToolbarOnly else { return false }
-        guard gestureRecognizer is TerminalKeyboardPageSwipe else { return true }
+        guard let swipe = gestureRecognizer as? TerminalKeyboardPageSwipe else { return true }
+        // Floating always uses the compact height, and tool pages scroll vertically.
+        swipe.allowsVertical = !isFloating && toolPage == .typing
         let point = touch.location(in: self)
         // Toolbar joysticks, presets, and the floating handle
         // keep their own gestures. Only the key surface changes pages.
         guard point.y >= toolbarHeight, point.y < bounds.height - bottomInset,
               touch.view !== presets, touch.view?.isDescendant(of: presets) != true else { return false }
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        // A held mic is push-to-talk; sliding off it must not change pages.
+        if let pane = loadedDictationPane, !pane.isHidden, touch.view is UIControl,
+           touch.view?.isDescendant(of: pane) == true { return false }
+        #endif
         // A stroke that starts mid-word is typing, never a page change.
         guard touch.timestamp - lastTextDown >= Model.typingBurst else { return false }
         return !contacts.values.contains { $0.trackpad || $0.accent || $0.consumed }
@@ -1679,12 +1844,15 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     override func accessibilityScroll(_ direction: UIAccessibilityScrollDirection) -> Bool {
         guard !isToolbarOnly, direction == .left || direction == .right else { return super.accessibilityScroll(direction) }
-        showPage(toolPage.moved(by: direction == .left ? 1 : -1))
+        showPage(toolPage.moved(by: direction == .left ? 1 : -1, in: toolPages))
         return true
     }
     @objc private func changePreset() {
         guard Model.Preset.allCases.indices.contains(presets.selectedSegmentIndex) else { return }
         preset = Model.Preset.allCases[presets.selectedSegmentIndex]
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        loadedDictationPane?.agentHint = preset == .agent
+        #endif
         drawer.contentOffset = .zero
         rebuildDrawer()
     }
@@ -1713,6 +1881,27 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         writingAssistanceButton.menu = writingAssistanceMenu()
     }
 
+    private var keyboardSwitchCap: TerminalTouchKeycap? {
+        rows.last?.first { $0.key.action == .switchKeyboard }
+    }
+
+    private func pressKeyboardSwitch(_ pressed: Bool) {
+        keyboardSwitchCap?.pressed = pressed
+        guard pressed else { return }
+        feedback()
+        if clickSoundEnabled { TerminalTouchKeyClick.shared.play(keyboardStyle.clickProfile) }
+    }
+
+    private func keyboardStyleMenuItems() -> [UIMenuElement] {
+        let current = keyboardStyle
+        return Model.Style.allCases.map { style in
+            UIAction(title: style.displayName, state: style == current ? .on : .off) { _ in
+                guard SettingsStore.shared.value(Settings.Keyboard.touchStyle) != style else { return }
+                SettingsStore.shared.set(Settings.Keyboard.touchStyle, style)
+            }
+        }
+    }
+
     private func writingAssistanceMenu() -> UIMenu {
         func toggle(_ setting: SettingKey<Bool>, title: String, icon: String) -> UIAction {
             UIAction(title: title, image: UIImage(systemName: icon),
@@ -1734,6 +1923,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         drawerColumns = toolPage == .symbols ? 8 : 4
         switch toolPage {
         case .typing: break
+        case .dictation: configureDictationPane()
         case .symbols:
             for char in "`~^_\\|[]{}<>/=-\"';:()@$%&*+?!#" {
                 let text = String(char)

@@ -71,43 +71,59 @@ nonisolated enum TerminalTouchKeyboardModel {
         }
     }
 
-    /// Docked keyboard height. Every size but `full` extends into the bottom safe area.
+    /// Docked keyboard height, tallest first. Every size but `extraLarge` extends
+    /// into the bottom safe area. Raw values are the persisted pre-rename names.
     enum Height: String, CaseIterable, Sendable {
-        case full, compact, shorter, shortest
+        case extraLarge = "full"
+        case large = "compact"
+        case medium = "shorter"
+        case small = "shortest"
+        case extraSmall
 
         var displayName: String {
             switch self {
-            case .full: String(localized: "Full", comment: "Terminal keyboard height")
-            case .compact: String(localized: "Compact", comment: "Terminal keyboard height")
-            case .shorter: String(localized: "Shorter", comment: "Terminal keyboard height")
-            case .shortest: String(localized: "Shortest", comment: "Terminal keyboard height")
+            case .extraLarge: String(localized: "Extra Large", comment: "Terminal keyboard height")
+            case .large: String(localized: "Large", comment: "Terminal keyboard height")
+            case .medium: String(localized: "Medium", comment: "Terminal keyboard height")
+            case .small: String(localized: "Small", comment: "Terminal keyboard height")
+            case .extraSmall: String(localized: "Extra Small", comment: "Terminal keyboard height")
             }
         }
 
-        var usesBottomSafeArea: Bool { self != .full }
+        var usesBottomSafeArea: Bool { self != .extraLarge }
+
+        /// Positive steps shrink the keyboard. Clamps at both ends.
+        func stepped(by offset: Int) -> Self {
+            let all = Self.allCases
+            let index = min(max(all.firstIndex(of: self)! + offset, 0), all.count - 1)
+            return all[index]
+        }
 
         func rowHeight(verticallyCompact: Bool, pad: Bool) -> CGFloat {
             switch self {
-            case .full, .compact: verticallyCompact ? 40 : (pad ? 60 : 54)
-            case .shorter: verticallyCompact ? 36 : (pad ? 52 : 47)
-            case .shortest: verticallyCompact ? 32 : (pad ? 46 : 41)
+            case .extraLarge, .large: verticallyCompact ? 40 : (pad ? 60 : 54)
+            case .medium: verticallyCompact ? 36 : (pad ? 52 : 47)
+            case .small: verticallyCompact ? 32 : (pad ? 46 : 41)
+            case .extraSmall: verticallyCompact ? 29 : (pad ? 40 : 36)
             }
         }
 
         /// Main toolbar row, before any drawer rows.
         var toolbarRowHeight: CGFloat {
             switch self {
-            case .full, .compact: 48
-            case .shorter: 42
-            case .shortest: 38
+            case .extraLarge, .large: 48
+            case .medium: 42
+            case .small: 38
+            case .extraSmall: 34
             }
         }
 
         var toolbarDrawerRowHeight: CGFloat {
             switch self {
-            case .full, .compact: 44
-            case .shorter: 40
-            case .shortest: 36
+            case .extraLarge, .large: 44
+            case .medium: 40
+            case .small: 36
+            case .extraSmall: 33
             }
         }
     }
@@ -482,20 +498,27 @@ nonisolated enum TerminalTouchKeyboardModel {
     }
 
     enum ToolPage: Int, CaseIterable {
-        case typing, symbols, navigation, shortcuts
+        case typing, dictation, symbols, navigation, shortcuts
 
         var title: String {
             switch self {
             case .typing: return String(localized: "Keyboard")
+            case .dictation: return String(localized: "Dictation")
             case .symbols: return String(localized: "Symbols")
             case .navigation: return String(localized: "Navigation")
             case .shortcuts: return String(localized: "Shortcuts")
             }
         }
 
-        func moved(by offset: Int) -> Self {
-            let count = Self.allCases.count
-            return Self(rawValue: (rawValue + offset % count + count) % count)!
+        /// Pages in swipe order; Dictation only when the feature is available and on.
+        static func pages(dictation: Bool) -> [Self] {
+            dictation ? allCases : allCases.filter { $0 != .dictation }
+        }
+
+        func moved(by offset: Int, in pages: [Self] = Self.allCases) -> Self {
+            guard let index = pages.firstIndex(of: self) else { return .typing }
+            let count = pages.count
+            return pages[(index + offset % count + count) % count]
         }
     }
 
@@ -505,6 +528,11 @@ nonisolated enum TerminalTouchKeyboardModel {
         guard abs(translation.x) >= 70, abs(translation.x) > abs(translation.y) * 2,
               abs(translation.x) >= 300 * max(0, duration) else { return nil }
         return translation.x < 0 ? 1 : -1
+    }
+
+    /// The vertical counterpart of `pageSwipe`: down shrinks (+1), up grows (-1).
+    static func heightSwipe(translation: CGPoint, duration: TimeInterval) -> Int? {
+        pageSwipe(translation: CGPoint(x: translation.y, y: translation.x), duration: duration).map { -$0 }
     }
 
     /// A letter this recent means the user is mid-word (LatinIME's 350ms).

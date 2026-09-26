@@ -27,8 +27,21 @@ nonisolated struct StorageProviderPreset: Identifiable, Hashable, Sendable {
     /// rather than the endpoint's region.
     var signingRegion: String? = nil
 
+    /// Favicon domain when the endpoint host isn't known ahead of time.
+    var websiteDomain: String? = nil
+
     var requiresCustomEndpoint: Bool { endpointTemplate == nil && !isAWS }
     var showsRegion: Bool { regions.count != 1 }
+
+    /// Favicon domain for the service as a whole, before any account details.
+    var faviconDomain: String? {
+        if isAWS { return StorageFaviconDomains.domain(forEndpointHost: "s3.amazonaws.com") }
+        guard let endpointTemplate else { return websiteDomain }
+        let host = endpointTemplate
+            .replacingOccurrences(of: "{region}", with: defaultRegion)
+            .replacingOccurrences(of: "{account}", with: "account")
+        return StorageFaviconDomains.domain(forEndpointHost: host)
+    }
 
     static func preset(for id: String) -> StorageProviderPreset {
         all.first { $0.id == id } ?? custom
@@ -150,8 +163,65 @@ nonisolated struct StorageProviderPreset: Identifiable, Hashable, Sendable {
         ),
         StorageProviderPreset(
             id: "idrive", name: "IDrive e2", endpointTemplate: nil,
-            regions: [], defaultRegion: "us-east-1", addressing: .path
+            regions: [], defaultRegion: "us-east-1", addressing: .path, websiteDomain: "idrive.com"
         ),
         custom,
     ]
+}
+
+/// S3 API hosts answer every path, favicon included, with an XML error, so
+/// known endpoint domains map to their operator's website instead.
+nonisolated enum StorageFaviconDomains {
+    /// Endpoint domain suffix → website domain with a fetchable favicon. A label
+    /// ending in `*` matches by prefix (IDrive numbers its e2 domains).
+    static let fallbacks: [(endpoint: String, website: String)] = [
+        ("amazonaws.com", "aws.amazon.com"),
+        ("amazonaws.com.cn", "aws.amazon.com"),
+        ("cloudflarestorage.com", "cloudflare.com"),
+        ("backblazeb2.com", "backblaze.com"),
+        ("wasabisys.com", "wasabi.com"),
+        ("digitaloceanspaces.com", "digitalocean.com"),
+        ("linodeobjects.com", "akamai.com"),
+        ("storage.googleapis.com", "cloud.google.com"),
+        ("your-objectstorage.com", "hetzner.com"),
+        ("scw.cloud", "scaleway.com"),
+        ("cloud.ovh.net", "ovhcloud.com"),
+        ("exo.io", "exoscale.com"),
+        ("vultrobjects.com", "vultr.com"),
+        ("oraclecloud.com", "oracle.com"),
+        ("appdomain.cloud", "ibm.com"),
+        ("contabostorage.com", "contabo.com"),
+        ("synologyc2.net", "synology.com"),
+        ("storjshare.io", "docs.storj.io"),
+        ("filebase.com", "console.filebase.com"),
+        ("storageapi.dev", "tigrisdata.com"),
+        ("tigris.dev", "tigrisdata.com"),
+        ("idrivee2-*.com", "idrive.com"),
+        ("aliyuncs.com", "alibabacloud.com"),
+        ("myqcloud.com", "tencentcloud.com"),
+    ]
+
+    /// The domain to fetch a favicon from for an endpoint host, or nil for
+    /// addresses with no public website (IPs, single-label and `.local` names).
+    static func domain(forEndpointHost host: String) -> String? {
+        let host = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]."))
+        guard host.contains("."), !host.hasSuffix(".local"), !isIPAddress(host) else { return nil }
+        let labels = host.split(separator: ".")
+        for fallback in fallbacks where matches(labels, fallback.endpoint) {
+            return fallback.website
+        }
+        return host
+    }
+
+    private static func matches(_ hostLabels: [Substring], _ pattern: String) -> Bool {
+        let patternLabels = pattern.split(separator: ".")
+        guard hostLabels.count >= patternLabels.count else { return false }
+        return zip(hostLabels.suffix(patternLabels.count), patternLabels).allSatisfy { label, patternLabel in
+            patternLabel.hasSuffix("*") ? label.hasPrefix(patternLabel.dropLast()) : label == patternLabel
+        }
+    }
+
+    private static func isIPAddress(_ host: String) -> Bool {
+        host.contains(":") || host.allSatisfy { $0.isNumber || $0 == "." }
+    }
 }

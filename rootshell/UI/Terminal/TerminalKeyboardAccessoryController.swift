@@ -170,6 +170,13 @@ final class TerminalKeyboardAccessoryController: NSObject {
         host?.keyboardIsFirstResponder == true && usesFullTouchKeyboard
     }
 
+    /// Shows the keyboard's Dictation page and starts listening, when the full
+    /// terminal keyboard is on screen. Otherwise the caller opens the HUD.
+    func openTouchKeyboardDictation() -> Bool {
+        guard touchKeyboardIsActive, let touchKeyboard else { return false }
+        return touchKeyboard.beginDictation()
+    }
+
     func handleTouchKeyboardEvent(_ event: TerminalTouchKeyboardEvent) {
         switch event {
         case .modifiersChanged(let modifiers):
@@ -492,6 +499,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     func cancelTouchKeyboardInteraction() {}
     func dismissFloatingTouchKeyboard() {}
     func scheduleFloatingTouchKeyboardUpdate() {}
+    func openTouchKeyboardDictation() -> Bool { false }
     private func configureTouchKeyboard(delegate: KeyboardButtonDelegate) {}
     #endif
 

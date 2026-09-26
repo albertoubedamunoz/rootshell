@@ -102,7 +102,8 @@ private struct StorageProviderRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            SettingsIcon(systemName: "externaldrive.connected.to.line.below")
+            FaviconIcon(domain: provider.faviconDomain, fallbackSymbol: FileEndpoint.storageSymbol)
+                .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(provider.displayName)
                 Text([provider.preset.name, provider.effectiveBucket].compactMap { $0 }.joined(separator: " · "))
@@ -146,7 +147,12 @@ struct StorageProviderEditView: View {
                 NavigationLink {
                     StorageServicePicker(selection: $draft.presetID)
                 } label: {
-                    Text(preset.name)
+                    HStack(spacing: 12) {
+                        // The preset's domain, so typing an endpoint doesn't fetch per keystroke.
+                        FaviconIcon(domain: preset.faviconDomain, fallbackSymbol: FileEndpoint.storageSymbol)
+                            .frame(width: 28, height: 28)
+                        Text(preset.name)
+                    }
                 }
                 .themedRow()
                 labeledRow(String(localized: "Name", comment: "Storage provider field")) {
@@ -381,7 +387,9 @@ private struct StorageServicePicker: View {
                     selection = preset.id
                     dismiss()
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
+                        FaviconIcon(domain: preset.faviconDomain, fallbackSymbol: FileEndpoint.storageSymbol)
+                            .frame(width: 28, height: 28)
                         Text(preset.name)
                             .foregroundStyle(.primary)
                         Spacer()
