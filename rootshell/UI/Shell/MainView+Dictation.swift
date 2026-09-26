@@ -9,18 +9,18 @@ extension MainView {
         return terminals[selectedTabIndex].focusedTerminal
     }
 
-    /// First press opens the HUD and starts listening; later presses stop or
-    /// restart listening. The HUD closes from its own button or Escape.
+    /// First press opens the HUD and starts listening; a second press dismisses
+    /// it, like the other HUDs. Dismissal stops listening via `onChange`.
     func toggleDictationHUD(from terminal: Ghostty.TerminalView?) {
+        if showDictationHUD {
+            showDictationHUD = false
+            return
+        }
         let controller = DictationController.shared
         let terminal = terminal ?? (terminals.indices.contains(selectedTabIndex) ? terminals[selectedTabIndex].focusedTerminal : nil)
         let target: DictationTarget? = terminal
-        if showDictationHUD, controller.isActive {
-            controller.stop()
-            return
-        }
         // Keybinds arrive here directly; prefer the keyboard's page when it is showing.
-        if !showDictationHUD, terminal?.keyboardAccessoryController?.openTouchKeyboardDictation() == true { return }
+        if terminal?.keyboardAccessoryController?.openTouchKeyboardDictation() == true { return }
         showDictationHUD = true
         guard let target, controller.modelReady, !controller.isActive else { return }
         controller.dismissError()

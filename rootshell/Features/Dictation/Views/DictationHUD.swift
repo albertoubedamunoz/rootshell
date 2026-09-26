@@ -77,18 +77,17 @@ private struct DictationPanel: View {
                     ForEach(DictationCommitMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
             } label: {
-                Image(systemName: "slider.horizontal.3").font(.title3)
+                Image(systemName: "slider.horizontal.3").font(.title3).foregroundStyle(.secondary)
             }
             .menuIndicator(.hidden)
             .fixedSize()
             .accessibilityLabel(Text("Dictation Options"))
             Button { isPresented = false } label: {
-                Image(systemName: "xmark.circle.fill").font(.title2)
+                Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.secondary)
             }
             .accessibilityLabel(Text("Close Dictation", comment: "Dictation HUD close button"))
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 10)
@@ -184,13 +183,13 @@ private struct DictationPanel: View {
                     .disabled(!hasPreview)
                 Button("Run") { commit(submit: true) }
                     .keyboardShortcut(.return, modifiers: .command)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(DictationHUDButtonStyle(prominent: true))
                     .disabled(!hasPreview)
             } else {
                 Button("Return") { controller.submit(to: target()) }
             }
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(DictationHUDButtonStyle(prominent: false))
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
@@ -268,6 +267,24 @@ private struct DictationPanel: View {
             }
         }
         .padding(16)
+    }
+}
+
+/// Stock bordered styles turn flat grey on glass when disabled; this keeps the
+/// look and dims instead, matching the keyboard's Dictation page.
+private struct DictationHUDButtonStyle: ButtonStyle {
+    let prominent: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(prominent ? .semibold : .regular))
+            .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+            .padding(.horizontal, 12)
+            .frame(minWidth: 32, minHeight: 28)
+            .background(prominent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary.opacity(0.08)), in: Capsule())
+            .contentShape(Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
     }
 }
 #endif
