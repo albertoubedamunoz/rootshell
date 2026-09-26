@@ -176,6 +176,10 @@ extension Ghostty.TerminalView {
         }
     }
 
+    var supportsHerdrPaneGeometry: Bool {
+        herdrPaneController?.mode == .raw && herdrPaneController?.capabilities.supports(.paneGeometry) == true
+    }
+
     /// Cells the tab really has when another client sized it; the split host
     /// lays the tree out in that rectangle instead of our container.
     var herdrForeignAreaCells: (cols: Int, rows: Int)? {

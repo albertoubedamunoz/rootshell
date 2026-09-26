@@ -24,6 +24,7 @@ nonisolated struct HerdrServerCapabilities: Equatable, Sendable {
         case eventGap = "event_gap"
         /// `terminal.input` accepts `auto` for a terminal's own replies.
         case autoInput = "auto_input"
+        case paneGeometry = "pane_geometry"
     }
 
     /// `terminal_control_stream`; 0 when the server has no control stream.
@@ -51,7 +52,7 @@ nonisolated struct HerdrServerCapabilities: Equatable, Sendable {
     var hasControlStream: Bool { streamProtocol >= HerdrControl.requiredStreamProtocol }
 
     func supports(_ feature: Feature) -> Bool {
-        streamProtocol >= HerdrControl.preferredStreamProtocol && features.contains(feature.rawValue)
+        streamProtocol >= (feature == .paneGeometry ? 3 : 2) && features.contains(feature.rawValue)
     }
 
     /// Several clients on one tab, with the server tracking who sizes it.

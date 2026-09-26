@@ -294,7 +294,8 @@ final class SplitTreeHostingView: UIView {
             // The zoomed herdr pane's live grid fills the whole tab. Applying
             // it to the preview would cover the hidden panes' number targets.
             slotFrame(for: $0, node: root, in: layoutBounds, layoutBounds: layoutBounds,
-                      usePaneGrid: tree?.zoomed == nil)
+                      usePaneGrid: tree?.zoomed == nil,
+                      projection: tree?.zoomed == nil ? herdrViewingLayout(for: root) : nil)
         }
         guard frames.count == paneZoomPickerPanes.count else {
             dismissPaneZoomPicker()
@@ -356,10 +357,9 @@ final class SplitTreeHostingView: UIView {
 
     private var dividerViews: [SplitDividerHandleView] = []
     private var dividerReuseIndex: Int = 0
-    /// Split ratio when a divider drag began, per divider. The tree is
-    /// rewritten on every move, so the node at release only knows the last
-    /// step; herdr needs the whole delta.
-    private var dragStartRatios: [ObjectIdentifier: Double] = [:]
+    /// Capture the starting coordinates even if a layout pass reconfigures a
+    /// handle during the gesture. Projected drags never rewrite the split tree.
+    private var dividerDrags: [ObjectIdentifier: HerdrGeometry.DividerDrag] = [:]
 
     private var borderEligibility: [ObjectIdentifier: Bool] = [:]
 
@@ -554,11 +554,13 @@ final class SplitTreeHostingView: UIView {
         }()
         // Keep herdr's divider positions on the negotiated grid. Outer pane
         // drawables extend through the remainder to our full bounds below.
-        let layoutRect = (renderingSplit ? (contentRect ?? herdrSnapRect()) : nil) ?? bounds
+        let projection = herdrViewingLayout(for: rootNode)
+        let layoutRect = projection.map { CGRect(origin: bounds.origin, size: $0.size) }
+            ?? (renderingSplit ? (contentRect ?? herdrSnapRect()) : nil) ?? bounds
 
         var usedTerminals = Set<ObjectIdentifier>()
         layout(node: rootNode, in: layoutRect, layoutBounds: layoutRect,
-               isRoot: rootNode == tree.root, usedTerminals: &usedTerminals)
+               isRoot: rootNode == tree.root, projection: projection, usedTerminals: &usedTerminals)
         cleanupTerminalViews(keeping: usedTerminals)
         hideUnusedDividers(from: dividerReuseIndex)
         hasCompletedHerdrLayout = true
@@ -670,8 +672,22 @@ final class SplitTreeHostingView: UIView {
               hasLaidOutHerdrPane(pane), !pane.suppressPTYSizeUpdates,
               let size = pane.surfaceSize, size.cell_width_px > 0, size.cell_height_px > 0,
               let cells = tmuxWindowCells() else { return nil }
-        return .init(cols: Int(cells.cols), rows: Int(cells.rows),
+        var geometry = HerdrTabGeometryState.Size(cols: Int(cells.cols), rows: Int(cells.rows),
                      cellWidth: Int(size.cell_width_px), cellHeight: Int(size.cell_height_px))
+        if pane.supportsHerdrPaneGeometry, let root = tree.zoomed ?? tree.root {
+            for terminal in tree.terminalLeaves where hasLaidOutHerdrPane(terminal) {
+                guard let binding = terminal.herdrPaneBinding,
+                      let metrics = terminal.surfaceSize,
+                      let slot = slotFrame(for: terminal, node: root, in: bounds, layoutBounds: bounds, usePaneGrid: false)
+                else { continue }
+                let scale = terminal.contentScaleFactor > 0 ? terminal.contentScaleFactor : terminal.traitCollection.displayScale
+                geometry.panes[binding.paneId] = HerdrGeometry.paneGrid(
+                    slot: slot.size, chrome: terminal.herdrLayoutChrome,
+                    cellPixels: CGSize(width: CGFloat(metrics.cell_width_px), height: CGFloat(metrics.cell_height_px)),
+                    scale: scale)
+            }
+        }
+        return geometry
     }
 
     /// Surface creation can call back from insertSubview before the wrapper
@@ -756,15 +772,52 @@ final class SplitTreeHostingView: UIView {
         return tree.terminalLeaves.first(where: { $0.isMultiplexerPane })
     }
 
+    /// Project a foreign independent-grid layout using each local surface's
+    /// font. Keep the stored split tree unchanged: it also measures the size
+    /// we would request when taking ownership.
+    private func herdrViewingLayout(for node: SplitTree<SplitPaneView>.Node) -> HerdrGeometry.ViewingLayout? {
+        guard let pane = node.leftmostLeaf().asTerminal,
+              pane.supportsHerdrPaneGeometry, pane.herdrForeignAreaCells != nil else { return nil }
+        func project(_ node: SplitTree<SplitPaneView>.Node) -> HerdrGeometry.ViewingLayout? {
+            switch node {
+            case .leaf(let view):
+                guard let terminal = view.asTerminal, let grid = terminal.herdrTargetGrid,
+                      let metrics = terminal.surfaceSize,
+                      metrics.cell_width_px > 0, metrics.cell_height_px > 0 else { return nil }
+                let scale = terminal.contentScaleFactor > 0 ? terminal.contentScaleFactor : terminal.traitCollection.displayScale
+                guard scale > 0 else { return nil }
+                let chrome = terminal.herdrLayoutChrome
+                // Slots use integral point bounds below. Round before packing,
+                // so a fractional cell cannot expand across its neighbour.
+                return .pane(CGSize(
+                    width: ceil(HerdrGeometry.requiredExtent(cells: grid.cols, cellPixels: metrics.cell_width_px,
+                        chrome: chrome.width, scale: scale)),
+                    height: ceil(HerdrGeometry.requiredExtent(cells: grid.rows, cellPixels: metrics.cell_height_px,
+                        chrome: chrome.height, scale: scale))))
+            case .split(let split):
+                guard let first = project(split.left), let second = project(split.right) else { return nil }
+                return .joining(first, second, horizontal: split.direction == .horizontal,
+                                divider: Self.dividerVisibleThickness)
+            }
+        }
+        return project(node)
+    }
+
     /// Whole-cell bounds for herdr's split ratios and dividers. This is not
     /// the drawable boundary: outer panes retain the viewport's remainder.
     private func herdrSnapRect() -> CGRect? {
+        if let root = tree?.zoomed ?? tree?.root, let projection = herdrViewingLayout(for: root) {
+            return CGRect(origin: bounds.origin, size: projection.size)
+        }
         guard let tree,
               let rootNode = tree.zoomed ?? tree.root,
               let pane = multiplexerMetricPane(in: tree), pane.isHerdrPane,
               let size = pane.surfaceSize,
               size.cell_width_px > 0, size.cell_height_px > 0
         else { return nil }
+        // Independent grids are measured from full native slots. Retain the
+        // server's cell-space projection only while another client owns it.
+        if pane.supportsHerdrPaneGeometry, pane.herdrForeignAreaCells == nil { return nil }
         // Raw v2 panes retain the committed layout during local resizing,
         // including when this client owns geometry. Ratios must not squeeze
         // the old grid into the new viewport before tab.layout arrives.
@@ -793,6 +846,9 @@ final class SplitTreeHostingView: UIView {
     /// Frost the margin outside a tab another herdr client sized at least a
     /// cell smaller than this container, as the tmux dead margin does.
     private func herdrForeignMargin() -> CGRect? {
+        if let root = tree?.zoomed ?? tree?.root, let projection = herdrViewingLayout(for: root) {
+            return CGRect(origin: bounds.origin, size: projection.size).intersection(bounds)
+        }
         guard let tree, let pane = multiplexerMetricPane(in: tree), pane.isHerdrPane,
               let foreign = pane.herdrForeignAreaCells, let budget = tmuxWindowCells(),
               foreign.cols < Int(budget.cols) || foreign.rows < Int(budget.rows),
@@ -1040,6 +1096,7 @@ final class SplitTreeHostingView: UIView {
         in bounds: CGRect,
         layoutBounds: CGRect,
         isRoot: Bool,
+        projection: HerdrGeometry.ViewingLayout?,
         usedTerminals: inout Set<ObjectIdentifier>
     ) {
         switch node {
@@ -1058,16 +1115,19 @@ final class SplitTreeHostingView: UIView {
 
         case .split(let split):
             let ratio = CGFloat(split.ratio).clamped(to: 0...1)
-            let (leftBounds, rightBounds, dividerFrame) = frames(
+            let (leftBounds, rightBounds, dividerFrame) = projection?.frames(at: bounds.origin, divider: Self.dividerVisibleThickness) ?? frames(
                 for: bounds,
                 ratio: ratio,
                 direction: split.direction
             )
 
+            let children: (HerdrGeometry.ViewingLayout?, HerdrGeometry.ViewingLayout?)
+            if let projection, case let .split(_, _, first, second) = projection { children = (first, second) }
+            else { children = (nil, nil) }
             layout(node: split.left, in: leftBounds, layoutBounds: layoutBounds,
-                   isRoot: false, usedTerminals: &usedTerminals)
+                   isRoot: false, projection: children.0, usedTerminals: &usedTerminals)
             layout(node: split.right, in: rightBounds, layoutBounds: layoutBounds,
-                   isRoot: false, usedTerminals: &usedTerminals)
+                   isRoot: false, projection: children.1, usedTerminals: &usedTerminals)
             var dividerBounds = bounds
             if split.left.leftmostLeaf().asTerminal?.isHerdrPane == true {
                 let expanded = HerdrGeometry.extendingTrailingEdges(bounds, layout: layoutBounds, viewport: self.bounds)
@@ -1078,7 +1138,14 @@ final class SplitTreeHostingView: UIView {
                 case .vertical: dividerBounds.size.width = expanded.width
                 }
             }
-            addDivider(for: node, direction: split.direction, visibleFrame: dividerFrame, parentBounds: dividerBounds)
+            let displayRatio: Double? = projection.map { _ in
+                switch split.direction {
+                case .horizontal: return Double((dividerFrame.midX - dividerBounds.minX) / dividerBounds.width)
+                case .vertical: return Double((dividerFrame.midY - dividerBounds.minY) / dividerBounds.height)
+                }
+            }
+            addDivider(for: node, direction: split.direction, visibleFrame: dividerFrame,
+                       parentBounds: dividerBounds, displayRatio: displayRatio)
         }
     }
 
@@ -1133,21 +1200,30 @@ final class SplitTreeHostingView: UIView {
             return false
         }()
         // Match the drawable expansion used by layout(node:in:...).
-        let layoutRect = (renderingSplit ? (contentRect ?? herdrSnapRect()) : nil) ?? bounds
-        return slotFrame(for: pane, node: rootNode, in: layoutRect, layoutBounds: layoutRect)
+        let projection = herdrViewingLayout(for: rootNode)
+        let layoutRect = projection.map { CGRect(origin: bounds.origin, size: $0.size) }
+            ?? (renderingSplit ? (contentRect ?? herdrSnapRect()) : nil) ?? bounds
+        return slotFrame(for: pane, node: rootNode, in: layoutRect, layoutBounds: layoutRect, projection: projection)
     }
 
     private func slotFrame(for pane: SplitPaneView, node: SplitTree<SplitPaneView>.Node,
-                           in bounds: CGRect, layoutBounds: CGRect, usePaneGrid: Bool = true) -> CGRect? {
+                           in bounds: CGRect, layoutBounds: CGRect, usePaneGrid: Bool = true,
+                           projection: HerdrGeometry.ViewingLayout? = nil) -> CGRect? {
         switch node {
         case .leaf(let leaf):
             guard leaf === pane else { return nil }
             return usePaneGrid ? herdrPaneFrame(bounds.integral, layoutBounds: layoutBounds, for: leaf) : bounds.integral
         case .split(let split):
             let ratio = CGFloat(split.ratio).clamped(to: 0...1)
-            let (leftBounds, rightBounds, _) = frames(for: bounds, ratio: ratio, direction: split.direction)
-            return slotFrame(for: pane, node: split.left, in: leftBounds, layoutBounds: layoutBounds, usePaneGrid: usePaneGrid)
-                ?? slotFrame(for: pane, node: split.right, in: rightBounds, layoutBounds: layoutBounds, usePaneGrid: usePaneGrid)
+            let (leftBounds, rightBounds, _) = projection?.frames(at: bounds.origin, divider: Self.dividerVisibleThickness)
+                ?? frames(for: bounds, ratio: ratio, direction: split.direction)
+            let children: (HerdrGeometry.ViewingLayout?, HerdrGeometry.ViewingLayout?)
+            if let projection, case let .split(_, _, first, second) = projection { children = (first, second) }
+            else { children = (nil, nil) }
+            return slotFrame(for: pane, node: split.left, in: leftBounds, layoutBounds: layoutBounds,
+                             usePaneGrid: usePaneGrid, projection: children.0)
+                ?? slotFrame(for: pane, node: split.right, in: rightBounds, layoutBounds: layoutBounds,
+                             usePaneGrid: usePaneGrid, projection: children.1)
         }
     }
 
@@ -1310,7 +1386,8 @@ final class SplitTreeHostingView: UIView {
         for node: SplitTree<SplitPaneView>.Node,
         direction: SplitTree<SplitPaneView>.Direction,
         visibleFrame: CGRect,
-        parentBounds: CGRect
+        parentBounds: CGRect,
+        displayRatio: Double? = nil
     ) {
         let dividerView = dequeueDivider()
         dividerView.configure(
@@ -1323,23 +1400,34 @@ final class SplitTreeHostingView: UIView {
             minSplitSize: minSplitSize,
             color: dividerColor
         )
+        if let drag = dividerDrags[ObjectIdentifier(dividerView)], drag.isProjected {
+            dividerView.previewProjectedDrag(offset: drag.previewOffset(horizontal: direction == .horizontal))
+        }
 
         dividerView.onResize = { [weak self, weak dividerView] node, ratio in
-            guard let self else { return }
-            if let dividerView, case .split(let split) = node,
-               self.dragStartRatios[ObjectIdentifier(dividerView)] == nil {
-                self.dragStartRatios[ObjectIdentifier(dividerView)] = split.ratio
+            guard let self, let dividerView, case .split(let split) = node else { return }
+            let id = ObjectIdentifier(dividerView)
+            var drag = self.dividerDrags[id] ?? HerdrGeometry.DividerDrag(
+                layoutRatio: split.ratio, displayRatio: displayRatio, parentBounds: dividerView.parentBounds)
+            drag.update(ratio: ratio)
+            self.dividerDrags[id] = drag
+            if let layoutRatio = drag.localLayoutRatio {
+                self.onResize?(node, layoutRatio)
+            } else {
+                // Show the intended movement without changing ownership
+                // measurements or resizing terminals ahead of the server.
+                dividerView.previewProjectedDrag(offset: drag.previewOffset(horizontal: split.direction == .horizontal))
             }
-            self.onResize?(node, ratio)
         }
         dividerView.onResizeEnd = { [weak self, weak dividerView] node, ratio in
             guard let self else { return }
-            let startRatio = dividerView.flatMap { self.dragStartRatios.removeValue(forKey: ObjectIdentifier($0)) }
+            let drag = dividerView.flatMap { self.dividerDrags.removeValue(forKey: ObjectIdentifier($0)) }
+            dividerView?.previewProjectedDrag(offset: 0)
             self.commitDividerToTmux(
                 node: node,
                 ratio: ratio,
-                startRatio: startRatio,
-                parentBounds: dividerView?.parentBounds
+                startRatio: drag?.startRatio,
+                parentBounds: drag?.parentBounds ?? dividerView?.parentBounds
             )
         }
         dividerView.onTouchTap = { [weak self] in
@@ -1494,6 +1582,7 @@ private final class SplitDividerHandleView: UIView {
     private(set) var parentBounds: CGRect = .zero
     private var minSplitSize: CGFloat = 100
     private var visibleThickness: CGFloat = 2
+    private var dragBounds: CGRect?
 
     private let visibleLine = UIView()
 
@@ -1570,6 +1659,7 @@ private final class SplitDividerHandleView: UIView {
     }
 
     private func updateVisibleLine(color: UIColor) {
+        visibleLine.transform = .identity
         visibleLine.backgroundColor = color
         switch direction {
         case .horizontal:
@@ -1590,17 +1680,27 @@ private final class SplitDividerHandleView: UIView {
         }
     }
 
+    /// Only the marker moves while a foreign grid remains committed. The pan
+    /// recognizer stays on its original handle until the gesture finishes.
+    func previewProjectedDrag(offset: CGFloat) {
+        visibleLine.transform = direction == .horizontal
+            ? CGAffineTransform(translationX: offset, y: 0)
+            : CGAffineTransform(translationX: 0, y: offset)
+    }
+
     @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
         guard let node else { return }
         guard let superview = superview else { return }
 
         let location = recognizer.location(in: superview)
+        if dragBounds == nil { dragBounds = parentBounds }
         let ratio = ratio(for: location)
         onResize?(node, ratio)
 
         switch recognizer.state {
         case .ended, .cancelled, .failed:
             onResizeEnd?(node, ratio)
+            dragBounds = nil
         default:
             break
         }
@@ -1616,6 +1716,7 @@ private final class SplitDividerHandleView: UIView {
     }
 
     private func ratio(for point: CGPoint) -> Double {
+        let parentBounds = dragBounds ?? self.parentBounds
         switch direction {
         case .horizontal:
             return ratio(
