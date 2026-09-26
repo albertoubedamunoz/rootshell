@@ -46,6 +46,12 @@ final class TerminalTouchFlatKeycap: TerminalTouchKeycap {
         let iconSize = CGSize(width: min(24, max(0, plate.bounds.width - 8)), height: min(23, max(0, plate.bounds.height - 6)))
         icon.frame = CGRect(x: (plate.bounds.width - iconSize.width) / 2, y: (plate.bounds.height - iconSize.height) / 2,
                             width: iconSize.width, height: iconSize.height)
+        if toolbarKey {
+            // Short titles like "~" read at icon size; text shrinks with the icon box.
+            let preferred: CGFloat = key.title.count <= 4 ? 17 : 13
+            let size = max(10, (preferred * iconSize.height / 23).rounded())
+            if label.font.pointSize != size { label.font = .systemFont(ofSize: size, weight: .medium) }
+        }
     }
     override func updateColor() {
         let character: Bool = { if case .text = key.action { return true }; return false }()
@@ -110,8 +116,8 @@ final class TerminalTouchFlatKeyPreview: TerminalTouchKeyPreview {
     }
 }
 
-/// Preserve main's standard UIKit drawer buttons, including their tinted fill
-/// and transparent toolbar treatment. The keycap carries shared modifier state.
+/// Page drawers keep main's standard UIKit buttons with their tinted fill.
+/// Toolbar drawers draw the main toolbar row's keycap so both scale alike.
 final class TerminalTouchFlatDrawerButton: TerminalTouchDrawerButton {
     private let toolbar: Bool
     private let subtitle: String?
@@ -123,32 +129,55 @@ final class TerminalTouchFlatDrawerButton: TerminalTouchDrawerButton {
         self.subtitle = subtitle
         super.init(keycap: TerminalTouchFlatKeycap(key, small: toolbar))
         keycap.palette = palette
+        if toolbar {
+            keycap.isUserInteractionEnabled = false
+            keycap.isAccessibilityElement = false
+            keycap.accessibilityElementsHidden = true
+            addSubview(keycap)
+            accessibilityTraits.insert(.keyboardKey)
+            refreshAppearance()
+            return
+        }
         lockIndicator.isUserInteractionEnabled = false
         lockIndicator.isAccessibilityElement = false
         lockIndicator.layer.cornerRadius = 1.5
         lockIndicator.isHidden = true
         addSubview(lockIndicator)
-        if toolbar { refreshAppearance() } else { updateDrawerConfiguration() }
+        updateDrawerConfiguration()
         titleLabel?.numberOfLines = 2
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        if toolbar {
+            // The drawer row insets buttons 2pt vertically; the main row's caps
+            // span the full row, so extend back out to match their plate inset.
+            keycap.frame = bounds.insetBy(dx: 0, dy: -2)
+            return
+        }
         // Match the flat keycap's underline for a locked (rather than one-shot) modifier.
         lockIndicator.frame = CGRect(x: (bounds.width - 14) / 2, y: bounds.height - 4,
                                      width: 14, height: 2.5)
         bringSubviewToFront(lockIndicator)
     }
 
+    override var isSelected: Bool {
+        didSet { if toolbar { keycap.selected = isSelected } }
+    }
+
+    override func updateContactAppearance() {
+        if toolbar { keycap.pressed = contactPressed }
+    }
+
     override func updatePalette(_ palette: TerminalTouchKeyboardPalette?) {
         super.updatePalette(palette)
-        updateDrawerConfiguration()
+        if !toolbar { updateDrawerConfiguration() }
     }
 
     override func refreshAppearance() {
         super.refreshAppearance()
-        updateDrawerConfiguration()
+        if !toolbar { updateDrawerConfiguration() }
     }
 
     private func updateDrawerConfiguration() {
@@ -173,14 +202,6 @@ final class TerminalTouchFlatDrawerButton: TerminalTouchDrawerButton {
             var output = input
             output.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
             return output
-        }
-        if toolbar {
-            config.title = keycap.icon.image == nil ? keycap.label.text : nil
-            config.image = keycap.icon.image
-            config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 17)
-            config.baseForegroundColor = palette?.toolbarInk ?? .label
-            config.baseBackgroundColor = keycap.selected
-                ? (palette?.toolbarInk ?? .label).withAlphaComponent(0.2) : .clear
         }
         configuration = config
         lockIndicator.isHidden = !keycap.locked
