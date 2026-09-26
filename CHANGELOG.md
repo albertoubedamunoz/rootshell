@@ -3,6 +3,43 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.13-156 - September 26, 2026
+
+### More Dictation Options
+
+- **On-Device Dictation:** Alongside Apple system dictation, rootshell now offers customizable on-device dictation for commands and coding-agent prompts, with multiple Parakeet models. Audio stays on your device. Enable Settings -> Terminal -> Dictation and download the speech and speech-detection models. Parakeet v3 supports 25 European languages; choose Ultra for greater accuracy, Redux for a smaller download, or v2 for English-only recognition.
+- **Quick Access:** Swipe left on rootshell's custom terminal keyboard to open Dictation, add the Dictation toolbar key, or press Option-Command-R for a floating panel. Press the shortcut again to close the panel. On Mac, it is also available from Shell -> Dictation.
+- **Preview, Live, and Hands-Free Modes:** Preview lets you review text before choosing Insert or Run. Live inserts each phrase when you pause without pressing Return. Hands-Free inserts and submits each phrase automatically, useful for conversations with a coding agent.
+- **Formatting and Vocabulary:** Command formatting turns spoken symbols such as "dash dash help" into `--help`. Prose preserves sentences and punctuation; Agent Prompt removes filler words and understands line breaks and code naming styles. Add custom vocabulary or boost terms from the terminal screen.
+
+### Custom Terminal Keyboard Improvements
+
+- **Height and Style Gestures:** Swipe up or down on the typing page to change height: Extra Large, Large, Medium, Small, or the new Extra Small. Saved heights carry over. Hold the Apple Keyboard key to choose a keyboard style.
+- **More Reliable Fast Typing:** Improved typing accuracy, with fewer dropped letters, duplicate taps, accidental toolbar presses, and unintended page swipes. Space takes longer to enter trackpad mode while typing.
+- **Haptics and Character Previews:** Stronger haptic feedback now also covers drawer, tools-page, and suggestion buttons. A new Character Preview setting lets you hide the key popup.
+- **Drawer Alignment and Backgrounds:** Toolbar drawer keys now line up with the main row. In the Flat style, their icons and text scale with keyboard height. Fixed custom keyboard backgrounds stopping above the bottom padding.
+
+### Cloud Storage Tools
+
+- **Share Links and Metadata:** Create temporary S3 share links that expire after an hour, a day, or seven days. View object details and edit headers and custom metadata from the storage info sheet.
+- **Bucket and Upload Management:** Create buckets using New Folder at the top level, delete empty buckets, and list or cancel incomplete multipart uploads. Large copies now preserve headers, metadata, and tags.
+- **S3 in the Terminal File Browser:** The `rf` terminal file browser now opens saved S3 providers from its "o" location picker. Copy and paste files between local, SFTP, and S3 tabs.
+- **Provider Icons:** Storage providers now show website icons in settings, location pickers, and file-manager pane headers.
+
+### IP Lookup
+
+- **Address and Location Lookup:** Press Shift-Command-I for an IP lookup panel with location information from your configured provider. It uses an address from your clipboard, or discovers your network's public IPv4 and IPv6 addresses.
+- **Quick Controls:** Enter another address, or press Return in an empty field to show your own. Repeat the shortcut to close.
+
+### Connection and Interface Fixes
+
+- **SSH Login Fix:** Fixed SSH connections hanging until login timeout when a server sends its welcome banner immediately.
+- **Smoother mosh Updates:** Fixed mosh timestamp handling that could make typing feedback and screen updates arrive in delayed bursts, especially after idle periods. Reordered packets no longer distort latency.
+- **Consistent Roam Prediction:** Settings -> Roam -> Default Prediction Mode now also applies to new sessions opened from connection sheets and deep links.
+- **herdr Pane Sizing:** Herdr control mode now sizes each pane for its own font, avoiding gaps with mixed font sizes and preserving shared viewing. If you run the rootshell fork of herdr, upgrade it to a version with protocol 3 pane-geometry support to use this improvement.
+- **herdr Reconnection Input:** Fixed keystrokes being dropped in herdr control mode over tssh while the connection recovers after returning from the background.
+- **Interface Performance:** Reduced unnecessary interface updates and split-pane layouts.
+
 ## 1.0.13-155 - September 24, 2026
 
 ### Cloud Storage in the File Manager
