@@ -835,6 +835,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     /// Exclude suggestion and preset rows: their original text stays on its
     /// original background, not on a style's bed or moving artwork.
+    /// These are artwork bands, not hit cells: the final band includes the
+    /// bottom safe area (or floating grabber) so row-based details reach the edge.
     private var styleBackdropBands: [CGRect] {
         var bands = [CGRect(x: 0, y: 0, width: bounds.width, height: toolbarHeight)]
         if !isToolbarOnly {
@@ -846,6 +848,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                     return CGRect(x: 0, y: first.frame.minY, width: bounds.width, height: first.frame.height)
                 }
             }
+        }
+        if let last = bands.indices.last {
+            bands[last].size.height = max(bands[last].height, bounds.maxY - bands[last].minY)
         }
         return bands
     }
