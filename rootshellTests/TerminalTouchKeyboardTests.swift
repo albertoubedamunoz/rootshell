@@ -717,6 +717,17 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertNil(Model.pageSwipe(translation: CGPoint(x: -100, y: 0), duration: 0.5), "A slow drag is not a swipe")
     }
 
+    func testHeightSwipeStepsThroughClampedHeights() {
+        XCTAssertEqual(Model.heightSwipe(translation: CGPoint(x: 10, y: 100), duration: 0.1), 1)
+        XCTAssertEqual(Model.heightSwipe(translation: CGPoint(x: -10, y: -100), duration: 0.1), -1)
+        XCTAssertNil(Model.heightSwipe(translation: CGPoint(x: 100, y: 0), duration: 0.1))
+        XCTAssertNil(Model.heightSwipe(translation: CGPoint(x: 0, y: 100), duration: 0.5), "A slow drag is not a swipe")
+        XCTAssertEqual(Model.Height.compact.stepped(by: 1), .shorter)
+        XCTAssertEqual(Model.Height.compact.stepped(by: -1), .full)
+        XCTAssertEqual(Model.Height.full.stepped(by: -1), .full)
+        XCTAssertEqual(Model.Height.shortest.stepped(by: 1), .shortest)
+    }
+
     func testBounceFilterOnlyDropsImmediateNearbyDowns() {
         let up = CGPoint(x: 100, y: 100)
         XCTAssertTrue(Model.isTouchBounce(down: CGPoint(x: 105, y: 104), at: 1.03, lastUp: up, at: 1))

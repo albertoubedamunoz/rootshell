@@ -86,6 +86,13 @@ nonisolated enum TerminalTouchKeyboardModel {
 
         var usesBottomSafeArea: Bool { self != .full }
 
+        /// Positive steps shrink the keyboard. Clamps at both ends.
+        func stepped(by offset: Int) -> Self {
+            let all = Self.allCases
+            let index = min(max(all.firstIndex(of: self)! + offset, 0), all.count - 1)
+            return all[index]
+        }
+
         func rowHeight(verticallyCompact: Bool, pad: Bool) -> CGFloat {
             switch self {
             case .full, .compact: verticallyCompact ? 40 : (pad ? 60 : 54)
@@ -505,6 +512,11 @@ nonisolated enum TerminalTouchKeyboardModel {
         guard abs(translation.x) >= 70, abs(translation.x) > abs(translation.y) * 2,
               abs(translation.x) >= 300 * max(0, duration) else { return nil }
         return translation.x < 0 ? 1 : -1
+    }
+
+    /// The vertical counterpart of `pageSwipe`: down shrinks (+1), up grows (-1).
+    static func heightSwipe(translation: CGPoint, duration: TimeInterval) -> Int? {
+        pageSwipe(translation: CGPoint(x: translation.y, y: translation.x), duration: duration).map { -$0 }
     }
 
     /// A letter this recent means the user is mid-word (LatinIME's 350ms).
