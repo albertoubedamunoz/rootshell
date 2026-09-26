@@ -143,11 +143,6 @@ struct STUNServer: Sendable {
 
     /// Default STUN servers for IPv6
     static let defaultIPv6Servers: [STUNServer] = [googleV6, cloudflareV6]
-
-    /// Convert to configuration struct
-    func toConfig() -> STUNServerConfig {
-        STUNServerConfig(host: host, port: port, addressFamily: addressFamily)
-    }
 }
 
 // MARK: - Initial Strategy
@@ -288,9 +283,6 @@ struct HolePunchConfig: Codable, Hashable, Sendable {
 // MARK: - Default Config Factory
 
 extension HolePunchConfig {
-    /// UserDefaults key for Roam hole-punch enabled setting
-    static let roamEnabledKey = "roamHolePunchEnabled"
-
     /// Configuration with hole-punch enabled in automatic mode
     static var automatic: HolePunchConfig {
         HolePunchConfig(enabled: true, mode: .automatic)

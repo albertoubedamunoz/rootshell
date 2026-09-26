@@ -151,20 +151,12 @@ final class VTEmulator: Equatable {
         }
     }
 
-    func replaceFramebuffer(_ framebuffer: VTFramebuffer) {
-        self.framebuffer = framebuffer
-    }
-
     func copy() -> VTEmulator {
         VTEmulator(
             framebuffer: framebuffer.copy(),
             dispatch: dispatch.copy(),
             user: user.copy()
         )
-    }
-
-    func resetInput() {
-        // no parser state here; handled by Complete
     }
 
     static func == (lhs: VTEmulator, rhs: VTEmulator) -> Bool {

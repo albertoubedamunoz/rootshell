@@ -130,12 +130,6 @@ final class MoshCryptoSession {
 
     // MARK: - State Management
 
-    /// Resets the crypto session state (for reconnection)
-    func reset() {
-        nonceGenerator.reset()
-        expectedIncomingSequence = 0
-    }
-
     /// Returns the current outgoing sequence number
     var currentOutgoingSequence: UInt64 {
         nonceGenerator.currentSequence

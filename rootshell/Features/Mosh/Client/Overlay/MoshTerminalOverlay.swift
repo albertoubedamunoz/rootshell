@@ -210,22 +210,18 @@ final class MoshConditionalOverlayRow {
 final class MoshNotificationEngine {
     private var lastWordFromServer: UInt64
     private var lastAckedState: UInt64
-    private var escapeKeyString: String
     private var message: String
     private var messageIsNetworkError: Bool
     private var messageExpiration: UInt64
-    private var showQuitKeystroke: Bool
     private var holePunchInProgress: Bool
 
     init() {
         let now = ProtocolTiming.monotonicNowMs()
         lastWordFromServer = now
         lastAckedState = now
-        escapeKeyString = ""
         message = ""
         messageIsNetworkError = false
         messageExpiration = UInt64.max
-        showQuitKeystroke = true
         holePunchInProgress = false
     }
 
@@ -272,16 +268,15 @@ final class MoshNotificationEngine {
             explanation = replyMessage
         }
 
-        let keystrokeStr = showQuitKeystroke ? escapeKeyString : ""
         let punchStr = holePunchInProgress ? " Punching..." : ""
 
         let stringToDraw: String
         if message.isEmpty && timeExpired {
-            stringToDraw = "roam: Last \(explanation) \(humanReadableDuration(Int(timeElapsed), secondsAbbr: "seconds")) ago.\(punchStr)\(keystrokeStr)"
+            stringToDraw = "roam: Last \(explanation) \(humanReadableDuration(Int(timeElapsed), secondsAbbr: "seconds")) ago.\(punchStr)"
         } else if !message.isEmpty && !timeExpired {
-            stringToDraw = "roam: \(message)\(punchStr)\(keystrokeStr)"
+            stringToDraw = "roam: \(message)\(punchStr)"
         } else {
-            stringToDraw = "roam: \(message) (\(humanReadableDuration(Int(timeElapsed), secondsAbbr: "s")) without \(explanation).)\(punchStr)\(keystrokeStr)"
+            stringToDraw = "roam: \(message) (\(humanReadableDuration(Int(timeElapsed), secondsAbbr: "s")) without \(explanation).)\(punchStr)"
         }
 
         var overlayCol = 0
@@ -346,7 +341,7 @@ final class MoshNotificationEngine {
         return nextExpiry > UInt64(Int.max) ? Int.max : Int(nextExpiry)
     }
 
-    func setNotificationString(_ message: String, permanent: Bool = false, showQuitKeystroke: Bool = true) {
+    func setNotificationString(_ message: String, permanent: Bool = false) {
         self.message = message
         if permanent {
             messageExpiration = UInt64.max
@@ -354,11 +349,6 @@ final class MoshNotificationEngine {
             messageExpiration = ProtocolTiming.monotonicNowMs() + 1000
         }
         messageIsNetworkError = false
-        self.showQuitKeystroke = showQuitKeystroke
-    }
-
-    func setEscapeKeyString(_ name: String) {
-        escapeKeyString = " [To quit: \(name) .]"
     }
 
     func setHolePunchInProgress(_ inProgress: Bool) {
@@ -448,18 +438,6 @@ final class MoshNotificationEngine {
             isTimeoutBanner: isTimeoutBanner,
             isReplyTimeout: isReplyTimeout
         )
-    }
-}
-
-final class MoshTitleEngine {
-    private var prefix: VTFramebuffer.TitleType = []
-
-    func apply(_ fb: VTFramebuffer) {
-        fb.prefixWindowTitle(prefix)
-    }
-
-    func setPrefix(_ s: String) {
-        prefix = s.unicodeScalars.map { $0 }
     }
 }
 
@@ -918,7 +896,6 @@ final class MoshPredictionEngine {
 final class MoshOverlayManager {
     private let notifications = MoshNotificationEngine()
     private let predictions = MoshPredictionEngine()
-    private let title = MoshTitleEngine()
 
     func apply(_ fb: VTFramebuffer) {
         predictions.cull(fb)
@@ -928,13 +905,10 @@ final class MoshOverlayManager {
         // instead of framebuffer rendering. This enables liquid glass effect, rounded
         // corners, and per-terminal scoping in splits. The notification engine's state
         // is still used (via getCurrentBannerState()) but not rendered to framebuffer.
-        title.apply(fb)
     }
 
     func getNotificationEngine() -> MoshNotificationEngine { notifications }
     func getPredictionEngine() -> MoshPredictionEngine { predictions }
-
-    func setTitlePrefix(_ s: String) { title.setPrefix(s) }
 
     func waitTime() -> Int { min(notifications.waitTime(), predictions.waitTime()) }
 }

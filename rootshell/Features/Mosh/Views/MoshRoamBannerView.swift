@@ -76,9 +76,6 @@ struct MoshRoamBannerView: View {
 // MARK: - Banner Background Extension
 
 extension View {
-    /// Corner radius for the banner shape
-    private static var bannerCornerRadius: CGFloat { 12 }
-
     /// Applies appropriate background based on platform and OS version
     ///
     /// - iOS 26+/macOS 26+: Uses liquid glass effect via `.glassEffect()`
@@ -103,61 +100,3 @@ extension View {
         #endif
     }
 }
-
-// MARK: - Preview
-
-#if DEBUG
-struct MoshRoamBannerView_Previews: PreviewProvider {
-    static var previews: some View {
-        VStack(spacing: 20) {
-            // Timeout banner
-            MoshRoamBannerView(state: MoshRoamBannerState(
-                message: "Last contact 15 seconds ago.",
-                secondsSinceContact: 15,
-                holePunchInProgress: false,
-                isTimeoutBanner: true,
-                isReplyTimeout: false
-            ))
-
-            // Timeout banner with hole-punch
-            MoshRoamBannerView(state: MoshRoamBannerState(
-                message: "Last contact 8 seconds ago.",
-                secondsSinceContact: 8,
-                holePunchInProgress: true,
-                isTimeoutBanner: true,
-                isReplyTimeout: false
-            ))
-
-            // Network error message
-            MoshRoamBannerView(state: MoshRoamBannerState(
-                message: "Waiting for network...",
-                secondsSinceContact: 3,
-                holePunchInProgress: false,
-                isTimeoutBanner: false,
-                isReplyTimeout: false
-            ))
-
-            // Reply timeout
-            MoshRoamBannerView(state: MoshRoamBannerState(
-                message: "Last reply 12 seconds ago.",
-                secondsSinceContact: 12,
-                holePunchInProgress: false,
-                isTimeoutBanner: true,
-                isReplyTimeout: true
-            ))
-
-            // Long message that wraps
-            MoshRoamBannerView(state: MoshRoamBannerState(
-                message: "Waiting for network... (2:45 without contact.)",
-                secondsSinceContact: 165,
-                holePunchInProgress: true,
-                isTimeoutBanner: true,
-                isReplyTimeout: false
-            ))
-            .frame(maxWidth: 280)  // Simulate narrow container
-        }
-        .padding()
-        .background(Color.gray.opacity(0.3))
-    }
-}
-#endif

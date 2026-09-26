@@ -184,16 +184,6 @@ struct OutboundSynchronizer<State: MoshSyncableState> {
         return transmitInterval
     }
 
-    /// Fetches RTT and updates the cached transmit interval
-    mutating func recalculateTransmitInterval() -> UInt64 {
-        let srtt = transport.rttEstimator.estimatedRTT
-        var interval = UInt64(ceil(srtt / 2.0))
-        interval = max(interval, ProtocolTiming.minimumTransmitIntervalMs)
-        interval = min(interval, ProtocolTiming.maximumTransmitIntervalMs)
-        transmitInterval = interval
-        return interval
-    }
-
     /// Updates the cached transmit interval from an externally-fetched RTT value
     mutating func updateTransmitInterval(fromRTT srtt: Double) {
         var interval = UInt64(ceil(srtt / 2.0))
@@ -210,12 +200,6 @@ struct OutboundSynchronizer<State: MoshSyncableState> {
 
     func getCurrentState() -> State {
         return currentState
-    }
-
-    mutating func setCurrentState(_ state: State) {
-        guard !isShuttingDown else { return }
-        currentState = state.copy()
-        currentState.resetParser()
     }
 
     // MARK: - Deadline Scheduling

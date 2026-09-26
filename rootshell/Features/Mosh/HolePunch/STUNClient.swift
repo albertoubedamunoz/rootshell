@@ -136,49 +136,6 @@ final class STUNClient {
         throw lastError
     }
 
-    /// Detects symmetric NAT by querying two different STUN servers
-    ///
-    /// Symmetric NAT assigns different port mappings per destination.
-    /// This is problematic for hole-punching because the mapping created
-    /// by STUN discovery won't match what the server sees.
-    ///
-    /// - Parameters:
-    ///   - localPort: The local port to test
-    ///   - addressFamily: Address family to test
-    /// - Returns: true if symmetric NAT is detected
-    func detectSymmetricNAT(localPort: UInt16, addressFamily: AddressFamily) async -> Bool {
-        let servers = defaultServers(for: addressFamily)
-        guard servers.count >= 2 else { return false }
-
-        do {
-            // Query two different STUN servers from the same local port
-            let result1 = try await queryServer(
-                servers[0],
-                localPort: localPort,
-                addressFamily: addressFamily,
-                timeout: 2.0
-            )
-
-            let result2 = try await queryServer(
-                servers[1],
-                localPort: localPort,
-                addressFamily: addressFamily,
-                timeout: 2.0
-            )
-
-            // If the public ports differ, it's symmetric NAT
-            let isSymmetric = result1.publicPort != result2.publicPort
-            if isSymmetric {
-                Self.logger.warning("Symmetric NAT detected: port \(result1.publicPort) vs \(result2.publicPort)")
-            }
-            return isSymmetric
-
-        } catch {
-            Self.logger.warning("Symmetric NAT detection failed: \(error.localizedDescription)")
-            return false  // Assume not symmetric if detection fails
-        }
-    }
-
     // MARK: - Private Methods
 
     /// Returns default STUN servers for the given address family

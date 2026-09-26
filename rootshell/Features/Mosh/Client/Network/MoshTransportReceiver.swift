@@ -19,7 +19,6 @@ struct InboundAssembler<RemoteState: MoshSyncableState> {
     private var assembledVersions: [VersionedSnapshot<RemoteState>]
     private var versionIndex: [UInt64: VersionedSnapshot<RemoteState>] = [:]
     private var rateLimitResumeTime: UInt64 = 0
-    private var lastRenderedState: RemoteState
 
     /// Counter for consecutive packets dropped due to missing base state
     private var consecutiveDropCount: Int = 0
@@ -32,7 +31,6 @@ struct InboundAssembler<RemoteState: MoshSyncableState> {
         let initial = VersionedSnapshot(capturedAt: now, version: 0, state: initialRemote.copy())
         self.assembledVersions = [initial]
         self.versionIndex = [0: initial]
-        self.lastRenderedState = initialRemote.copy()
     }
 
     /// Creates assembler with resume state
@@ -41,7 +39,6 @@ struct InboundAssembler<RemoteState: MoshSyncableState> {
         let initial = VersionedSnapshot(capturedAt: now, version: startingStateNum, state: initialRemote.copy())
         self.assembledVersions = [initial]
         self.versionIndex = [startingStateNum: initial]
-        self.lastRenderedState = initialRemote.copy()
     }
 
     var latestRemoteState: RemoteState {
@@ -136,16 +133,6 @@ struct InboundAssembler<RemoteState: MoshSyncableState> {
         if !inst.diff.isEmpty {
             synchronizer.markAcknowledgmentPending()
         }
-    }
-
-    mutating func consumeAccumulatedDelta() -> Data {
-        let diff = assembledVersions.last!.state.encodeDelta(since: lastRenderedState)
-        let oldest = assembledVersions.first!.state
-        for index in assembledVersions.indices.reversed() {
-            assembledVersions[index].state.pruneAcknowledged(oldest)
-        }
-        lastRenderedState = assembledVersions.last!.state.copy()
-        return diff
     }
 
     private mutating func pruneVersionsBefore(_ throwawayNum: UInt64) {

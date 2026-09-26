@@ -11,17 +11,7 @@ import Foundation
 /// Mosh provides robust mobile terminal connections that survive network changes
 /// and high latency through its State Synchronization Protocol (SSP) over UDP.
 struct MoshConfig: Codable, Hashable, Sendable {
-    // MARK: - UserDefaults Keys
-
-    /// UserDefaults key for default prediction mode setting
-    static let defaultPredictionModeKey = "roamDefaultPredictionMode"
-
-    /// UserDefaults key for whether predictions overwrite existing cells instead of inserting.
-    static let defaultPredictOverwriteKey = "roamDefaultPredictOverwrite"
-
-    /// UserDefaults key for whether the mosh renderer should enter the
-    /// alternate screen on session open (defaults to true when unset).
-    static let altScreenEnabledKey = "roamMoshAltScreenEnabled"
+    // MARK: - Settings
 
     /// Reads the current alt-screen preference, defaulting to true when the
     /// key has never been written. Used by `VTDisplayRenderer` at session

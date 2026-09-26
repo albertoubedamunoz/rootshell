@@ -48,32 +48,6 @@ final class MoshTransport {
         @MainActor func transport(_ transport: MoshTransport, didEncounterError error: MoshError)
     }
 
-    /// Health metrics for reactive hole-punch monitoring
-    struct HealthMetrics: Sendable {
-        /// Last time we received any UDP data (monotonic timestamp ms)
-        let lastReceiveTimeMs: UInt64
-
-        /// Number of packets sent
-        let packetsSent: Int
-
-        /// Number of packets received
-        let packetsReceived: Int
-
-        /// Current RTT estimate in milliseconds (nil if unknown)
-        let currentRTTMs: Int?
-
-        /// Time since last receive in milliseconds
-        var timeSinceLastReceiveMs: UInt64 {
-            let now = ProtocolTiming.monotonicNowMs()
-            return now &- lastReceiveTimeMs
-        }
-
-        /// Whether the connection appears healthy (received data recently)
-        func isHealthy(timeoutMs: UInt64) -> Bool {
-            timeSinceLastReceiveMs < timeoutMs
-        }
-    }
-
     // MARK: - Properties
 
     /// Current transport state
@@ -139,12 +113,6 @@ final class MoshTransport {
 
     /// Last time we received any UDP data (monotonic ms)
     private var lastReceiveTime: UInt64 = 0
-
-    /// Number of packets sent
-    private var packetsSent: Int = 0
-
-    /// Number of packets received
-    private var packetsReceived: Int = 0
 
     /// Last known path satisfaction
     private var pathSatisfied = true
@@ -280,17 +248,6 @@ final class MoshTransport {
         return (outgoing, incoming)
     }
 
-    /// Returns current health metrics for monitoring
-    func getHealthMetrics() -> HealthMetrics {
-        let rtt = rttEstimator.latencyMs
-        return HealthMetrics(
-            lastReceiveTimeMs: lastReceiveTime,
-            packetsSent: packetsSent,
-            packetsReceived: packetsReceived,
-            currentRTTMs: rtt
-        )
-    }
-
     /// Checks if the connection is healthy (received data within timeout)
     /// - Parameter timeoutMs: Timeout in milliseconds
     /// - Returns: true if healthy, false if possibly disconnected
@@ -366,9 +323,6 @@ final class MoshTransport {
                     }
                 }
             })
-
-            // Track packets sent
-            packetsSent += 1
         }
     }
 
@@ -719,9 +673,6 @@ final class MoshTransport {
 
             // Get the updated RTT estimate to pass to delegate (for synchronous sendInterval update)
             let estimatedRTT = rttEstimator.estimatedRTT
-
-            // Track packets received
-            packetsReceived += 1
 
             // Deliver to delegate with RTT for immediate sendInterval update
             delegate?.transport(self, didReceivePacket: packet, estimatedRTT: estimatedRTT)
