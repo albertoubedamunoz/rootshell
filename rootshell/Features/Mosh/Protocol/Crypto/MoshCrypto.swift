@@ -2,18 +2,8 @@
 //  MoshCrypto.swift
 //  rootshell
 //
-//  AES-128-OCB encryption for mosh protocol
-//
-//  This implementation uses:
-//  - CommonCrypto for hardware-accelerated AES block operations
-//  - CryptoSwift's public OCB worker API for mode logic and authentication
-//
-//  The hybrid approach gives ~100x faster AES operations (hardware)
-//  while avoiding reimplementing the complex OCB authenticated encryption.
-//
-//  Clean-room implementation from IETF specifications:
-//  - RFC 7253: The OCB Authenticated-Encryption Algorithm
-//  - Mosh protocol documentation
+//  AES-128-OCB encryption for mosh protocol, via the MoshOCB.c kernel
+//  (RFC 7253 on ARMv8 AES / AES-NI).
 //
 
 import Foundation
@@ -24,10 +14,6 @@ import Foundation
 /// - 128-bit (16-byte) key
 /// - 96-bit (12-byte) nonce
 /// - 128-bit (16-byte) authentication tag
-///
-/// Performance optimizations:
-/// - Hardware AES via CommonCrypto (Apple Silicon crypto instructions)
-/// - Cached AES(K, 0^128), the expensive key-dependent OCB initialization step
 ///
 /// Note: @MainActor instead of actor to avoid context switch overhead.
 /// Only called from MoshTransport which is @MainActor.
@@ -43,13 +29,8 @@ final class MoshCryptoSession {
     /// Direction of outgoing messages
     private let outgoingDirection: MoshNonce.Direction
 
-    // MARK: - Cached Crypto State (computed once per session)
-
-    /// Hardware-accelerated AES block encrypt function
-    private let aesEncryptBlock: (ArraySlice<UInt8>) -> [UInt8]?
-
-    /// Hardware-accelerated AES block decrypt function
-    private let aesDecryptBlock: (ArraySlice<UInt8>) -> [UInt8]?
+    /// Expanded key schedule and OCB tables; nil only if the key was malformed.
+    private let cryptor: MoshOCBCryptor?
 
     // MARK: - Initialization
 
@@ -60,10 +41,7 @@ final class MoshCryptoSession {
     init(key: MoshBase64Key, isClient: Bool) {
         self.outgoingDirection = isClient ? .toServer : .toClient
         self.nonceGenerator = MoshNonceGenerator(direction: outgoingDirection)
-
-        // Initialize hardware AES block functions (computed once)
-        self.aesEncryptBlock = HardwareAES.blockEncryptor(key: key.bytes)
-        self.aesDecryptBlock = HardwareAES.blockDecryptor(key: key.bytes)
+        self.cryptor = MoshOCBCryptor(key: key.bytes)
     }
 
     /// Creates a crypto session for resuming with saved state
@@ -76,10 +54,7 @@ final class MoshCryptoSession {
         self.outgoingDirection = isClient ? .toServer : .toClient
         self.nonceGenerator = MoshNonceGenerator(direction: outgoingDirection, startingSequence: outgoingSequence)
         self.expectedIncomingSequence = expectedIncoming
-
-        // Initialize hardware AES block functions (computed once)
-        self.aesEncryptBlock = HardwareAES.blockEncryptor(key: key.bytes)
-        self.aesDecryptBlock = HardwareAES.blockDecryptor(key: key.bytes)
+        self.cryptor = MoshOCBCryptor(key: key.bytes)
     }
 
     // MARK: - Encryption
@@ -89,26 +64,7 @@ final class MoshCryptoSession {
     /// - Returns: Encrypted packet (8-byte nonce + ciphertext + 16-byte tag)
     /// - Throws: MoshError.encryptionFailed if encryption fails
     func encrypt(_ plaintext: Data) throws -> Data {
-        // Get next nonce
-        let nonce = nonceGenerator.next()
-
-        do {
-            let ciphertextWithTag = try MoshOCBCryptor.encrypt(
-                Array(plaintext),
-                nonce: nonce.bytes,
-                encryptBlock: aesEncryptBlock
-            )
-
-            // Build packet: nonce (8 bytes) + ciphertext + tag
-            var packet = Data()
-            packet.append(nonce.wireBytes)
-            packet.append(contentsOf: ciphertextWithTag)
-
-            return packet
-
-        } catch {
-            throw MoshError.encryptionFailed(reason: error.localizedDescription)
-        }
+        try encrypt(plaintext, withNonce: nonceGenerator.next())
     }
 
     /// Encrypts a message with specific nonce (for testing/special cases)
@@ -117,22 +73,14 @@ final class MoshCryptoSession {
     ///   - nonce: The specific nonce to use
     /// - Returns: Encrypted packet
     func encrypt(_ plaintext: Data, withNonce nonce: MoshNonce) throws -> Data {
-        do {
-            let ciphertextWithTag = try MoshOCBCryptor.encrypt(
-                Array(plaintext),
-                nonce: nonce.bytes,
-                encryptBlock: aesEncryptBlock
-            )
-
-            var packet = Data()
-            packet.append(nonce.wireBytes)
-            packet.append(contentsOf: ciphertextWithTag)
-
-            return packet
-
-        } catch {
-            throw MoshError.encryptionFailed(reason: error.localizedDescription)
+        guard let cryptor else {
+            throw MoshError.encryptionFailed(reason: "Invalid session key")
         }
+        // Packet: nonce (8 bytes) + ciphertext + tag
+        guard let packet = cryptor.seal(plaintext, nonce: nonce.bytes, header: nonce.wireBytes) else {
+            throw MoshError.encryptionFailed(reason: "OCB encryption failed")
+        }
+        return packet
     }
 
     // MARK: - Decryption
@@ -163,28 +111,21 @@ final class MoshCryptoSession {
             )
         }
 
-        // Extract ciphertext + tag (everything after nonce)
-        let ciphertextWithTag = Array(packet.suffix(from: 8))
-
-        do {
-            let plaintext = try MoshOCBCryptor.decrypt(
-                ciphertextWithTag,
-                nonce: nonce.bytes,
-                encryptBlock: aesEncryptBlock,
-                decryptBlock: aesDecryptBlock
-            )
-
-            // Update expected sequence
-            let isInOrder = nonce.sequenceNumber >= expectedIncomingSequence
-            if isInOrder {
-                expectedIncomingSequence = nonce.sequenceNumber + 1
-            }
-
-            return (plaintext: Data(plaintext), nonce: nonce, isInOrder: isInOrder)
-
-        } catch {
-            throw MoshError.decryptionFailed(reason: error.localizedDescription)
+        guard let cryptor else {
+            throw MoshError.decryptionFailed(reason: "Invalid session key")
         }
+        // Ciphertext + tag is everything after the nonce
+        guard let plaintext = cryptor.open(packet, from: 8, nonce: nonce.bytes) else {
+            throw MoshError.decryptionFailed(reason: "OCB authentication failed")
+        }
+
+        // Update expected sequence
+        let isInOrder = nonce.sequenceNumber >= expectedIncomingSequence
+        if isInOrder {
+            expectedIncomingSequence = nonce.sequenceNumber + 1
+        }
+
+        return (plaintext: plaintext, nonce: nonce, isInOrder: isInOrder)
     }
 
     // MARK: - State Management
