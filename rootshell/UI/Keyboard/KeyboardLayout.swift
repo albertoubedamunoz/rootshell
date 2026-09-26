@@ -68,6 +68,7 @@ enum KeyDefinition {
     case brightnessBoost
     case clipboardManager
     case fileManager
+    case dictation
 
     var keyValue: String {
         switch self {
@@ -125,6 +126,7 @@ enum KeyDefinition {
         case .brightnessBoost: return "__brightnessBoost__"
         case .clipboardManager: return "__clipboardManager__"
         case .fileManager: return "__fileManager__"
+        case .dictation: return "__dictation__"
         }
     }
 

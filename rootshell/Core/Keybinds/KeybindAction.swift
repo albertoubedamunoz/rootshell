@@ -163,6 +163,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
     case toggle_ai_agent = "toggle_ai_agent"
     /// Toggle voice agent mode
     case toggle_voice_agent = "toggle_voice_agent"
+    /// Start or stop on-device dictation into the focused terminal
+    case toggle_dictation = "toggle_dictation"
     /// Toggle tab bar visibility
     case toggle_tab_bar = "toggle_tab_bar"
     /// Toggle grouped mode (scope tabs/top tab bar to the active group) in the vertical sidebar
@@ -332,7 +334,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .toggle_auto_redact:
             return .view
 
-        case .toggle_visor, .open_settings, .toggle_quick_settings, .open_in_folder, .toggle_file_manager, .toggle_ip_lookup, .browse_hosts, .browse_profiles, .open_profile, .toggle_ai_agent, .toggle_voice_agent:
+        case .toggle_visor, .open_settings, .toggle_quick_settings, .open_in_folder, .toggle_file_manager, .toggle_ip_lookup, .browse_hosts, .browse_profiles, .open_profile, .toggle_ai_agent, .toggle_voice_agent,
+             .toggle_dictation:
             return .shell
 
         case .select_all, .clear_screen, .reset_terminal,
@@ -410,6 +413,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .open_profile: return String(localized: "Open Profile", comment: "Keybind action: connect to a saved connection profile")
         case .toggle_ai_agent: return String(localized: "Toggle AI Agent", comment: "Keybind action")
         case .toggle_voice_agent: return String(localized: "Toggle Voice Agent", comment: "Keybind action")
+        case .toggle_dictation: return String(localized: "Dictation", comment: "Keybind action: start or stop on-device dictation")
         case .toggle_tab_bar: return String(localized: "Toggle Top Tab Bar", comment: "Keybind action")
         case .toggle_group_mode: return String(localized: "Toggle Group Mode", comment: "Keybind action")
         case .toggle_tab_switcher: return String(localized: "Toggle Vertical Tab Bar", comment: "Keybind action")
@@ -506,6 +510,7 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
         case .open_profile: return .openConnectionProfile
         case .toggle_ai_agent: return .toggleAIAgent
         case .toggle_voice_agent: return .toggleVoiceAgent
+        case .toggle_dictation: return .toggleDictation
         case .toggle_tab_bar: return .toggleTabBar
         case .toggle_group_mode: return .toggleGroupMode
         case .toggle_tab_switcher: return .showTabSwitcher
@@ -642,8 +647,8 @@ enum KeybindAction: String, CaseIterable, Codable, Identifiable, Hashable {
              .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .choose_pane_to_swap,
              .open_settings, .toggle_quick_settings, .open_in_folder,
              .toggle_file_manager, .toggle_ip_lookup, .browse_hosts,
-             .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_tab_bar, .toggle_group_mode, .toggle_transparency,
-             .toggle_titlebar, .toggle_auto_redact,
+             .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_dictation, .toggle_tab_bar, .toggle_group_mode,
+             .toggle_transparency, .toggle_titlebar, .toggle_auto_redact,
              .toggle_background_effect, .toggle_tab_switcher, .toggle_tab_expose, .show_tmux_sessions,
              .discover_sessions, .detach_session, .detach_other_clients,
              .increase_font_size, .decrease_font_size,

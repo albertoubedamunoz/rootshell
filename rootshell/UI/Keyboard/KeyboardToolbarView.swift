@@ -721,6 +721,11 @@ class KeyboardToolbarView: UIView {
             return createClipboardManagerButton()
         case .fileManager:
             return createFileManagerButton()
+        case .dictation:
+            guard DictationSupport.isEnabled else { return nil }
+            let button = KeyboardSymbolButton(key: keyID.keyValue, display: .icon("mic"), sizes: sizes)
+            button.delegate = self
+            return button
         case .drawerToggle:
             return createExtraKeysDrawerToggleButton()
         default:
@@ -1418,6 +1423,10 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
         }
         if key == "__fileManager__" {
             onFileManagerRequested?()
+            return
+        }
+        if key == KeyID.dictation.keyValue {
+            NotificationCenter.default.post(name: .toggleDictation, object: nil)
             return
         }
         if key == "__arrowDrawer__" {

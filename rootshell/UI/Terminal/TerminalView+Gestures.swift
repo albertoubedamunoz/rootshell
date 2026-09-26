@@ -1442,6 +1442,7 @@ extension Ghostty.TerminalView {
     /// applies bracketed-paste markers when the running program requests them.
     @discardableResult
     func insertPastedText(_ text: String, recordHistory: Bool = true) -> Bool {
+        userInputGeneration &+= 1
         invalidateWritingAssistance(resetDocument: true)
         guard let surface, !text.isEmpty else { return false }
 
@@ -1585,6 +1586,7 @@ extension Ghostty.TerminalView {
 
     /// Sends user input to the appropriate destination based on platform
     func sendUserInput(_ data: Data, documentMutation: TerminalCorrectionContext.Mutation? = nil) {
+        userInputGeneration &+= 1
         // herdr gateway: lone ESC detaches; anything else typed at the covered
         // shell is dropped rather than landing in a pane the user cannot see.
         if herdrController?.showsGatewayStatus == true {
@@ -2830,7 +2832,13 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             self?.menuToggleThemePicker(nil)
         }
 
-        let terminalMenu = UIMenu(title: "", options: .displayInline, children: [findAction, settingsAction, changeTheme, resetTerminal, aiAgent, voiceAgent])
+        var terminalActions = [findAction, settingsAction, changeTheme, resetTerminal, aiAgent, voiceAgent]
+        if DictationSupport.isEnabled {
+            terminalActions.append(UIAction(title: String(localized: "Dictation"), image: UIImage(systemName: "mic")) { [weak self] _ in
+                self?.menuToggleDictation(nil)
+            })
+        }
+        let terminalMenu = UIMenu(title: "", options: .displayInline, children: terminalActions)
         menuItems.append(terminalMenu)
 
         // Tab bar visibility toggle

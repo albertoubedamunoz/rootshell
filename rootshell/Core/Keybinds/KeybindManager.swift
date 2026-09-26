@@ -175,6 +175,7 @@ final class KeybindManager: ObservableObject {
             Keybind(key: .p, modifiers: [.command, .shift], action: .browse_profiles),
             Keybind(key: .i, modifiers: .command, action: .toggle_ai_agent),
             Keybind(key: .v, modifiers: [.command, .shift], action: .toggle_voice_agent),
+            Keybind(key: .r, modifiers: [.command, .option], action: .toggle_dictation),
 
             // Control Characters (Ctrl+A-Z defaults to terminal control chars)
             Keybind(key: .a, modifiers: .control, action: .ctrl_a),

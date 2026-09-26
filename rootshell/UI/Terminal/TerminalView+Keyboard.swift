@@ -2418,6 +2418,14 @@ extension Ghostty.TerminalView {
         NotificationCenter.default.post(name: .toggleVoiceAgent, object: self)
     }
 
+    /// The terminal keyboard's Dictation page when it is showing, else the HUD.
+    @objc func menuToggleDictation(_ sender: Any?) {
+        noteModTapCommand(sender as? UIKeyCommand)
+        guard DictationSupport.isEnabled else { return }
+        if keyboardAccessoryController?.openTouchKeyboardDictation() == true { return }
+        NotificationCenter.default.post(name: .toggleDictation, object: self)
+    }
+
     @objc func menuToggleTabBar(_ sender: Any?) {
         noteModTapCommand(sender as? UIKeyCommand)
         NotificationCenter.default.post(name: .toggleTabBar, object: self)

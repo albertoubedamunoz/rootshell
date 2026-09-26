@@ -115,7 +115,7 @@ nonisolated extension Settings {
         Theme.all, Font.all, Cursor.all, Selection.all, Transparency.all, Palette.all, Shaders.all,
         Tabs.all, Sidebar.all, Window.all, Power.all, Visor.all,
         Terminal.all, Gestures.all, Prompt.all, Locale.all, SessionRestore.all,
-        Keyboard.all, KeyboardToolbar.all, Keybinds.all,
+        Keyboard.all, KeyboardToolbar.all, Keybinds.all, Dictation.all,
         Connections.all, Multiplexer.all, SSHAgent.all, HostTrust.all, Roam.all, ScreenSharing.all, Transfer.all,
         AI.all,
         Notifications.all, CodingAgents.all, Sounds.all, LiveActivity.all, Privacy.all, Clipboard.all,

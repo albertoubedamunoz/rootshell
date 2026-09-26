@@ -156,6 +156,9 @@ final class VoiceAgentSession: Identifiable {
     private let audioSessionManager = AudioSessionManager()
 
     @ObservationIgnored
+    private var microphoneObserver: NSObjectProtocol?
+
+    @ObservationIgnored
     private let audioPipeline = VoiceAudioPipeline()
 
     @ObservationIgnored
@@ -256,6 +259,16 @@ final class VoiceAgentSession: Identifiable {
                 state = .error("Microphone access denied — grant permission in System Settings → Privacy & Security → Microphone")
                 Self.logger.error("Microphone permission denied")
                 return
+            }
+
+            NotificationCenter.default.post(name: .microphoneCaptureWillBegin, object: self)
+            microphoneObserver = NotificationCenter.default.addObserver(
+                forName: .microphoneCaptureWillBegin, object: nil, queue: .main
+            ) { [weak self] notification in
+                MainActor.assumeIsolated {
+                    guard let self, notification.object as AnyObject? !== self else { return }
+                    self.stop()
+                }
             }
 
             // Activate audio session
@@ -776,6 +789,8 @@ final class VoiceAgentSession: Identifiable {
         activeToolTask?.cancel()
         activeToolTask = nil
         activeToolCallID = nil
+        if let microphoneObserver { NotificationCenter.default.removeObserver(microphoneObserver) }
+        microphoneObserver = nil
         audioPipeline.stop()
         audioSessionManager.deactivate()
         connection?.disconnect()

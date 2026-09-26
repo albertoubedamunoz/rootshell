@@ -707,6 +707,18 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(Model.ToolPage.navigation.moved(by: -1), .symbols)
     }
 
+    func testDictationIsTheFirstLeftSwipeOnlyWhenEnabled() {
+        let enabled = Model.ToolPage.pages(dictation: true)
+        let disabled = Model.ToolPage.pages(dictation: false)
+        XCTAssertEqual(Model.ToolPage.typing.moved(by: 1, in: enabled), .dictation)
+        XCTAssertEqual(Model.ToolPage.dictation.moved(by: 1, in: enabled), .symbols)
+        XCTAssertEqual(Model.ToolPage.typing.moved(by: 1, in: disabled), .symbols)
+        XCTAssertEqual(Model.ToolPage.symbols.moved(by: -1, in: disabled), .typing)
+        XCTAssertEqual(Model.ToolPage.typing.moved(by: -1, in: disabled), .shortcuts)
+        // A page that left the set falls back to typing rather than a neighbor.
+        XCTAssertEqual(Model.ToolPage.dictation.moved(by: 1, in: disabled), .typing)
+    }
+
     func testPageSwipeRequiresDeliberateHorizontalMovement() {
         XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: -100, y: 10), duration: 0.1), 1)
         XCTAssertEqual(Model.pageSwipe(translation: CGPoint(x: 100, y: -10), duration: 0.1), -1)

@@ -525,6 +525,14 @@ extension MainView {
         }
         #endif
 
+        #if canImport(FluidAudio) && !CHINA_BUILD
+        observerBag.observeOnMainActor(.toggleDictation) { [self] notification in
+            // Keybinds post this directly, bypassing the menu's own check.
+            guard DictationSupport.isEnabled, self.shouldHandleNotification(notification) else { return }
+            self.toggleDictationHUD(from: notification.object as? Ghostty.TerminalView)
+        }
+        #endif
+
         observerBag.observeOnMainActor(.toggleQuickSettings) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
             if self.showQuickSettingsOverlay {

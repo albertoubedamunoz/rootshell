@@ -241,6 +241,7 @@ struct SettingsAppearanceSection: View {
 /// Terminal section detail (Toolbar Keys, Keyboard Shortcuts, ModTap, Option Key, Session Restore, etc.)
 struct SettingsTerminalSection: View {
     @Setting(Settings.Keyboard.writingAssistance) private var writingAssistance
+    @Setting(Settings.Dictation.enabled) private var dictationEnabled
     @Setting(Settings.Prompt.useStarship) private var useStarshipPrompt
     @Setting(Settings.Prompt.starshipTheme) private var starshipTheme
     @Setting(Settings.Prompt.customUsername) private var customUsername
@@ -358,6 +359,21 @@ struct SettingsTerminalSection: View {
         List {
             // MARK: - Keyboard
             Section {
+                #if canImport(FluidAudio) && !CHINA_BUILD
+                NavigationLink(value: SettingsSearchDestination.dictation) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "mic")
+                        Text("Dictation")
+                        SettingPinTag(group: .dictation)
+                        Spacer()
+                        Text(dictationEnabled ? "On" : "Off")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                    }
+                }
+                .themedRow()
+                .settingGroupContextMenu(.dictation)
+                #endif
                 #if !targetEnvironment(macCatalyst)
                 #if !os(visionOS)
                 NavigationLink(value: SettingsSearchDestination.touchKeyboard) {

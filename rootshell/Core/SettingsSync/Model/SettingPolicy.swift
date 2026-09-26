@@ -22,7 +22,7 @@ nonisolated enum SettingGroup: String, Codable, CaseIterable, Sendable {
     case theme, font, cursor, selection, transparency, palette, shaders
     case tabs, sidebar, window, visor
     case terminal, scrollback, prompt, locale, sessionRestore
-    case keyboard, keyboardToolbar, keybinds, gestures
+    case keyboard, keyboardToolbar, keybinds, gestures, dictation
     case connections, multiplexer, sshAgent, hostTrust, roam, screenSharing, transfer
     case ai, codingAgents, notifications, privacy, sounds, power, liveActivity, clipboard
     case system
@@ -49,6 +49,7 @@ nonisolated enum SettingGroup: String, Codable, CaseIterable, Sendable {
         case .keyboardToolbar: String(localized: "Toolbar Keys", comment: "Setting group title")
         case .keybinds: String(localized: "Keyboard Shortcuts", comment: "Setting group title")
         case .gestures: String(localized: "Gestures", comment: "Setting group title")
+        case .dictation: String(localized: "Dictation", comment: "Setting group title")
         case .connections: String(localized: "Connections", comment: "Setting group title")
         case .multiplexer: String(localized: "Multiplexers", comment: "Setting group title")
         case .sshAgent: String(localized: "SSH Agent", comment: "Setting group title")
@@ -90,6 +91,7 @@ nonisolated enum SettingGroup: String, Codable, CaseIterable, Sendable {
         case .keyboardToolbar: "keyboard.badge.ellipsis"
         case .keybinds: "command"
         case .gestures: "hand.draw"
+        case .dictation: "mic"
         case .connections: "network"
         case .multiplexer: "square.split.2x2"
         case .sshAgent: "key"
@@ -116,7 +118,7 @@ nonisolated enum SettingGroup: String, Codable, CaseIterable, Sendable {
              .tabs, .sidebar, .window, .visor, .power:
             .appearance
         case .terminal, .scrollback, .prompt, .locale, .sessionRestore,
-             .keyboard, .keyboardToolbar, .keybinds, .gestures, .codingAgents:
+             .keyboard, .keyboardToolbar, .keybinds, .gestures, .dictation, .codingAgents:
             .terminal
         case .connections, .multiplexer, .sshAgent, .hostTrust, .roam, .screenSharing, .transfer:
             .connections

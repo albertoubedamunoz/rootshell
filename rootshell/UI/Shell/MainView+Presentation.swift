@@ -487,6 +487,13 @@ extension MainView {
                 // Passthrough HUD: hand the keyboard back if its field took it.
                 restoreFirstResponderAfterHUDDismissal()
             }
+            #if canImport(FluidAudio) && !CHINA_BUILD
+            .onChange(of: showDictationHUD) { _, presented in
+                guard !presented else { return }
+                DictationController.shared.stop(ownedBy: DictationController.hudOwner)
+                restoreFirstResponderAfterHUDDismissal()
+            }
+            #endif
             .onChange(of: showQuickSettingsOverlay) { _, presented in
                 setOverlayOwnsKeyboardForAllTerminals(isAnySheetPresented)
                 if !presented { restoreFirstResponderAfterSheetDismissal() }

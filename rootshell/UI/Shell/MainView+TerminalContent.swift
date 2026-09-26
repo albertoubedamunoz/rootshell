@@ -345,6 +345,13 @@ extension MainView {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
+            #if canImport(FluidAudio) && !CHINA_BUILD
+            if showDictationHUD {
+                DictationHUD(isPresented: $showDictationHUD) { dictationTarget }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            #endif
+
             // Compose text overlay
             composeOverlay(composeStateVersion: composeStateVersion)
 
