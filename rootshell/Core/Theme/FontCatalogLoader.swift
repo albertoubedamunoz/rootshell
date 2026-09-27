@@ -180,13 +180,11 @@ nonisolated struct FontCatalogLoader: Sendable {
         // Build FontFamilyInfo array
         var families: [FontFamilyInfo] = []
         for (id, info) in familyMap {
-            let sampleFont = Self.createFont(from: info.fontURL, size: 16)
-
             families.append(FontFamilyInfo(
                 id: id,
                 displayName: info.displayName,
                 configName: info.configName,
-                sampleFont: sampleFont
+                sampleSource: .file(info.fontURL)
             ))
         }
 
@@ -207,27 +205,30 @@ nonisolated struct FontCatalogLoader: Sendable {
         // Use UIFontDescriptor matching to discover all monospace fonts system-wide.
         // This finds fonts from UIFont.familyNames AND user-installed fonts (Font Case etc.)
         // when the com.apple.developer.user-fonts entitlement is present.
-        let monoDescriptor = UIFontDescriptor(fontAttributes: [
-            .traits: [UIFontDescriptor.TraitKey.symbolic: UIFontDescriptor.SymbolicTraits.traitMonoSpace.rawValue]
-        ])
-        let matchedDescriptors = monoDescriptor.matchingFontDescriptors(withMandatoryKeys: nil)
+        // Read family names off descriptors so discovery never instantiates a font.
+        let monoDescriptor = CTFontDescriptorCreateWithAttributes([
+            kCTFontTraitsAttribute: [kCTFontSymbolicTrait: CTFontSymbolicTraits.traitMonoSpace.rawValue]
+        ] as CFDictionary)
+        let matchedDescriptors = CTFontDescriptorCreateMatchingFontDescriptors(monoDescriptor, nil) as? [CTFontDescriptor] ?? []
         let matchCount = matchedDescriptors.count
-        logger.info("[SystemFonts] UIFontDescriptor monospace matches: \(matchCount)")
+        logger.info("[SystemFonts] Monospace trait matches: \(matchCount)")
 
         for descriptor in matchedDescriptors {
-            let font = UIFont(descriptor: descriptor, size: 16)
-            let familyName = font.familyName
+            guard let familyName = CTFontDescriptorCopyAttribute(descriptor, kCTFontFamilyNameAttribute) as? String else {
+                continue
+            }
 
             guard !seenFamilies.contains(familyName),
                   !bundledConfigNames.contains(familyName),
                   !customConfigNames.contains(familyName),
                   !hiddenUtilityFontFamilies.contains(familyName) else { continue }
 
+            let faceName = CTFontDescriptorCopyAttribute(descriptor, kCTFontNameAttribute) as? String ?? familyName
             systemFonts.append(FontFamilyInfo(
                 id: familyName,
                 displayName: familyName,
                 configName: familyName,
-                sampleFont: font
+                sampleSource: .postScriptName(faceName)
             ))
             seenFamilies.insert(familyName)
         }
@@ -243,15 +244,14 @@ nonisolated struct FontCatalogLoader: Sendable {
                   !customConfigNames.contains(familyName),
                   !hiddenUtilityFontFamilies.contains(familyName) else { continue }
 
-            guard let font = UIFont(name: familyName, size: 16) else { continue }
-            guard Self.isMonospaceByGlyphAdvance(font) else { continue }
+            guard let faceName = Self.monospaceFaceName(forFamily: familyName) else { continue }
 
             logger.info("[SystemFonts] Glyph-advance detected mono: '\(familyName)'")
             systemFonts.append(FontFamilyInfo(
                 id: familyName,
                 displayName: familyName,
                 configName: familyName,
-                sampleFont: font
+                sampleSource: .postScriptName(faceName)
             ))
             seenFamilies.insert(familyName)
         }
@@ -283,7 +283,7 @@ nonisolated struct FontCatalogLoader: Sendable {
                 id: familyName,
                 displayName: familyName,
                 configName: familyName,
-                sampleFont: uiFont
+                sampleSource: .postScriptName(CTFontCopyPostScriptName(ctFont) as String)
             ))
             seenFamilies.insert(familyName)
         }
@@ -299,6 +299,23 @@ nonisolated struct FontCatalogLoader: Sendable {
             let name = sf.displayName
             logger.info("[SystemFonts]   -> \(name)")
         }
+    }
+
+    /// Family name -> PostScript name of its monospace face, or nil when not
+    /// monospace. Spares reopening every family on each refresh; cleared when
+    /// font registrations change.
+    private static let glyphAdvanceMonoCache = OSAllocatedUnfairLock(initialState: [String: String?]())
+
+    static func invalidateMonospaceCache() {
+        glyphAdvanceMonoCache.withLock { $0.removeAll() }
+    }
+
+    private static func monospaceFaceName(forFamily familyName: String) -> String? {
+        if let cached = glyphAdvanceMonoCache.withLock({ $0[familyName] }) { return cached }
+        let faceName = UIFont(name: familyName, size: 16)
+            .flatMap { isMonospaceByGlyphAdvance($0) ? $0.fontName : nil }
+        glyphAdvanceMonoCache.withLock { $0[familyName] = faceName }
+        return faceName
     }
 
     /// Include fonts that have fixed glyph advances but lack the monospace trait.

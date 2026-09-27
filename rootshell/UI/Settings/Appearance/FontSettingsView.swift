@@ -13,6 +13,7 @@ struct FontSettingsView: View {
     @State private var showingFileImporter = false
     @State private var importError: String?
     @State private var showingImportError = false
+    @State private var sampleFonts = SampleFontCache()
 
     var body: some View {
         List {
@@ -62,7 +63,7 @@ struct FontSettingsView: View {
                                 Text(family.displayName)
                                     .foregroundColor(.primary)
                                 // Inline sample text preview
-                                if let sampleFont = family.sampleFont {
+                                if let sampleFont = sampleFonts.font(for: family, revision: fontManager.catalogRevision) {
                                     Text("The quick brown fox 0123456789")
                                         .font(Font(fontManager.applyEnabledFeatures(to: sampleFont, for: family.configName)))
                                         .foregroundColor(.secondary)
@@ -99,7 +100,7 @@ struct FontSettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(family.displayName)
                                         .foregroundColor(.primary)
-                                    if let sampleFont = family.sampleFont {
+                                    if let sampleFont = sampleFonts.font(for: family, revision: fontManager.catalogRevision) {
                                         Text("The quick brown fox 0123456789")
                                             .font(Font(fontManager.applyEnabledFeatures(to: sampleFont, for: family.configName)))
                                             .foregroundColor(.secondary)
@@ -352,6 +353,24 @@ struct FontSettingsView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+/// Preview fonts built on first display and released with the settings screen.
+/// A reference type so filling it during body evaluation doesn't invalidate the view.
+private final class SampleFontCache {
+    private var fonts: [String: UIFont?] = [:]
+    private var revision = 0
+
+    func font(for family: FontManager.FontFamilyInfo, revision catalogRevision: Int) -> UIFont? {
+        if revision != catalogRevision {
+            fonts.removeAll()
+            revision = catalogRevision
+        }
+        if let cached = fonts[family.id] { return cached }
+        let font = family.makeSampleFont()
+        fonts[family.id] = font
+        return font
     }
 }
 

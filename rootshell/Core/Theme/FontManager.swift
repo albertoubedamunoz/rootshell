@@ -25,7 +25,23 @@ class FontManager: ObservableObject {
         let id: String
         let displayName: String
         let configName: String  // Name to use in Ghostty config
-        let sampleFont: UIFont?  // For preview rendering
+        let sampleSource: SampleSource
+
+        /// Where a preview font comes from. Holding a UIFont here would keep
+        /// every family's parsed tables alive for the process lifetime.
+        nonisolated enum SampleSource: Sendable {
+            case file(URL)
+            case postScriptName(String)  // The specific face discovery matched
+        }
+
+        func makeSampleFont(size: CGFloat = 16) -> UIFont? {
+            switch sampleSource {
+            case .file(let url):
+                FontCatalogLoader.createFont(from: url, size: size)
+            case .postScriptName(let name):
+                UIFont(name: name, size: size)
+            }
+        }
 
         static func == (lhs: FontFamilyInfo, rhs: FontFamilyInfo) -> Bool {
             lhs.id == rhs.id
@@ -120,13 +136,21 @@ class FontManager: ObservableObject {
     // MARK: - Published Properties
 
     /// All available bundled font families
-    @Published private(set) var availableFamilies: [FontFamilyInfo] = []
+    @Published private(set) var availableFamilies: [FontFamilyInfo] = [] {
+        didSet { catalogRevision &+= 1 }
+    }
 
     /// User-imported custom font families
     @Published private(set) var customFontFamilies: [CustomFontFamily] = []
 
     /// System-installed monospace font families (e.g., from Font Case)
-    @Published private(set) var systemFontFamilies: [FontFamilyInfo] = []
+    @Published private(set) var systemFontFamilies: [FontFamilyInfo] = [] {
+        didSet { catalogRevision &+= 1 }
+    }
+
+    /// Bumped on every catalog refresh so preview caches can drop stale fonts.
+    /// FontFamilyInfo equality is by id, so the arrays alone can't signal this.
+    private(set) var catalogRevision = 0
 
     /// True once remaining bundled/custom registration and catalog discovery finish.
     /// Font settings awaits this via `ensureFontsLoaded()`; the terminal only needs
@@ -703,6 +727,7 @@ class FontManager: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.isCatalogLoaded else { return }
+                FontCatalogLoader.invalidateMonospaceCache()
                 self.loadSystemFonts()
             }
         }
