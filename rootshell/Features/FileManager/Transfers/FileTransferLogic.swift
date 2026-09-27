@@ -70,6 +70,49 @@ nonisolated enum FileTransferLogic {
         isSameOrDescendant(a, of: b) || isSameOrDescendant(b, of: a)
     }
 
+    /// Where two paths that fold alike are spelled differently, as short distinct
+    /// pairs compared by bytes (String equality ignores Unicode spellings). A volume
+    /// treats the paths as one only if it treats every pair as one.
+    static func differingSpellings(_ a: String, _ b: String) -> [(String, String)] {
+        var pairs: [(String, String)] = []
+        var seen: Set<[UInt8]> = []
+        func add(_ x: ArraySlice<Character>, _ y: ArraySlice<Character>) {
+            let x = String(x), y = String(y)
+            guard seen.insert(Array(x.utf8) + [0] + Array(y.utf8)).inserted else { return }
+            pairs.append((x, y))
+        }
+        func folded(_ s: ArraySlice<Character>) -> String {
+            String(s).folding(options: .caseInsensitive, locale: nil)
+        }
+        for (x, y) in zip(a.split(separator: "/"), b.split(separator: "/")) where !x.utf8.elementsEqual(y.utf8) {
+            let first = Array(x), second = Array(y)
+            var i = 0, j = 0
+            while i < first.count, j < second.count {
+                if first[i].unicodeScalars.elementsEqual(second[j].unicodeScalars) {
+                    i += 1
+                    j += 1
+                    continue
+                }
+                // The shortest stretches that fold alike, aligned by folding rather than
+                // position (ßSS and SSß); a character folds to at most three.
+                guard let (k, l) = foldWindows.first(where: { k, l in
+                    i + k <= first.count && j + l <= second.count && folded(first[i..<(i + k)]) == folded(second[j..<(j + l)])
+                }) else { break }
+                add(first[i..<(i + k)], second[j..<(j + l)])
+                i += k
+                j += l
+            }
+            // Only if the folds didn't line up, which grouped names never do.
+            if i < first.count || j < second.count { add(first[i...], second[j...]) }
+        }
+        return pairs
+    }
+
+    /// Stretch lengths to try, shortest first.
+    private static let foldWindows: [(Int, Int)] = (2...6).flatMap { total in
+        (1...3).compactMap { k in (1...3).contains(total - k) ? (k, total - k) : nil }
+    }
+
     /// "name.ext" → "name 2.ext", skipping names in `existing`. Dotfiles keep their
     /// leading dot and multi-part extensions like ".tar.gz" stay attached.
     static func keepBothName(for name: String, existing: Set<String>) -> String {

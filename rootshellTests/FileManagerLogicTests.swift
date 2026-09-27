@@ -14,6 +14,29 @@ final class FileManagerLogicTests: XCTestCase {
         XCTAssertEqual(FileTransferLogic.lastComponent(of: "/a/b/"), "b")
     }
 
+    func testDifferingSpellings() {
+        func pairs(_ a: String, _ b: String) -> [String] {
+            FileTransferLogic.differingSpellings(a, b).map { "\($0.0)|\($0.1)" }
+        }
+        XCTAssertEqual(pairs("/d/A.txt", "/d/a.txt"), ["A|a"])
+        // Long names probe only the differing characters, each distinct pair once.
+        let long = String(repeating: "x", count: 240)
+        XCTAssertEqual(pairs("/d/\(long)A", "/d/\(long)a"), ["A|a"])
+        XCTAssertEqual(pairs("/d/AbA", "/d/aBa"), ["A|a", "b|B"])
+        // Ancestors count too.
+        XCTAssertEqual(pairs("/shared/A/f", "/shared/a/f"), ["A|a"])
+        // Unicode spellings String equality would call equal.
+        let nfc = "caf\u{E9}", nfd = "cafe\u{301}"
+        XCTAssertEqual(FileTransferLogic.differingSpellings("/\(nfc)", "/\(nfd)").map { Array($0.0.unicodeScalars) + Array($0.1.unicodeScalars) },
+                       [Array("\u{E9}e\u{301}".unicodeScalars)])
+        // Length-changing folds pair up by folding, not position, and stay short.
+        XCTAssertEqual(pairs("/strasse-ß.txt", "/strasse-SS.txt"), ["ß|SS"])
+        XCTAssertEqual(pairs("/ßSS", "/SSß"), ["ß|SS", "SS|ß"])
+        XCTAssertEqual(pairs("/d/" + String(repeating: "ß", count: 120), "/d/" + String(repeating: "S", count: 240)), ["ß|SS"])
+        XCTAssertEqual(pairs("/ﬃx", "/FFIX"), ["ﬃ|FFI", "x|X"])
+        XCTAssertEqual(pairs("/d/same", "/d/same"), [])
+    }
+
     func testNormalize() {
         XCTAssertEqual(FileTransferLogic.normalize(""), "/")
         XCTAssertEqual(FileTransferLogic.normalize("a//b/"), "/a/b")
