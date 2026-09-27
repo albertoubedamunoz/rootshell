@@ -20,6 +20,8 @@ extension HerdrController {
 
     func applySnapshot(_ snapshot: HerdrControl.SessionSnapshot, preservingAgentUpdatesAfter revision: UInt64? = nil) {
         guard !didEnd else { return }
+        AgentAttentionCenter.shared.beginTopologyBatch()
+        defer { AgentAttentionCenter.shared.endTopologyBatch() }
         let isInitialSnapshot = !hasProcessedInitialSnapshot
         let isLocalRecovery = gateway?.restoredLocalMultiplexerAttachment?.isHerdrControl == true
         let maySelectInitialTab = tabsModel.maySelectInitialMultiplexerTab(gatewayTabID: gatewayTabID)
@@ -510,6 +512,7 @@ extension HerdrController {
     }
 
     func applyLayout(_ layout: HerdrControl.LayoutSnapshot, barrier: UInt64? = nil) {
+        let previousLayout = lastLayouts[layout.tab_id]
         lastLayouts[layout.tab_id] = layout
         guard let tab = tabs[layout.tab_id] else { return }
         guard let node = HerdrLayoutTree.build(layout) else { return }
@@ -526,6 +529,7 @@ extension HerdrController {
         // ratio math hands it (id=herdr-chromeless).
         // Degraded mode sizes each pane from its own grid (`terminal.resize`),
         // so a clamp there would pin the pane to the last snapshot forever.
+        var targetGridChanged = false
         for pane in layout.panes {
             guard let terminalId = paneInfos[pane.pane_id]?.terminal_id, let view = paneViews[terminalId] else { continue }
             view.containingTabID = tab.id
@@ -533,10 +537,14 @@ extension HerdrController {
             // the initial native host use its full space until our raw layout
             // arrives; clamping to the TUI first causes a shrink/grow bounce.
             let ownedElsewhere = tabGeometryStates[layout.tab_id]?.isOwnedElsewhere == true
-            view.herdrTargetGrid = (mode == .raw && controlLayouts[layout.tab_id] != nil
+            let target: (cols: Int, rows: Int)? = (mode == .raw && controlLayouts[layout.tab_id] != nil
                 && (tabGeometryStates[layout.tab_id]?.hasRequested == true || ownedElsewhere || layout.carriesRealGeometry))
                 || endpointLayouts[layout.tab_id] == layout
                 ? (cols: pane.terminalCols, rows: pane.terminalRows) : nil
+            if view.herdrTargetGrid?.cols != target?.cols || view.herdrTargetGrid?.rows != target?.rows {
+                targetGridChanged = true
+            }
+            view.herdrTargetGrid = target
         }
         var zoomed: SplitTree<SplitPaneView>.Node?
         if layout.zoomed, let terminalId = paneInfos[layout.focused_pane_id]?.terminal_id,
@@ -545,7 +553,10 @@ extension HerdrController {
         }
         let tree = SplitTree<SplitPaneView>(root: root, zoomed: zoomed)
         let structureChanged = tab.splitTree.structuralIdentity != tree.structuralIdentity
-        tab.splitTree = tree
+        // Every snapshot re-applies every tab's layout; an unchanged tree
+        // must not invalidate SwiftUI or resize panes herdr did not reflow.
+        let treeChanged = tab.splitTree.root != tree.root || tab.splitTree.zoomed != tree.zoomed
+        if treeChanged { tab.splitTree = tree }
         if layout.zoomed { restoreZoomedLayoutIfNeeded(in: tab, tabID: layout.tab_id) }
         showPanesIfSelected(in: tab)
         if let barrier {
@@ -561,6 +572,7 @@ extension HerdrController {
                 focusPane(view, in: tab)
             }
         }
+        guard treeChanged || targetGridChanged || previousLayout != layout || barrier != nil else { return }
         refreshTitle(of: tab)
         tabsModel.syncDisplayedTab()
         // Ratios changed under the panes; force each surface to re-sync its

@@ -365,8 +365,29 @@ final class AgentAttentionCenter {
         refreshRelevantRepositoryFacts(now: Date())
     }
 
+    private var topologyBatchDepth = 0
+    private var topologyChangedInBatch = false
+
+    /// Defer `topologyDidChange` until the matching `endTopologyBatch`, then
+    /// run it once: a multiplexer reconcile touches every tab's tree, and a
+    /// full pass per tab is quadratic.
+    func beginTopologyBatch() {
+        topologyBatchDepth += 1
+    }
+
+    func endTopologyBatch() {
+        topologyBatchDepth = max(0, topologyBatchDepth - 1)
+        guard topologyBatchDepth == 0, topologyChangedInBatch else { return }
+        topologyChangedInBatch = false
+        topologyDidChange()
+    }
+
     func topologyDidChange() {
         guard started else { return }
+        guard topologyBatchDepth == 0 else {
+            topologyChangedInBatch = true
+            return
+        }
         guard wasEnabled, foregroundActive,
               AgentAttentionSettings.anyDetectionEnabled else {
             publishPresentationRollups(now: Date())
