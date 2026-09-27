@@ -6,7 +6,7 @@ import UIKit
 import os
 
 @MainActor
-final class JellyfishRenderer: NSObject, @preconcurrency MTKViewDelegate {
+final class JellyfishRenderer: NSObject, MTKViewDelegate {
     private enum Failure: Error { case unavailable(String) }
     private struct Draw {
         var instance: JellyfishInstance
