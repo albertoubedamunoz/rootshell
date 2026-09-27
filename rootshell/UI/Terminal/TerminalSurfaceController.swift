@@ -825,6 +825,7 @@ final class TerminalSurfaceController: NSObject {
                 Ghostty.logger.info("Freeing Ghostty surface on background queue...")
                 ghostty_surface_free(surfacePtr)
                 Ghostty.logger.info("Ghostty surface freed")
+                MallocPressureRelief.request()
             } else {
                 Ghostty.logger.warning("Scrollback save did not complete in 500ms; leaking surface to avoid use-after-free")
             }

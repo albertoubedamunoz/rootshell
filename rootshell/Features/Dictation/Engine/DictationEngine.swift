@@ -192,6 +192,7 @@ actor DictationEngine {
         boostingTerms = []
         await old?.cleanup()
         Self.logger.info("Unloaded dictation models")
+        MallocPressureRelief.request()
     }
 }
 

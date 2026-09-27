@@ -251,6 +251,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             MainActor.assumeIsolated {
                 PreviewRenderingLifecycle.didEnterBackground()
             }
+            MallocPressureRelief.requestNow()
             LifecycleDebugLogger.shared.checkpoint("SECURE.latch.arm", ms: nil, [
                 ("trigger", "didEnterBackground"),
             ])

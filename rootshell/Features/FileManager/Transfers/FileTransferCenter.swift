@@ -195,6 +195,7 @@ final class FileTransferCenter {
         for observer in finishedObservers.values { observer.yield(job) }
         Self.logger.info("Transfer \(job.id, privacy: .public) finished: \(String(describing: job.state), privacy: .public)")
         startQueuedJobs()
+        if !hasActiveJobs { MallocPressureRelief.request() }
     }
 
     /// Keeps iOS from suspending the app mid-transfer while it is backgrounded.
