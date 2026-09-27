@@ -190,13 +190,6 @@ struct LicenseAcknowledgementsView: View {
                 licenseText: mpl2LicenseText
             ),
             LicenseEntry(
-                name: "gitoxide",
-                licenseType: "MIT / Apache 2.0",
-                copyright: "Copyright (c) Sebastian Thiel and gitoxide contributors",
-                repositoryURL: "https://github.com/GitoxideLabs/gitoxide",
-                licenseText: mitApache2LicenseText
-            ),
-            LicenseEntry(
                 name: "bat",
                 licenseType: "MIT / Apache 2.0",
                 copyright: "Copyright (c) 2018-2023 bat-developers",

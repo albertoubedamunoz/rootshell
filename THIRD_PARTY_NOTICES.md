@@ -38,7 +38,6 @@ If this summary differs from an upstream license, the upstream license controls.
 | [Vim](https://github.com/vim/vim) | Copyright (c) 1991-2024 Bram Moolenaar and the Vim contributors | Vim License |
 | [curl](https://github.com/curl/curl) | Copyright (c) 1996-2026 Daniel Stenberg and many contributors | curl License |
 | [Helix Editor](https://github.com/helix-editor/helix) | Copyright (c) 2020 Blaž Hrastnik and Helix contributors | MPL 2.0 |
-| [gitoxide](https://github.com/GitoxideLabs/gitoxide) | Copyright (c) Sebastian Thiel and gitoxide contributors | MIT or Apache 2.0 |
 | [bat](https://github.com/sharkdp/bat) | Copyright (c) 2018-2023 bat-developers | MIT or Apache 2.0 |
 | [ripgrep](https://github.com/BurntSushi/ripgrep) | Copyright (c) 2015 Andrew Gallant | Unlicense or MIT |
 | [libgit2](https://github.com/libgit2/libgit2) | Copyright (c) the libgit2 contributors | GPL 2.0 with linking exception |
