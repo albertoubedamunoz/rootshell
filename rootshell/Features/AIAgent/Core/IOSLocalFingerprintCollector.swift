@@ -58,7 +58,7 @@ final class IOSLocalFingerprintCollector {
             // Network
             "curl", "nc", "dig", "host", "nslookup", "whois", "ifconfig",
             // Developer tools
-            "git", "bat", "jq", "gix",
+            "git", "bat", "jq",
             // Shell utilities
             "echo", "env", "printenv", "date", "uname", "whoami", "tee",
             "uptime", "pbcopy", "pbpaste",

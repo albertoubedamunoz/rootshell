@@ -464,7 +464,6 @@ extension Ghostty {
             registerCommandFunction("whatismyip4") { argc, argv in whatismyip4_main(argc, argv) }
             registerCommandFunction("whatismyip6") { argc, argv in whatismyip6_main(argc, argv) }
             registerCommandFunction("bssid") { argc, argv in bssid_main(argc, argv) }
-            registerCommandFunction("gix") { argc, argv in gix_main(argc, argv) }
             registerCommandFunction("imgtext") { argc, argv in imgtext_main(argc, argv) }
 
             // Setup joe text editor (debug builds only - GPL licensed, excluded from distribution)

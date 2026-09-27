@@ -46,7 +46,6 @@ extension LocalShellSession {
         let batDesc = String(localized: "Syntax-highlighted file viewer", comment: "Help: bat description")
         let jqDesc = String(localized: "JSON processor", comment: "Help: jq description")
         let gitDesc = String(localized: "Git operations (libgit2)", comment: "Help: git description")
-        let gixDesc = String(localized: "Git operations (gitoxide)", comment: "Help: gix description")
         let rgDesc = String(localized: "Fast regex search (ripgrep)", comment: "Help: rg description")
         // say command disabled - crashes app (ios_system AVSpeechSynthesizer issue)
 
@@ -78,7 +77,6 @@ extension LocalShellSession {
   git       - \(gitDesc)
   bat       - \(batDesc)
   jq        - \(jqDesc)
-  gix       - \(gixDesc)
   rg        - \(rgDesc)
 
 \(mediaHeader)

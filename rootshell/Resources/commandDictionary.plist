@@ -541,13 +541,6 @@
 		<string></string>
 		<string>file</string>
 	</array>
-	<key>gix</key>
-	<array>
-		<string>MAIN</string>
-		<string>gix_main</string>
-		<string>r:c:t:f:vs</string>
-		<string>file</string>
-	</array>
 	<key>rg</key>
 	<array>
 		<string>ripgrep_ios.framework/ripgrep_ios</string>
