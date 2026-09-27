@@ -6856,7 +6856,7 @@
 			repositoryURL = "https://github.com/kitknox/Swiftkube-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.25.1;
+				version = 0.26.0;
 			};
 		};
 		47A0B0012F8A000000000001 /* XCRemoteSwiftPackageReference "vim-rootshell" */ = {

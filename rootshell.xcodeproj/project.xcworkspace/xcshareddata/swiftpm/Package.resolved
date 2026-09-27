@@ -128,15 +128,6 @@
       }
     },
     {
-      "identity" : "model",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftkube/model.git",
-      "state" : {
-        "revision" : "883df816465997f8f523d07702af16da4e4614c3",
-        "version" : "0.18.0"
-      }
-    },
-    {
       "identity" : "network_ios-rootshell",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/network_ios-rootshell.git",
@@ -392,8 +383,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/Swiftkube-rootshell.git",
       "state" : {
-        "revision" : "c3c9bf905aa4934e79e88b7b2427f155b58dc4e3",
-        "version" : "0.25.1"
+        "revision" : "be1dd15603082d63dbb07ba6a64e10c42ae812f6",
+        "version" : "0.26.0"
       }
     },
     {
