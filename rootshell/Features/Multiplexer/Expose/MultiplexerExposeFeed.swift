@@ -38,6 +38,7 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
     private var focusTask: Task<Void, Never>?
     private var sleeper: Task<Void, Never>?
     private var stopTask: Task<Void, Never>?
+    private var cacheEvictionTask: Task<Void, Never>?
     private var visiblePanes: Set<String> = []
     private var lastFetchAt: [String: CFTimeInterval] = [:]
     private var hints: [String: String] = [:]
@@ -279,12 +280,24 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         stopTask = nil
         if let terminal, let snapshot, let type {
             cache = (ObjectIdentifier(terminal), "\(type.rawValue):\(sessionName ?? "")", snapshot, frames, CACurrentMediaTime())
+            scheduleCacheEviction()
         }
         teardownLoop()
         state = .idle
         snapshot = nil
         frames = [:]
         onChange?()
+    }
+
+    /// `configure` ignores a cache past its lifetime; drop it then too.
+    private func scheduleCacheEviction() {
+        cacheEvictionTask?.cancel()
+        cacheEvictionTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.cacheLifetime))
+            guard !Task.isCancelled, let self else { return }
+            self.cache = nil
+            self.cacheEvictionTask = nil
+        }
     }
 
     private func teardownLoop() {
