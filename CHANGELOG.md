@@ -3,6 +3,41 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.13-157 - September 27, 2026
+
+### Faster Mosh and Terminal Output
+
+- **Hardware-Accelerated Mosh Encryption:** Mosh now uses hardware-accelerated packet encryption on Apple silicon and Intel Macs, greatly reducing encryption overhead while remaining compatible with existing Mosh servers.
+- **Terminal Output Performance:** Reduced CPU work when processing SSH and local terminal output.
+
+### Dictation on Older Devices
+
+- **Lower-Memory Speech Recognition:** Fixed on-device dictation running out of memory on 4 GB devices such as the A12X iPad Pro. Speech recognition now uses the GPU on devices with limited memory to avoid the heavier CPU fallback.
+
+### Large Sessions and Tab Previews
+
+- **Tab and Sidebar Performance:** Reduced work in the tab bar and sidebar when many tabs are open, including grouped tab navigation and sidebar drag previews.
+- **Multiplexer Layout Updates:** tmux and herdr control mode now skip redundant layout and resize work for unchanged windows. Coding-agent status updates are also batched when refreshing the session's tabs and panes.
+- **Preview Memory Budget:** Tab Expose now limits preview memory use and prioritizes the current tab and visible previews. Nearby previews are retained when space allows; previews farther off screen release their rendering resources.
+- **Preview Fallbacks and Remote Captures:** When the preview memory budget is reached, some app tabs may show their last rendered frame, and multiplexer previews may show only the active pane or placeholders. Remote preview captures focus on the active tab and panes on or near the screen, with older off-screen captures evicted as needed.
+
+### Lower Memory Use
+
+- **On-Demand Font Previews:** Font previews now load as needed and are released when Font settings closes, reducing retained memory by about 12 MB.
+- **Expired Pane Previews:** Multiplexer Expose now releases cached pane previews after they expire instead of keeping them for the life of the window.
+- **Memory Reclamation:** Improved memory reclamation after closing terminals, unloading dictation models, completing file transfers, and moving the app to the background.
+
+### Smaller App
+
+- **Smaller iOS Bundle:** These optimizations reduce the iOS app bundle by 40 MB compared with the previous version.
+- **Trimmed Components:** Trimmed unused dictation and Kubernetes components, along with unused code and resources, to reduce the app's size.
+- **Helix Git Support:** Ported Helix to use libgit2, retaining its Git features while reducing app size. Removed the separate `gix` (gitoxide) command; use the existing `git` command for local Git operations.
+- **Removed Syntax Grammars:** Removed bundled SQL and Kotlin syntax grammars from the built-in Helix editor to save space. These languages no longer have their bundled syntax highlighting or grammar-based editing features.
+
+### Stability
+
+- **Terminal Close Crash Fix:** Fixed a crash that could occur when a terminal closed while a resize was still in progress.
+
 ## 1.0.13-156 - September 26, 2026
 
 ### More Dictation Options
