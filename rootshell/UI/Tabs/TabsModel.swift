@@ -395,9 +395,12 @@ final class TabModel: Identifiable {
     // MARK: - Internal observation storage
 
     @ObservationIgnored private var observationCancellables = Set<AnyCancellable>()
-    private(set) var groupingRevision = 0
+    private(set) var groupingRevision = 0 {
+        didSet { tabsModel?.tabGroupingInputsDidChange() }
+    }
 
-    /// Weak: TabsModel owns its tabs. Read only for the tab-switch animation gate.
+    /// Weak: TabsModel owns its tabs. Read for the tab-switch animation gate
+    /// and to forward grouping changes.
     @ObservationIgnored weak var tabsModel: TabsModel?
 
     /// Latest title held back while the tab-switch gate is up.
@@ -736,6 +739,8 @@ final class TabsModel {
     @ObservationIgnored var pendingHerdrSelection: SerializableHerdrSelection?
     var tabs: [TabModel] = [] {
         didSet {
+            indexByIDCache = nil
+            groupingInputsRevision &+= 1
             invalidateGroupingCache()
             for tab in tabs { tab.tabsModel = self }
             let liveIDs = Set(tabs.map(\.id))
@@ -821,7 +826,19 @@ final class TabsModel {
 
     /// Stale ids are ignored by effective grouping.
     var tabGroupOverrides: [UUID: TabGroupID] = [:] {
-        didSet { invalidateGroupingCache() }
+        didSet {
+            groupingInputsRevision &+= 1
+            invalidateGroupingCache()
+        }
+    }
+
+    /// Bumped whenever a grouping input changes: the tab list, the overrides,
+    /// or any member tab's `groupingRevision`. One observed counter instead of
+    /// reading every tab's revision, which made each grouping lookup O(n).
+    private(set) var groupingInputsRevision: UInt64 = 0
+
+    func tabGroupingInputsDidChange() {
+        groupingInputsRevision &+= 1
     }
 
     /// Unknown ids are kept so late-classified groups recover their position.
@@ -863,18 +880,7 @@ final class TabsModel {
     @ObservationIgnored private var navigationCache: NavigationSnapshot?
 
     private struct GroupingRevision: Equatable {
-        struct TabRevision: Equatable {
-            let id: UUID
-            let revision: Int
-        }
-
-        struct OverrideRevision: Equatable {
-            let tabID: UUID
-            let groupID: TabGroupID
-        }
-
-        let tabs: [TabRevision]
-        let overrides: [OverrideRevision]
+        let inputs: UInt64
     }
 
     private struct GroupingSnapshot {
@@ -883,6 +889,10 @@ final class TabsModel {
         let effectiveIDs: [UUID: TabGroupID]
         let groupOrder: [TabGroupID]
         let groupTabIDs: [TabGroupID: [UUID]]
+        /// Position in `visibleTabs`.
+        let visibleIndexByID: [UUID: Int]
+        /// Position among the non-hidden members of the tab's own group.
+        let groupPositionByID: [UUID: Int]
     }
 
     private struct NavigationRevision: Equatable {
@@ -922,14 +932,7 @@ final class TabsModel {
     }
 
     private var currentGroupingRevision: GroupingRevision {
-        GroupingRevision(
-            tabs: tabs.map { GroupingRevision.TabRevision(id: $0.id, revision: $0.groupingRevision) },
-            overrides: tabGroupOverrides.sorted { lhs, rhs in
-                lhs.key.uuidString < rhs.key.uuidString
-            }.map { entry in
-                GroupingRevision.OverrideRevision(tabID: entry.key, groupID: entry.value)
-            }
-        )
+        GroupingRevision(inputs: groupingInputsRevision)
     }
 
     private func groupingSnapshot() -> GroupingSnapshot {
@@ -968,13 +971,25 @@ final class TabsModel {
             }
             buckets[groupID] = ordered
         }
+        var groupPositionByID: [UUID: Int] = [:]
+        for tabIDs in buckets.values {
+            var position = 0
+            for id in tabIDs {
+                guard let tab = byID[id], !tab.isHiddenTmuxWindow else { continue }
+                if groupPositionByID[id] == nil { groupPositionByID[id] = position }
+                position += 1
+            }
+        }
 
         let snapshot = GroupingSnapshot(
             revision: revision,
             visibleTabs: visibleTabs,
             effectiveIDs: effectiveIDs,
             groupOrder: order,
-            groupTabIDs: buckets
+            groupTabIDs: buckets,
+            visibleIndexByID: Dictionary(visibleTabs.enumerated().map { ($1.id, $0) },
+                                         uniquingKeysWith: { first, _ in first }),
+            groupPositionByID: groupPositionByID
         )
         groupingCache = snapshot
         return snapshot
@@ -1262,12 +1277,12 @@ final class TabsModel {
 
     var selectedTabIndex: Int? {
         guard let id = selectedTabID else { return nil }
-        return tabs.firstIndex(where: { $0.id == id })
+        return index(of: id)
     }
 
     var selectedTab: TabModel? {
         guard let id = selectedTabID else { return nil }
-        return tabs.first(where: { $0.id == id })
+        return tab(withID: id)
     }
 
     /// Initial attach may only replace its own gateway's selection. Check when the
@@ -1317,7 +1332,13 @@ final class TabsModel {
     }
 
     func visibleIndex(of id: UUID) -> Int? {
-        groupingSnapshot().visibleTabs.firstIndex(where: { $0.id == id })
+        groupingSnapshot().visibleIndexByID[id]
+    }
+
+    /// Position among the non-hidden tabs of `id`'s own group; nil for a
+    /// hidden or ungrouped tab.
+    func groupPosition(of id: UUID) -> Int? {
+        groupingSnapshot().groupPositionByID[id]
     }
 
     func navigationIndex(of id: UUID) -> Int? {
@@ -1720,7 +1741,7 @@ final class TabsModel {
     }
 
     func tab(withID id: UUID) -> TabModel? {
-        tabs.first(where: { $0.id == id })
+        index(of: id).map { tabs[$0] }
     }
 
     /// Repairs a missing or hidden selection. (id=tmux-hidden-windows)
@@ -1898,8 +1919,17 @@ final class TabsModel {
     }
 
     func index(of id: UUID) -> Int? {
-        tabs.firstIndex(where: { $0.id == id })
+        // Reading `tabs` keeps the observation dependency the scan had.
+        let tabs = self.tabs
+        if let cache = indexByIDCache { return cache[id] }
+        // First occurrence wins, as `firstIndex` did.
+        let cache = Dictionary(tabs.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+        indexByIDCache = cache
+        return cache[id]
     }
+
+    /// Rebuilt lazily after `tabs` changes; lookups run per tab per render.
+    @ObservationIgnored private var indexByIDCache: [UUID: Int]?
 
     // MARK: - Displayed-tab reveal
 
