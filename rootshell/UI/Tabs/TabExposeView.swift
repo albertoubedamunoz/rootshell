@@ -16,6 +16,7 @@
 
 import UIKit
 import SwiftUI
+import os
 
 @MainActor
 final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRenderingParticipant {
@@ -533,6 +534,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     private func startDisplayLink() {
         guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
         guard displayLink == nil else { return }
+        previewSurfaceBudget = Self.currentPreviewSurfaceBudget()
         let proxy = DisplayLinkProxy(owner: self)
         let link = CADisplayLink(target: proxy, selector: #selector(DisplayLinkProxy.tick(_:)))
         link.add(to: .main, forMode: .common)
@@ -569,20 +571,66 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         // companion, and paging away from it leaves no mux cells at all —
         // which the feed must hear, or it keeps refreshing panes nobody sees.
         let trays = [primary] + (companion.map { [$0] } ?? [])
-        let visibleCells = trays.flatMap { $0.visibleCells(in: self) }
+        let partitions = trays.map { $0.cellsByVisibility(in: self, margin: bounds.height) }
+        // The current tab is granted first so it never loses its picture.
+        let visibleCells = partitions.flatMap(\.visible).filter(\.isCurrent)
+            + partitions.flatMap(\.visible).filter { !$0.isCurrent }
+        let nearbyIDs = Set(partitions.flatMap(\.nearby).map(ObjectIdentifier.init))
         let sources = updateFallbackFeeds(for: visibleCells)
         let visibleIDs = Set(visibleCells.map(ObjectIdentifier.init))
-        for cell in trays.flatMap(\.cells) where !visibleIDs.contains(ObjectIdentifier(cell)) {
-            cell.releaseFallbackPreview()
-        }
+        var budget = previewSurfaceBudget
+        // The selected tab renders regardless; it costs the budget nothing.
+        let selectedID = controller.tabsModel?.selectedTabID
+        var liveTabs: Set<UUID> = []
         var visibleMuxPanes: Set<String> = []
+        // Grants and releases all happen before any surface is created, so
+        // incoming cells never stack on top of outgoing ones.
         for cell in visibleCells {
-            cell.syncPreview(fallbackFeed: sources[cell.tabID])
-            if controller.tabsModel?.tab(withID: cell.tabID) == nil {
-                visibleMuxPanes.formUnion(cell.muxPreview.paneIDs)
+            cell.preparePreview(fallbackFeed: sources[cell.tabID], budget: &budget)
+            if let tab = cell.mirroredTab {
+                // Over budget the mirror shows the renderer's last frame, if any.
+                let cost = tab.id == selectedID ? 0 : TabPreviewMirrorView.rendererCost(of: tab)
+                if cost <= budget {
+                    budget -= cost
+                    liveTabs.insert(tab.id)
+                }
+            } else if controller.tabsModel?.tab(withID: cell.tabID) == nil {
+                visibleMuxPanes.formUnion(cell.muxPreview.allowedPaneIDs)
             }
         }
-        controller.muxFeed?.setVisiblePanes(visibleMuxPanes)
+        var nearbyMuxPanes: Set<String> = []
+        for cell in trays.flatMap(\.cells) where !visibleIDs.contains(ObjectIdentifier(cell)) {
+            let nearby = nearbyIDs.contains(ObjectIdentifier(cell))
+            if nearby, let tab = cell.appTab, controller.liveTabIDs.contains(tab.id) {
+                // Already awake and close: stay live while the budget allows.
+                let cost = tab.id == selectedID ? 0 : TabPreviewMirrorView.rendererCost(of: tab)
+                if cost <= budget {
+                    budget -= cost
+                    liveTabs.insert(tab.id)
+                }
+            }
+            cell.parkPreview(nearby: nearby, budget: &budget)
+            if nearby, controller.tabsModel?.tab(withID: cell.tabID) == nil {
+                nearbyMuxPanes.formUnion(cell.muxPreview.paneIDs)
+            }
+        }
+        controller.setLiveTabs(liveTabs)
+        for cell in visibleCells { cell.renderPreview() }
+        controller.muxFeed?.setVisiblePanes(visibleMuxPanes, nearby: nearbyMuxPanes)
+    }
+
+    /// Bytes of offscreen preview surfaces the exposé may hold at once.
+    private var previewSurfaceBudget = TabExposeView.currentPreviewSurfaceBudget()
+
+    private static func currentPreviewSurfaceBudget() -> Int {
+        #if targetEnvironment(macCatalyst)
+        return 2 << 30
+        #else
+        // Zero means no jetsam limit is known (the simulator).
+        let available = Int(clamping: os_proc_available_memory())
+        guard available > 0 else { return 1 << 30 }
+        return min(max(available / 3, 64 << 20), 1 << 30)
+        #endif
     }
 
     private func updateFallbackFeeds(for cells: [TabExposeCellView]) -> [UUID: HerdrFallbackPreviewFeed] {
@@ -1247,8 +1295,9 @@ final class TabExposeCellView: UIView {
         accessibilityLabel = tab.badge.map { "\(tab.title), \($0)" } ?? tab.title
     }
 
-    /// Per display tick: refresh whichever picture is showing.
-    func syncPreview(fallbackFeed: HerdrFallbackPreviewFeed? = nil) {
+    /// Per display tick, before any cell renders: pick the picture and grant
+    /// multiplexer surfaces out of `budget`, releasing any that lost theirs.
+    func preparePreview(fallbackFeed: HerdrFallbackPreviewFeed? = nil, budget: inout Int) {
         if let nativeTab {
             if let id = nativeTab.herdrTabId, let fallbackFeed, let tab = fallbackFeed.tab(for: id) {
                 if !mirror.isHidden { mirror.releaseContents() }
@@ -1260,7 +1309,38 @@ final class TabExposeCellView: UIView {
                 releaseFallbackPreview()
             }
         }
+        if mirror.isHidden { muxPreview.allocateSurfaces(budget: &budget) }
+    }
+
+    /// Per display tick, after every cell's grant: refresh the picture,
+    /// creating any newly granted surfaces.
+    func renderPreview() {
         if mirror.isHidden { muxPreview.sync() } else { mirror.sync() }
+    }
+
+    /// The app tab behind this cell; nil for a multiplexer tab.
+    var appTab: TabModel? { nativeTab }
+
+    /// The app tab this cell shows through its live mirror (not a fallback
+    /// capture), whose renderer must be awake for the picture to update.
+    var mirroredTab: TabModel? { mirror.isHidden ? nil : nativeTab }
+
+    /// Off screen: keep multiplexer surfaces only when `nearby` and within
+    /// `budget`. An app cell lets go of its mirror, which could otherwise pin
+    /// an old IOSurface once the tab renders again; it is rebuilt on return.
+    func parkPreview(nearby: Bool, budget: inout Int) {
+        if nativeTab != nil {
+            if muxPreview.feed != nil || muxPreview.tab != nil { muxPreview.releaseResources() }
+            muxPreview.isHidden = true
+            mirror.isHidden = false
+            if mirror.tab != nil { mirror.releaseContents() }
+            return
+        }
+        if nearby {
+            muxPreview.retainSurfaces(budget: &budget)
+        } else {
+            muxPreview.releaseSurfaces()
+        }
     }
 
     func releaseFallbackPreview() {

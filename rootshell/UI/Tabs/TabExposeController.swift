@@ -84,6 +84,10 @@ final class TabExposeController {
     /// because MainView's window-wide terminal-effect layer must also account
     /// for panes entering through the neighboring preview.
     private(set) var previewTabIDs: [UUID] = []
+    /// App tabs whose renderers the view needs awake for their mirrors:
+    /// on-screen cells within the preview memory budget. Everything else in
+    /// scope stays occluded, which releases its swap chain.
+    @ObservationIgnored private(set) var liveTabIDs: Set<UUID> = []
     var isActive: Bool { phase != .hidden }
     /// More than one page to move between (groups / projects, or the
     /// multiplexer page next to the app tabs).
@@ -135,6 +139,8 @@ final class TabExposeController {
     @ObservationIgnored var onNavigateScope: ((Int) -> Void)?
     /// `previewTabIDs` changed: wake the newcomers, re-occlude the leavers.
     @ObservationIgnored var onScopePreviewChanged: (([UUID]) -> Void)?
+    /// `liveTabIDs` changed: wake `woken`, occlude `parked`.
+    @ObservationIgnored var onLiveTabsChanged: ((_ woken: Set<UUID>, _ parked: Set<UUID>) -> Void)?
     /// Direction of a scope switch in flight; published as `scopeTransition`
     /// with the scope-changed announce so the view pages in that direction.
     @ObservationIgnored var pendingScopeTransition: Int?
@@ -408,6 +414,15 @@ final class TabExposeController {
         refreshScope(force: true)
     }
 
+    /// The view's mirrors need exactly `ids` rendering (per display tick).
+    func setLiveTabs(_ ids: Set<UUID>) {
+        guard ids != liveTabIDs else { return }
+        let woken = ids.subtracting(liveTabIDs)
+        let parked = liveTabIDs.subtracting(ids)
+        liveTabIDs = ids
+        onLiveTabsChanged?(woken, parked)
+    }
+
     /// The view is previewing `ids` (a neighbor scope dragged in); empty ends it.
     func setScopePreview(_ ids: [UUID]) {
         guard ids != previewTabIDs else { return }
@@ -569,6 +584,7 @@ final class TabExposeController {
         pendingSelectedTabID = nil
         hideDeadline = 0
         lastTick = 0
+        liveTabIDs = []
         onWillPresent?(tabIDs)
         phase = .interactive
         observer?.tabExposeDidChangeActivity(self)

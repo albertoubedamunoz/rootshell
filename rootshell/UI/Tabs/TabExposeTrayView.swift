@@ -207,10 +207,21 @@ final class TabExposeTrayView: UIScrollView {
 
     /// Include the tray's vertical scroll and the exposé's horizontal page
     /// clipping when deciding which captures and renderers are needed.
-    func visibleCells(in viewport: UIView) -> [TabExposeCellView] {
-        cells.filter {
-            $0.frame.intersects(bounds) && $0.convert($0.bounds, to: viewport).intersects(viewport.bounds)
+    /// `nearby` cells are off screen but within `margin` of it.
+    func cellsByVisibility(in viewport: UIView, margin: CGFloat) -> (visible: [TabExposeCellView], nearby: [TabExposeCellView]) {
+        let clip = viewport.convert(viewport.bounds, to: self).intersection(bounds)
+        guard !clip.isNull, !clip.isEmpty else { return ([], []) }
+        let warm = clip.insetBy(dx: 0, dy: -margin)
+        var visible: [TabExposeCellView] = []
+        var nearby: [TabExposeCellView] = []
+        for cell in cells {
+            if cell.frame.intersects(clip) {
+                visible.append(cell)
+            } else if cell.frame.intersects(warm) {
+                nearby.append(cell)
+            }
         }
+        return (visible, nearby)
     }
 
     // MARK: - Hit testing / scrolling

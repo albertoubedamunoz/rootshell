@@ -431,11 +431,9 @@ extension MainView {
             preserveIDs.insert(swipe.sourceTabID)
             preserveIDs.insert(swipe.targetTabID)
         }
-        // Tab exposé mirrors every scope tab live (plus a neighbor scope being
-        // swiped in); they must render while it's up.
-        let exposeVisibleIDs: Set<UUID> = tabExpose.isActive
-            ? Set(tabExpose.tabIDs).union(tabExpose.previewTabIDs)
-            : []
+        // Tab exposé mirrors its on-screen cells live (a neighbor scope being
+        // swiped in included); they must render while it's up.
+        let exposeVisibleIDs: Set<UUID> = tabExpose.isActive ? tabExpose.liveTabIDs : []
         // A hover preview card mirrors one more tab live.
         let previewedID = tabHoverPreview.previewedTabID
 
