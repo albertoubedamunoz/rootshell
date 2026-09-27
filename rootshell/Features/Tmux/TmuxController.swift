@@ -599,6 +599,8 @@ final class TmuxController {
         }
 
         let paneIDsBeforeApply = Set(paneViews.keys)
+        AgentAttentionCenter.shared.beginTopologyBatch()
+        defer { AgentAttentionCenter.shared.endTopologyBatch() }
 
         lastReconcileAt = Date()
         reconcileCount += 1
@@ -823,6 +825,7 @@ final class TmuxController {
             windowFontSize.removeValue(forKey: windowId)
             lastPushedWindowSize.removeValue(forKey: windowId)
             lastLayoutPaneCount.removeValue(forKey: windowId)
+            lastAppliedLayout.removeValue(forKey: windowId)
             reportedWindowCellsByWindow.removeValue(forKey: windowId)
             clearForeignConstraint(windowId: windowId)
             clearPendingSplitFocus(windowId: windowId)
@@ -884,9 +887,12 @@ final class TmuxController {
             let current = slots.map { hostModel.tabs[$0] }
             let sorted = current.sorted { $0.tmuxWindowIndex < $1.tmuxWindowIndex }
             if current.elementsEqual(sorted, by: { $0 === $1 }) { continue }
+            // One assignment: each write to `tabs` runs its whole didSet.
+            var reordered = hostModel.tabs
             for (slot, tab) in zip(slots, sorted) {
-                hostModel.tabs[slot] = tab
+                reordered[slot] = tab
             }
+            hostModel.tabs = reordered
         }
     }
 
@@ -1126,8 +1132,16 @@ final class TmuxController {
         } else {
             zoomedNode = nil
         }
-        tab.splitTree = SplitTree(root: root, zoomed: zoomedNode)
+        // Every full reconcile re-sends every window; an unchanged tree must
+        // not invalidate SwiftUI or resize panes tmux did not reflow.
+        let treeChanged = tab.splitTree.root != root || tab.splitTree.zoomed != zoomedNode
+        if treeChanged {
+            tab.splitTree = SplitTree(root: root, zoomed: zoomedNode)
+        }
         fulfillPendingSplitFocus(windowId: windowId, layout: layout, tab: tab)
+        let layoutChanged = lastAppliedLayout[windowId] != layout
+        lastAppliedLayout[windowId] = layout
+        guard treeChanged || layoutChanged else { return true }
 
         // Re-run reveal gating for a placeholder that was shown before its panes existed.
         tabsModel.syncDisplayedTab()
@@ -1572,6 +1586,7 @@ final class TmuxController {
             windowFontSize.removeValue(forKey: windowId)
             lastPushedWindowSize.removeValue(forKey: windowId)
             lastLayoutPaneCount.removeValue(forKey: windowId)
+            lastAppliedLayout.removeValue(forKey: windowId)
             reportedWindowCellsByWindow.removeValue(forKey: windowId)
             clearForeignConstraint(windowId: windowId)
             // ROOTSHELL-TMUX (id=tmux-session-switch-focus)
@@ -1870,6 +1885,9 @@ final class TmuxController {
 
     /// ROOTSHELL-TMUX (id=tmux-size-floor)
     private var lastLayoutPaneCount: [Int: Int] = [:]
+
+    /// Layout each window last applied; an unchanged one skips the resize pass.
+    private var lastAppliedLayout: [Int: TmuxLayoutNode] = [:]
 
     /// What tmux reports, which a smaller foreign client can hold below what we requested.
     private var reportedWindowCellsByWindow: [Int: (cols: UInt16, rows: UInt16)] = [:]

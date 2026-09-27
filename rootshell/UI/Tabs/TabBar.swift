@@ -699,7 +699,7 @@ struct TabBar: View {
 
     private func moveTargetRawIndex(for tab: TabModel, delta: Int) -> Int? {
         let orderedTabs = tabsModel.navigationTabs
-        guard let visibleIndex = orderedTabs.firstIndex(where: { $0.id == tab.id }) else { return nil }
+        guard let visibleIndex = tabsModel.navigationIndex(of: tab.id) else { return nil }
         let targetVisibleIndex = visibleIndex + delta
         guard orderedTabs.indices.contains(targetVisibleIndex) else { return nil }
         return tabsModel.index(of: orderedTabs[targetVisibleIndex].id)

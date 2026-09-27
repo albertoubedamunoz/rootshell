@@ -52,6 +52,9 @@ protocol TerminalSurfaceHost: AnyObject {
 @MainActor
 final class TerminalSurfaceController: NSObject {
     private unowned let host: TerminalSurfaceHost
+    /// Checked by deferred callbacks: the API-queue resize block can drop the
+    /// host's last reference, so it may be deiniting while this controller lives.
+    private weak var liveHost: TerminalSurfaceHost?
 
     private(set) var surface: ghostty_surface_t?
     var slaveFd: Int32 = -1
@@ -72,6 +75,7 @@ final class TerminalSurfaceController: NSObject {
 
     init(host: TerminalSurfaceHost) {
         self.host = host
+        self.liveHost = host
         super.init()
     }
 
@@ -138,6 +142,9 @@ final class TerminalSurfaceController: NSObject {
 
     /// Main-actor follow-up once the surface call returned.
     private func completeSurfaceResize(needsRestore: Bool) {
+        // Holding the weak load keeps the host alive for the rest of this call.
+        guard let liveHost else { return }
+        defer { withExtendedLifetime(liveHost) {} }
         let restorePending = needsRestore && host.surfacePendingScrollbackRestoreForLayout
         guard sizesSessionFromPtyResizeAction else {
             host.surfaceUpdatePTYSize()
@@ -825,6 +832,7 @@ final class TerminalSurfaceController: NSObject {
                 Ghostty.logger.info("Freeing Ghostty surface on background queue...")
                 ghostty_surface_free(surfacePtr)
                 Ghostty.logger.info("Ghostty surface freed")
+                MallocPressureRelief.request()
             } else {
                 Ghostty.logger.warning("Scrollback save did not complete in 500ms; leaking surface to avoid use-after-free")
             }

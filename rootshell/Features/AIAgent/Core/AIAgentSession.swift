@@ -1700,7 +1700,7 @@ final class AIAgentSession {
         Text Processing: grep, egrep, fgrep, rg, sed, awk, wc, sort, uniq, diff, head, tail, tr, md5
         Archives: tar, gzip, gunzip, compress, uncompress
         Network: curl, nc, dig, host, nslookup, whois, ifconfig
-        Developer: git, bat, jq, gix, rg
+        Developer: git, bat, jq, rg
         Shell Utils: echo, env, printenv, date, uname, whoami, tee, uptime, pbcopy, pbpaste
         Other: df, id, w, chgrp
 

@@ -38,7 +38,11 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
     private var focusTask: Task<Void, Never>?
     private var sleeper: Task<Void, Never>?
     private var stopTask: Task<Void, Never>?
+    private var cacheEvictionTask: Task<Void, Never>?
     private var visiblePanes: Set<String> = []
+    private var nearbyPanes: Set<String> = []
+    /// Last time each pane was on screen or near it; orders frame eviction.
+    private var lastWantedAt: [String: CFTimeInterval] = [:]
     private var lastFetchAt: [String: CFTimeInterval] = [:]
     private var hints: [String: String] = [:]
     /// Negative detection is cached across short exposé lifetimes.
@@ -64,6 +68,11 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
     private static let cacheLifetime: CFTimeInterval = 60
     private static let maxPreviewPanesPerTab = 6
     private static let responseCap = 512 * 1024
+    #if targetEnvironment(macCatalyst)
+    private static let frameByteBudget = 32 << 20
+    #else
+    private static let frameByteBudget = 8 << 20
+    #endif
     private static let tickTimeout: TimeInterval = 5
     private static let negativeProbeCooldown: CFTimeInterval = 4
     private static let focusAttempts = 12
@@ -229,6 +238,8 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         lastHints = [:]
         lastFetchAt = [:]
         visiblePanes = []
+        nearbyPanes = []
+        lastWantedAt = [:]
         tickCount = 0
         failures = 0
         fetchCap = Int.max
@@ -258,6 +269,10 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
             snapshot = cache.snapshot
             frames = cache.frames
             state = .live
+            // The live feed owns these frames now; stopping re-caches them.
+            self.cache = nil
+            cacheEvictionTask?.cancel()
+            cacheEvictionTask = nil
         } else {
             state = .loading
         }
@@ -279,12 +294,24 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         stopTask = nil
         if let terminal, let snapshot, let type {
             cache = (ObjectIdentifier(terminal), "\(type.rawValue):\(sessionName ?? "")", snapshot, frames, CACurrentMediaTime())
+            scheduleCacheEviction()
         }
         teardownLoop()
         state = .idle
         snapshot = nil
         frames = [:]
         onChange?()
+    }
+
+    /// `configure` ignores a cache past its lifetime; drop it then too.
+    private func scheduleCacheEviction() {
+        cacheEvictionTask?.cancel()
+        cacheEvictionTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.cacheLifetime))
+            guard !Task.isCancelled, let self else { return }
+            self.cache = nil
+            self.cacheEvictionTask = nil
+        }
     }
 
     private func teardownLoop() {
@@ -302,13 +329,35 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         focusGeneration &+= 1
     }
 
-    /// Panes on screen right now; they are fetched first and every tick.
-    func setVisiblePanes(_ ids: Set<String>) {
-        guard ids != visiblePanes else { return }
+    /// Panes on screen right now are fetched first and every tick; `nearby`
+    /// ones are prefetched. Panes in neither are not fetched at all.
+    func setVisiblePanes(_ ids: Set<String>, nearby: Set<String> = []) {
+        let now = CACurrentMediaTime()
+        for id in ids.union(nearby) { lastWantedAt[id] = now }
+        guard ids != visiblePanes || nearby != nearbyPanes else { return }
         let newcomers = ids.subtracting(visiblePanes)
         visiblePanes = ids
+        nearbyPanes = nearby
         // A cell that scrolled in with no picture yet should not wait a whole interval.
         if newcomers.contains(where: { frames[$0] == nil }) { wake() }
+    }
+
+    /// Keep frames of panes nobody is near within `frameByteBudget`,
+    /// dropping the longest-unwanted first.
+    private func trimFrames() {
+        var bytes = frames.values.reduce(0) { $0 + $1.ansi.utf8.count }
+        guard bytes > Self.frameByteBudget else { return }
+        let active = snapshot?.activeTabID.flatMap { snapshot?.tab(withID: $0) }.map { Set($0.panes.map(\.id)) } ?? []
+        let evictable = frames.keys
+            .filter { !visiblePanes.contains($0) && !nearbyPanes.contains($0) && !active.contains($0) }
+            .sorted { (lastWantedAt[$0] ?? 0) < (lastWantedAt[$1] ?? 0) }
+        for id in evictable where bytes > Self.frameByteBudget {
+            bytes -= frames[id]?.ansi.utf8.count ?? 0
+            frames[id] = nil
+            lastFetchAt[id] = nil
+            lastHints[id] = nil
+            lastWantedAt[id] = nil
+        }
     }
 
     /// Switch the multiplexer to `tabID`. Independent of the tick loop so it
@@ -1176,6 +1225,8 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         // Panes that vanished take their frames with them.
         let live = Set(result.snapshot.allPanes.map(\.id))
         frames = frames.filter { live.contains($0.key) }
+        lastWantedAt = lastWantedAt.filter { live.contains($0.key) }
+        trimFrames()
 
         let topologyChanged = result.snapshot != snapshot
         snapshot = result.snapshot
@@ -1220,7 +1271,8 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         return .wait(min(pow(2, Double(failures - 1)), 10))
     }
 
-    /// Panes to capture this tick, active tab first, then visible, then the rest.
+    /// Panes to capture this tick: active tab first, then visible, then
+    /// nearby. Panes far off screen wait until they scroll close.
     private func fetchList(now: CFTimeInterval) -> [String] {
         guard let snapshot else { return [] }
         var ordered: [(String, Int)] = []
@@ -1230,8 +1282,16 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
             for pane in tab.panes where pane.isPreviewable {
                 if budget <= 0, !pane.isActive { continue }
                 budget -= 1
-                let visible = visiblePanes.contains(pane.id)
-                let rank = tab.id == snapshot.activeTabID ? 0 : (visible ? 1 : 2)
+                let rank: Int
+                if tab.id == snapshot.activeTabID {
+                    rank = 0
+                } else if visiblePanes.contains(pane.id) {
+                    rank = 1
+                } else if nearbyPanes.contains(pane.id) {
+                    rank = 2
+                } else {
+                    continue
+                }
                 ordered.append((pane.id, rank))
             }
         }

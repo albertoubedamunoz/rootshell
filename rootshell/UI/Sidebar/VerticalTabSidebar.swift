@@ -2180,16 +2180,11 @@ struct VerticalTabSidebar: View {
         if projectGroupingActive {
             return tabsModel.navigationIndex(of: tab.id)
         }
-        guard tabsModel.isGroupedModeEnabled,
-              let groupID = tabsModel.effectiveGroupID(for: tab),
-              let group = tabsModel.availableGroups.first(where: { $0.id == groupID }) else {
+        // A tab's own group always holds it, so a grouped tab never falls back.
+        guard tabsModel.isGroupedModeEnabled, tabsModel.effectiveGroupID(for: tab) != nil else {
             return tabsModel.visibleIndex(of: tab.id)
         }
-
-        return group.tabIDs
-            .compactMap { tabsModel.tab(withID: $0) }
-            .filter { !$0.isHiddenTmuxWindow }
-            .firstIndex(where: { $0.id == tab.id })
+        return tabsModel.groupPosition(of: tab.id)
     }
 
     // MARK: Gateway Header Row
@@ -2879,7 +2874,9 @@ private struct SidebarRowDragModifier<DragPreview: View>: ViewModifier {
                     .onDrag {
                         onDragStarted()
                     } preview: {
-                        dragPreview()
+                        // `preview` runs during body; deferring keeps every
+                        // render from building a second copy of the row.
+                        SidebarDeferredDragPreview(build: dragPreview)
                     }
                     .onDrop(of: [TabTransferCoordinator.dragUTType, .text], delegate: dropDelegate)
             } else {
@@ -2893,6 +2890,13 @@ private struct SidebarRowDragModifier<DragPreview: View>: ViewModifier {
                 .onDrop(of: [TabTransferCoordinator.dragUTType, .text], delegate: dropDelegate)
         }
     }
+}
+
+/// Builds its content only when SwiftUI evaluates this view's body.
+private struct SidebarDeferredDragPreview<Content: View>: View {
+    let build: () -> Content
+
+    var body: some View { build() }
 }
 
 private struct SidebarRowDropDelegate: DropDelegate {

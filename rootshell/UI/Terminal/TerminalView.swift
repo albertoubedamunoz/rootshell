@@ -1577,6 +1577,7 @@ extension Ghostty {
                         let saveCompleted = ScrollbackPersistenceManager.waitForSurfaceSave(surfacePtr)
                         if saveCompleted {
                             ghostty_surface_free(surfacePtr)
+                            MallocPressureRelief.request()
                         }
                     }
                 }

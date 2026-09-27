@@ -42,6 +42,16 @@ final class TabPreviewMirrorView: UIView {
         sync()
     }
 
+    /// Bytes `tab`'s renderers hold while awake: a three-deep swap chain of
+    /// 32-bit targets at each terminal's drawable size.
+    static func rendererCost(of tab: TabModel) -> Int {
+        tab.splitTree.terminalLeaves.reduce(0) { total, terminal in
+            let scale = max(terminal.contentScaleFactor, 1)
+            let size = terminal.bounds.size
+            return total + Int(size.width * scale) * Int(size.height * scale) * 4 * 3
+        }
+    }
+
     /// Refresh geometry and contents. Cheap when nothing changed: called every
     /// display-link tick while the exposé is visible.
     func sync() {

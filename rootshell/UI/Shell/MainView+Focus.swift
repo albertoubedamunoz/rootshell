@@ -708,9 +708,16 @@ extension MainView {
         }
 
         tabsModel.displaySelectedTabImmediately()
+        // Exposé mirrors keep their renderers awake.
+        let exposeLiveIDs = tabExpose.isActive ? tabExpose.liveTabIDs : []
         for (index, tab) in terminals.enumerated() {
             let isSelected = index == selectedIndex
+            if !isSelected, exposeLiveIDs.contains(tab.id) { continue }
             for terminal in tab.splitTree {
+                // Re-occluding a hidden pane is a no-op, but with hundreds of
+                // multiplexer panes the per-call hops add up.
+                if !isSelected, let view = terminal.asTerminal,
+                   view.hasExplicitTabVisibility, !view.isTabVisible { continue }
                 terminal.setOcclusion(isSelected)
             }
         }

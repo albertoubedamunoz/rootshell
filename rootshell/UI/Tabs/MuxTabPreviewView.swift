@@ -16,7 +16,10 @@ import UIKit
 final class MuxTabPreviewView: UIView {
     weak var feed: (any MuxPreviewFrameSource)? {
         didSet {
-            if feed !== oldValue { removeAll() }
+            if feed !== oldValue {
+                removeAll()
+                grownSlack.removeAll()
+            }
         }
     }
     var tab: MuxTab? {
@@ -51,8 +54,20 @@ final class MuxTabPreviewView: UIView {
     }
 
     private var previews: [String: PanePreview] = [:]
+    /// Panes granted a surface by the exposé's memory budget this tick; the
+    /// rest show a placeholder. Empty until granted, so layout alone never
+    /// builds surfaces for off-screen cells.
+    private(set) var allowedPaneIDs: Set<String> = []
+    /// Slack a pane's surface had to grow to, kept across disposal so a
+    /// rebuilt surface starts at its real size and the cost estimate matches
+    /// it; otherwise a grant can oscillate between estimate and actual.
+    private var grownSlack: [String: (rect: MuxCellRect, columns: CGFloat, rows: CGFloat)] = [:]
     /// Used while the surface has not reported its real cell size yet.
     private static let fallbackCellSize = CGSize(width: 8, height: 16)
+    /// Last cell size any preview surface reported, for cost estimates.
+    private static var lastCellSize: CGSize?
+    /// Metal keeps a three-deep swap chain of 32-bit targets per surface.
+    private static let bytesPerSurfacePixel = 4 * 3
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -74,9 +89,83 @@ final class MuxTabPreviewView: UIView {
         if window == nil { removeAll() }
     }
 
-    /// Pane ids this view is showing (for the feed's visible set).
+    /// Pane ids this view could show (for the feed's prefetch set).
     var paneIDs: Set<String> {
         Set(tab?.panes.filter(\.isPreviewable).map(\.id) ?? [])
+    }
+
+    /// Grant surfaces out of `budget` bytes: every pane if they fit, else
+    /// the active pane alone, else none. Estimates cover panes without a
+    /// frame yet, so a grant does not flip as frames arrive. Surfaces that
+    /// lost their grant are released here; new ones wait for `sync()`.
+    func allocateSurfaces(budget: inout Int) {
+        allowedPaneIDs = grant(budget: &budget)
+        for (id, preview) in previews where preview.surface != nil && !allowedPaneIDs.contains(id) {
+            disposeSurface(preview)
+        }
+    }
+
+    private func grant(budget: inout Int) -> Set<String> {
+        guard let tab else { return [] }
+        let panes = tab.panes.filter { $0.isPreviewable && $0.rect.width > 0 && $0.rect.height > 0 }
+        let costs = panes.map(estimatedCost)
+        let total = costs.reduce(0, +)
+        if total <= budget {
+            budget -= total
+            return Set(panes.map(\.id))
+        }
+        if let index = panes.firstIndex(where: \.isActive) ?? panes.indices.first, costs[index] <= budget {
+            budget -= costs[index]
+            return [panes[index].id]
+        }
+        return []
+    }
+
+    /// Off screen but near: keep existing surfaces while they fit in
+    /// `budget`, so scrolling back does not rebuild them. Never adds any.
+    func retainSurfaces(budget: inout Int) {
+        let live = previews.filter { $0.value.surface != nil }
+        let cost = live.values.reduce(0) { $0 + surfaceCost($1.surfaceSize) }
+        if cost <= budget {
+            budget -= cost
+            allowedPaneIDs = Set(live.keys)
+        } else {
+            releaseSurfaces()
+        }
+    }
+
+    /// Drop the offscreen surfaces but keep the tab and feed.
+    func releaseSurfaces() {
+        allowedPaneIDs = []
+        guard !previews.isEmpty else { return }
+        removeAll()
+    }
+
+    private func estimatedCost(of pane: MuxPane) -> Int {
+        if let preview = previews[pane.id], preview.surface != nil, preview.surfaceSize != .zero {
+            return surfaceCost(preview.surfaceSize)
+        }
+        let cell = Self.lastCellSize ?? Self.fallbackCellSize
+        let slack = startingSlack(for: pane)
+        let padX = CGFloat(PaddingManager.shared.effectivePaddingX)
+        let padY = CGFloat(PaddingManager.shared.effectivePaddingY)
+        return surfaceCost(CGSize(
+            width: (CGFloat(pane.rect.width) + slack.columns) * cell.width + padX * 2,
+            height: (CGFloat(pane.rect.height) + slack.rows) * cell.height + padY * 2
+        ))
+    }
+
+    /// Slack a new surface for `pane` starts with: what it grew to last time
+    /// at this size, else two cells.
+    private func startingSlack(for pane: MuxPane) -> (columns: CGFloat, rows: CGFloat) {
+        guard let grown = grownSlack[pane.id], grown.rect.width == pane.rect.width,
+              grown.rect.height == pane.rect.height else { return (2, 2) }
+        return (grown.columns, grown.rows)
+    }
+
+    private func surfaceCost(_ size: CGSize) -> Int {
+        let scale = max(traitCollection.displayScale, 1)
+        return Int(size.width * scale) * Int(size.height * scale) * Self.bytesPerSurfacePixel
     }
 
     /// Refresh geometry and frames; cheap when nothing changed (per display tick).
@@ -102,24 +191,22 @@ final class MuxTabPreviewView: UIView {
             preview.container.frame = frame
             bringSubviewToFront(preview.container)
             guard pane.isPreviewable, rect.width > 0, rect.height > 0,
+                  allowedPaneIDs.contains(pane.id),
                   let latest = feed?.frame(for: pane.id) else {
                 // A reused public pane ID may now name a different terminal.
                 // Once the feed invalidates that frame, its old pixels must
                 // disappear even while sibling panes still have valid frames.
-                preview.surface?.cleanup()
-                preview.surface?.removeFromSuperview()
-                preview.surface = nil
-                preview.writtenRevision = nil
-                preview.writtenGrid = nil
+                disposeSurface(preview)
                 ensurePlaceholder(preview)
                 continue
             }
-            let surface = preview.surface ?? makeSurface(preview)
+            let surface = preview.surface ?? makeSurface(preview, for: pane)
             guard let surface else {
                 ensurePlaceholder(preview)
                 continue
             }
             // The pane's own grid plus slack, so no captured row wraps here.
+            if let reported = surface.cellSize { Self.lastCellSize = reported }
             let cell = surface.cellSize ?? Self.fallbackCellSize
             // A grid smaller than the source wraps every row; grow and retry.
             if let grid = surface.gridSize, preview.surfaceSize != .zero {
@@ -128,6 +215,9 @@ final class MuxTabPreviewView: UIView {
                 }
                 if grid.rows < rect.height {
                     preview.slackRows += CGFloat(rect.height - grid.rows) + 1
+                }
+                if grid.columns < rect.width || grid.rows < rect.height {
+                    grownSlack[pane.id] = (rect, preview.slackColumns, preview.slackRows)
                 }
             }
             // Ghostty insets the grid by the window padding, so the surface
@@ -204,7 +294,16 @@ final class MuxTabPreviewView: UIView {
             preview.surface?.cleanup()
             preview.container.removeFromSuperview()
             previews[id] = nil
+            grownSlack[id] = nil
         }
+    }
+
+    private func disposeSurface(_ preview: PanePreview) {
+        preview.surface?.cleanup()
+        preview.surface?.removeFromSuperview()
+        preview.surface = nil
+        preview.writtenRevision = nil
+        preview.writtenGrid = nil
     }
 
     private func makePreview(for id: String) -> PanePreview {
@@ -218,7 +317,7 @@ final class MuxTabPreviewView: UIView {
         return preview
     }
 
-    private func makeSurface(_ preview: PanePreview) -> Ghostty.TmuxPreviewView? {
+    private func makeSurface(_ preview: PanePreview, for pane: MuxPane) -> Ghostty.TmuxPreviewView? {
         guard let app = feed?.ghosttyApp else { return nil }
         let surface = Ghostty.TmuxPreviewView(ghosttyApp: app)
         surface.layer.anchorPoint = .zero
@@ -228,8 +327,9 @@ final class MuxTabPreviewView: UIView {
         preview.writtenRevision = nil
         preview.writtenGrid = nil
         preview.surfaceSize = .zero
-        preview.slackColumns = 2
-        preview.slackRows = 2
+        let slack = startingSlack(for: pane)
+        preview.slackColumns = slack.columns
+        preview.slackRows = slack.rows
         preview.settledGrid = nil
         preview.readyAfter = 0
         return surface
@@ -262,6 +362,7 @@ final class MuxTabPreviewView: UIView {
     }
 
     private func removeAll() {
+        allowedPaneIDs = []
         for preview in previews.values {
             preview.surface?.cleanup()
             preview.container.removeFromSuperview()
