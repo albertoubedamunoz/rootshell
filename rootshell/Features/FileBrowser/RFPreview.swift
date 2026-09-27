@@ -219,8 +219,8 @@ final class RFPreview {
         width: Int
     ) -> (cells: [[TUICell]], totalLines: Int) {
         guard let fh = FileHandle(forReadingAtPath: path) else { return ([], 0) }
-        defer { fh.closeFile() }
-        let data = fh.readData(ofLength: RFPreviewCache.maxBytes)
+        defer { try? fh.close() }
+        let data = (try? fh.read(upToCount: RFPreviewCache.maxBytes)) ?? Data()
         return loadPreviewFromData(data, width: width)
     }
 

@@ -18,7 +18,7 @@ nonisolated enum CrocReceiver {
         guard let handle = FileHandle(forReadingAtPath: path) else {
             return []
         }
-        defer { handle.closeFile() }
+        defer { try? handle.close() }
 
         let attrs = try? FileManager.default.attributesOfItem(atPath: path)
         let actualSize = (attrs?[.size] as? Int64) ?? 0
@@ -33,7 +33,7 @@ nonisolated enum CrocReceiver {
 
         while pos < fileSize {
             let readSize = min(Int(Int64(chunkSize)), Int(fileSize - pos))
-            let data = handle.readData(ofLength: readSize)
+            guard let data = try? handle.read(upToCount: readSize), !data.isEmpty else { return [] }
 
             let isEmpty = data.allSatisfy { $0 == 0 }
 

@@ -57,6 +57,8 @@ nonisolated final class CrocClient: @unchecked Sendable {
     private var currentFileChunks: [Int64] = []
     private var totalChunksTransferred = 0
     private var receiverDataTasks: [Task<Void, Never>] = []
+    /// Set by a data task that hit a fatal error; `executeReceive` rethrows it. Guarded by `receiverLock`.
+    private var receiverDataError: Error?
     private let receiverLock = NSLock()
     private var receiverProgressBar: CrocProgress?
 
@@ -330,9 +332,33 @@ nonisolated final class CrocClient: @unchecked Sendable {
 
     // MARK: - Core Transfer Logic
 
+    /// Any error tears down connections and receiver tasks so the peer
+    /// doesn't sit waiting on a message we'll never send.
     private func connectAndTransfer() async throws {
+        do {
+            try await runTransfer()
+        } catch {
+            abortTransfer()
+            throw error
+        }
+    }
+
+    private func abortTransfer() {
+        for conn in connections {
+            conn.close()
+        }
+        for task in receiverDataTasks { task.cancel() }
+        receiverLock.withLock {
+            try? currentFile?.close()
+            currentFile = nil
+            currentFileIsClosed = true
+        }
+    }
+
+    private func runTransfer() async throws {
         connections.removeAll()
         receiverDataTasks.removeAll()
+        receiverDataError = nil
         try throwIfCancelled()
 
         if options.isSender {
@@ -947,7 +973,7 @@ nonisolated final class CrocClient: @unchecked Sendable {
             // Open file and set up state for long-lived data tasks.
             // Lock protects against concurrent data task access.
             let handle = FileHandle(forWritingAtPath: destPath)
-            handle?.truncateFile(atOffset: UInt64(file.size))
+            try handle?.truncate(atOffset: UInt64(file.size))
             receiverLock.withLock {
                 currentFile = handle
                 currentFileIsClosed = false
@@ -983,6 +1009,8 @@ nonisolated final class CrocClient: @unchecked Sendable {
             while !currentFileIsClosed && !cancelled {
                 try await Task.sleep(for: .milliseconds(50))
             }
+            if let dataError = receiverLock.withLock({ receiverDataError }) { throw dataError }
+            guard !cancelled else { throw CrocError.transferCancelled }
 
             receiverProgressBar?.finish()
             receiverProgressBar = nil
@@ -1060,6 +1088,17 @@ nonisolated final class CrocClient: @unchecked Sendable {
     /// Matches Go's `go c.receiveData(j)` goroutines that run for the entire session.
     /// These tasks receive encrypted chunks, decrypt, decompress, and write to the
     /// current file. They check `currentFileIsClosed` to know when a file is done.
+    /// Abort a receive from a data task. Closing the connections unblocks both
+    /// our control-channel wait and the sender, which never gets `closeSender`.
+    private func failReceive(_ error: Error) {
+        guard !cancelled else { return }
+        receiverLock.withLock { receiverDataError = error }
+        cancelled = true
+        for conn in connections {
+            conn.close()
+        }
+    }
+
     private func startReceiverDataTasks(key: Data) {
         // Data connections are at indices 1..N (index 0 is control)
         for j in 0..<(connections.count - 1) {
@@ -1082,7 +1121,7 @@ nonisolated final class CrocClient: @unchecked Sendable {
                         payload = try CrocEncryption.decrypt(data, key: key)
                     } catch {
                         Self.logger.error("data channel decrypt failed: \(error.localizedDescription)")
-                        self.cancelled = true
+                        self.failReceive(CrocError.decryptionFailed)
                         break
                     }
                     if !self.options.noCompress {
@@ -1096,30 +1135,38 @@ nonisolated final class CrocClient: @unchecked Sendable {
 
                     // Lock mirrors Go's c.mutex — protects seek+write, counters,
                     // and the completion check from concurrent data tasks.
-                    let shouldSignalClose = self.receiverLock.withLock { () -> Bool in
-                        guard !self.currentFileIsClosed, let handle = self.currentFile else {
+                    let shouldSignalClose: Bool
+                    do {
+                        shouldSignalClose = try self.receiverLock.withLock { () throws -> Bool in
+                            guard !self.currentFileIsClosed, let handle = self.currentFile else {
+                                return false
+                            }
+
+                            try handle.seek(toOffset: posLE)
+                            try handle.write(contentsOf: fileData)
+
+                            let chunkBytes = Int64(fileData.count)
+                            self.totalSent += chunkBytes
+                            self.totalChunksTransferred += 1
+                            self.receiverProgressBar?.update(bytesAdded: chunkBytes)
+
+                            let expectedSize = self.filesToTransfer[safe: self.filesToTransferCurrentNum]?.size ?? 0
+                            let chunksComplete = !self.currentFileChunks.isEmpty
+                                && self.totalChunksTransferred == self.currentFileChunks.count
+                            let bytesComplete = expectedSize > 0 && self.totalSent >= expectedSize
+                            if chunksComplete || bytesComplete {
+                                self.currentFileIsClosed = true
+                                try? handle.close()
+                                return true
+                            }
+
                             return false
                         }
-
-                        handle.seek(toFileOffset: posLE)
-                        handle.write(fileData)
-
-                        let chunkBytes = Int64(fileData.count)
-                        self.totalSent += chunkBytes
-                        self.totalChunksTransferred += 1
-                        self.receiverProgressBar?.update(bytesAdded: chunkBytes)
-
-                        let expectedSize = self.filesToTransfer[safe: self.filesToTransferCurrentNum]?.size ?? 0
-                        let chunksComplete = !self.currentFileChunks.isEmpty
-                            && self.totalChunksTransferred == self.currentFileChunks.count
-                        let bytesComplete = expectedSize > 0 && self.totalSent >= expectedSize
-                        if chunksComplete || bytesComplete {
-                            self.currentFileIsClosed = true
-                            handle.closeFile()
-                            return true
-                        }
-
-                        return false
+                    } catch {
+                        // e.g. ENOSPC; the legacy write API would have raised an ObjC exception.
+                        Self.logger.error("data channel file write failed: \(error.localizedDescription)")
+                        self.failReceive(CrocError.transferFailed(error.localizedDescription))
+                        break
                     }
 
                     guard shouldSignalClose else {
