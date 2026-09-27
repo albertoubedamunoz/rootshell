@@ -189,10 +189,10 @@ final class SSHDebugLogger: Sendable {
 
         if FileManager.default.fileExists(atPath: logFileURL.path) {
             if let handle = try? FileHandle(forWritingTo: logFileURL) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                handle.synchronizeFile()
-                handle.closeFile()
+                _ = try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.synchronize()
+                try? handle.close()
             }
         } else {
             try? data.write(to: logFileURL, options: .atomic)
@@ -242,16 +242,10 @@ struct SSHDebugLogHandler: LogHandler {
         set { metadata[key] = newValue }
     }
 
-    func log(
-        level: Logging.Logger.Level,
-        message: Logging.Logger.Message,
-        metadata: Logging.Logger.Metadata?,
-        source: String,
-        file: String,
-        function: String,
-        line: UInt
-    ) {
-        let combined = metadata.map { self.metadata.merging($0) { _, new in new } } ?? self.metadata
+    func log(event: LogEvent) {
+        let level = event.level
+        let message = event.message
+        let combined = event.metadata.map { self.metadata.merging($0) { _, new in new } } ?? self.metadata
         let metaSuffix = combined.isEmpty
             ? ""
             : " " + combined.sorted(by: { $0.key < $1.key })

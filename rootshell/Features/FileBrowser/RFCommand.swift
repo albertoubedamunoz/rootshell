@@ -65,7 +65,7 @@ struct PendingRemoteEdit {
     let tempPath: String        // Local temp file the editor operates on
     let remotePath: String      // Original remote path to upload back to
     let dataSource: RFRemoteDataSource  // Connection to upload through
-    let preEditHash: Data       // SHA256 of file content before editor opened
+    let preEditHash: Data?      // SHA256 of file content before editor opened; nil if unreadable
 }
 
 /// Tracks a failed upload so the user can retry or recover their edits.
@@ -2275,19 +2275,24 @@ final class RFCommand {
 
     private func isBinaryFile(at path: String) -> Bool {
         guard let fh = FileHandle(forReadingAtPath: path) else { return false }
-        defer { fh.closeFile() }
-        let data = fh.readData(ofLength: 512)
+        defer { try? fh.close() }
+        // Throwing read: the legacy API raises an uncatchable ObjC exception on
+        // EIO/EDEADLK (e.g. undownloaded iCloud files).
+        guard let data = try? fh.read(upToCount: 512) else { return false }
         return data.contains(0)
     }
 
     /// SHA256 hash of a file's contents for change detection.
-    private static func sha256OfFile(atPath path: String) -> Data {
-        guard let fh = FileHandle(forReadingAtPath: path) else { return Data() }
+    /// Nil if the file can't be opened or fully read; a partial digest could
+    /// falsely match and skip the upload.
+    private static func sha256OfFile(atPath path: String) -> Data? {
+        guard let fh = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? fh.close() }
         var hasher = SHA256()
         while true {
-            let chunk = fh.readData(ofLength: 65_536)
-            if chunk.isEmpty { break }
+            let chunk: Data?
+            do { chunk = try fh.read(upToCount: 65_536) } catch { return nil }
+            guard let chunk, !chunk.isEmpty else { break }
             hasher.update(data: chunk)
         }
         return Data(hasher.finalize())
@@ -2545,9 +2550,10 @@ final class RFCommand {
         pendingRemoteEdit = nil
 
         // Check if file content actually changed (SHA256 comparison)
+        // An unreadable hash counts as changed: the upload (or its recovery copy) keeps the edit.
         let postHash = Self.sha256OfFile(atPath: edit.tempPath)
 
-        guard postHash != edit.preEditHash else {
+        guard postHash == nil || postHash != edit.preEditHash else {
             Self.logger.info("Remote edit: file unchanged, skipping upload")
             try? FileManager.default.removeItem(atPath: edit.tempPath)
             return true

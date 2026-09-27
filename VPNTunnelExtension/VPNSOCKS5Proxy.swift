@@ -150,7 +150,7 @@ nonisolated final class VPNSOCKS5DebugMetrics: @unchecked Sendable {
     private func writeLogLineLocked(_ line: String) {
         guard let handle = logFileHandle,
               let data = (line + "\n").data(using: .utf8) else { return }
-        handle.write(data)
+        try? handle.write(contentsOf: data)
     }
 
     private static func nowMS() -> Int64 {

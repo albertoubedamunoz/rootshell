@@ -123,10 +123,10 @@ final class WedgeBreadcrumbLogger: Sendable {
 
         if FileManager.default.fileExists(atPath: logFileURL.path) {
             guard let handle = try? FileHandle(forWritingTo: logFileURL) else { return }
-            handle.seekToEndOfFile()
-            handle.write(data)
-            handle.synchronizeFile()
-            handle.closeFile()
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.synchronize()
+            try? handle.close()
             noteBytesWritten(UInt64(data.count))
         } else {
             do {

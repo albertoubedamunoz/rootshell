@@ -463,9 +463,9 @@ struct AIAgentFileToolHandler {
     /// Detect binary files by scanning for null bytes in the first 8KB
     private static func isBinaryFile(_ path: String) -> Bool {
         guard let fileHandle = FileHandle(forReadingAtPath: path) else { return false }
-        defer { fileHandle.closeFile() }
+        defer { try? fileHandle.close() }
 
-        let data = fileHandle.readData(ofLength: 8192)
+        guard let data = try? fileHandle.read(upToCount: 8192) else { return false }
         return data.contains(0x00)
     }
 }

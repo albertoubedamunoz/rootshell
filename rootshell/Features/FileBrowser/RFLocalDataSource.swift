@@ -39,8 +39,8 @@ final class RFLocalDataSource: RFDataSource {
 
     func readFilePreview(at path: String, maxBytes: Int) async throws -> Data? {
         guard let fh = FileHandle(forReadingAtPath: path) else { return nil }
-        defer { fh.closeFile() }
-        return fh.readData(ofLength: maxBytes)
+        defer { try? fh.close() }
+        return try fh.read(upToCount: maxBytes) ?? Data()
     }
 
     func downloadToTemp(remotePath: String, maxBytes: Int?) async throws -> String {

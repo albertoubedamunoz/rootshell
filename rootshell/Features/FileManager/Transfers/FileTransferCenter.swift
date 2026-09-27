@@ -259,8 +259,8 @@ fileprivate struct TransferPathClaim {
 
 // MARK: - Execution
 
-/// Runs one job to completion. Items within a job run in order; large files
-/// still overlap their chunks through PipelinedTransfer.
+/// Runs one job to completion. Items copy through FileTreeCopier's worker pool;
+/// large files still overlap their chunks through PipelinedTransfer.
 @MainActor
 private struct TransferExecutor {
     let job: TransferJob
@@ -275,6 +275,9 @@ private struct TransferExecutor {
         var items: [FileTreeCopier.Item]
         /// Same-endpoint move satisfied by a rename.
         var renamed = false
+        /// Resolved paths, for spotting one root reading where another writes.
+        var realSources: [String] = []
+        var realDestination = ""
     }
 
     private var pool: FileConnectionPool { .shared }
@@ -432,7 +435,11 @@ private struct TransferExecutor {
             }
 
             let items = try await FileTreeCopier.expand(path, into: target, fs: sourceFS)
-            roots.append(Root(source: path, destination: target, replaceExisting: replace, items: items))
+            roots.append(Root(
+                source: path, destination: target, replaceExisting: replace, items: items,
+                realSources: realSourcePaths,
+                realDestination: FileTransferLogic.join(realDirectory, FileTransferLogic.lastComponent(of: target))
+            ))
         }
 
         let allItems = roots.flatMap(\.items)
@@ -443,13 +450,31 @@ private struct TransferExecutor {
         job.setState(.running)
         let preserve = SettingsStore.shared.value(Settings.Transfer.fileManagerPreserveAttributes)
 
+        var pending: [Root] = []
         for root in roots {
-            if root.renamed {
-                job.finishItem()
-                continue
+            if root.renamed { job.finishItem() } else { pending.append(root) }
+        }
+        // A root reading where another writes (say, a selected link into the destination)
+        // must not see that folder cleared or half-written, so those run one root at a time.
+        let entangled = sameFileSystem && pending.indices.contains { reader in
+            pending.indices.contains { writer in
+                reader != writer && pending[reader].realSources.contains {
+                    FileTransferLogic.pathsOverlap($0, pending[writer].realDestination)
+                }
             }
+        }
+        let batches = entangled ? pending.map { [$0] } : [pending]
+        for batch in batches {
+            try await copyBatch(batch, from: sourceFS, to: destinationFS, preserve: preserve)
+        }
+    }
+
+    /// Clears replaced destinations, copies every root's items through one worker
+    /// pool, then deletes a move's sources.
+    private func copyBatch(_ roots: [Root], from sourceFS: FileSystemEndpoint, to destinationFS: FileSystemEndpoint, preserve: Bool) async throws {
+        var copying: [Root] = []
+        for root in roots {
             try Task.checkCancellation()
-            let errorsBefore = job.errors.count
             if root.replaceExisting {
                 do {
                     try await destinationFS.removeRecursively(root.destination)
@@ -458,27 +483,34 @@ private struct TransferExecutor {
                     continue
                 }
             }
-            for item in root.items {
-                try Task.checkCancellation()
-                job.beginItem(item.source)
-                do {
-                    try await FileTreeCopier.copy(item, from: sourceFS, to: destinationFS, preserveAttributes: preserve) { delta in
-                        if delta >= 0 { job.addBytes(delta) } else { job.discardBytes(-delta) }
-                    }
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    job.recordError(path: item.source, message: error.localizedDescription)
-                }
+            copying.append(root)
+        }
+
+        // The batch's roots share one pool, so many loose files overlap too.
+        let items = copying.flatMap(\.items)
+        let errorsBefore = job.errors.count
+        try await FileTreeCopier.copyItems(
+            items, from: sourceFS, to: destinationFS, preserveAttributes: preserve,
+            onStart: { job.beginItem($0.source) },
+            onBytes: { delta in
+                if delta >= 0 { job.addBytes(delta) } else { job.discardBytes(-delta) }
+            },
+            onFinish: { item, error in
+                if let error { job.recordError(path: item.source, message: error.localizedDescription) }
                 job.finishItem()
             }
-            if preserve { await FileTreeCopier.applyDirectoryModes(root.items, on: destinationFS) }
-            if job.operation == .move, job.errors.count == errorsBefore {
-                do {
-                    try await sourceFS.removeRecursively(root.source)
-                } catch {
-                    job.recordError(path: root.source, message: error.localizedDescription)
-                }
+        )
+        if preserve { await FileTreeCopier.applyDirectoryModes(items, on: destinationFS) }
+
+        // A move deletes a source only once everything beneath it copied.
+        guard job.operation == .move else { return }
+        let failed = job.errors[errorsBefore...].map(\.path)
+        for root in copying where !failed.contains(where: { FileTransferLogic.isSameOrDescendant($0, of: root.source) }) {
+            try Task.checkCancellation()
+            do {
+                try await sourceFS.removeRecursively(root.source)
+            } catch {
+                job.recordError(path: root.source, message: error.localizedDescription)
             }
         }
     }

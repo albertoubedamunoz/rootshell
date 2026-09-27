@@ -100,6 +100,13 @@ nonisolated struct FileSystemEndpoint: Sendable {
         return true
     }
 
+    /// Object storage folders exist once anything is inside them, so a copy
+    /// needs neither parents first nor markers for folders that get files.
+    var foldersAreImplicit: Bool {
+        if case .s3 = backend { return true }
+        return false
+    }
+
     // MARK: - Listing and metadata
 
     /// With `strict`, entries the listing would otherwise hide (S3 keys a path
@@ -223,6 +230,13 @@ nonisolated struct FileSystemEndpoint: Sendable {
         case .s3(let s3):
             try await s3.makeDirectory(path)
         }
+    }
+
+    /// Creates `path` unless it's already there. A storage folder marker is just
+    /// rewritten, one request instead of checking first; a bucket is never created.
+    func ensureDirectory(_ path: String) async throws {
+        if let s3, s3.bucketName(of: path) == nil { return try await s3.makeDirectory(path) }
+        if !(await exists(path)) { try await makeDirectory(path) }
     }
 
     func createEmptyFile(_ path: String) async throws {
@@ -353,14 +367,15 @@ nonisolated struct FileSystemEndpoint: Sendable {
     }
 
     /// Creates or truncates `path` for writing. A local symlink at `path` is refused,
-    /// never written through; callers unlink destination links first.
-    func openWriter(_ path: String) async throws -> any ChunkWriter {
+    /// never written through; callers unlink destination links first. With `exclusive`,
+    /// anything already at `path` fails the open (object storage has no such check).
+    func openWriter(_ path: String, exclusive: Bool = false) async throws -> any ChunkWriter {
         switch backend {
         case .local(let resolver):
-            return try PipelinedTransfer.LocalFile.openForWriting(resolver.resolveParent(path))
+            return try PipelinedTransfer.LocalFile.openForWriting(resolver.resolveParent(path), exclusive: exclusive)
         case .sftp(let sftp):
             let file = try await mapped(path) {
-                try await sftp.openFile(filePath: path, flags: [.write, .create, .truncate])
+                try await sftp.openFile(filePath: path, flags: exclusive ? [.write, .create, .forceCreate] : [.write, .create, .truncate])
             }
             return PipelinedTransfer.SendableSFTPFile(file: file)
         case .s3(let s3):

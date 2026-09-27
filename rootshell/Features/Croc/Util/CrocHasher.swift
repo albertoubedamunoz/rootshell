@@ -51,12 +51,11 @@ nonisolated enum CrocHasher {
 
     private static func md5HashFile(_ url: URL) throws -> Data {
         let handle = try FileHandle(forReadingFrom: url)
-        defer { handle.closeFile() }
+        defer { try? handle.close() }
 
         var hasher = Insecure.MD5()
         while true {
-            let chunk = handle.readData(ofLength: 32768)
-            if chunk.isEmpty { break }
+            guard let chunk = try handle.read(upToCount: 32768), !chunk.isEmpty else { break }
             hasher.update(data: chunk)
         }
 
@@ -78,28 +77,27 @@ nonisolated enum CrocHasher {
         let fileSize = Int64((attrs[.size] as? UInt64) ?? 0)
 
         let handle = try FileHandle(forReadingFrom: url)
-        defer { handle.closeFile() }
+        defer { try? handle.close() }
 
         var hasher = Murmur3_128()
 
         if sampleSize < 1 || fileSize < Int64(sampleThreshold) || fileSize < Int64(4 * sampleSize) {
             // Small file: hash entire contents
             while true {
-                let chunk = handle.readData(ofLength: 65536)
-                if chunk.isEmpty { break }
+                guard let chunk = try handle.read(upToCount: 65536), !chunk.isEmpty else { break }
                 hasher.update(chunk)
             }
         } else {
             // Large file: sample beginning, middle, end
-            let beginning = handle.readData(ofLength: sampleSize)
+            let beginning = try handle.read(upToCount: sampleSize) ?? Data()
             hasher.update(beginning)
 
-            handle.seek(toFileOffset: UInt64(fileSize) / 2)
-            let middle = handle.readData(ofLength: sampleSize)
+            try handle.seek(toOffset: UInt64(fileSize) / 2)
+            let middle = try handle.read(upToCount: sampleSize) ?? Data()
             hasher.update(middle)
 
-            handle.seek(toFileOffset: UInt64(fileSize) - UInt64(sampleSize))
-            let end = handle.readData(ofLength: sampleSize)
+            try handle.seek(toOffset: UInt64(fileSize) - UInt64(sampleSize))
+            let end = try handle.read(upToCount: sampleSize) ?? Data()
             hasher.update(end)
         }
 
@@ -133,11 +131,10 @@ nonisolated enum CrocHasher {
         var hh = HighwayHashState(key: key)
 
         let handle = try FileHandle(forReadingFrom: url)
-        defer { handle.closeFile() }
+        defer { try? handle.close() }
 
         while true {
-            let chunk = handle.readData(ofLength: 65536)
-            if chunk.isEmpty { break }
+            guard let chunk = try handle.read(upToCount: 65536), !chunk.isEmpty else { break }
             hh.update(chunk)
         }
 

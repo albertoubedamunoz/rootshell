@@ -256,7 +256,7 @@ nonisolated enum CrocSender {
                 group.addTask {
                     // Each task gets its own file handle for concurrent ReadAt
                     let handle = try FileHandle(forReadingFrom: fileURL)
-                    defer { handle.closeFile() }
+                    defer { try? handle.close() }
 
                     var readingPos: Int64 = 0
                     var pos: UInt64 = 0
@@ -265,8 +265,8 @@ nonisolated enum CrocSender {
                     while !isCancelled() {
                         // Only this task's turn when curi % numPorts == i (matches Go)
                         if curi % numPorts == i {
-                            handle.seek(toFileOffset: UInt64(readingPos))
-                            let data = handle.readData(ofLength: chunkSize)
+                            try handle.seek(toOffset: UInt64(readingPos))
+                            let data = try handle.read(upToCount: chunkSize) ?? Data()
 
                             let n = data.count
                             if n > 0 {
