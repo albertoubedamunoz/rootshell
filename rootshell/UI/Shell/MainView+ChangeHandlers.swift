@@ -96,6 +96,9 @@ extension MainView {
             .onChange(of: tabsModel.selectedTabID) { oldValue, newValue in
                 handleSelectedTabChange(oldValue: oldValue, newValue: newValue)
             }
+            .onChange(of: tabsModel.displayedTabID) { oldValue, newValue in
+                handleDisplayedTabChange(oldValue: oldValue, newValue: newValue)
+            }
             .onChange(of: showConnectionSidebar) { oldValue, newValue in
                 handleShowConnectionSheetChange(oldValue: oldValue, newValue: newValue)
             }

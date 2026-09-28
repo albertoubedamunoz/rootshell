@@ -437,8 +437,10 @@ extension MainView {
               let newTab = tabsModel.tab(withID: newValue) else { return }
         let oldTab = oldValue.flatMap { tabsModel.tab(withID: $0) }
 
-        // Mark all surfaces in old tab as occluded to stop their IOSDisplayLink
-        if let oldTab {
+        // Mark all surfaces in old tab as occluded to stop their IOSDisplayLink.
+        // While it is still displayed (the new tab hasn't drawn yet), occluding
+        // would empty its frame on screen; handleDisplayedTabChange does it.
+        if let oldTab, oldTab.id != tabsModel.displayedTabID {
             for terminal in oldTab.splitTree {
                 terminal.setOcclusion(false)
             }
@@ -560,6 +562,29 @@ extension MainView {
                 reassertSelectedTabVisibility(reason: "tabSwitchBackstop+\(delay)")
             }
         }
+    }
+
+    /// Occludes the tab a reveal just replaced, which handleSelectedTabChange
+    /// left visible. Delayed so the swap is on screen before its renderer
+    /// empties the frame.
+    func handleDisplayedTabChange(oldValue: UUID?, newValue: UUID?) {
+        guard let oldValue, oldValue != newValue else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [self] in
+            occludeTabIfNoLongerShown(oldValue)
+        }
+    }
+
+    /// A tab a swipe, exposé or hover preview still shows is left to that
+    /// path: a committed swipe calls this for its source, a cancelled one
+    /// occludes its target.
+    func occludeTabIfNoLongerShown(_ id: UUID) {
+        guard tabsModel.selectedTabID != id,
+              tabsModel.displayedTabID != id,
+              appTabSwipeState?.sourceTabID != id,
+              appTabSwipeState?.targetTabID != id,
+              tabHoverPreview.previewedTabID != id,
+              !(tabExpose.isActive && tabExpose.liveTabIDs.contains(id)) else { return }
+        setTabOcclusion(tabID: id, visible: false)
     }
 
     func handleShowConnectionSheetChange(oldValue: Bool, newValue: Bool) {
