@@ -416,13 +416,16 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
     private var inProgress = false
 
     private static let maxBufferBytes = 4 * 1024 * 1024
-    private static let startMarker = Data([0x1b, 0x5b, 0x32, 0x30, 0x30, 0x7e])
-    private static let endMarker = Data([0x1b, 0x5b, 0x32, 0x30, 0x31, 0x7e])
+    private static let startMarker: [UInt8] = [0x1b, 0x5b, 0x32, 0x30, 0x30, 0x7e]
+    private static let endMarker: [UInt8] = [0x1b, 0x5b, 0x32, 0x30, 0x31, 0x7e]
 
     func accept(chunk: Data) -> Data? {
         if inProgress {
+            // Earlier bytes were already searched, so rescan only the tail a
+            // marker could straddle plus the new chunk.
+            let searchFrom = max(0, buffer.count - (Self.endMarker.count - 1))
             buffer.append(chunk)
-            if buffer.range(of: Self.endMarker) != nil {
+            if Self.contains(Self.endMarker, in: buffer, from: searchFrom) {
                 let complete = buffer
                 buffer = Data()
                 inProgress = false
@@ -437,7 +440,7 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
             return nil
         }
 
-        if chunk.range(of: Self.startMarker) != nil && chunk.range(of: Self.endMarker) == nil {
+        if Self.contains(Self.startMarker, in: chunk) && !Self.contains(Self.endMarker, in: chunk) {
             buffer = chunk
             inProgress = true
             return nil
@@ -452,5 +455,23 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
         buffer = Data()
         inProgress = false
         return pending
+    }
+
+    /// Jumps between ESC bytes with memchr and compares the marker at each.
+    private static func contains(_ marker: [UInt8], in data: Data, from offset: Int = 0) -> Bool {
+        data.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress, raw.count - offset >= marker.count else { return false }
+            let end = base + raw.count
+            var cursor = base + offset
+            while let hit = memchr(cursor, Int32(marker[0]), end - cursor) {
+                let candidate = UnsafeRawPointer(hit)
+                guard end - candidate >= marker.count else { return false }
+                if marker.withUnsafeBytes({ memcmp(candidate, $0.baseAddress!, marker.count) }) == 0 {
+                    return true
+                }
+                cursor = candidate + 1
+            }
+            return false
+        }
     }
 }
