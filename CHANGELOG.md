@@ -3,6 +3,36 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.13-158 - September 28, 2026
+
+### Dictation in More Languages
+
+- **SenseVoice for Chinese, Japanese, and Korean:** Added on-device SenseVoice dictation for Chinese, Cantonese, Japanese, Korean, and English. Choose a language in Settings -> Terminal -> Dictation, then download SenseVoice under Speech Model. Choosing Chinese, Cantonese, Japanese, or Korean automatically selects SenseVoice; choosing a language it does not support switches to Parakeet. Audio stays on your device.
+- **CJK Spacing and Punctuation:** Chinese and Japanese phrases join without extra spaces in Prose and Agent Prompt modes. Command mode preserves spaces between phrases so separate shell arguments stay separate, and removes full-width sentence punctuation.
+- **Numbers and Vocabulary Boost:** SenseVoice always writes numbers as digits, and its settings now make that clear. Vocabulary Boost remains available with Parakeet models only.
+
+### Faster File Transfers
+
+- **Parallel Small-File Copies:** The file manager and `rf` now copy multiple small files at once, speeding up folders with many files, including app bundles. S3 copies also skip unnecessary folder-marker requests.
+- **Safer Replacements:** Improved replacement handling for linked files and protection against overwriting files whose names differ only in case or equivalent Unicode spelling on destinations that treat them as the same name.
+- **Safer Moves:** When moving files, each source is removed only after all of its contents have copied successfully.
+
+### Terminal Performance and Stability
+
+- **Many Tabs and Panes on iOS:** Fixed the OS terminating rootshell on iOS, iPadOS, and visionOS with many tabs or panes open. Ghostty used Zig's default 16 MB stack reservation for each terminal thread. These reservations consumed virtual address space, even when most of that space needed no physical RAM. With enough tabs or panes, the app could exceed the OS's address-space limit and be terminated despite physical memory still being available. Rendering, I/O, and search threads now reserve 2 MB each; pipe-reader and font-release threads reserve 512 KB each. macOS also uses the smaller stacks, but did not have the same virtual address-space issue.
+- **Large Session Testing:** Tested on iOS with more than 100 tabs, including attaching to tmux and herdr control-mode sessions of that size. Previously, opening this many tabs or attaching to these large sessions could cause the OS to terminate the app because of those stack reservations.
+- **Faster Pastes:** Large pastes now process faster, with less repeated scanning and less CPU work in SSH and terminal input filters.
+- **herdr Output Processing:** Improved herdr control-mode output processing, reducing repeated parsing and buffer copying.
+- **rf Preview Crash Fix:** Fixed a crash in the `rf` terminal file browser when previewing a file that cannot be read, such as an iCloud file that has not downloaded. File read and write errors are now handled more safely across the app.
+- **rf Remote Edits:** Remote edits in `rf` are no longer treated as unchanged when the file cannot be fully read for comparison. The app attempts the upload and retains a recovery copy if it fails.
+
+### Tabs, Windows, and Effects
+
+- **Clean Tab Switching:** Switching tabs now waits for a fresh terminal frame before revealing the destination tab, preventing transparent flashes and stale colors after a theme change.
+- **Tab Bar Blur Fix:** Fixed unwanted blur over the scrolling tab bar on Mac when many tabs are open.
+- **New Tab and Window With No Windows:** Command-T and Command-N now open a window on Mac when all windows are closed. In the standalone Mac app, New Tab and Open Connections still use a visible visor, while a hidden visor no longer receives invisible new tabs.
+- **Jellyfish Effect:** Reduced CPU work for the animated jellyfish effect.
+
 ## 1.0.13-157 - September 27, 2026
 
 ### Faster Mosh and Terminal Output
