@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import os
 
 /// App shortcuts whose destination can switch while a VNC pane is focused.
 /// A notification marker lets MainView route the chord exclusively to VNC;
@@ -162,16 +163,23 @@ extension UIApplication {
 
     /// Only MainView observes the new-tab and new-window notifications, so with
     /// every window closed on Mac Catalyst nothing would answer them. Open a
-    /// window directly instead. The hidden Standalone visor doesn't count: a
-    /// tab added there would be invisible.
+    /// window directly instead. The Standalone visor counts only while it's
+    /// shown: a tab added to the hidden visor would be invisible.
     @MainActor
     private func ghostty_openWindowIfNoneVisible() -> Bool {
         #if targetEnvironment(macCatalyst)
-        let hasRegularWindow = connectedScenes.contains { scene in
-            guard scene is UIWindowScene, !CatalystSceneDelegate.isVisorScene(scene) else { return false }
+        let hasWindow = connectedScenes.contains { scene in
+            guard scene is UIWindowScene else { return false }
+            if CatalystSceneDelegate.isVisorScene(scene) {
+                #if STANDALONE
+                return VisorController.shared.isVisible
+                #else
+                return false
+                #endif
+            }
             return scene.activationState != .background && scene.activationState != .unattached
         }
-        guard !hasRegularWindow else { return false }
+        guard !hasWindow else { return false }
         Ghostty.logger.info("No open window: opening a new one for a new-tab/new-window command")
         requestSceneSessionActivation(nil, userActivity: nil, options: nil) { error in
             Ghostty.logger.error("Failed to create new window: \(error.localizedDescription)")
