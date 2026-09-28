@@ -288,12 +288,27 @@ nonisolated enum HerdrControl {
         let message: String
     }
 
-    /// Minimal discriminator decoded from every inbound line.
+    /// Minimal discriminator decoded from every inbound line. Output records
+    /// come along with it, so their base64 payload is parsed only once.
     struct LineHead: Decodable {
         let id: String?
         let type: String?
         let event: String?
         let error: ErrorBody?
+        let output: OutputRecord?
+
+        private enum CodingKeys: String, CodingKey {
+            case id, type, event, error
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decodeIfPresent(String.self, forKey: .id)
+            type = try container.decodeIfPresent(String.self, forKey: .type)
+            event = try container.decodeIfPresent(String.self, forKey: .event)
+            error = try container.decodeIfPresent(ErrorBody.self, forKey: .error)
+            output = type == "terminal.output" ? try? OutputRecord(from: decoder) : nil
+        }
     }
 
     struct Response<Result: Decodable>: Decodable {
@@ -892,14 +907,20 @@ nonisolated enum HerdrControl {
     /// Decodes a pushed record or event line. Returns nil for response lines
     /// (those carry an `id`), which the channel routes to their request.
     static func decodeInbound(_ line: Data) -> Inbound? {
-        guard let head = try? decoder.decode(LineHead.self, from: line) else {
+        decodeInbound(line, head: try? decoder.decode(LineHead.self, from: line))
+    }
+
+    /// Same, for a line whose head the caller already decoded (nil when
+    /// that failed).
+    static func decodeInbound(_ line: Data, head: LineHead?) -> Inbound? {
+        guard let head else {
             return .unknown(String(decoding: line.prefix(120), as: UTF8.self))
         }
         if head.id != nil, head.type == nil, head.event == nil {
             return nil
         }
         if let type = head.type {
-            return decodeRecord(type: type, line: line)
+            return decodeRecord(type: type, head: head, line: line)
         }
         if let event = head.event {
             return decodeEvent(event: event, line: line)
@@ -907,10 +928,10 @@ nonisolated enum HerdrControl {
         return .unknown(String(decoding: line.prefix(120), as: UTF8.self))
     }
 
-    private static func decodeRecord(type: String, line: Data) -> Inbound {
+    private static func decodeRecord(type: String, head: LineHead, line: Data) -> Inbound {
         switch type {
         case "terminal.output":
-            guard let record = try? decoder.decode(OutputRecord.self, from: line),
+            guard let record = head.output,
                   let bytes = Data(base64Encoded: record.bytes) else { return .unknown(type) }
             return .output(attachId: record.attach_id, seq: record.seq, bytes: bytes)
         case "terminal.snapshot":

@@ -101,7 +101,8 @@ final class HerdrLegacyPaneStream {
         readerTask = Task.detached { [weak self] in
             var startup = HerdrAttachStartup()
             var presentation = HerdrAttachPresentation()
-            var json = Data()
+            var json = NewlineFramer()
+            let decoder = JSONDecoder()
             var failure: Error?
             do {
                 readLoop: while !Task.isCancelled {
@@ -112,11 +113,9 @@ final class HerdrLegacyPaneStream {
                         if let frame = try presentation.receive(chunk) { delivery.emit(frame) }
                     } else {
                         json.append(chunk)
-                        guard json.count <= HerdrPTYOutputBuffer.maxBufferedBytes else { throw HerdrPTYError.overflow }
-                        while let newline = json.firstIndex(of: 0x0a) {
-                            let line = json.subdata(in: json.startIndex..<newline)
-                            json.removeSubrange(json.startIndex...newline)
-                            guard let frame = try? JSONDecoder().decode(Frame.self, from: line) else { continue }
+                        guard json.bufferedCount <= HerdrPTYOutputBuffer.maxBufferedBytes else { throw HerdrPTYError.overflow }
+                        while let line = json.nextLine() {
+                            guard let frame = try? decoder.decode(Frame.self, from: line) else { continue }
                             if frame.type == "terminal.closed" { break readLoop }
                             guard frame.type == "terminal.frame", let encoded = frame.bytes,
                                   let bytes = Data(base64Encoded: encoded) else { continue }

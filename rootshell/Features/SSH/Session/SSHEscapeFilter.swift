@@ -70,8 +70,20 @@ final class SSHEscapeFilter {
         var out = Data()
         out.reserveCapacity(data.count)
 
-        for byte in data {
-            processByte(byte, into: &out)
+        data.withUnsafeBytes { raw in
+            let bytes = raw.assumingMemoryBound(to: UInt8.self)
+            var i = 0
+            while i < bytes.count {
+                let run = plainRunEnd(raw, from: i)
+                if run > i {
+                    out.append(UnsafeBufferPointer(rebasing: bytes[i..<run]))
+                    lastWasNewline = Self.isNewline(bytes[run - 1])
+                    i = run
+                    if i == bytes.count { break }
+                }
+                processByte(bytes[i], into: &out)
+                i += 1
+            }
         }
 
         // Flush any partial paste-marker state at end-of-buffer. The upstream
@@ -154,6 +166,30 @@ final class SSHEscapeFilter {
     }
 
     // MARK: - State machine
+
+    /// End of the run from `start` that `processByte` would copy through
+    /// verbatim: up to the next ESC, or an escape char at a line start.
+    private func plainRunEnd(_ raw: UnsafeRawBufferPointer, from start: Int) -> Int {
+        switch pasteState {
+        case .matchingStart, .matchingEnd:
+            return start
+        case .inside:
+            return raw.firstOffset(of: 0x1B, in: start..<raw.count) ?? raw.count
+        case .idle:
+            guard !escapePending else { return start }
+            let esc = raw.firstOffset(of: 0x1B, in: start..<raw.count) ?? raw.count
+            var cursor = start
+            while let hit = raw.firstOffset(of: escapeChar, in: cursor..<esc) {
+                if hit == start ? lastWasNewline : Self.isNewline(raw[hit - 1]) { return hit }
+                cursor = hit + 1
+            }
+            return esc
+        }
+    }
+
+    private static func isNewline(_ byte: UInt8) -> Bool {
+        byte == 0x0D || byte == 0x0A
+    }
 
     private func processByte(_ byte: UInt8, into out: inout Data) {
         switch pasteState {

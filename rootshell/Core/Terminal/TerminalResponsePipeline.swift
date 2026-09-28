@@ -248,28 +248,46 @@ final class TerminalResponsePipeline {
     ) -> Data {
         var out = Data()
         out.reserveCapacity(data.count)
-        for b in data {
-            switch state {
-            case .ground:
-                if b == 0x1B { state = .esc } else { out.append(b) }
-            case .esc:
-                if b == 0x5B {
-                    state = .csi
-                } else if b == 0x5D || b == 0x50 || b == 0x58 || b == 0x5E || b == 0x5F {
-                    state = .str
-                } else {
-                    state = .ground
+        data.withUnsafeBytes { raw in
+            let bytes = raw.assumingMemoryBound(to: UInt8.self)
+            var i = 0
+            while i < bytes.count {
+                if case .ground = state {
+                    // Copy everything up to the next ESC in one append.
+                    let esc = raw.firstOffset(of: 0x1B, in: i..<bytes.count) ?? bytes.count
+                    out.append(UnsafeBufferPointer(rebasing: bytes[i..<esc]))
+                    i = esc
+                    if i < bytes.count { state = .esc; i += 1 }
+                    continue
                 }
-            case .csi:
-                if b >= 0x40 && b <= 0x7E { state = .ground }
-            case .str:
-                if b == 0x07 { state = .ground }
-                else if b == 0x1B { state = .strEsc }
-            case .strEsc:
-                state = .ground
+                let b = bytes[i]
+                i += 1
+                stripStep(b, state: &state)
             }
         }
         return out
+    }
+
+    private nonisolated static func stripStep(_ b: UInt8, state: inout GatewayReportFilterState) {
+        switch state {
+        case .ground:
+            break
+        case .esc:
+            if b == 0x5B {
+                state = .csi
+            } else if b == 0x5D || b == 0x50 || b == 0x58 || b == 0x5E || b == 0x5F {
+                state = .str
+            } else {
+                state = .ground
+            }
+        case .csi:
+            if b >= 0x40 && b <= 0x7E { state = .ground }
+        case .str:
+            if b == 0x07 { state = .ground }
+            else if b == 0x1B { state = .strEsc }
+        case .strEsc:
+            state = .ground
+        }
     }
 
     nonisolated static func filterSizeReports(
@@ -344,8 +362,9 @@ final class TerminalResponsePipeline {
                         i += 1
                     }
                 } else {
-                    result.append(bytes[i])
-                    i += 1
+                    let next = rawBuffer.firstOffset(of: 0x1B, in: i..<count) ?? count
+                    result.append(bytes + i, count: next - i)
+                    i = next
                 }
             }
 
@@ -425,7 +444,7 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
             // marker could straddle plus the new chunk.
             let searchFrom = max(0, buffer.count - (Self.endMarker.count - 1))
             buffer.append(chunk)
-            if Self.contains(Self.endMarker, in: buffer, from: searchFrom) {
+            if buffer.firstOffset(of: Self.endMarker, from: searchFrom) != nil {
                 let complete = buffer
                 buffer = Data()
                 inProgress = false
@@ -440,7 +459,7 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
             return nil
         }
 
-        if Self.contains(Self.startMarker, in: chunk) && !Self.contains(Self.endMarker, in: chunk) {
+        if chunk.firstOffset(of: Self.startMarker) != nil && chunk.firstOffset(of: Self.endMarker) == nil {
             buffer = chunk
             inProgress = true
             return nil
@@ -455,23 +474,5 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
         buffer = Data()
         inProgress = false
         return pending
-    }
-
-    /// Jumps between ESC bytes with memchr and compares the marker at each.
-    private static func contains(_ marker: [UInt8], in data: Data, from offset: Int = 0) -> Bool {
-        data.withUnsafeBytes { raw in
-            guard let base = raw.baseAddress, raw.count - offset >= marker.count else { return false }
-            let end = base + raw.count
-            var cursor = base + offset
-            while let hit = memchr(cursor, Int32(marker[0]), end - cursor) {
-                let candidate = UnsafeRawPointer(hit)
-                guard end - candidate >= marker.count else { return false }
-                if marker.withUnsafeBytes({ memcmp(candidate, $0.baseAddress!, marker.count) }) == 0 {
-                    return true
-                }
-                cursor = candidate + 1
-            }
-            return false
-        }
     }
 }
