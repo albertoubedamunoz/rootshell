@@ -61,6 +61,9 @@ final class TerminalSurfaceController: NSObject {
     var responseFd: Int32 = -1
 
     private(set) var hasRenderedFirstFrame = false
+    /// The frame the layer showed when the pane was occluded. The hidden
+    /// renderer purges it, so it doesn't count as a first frame on re-show.
+    private var staleFrameContents: CFTypeRef?
     private var firstFrameCallbacks: [@MainActor () -> Void] = []
     private var firstFramePollLink: CADisplayLink?
     private var firstFramePollTarget: FirstFramePollTarget?
@@ -230,6 +233,7 @@ final class TerminalSurfaceController: NSObject {
 
     private func firstFrameHasCurrentGeometry() -> Bool {
         guard let contents = rendererLayer()?.contents else { return false }
+        if let staleFrameContents, (contents as CFTypeRef) === staleFrameContents { return false }
         guard host.surfaceRequiresHerdrFirstFrameGeometry else { return true }
         // A parser acknowledgement can beat the renderer. An IOSurface from
         // the provisional grid must not reveal the tab stretched to the new
@@ -249,6 +253,7 @@ final class TerminalSurfaceController: NSObject {
         suspendFirstFramePolling()
         guard !hasRenderedFirstFrame else { return }
         hasRenderedFirstFrame = true
+        staleFrameContents = nil
         if failOpen {
             Ghostty.logger.warning("First frame poll timed out; treating surface as rendered")
             if host.surfaceIsTmuxPane {
@@ -269,7 +274,16 @@ final class TerminalSurfaceController: NSObject {
     func resetFirstFrameTracking() {
         suspendFirstFramePolling()
         hasRenderedFirstFrame = false
+        staleFrameContents = nil
         firstFrameCallbacks = []
+    }
+
+    /// Occlusion releases the renderer's frames and empties the one still on
+    /// the layer, so re-showing must wait for a frame drawn after this.
+    private func expireRenderedFrame() {
+        guard hasRenderedFirstFrame else { return }
+        hasRenderedFirstFrame = false
+        staleFrameContents = rendererLayer()?.contents.map { $0 as CFTypeRef }
     }
 
     func createSurfaceIfNeeded() {
@@ -720,6 +734,8 @@ final class TerminalSurfaceController: NSObject {
 
         if visible {
             startFirstFramePolling()
+        } else {
+            expireRenderedFrame()
         }
 
         // Defer the GhosttyKit occlusion call onto a follow-up main-queue tick

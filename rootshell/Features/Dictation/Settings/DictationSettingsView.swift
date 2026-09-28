@@ -57,14 +57,14 @@ struct DictationSettingsView: View {
         let chord = KeybindManager.shared.sequence(for: .toggle_dictation)?.symbolDescription
         #if targetEnvironment(macCatalyst)
         if let chord {
-            return String(localized: "Speech is recognized by Parakeet on this Mac; audio never leaves it. Press \(chord) or choose Shell › Dictation.")
+            return String(localized: "Speech is recognized by \(model.displayName) on this Mac; audio never leaves it. Press \(chord) or choose Shell › Dictation.")
         }
-        return String(localized: "Speech is recognized by Parakeet on this Mac; audio never leaves it. Choose Shell › Dictation to start.")
+        return String(localized: "Speech is recognized by \(model.displayName) on this Mac; audio never leaves it. Choose Shell › Dictation to start.")
         #else
         if let chord {
-            return String(localized: "Speech is recognized by Parakeet on this device; audio never leaves it. Swipe left on the terminal keyboard, add the Dictation toolbar key, or press \(chord) on a hardware keyboard.")
+            return String(localized: "Speech is recognized by \(model.displayName) on this device; audio never leaves it. Swipe left on the terminal keyboard, add the Dictation toolbar key, or press \(chord) on a hardware keyboard.")
         }
-        return String(localized: "Speech is recognized by Parakeet on this device; audio never leaves it. Swipe left on the terminal keyboard or add the Dictation toolbar key.")
+        return String(localized: "Speech is recognized by \(model.displayName) on this device; audio never leaves it. Swipe left on the terminal keyboard or add the Dictation toolbar key.")
         #endif
     }
 
@@ -91,16 +91,12 @@ struct DictationSettingsView: View {
             } label: {
                 Text("Language").settingRow(Settings.Dictation.language)
             }
-            .disabled(!model.supportsLanguageHint)
+            .onChange(of: language) { _, code in model = model.model(for: code) }
             .themedRow()
         } header: {
             SettingGroupHeader("Recognition", group: .dictation)
         } footer: {
-            if model.supportsLanguageHint {
-                Text("Automatic works for most speakers. Choosing a language keeps short phrases from drifting into another alphabet.")
-            } else {
-                Text("Parakeet v2 recognizes English only.")
-            }
+            Text("Automatic works for most speakers. Choosing a language keeps short phrases from drifting into another alphabet. Chinese, Cantonese, Japanese and Korean switch to SenseVoice.")
         }
     }
 
@@ -201,7 +197,11 @@ struct DictationSettingsView: View {
             }
             .themedRow()
         } footer: {
-            Text("Teach dictation words it would otherwise mishear, like kubectl, hostnames, and identifiers on screen.")
+            if model.supportsVocabularyBoost {
+                Text("Teach dictation words it would otherwise mishear, like kubectl, hostnames, and identifiers on screen.")
+            } else {
+                Text("Vocabulary Boost works with Parakeet models only.")
+            }
         }
     }
 
@@ -238,8 +238,16 @@ struct DictationSettingsView: View {
             }
             .themedRow()
 
-            SettingToggle(Settings.Dictation.numberNormalization, title: "Write Numbers as Digits")
-                .themedRow()
+            if model.usesNumberNormalizer {
+                SettingToggle(Settings.Dictation.numberNormalization, title: "Write Numbers as Digits")
+                    .themedRow()
+            } else {
+                SettingDescribedToggle(Settings.Dictation.numberNormalization, isOn: .constant(true),
+                                       title: "Write Numbers as Digits",
+                                       description: "SenseVoice always writes numbers as digits.")
+                    .disabled(true)
+                    .themedRow()
+            }
 
             Picker(selection: $keepLoadedMinutes) {
                 Text("Unload Right Away").tag(0)

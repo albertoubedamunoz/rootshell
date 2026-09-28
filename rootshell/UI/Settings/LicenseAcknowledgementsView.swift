@@ -395,6 +395,13 @@ struct LicenseAcknowledgementsView: View {
                 licenseText: ccBy4LicenseText
             ),
             LicenseEntry(
+                name: "SenseVoiceSmall",
+                licenseType: "FunASR Model License 1.1",
+                copyright: "Copyright (C) 2023-2028 Alibaba Group. FunAudioLLM SenseVoiceSmall, converted to Core ML by FluidInference.",
+                repositoryURL: "https://huggingface.co/FunAudioLLM/SenseVoiceSmall",
+                licenseText: funASRModelLicenseText
+            ),
+            LicenseEntry(
                 name: "Silero VAD",
                 licenseType: "MIT",
                 copyright: "Copyright (c) 2020-present Silero Team. Converted to Core ML by FluidInference.",
@@ -638,6 +645,32 @@ struct LicenseAcknowledgementsView: View {
         ---
 
         \(mitLicenseText)
+        """
+    }
+
+    private var funASRModelLicenseText: String {
+        """
+        FunASR Model Open Source License Agreement, Version 1.1
+
+        Copyright (C) 2023-2028 Alibaba Group. All rights reserved.
+
+        [FunASR Software] refers to FunASR open-source model weights and their \
+        derivatives, including finetuned models.
+
+        License: You are free to use, copy, modify, and share [FunASR Software] \
+        under the terms of this agreement.
+
+        Restrictions: When using, copying, modifying, and sharing [FunASR \
+        Software], you must attribute the source and author information and \
+        retain relevant model names in [FunASR Software].
+
+        Responsibility and Risk: [FunASR Software] is provided for reference and \
+        learning purposes only, and Alibaba Group assumes no responsibility for \
+        any direct or indirect losses resulting from your use or modification of \
+        [FunASR Software]. You should assume all risks associated with using and \
+        modifying [FunASR Software].
+
+        Full text: https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE
         """
     }
 

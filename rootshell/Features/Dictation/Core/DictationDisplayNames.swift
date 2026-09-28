@@ -13,6 +13,7 @@ extension DictationModel {
         case .parakeetUltra: String(localized: "Parakeet Ultra")
         case .parakeetRedux: String(localized: "Parakeet Redux")
         case .parakeetV2English: String(localized: "Parakeet v2")
+        case .senseVoice: String(localized: "SenseVoice")
         }
     }
 
@@ -22,7 +23,25 @@ extension DictationModel {
         case .parakeetUltra: String(localized: "Same languages as v3, most accurate, largest download.")
         case .parakeetRedux: String(localized: "Same languages as v3, smallest download, slightly less accurate.")
         case .parakeetV2English: String(localized: "English only, strongest English recall.")
+        case .senseVoice: String(localized: "Chinese, Cantonese, Japanese, Korean and English. No vocabulary boost.")
         }
+    }
+}
+
+nonisolated extension DictationModel {
+    /// ISO 639 codes this model recognizes.
+    var languages: [String] {
+        switch self {
+        case .parakeetV3, .parakeetUltra, .parakeetRedux: DictationLanguages.european
+        case .parakeetV2English: ["en"]
+        case .senseVoice: DictationLanguages.senseVoice
+        }
+    }
+
+    /// The model to switch to when `language` is chosen and this one can't recognize it.
+    func model(for language: String) -> DictationModel {
+        guard !language.isEmpty, !languages.contains(language) else { return self }
+        return DictationLanguages.senseVoice.contains(language) ? .senseVoice : .parakeetV3
     }
 }
 
@@ -74,12 +93,16 @@ extension DictationFormatter.Style {
     }
 }
 
-/// Languages Parakeet v3 recognizes, by ISO 639-1 code.
-enum DictationLanguages {
-    static let codes = [
+/// Dictation languages by ISO 639 code.
+nonisolated enum DictationLanguages {
+    /// Parakeet v3, Ultra and Redux.
+    static let european = [
         "en", "de", "es", "fr", "it", "pt", "nl", "pl", "cs", "sk", "sl", "hr", "bg", "ro", "hu",
         "da", "sv", "fi", "et", "lv", "lt", "mt", "el", "ru", "uk",
     ]
+    static let senseVoice = ["zh", "yue", "ja", "ko", "en"]
+    /// Every language some model recognizes.
+    static let codes = european + senseVoice.filter { !european.contains($0) }
 
     static func name(_ code: String) -> String {
         Locale.current.localizedString(forLanguageCode: code) ?? code

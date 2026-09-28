@@ -3596,7 +3596,8 @@ extension Ghostty {
         // MARK: - First Frame Readiness
 
         /// True once the renderer has presented at least one frame for the
-        /// current surface. The core attaches an empty "IOSurfaceLayer"
+        /// current surface since it was last occluded (occlusion empties the
+        /// frame on screen). The core attaches an empty "IOSurfaceLayer"
         /// sublayer at surface creation; its `contents` stays nil until the
         /// renderer thread presents. Until then a freshly opened tab is fully
         /// transparent, so the tab-swap gating in TabsModel keeps the previous

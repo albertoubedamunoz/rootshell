@@ -13,12 +13,14 @@ import Foundation
 import os
 
 nonisolated extension DictationModel {
-    var asrVersion: AsrModelVersion {
+    /// The Parakeet version, or nil for SenseVoice.
+    var asrVersion: AsrModelVersion? {
         switch self {
         case .parakeetV3: .v3
         case .parakeetUltra: .ultra
         case .parakeetRedux: .redux
         case .parakeetV2English: .v2
+        case .senseVoice: nil
         }
     }
 
@@ -28,6 +30,34 @@ nonisolated extension DictationModel {
     }
 
     var supportsLanguageHint: Bool { self != .parakeetV2English }
+
+    /// Rescoring needs Parakeet's token timings.
+    var supportsVocabularyBoost: Bool { self != .senseVoice }
+
+    /// SenseVoice writes digits itself (`withitn`).
+    var usesNumberNormalizer: Bool { self != .senseVoice }
+
+    /// SenseVoice's int8 encoder produces NaN off the Neural Engine, which Intel
+    /// Macs and the simulator lack.
+    static var senseVoicePrecision: SenseVoiceEncoderPrecision {
+        #if arch(x86_64) || targetEnvironment(simulator)
+        .fp32
+        #else
+        .int8
+        #endif
+    }
+
+    /// SenseVoice language embedding indices (FunASR `lid_int_dict`); 0 detects.
+    static func senseVoiceLanguage(_ code: String?) -> Int32 {
+        switch code {
+        case "zh": 3
+        case "en": 4
+        case "yue": 7
+        case "ja": 11
+        case "ko": 12
+        default: 0
+        }
+    }
 }
 
 nonisolated struct DictationTranscript: Sendable {
@@ -45,7 +75,19 @@ actor DictationEngine {
         let precision: ParakeetEncoderPrecision
     }
 
-    private var asr: AsrManager?
+    private nonisolated enum Speech: Sendable {
+        case parakeet(AsrManager)
+        case senseVoice(SenseVoiceModels)
+
+        func cleanup() async {
+            if case .parakeet(let manager) = self { await manager.cleanup() }
+        }
+    }
+
+    /// SenseVoice text-norm index: punctuation and digits (`withitn`).
+    private nonisolated static let senseVoiceTextNorm: Int32 = 14
+
+    private var speech: Speech?
     private var loaded: LoadedModel?
     private var vad: VadManager?
     private var ctcModels: CtcModels?
@@ -63,7 +105,7 @@ actor DictationEngine {
     private nonisolated static let encoderComputeUnits: MLComputeUnits? =
         ProcessInfo.processInfo.physicalMemory <= 5 * 1_073_741_824 ? .cpuAndGPU : nil
 
-    var isLoaded: Bool { asr != nil }
+    var isLoaded: Bool { speech != nil }
 
     /// Takes a use of the speech and VAD models, loading them from disk if needed
     /// (never downloads). Each successful call needs exactly one `release`.
@@ -105,29 +147,40 @@ actor DictationEngine {
     }
 
     private func load(_ wanted: LoadedModel) async throws {
-        if loaded == wanted, asr != nil, vad != nil { return }
-        if loaded != wanted || asr == nil {
+        if loaded == wanted, speech != nil, vad != nil { return }
+        if loaded != wanted || speech == nil {
             // Detach before the await so nothing can pick up a manager mid-cleanup.
-            let old = asr
-            asr = nil
+            let old = speech
+            speech = nil
             loaded = nil
             await old?.cleanup()
-            let version = wanted.model.asrVersion
-            let directory = AsrModels.defaultCacheDirectory(for: version)
-            guard AsrModels.modelsExist(at: directory, version: version, encoderPrecision: wanted.precision) else {
-                throw DictationError.modelMissing
-            }
-            let models = try await AsrModels.load(from: directory, version: version, encoderPrecision: wanted.precision,
-                                                  encoderComputeUnits: Self.encoderComputeUnits)
-            let manager = AsrManager(config: .default)
-            try await manager.loadModels(models)
-            asr = manager
+            speech = try await loadSpeech(wanted)
             loaded = wanted
             Self.logger.info("Loaded \(wanted.model.rawValue, privacy: .public)")
         }
         if vad == nil {
             vad = try await VadManager(config: .default)
         }
+    }
+
+    private func loadSpeech(_ wanted: LoadedModel) async throws -> Speech {
+        guard let version = wanted.model.asrVersion else {
+            let precision = DictationModel.senseVoicePrecision
+            let directory = DictationModelStore.directory(.speech(.senseVoice))
+            guard SenseVoiceModels.modelsExist(at: directory, precision: precision) else {
+                throw DictationError.modelMissing
+            }
+            return .senseVoice(try SenseVoiceModels.load(from: directory, precision: precision))
+        }
+        let directory = AsrModels.defaultCacheDirectory(for: version)
+        guard AsrModels.modelsExist(at: directory, version: version, encoderPrecision: wanted.precision) else {
+            throw DictationError.modelMissing
+        }
+        let models = try await AsrModels.load(from: directory, version: version, encoderPrecision: wanted.precision,
+                                              encoderComputeUnits: Self.encoderComputeUnits)
+        let manager = AsrManager(config: .default)
+        try await manager.loadModels(models)
+        return .parakeet(manager)
     }
 
     func vadManager() throws -> VadManager {
@@ -160,7 +213,20 @@ actor DictationEngine {
     }
 
     func transcribe(_ samples: [Float], language: String?, boost: Bool) async throws -> DictationTranscript {
-        guard let asr, let loaded else { throw DictationError.modelMissing }
+        guard let speech, let loaded else { throw DictationError.modelMissing }
+        // A language synced from another device may not suit this model; detect instead.
+        let language = language.flatMap { loaded.model.languages.contains($0) ? $0 : nil }
+        let asr: AsrManager
+        switch speech {
+        case .parakeet(let manager):
+            asr = manager
+        case .senseVoice(let models):
+            let manager = SenseVoiceManager(models: models, language: DictationModel.senseVoiceLanguage(language),
+                                            textNorm: Self.senseVoiceTextNorm)
+            let result = try await manager.transcribeDetailed(audio: samples)
+            let text = result.language == "nospeech" ? "" : DictationFormatter.closingUnspacedGaps(result.text)
+            return DictationTranscript(text: text.trimmingCharacters(in: .whitespacesAndNewlines), confidence: 1)
+        }
         var state = TdtDecoderState.make(decoderLayers: await asr.decoderLayerCount)
         let hint = loaded.model.supportsLanguageHint ? language.flatMap(Language.init(rawValue:)) : nil
         let result = try await asr.transcribe(samples, decoderState: &state, language: hint)
@@ -179,12 +245,12 @@ actor DictationEngine {
 
     private func unloadIfIdle() async {
         // Rechecked in the queue: an acquire may have arrived since this was requested.
-        guard users == 0, asr != nil || vad != nil || ctcModels != nil else { return }
+        guard users == 0, speech != nil || vad != nil || ctcModels != nil else { return }
         unloadTask?.cancel()
         unloadTask = nil
         // Detach before the await so a new acquire loads fresh instead of reusing these.
-        let old = asr
-        asr = nil
+        let old = speech
+        speech = nil
         loaded = nil
         vad = nil
         ctcModels = nil

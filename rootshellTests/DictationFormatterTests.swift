@@ -93,9 +93,32 @@ final class DictationFormatterTests: XCTestCase {
     }
 
     func testJoiningPhrases() {
-        XCTAssertEqual(DictationFormatter.joining("", "b"), "b")
-        XCTAssertEqual(DictationFormatter.joining("a", "b"), "a b")
-        XCTAssertEqual(DictationFormatter.joining("a\n", "b"), "a\nb")
+        XCTAssertEqual(DictationFormatter.joining("", "b", style: .prose), "b")
+        XCTAssertEqual(DictationFormatter.joining("a", "b", style: .prose), "a b")
+        XCTAssertEqual(DictationFormatter.joining("a\n", "b", style: .prose), "a\nb")
+    }
+
+    func testJoiningUnspacedScripts() {
+        XCTAssertEqual(DictationFormatter.joining("你好。", "我是", style: .prose), "你好。我是")
+        XCTAssertEqual(DictationFormatter.joining("こんにちは", "ls", style: .agent), "こんにちは ls")
+        XCTAssertEqual(DictationFormatter.joining("안녕하세요.", "반갑습니다", style: .prose), "안녕하세요. 반갑습니다")
+        XCTAssertEqual(DictationFormatter.separator("", "你好", style: .prose), "")
+    }
+
+    func testCommandKeepsArgumentSpaces() {
+        XCTAssertEqual(DictationFormatter.joining("cat", "文件", style: .command), "cat 文件")
+        XCTAssertEqual(DictationFormatter.joining("cat", "文件", style: .prose), "cat 文件")
+        XCTAssertEqual(DictationFormatter.joining("文件", "列表", style: .command), "文件 列表")
+    }
+
+    func testClosingUnspacedGaps() {
+        XCTAssertEqual(DictationFormatter.closingUnspacedGaps("この エラー を 修正 して、もう 一度"), "このエラーを修正して、もう一度")
+        XCTAssertEqual(DictationFormatter.closingUnspacedGaps("运行 npm test 然后 提交"), "运行 npm test 然后提交")
+        XCTAssertEqual(DictationFormatter.closingUnspacedGaps("이 파일 을 열고"), "이 파일 을 열고")
+    }
+
+    func testCommandStripsFullWidthPunctuation() {
+        XCTAssertEqual(actions(.command, "列出文件。"), [.text("列出文件")])
     }
 
     // MARK: - Vocabulary

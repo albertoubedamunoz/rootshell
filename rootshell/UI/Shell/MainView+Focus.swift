@@ -387,6 +387,8 @@ extension MainView {
             LifecycleDebugLogger.shared.checkpoint("FG.appTabSwipe.finish", ms: nil, [
                 ("path", "commit"),
             ])
+            // A target that revealed mid-settle skipped the source's cleanup.
+            self.occludeTabIfNoLongerShown(state.sourceTabID)
             #if !targetEnvironment(macCatalyst)
             // Both tabs have settled at offset 0; recreate selection handles at
             // their final position. The target (now selected) re-presents any

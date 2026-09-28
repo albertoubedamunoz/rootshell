@@ -3,7 +3,7 @@
 //  DictationModelsView.swift
 //  rootshell
 //
-//  Choose, download and delete the Parakeet models dictation runs on.
+//  Choose, download and delete the speech models dictation runs on.
 //
 
 import SwiftUI
@@ -11,6 +11,7 @@ import SwiftUI
 struct DictationModelsView: View {
     @Setting(Settings.Dictation.model) private var selected
     @Setting(Settings.Dictation.encoderPrecision) private var precision
+    @Setting(Settings.Dictation.language) private var language
     private var store: DictationModelStore { .shared }
 
     var body: some View {
@@ -58,7 +59,10 @@ struct DictationModelsView: View {
             control(for: .speech(model), state: state)
         }
         .contentShape(Rectangle())
-        .onTapGesture { selected = model }
+        .onTapGesture {
+            selected = model
+            if !language.isEmpty, !model.languages.contains(language) { language = "" }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected == model ? [.isButton, .isSelected] : .isButton)
         .themedRow()
