@@ -41,7 +41,7 @@ final class DictationController {
 
     var isActive: Bool { phase == .preparing || phase == .listening || phase == .finishing }
     var isListening: Bool { phase == .listening }
-    var previewText: String { phrases.reduce("", DictationFormatter.joining) }
+    var previewText: String { phrases.reduce("") { DictationFormatter.joining($0, $1, style: style) } }
     var canUndo: Bool { commitMode == .preview ? !phrases.isEmpty : insertedCount > 0 }
 
     var model: DictationModel { SettingsStore.shared.get(Settings.Dictation.model) }
@@ -355,7 +355,7 @@ final class DictationController {
             case .text(let text) where commitMode == .preview:
                 phrases.append(text)
             case .text(let text):
-                let chunk = DictationFormatter.separator(insertedChunks.last ?? "", text) + text
+                let chunk = DictationFormatter.separator(insertedChunks.last ?? "", text, style: style) + text
                 target.dictationInsert(chunk)
                 insertedChunks.append(chunk)
                 deliveredGeneration = target.dictationInputGeneration

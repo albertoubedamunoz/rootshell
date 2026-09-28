@@ -238,8 +238,16 @@ struct DictationSettingsView: View {
             }
             .themedRow()
 
-            SettingToggle(Settings.Dictation.numberNormalization, title: "Write Numbers as Digits")
-                .themedRow()
+            if model.usesNumberNormalizer {
+                SettingToggle(Settings.Dictation.numberNormalization, title: "Write Numbers as Digits")
+                    .themedRow()
+            } else {
+                SettingDescribedToggle(Settings.Dictation.numberNormalization, isOn: .constant(true),
+                                       title: "Write Numbers as Digits",
+                                       description: "SenseVoice always writes numbers as digits.")
+                    .disabled(true)
+                    .themedRow()
+            }
 
             Picker(selection: $keepLoadedMinutes) {
                 Text("Unload Right Away").tag(0)

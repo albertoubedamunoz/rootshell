@@ -71,15 +71,16 @@ nonisolated struct DictationFormatter: Sendable {
     }
 
     /// Joins two phrases the way they were spoken.
-    static func joining(_ previous: String, _ next: String) -> String {
-        previous + separator(previous, next) + next
+    static func joining(_ previous: String, _ next: String, style: Style) -> String {
+        previous + separator(previous, next, style: style) + next
     }
 
-    /// The space between two phrases: none around a line break or next to Chinese or Japanese.
-    static func separator(_ previous: String, _ next: String) -> String {
+    /// The space between two phrases: none around a line break, or between Chinese or
+    /// Japanese on both sides outside Command, where a pause separates arguments.
+    static func separator(_ previous: String, _ next: String, style: Style) -> String {
         guard let last = previous.last, let first = next.first else { return "" }
         if last.isNewline || first.isNewline { return "" }
-        return isUnspaced(last) || isUnspaced(first) ? "" : " "
+        return style != .command && isUnspaced(last) && isUnspaced(first) ? "" : " "
     }
 
     /// Drops spaces between Han or kana characters; SenseVoice spaces its Japanese tokens.
