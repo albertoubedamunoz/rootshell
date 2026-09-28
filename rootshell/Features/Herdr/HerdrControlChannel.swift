@@ -71,8 +71,8 @@ actor HerdrControlChannel {
     /// Reads the `control.open` line the bridge prints first, checks the
     /// stream protocol, and starts the reader.
     func open() async throws -> HerdrControl.ControlOpened {
-        var buffer = Data()
-        let firstLine = try await readLine(into: &buffer)
+        var framer = NewlineFramer()
+        let firstLine = try await readLine(into: &framer)
         guard let firstLine else { throw HerdrChannelError.closed }
         // Anything but JSON here is a stray shell or usage message from a
         // herdr that does not know the subcommand.
@@ -111,7 +111,7 @@ actor HerdrControlChannel {
             )
         }
         self.opened = opened
-        startReader(leftover: buffer)
+        startReader(framer: framer)
         return opened
     }
 
@@ -247,14 +247,14 @@ actor HerdrControlChannel {
 
     // MARK: - Reader
 
-    private func startReader(leftover: Data) {
+    private func startReader(framer: NewlineFramer) {
         readerTask = Task { [weak self] in
             guard let self else { return }
-            var buffer = leftover
+            var framer = framer
             var failure: Error?
             do {
                 while !Task.isCancelled {
-                    guard let line = try await self.readLine(into: &buffer) else { break }
+                    guard let line = try await self.readLine(into: &framer) else { break }
                     await self.dispatch(line)
                 }
             } catch {
@@ -274,8 +274,8 @@ actor HerdrControlChannel {
     }
 
     private func dispatch(_ line: Data) async {
-        if let head = try? HerdrControl.decoder.decode(HerdrControl.LineHead.self, from: line),
-           let id = head.id, head.type == nil, head.event == nil {
+        let head = try? HerdrControl.decoder.decode(HerdrControl.LineHead.self, from: line)
+        if let head, let id = head.id, head.type == nil, head.event == nil {
             if let continuation = pending.removeValue(forKey: id) {
                 continuation.resume(returning: line)
             } else if id.hasPrefix("i"), let error = head.error {
@@ -285,27 +285,25 @@ actor HerdrControlChannel {
         }
         // A takeover detach is per pane: attaches never take ownership back
         // on their own, so the stream stays up for the other panes.
-        if let inbound = HerdrControl.decodeInbound(line) {
+        if let inbound = HerdrControl.decodeInbound(line, head: head) {
             await onInbound(inbound)
         }
     }
 
-    /// Reads one newline-terminated line, keeping partial data in `buffer`.
+    /// Reads one newline-terminated line, keeping partial data in `framer`.
     /// Returns nil on clean EOF.
-    private func readLine(into buffer: inout Data) async throws -> Data? {
+    private func readLine(into framer: inout NewlineFramer) async throws -> Data? {
         while true {
-            if let newline = buffer.firstIndex(of: 0x0A) {
-                let line = buffer.subdata(in: buffer.startIndex..<newline)
-                buffer.removeSubrange(buffer.startIndex...newline)
+            if let line = framer.nextLine() {
                 return line
             }
-            if buffer.count > Self.maxLineBytes {
+            if framer.bufferedCount > Self.maxLineBytes {
                 throw HerdrChannelError.malformed("line exceeds \(Self.maxLineBytes) bytes")
             }
             guard let chunk = try await pipe.read(maxBytes: 256 * 1024) else {
-                return buffer.isEmpty ? nil : nil
+                return nil
             }
-            buffer.append(chunk)
+            framer.append(chunk)
         }
     }
 }

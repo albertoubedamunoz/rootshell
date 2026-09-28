@@ -1019,6 +1019,21 @@ struct GlassTabBackgroundModifier: ViewModifier {
     }
 }
 
+/// UIKit 26 blurs scroll views under the Catalyst titlebar; tab strips opt out.
+struct ScrollEdgeEffectHiddenModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(visionOS)
+        content
+        #else
+        if #available(iOS 26.0, macOS 26.0, *) {
+            content.scrollEdgeEffectHidden(true, for: .all)
+        } else {
+            content
+        }
+        #endif
+    }
+}
+
 /// Wraps content in GlassEffectContainer on iOS 26+, passthrough on older versions
 struct GlassEffectContainerModifier: ViewModifier {
     func body(content: Content) -> some View {

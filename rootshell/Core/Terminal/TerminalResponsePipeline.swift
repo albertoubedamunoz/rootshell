@@ -248,28 +248,46 @@ final class TerminalResponsePipeline {
     ) -> Data {
         var out = Data()
         out.reserveCapacity(data.count)
-        for b in data {
-            switch state {
-            case .ground:
-                if b == 0x1B { state = .esc } else { out.append(b) }
-            case .esc:
-                if b == 0x5B {
-                    state = .csi
-                } else if b == 0x5D || b == 0x50 || b == 0x58 || b == 0x5E || b == 0x5F {
-                    state = .str
-                } else {
-                    state = .ground
+        data.withUnsafeBytes { raw in
+            let bytes = raw.assumingMemoryBound(to: UInt8.self)
+            var i = 0
+            while i < bytes.count {
+                if case .ground = state {
+                    // Copy everything up to the next ESC in one append.
+                    let esc = raw.firstOffset(of: 0x1B, in: i..<bytes.count) ?? bytes.count
+                    out.append(UnsafeBufferPointer(rebasing: bytes[i..<esc]))
+                    i = esc
+                    if i < bytes.count { state = .esc; i += 1 }
+                    continue
                 }
-            case .csi:
-                if b >= 0x40 && b <= 0x7E { state = .ground }
-            case .str:
-                if b == 0x07 { state = .ground }
-                else if b == 0x1B { state = .strEsc }
-            case .strEsc:
-                state = .ground
+                let b = bytes[i]
+                i += 1
+                stripStep(b, state: &state)
             }
         }
         return out
+    }
+
+    private nonisolated static func stripStep(_ b: UInt8, state: inout GatewayReportFilterState) {
+        switch state {
+        case .ground:
+            break
+        case .esc:
+            if b == 0x5B {
+                state = .csi
+            } else if b == 0x5D || b == 0x50 || b == 0x58 || b == 0x5E || b == 0x5F {
+                state = .str
+            } else {
+                state = .ground
+            }
+        case .csi:
+            if b >= 0x40 && b <= 0x7E { state = .ground }
+        case .str:
+            if b == 0x07 { state = .ground }
+            else if b == 0x1B { state = .strEsc }
+        case .strEsc:
+            state = .ground
+        }
     }
 
     nonisolated static func filterSizeReports(
@@ -344,8 +362,9 @@ final class TerminalResponsePipeline {
                         i += 1
                     }
                 } else {
-                    result.append(bytes[i])
-                    i += 1
+                    let next = rawBuffer.firstOffset(of: 0x1B, in: i..<count) ?? count
+                    result.append(bytes + i, count: next - i)
+                    i = next
                 }
             }
 
@@ -416,13 +435,16 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
     private var inProgress = false
 
     private static let maxBufferBytes = 4 * 1024 * 1024
-    private static let startMarker = Data([0x1b, 0x5b, 0x32, 0x30, 0x30, 0x7e])
-    private static let endMarker = Data([0x1b, 0x5b, 0x32, 0x30, 0x31, 0x7e])
+    private static let startMarker: [UInt8] = [0x1b, 0x5b, 0x32, 0x30, 0x30, 0x7e]
+    private static let endMarker: [UInt8] = [0x1b, 0x5b, 0x32, 0x30, 0x31, 0x7e]
 
     func accept(chunk: Data) -> Data? {
         if inProgress {
+            // Earlier bytes were already searched, so rescan only the tail a
+            // marker could straddle plus the new chunk.
+            let searchFrom = max(0, buffer.count - (Self.endMarker.count - 1))
             buffer.append(chunk)
-            if buffer.range(of: Self.endMarker) != nil {
+            if buffer.firstOffset(of: Self.endMarker, from: searchFrom) != nil {
                 let complete = buffer
                 buffer = Data()
                 inProgress = false
@@ -437,7 +459,7 @@ private final class TerminalResponsePasteCoalescer: @unchecked Sendable {
             return nil
         }
 
-        if chunk.range(of: Self.startMarker) != nil && chunk.range(of: Self.endMarker) == nil {
+        if chunk.firstOffset(of: Self.startMarker) != nil && chunk.firstOffset(of: Self.endMarker) == nil {
             buffer = chunk
             inProgress = true
             return nil

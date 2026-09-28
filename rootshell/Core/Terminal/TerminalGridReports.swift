@@ -57,7 +57,11 @@ nonisolated enum TerminalSequenceBoundary {
     /// without its final byte, an unterminated string, or truncated UTF-8.
     static func incompleteTailStart(_ bytes: UnsafeRawBufferPointer) -> Int? {
         let count = bytes.count
-        var i = 0
+        // Every ESC restarts the scan below, or is the ESC of an ST, which
+        // scans the same from there. So start at the last ESC, or the one
+        // before when it is the final byte and may end an open string.
+        var i = bytes.lastOffset(of: 0x1b, before: count) ?? count
+        if i == count - 1, let earlier = bytes.lastOffset(of: 0x1b, before: i) { i = earlier }
         while i < count {
             guard bytes[i] == 0x1b else { i += 1; continue }
             // Executable C0 controls and DEL pass through escape state.

@@ -1032,6 +1032,7 @@ struct TabBar: View {
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(ScrollEdgeEffectHiddenModifier())
     }
 
     /// Compact pills and the trough well intentionally abut, but the scope
