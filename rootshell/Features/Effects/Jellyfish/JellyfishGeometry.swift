@@ -60,6 +60,9 @@ enum JellyfishGeometry {
         func append(nodes: [CGPoint], count: Int, nodesPer: Int, arm: Bool) {
             let divisions = economical ? 3 : 5
             let columns = arm ? (economical ? 4 : 6) : 1
+            let across = (0...columns).map { Float($0) / Float(columns) * 2 - 1 }
+            var previous = [JellyfishVertex](repeating: JellyfishVertex(position: .zero, uv: .zero), count: columns + 1)
+            var next = previous
             for chain in 0..<count {
                 let localAnchor = arm ? CGPoint(x: jelly.oralArmAnchorX[chain], y: 0.08)
                     : jelly.tentacleAnchor(chain, at: time)
@@ -80,34 +83,35 @@ enum JellyfishGeometry {
                 }
                 let phase = Float(chain) * 2.399 + Float(jelly.pulsePhase0)
                 let steps = nodesPer * divisions
-                func vertex(step: Int, column: Int) -> JellyfishVertex {
+                // Centerline, normal, and width vary per step only; columns
+                // just offset across the ribbon.
+                func row(step: Int, into row: inout [JellyfishVertex]) {
                     let v = Float(step) / Float(steps)
-                    let u = Float(column) / Float(columns) * 2 - 1
                     let p = center(v)
                     let tangent = center(min(1, v + 0.003)) - center(max(0, v - 0.003))
                     let length = max(simd_length(tangent), 0.0001)
                     let normal = SIMD2(-tangent.y, tangent.x) / length
                     let taper = pow(max(0, 1 - v), arm ? 0.65 : 0.45)
                     let wave = v * 52 - elapsed * (jelly.calmDrift ? 0.12 : 0.8) + phase
+                    // The frill grows away from the attachment, then
+                    // tapers to a thread, so the bell never wears a cuff.
                     let width: Float
-                    let fold: Float
                     if arm {
-                        // The frill grows away from the attachment, then
-                        // tapers to a thread, so the bell never wears a cuff.
                         width = radius * (0.06 + 0.10 * sin(min(v * 5, .pi / 2))) * taper
-                        fold = sin(wave + abs(u) * 3.4) * abs(u) * abs(u)
                     } else {
                         width = max(0.42, radius * 0.013) * taper + 0.16
-                        fold = 0
                     }
-                    let xy = p + normal * (u * width * (1 + fold * 0.38))
-                    return JellyfishVertex(position: SIMD4(xy.x, xy.y, fold * width * 0.7, arm ? 1 : 2),
-                                            uv: SIMD4(u, v, phase, 0))
+                    for column in 0...columns {
+                        let u = across[column]
+                        let fold = arm ? sin(wave + abs(u) * 3.4) * abs(u) * abs(u) : 0
+                        let xy = p + normal * (u * width * (1 + fold * 0.38))
+                        row[column] = JellyfishVertex(position: SIMD4(xy.x, xy.y, fold * width * 0.7, arm ? 1 : 2),
+                                                      uv: SIMD4(u, v, phase, 0))
+                    }
                 }
-                var previous = (0...columns).map { vertex(step: 0, column: $0) }
-                var next = previous
+                row(step: 0, into: &previous)
                 for step in 1...steps {
-                    for column in 0...columns { next[column] = vertex(step: step, column: column) }
+                    row(step: step, into: &next)
                     for column in 0..<columns {
                         let a = previous[column], b = next[column]
                         let c = previous[column + 1], d = next[column + 1]
