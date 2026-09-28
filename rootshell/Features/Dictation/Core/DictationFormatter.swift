@@ -72,10 +72,40 @@ nonisolated struct DictationFormatter: Sendable {
 
     /// Joins two phrases the way they were spoken.
     static func joining(_ previous: String, _ next: String) -> String {
-        guard !previous.isEmpty else { return next }
-        guard !next.isEmpty else { return previous }
-        if previous.hasSuffix("\n") || next.hasPrefix("\n") { return previous + next }
-        return previous + " " + next
+        previous + separator(previous, next) + next
+    }
+
+    /// The space between two phrases: none around a line break or next to Chinese or Japanese.
+    static func separator(_ previous: String, _ next: String) -> String {
+        guard let last = previous.last, let first = next.first else { return "" }
+        if last.isNewline || first.isNewline { return "" }
+        return isUnspaced(last) || isUnspaced(first) ? "" : " "
+    }
+
+    /// Drops spaces between Han or kana characters; SenseVoice spaces its Japanese tokens.
+    static func closingUnspacedGaps(_ text: String) -> String {
+        var out = ""
+        var gap = ""
+        for character in text {
+            if character == " " { gap.append(character); continue }
+            if let last = out.last, isUnspaced(last), isUnspaced(character) { gap = "" }
+            out += gap
+            out.append(character)
+            gap = ""
+        }
+        return out + gap
+    }
+
+    /// Han, kana, and full-width punctuation, written without spaces between words.
+    static func isUnspaced(_ character: Character) -> Bool {
+        guard let scalar = character.unicodeScalars.first?.value else { return false }
+        switch scalar {
+        case 0x3000...0x30FF, 0x31F0...0x31FF, 0x3400...0x4DBF, 0x4E00...0x9FFF,
+             0xF900...0xFAFF, 0xFF00...0xFFEF, 0x20000...0x2FA1F:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - Commands
@@ -269,7 +299,7 @@ nonisolated struct DictationFormatter: Sendable {
 
     private static func stripSentencePunctuation(_ word: String) -> String {
         var word = word
-        while let last = word.last, ",.?!;:".contains(last) { word.removeLast() }
+        while let last = word.last, ",.?!;:。，？！；：、".contains(last) { word.removeLast() }
         while let first = word.first, "¿¡".contains(first) { word.removeFirst() }
         return word
     }

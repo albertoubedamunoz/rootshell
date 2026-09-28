@@ -98,6 +98,23 @@ final class DictationFormatterTests: XCTestCase {
         XCTAssertEqual(DictationFormatter.joining("a\n", "b"), "a\nb")
     }
 
+    func testJoiningUnspacedScripts() {
+        XCTAssertEqual(DictationFormatter.joining("你好。", "我是"), "你好。我是")
+        XCTAssertEqual(DictationFormatter.joining("こんにちは", "ls"), "こんにちはls")
+        XCTAssertEqual(DictationFormatter.joining("안녕하세요.", "반갑습니다"), "안녕하세요. 반갑습니다")
+        XCTAssertEqual(DictationFormatter.separator("", "你好"), "")
+    }
+
+    func testClosingUnspacedGaps() {
+        XCTAssertEqual(DictationFormatter.closingUnspacedGaps("この エラー を 修正 して、もう 一度"), "このエラーを修正して、もう一度")
+        XCTAssertEqual(DictationFormatter.closingUnspacedGaps("运行 npm test 然后 提交"), "运行 npm test 然后提交")
+        XCTAssertEqual(DictationFormatter.closingUnspacedGaps("이 파일 을 열고"), "이 파일 을 열고")
+    }
+
+    func testCommandStripsFullWidthPunctuation() {
+        XCTAssertEqual(actions(.command, "列出文件。"), [.text("列出文件")])
+    }
+
     // MARK: - Vocabulary
 
     func testVocabularyParsing() {

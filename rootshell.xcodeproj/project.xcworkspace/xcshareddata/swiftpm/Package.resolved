@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/fluidaudio-rootshell.git",
       "state" : {
-        "revision" : "a7088cd27552e0341834a292783b126c2be76cba",
-        "version" : "0.17.4-rootshell.1"
+        "revision" : "bc3521103941a5e4b395604bc4402274210c68d8",
+        "version" : "0.17.4-rootshell.2"
       }
     },
     {

@@ -59,7 +59,7 @@ final class DictationController {
     @ObservationIgnored private var startTask: Task<Void, Never>?
     @ObservationIgnored private var eventsTask: Task<Void, Never>?
     @ObservationIgnored private var session = UUID()
-    @ObservationIgnored private var insertedChunks: [Int] = []
+    @ObservationIgnored private var insertedChunks: [String] = []
     /// Hands-Free: the current utterance typed text that still needs its Return.
     @ObservationIgnored private var utteranceTyped = false
     /// The session holding a use of the engine's models, released exactly once.
@@ -220,8 +220,8 @@ final class DictationController {
             return
         }
         discardStaleInsertions()
-        guard let target, let count = insertedChunks.popLast() else { return }
-        target.dictationDeleteBackward(count)
+        guard let target, let chunk = insertedChunks.popLast() else { return }
+        target.dictationDeleteBackward(chunk.count)
         deliveredGeneration = target.dictationInputGeneration
         insertedCount = insertedChunks.count
         if insertedChunks.isEmpty { utteranceTyped = false }
@@ -273,7 +273,7 @@ final class DictationController {
                 return
             }
             leasedSession = session
-            let boost = settings.get(Settings.Dictation.vocabularyEnabled)
+            let boost = settings.get(Settings.Dictation.vocabularyEnabled) && model.supportsVocabularyBoost
                 && DictationModelStore.shared.state(.vocabulary) == .ready
             await engine.configureVocabulary(boost ? vocabulary(for: target) : [])
             let vad = try await engine.vadManager()
@@ -289,7 +289,7 @@ final class DictationController {
                 speechThreshold: settings.get(Settings.Dictation.speechThreshold),
                 pauseDuration: settings.get(Settings.Dictation.pauseDuration),
                 autoStopSilence: silence,
-                normalizeNumbers: settings.get(Settings.Dictation.numberNormalization),
+                normalizeNumbers: settings.get(Settings.Dictation.numberNormalization) && model.usesNumberNormalizer,
                 boost: boost))
             pendingRecognizer = recognizer
             await recognizer.start()
@@ -355,9 +355,9 @@ final class DictationController {
             case .text(let text) where commitMode == .preview:
                 phrases.append(text)
             case .text(let text):
-                let chunk = insertedChunks.isEmpty || text.hasPrefix("\n") ? text : " " + text
+                let chunk = DictationFormatter.separator(insertedChunks.last ?? "", text) + text
                 target.dictationInsert(chunk)
-                insertedChunks.append(chunk.count)
+                insertedChunks.append(chunk)
                 deliveredGeneration = target.dictationInputGeneration
                 utteranceTyped = true
             case .submit where commitMode == .preview:

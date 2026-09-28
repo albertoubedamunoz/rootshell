@@ -2,7 +2,7 @@
 //  Settings+Dictation.swift
 //  rootshell
 //
-//  On-device dictation (FluidAudio Parakeet) keys. Registered in every build;
+//  On-device dictation (FluidAudio Parakeet and SenseVoice) keys. Registered in every build;
 //  the feature itself is compiled out of China and visionOS builds.
 //
 
@@ -19,9 +19,9 @@ nonisolated enum DictationSupport {
     static var isEnabled: Bool { isCompiled && SettingsStore.shared.value(Settings.Dictation.enabled) }
 }
 
-/// Parakeet models offered for dictation.
+/// Speech models offered for dictation: Parakeet for European languages, SenseVoice for CJK.
 nonisolated enum DictationModel: String, CaseIterable, Sendable {
-    case parakeetV3, parakeetUltra, parakeetRedux, parakeetV2English
+    case parakeetV3, parakeetUltra, parakeetRedux, parakeetV2English, senseVoice
 }
 
 /// How recognized speech reaches the terminal.

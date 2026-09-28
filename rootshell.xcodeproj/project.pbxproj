@@ -6908,7 +6908,7 @@
 			repositoryURL = "https://github.com/kitknox/fluidaudio-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = "0.17.4-rootshell.1";
+				version = "0.17.4-rootshell.2";
 			};
 		};
 		47HLX0002FD00000AABB0000 /* XCRemoteSwiftPackageReference "helix-rootshell" */ = {

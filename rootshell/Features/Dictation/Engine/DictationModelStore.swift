@@ -120,7 +120,12 @@ final class DictationModelStore {
                                           progress: @escaping ProgressHandler) async throws {
         switch asset {
         case .speech(let model):
-            try await AsrModels.download(version: model.asrVersion,
+            guard let version = model.asrVersion else {
+                _ = try await SenseVoiceModels.download(precision: DictationModel.senseVoicePrecision,
+                                                        progressHandler: progress)
+                return
+            }
+            try await AsrModels.download(version: version,
                                          encoderPrecision: model.encoderPrecision(precision),
                                          progressHandler: progress)
         case .voiceActivity:
@@ -132,7 +137,9 @@ final class DictationModelStore {
 
     nonisolated static func directory(_ asset: DictationAsset) -> URL {
         switch asset {
-        case .speech(let model): AsrModels.defaultCacheDirectory(for: model.asrVersion)
+        case .speech(let model):
+            model.asrVersion.map { AsrModels.defaultCacheDirectory(for: $0) }
+                ?? MLModelConfigurationUtils.defaultModelsDirectory(for: .senseVoiceSmall)
         case .voiceActivity: MLModelConfigurationUtils.defaultModelsDirectory(for: .vad)
         case .vocabulary: CtcModels.defaultCacheDirectory(for: .ctc110m)
         }
@@ -142,7 +149,10 @@ final class DictationModelStore {
         let directory = directory(asset)
         switch asset {
         case .speech(let model):
-            return AsrModels.modelsExist(at: directory, version: model.asrVersion,
+            guard let version = model.asrVersion else {
+                return SenseVoiceModels.modelsExist(at: directory, precision: DictationModel.senseVoicePrecision)
+            }
+            return AsrModels.modelsExist(at: directory, version: version,
                                          encoderPrecision: model.encoderPrecision(precision))
         case .voiceActivity:
             return FileManager.default.fileExists(
@@ -179,6 +189,7 @@ nonisolated extension DictationModel {
         case .parakeetUltra: 600
         case .parakeetRedux: 210
         case .parakeetV2English: 440
+        case .senseVoice: Self.senseVoicePrecision == .fp32 ? 1_890 : 480
         }
     }
 }
