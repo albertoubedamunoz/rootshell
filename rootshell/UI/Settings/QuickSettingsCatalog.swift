@@ -267,6 +267,7 @@ enum QuickSettingsCatalog {
             choices(Settings.Multiplexer.sessionDiscoverySortOrder, label: { $0.displayName }),
             choices(Settings.Multiplexer.tmuxTabCloseAction, label: { $0.displayName }),
             toggle(Settings.Multiplexer.tabExposeMultiplexer),
+            toggle(Settings.Multiplexer.detachBanner),
         ]
         entries += [
             toggle(Settings.Roam.holePunch),

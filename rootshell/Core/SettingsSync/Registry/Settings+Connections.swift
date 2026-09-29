@@ -181,6 +181,9 @@ nonisolated extension Settings {
         static let tabExposeMultiplexer = SettingKey(
             "tabExposeMultiplexerEnabled", default: true, group: .multiplexer, configKey: "tab-expose-multiplexer-enabled",
             title: String(localized: "Show Multiplexer Tabs in Exposé", comment: "Setting title"))
+        static let detachBanner = SettingKey(
+            "muxDetachBannerEnabled", default: true, group: .multiplexer, configKey: "mux-detach-banner-enabled",
+            title: String(localized: "Show Detach Banner", comment: "Setting title"))
         static let tmuxHiddenWindowsBySession = AnySettingDefinition.opaque(
             "tmuxHiddenWindowsBySession", group: .multiplexer,
             title: String(localized: "tmux Hidden Windows", comment: "Setting title"))
@@ -196,7 +199,7 @@ nonisolated extension Settings {
             herdrDiscoveryAttachMode.erased, herdrAutoHideGatewayOnAttach.erased, herdrControlHistoryLimitBytes.erased,
             zmxSessionName.erased, zmxCustomCommand.erased, zmxSessionDiscovery.erased, localSessionDiscovery.erased,
             remoteSessionDiscovery.erased, sessionDiscoverySortOrder.erased, tabExposeMultiplexer.erased,
-            tmuxHiddenWindowsBySession, tmuxLastSessionByConnection,
+            detachBanner.erased, tmuxHiddenWindowsBySession, tmuxLastSessionByConnection,
         ]
     }
 
