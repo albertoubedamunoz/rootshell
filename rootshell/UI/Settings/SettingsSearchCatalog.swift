@@ -802,6 +802,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["sort", "sessions"]),
             row("mux-show-tabs", String(localized: "Show Multiplexer Tabs"), in: .multiplexers, icon: "rectangle.grid.2x2",
                 keywords: ["tab exposé", "multiplexer tabs"]),
+            row("mux-detach-banner", String(localized: "Show Detach Banner"), in: .multiplexers, icon: "eject.circle",
+                keywords: ["detach", "banner", "reconnect", "notification"]),
             row("mux-auto-hide-gateway", String(localized: "Auto-hide Gateway on Attach"), in: .multiplexers, icon: "eye.slash",
                 keywords: ["control mode", "gateway", "attach"]),
             row("mux-close-tab-action", String(localized: "Close Tab Action"), in: .multiplexers, icon: "xmark.rectangle",

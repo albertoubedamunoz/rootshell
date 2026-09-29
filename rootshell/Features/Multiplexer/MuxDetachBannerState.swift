@@ -11,4 +11,6 @@ import Foundation
 struct MuxDetachBannerState: Equatable {
     let message: String
     let offer: MuxSessionResume.ReconnectOffer?
+    /// Detach banners can be turned off; the already-attached notice cannot.
+    var isDetach = false
 }

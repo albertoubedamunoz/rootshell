@@ -433,10 +433,20 @@ extension MainView {
             HStack(spacing: 10) {
                 Image(systemName: banner.offer == nil ? "exclamationmark.triangle.fill" : "eject.circle.fill")
                     .foregroundStyle(.secondary)
-                Text(banner.message)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(banner.message)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                    if banner.isDetach {
+                        Button("Never Show Again") {
+                            neverShowMuxDetachBanner()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    }
+                }
                 Spacer(minLength: 8)
                 if banner.offer != nil {
                     Button("Reconnect") {
