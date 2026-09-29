@@ -381,6 +381,7 @@ extension MainView {
                 // accepts the banner (Mac Catalyst often has >1 scene).
                 guard self.isWindowFocused || self.windowIsKeyWindow else { return }
             }
+            guard SettingsStore.shared.get(Settings.Multiplexer.detachBanner) else { return }
             let offer = notification.userInfo?["offer"] as? MuxSessionResume.ReconnectOffer
             let name = offer?.displayName
                 ?? (notification.userInfo?["displayName"] as? String)
@@ -390,7 +391,8 @@ extension MainView {
                     localized: "Detached from \(name). Session keeps running.",
                     comment: "Post-detach banner message"
                 ),
-                offer: offer
+                offer: offer,
+                isDetach: true
             )
             self.scheduleMuxDetachBannerDismiss()
         }

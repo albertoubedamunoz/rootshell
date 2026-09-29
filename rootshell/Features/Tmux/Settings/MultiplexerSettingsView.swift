@@ -100,6 +100,15 @@ struct MultiplexerSettingsView: View {
             }
 
             Section {
+                SettingToggle(Settings.Multiplexer.detachBanner, title: "Show Detach Banner", icon: "eject.circle")
+                    .themedRow()
+            } header: {
+                SettingGroupHeader("Detach", group: .multiplexer)
+            } footer: {
+                Text("After detaching from a tmux, zellij, herdr, or zmx session, a banner briefly confirms the session keeps running and offers to reconnect.")
+            }
+
+            Section {
                 SettingToggle(Settings.Multiplexer.tmuxAutoHideGatewayOnAttach, title: "Auto-hide Gateway on Attach", icon: "eye.slash")
                     .themedRow()
 

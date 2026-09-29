@@ -215,6 +215,11 @@ extension MainView {
         muxDetachBanner = nil
     }
 
+    func neverShowMuxDetachBanner() {
+        SettingsStore.shared.set(Settings.Multiplexer.detachBanner, false)
+        dismissMuxDetachBanner()
+    }
+
     /// If a live mux auto-start attachment already matches `config`, focus it
     /// and show a short banner. Returns true when a new connection was skipped.
     @discardableResult
