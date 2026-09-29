@@ -455,9 +455,10 @@ final class ForegroundActivationGate: Sendable {
                 ("appState", String(describing: UIApplication.shared.applicationState)),
                 ("timeoutPolicy", String(describing: timeoutPolicy)),
             ])
+            // Not isAppBackgroundedAtomic: it stays set until the foreground body
+            // this gate defers clears it, so the fallback could never fire.
             if timeoutPolicy == .fireIfNotBackgrounded,
-               UIApplication.shared.applicationState != .background,
-               !Ghostty.isAppBackgroundedAtomic {
+               UIApplication.shared.applicationState != .background {
                 LifecycleDebugLogger.shared.checkpoint("FG.activationGate.deferredFireAfterTimeout", ms: nil, [
                     ("reason", reason),
                     ("appState", String(describing: UIApplication.shared.applicationState)),

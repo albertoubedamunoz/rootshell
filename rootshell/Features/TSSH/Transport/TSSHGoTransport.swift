@@ -337,10 +337,38 @@ final class TrzszGoTransport: NSObject {
         }
     }
 
+    /// Set by the session: false while a tmux -CC / herdr gateway is live or
+    /// expected, whose resume path depends on the buffer's discard→reset order.
+    private nonisolated let backgroundWriteThroughAllowed = OSAllocatedUnfairLock(initialState: false)
+
+    nonisolated func setBackgroundWriteThrough(_ allowed: Bool) {
+        backgroundWriteThroughAllowed.withLock { $0 = allowed }
+    }
+
+    /// Headless transports (tunnels, SFTP, VNC) have no terminal reading their
+    /// output, so holding it for the foreground is pointless.
+    private nonisolated let isHeadless = OSAllocatedUnfairLock(initialState: false)
+
+    nonisolated func markHeadless() {
+        isHeadless.withLock { $0 = true }
+    }
+
+    /// Background output goes straight to the terminal only while the app is
+    /// processing in the background; otherwise it waits in the bounded buffer.
+    private nonisolated func writesThroughWhileBackgrounded() -> Bool {
+        if isHeadless.withLock({ $0 }) { return true }
+        return BackgroundExecutionPolicy.trzszOutputRoute(
+            isPresentationRevoked: true,
+            phase: BackgroundExecutionCoordinator.phase,
+            expectsControlGateway: !backgroundWriteThroughAllowed.withLock { $0 }
+        ) == .writeThrough
+    }
+
     nonisolated func emitOutputFromGoCallback(_ data: Data) {
         markRemoteActivityObserved()
 
-        if Ghostty.isAppBackgroundedAtomic {
+        let isBackgrounded = Ghostty.isAppBackgroundedAtomic
+        if isBackgrounded && !writesThroughWhileBackgrounded() {
             let dropped = backgroundedOutputBuffer.append(data)
             if dropped > 0 {
                 Self.logger.warning("tssh output buffer dropped \(dropped) oldest bytes while backgrounded")
@@ -371,6 +399,8 @@ final class TrzszGoTransport: NSObject {
                 accumulatePendingDiscard(lines: 0, bytes: dropped)
             }
             lifecycleEmitWasBuffered.withLock { $0 = true }
+            // Backgrounded write-through: the resume drain delivers the reset first.
+            guard !isBackgrounded else { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.deliverPendingDiscardIfAny()

@@ -335,6 +335,10 @@ extension Ghostty {
         /// return false and suppressing mouse protocol reports at the ghostty level.
         var mouseCaptureOverrideActive: Bool = false
 
+        /// Latest progress report received while backgrounded; published by
+        /// `replayCachedSessionStateOnForeground()`.
+        var backgroundProgressReport: Ghostty.Action.ProgressReport?
+
         /// Progress report state (for OSC 9;4 progress indicators)
         @Published var progressReport: Ghostty.Action.ProgressReport? = nil {
             didSet {
@@ -4954,6 +4958,10 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         if sessionProvidedConnectionHealth != connectionHealth {
             connectionHealth = sessionProvidedConnectionHealth
         }
+        if let pending = backgroundProgressReport {
+            backgroundProgressReport = nil
+            progressReport = pending
+        }
     }
 
     /// Applies a new connection-health value with the cache + skip-while-backgrounded
@@ -5185,9 +5193,12 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
                 return
             }
 
-            // Schedule the notification
-            // Use connection display name as subtitle, or terminal title if customized via OSC
-            let subtitle = (self.title != "ghostty") ? self.title : self.connectionConfig.displayName
+            // Subtitle: the terminal title if set via OSC, else the host name.
+            // While backgrounded the latest title is only cached, not published.
+            let liveTitle = self.userOverrideTitle == nil
+                ? (self.sessionProvidedTitle ?? self.title)
+                : self.title
+            let subtitle = liveTitle != "ghostty" ? liveTitle : self.connectionConfig.hostDisplayName
 
             if let identifier = NotificationManager.shared.scheduleTerminalNotification(
                 title: title ?? "Terminal",
@@ -5352,6 +5363,10 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func handleProgressReport(_ report: Ghostty.Action.ProgressReport) {
+        if Ghostty.isAppBackgroundedAtomic {
+            backgroundProgressReport = report
+            return
+        }
         // Update the progress report state
         // The TerminalScrollView observer will automatically update the UI
         self.progressReport = report

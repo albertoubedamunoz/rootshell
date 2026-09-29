@@ -1212,18 +1212,7 @@ struct NewTabRequest {
         case .tmux: return String(localized: "New tmux Window")
         case .herdr: return String(localized: "New herdr Tab")
         case .connection(let config, _):
-            // Roaming transports decorate displayName with "roam". Use the
-            // connection's own name here without removing user-authored text.
-            let name: String
-            switch config {
-            case .mosh(let mosh), .shellLaunchedMosh(let mosh, _):
-                name = mosh.sshConfig.displayName
-            case .trzsz(let trzsz), .shellLaunchedTrzsz(let trzsz, _):
-                name = trzsz.sshConfig.displayName
-            default:
-                name = config.displayName
-            }
-            return String(localized: "Duplicate “\(name)”")
+            return String(localized: "Duplicate “\(config.hostDisplayName)”")
         }
     }
 }

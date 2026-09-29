@@ -74,10 +74,6 @@ struct MainView: View {
             return .inactive
         }
     }()
-    #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    @State var shortRemoteSessionBackgroundTaskID: UIBackgroundTaskIdentifier = .invalid
-    @State var shortRemoteSessionBackgroundTaskIDBox: ShortRemoteSessionBackgroundTaskIDBox?
-    #endif
 
     /// Per-window tab state. Replaces the previous `@State var terminals:
     /// [TerminalTab] = []` design where any per-tab mutation invalidated all

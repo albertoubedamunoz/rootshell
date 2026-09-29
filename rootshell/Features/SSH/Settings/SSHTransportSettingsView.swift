@@ -15,7 +15,7 @@ struct SSHTransportSettingsView: View {
 
     private var networkFooterText: String {
         #if !targetEnvironment(macCatalyst) && !os(visionOS)
-        return String(localized: "Force IPv4 makes SSH TCP connections prefer IPv4 for hostnames and IPv4 addresses; IPv6 addresses are still allowed. Background keepalive requests a short grace period for active TCP SSH connections and interactive local commands. It does not apply to tssh or mosh.", comment: "SSH transport settings explanation")
+        return String(localized: "Force IPv4 makes SSH TCP connections prefer IPv4 for hostnames and IPv4 addresses; IPv6 addresses are still allowed. Background keepalive requests a short grace period for active SSH and tssh connections, background tunnels, and interactive local commands, during which terminals keep processing output. It does not apply to mosh.", comment: "SSH transport settings explanation")
         #else
         return String(localized: "Force IPv4 makes SSH TCP connections prefer IPv4 for hostnames and IPv4 addresses. IPv6 addresses are still allowed.", comment: "SSH transport settings explanation")
         #endif

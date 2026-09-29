@@ -79,6 +79,7 @@ enum TrzszHeadlessConnector {
                 relayTransport: spawnResult.relayTransport
             )
             connectingTransport = transport
+            transport.markHeadless()
             try await transport.connect()
             try Task.checkCancellation()
         } catch {
