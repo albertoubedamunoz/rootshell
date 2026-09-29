@@ -218,9 +218,7 @@ final class TrzszSession: TerminalSession {
     /// A `tmux -CC` or herdr control gateway is LIVE on this session, so the tsshd server must KEEP
     /// pending input across a roam rather than discard it. Sticky across transport
     /// rebuilds while control mode lasts. ROOTSHELL-TMUX (id=tmux-keep-pending-rebind)
-    private var controlModeKeepPendingInput = false {
-        didSet { syncBackgroundWriteThrough() }
-    }
+    private var controlModeKeepPendingInput = false
 
     /// A `tmux -CC` gateway on this session has ENDED. Suppresses the STATIC
     /// auto-start inference (`tmuxAutoEnable && .control`) on later transport
@@ -228,9 +226,7 @@ final class TrzszSession: TerminalSession {
     /// does NOT relaunch it, so without this a rebuilt transport would re-enable
     /// keep-pending for a plain shell the user configured to discard.
     /// ROOTSHELL-TMUX (id=tmux-keep-pending-rebind)
-    private var controlModeEnded = false {
-        didSet { syncBackgroundWriteThrough() }
-    }
+    private var controlModeEnded = false
 
     /// The single in-flight keep-pending-input applier, or nil when none is
     /// running. At most ONE exists: it re-reads `effectiveKeepPendingInput` on
@@ -259,20 +255,9 @@ final class TrzszSession: TerminalSession {
     /// covered by `controlModeKeepPendingInput` instead, which is set from the
     /// reconcile and so does not depend on any inference.
     private var effectiveKeepPendingInput: Bool {
-        config.keepPendingInput || expectsControlGateway
-    }
-
-    /// A tmux -CC / herdr gateway is live, or this connect will launch one.
-    /// Such a session keeps background output buffered: its resume path
-    /// depends on the buffer's discard→reset order.
-    private var expectsControlGateway: Bool {
-        if controlModeKeepPendingInput { return true }
+        if config.keepPendingInput || controlModeKeepPendingInput { return true }
         guard !controlModeEnded, !wasResumed else { return false }
         return config.sshConfig.tmuxAutoEnable && config.sshConfig.tmuxAutoMode == .control
-    }
-
-    private func syncBackgroundWriteThrough() {
-        goTransport?.setBackgroundWriteThrough(!expectsControlGateway)
     }
 
     /// Port forward manager for TSSH transport
@@ -393,9 +378,7 @@ final class TrzszSession: TerminalSession {
     private var lastSentResize: TerminalPTY.TerminalSize?
 
     /// Whether this session was resumed from saved credentials
-    private(set) var wasResumed: Bool = false {
-        didSet { syncBackgroundWriteThrough() }
-    }
+    private(set) var wasResumed: Bool = false
 
     /// Most recent moment the transport was confirmed connected to the
     /// server. Set on successful connect/attach and refreshed by
@@ -1222,8 +1205,10 @@ final class TrzszSession: TerminalSession {
         // Wire the byte path before connect() so any output from a fast
         // session start lands in the session's existing callbacks.
         transport.outputSink.update(onOutput: onOutput, onOutputData: onOutputData)
+        // Terminal output, tmux -CC gateways included, keeps parsing while
+        // the app processes in the background.
+        transport.setBackgroundWriteThrough(true)
         self.goTransport = transport
-        syncBackgroundWriteThrough()
         self.sessionDebugLabel = transport.debugLabel
 
         do {

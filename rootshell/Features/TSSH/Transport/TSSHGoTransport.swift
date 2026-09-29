@@ -228,6 +228,11 @@ final class TrzszGoTransport: NSObject {
             state = (lines: 0, bytes: 0)
             return taken
         }
+        // Foreground recovery: the reset below is queued ahead of any held
+        // bytes, so the next background period may write through again.
+        if !Ghostty.isAppBackgroundedAtomic {
+            backgroundLossLatched.withLock { $0 = false }
+        }
         guard lines > 0 || bytes > 0 else { return }
         delegate?.transport(self, didDiscardOutputLines: lines, bytes: bytes)
     }
@@ -302,6 +307,7 @@ final class TrzszGoTransport: NSObject {
     nonisolated func handleDiscardFromGoCallback(inputBytes: Int, outputLines: Int, outputBytes: Int) {
         guard outputLines > 0 || outputBytes > 0 else { return }
         if Ghostty.isAppBackgroundedAtomic {
+            backgroundLossLatched.withLock { $0 = true }
             accumulatePendingDiscard(lines: outputLines, bytes: outputBytes)
             return
         }
@@ -312,6 +318,7 @@ final class TrzszGoTransport: NSObject {
             // deferGoCallbackEvent). Fold any pending counts into an immediate
             // delivery so one lossy episode never splits across two resets.
             if Ghostty.isAppBackgroundedAtomic {
+                self.backgroundLossLatched.withLock { $0 = true }
                 self.accumulatePendingDiscard(lines: outputLines, bytes: outputBytes)
                 return
             }
@@ -337,9 +344,13 @@ final class TrzszGoTransport: NSObject {
         }
     }
 
-    /// Set by the session: false while a tmux -CC / herdr gateway is live or
-    /// expected, whose resume path depends on the buffer's discard→reset order.
+    /// Set by interactive sessions; other transports keep buffering.
     private nonisolated let backgroundWriteThroughAllowed = OSAllocatedUnfairLock(initialState: false)
+
+    /// tsshd reported lost output while backgrounded. The stream buffers from
+    /// then until foreground, so a tmux -CC gateway's reset is queued before
+    /// any bytes after the gap are parsed.
+    private nonisolated let backgroundLossLatched = OSAllocatedUnfairLock(initialState: false)
 
     nonisolated func setBackgroundWriteThrough(_ allowed: Bool) {
         backgroundWriteThroughAllowed.withLock { $0 = allowed }
@@ -360,7 +371,8 @@ final class TrzszGoTransport: NSObject {
         return BackgroundExecutionPolicy.trzszOutputRoute(
             isPresentationRevoked: true,
             phase: BackgroundExecutionCoordinator.phase,
-            expectsControlGateway: !backgroundWriteThroughAllowed.withLock { $0 }
+            writeThroughAllowed: backgroundWriteThroughAllowed.withLock { $0 },
+            hasBackgroundLoss: backgroundLossLatched.withLock { $0 }
         ) == .writeThrough
     }
 
@@ -368,6 +380,9 @@ final class TrzszGoTransport: NSObject {
         markRemoteActivityObserved()
 
         let isBackgrounded = Ghostty.isAppBackgroundedAtomic
+        if !isBackgrounded {
+            backgroundLossLatched.withLock { $0 = false }
+        }
         if isBackgrounded && !writesThroughWhileBackgrounded() {
             let dropped = backgroundedOutputBuffer.append(data)
             if dropped > 0 {

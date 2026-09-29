@@ -61,15 +61,17 @@ nonisolated enum BackgroundExecutionPolicy {
         case buffer
     }
 
-    /// tssh output keeps flowing into the terminal while processing. A control
-    /// gateway (tmux -CC / herdr) stays buffered: its resume path owns the reset.
+    /// tssh output keeps flowing into the terminal while processing. Once the
+    /// server reports lost output while backgrounded, the rest buffers so the
+    /// resume path can queue a tmux reset before any bytes after the gap parse.
     static func trzszOutputRoute(
         isPresentationRevoked: Bool,
         phase: BackgroundExecutionPhase,
-        expectsControlGateway: Bool
+        writeThroughAllowed: Bool,
+        hasBackgroundLoss: Bool
     ) -> TrzszOutputRoute {
         guard isPresentationRevoked else { return .writeThrough }
-        guard phase == .processing, !expectsControlGateway else { return .buffer }
+        guard phase == .processing, writeThroughAllowed, !hasBackgroundLoss else { return .buffer }
         return .writeThrough
     }
 }

@@ -34,21 +34,31 @@ final class BackgroundExecutionPolicyTests: XCTestCase {
         XCTAssertNil(BackgroundExecutionPolicy.finalizeDelay(backgroundTimeRemaining: .infinity))
     }
 
+    private static func route(
+        revoked: Bool = true,
+        phase: BackgroundExecutionPhase = .processing,
+        allowed: Bool = true,
+        loss: Bool = false
+    ) -> BackgroundExecutionPolicy.TrzszOutputRoute {
+        BackgroundExecutionPolicy.trzszOutputRoute(
+            isPresentationRevoked: revoked, phase: phase,
+            writeThroughAllowed: allowed, hasBackgroundLoss: loss)
+    }
+
     func testTrzszOutputWritesThroughOnlyWhileProcessing() {
-        typealias Policy = BackgroundExecutionPolicy
-        XCTAssertEqual(Policy.trzszOutputRoute(
-            isPresentationRevoked: false, phase: .foreground, expectsControlGateway: true), .writeThrough)
-        XCTAssertEqual(Policy.trzszOutputRoute(
-            isPresentationRevoked: true, phase: .processing, expectsControlGateway: false), .writeThrough)
+        XCTAssertEqual(Self.route(revoked: false, phase: .foreground, allowed: false, loss: true), .writeThrough)
+        XCTAssertEqual(Self.route(), .writeThrough)
         for phase in [BackgroundExecutionPhase.foreground, .finalizing, .parked] {
-            XCTAssertEqual(Policy.trzszOutputRoute(
-                isPresentationRevoked: true, phase: phase, expectsControlGateway: false), .buffer, "\(phase)")
+            XCTAssertEqual(Self.route(phase: phase), .buffer, "\(phase)")
         }
     }
 
-    func testControlGatewayStaysBufferedInTheBackground() {
-        XCTAssertEqual(BackgroundExecutionPolicy.trzszOutputRoute(
-            isPresentationRevoked: true, phase: .processing, expectsControlGateway: true), .buffer)
+    func testTransportsThatDidNotOptInStayBuffered() {
+        XCTAssertEqual(Self.route(allowed: false), .buffer)
+    }
+
+    func testLossWhileBackgroundedBuffersTheRest() {
+        XCTAssertEqual(Self.route(loss: true), .buffer)
     }
 
     private typealias Queue = BackgroundHeldQueue<Int, String>
