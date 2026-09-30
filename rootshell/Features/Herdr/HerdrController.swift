@@ -210,6 +210,7 @@ final class HerdrController {
     /// Inner pane rectangles from the raw stream, rather than the generic
     /// snapshot's layout in the server TUI's viewport.
     var controlLayouts: [String: HerdrControl.LayoutSnapshot] = [:]
+    static let maxOrphanLayouts = 16
     var tabGeometryStates: [String: HerdrTabGeometryState] = [:]
     var panesNeedingSnapshot: Set<String> = []
     /// Panes whose surface left the server's grid without a layout, keyed
@@ -980,7 +981,7 @@ final class HerdrController {
                 }
             }
         }
-        controlLayouts[layout.tab_id] = layout
+        retainLayout(layout, in: &controlLayouts)
         applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
         applyLayout(layout, barrier: barrier)
         if layoutReleases[barrier] == nil {
@@ -1027,6 +1028,7 @@ final class HerdrController {
         snapshotRetryWanted.removeAll()
         tabGeometryStates.removeAll()
         controlLayouts.removeAll()
+        lastLayouts = lastLayouts.filter { tabs[$0.key] != nil }
         panesNeedingSnapshot.removeAll()
         resizeRecoveries.removeAll()
         clientDetourMinimums.removeAll()

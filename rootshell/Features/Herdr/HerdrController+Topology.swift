@@ -41,6 +41,7 @@ extension HerdrController {
             ensurePane(current?.updatingDirectories(in: pane) ?? pane)
         }
         prune(tabIds: Set(snapshot.tabs.map(\.tab_id)), paneIds: livePaneIds, terminalIds: liveTerminalIds)
+        dropOrphanLayouts()
         for layout in snapshot.layouts {
             // Generic snapshots use the server TUI's area. Preserve a raw
             // layout for the same pane set so a topology refresh cannot
@@ -56,7 +57,7 @@ extension HerdrController {
                 applyLayout(controlled)
             } else {
                 // A protocol 2 snapshot layout is the tab's real geometry.
-                if mode == .raw, layout.carriesRealGeometry { controlLayouts[layout.tab_id] = layout }
+                if mode == .raw, layout.carriesRealGeometry { retainLayout(layout, in: &controlLayouts) }
                 applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
                 applyLayout(layout)
             }
@@ -511,9 +512,27 @@ extension HerdrController {
         tab.splitTree = tree
     }
 
+    /// Layouts can precede their tab's creation. Cap how many are held for
+    /// tabs that do not exist, so a peer cannot grow the caches unbounded.
+    func retainLayout(_ layout: HerdrControl.LayoutSnapshot,
+                      in cache: inout [String: HerdrControl.LayoutSnapshot]) {
+        if tabs[layout.tab_id] == nil, cache[layout.tab_id] == nil {
+            let orphans = cache.keys.filter { tabs[$0] == nil }
+            if orphans.count >= Self.maxOrphanLayouts, let evicted = orphans.first {
+                cache.removeValue(forKey: evicted)
+            }
+        }
+        cache[layout.tab_id] = layout
+    }
+
+    func dropOrphanLayouts() {
+        lastLayouts = lastLayouts.filter { tabs[$0.key] != nil }
+        controlLayouts = controlLayouts.filter { tabs[$0.key] != nil }
+    }
+
     func applyLayout(_ layout: HerdrControl.LayoutSnapshot, barrier: UInt64? = nil) {
         let previousLayout = lastLayouts[layout.tab_id]
-        lastLayouts[layout.tab_id] = layout
+        retainLayout(layout, in: &lastLayouts)
         guard let tab = tabs[layout.tab_id] else { return }
         guard let node = HerdrLayoutTree.build(layout) else { return }
         guard let builtRoot = buildSplitNode(node) else {
