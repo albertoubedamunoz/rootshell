@@ -1,5 +1,6 @@
 {
   use platform
+  use re
   use str
 
   # Clean up XDG_DATA_DIRS by removing GHOSTTY_SHELL_INTEGRATION_XDG_DIR
@@ -124,7 +125,12 @@
   }
 
   # Report changes to the current directory.
-  fn report-pwd { printf "\e]7;kitty-shell-cwd://%s%s\a" (platform:hostname) $pwd }
+  # Control characters in the path could end the OSC early and inject sequences.
+  fn report-pwd {
+    if (not (re:match '[[:cntrl:]]' $pwd)) {
+      printf "\e]7;kitty-shell-cwd://%s%s\a" (platform:hostname) $pwd
+    }
+  }
   set after-chdir = (conj $after-chdir {|_| report-pwd })
   report-pwd
 }
