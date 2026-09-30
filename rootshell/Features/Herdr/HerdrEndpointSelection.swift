@@ -84,7 +84,9 @@ nonisolated struct HerdrEndpointPainter {
                     let x = rect.x + column - popupX, y = rect.y + row - popupY
                     if x >= 0, x < popup.grid.width, y >= 0, y < popup.grid.height {
                         cell = popup.grid.cells[y * popup.grid.width + x]
-                        if let link = cell.hyperlink { cell.hyperlink = link + UInt32(frame.grid.hyperlinks.count) }
+                        if let link = cell.hyperlink {
+                            cell.hyperlink = UInt32(exactly: Int(link) + frame.grid.hyperlinks.count)
+                        }
                     }
                 }
                 if selection?.contains(row: (pane.scroll?.top ?? 0) + UInt64(row), column: column) == true {
