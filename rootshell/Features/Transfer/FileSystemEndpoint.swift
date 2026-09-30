@@ -116,7 +116,7 @@ nonisolated struct FileSystemEndpoint: Sendable {
         case .local(let resolver):
             return try await Self.listLocal(path, resolver: resolver)
         case .sftp(let sftp):
-            return try await SFTPOperations.listDirectoryEntries(sftp: sftp, path: path)
+            return try await SFTPOperations.listDirectoryEntries(sftp: sftp, path: path, strict: strict)
         case .s3(let s3):
             return try await s3.list(path, strict: strict)
         }

@@ -59,6 +59,8 @@ enum FileTreeCopier {
         // Strict: a move deletes the source tree afterwards, so nothing may be skipped.
         for entry in try await fs.list(directory, strict: true) {
             try Task.checkCancellation()
+            // Listed names come from the server; one must never step outside `target`.
+            guard FileTransferLogic.isSingleComponent(entry.name) else { throw FileTransferLogic.UnsafeName(name: entry.name) }
             let destination = FileTransferLogic.join(target, entry.name)
             if entry.isSymlink {
                 let linkTarget: String
@@ -240,6 +242,19 @@ enum FileTreeCopier {
                 startNext()
             }
         }
+    }
+
+    /// Copies one file; a folder at `path` is refused rather than walked.
+    static func copySingleFile(
+        _ path: String,
+        to target: String,
+        from source: FileSystemEndpoint,
+        to destination: FileSystemEndpoint
+    ) async throws {
+        let info = try await source.info(path)
+        guard !info.isDirectory else { throw POSIXError(.EISDIR) }
+        let item = Item(kind: .file, source: path, destination: target, size: Int64(clamping: info.size), mode: nil, modified: nil)
+        try await copyFile(item, from: source, to: destination) { _ in }
     }
 
     /// Two source names that differ only in case or accents, which the destination

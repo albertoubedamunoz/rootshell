@@ -135,8 +135,8 @@ final class RFRemoteDataSource: RFDataSource {
             // Partial download for size-capped previews
             try await readHead(remotePath, maxBytes: maxBytes).write(to: URL(fileURLWithPath: localPath))
         } else {
-            // Full download (for images, etc.)
-            try await FileTreeCopier.copyTree(remotePath, to: localPath, from: fileSystem, to: RFLocalDataSource.fileSystem)
+            // Full download (for images, etc.); never a tree, whatever the server claims.
+            try await FileTreeCopier.copySingleFile(remotePath, to: localPath, from: fileSystem, to: RFLocalDataSource.fileSystem)
         }
 
         return localPath
