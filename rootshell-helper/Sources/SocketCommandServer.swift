@@ -16,15 +16,17 @@ private enum HelperPeerTrust {
     /// `Configuration/Identity.xcconfig`; the literals below are a safety net
     /// for a bundle that somehow lost the keys.
     ///
-    /// Same requirement as before these became variables: the peer must be the
-    /// app, signed by our team under Apple's anchor. `subject.OU` carries the
-    /// team ID for Developer ID, Apple Development, and App Store signing
-    /// alike, and is nothing an attacker can obtain.
+    /// The peer must be the app, signed under Apple's anchor either by our team
+    /// (leaf `subject.OU`, Developer ID and Apple Development) or by the Mac
+    /// App Store (6.1.9) or TestFlight (6.1.25.1), whose shared leaves carry no
+    /// team; Apple pins the identifier to us for those.
     private static let appRequirement: String = {
         let identifier = plist("RootshellAppBundleIdentifier") ?? "com.kk2.rootshell"
         let team = plist("RootshellDevelopmentTeam") ?? "D97ZME3ET2"
-        return "identifier \"\(identifier)\" and anchor apple generic "
-            + "and certificate leaf[subject.OU] = \"\(team)\""
+        return "identifier \"\(identifier)\" and anchor apple generic and ("
+            + "certificate leaf[field.1.2.840.113635.100.6.1.9] /* exists */ "
+            + "or certificate leaf[field.1.2.840.113635.100.6.1.25.1] /* exists */ "
+            + "or certificate leaf[subject.OU] = \"\(team)\")"
     }()
 
     private static func plist(_ key: String) -> String? {

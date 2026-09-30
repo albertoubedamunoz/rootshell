@@ -344,6 +344,13 @@ public class HelperConnection {
             Ghostty.logger.info("Helper not responding: \(error.localizedDescription)")
         }
 
+        // A sandboxed app can't launch a replacement, and a helper that
+        // rejected our ping may still be live, so leave its sockets alone.
+        guard !PlatformDetection.isSandboxed else {
+            isKnownRunning = false
+            return false
+        }
+
         // Helper not available - clean up stale sockets before launching
         cleanupStaleSockets()
 
