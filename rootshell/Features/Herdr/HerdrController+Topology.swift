@@ -37,7 +37,7 @@ extension HerdrController {
         let livePaneIds = Set(snapshot.panes.map(\.pane_id))
         let liveTerminalIds = Set(snapshot.panes.map(\.terminal_id))
         for pane in snapshot.panes {
-            let current = mode == .legacy ? endpointMetadata?.panes.first(where: { $0.matches(pane) }) : nil
+            let current = mode == .legacy ? endpointMetadata?.pane(matching: pane) : nil
             ensurePane(current?.updatingDirectories(in: pane) ?? pane)
         }
         prune(tabIds: Set(snapshot.tabs.map(\.tab_id)), paneIds: livePaneIds, terminalIds: liveTerminalIds)
