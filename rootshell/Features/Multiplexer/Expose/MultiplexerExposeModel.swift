@@ -17,6 +17,18 @@ nonisolated struct MuxCellRect: Equatable, Hashable, Sendable {
     var y: Int
     var width: Int
     var height: Int
+
+    /// Remote replies set these; tmux's own window limit keeps a hostile
+    /// size from reaching the preview's pixel math.
+    static let maxCells = 10_000
+
+    init(x: Int, y: Int, width: Int, height: Int) {
+        func bound(_ value: Int) -> Int { min(max(value, 0), Self.maxCells) }
+        self.x = bound(x)
+        self.y = bound(y)
+        self.width = bound(width)
+        self.height = bound(height)
+    }
 }
 
 nonisolated struct MuxPane: Equatable, Sendable {
