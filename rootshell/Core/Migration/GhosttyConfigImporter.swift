@@ -229,7 +229,7 @@ final class GhosttyConfigImporter {
             )
 
         case "font-size":
-            if let size = Double(value), size > 0 {
+            if let size = Double(value), Settings.Font.size.erased.validate(.double(size)) {
                 plan.recognized.append(
                     RecognizedChange(
                         category: .font, key: key,
@@ -239,7 +239,7 @@ final class GhosttyConfigImporter {
                     )
                 )
             } else {
-                plan.unsupported.append(.init(key: key, reason: "value '\(value)' is not a number"))
+                plan.unsupported.append(.init(key: key, reason: "value '\(value)' is not a valid font size"))
             }
 
         case "font-feature":
@@ -853,7 +853,7 @@ final class GhosttyConfigImporter {
         if let b = parseBool(raw) {
             return b ? 30.0 : 0.0
         }
-        if let n = Double(raw), n >= 0 {
+        if let n = Double(raw), Settings.Transparency.backgroundBlurRadius.erased.validate(.double(n)) {
             return n
         }
         return nil

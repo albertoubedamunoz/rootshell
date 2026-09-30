@@ -39,7 +39,9 @@ nonisolated extension Int: SettingValue {
     init?(codableValue: CodableValue) {
         switch codableValue {
         case .int(let v): self = v
-        case .double(let v) where v.rounded() == v: self = Int(v)
+        case .double(let v):
+            guard let i = Int(exactly: v) else { return nil }
+            self = i
         default: return nil
         }
     }
@@ -166,13 +168,25 @@ nonisolated extension CodableValue {
         switch self {
         case .string(let v): v
         case .int(let v): String(v)
-        case .double(let v): v.rounded() == v ? String(Int(v)) : String(format: "%.2f", v)
+        case .double(let v): Int(exactly: v).map { String($0) } ?? String(format: "%.2f", v)
         case .bool(let v): v
             ? String(localized: "On", comment: "Setting value display")
             : String(localized: "Off", comment: "Setting value display")
         case .data(let v): String(localized: "\(v.count) bytes", comment: "Setting value display for binary data")
         case .stringArray(let v): v.joined(separator: ", ")
         }
+    }
+
+    /// Numbers must be finite and inside `range` when one is given; other types pass.
+    func isWithin(_ range: ClosedRange<Double>?) -> Bool {
+        let number: Double
+        switch self {
+        case .double(let v): number = v
+        case .int(let v): number = Double(v)
+        default: return true
+        }
+        guard number.isFinite else { return false }
+        return range?.contains(number) ?? true
     }
 }
 
@@ -186,6 +200,8 @@ nonisolated struct SettingKey<V: SettingValue>: Sendable, Hashable {
     let group: SettingGroup
     /// Name in the text config overlay; ghostty's name when semantics match. Nil = not file-editable.
     let configKey: String?
+    /// Accepted bounds for numbers arriving from outside (config file, iCloud).
+    let range: ClosedRange<Double>?
     let title: String
 
     init(
@@ -194,6 +210,7 @@ nonisolated struct SettingKey<V: SettingValue>: Sendable, Hashable {
         group: SettingGroup,
         policy: SyncPolicy = .synced,
         configKey: String? = nil,
+        range: ClosedRange<Double>? = nil,
         title: String
     ) {
         self.name = name
@@ -201,6 +218,7 @@ nonisolated struct SettingKey<V: SettingValue>: Sendable, Hashable {
         self.policy = policy
         self.group = group
         self.configKey = configKey
+        self.range = range
         self.title = title
     }
 
@@ -208,6 +226,13 @@ nonisolated struct SettingKey<V: SettingValue>: Sendable, Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(name) }
 
     var erased: AnySettingDefinition { AnySettingDefinition(self) }
+}
+
+nonisolated extension SettingKey where V == Double {
+    /// `value` when finite and inside `range`, otherwise the default.
+    func sanitized(_ value: Double) -> Double {
+        CodableValue.double(value).isWithin(range) ? value : defaultValue
+    }
 }
 
 // MARK: - AnySettingDefinition
@@ -225,7 +250,7 @@ nonisolated struct AnySettingDefinition: Sendable, Identifiable {
     let defaultCodable: CodableValue?
     /// Raw UserDefaults object -> typed value, or nil on mismatch.
     let read: @Sendable (Any) -> CodableValue?
-    /// Type and enum-membership check for values arriving from outside (iCloud, config file).
+    /// Type, enum-membership, and range check for values arriving from outside (iCloud, config file).
     let validate: @Sendable (CodableValue) -> Bool
     /// Value rendering for UI; nil renders the default.
     let display: @Sendable (CodableValue?) -> String
@@ -247,7 +272,8 @@ nonisolated struct AnySettingDefinition: Sendable, Identifiable {
                   let typed = V(codableValue: cv) else { return nil }
             return typed.codableValue
         }
-        validate = { cv in V(codableValue: cv) != nil }
+        let range = key.range
+        validate = { cv in V(codableValue: cv) != nil && cv.isWithin(range) }
         let fallback = key.defaultValue.codableValue
         display = { cv in
             (cv ?? fallback)?.displayString
@@ -263,7 +289,7 @@ nonisolated struct AnySettingDefinition: Sendable, Identifiable {
             name: name, policy: policy, group: group, configKey: nil, title: title,
             valueType: valueType, isOptional: true, defaultCodable: nil,
             read: { CodableValue(userDefaultsObject: $0, as: valueType) },
-            validate: { $0.valueType == valueType },
+            validate: { $0.valueType == valueType && $0.isWithin(nil) },
             display: { $0?.displayString ?? String(localized: "Not set", comment: "Setting value display when unset") }
         )
     }

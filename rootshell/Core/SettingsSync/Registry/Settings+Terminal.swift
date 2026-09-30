@@ -29,11 +29,11 @@ nonisolated extension Settings {
             title: String(localized: "Local Shell", comment: "Setting title"))
         static let paddingXOverride = SettingKey<Int?>(
             "windowPaddingXOverride", default: nil, group: .terminal, policy: .localByDefault,
-            configKey: "window-padding-x",
+            configKey: "window-padding-x", range: 0...1000,
             title: String(localized: "Horizontal Padding", comment: "Setting title"))
         static let paddingYOverride = SettingKey<Int?>(
             "windowPaddingYOverride", default: nil, group: .terminal, policy: .localByDefault,
-            configKey: "window-padding-y",
+            configKey: "window-padding-y", range: 0...1000,
             title: String(localized: "Vertical Padding", comment: "Setting title"))
         static let rcfileInProgress = SettingKey(
             "rcfile.inProgress", default: false, group: .terminal, policy: .deviceOnly,
@@ -67,7 +67,7 @@ nonisolated extension Settings {
             title: String(localized: "Rubber Band Scrolling", comment: "Setting title"))
         static let twoFingerLongPressDuration = SettingKey(
             "twoFingerLongPressDuration", default: 0.5, group: .gestures,
-            configKey: "two-finger-long-press-duration",
+            configKey: "two-finger-long-press-duration", range: 0...10,
             title: String(localized: "Two-Finger Long Press", comment: "Setting title"))
         static let tabExposeGesture = SettingKey(
             "tabExposeGestureEnabled", default: true, group: .gestures,

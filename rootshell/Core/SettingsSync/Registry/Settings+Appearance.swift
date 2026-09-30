@@ -67,7 +67,7 @@ nonisolated extension Settings {
 
     enum Font {
         static let size = SettingKey(
-            "fontSize", default: 13.0, group: .font, configKey: "font-size",
+            "fontSize", default: 13.0, group: .font, configKey: "font-size", range: 1...255,
             title: String(localized: "Font Size", comment: "Setting title"))
         static let family = SettingKey<String?>(
             "fontFamily", default: nil, group: .font, configKey: "font-family",
@@ -121,13 +121,13 @@ nonisolated extension Settings {
             "cursorTextColor", default: nil, group: .cursor, configKey: "cursor-text",
             title: String(localized: "Text Under Cursor", comment: "Setting title"))
         static let opacity = SettingKey(
-            "cursorOpacity", default: 0.8, group: .cursor, configKey: "cursor-opacity",
+            "cursorOpacity", default: 0.8, group: .cursor, configKey: "cursor-opacity", range: 0...1,
             title: String(localized: "Cursor Opacity", comment: "Setting title"))
         static let thickness = SettingKey(
-            "cursorThickness", default: 0, group: .cursor, configKey: "cursor-thickness",
+            "cursorThickness", default: 0, group: .cursor, configKey: "cursor-thickness", range: -100...100,
             title: String(localized: "Cursor Thickness", comment: "Setting title"))
         static let height = SettingKey(
-            "cursorHeight", default: 0, group: .cursor, configKey: "cursor-height",
+            "cursorHeight", default: 0, group: .cursor, configKey: "cursor-height", range: -100...100,
             title: String(localized: "Cursor Height", comment: "Setting title"))
         static let enabledBuiltInShadersLegacy = AnySettingDefinition.opaque(
             "enabledBuiltInShaders", group: .cursor,
@@ -165,11 +165,11 @@ nonisolated extension Settings {
     enum Transparency {
         static let backgroundOpacity = SettingKey(
             "backgroundOpacity", default: 0.92, group: .transparency, policy: .localByDefault,
-            configKey: "background-opacity",
+            configKey: "background-opacity", range: 0...1,
             title: String(localized: "Background Opacity", comment: "Setting title"))
         static let backgroundBlurRadius = SettingKey(
             "backgroundBlurRadius", default: 30.0, group: .transparency, policy: .localByDefault,
-            configKey: "background-blur",
+            configKey: "background-blur", range: 0...255,
             title: String(localized: "Blur Radius", comment: "Setting title"))
         static let blurEnabled = SettingKey(
             "blurEnabled", default: true, group: .transparency, policy: .localByDefault,

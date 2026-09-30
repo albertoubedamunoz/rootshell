@@ -35,7 +35,7 @@ nonisolated extension Settings {
             "sshHealthMonitoringEnabled", default: true, group: .connections, configKey: "ssh-health-monitoring-enabled",
             title: String(localized: "Connection Health Monitoring", comment: "Setting title"))
         static let healthProbeInterval = SettingKey(
-            "sshHealthProbeInterval", default: 15, group: .connections, configKey: "ssh-health-probe-interval",
+            "sshHealthProbeInterval", default: 15, group: .connections, configKey: "ssh-health-probe-interval", range: 1...3600,
             title: String(localized: "Probe Interval", comment: "Setting title"))
         static let publicKeyAuthProbe = SettingKey(
             "sshPublicKeyAuthProbeEnabled", default: false, group: .connections, configKey: "ssh-public-key-auth-probe-enabled",
@@ -47,7 +47,7 @@ nonisolated extension Settings {
             "autoReconnectEnabled", default: true, group: .connections, configKey: "auto-reconnect-enabled",
             title: String(localized: "Auto Reconnect", comment: "Setting title"))
         static let autoReconnectMaxAttempts = SettingKey(
-            "autoReconnectMaxAttempts", default: 5, group: .connections, configKey: "auto-reconnect-max-attempts",
+            "autoReconnectMaxAttempts", default: 5, group: .connections, configKey: "auto-reconnect-max-attempts", range: 0...100,
             title: String(localized: "Reconnect Attempts", comment: "Setting title"))
         static let profilesSortOrder = SettingKey(
             "profilesSortOrder", default: ProfileSortOrder.name, group: .connections, configKey: "profiles-sort-order",
@@ -257,10 +257,10 @@ nonisolated extension Settings {
             configKey: "trzsz-default-transport-mode",
             title: String(localized: "Default Transport", comment: "Setting title"))
         static let trzszUDPPortMin = SettingKey(
-            "trzszDefaultUDPPortMin", default: 61000, group: .roam, configKey: "trzsz-default-udp-port-min",
+            "trzszDefaultUDPPortMin", default: 61000, group: .roam, configKey: "trzsz-default-udp-port-min", range: 1...65535,
             title: String(localized: "UDP Port Range Min", comment: "Setting title"))
         static let trzszUDPPortMax = SettingKey(
-            "trzszDefaultUDPPortMax", default: 61999, group: .roam, configKey: "trzsz-default-udp-port-max",
+            "trzszDefaultUDPPortMax", default: 61999, group: .roam, configKey: "trzsz-default-udp-port-max", range: 1...65535,
             title: String(localized: "UDP Port Range Max", comment: "Setting title"))
         static let trzszKeepPendingInput = SettingKey(
             "trzszKeepPendingInput", default: false, group: .roam, configKey: "trzsz-keep-pending-input",
@@ -295,7 +295,7 @@ nonisolated extension Settings {
             title: String(localized: "Default Pointer Mode", comment: "Setting title"))
         static let pointerSpeed = SettingKey(
             "screenSharingPointerSpeed", default: 1.0, group: .screenSharing,
-            configKey: "screen-sharing-pointer-speed",
+            configKey: "screen-sharing-pointer-speed", range: 0.1...10,
             title: String(localized: "Pointer Speed", comment: "Setting title"))
         static let cursorRenderingDefault = SettingKey(
             "screenSharingCursorRenderingDefault", default: ScreenSharingCursorRenderingDefault.local, group: .screenSharing,
@@ -332,7 +332,7 @@ nonisolated extension Settings {
             title: String(localized: "Show Hidden Files", comment: "Setting title"))
         static let fileManagerConcurrentJobs = SettingKey(
             "fileManager.concurrentJobs", default: 2, group: .transfer,
-            configKey: "file-manager-concurrent-transfers",
+            configKey: "file-manager-concurrent-transfers", range: 1...16,
             title: String(localized: "Concurrent Transfers", comment: "Setting title"))
         static let fileManagerPreserveAttributes = SettingKey(
             "fileManager.preserveAttributes", default: true, group: .transfer,
@@ -340,7 +340,7 @@ nonisolated extension Settings {
             title: String(localized: "Preserve Permissions and Dates", comment: "Setting title"))
         static let fileManagerIdleDisconnectMinutes = SettingKey(
             "fileManager.idleDisconnectMinutes", default: 10, group: .transfer,
-            configKey: "file-manager-idle-disconnect",
+            configKey: "file-manager-idle-disconnect", range: 0...1440,
             title: String(localized: "Disconnect Idle Hosts After (Minutes)", comment: "Setting title"))
         static let fileManagerPaneState = SettingKey<String?>(
             "fileManager.paneState", default: nil, group: .transfer, policy: .deviceOnly,

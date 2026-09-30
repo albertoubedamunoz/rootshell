@@ -91,14 +91,14 @@ nonisolated extension Settings {
         /// Seconds of silence that end listening; 0 keeps listening.
         static let autoStopSilence = SettingKey(
             "dictationAutoStopSilence", default: 4.0, group: .dictation,
-            configKey: "dictation-auto-stop-silence", title: String(localized: "Stop After Silence", comment: "Setting title"))
+            configKey: "dictation-auto-stop-silence", range: 0...600, title: String(localized: "Stop After Silence", comment: "Setting title"))
         /// Silence that closes a phrase.
         static let pauseDuration = SettingKey(
             "dictationPauseDuration", default: 0.8, group: .dictation,
-            configKey: "dictation-pause-duration", title: String(localized: "Phrase Pause", comment: "Setting title"))
+            configKey: "dictation-pause-duration", range: 0.1...10, title: String(localized: "Phrase Pause", comment: "Setting title"))
         static let speechThreshold = SettingKey(
             "dictationSpeechThreshold", default: 0.6, group: .dictation,
-            configKey: "dictation-speech-threshold", title: String(localized: "Speech Detection Threshold", comment: "Setting title"))
+            configKey: "dictation-speech-threshold", range: 0...1, title: String(localized: "Speech Detection Threshold", comment: "Setting title"))
         static let vocabularyEnabled = SettingKey(
             "dictationVocabularyEnabled", default: false, group: .dictation,
             configKey: "dictation-vocabulary-boost", title: String(localized: "Vocabulary Boost", comment: "Setting title"))

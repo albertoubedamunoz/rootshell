@@ -31,7 +31,7 @@ nonisolated extension Settings {
             "ai.agent.sidebar.width", default: 400.0, group: .ai, policy: .deviceOnly,
             title: String(localized: "AI Sidebar Width", comment: "Setting title"))
         static let textSize = SettingKey(
-            "aiAgentTextSize", default: 14.0, group: .ai, configKey: "ai-agent-text-size",
+            "aiAgentTextSize", default: 14.0, group: .ai, configKey: "ai-agent-text-size", range: 10...24,
             title: String(localized: "AI Text Size", comment: "Setting title"))
         static let webSearchEnabled = SettingKey(
             "ai.webSearch.enabled", default: true, group: .ai, configKey: "ai-web-search-enabled",
