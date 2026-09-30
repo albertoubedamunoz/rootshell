@@ -105,8 +105,8 @@ enum PipelinedTransfer {
 
         /// Refuses a symlink at `path` (O_NOFOLLOW) so a write can't land outside the destination.
         /// With `exclusive`, refuses anything already at `path`.
-        static func openForWriting(_ path: String, exclusive: Bool = false) throws -> LocalFile {
-            let fd = open(path, O_WRONLY | O_CREAT | O_NOFOLLOW | (exclusive ? O_EXCL : O_TRUNC), 0o644)
+        static func openForWriting(_ path: String, exclusive: Bool = false, mode: mode_t = 0o644) throws -> LocalFile {
+            let fd = open(path, O_WRONLY | O_CREAT | O_NOFOLLOW | (exclusive ? O_EXCL : O_TRUNC), mode)
             guard fd >= 0 else { throw LocalIOError(underlying: POSIXError.current) }
             return LocalFile(descriptor: fd, ownsDescriptor: true)
         }

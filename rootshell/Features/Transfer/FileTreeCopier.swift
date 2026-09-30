@@ -299,6 +299,8 @@ enum FileTreeCopier {
 
     /// A new file at `path`: anything there is unlinked and recreated, never truncated,
     /// so a hard-linked destination can't share its data with another path being written.
+    /// A replaced file is created with its old mode (less the umask), so its new
+    /// contents are never more readable than the old ones were.
     private static func openNewFile(_ path: String, on destination: FileSystemEndpoint) async throws -> any ChunkWriter {
         do {
             return try await destination.openWriter(path, exclusive: true)
@@ -306,7 +308,7 @@ enum FileTreeCopier {
             try Task.checkCancellation()
             guard let existing = try? await destination.info(path, followLinks: false), !existing.isDirectory else { throw error }
             try await destination.removeFile(path)
-            return try await destination.openWriter(path, exclusive: true)
+            return try await destination.openWriter(path, exclusive: true, mode: existing.isSymlink ? nil : existing.permissions)
         }
     }
 
