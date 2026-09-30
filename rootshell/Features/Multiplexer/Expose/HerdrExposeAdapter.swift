@@ -84,10 +84,10 @@ nonisolated struct HerdrExposeAdapter: MultiplexerExposeAdapter {
             guard let tabID = info.mxString("tab_id") else { continue }
             let layout = layoutsByTab[tabID]
             let area = layout?.mxDict("area")
-            let cols = area?.mxInt("width") ?? 0
-            let rows = area?.mxInt("height") ?? 0
-            let originX = area?.mxInt("x") ?? 0
-            let originY = area?.mxInt("y") ?? 0
+            let cols = cell(area, "width")
+            let rows = cell(area, "height")
+            let originX = cell(area, "x")
+            let originY = cell(area, "y")
             var panes: [MuxPane] = []
             for entry in layout?.mxArray("panes") ?? [] {
                 guard let paneID = entry.mxString("pane_id"), let rect = entry.mxDict("rect") else { continue }
@@ -96,10 +96,10 @@ nonisolated struct HerdrExposeAdapter: MultiplexerExposeAdapter {
                 panes.append(MuxPane(
                     id: paneID,
                     rect: MuxCellRect(
-                        x: (rect.mxInt("x") ?? 0) - originX,
-                        y: (rect.mxInt("y") ?? 0) - originY,
-                        width: rect.mxInt("width") ?? 0,
-                        height: rect.mxInt("height") ?? 0
+                        x: cell(rect, "x") - originX,
+                        y: cell(rect, "y") - originY,
+                        width: cell(rect, "width"),
+                        height: cell(rect, "height")
                     ),
                     isActive: entry.mxBool("focused"),
                     isPreviewable: true,
@@ -142,6 +142,12 @@ nonisolated struct HerdrExposeAdapter: MultiplexerExposeAdapter {
             truncated: sections.truncated,
             paneIdentities: panesByID.compactMapValues { $0.mxString("terminal_id") }
         )
+    }
+
+    /// herdr cells are u16, as `HerdrControlProtocol.Rect` enforces; bounding
+    /// them keeps origin-relative subtraction from overflowing on a hostile reply.
+    private func cell(_ dict: [String: Any]?, _ key: String) -> Int {
+        dict?.mxInt(key).flatMap { UInt16(exactly: $0) }.map(Int.init) ?? 0
     }
 
     func focusScript(session: String?, tabID: String) -> String {

@@ -369,13 +369,16 @@ nonisolated struct FileSystemEndpoint: Sendable {
     /// Creates or truncates `path` for writing. A local symlink at `path` is refused,
     /// never written through; callers unlink destination links first. With `exclusive`,
     /// anything already at `path` fails the open (object storage has no such check).
-    func openWriter(_ path: String, exclusive: Bool = false) async throws -> any ChunkWriter {
+    /// `mode` applies only when the open creates the file, narrowed by the umask.
+    func openWriter(_ path: String, exclusive: Bool = false, mode: UInt32? = nil) async throws -> any ChunkWriter {
         switch backend {
         case .local(let resolver):
-            return try PipelinedTransfer.LocalFile.openForWriting(resolver.resolveParent(path), exclusive: exclusive)
+            return try PipelinedTransfer.LocalFile.openForWriting(resolver.resolveParent(path), exclusive: exclusive, mode: mode_t((mode ?? 0o644) & 0o777))
         case .sftp(let sftp):
+            var attributes = SFTPFileAttributes()
+            attributes.permissions = mode.map { $0 & 0o777 }
             let file = try await mapped(path) {
-                try await sftp.openFile(filePath: path, flags: exclusive ? [.write, .create, .forceCreate] : [.write, .create, .truncate])
+                try await sftp.openFile(filePath: path, flags: exclusive ? [.write, .create, .forceCreate] : [.write, .create, .truncate], attributes: attributes)
             }
             return PipelinedTransfer.SendableSFTPFile(file: file)
         case .s3(let s3):
