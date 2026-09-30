@@ -3588,9 +3588,13 @@ extension Ghostty.TerminalView {
         guard let surface else { return }
         let pixelPoint = viewToPixelCoordinates(point)
         let mods = currentMouseMods()
+        // Hold the unretained userdata owner across callbacks; release only on main.
+        nonisolated(unsafe) let surfacePtr = surface
+        let owner = Unmanaged.passRetained(self)
         Self.ghosttyAPIQueue.async {
-            ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
-            ghostty_surface_mouse_button(surface, action, button, mods)
+            ghostty_surface_mouse_pos(surfacePtr, pixelPoint.x, pixelPoint.y, mods)
+            ghostty_surface_mouse_button(surfacePtr, action, button, mods)
+            DispatchQueue.main.async { owner.release() }
         }
     }
 
@@ -3858,6 +3862,9 @@ extension Ghostty.TerminalView {
         // next handle's begin and leave the core's click state stale (the second
         // handle would freeze and the selection appear lost). Serializing the
         // whole lifecycle keeps release-before-begin ordering across drags.
+        // Each block holds one retain on the view (surface userdata is
+        // unretained) and drops it only on main.
+        nonisolated(unsafe) let surfacePtr = surface
 
         switch gesture.state {
         case .began:
@@ -3878,12 +3885,14 @@ extension Ghostty.TerminalView {
             // scale), matching every other mouse_pos call site.
             let pixelPoint = viewToPixelCoordinates(location)
             let draggingStart = which == .start
-            Self.ghosttyAPIQueue.async { [weak self] in
-                _ = ghostty_surface_selection_handle_drag_begin(surface, draggingStart)
-                ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
-                DispatchQueue.main.async { [weak self] in
-                    guard let self, self.activeHandleDrag == which else { return }
-                    self.updateSelectionHandlePositions()
+            let owner = Unmanaged.passRetained(self)
+            Self.ghosttyAPIQueue.async {
+                _ = ghostty_surface_selection_handle_drag_begin(surfacePtr, draggingStart)
+                ghostty_surface_mouse_pos(surfacePtr, pixelPoint.x, pixelPoint.y, mods)
+                DispatchQueue.main.async {
+                    let view = owner.takeRetainedValue()
+                    guard view.activeHandleDrag == which else { return }
+                    view.updateSelectionHandlePositions()
                 }
             }
 
@@ -3914,12 +3923,14 @@ extension Ghostty.TerminalView {
             // start auto-scrolling when the finger reaches the top/bottom of the
             // viewport and extend the selection into scrollback.
             let pixelPoint = viewToPixelCoordinates(location)
-            Self.ghosttyAPIQueue.async { [weak self] in
-                ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
-                DispatchQueue.main.async { [weak self] in
-                    guard let self, self.activeHandleDrag == which else { return }
-                    self.noteSelectionScrollIndicatorActivity()
-                    self.updateSelectionHandlePositions()
+            let owner = Unmanaged.passRetained(self)
+            Self.ghosttyAPIQueue.async {
+                ghostty_surface_mouse_pos(surfacePtr, pixelPoint.x, pixelPoint.y, mods)
+                DispatchQueue.main.async {
+                    let view = owner.takeRetainedValue()
+                    guard view.activeHandleDrag == which else { return }
+                    view.noteSelectionScrollIndicatorActivity()
+                    view.updateSelectionHandlePositions()
                 }
             }
 
@@ -3933,17 +3944,19 @@ extension Ghostty.TerminalView {
             // the final position), which stops any active auto-scroll.
             let endLocation = location
             let pixelPoint = viewToPixelCoordinates(location)
-            Self.ghosttyAPIQueue.async { [weak self] in
-                ghostty_surface_mouse_pos(surface, pixelPoint.x, pixelPoint.y, mods)
-                ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, mods)
-                let hasSelection = ghostty_surface_has_selection(surface)
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
+            let owner = Unmanaged.passRetained(self)
+            Self.ghosttyAPIQueue.async {
+                ghostty_surface_mouse_pos(surfacePtr, pixelPoint.x, pixelPoint.y, mods)
+                ghostty_surface_mouse_button(surfacePtr, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, mods)
+                let hasSelection = ghostty_surface_has_selection(surfacePtr)
+                DispatchQueue.main.async {
+                    let view = owner.takeRetainedValue()
+                    guard view.window != nil else { return }
                     if hasSelection {
-                        self.updateSelectionHandlePositions()
-                        self.presentTransientEditMenu(at: endLocation)
+                        view.updateSelectionHandlePositions()
+                        view.presentTransientEditMenu(at: endLocation)
                     } else {
-                        self.hideSelectionHandles()
+                        view.hideSelectionHandles()
                     }
                 }
             }
