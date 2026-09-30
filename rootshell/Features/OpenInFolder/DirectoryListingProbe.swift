@@ -49,7 +49,7 @@ nonisolated enum DirectoryTarget: Equatable, Sendable {
 
     /// nil when the path cannot be passed to a shell safely.
     static func resolve(_ typed: String, baseDirectory: String?) -> DirectoryTarget? {
-        guard !typed.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\0" }) else { return nil }
+        guard !InitialDirectoryCommand.containsLineBreakOrNUL(typed) else { return nil }
         if typed.isEmpty {
             if let baseDirectory, baseDirectory.hasPrefix("/") { return .absolute(PathCompletion.normalize(baseDirectory)) }
             return .home
@@ -180,7 +180,7 @@ nonisolated enum DirectoryListingProbe {
     ) -> (command: String, nonce: String) {
         let nonce = makeNonce()
         let names = children.prefix(scanAheadMaxChildren)
-            .filter { !$0.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\0" }) && $0 != "." && $0 != ".." }
+            .filter { !InitialDirectoryCommand.containsLineBreakOrNUL($0) && $0 != "." && $0 != ".." }
             .map(LoginShellCommand.singleQuoted)
             .joined(separator: " ")
         // Control records carry the nonce so no file name (`Z`, `D<tab>x`) can

@@ -11,7 +11,12 @@ import Foundation
 nonisolated enum InitialDirectoryCommand {
     /// Absolute and single-line: a newline cannot survive `sh -c` quoting.
     static func isSupportedDirectory(_ path: String) -> Bool {
-        path.hasPrefix("/") && !path.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\0" })
+        path.hasPrefix("/") && !containsLineBreakOrNUL(path)
+    }
+
+    /// Scalar-level: "\r\n" is one Character, equal to neither "\r" nor "\n".
+    static func containsLineBreakOrNUL(_ value: some StringProtocol) -> Bool {
+        value.unicodeScalars.contains { $0 == "\n" || $0 == "\r" || $0 == "\0" }
     }
 
     /// `cd` that falls back to the login directory with a visible notice.
