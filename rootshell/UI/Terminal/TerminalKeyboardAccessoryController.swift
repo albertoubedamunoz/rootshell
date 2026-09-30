@@ -284,9 +284,12 @@ final class TerminalKeyboardAccessoryController: NSObject {
         guard touchKeyboardEnabled, !temporarilyUseSystemKeyboard,
               !toolbarOnlyMode, host?.keyboardAIAgentOverlayActive != true,
               host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad else { return nil }
-        // Hardware mode retains the suppressed native root and puts the
-        // compact custom toolbar in the accessory slot.
         updateTouchKeyboardInputSuppression()
+        // Retain the custom keyboard's state without supplying its invisible
+        // controller to UIKit during hardware-only input. The Dock-visible
+        // system-keyboard path supplies nil here too. A software-keyboard
+        // request or hardware disconnect restores this same retained controller.
+        guard !hidesTouchKeyboardForHardware else { return nil }
         return touchKeyboardController
     }
 
@@ -441,11 +444,12 @@ final class TerminalKeyboardAccessoryController: NSObject {
         guard changed else { return }
         if enabledChanged {
             updateTouchKeyboardReturnButton()
-            // Toggling the feature ends a session-only switch to Apple's
-            // keyboard, and re-enabling it with a physical keyboard attached
-            // is an explicit request to show it.
+            // Select the input implementation without requesting onscreen keys.
+            // Only an explicit restore action should show the custom keyboard
+            // while hardware is attached; toggling this setting also clears
+            // any software-keyboard request from its previous activation.
             temporarilyUseSystemKeyboard = false
-            touchKeyboardRequestedWithHardware = enabled && KeyboardTracker.shared.isHardwareKeyboard
+            touchKeyboardRequestedWithHardware = false
             keyboardAccessory?.toolbarView.clearModifiers()
         }
         // A terminal that is not presenting the keyboard reconciles against
@@ -858,17 +862,17 @@ final class TerminalKeyboardAccessoryController: NSObject {
         if usesTouchKeyboardToolbar && touchToolbarUsesPrimaryInputView {
             return touchKeyboardToolbarInputView
         }
-        // Do not replace a suppressed custom keyboard with Apple's QWERTY.
-        // A system/simulator "show software keyboard" preference may otherwise
-        // present it on launch even though a hardware keyboard is attached.
+        // Normal iPad hardware input uses the system path with no replacement
+        // view or controller. Explicit hide intent and other platforms retain
+        // the empty input view that suppresses the system software keyboard.
         if hidesTouchKeyboardForHardware {
-            let retainsInputController = host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad
+            let usesSystemHardwareInput = host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad
                 && !toolbarOnlyMode && host?.keyboardAIAgentOverlayActive != true
-            return retainsInputController ? nil : emptyInputView
+            return usesSystemHardwareInput ? nil : emptyInputView
         }
         if usesFullTouchKeyboard {
-            // The iPad input controller retains a self-sizing root across
-            // software and hardware keyboard transitions.
+            // Reuse the retained iPad root when software input is requested
+            // or the hardware keyboard disconnects.
             return host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad ? nil : touchKeyboardInputView
         }
         if usesCompactTouchKeyboard { return emptyInputView }
