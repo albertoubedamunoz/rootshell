@@ -127,10 +127,12 @@ final class AICredentialsManager {
         "gpt-5.6-luna": "gpt-6-luna",
         "claude-opus-4-8": "claude-opus-5-5",
         "claude-opus-5": "claude-opus-5-5",
-        "claude-sonnet-4-6": "claude-sonnet-5",
+        "claude-sonnet-4-6": "claude-sonnet-5-5",
+        "claude-sonnet-5": "claude-sonnet-5-5",
         "bedrock-claude-opus-4-8": "bedrock-claude-opus-5-5",
         "bedrock-claude-opus-5": "bedrock-claude-opus-5-5",
-        "bedrock-claude-sonnet-4-6": "bedrock-claude-sonnet-5",
+        "bedrock-claude-sonnet-4-6": "bedrock-claude-sonnet-5-5",
+        "bedrock-claude-sonnet-5": "bedrock-claude-sonnet-5-5",
     ]
 
     // Keychain accounts

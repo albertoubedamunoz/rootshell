@@ -145,6 +145,9 @@ final class AIAgentSession {
     /// Opus 5.5 reject replayed thinking blocks once the system prompt changes.
     private var conversationSystemPrompt: String?
 
+    /// Frozen alongside the system prompt; a changed tool list also invalidates replayed thinking.
+    private var conversationTools: [AIAgentTool]?
+
     /// Available tools for the AI
     private var availableTools: [AIAgentTool] {
         var tools: [AIAgentTool] = [AIAgentTool.executeCommand, AIAgentTool.askUser]
@@ -367,11 +370,13 @@ final class AIAgentSession {
 
         let systemPrompt = conversationSystemPrompt ?? buildSystemPrompt()
         conversationSystemPrompt = systemPrompt
+        let tools = conversationTools ?? availableTools
+        conversationTools = tools
 
         let stream = provider.sendMessageStream(
             messages: messages,
             systemPrompt: systemPrompt,
-            tools: availableTools
+            tools: tools
         )
 
         do {
@@ -407,11 +412,25 @@ final class AIAgentSession {
             // UI display filtering happens in displayText computed property (AIAgentMessage)
             // Do NOT filter text here - models need their original output preserved
 
+            // A refusal's partial output is discarded rather than kept as an answer.
+            if result.finishReason == .contentFilter {
+                isStreaming = false
+                streamingText = nil
+                streamingThinking = nil
+                state = .error(.unknown("The model declined this request. Try rephrasing it or switching models."))
+                return
+            }
+
             // Determine thinking block to use:
-            // - Prefer completedThinkingBlock (has signature for API round-trip)
+            // - With ordered blocks, those carry the round-trip; show every block's text
+            // - Otherwise prefer completedThinkingBlock (has signature for API round-trip)
             // - Fall back to delta-accumulated thinking (no signature - will be stripped on send)
             let thinkingBlock: AIThinkingBlock?
-            if let completed = result.completedThinkingBlock {
+            if result.assistantBlocks != nil {
+                thinkingBlock = result.accumulatedThinking.isEmpty
+                    ? nil
+                    : AIThinkingBlock(content: result.accumulatedThinking, signature: nil)
+            } else if let completed = result.completedThinkingBlock {
                 thinkingBlock = completed
             } else if !result.accumulatedThinking.isEmpty {
                 // Fallback: thinking from deltas only, no signature available
@@ -420,9 +439,19 @@ final class AIAgentSession {
                 thinkingBlock = nil
             }
 
+            // Tool calls a refusal fallback superseded are absent from the ordered blocks.
+            var nativeToolCalls = result.completedToolCalls
+            if let blocks = result.assistantBlocks {
+                let keptIDs = Set(blocks.compactMap { block -> String? in
+                    if case .toolUse(let id) = block { return id }
+                    return nil
+                })
+                nativeToolCalls.removeAll { !keptIDs.contains($0.id) }
+            }
+
             // Parse text-based tool calls ONLY if we didn't get native tool calls
             // (some endpoints output both native AND text format - avoid duplicates)
-            var allToolCalls = result.completedToolCalls
+            var allToolCalls = nativeToolCalls
             if result.completedToolCalls.isEmpty {
                 let miniMaxResult = MiniMaxToolCallParser.parse(result.accumulatedText)
                 let textToolResult = TextToolCallParser.parse(miniMaxResult.remainingText)
@@ -453,7 +482,7 @@ final class AIAgentSession {
             // This ensures MessageBubbleView appears before we clear streaming state,
             // preventing truncation from the race condition where streaming view
             // disappears before the message view appears
-            try await processResponse(response, thinking: thinkingBlock)
+            try await processResponse(response, thinking: thinkingBlock, blocks: result.assistantBlocks)
 
             // Yield to allow SwiftUI to render the new message
             await Task.yield()
@@ -529,6 +558,7 @@ final class AIAgentSession {
         let accumulatedThinking: String
         let completedThinkingBlock: AIThinkingBlock?
         let completedToolCalls: [AIToolCall]
+        let assistantBlocks: [AIAssistantBlock]?
         let usage: AIUsageStats?
         let finishReason: AIProviderResponse.FinishReason?
     }
@@ -542,6 +572,7 @@ final class AIAgentSession {
         var accumulatedThinking = ""
         var completedThinkingBlock: AIThinkingBlock?
         var completedToolCalls: [AIToolCall] = []
+        var assistantBlocks: [AIAssistantBlock]?
         // Accumulate tool call arguments during streaming (keyed by item ID)
         // Some providers only send deltas without toolCallComplete events
         var accumulatedToolCallArgs: [String: (name: String?, arguments: String)] = [:]
@@ -625,6 +656,9 @@ final class AIAgentSession {
                     Self.logger.debug("Skipping duplicate tool call: \(toolCall.id)")
                 }
 
+            case .assistantBlocks(let blocks):
+                assistantBlocks = blocks
+
             case .responseComplete(let responseUsage, let reason):
                 usage = responseUsage
                 finishReason = reason
@@ -657,6 +691,7 @@ final class AIAgentSession {
             accumulatedThinking: accumulatedThinking,
             completedThinkingBlock: completedThinkingBlock,
             completedToolCalls: completedToolCalls,
+            assistantBlocks: assistantBlocks,
             usage: usage,
             finishReason: finishReason
         )
@@ -948,6 +983,7 @@ final class AIAgentSession {
     func clearHistory() {
         messages.removeAll()
         conversationSystemPrompt = nil
+        conversationTools = nil
         state = .idle
         totalTokensUsed = 0
         lastPromptTokens = 0
@@ -964,6 +1000,7 @@ final class AIAgentSession {
         // Clear conversation history
         messages.removeAll()
         conversationSystemPrompt = nil
+        conversationTools = nil
         pendingFileToolCall = nil
         state = .idle
         totalTokensUsed = 0
@@ -1064,19 +1101,19 @@ final class AIAgentSession {
 
     // MARK: - Private Helpers
 
-    private func processResponse(_ response: AIProviderResponse, thinking: AIThinkingBlock?) async throws {
+    private func processResponse(_ response: AIProviderResponse, thinking: AIThinkingBlock?, blocks: [AIAssistantBlock]?) async throws {
         Self.logger.debug("Processing response: \(String(describing: response.content))")
 
         switch response.content {
         case .text(let text):
             Self.logger.debug("Response is text only (\(text.count) chars), thinking: \(thinking?.content.count ?? 0) chars")
             // Store text with structured thinking (preserves signature for API round-trip)
-            messages.append(.assistant(text, thinking: thinking))
+            messages.append(.assistant(text, thinking: thinking, blocks: blocks))
             state = .idle
 
         case .toolCalls(let calls):
             Self.logger.debug("Response has \(calls.count) tool call(s): \(calls.map { $0.name }.joined(separator: ", "))")
-            try await handleToolCalls(calls, precedingText: nil, thinking: thinking)
+            try await handleToolCalls(calls, precedingText: nil, thinking: thinking, blocks: blocks)
 
         case .textAndToolCalls(let text, let calls):
             Self.logger.debug("Response has text (\(text.count) chars) + \(calls.count) tool call(s): \(calls.map { $0.name }.joined(separator: ", "))")
@@ -1084,18 +1121,18 @@ final class AIAgentSession {
             // That would create two consecutive assistant messages, which violates the API.
             // The tool calls message (added by handleToolCalls) represents this assistant turn.
             // Store original text for API round-trips - UI filtering happens in displayText
-            try await handleToolCalls(calls, precedingText: text, thinking: thinking)
+            try await handleToolCalls(calls, precedingText: text, thinking: thinking, blocks: blocks)
         }
     }
 
-    private func handleToolCalls(_ calls: [AIToolCall], precedingText: String?, thinking: AIThinkingBlock?) async throws {
+    private func handleToolCalls(_ calls: [AIToolCall], precedingText: String?, thinking: AIThinkingBlock?, blocks: [AIAssistantBlock]?) async throws {
         Self.logger.debug("Handling \(calls.count) tool calls")
         for call in calls {
             Self.logger.debug("  - Tool: \(call.name), ID: \(call.id), Args: \(call.arguments.prefix(200))")
         }
 
         // Add tool calls to messages for history (include preceding text and thinking for UI display and API round-trip)
-        messages.append(.assistantToolCalls(calls, precedingText: precedingText, thinking: thinking))
+        messages.append(.assistantToolCalls(calls, precedingText: precedingText, thinking: thinking, blocks: blocks))
 
         // Initialize batch tracking - store all calls as pending
         pendingToolCalls = calls
@@ -1117,7 +1154,24 @@ final class AIAgentSession {
         let remainingCount = pendingToolCalls.count
         Self.logger.debug("Processing tool call \(nextCall.name) (\(remainingCount) remaining)")
 
-        switch nextCall.name {
+        // Models occasionally change a tool name's case; accept an unambiguous match.
+        let tools = conversationTools ?? availableTools
+        let toolName = tools.first { $0.name.caseInsensitiveCompare(nextCall.name) == .orderedSame }?.name ?? nextCall.name
+
+        // The tool list stays frozen for replay, so a setting turned off mid-conversation is
+        // enforced here instead.
+        if (toolName == "web_search" || toolName == "web_fetch") && !AICredentialsManager.shared.webSearchEnabled {
+            batchedToolResults.append(AIToolResult(
+                toolCallId: nextCall.id,
+                output: "Error: Web search is turned off in Settings.",
+                isError: true,
+                isFromXMLToolCall: nextCall.isFromXMLParsing
+            ))
+            try processNextPendingToolCall(precedingText: nil)
+            return
+        }
+
+        switch toolName {
         case "ask_user":
             try handleAskUserCall(nextCall, precedingText: precedingText)
 
@@ -1144,7 +1198,7 @@ final class AIAgentSession {
             Self.logger.warning("Unknown tool call: \(nextCall.name)")
             batchedToolResults.append(AIToolResult(
                 toolCallId: nextCall.id,
-                output: "Error: Unknown tool '\(nextCall.name)'",
+                output: "Error: Unknown tool '\(nextCall.name)'. Available tools: \(tools.map(\.name).joined(separator: ", "))",
                 isError: true,
                 isFromXMLToolCall: nextCall.isFromXMLParsing
             ))
@@ -1668,6 +1722,24 @@ final class AIAgentSession {
         state = .idle
     }
 
+    /// Claude models that write progress notes between tool calls; the no-narration rules
+    /// other models need would suppress them.
+    private var modelWritesProgressUpdates: Bool {
+        let modelID = currentModelID.hasPrefix("bedrock-") ? String(currentModelID.dropFirst(8)) : currentModelID
+        return ["claude-fable-5", "claude-opus-5-5", "claude-sonnet-5-5"].contains { modelID.hasPrefix($0) }
+    }
+
+    /// Anthropic's suggested wording for keeping the user informed during long tool runs.
+    private static let progressUpdateGuidance = """
+        ## How to Respond
+        - Before you start, say in a line what you're about to do; brief updates while you work help the user follow along.
+        - Call tools to do the work rather than describing commands; explain results after you receive output.
+        - Use ask_user only when you need information (a path, a choice, a clarification).
+        - If you have more work to do, your response must contain a tool call.
+
+
+        """
+
     private func buildSystemPrompt() -> String {
         // Catalyst has no ios_system local sessions, so the constrained
         // prompt only exists on iOS/iPadOS.
@@ -1785,6 +1857,10 @@ final class AIAgentSession {
         - All files are in the app's Documents directory or bookmarked external locations
         - No access to system files or other app containers
 
+
+        """
+
+        prompt += modelWritesProgressUpdates ? Self.progressUpdateGuidance : """
         ## How to Respond
         - Call tools IMMEDIATELY when you need to do something
         - Do NOT narrate before tool calls. JUST CALL THE TOOL
@@ -1936,6 +2012,10 @@ final class AIAgentSession {
         - For complex multi-step operations, combine into a single compound command
         - If you need to reference a path multiple times, use the full absolute path each time
 
+
+"""
+
+        prompt += modelWritesProgressUpdates ? Self.progressUpdateGuidance : """
         ## How to Respond
         - Call execute_command IMMEDIATELY when you need to run a command
         - Do NOT narrate before tool calls. No "Let me...", "I'll...", "I need to..." - JUST CALL THE TOOL
@@ -1958,6 +2038,10 @@ final class AIAgentSession {
         - After command output → "The directory contains 5 files..." (explanation is OK here)
         - Need another command? → [call execute_command: ...] (don't say "Let me...", just call it)
 
+
+"""
+
+        prompt += """
         ## ask_user Tool
         Use ONLY when you need information:
         - `yes_no`: Simple binary choice
