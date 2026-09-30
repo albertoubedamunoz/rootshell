@@ -37,6 +37,17 @@ final class FileManagerLogicTests: XCTestCase {
         XCTAssertEqual(pairs("/d/same", "/d/same"), [])
     }
 
+    func testSingleComponent() {
+        XCTAssertTrue(FileTransferLogic.isSingleComponent("picture.png"))
+        XCTAssertTrue(FileTransferLogic.isSingleComponent("..hidden"))
+        XCTAssertFalse(FileTransferLogic.isSingleComponent(""))
+        XCTAssertFalse(FileTransferLogic.isSingleComponent("."))
+        XCTAssertFalse(FileTransferLogic.isSingleComponent(".."))
+        XCTAssertFalse(FileTransferLogic.isSingleComponent("../../Documents/important.txt"))
+        XCTAssertFalse(FileTransferLogic.isSingleComponent("/etc"))
+        XCTAssertFalse(FileTransferLogic.isSingleComponent("a\0b"))
+    }
+
     func testNormalize() {
         XCTAssertEqual(FileTransferLogic.normalize(""), "/")
         XCTAssertEqual(FileTransferLogic.normalize("a//b/"), "/a/b")
