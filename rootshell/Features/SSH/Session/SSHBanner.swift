@@ -371,6 +371,9 @@ nonisolated final class AuthBannerBuffer: @unchecked Sendable {
     /// further banners are dropped — bounds a hostile/looping server that sends
     /// `SSH_MSG_USERAUTH_BANNER` repeatedly before authentication completes.
     private static let maxTotalBytes = 64 * 1024
+    /// Message-count cap per auth phase. The byte cap alone admits tens of
+    /// thousands of tiny banners, each of which becomes a card item and view.
+    private static let maxBanners = 32
 
     /// Live buffer activity, for observers that mirror banners into native UI
     /// (the auth-banner card) as they arrive rather than waiting for the
@@ -407,7 +410,8 @@ nonisolated final class AuthBannerBuffer: @unchecked Sendable {
         }
         let cost = text.utf8.count
         lock.lock()
-        let accepted = totalBytes + cost <= Self.maxTotalBytes
+        let accepted = banners.count < Self.maxBanners
+            && totalBytes + cost <= Self.maxTotalBytes
         if accepted {
             banners.append(text)
             totalBytes += cost
