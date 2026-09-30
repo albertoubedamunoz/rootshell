@@ -78,15 +78,12 @@ extension HerdrController {
 
     func applyEndpointAgentMetadata() {
         guard mode == .legacy, let metadata = endpointMetadata else { return }
-        var agents: [String: HerdrEndpointMetadata.Agent] = [:]
-        for agent in metadata.agents { agents[agent.pane_id] = agent }
         for pane in metadata.panes {
             guard let previous = paneInfos[pane.pane_id], pane.matches(previous) else { continue }
             let info = pane.updatingDirectories(in: previous)
             paneInfos[pane.pane_id] = info
             if let view = paneViews[info.terminal_id] { publishProject(for: info, view: view) }
-            if let agent = agents[pane.pane_id], agent.workspace_id == pane.workspace_id,
-               agent.tab_id == pane.tab_id {
+            if let agent = metadata.agentsByPaneID[pane.pane_id], agent.belongs(to: pane) {
                 if let view = paneViews[info.terminal_id] {
                     view.herdrTitleState.receiveFallback(agent.reportedTitle)
                     view.publishHerdrTitle()

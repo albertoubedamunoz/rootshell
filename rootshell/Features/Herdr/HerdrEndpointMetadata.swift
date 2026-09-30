@@ -9,15 +9,48 @@ nonisolated struct HerdrEndpointMetadata: Decodable {
     let tabs: [Tab]
     let panes: [Pane]
     let agents: [Agent]
+    /// Records keyed by pane ID, built once so per-pane lookups stay linear.
+    let panesByID: [String: Pane]
+    let agentsByPaneID: [String: Agent]
 
     /// Stock shell snapshots omit titles for panes outside the agent list.
     /// Keep the slow API refresh for those panes, including hidden shells.
-    var needsShellTitleRefresh: Bool {
-        panes.contains { pane in
-            !agents.contains { agent in
-                agent.pane_id == pane.pane_id && agent.workspace_id == pane.workspace_id
-                    && agent.tab_id == pane.tab_id
-            }
+    let needsShellTitleRefresh: Bool
+
+    /// Far above any real session; bounds work done on the main actor.
+    static let recordLimit = 4096
+
+    private enum CodingKeys: String, CodingKey {
+        case boot_id, revision, workspaces, tabs, panes, agents
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        boot_id = try container.decode(String.self, forKey: .boot_id)
+        revision = try container.decode(UInt64.self, forKey: .revision)
+        workspaces = try container.decode([Workspace].self, forKey: .workspaces)
+        tabs = try container.decode([Tab].self, forKey: .tabs)
+        panes = try container.decode([Pane].self, forKey: .panes)
+        agents = try container.decode([Agent].self, forKey: .agents)
+        let limit = Self.recordLimit
+        guard workspaces.count <= limit, tabs.count <= limit, panes.count <= limit, agents.count <= limit else {
+            throw DecodingError.dataCorruptedError(forKey: .panes, in: container,
+                debugDescription: "endpoint metadata exceeds \(limit) records")
+        }
+        var panesByID: [String: Pane] = [:]
+        var agentsByPaneID: [String: Agent] = [:]
+        for pane in panes where panesByID.updateValue(pane, forKey: pane.pane_id) != nil {
+            throw DecodingError.dataCorruptedError(forKey: .panes, in: container,
+                debugDescription: "duplicate pane \(pane.pane_id)")
+        }
+        for agent in agents where agentsByPaneID.updateValue(agent, forKey: agent.pane_id) != nil {
+            throw DecodingError.dataCorruptedError(forKey: .agents, in: container,
+                debugDescription: "duplicate agent pane \(agent.pane_id)")
+        }
+        self.panesByID = panesByID
+        self.agentsByPaneID = agentsByPaneID
+        needsShellTitleRefresh = panes.contains { pane in
+            agentsByPaneID[pane.pane_id].map { !$0.belongs(to: pane) } ?? true
         }
     }
 
@@ -66,6 +99,10 @@ nonisolated struct HerdrEndpointMetadata: Decodable {
         let agent_status: String
         let state_labels: [[String]]
 
+        func belongs(to pane: Pane) -> Bool {
+            pane_id == pane.pane_id && workspace_id == pane.workspace_id && tab_id == pane.tab_id
+        }
+
         var report: HerdrControl.AgentStatusChangedData {
             .init(pane_id: pane_id, workspace_id: workspace_id,
                   agent_status: agent_status, agent: agent, title: title,
@@ -80,12 +117,14 @@ nonisolated struct HerdrEndpointMetadata: Decodable {
     }
 
     func report(for info: HerdrControl.PaneInfo) -> HerdrControl.AgentStatusChangedData? {
-        guard panes.contains(where: { $0.pane_id == info.pane_id
-            && $0.workspace_id == info.workspace_id && $0.tab_id == info.tab_id }) else { return nil }
-        if let agent = agents.first(where: { $0.pane_id == info.pane_id
-            && $0.workspace_id == info.workspace_id && $0.tab_id == info.tab_id }) { return agent.report }
+        guard let pane = pane(matching: info) else { return nil }
+        if let agent = agentsByPaneID[pane.pane_id], agent.belongs(to: pane) { return agent.report }
         return .init(pane_id: info.pane_id, workspace_id: info.workspace_id,
             agent_status: "unknown", agent: nil, title: nil, display_agent: nil, state_labels: nil)
+    }
+
+    func pane(matching info: HerdrControl.PaneInfo) -> Pane? {
+        panesByID[info.pane_id].flatMap { $0.matches(info) ? $0 : nil }
     }
 
     func hasSameTopology(as other: Self) -> Bool {
