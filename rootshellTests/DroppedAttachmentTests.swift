@@ -56,9 +56,12 @@ final class DroppedAttachmentTests: XCTestCase {
         return url
     }
 
-    private func load(_ providers: [NSItemProvider]) async -> PasteAttachmentDetector.DropResult {
+    private func load(
+        _ providers: [NSItemProvider],
+        budget: PasteAttachmentDetector.DropBudget = .init()
+    ) async -> PasteAttachmentDetector.DropResult {
         await withCheckedContinuation { continuation in
-            PasteAttachmentDetector.loadDropped(from: providers) { result in
+            PasteAttachmentDetector.loadDropped(from: providers, budget: budget) { result in
                 XCTAssertTrue(Thread.isMainThread)
                 continuation.resume(returning: result)
             }
@@ -232,6 +235,77 @@ final class DroppedAttachmentTests: XCTestCase {
         ])
         XCTAssertFalse(result.containsAttachments)
         XCTAssertTrue(result.attachments.isEmpty)
+    }
+
+    func testOversizedFileIsSkippedWithoutFallingBackToOtherRepresentations() async throws {
+        let pdf = pdfData()
+        let url = try file(pdf, extension: "pdf")
+        let item = NSItemProvider(item: url as NSURL, typeIdentifier: UTType.fileURL.identifier)
+        item.registerDataRepresentation(forTypeIdentifier: UTType.pdf.identifier, visibility: .all) { completion in
+            XCTFail("An oversized file must not be read through another representation")
+            completion(pdf, nil)
+            return nil
+        }
+        let result = await load([item], budget: .init(fileLimit: pdf.count - 1, totalLimit: .max))
+        XCTAssertTrue(result.containsAttachments)
+        XCTAssertTrue(result.containsOversizedFiles)
+        XCTAssertTrue(result.attachments.isEmpty)
+    }
+
+    func testOversizedPromisedFileIsSkipped() async throws {
+        let pdf = pdfData()
+        let url = try file(pdf, extension: "pdf")
+        let item = FileOnlyProvider()
+        item.registerFileRepresentation(forTypeIdentifier: UTType.pdf.identifier, fileOptions: [], visibility: .all) { completion in
+            completion(url, false, nil)
+            return nil
+        }
+        let result = await load([item], budget: .init(fileLimit: pdf.count - 1, totalLimit: .max))
+        XCTAssertTrue(result.containsOversizedFiles)
+        XCTAssertTrue(result.attachments.isEmpty)
+    }
+
+    func testOversizedDataRepresentationDoesNotFallBackToThumbnail() async throws {
+        let pdf = pdfData()
+        let item = provider(.pdf, data: pdf)
+        let preview = imageData()
+        item.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
+            completion(preview, nil)
+            return nil
+        }
+        let result = await load([item], budget: .init(fileLimit: pdf.count - 1, totalLimit: .max))
+        XCTAssertTrue(result.containsOversizedFiles)
+        XCTAssertTrue(result.attachments.isEmpty)
+    }
+
+    func testImageObjectCountsAgainstBudget() async throws {
+        let item = NSItemProvider(object: UIImage(data: imageData())!)
+        let result = await load([item], budget: .init(fileLimit: 1, totalLimit: .max))
+        XCTAssertTrue(result.containsOversizedFiles)
+        XCTAssertTrue(result.attachments.isEmpty)
+    }
+
+    func testFailedRepresentationReleasesItsReservation() async throws {
+        let png = imageData()
+        let url = try file(Data(repeating: 0, count: png.count), extension: "png")
+        let item = NSItemProvider(item: url as NSURL, typeIdentifier: UTType.fileURL.identifier)
+        item.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
+            completion(png, nil)
+            return nil
+        }
+        let result = await load([item], budget: .init(fileLimit: png.count, totalLimit: png.count))
+        XCTAssertFalse(result.containsOversizedFiles)
+        XCTAssertEqual(result.attachments.count, 1)
+    }
+
+    func testDropTotalBudgetIsSharedAcrossFiles() async throws {
+        let pdf = pdfData()
+        let providers = try (0..<3).map { _ in
+            NSItemProvider(item: try file(pdf, extension: "pdf") as NSURL, typeIdentifier: UTType.fileURL.identifier)
+        }
+        let result = await load(providers, budget: .init(fileLimit: pdf.count, totalLimit: pdf.count * 2))
+        XCTAssertTrue(result.containsOversizedFiles)
+        XCTAssertEqual(result.attachments.count, 2)
     }
 
     func testPasteStillUsesItsExistingAttachmentPreferences() async throws {

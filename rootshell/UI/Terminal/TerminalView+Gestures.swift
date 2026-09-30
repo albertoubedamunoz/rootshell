@@ -1155,6 +1155,23 @@ extension Ghostty.TerminalView {
         presenter.present(alert, animated: true)
     }
 
+    /// `then` runs after dismissal, so a partial drop can continue with the
+    /// attachments that fit.
+    func showOversizedDropAlert(then continuation: @escaping () -> Void = {}) {
+        guard let presenter = self.findPresenterViewController(),
+              presenter.presentedViewController == nil else {
+            continuation()
+            return
+        }
+        let alert = UIAlertController(
+            title: String(localized: "Attachment Too Large"),
+            message: String(localized: "Dropped images and PDFs can be up to 250 MB each, and 500 MB in total. Larger files were skipped."),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { _ in continuation() })
+        presenter.present(alert, animated: true)
+    }
+
     func materializeLocalPastedAttachments(_ attachments: [PasteAttachment]) {
         let temporaryDirectory = FileManager.default.temporaryDirectory
 

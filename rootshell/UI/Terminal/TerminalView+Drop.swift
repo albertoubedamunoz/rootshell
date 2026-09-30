@@ -92,8 +92,14 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
                 guard let self, self.surface != nil else { return }
                 if result.containsAttachments {
                     if let sshConfig {
-                        if !result.attachments.isEmpty {
+                        let showSheet = { [weak self] in
+                            guard let self, !result.attachments.isEmpty else { return }
                             self.showAttachmentUploadSheet(attachments: result.attachments, sshConfig: sshConfig)
+                        }
+                        if result.containsOversizedFiles {
+                            self.showOversizedDropAlert(then: showSheet)
+                        } else {
+                            showSheet()
                         }
                     } else {
                         self.pasteUsableRemoteRepresentationOrShowAttachmentAlert(
@@ -118,7 +124,14 @@ extension Ghostty.TerminalView: UIDropInteractionDelegate {
         let handleAttachments: () -> Void = { [weak self] in
             guard let self, self.canMaterializeAttachmentsLocally else { return }
             PasteAttachmentDetector.loadDropped(from: itemProviders) { [weak self] result in
-                self?.materializeLocalPastedAttachments(result.attachments)
+                guard let self else { return }
+                if result.containsOversizedFiles {
+                    self.showOversizedDropAlert { [weak self] in
+                        self?.materializeLocalPastedAttachments(result.attachments)
+                    }
+                } else {
+                    self.materializeLocalPastedAttachments(result.attachments)
+                }
             }
         }
 
