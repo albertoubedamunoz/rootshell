@@ -28,6 +28,9 @@ enum AIAgentErrorCategory: Sendable, Equatable {
     /// Configuration error (not connected, missing setup)
     case configuration(String)
 
+    /// ChatGPT plan usage limit, or this app's limit in ChatGPT settings
+    case chatGPTUsageLimit
+
     /// Unknown/generic error
     case unknown(String)
 
@@ -48,6 +51,8 @@ enum AIAgentErrorCategory: Sendable, Equatable {
             return "cpu.fill"
         case .configuration:
             return "gearshape.triangle.fill"
+        case .chatGPTUsageLimit:
+            return "gauge.with.dots.needle.100percent"
         case .unknown:
             return "exclamationmark.triangle.fill"
         }
@@ -68,6 +73,8 @@ enum AIAgentErrorCategory: Sendable, Equatable {
             return .yellow
         case .configuration:
             return .gray
+        case .chatGPTUsageLimit:
+            return .orange
         case .unknown:
             return .red
         }
@@ -88,6 +95,8 @@ enum AIAgentErrorCategory: Sendable, Equatable {
             return String(localized: "Model Unavailable", comment: "AI Agent error: model not available")
         case .configuration:
             return String(localized: "Configuration Error", comment: "AI Agent error: missing setup")
+        case .chatGPTUsageLimit:
+            return String(localized: "Usage limit reached", comment: "AI Agent error: ChatGPT plan usage limit")
         case .unknown:
             return String(localized: "Error", comment: "AI Agent error: generic error title")
         }
@@ -112,6 +121,8 @@ enum AIAgentErrorCategory: Sendable, Equatable {
             return String(localized: "The model '\(model)' is not available. Try selecting a different model.", comment: "AI Agent model unavailable error")
         case .configuration(let detail):
             return detail
+        case .chatGPTUsageLimit:
+            return String(localized: "Review your plan or this app's limit in ChatGPT settings.", comment: "AI Agent ChatGPT usage limit error")
         case .unknown(let detail):
             return detail
         }
@@ -122,7 +133,7 @@ enum AIAgentErrorCategory: Sendable, Equatable {
         switch self {
         case .rateLimit, .network, .unknown:
             return true
-        case .authentication, .quota, .modelUnavailable, .configuration:
+        case .authentication, .quota, .modelUnavailable, .configuration, .chatGPTUsageLimit:
             return false
         }
     }
@@ -152,6 +163,10 @@ enum AIAgentErrorCategory: Sendable, Equatable {
             case .cancelled:
                 // Cancelled is not really an error to show
                 return .unknown("Request was cancelled")
+            case .chatGPTUsageLimit:
+                return .chatGPTUsageLimit
+            case .unavailable(let message):
+                return .configuration(message)
             case .unknown(let message):
                 return .unknown(message)
             }
@@ -182,6 +197,8 @@ enum AIAgentErrorCategory: Sendable, Equatable {
             return lhsModel == rhsModel
         case (.configuration(let lhsMsg), .configuration(let rhsMsg)):
             return lhsMsg == rhsMsg
+        case (.chatGPTUsageLimit, .chatGPTUsageLimit):
+            return true
         case (.unknown(let lhsMsg), .unknown(let rhsMsg)):
             return lhsMsg == rhsMsg
         default:

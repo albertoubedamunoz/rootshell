@@ -3,8 +3,8 @@
 //  ChatGPTReasoningEffort.swift
 //  rootshell
 //
-//  Reasoning-effort presets for ChatGPT subscription models. The Codex backend
-//  reports each model's supported levels and default; the user's per-model
+//  Reasoning-effort presets for ChatGPT plan models. The model catalog may
+//  report each model's supported levels and default; the user's per-model
 //  choice is persisted and clamped to whatever the model actually accepts.
 //
 
@@ -61,18 +61,12 @@ nonisolated enum ChatGPTModelCapabilities {
     }
 
     /// `reasoning.summary` is only accepted from the gpt-5.4 wire generation on;
-    /// older Codex ids reject it with `400 Unsupported parameter`.
+    /// older ids reject it with `400 Unsupported parameter`.
     static func supportsReasoningSummary(_ modelID: String) -> Bool {
         (gptVersion(of: modelID) ?? 0) >= 5.4
     }
 
-    /// Same gate for `reasoning.context: "all_turns"`; older ids get no
-    /// `context` key and the server defaults to current_turn.
-    static func supportsAllTurnsContext(_ modelID: String) -> Bool {
-        (gptVersion(of: modelID) ?? 0) >= 5.4
-    }
-
-    /// Effort ladder inference for models whose discovery entry omits
+    /// Effort ladder inference for models whose catalog entry omits
     /// `supported_reasoning_levels`.
     static func fallbackLadder(for modelID: String) -> [ChatGPTReasoningEffort] {
         let version = gptVersion(of: modelID) ?? 0

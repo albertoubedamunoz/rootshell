@@ -793,6 +793,7 @@ private struct AIAgentModelPickerToolbar: View, Equatable {
             }
 
             embeddedEffortMenu
+            chatGPTPlanSection
         } label: {
             label
         }
@@ -803,6 +804,7 @@ private struct AIAgentModelPickerToolbar: View, Equatable {
             }
 
             embeddedEffortMenu
+            chatGPTPlanSection
         } label: {
             label
         }
@@ -852,6 +854,18 @@ private struct AIAgentModelPickerToolbar: View, Equatable {
                     }
                 } label: {
                     Label("Reasoning: \(effective.displayName)", systemImage: "brain")
+                }
+            }
+        }
+    }
+
+    /// Shown while the selected model runs on the user's ChatGPT plan.
+    @ViewBuilder
+    private var chatGPTPlanSection: some View {
+        if cachedModels.chatgptModels.contains(where: { $0.id == selectedModelID }) {
+            Section("Using ChatGPT plan") {
+                Link(destination: ChatGPTOAuth.manageUsageURL) {
+                    Label("Manage usage", systemImage: "arrow.up.right.square")
                 }
             }
         }

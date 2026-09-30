@@ -32,7 +32,7 @@ struct AIProviderModel: Identifiable, Codable, Sendable, Hashable {
     /// Where the model configuration came from
     enum ModelSource: String, Codable, Sendable {
         case openAI         // Built-in OpenAI models
-        case chatGPT        // ChatGPT subscription models (discovered from the Codex backend)
+        case chatGPT        // ChatGPT plan models (from the signed-in account's catalog)
         case anthropic      // Built-in Anthropic models
         case bedrock        // Anthropic models served via AWS Bedrock
         case google         // Built-in Google Gemini models

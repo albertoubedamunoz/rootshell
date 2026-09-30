@@ -4,18 +4,25 @@
 //  rootshell
 //
 //  Minimal one-shot HTTP listener that catches the OAuth redirect on
-//  http://localhost:1455/auth/callback.
+//  http://127.0.0.1:<port>/auth/callback.
 //
 
 import Foundation
 import Network
 import os.log
 
-/// Listens on port 1455 for exactly one `GET /auth/callback` and hands back the
-/// authorization code.
+/// What the authorization redirect carried.
+nonisolated struct ChatGPTCallback: Sendable {
+    let code: String
+    /// The issued client ID; present on new registrations, may be absent on reauthorization.
+    let clientID: String?
+    let scopes: [String]?
+}
+
+/// Listens for exactly one `GET /auth/callback`.
 ///
-/// OpenAI pins the redirect to `http://localhost:1455/auth/callback`, so the port
-/// is not negotiable; a different one makes the token exchange fail with 403.
+/// Prefers port 1455 and falls back to any free port; OpenAI only lets the
+/// port vary, so the redirect URI is built from whichever port bound.
 /// This is deliberately not `Cloud/OAuth/OAuthCallbackServer` — that listener
 /// binds all interfaces (triggering the Local Network prompt), while this one is
 /// loopback-only.
@@ -25,35 +32,45 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
 
     private var listener: NWListener?
     private var connections: [NWConnection] = []
-    private var continuation: CheckedContinuation<String, Error>?
+    private var continuation: CheckedContinuation<ChatGPTCallback, Error>?
+    /// A result that arrived before `waitForCallback` was called.
+    private var pendingResult: Result<ChatGPTCallback, Error>?
     private var timeoutWork: DispatchWorkItem?
     private var expectedState = ""
     private let lock = NSLock()
 
-    /// Starts listening and suspends until the browser redirects back.
-    /// - Returns: the `code` query parameter, once `state` has been verified.
-    func waitForCallback(expectedState: String, timeout: TimeInterval = 300) async throws -> String {
+    /// Binds the listener and returns the port the redirect URI must use.
+    func start(expectedState: String) async throws -> UInt16 {
+        lock.lock()
         self.expectedState = expectedState
+        lock.unlock()
 
-        return try await withCheckedThrowingContinuation { continuation in
+        if let preferred = NWEndpoint.Port(rawValue: ChatGPTOAuth.preferredCallbackPort),
+           let port = try? await listen(on: preferred) {
+            return port
+        }
+        logger.info("Port \(ChatGPTOAuth.preferredCallbackPort) unavailable; using an ephemeral port")
+        return try await listen(on: .any)
+    }
+
+    /// Suspends until the browser redirects back.
+    func waitForCallback(timeout: TimeInterval = 300) async throws -> ChatGPTCallback {
+        try await withCheckedThrowingContinuation { continuation in
+            lock.lock()
+            if let pending = pendingResult {
+                pendingResult = nil
+                lock.unlock()
+                continuation.resume(with: pending)
+                return
+            }
             let work = DispatchWorkItem { [weak self] in
                 self?.finish(with: .failure(ChatGPTAuthError.cancelled))
             }
-
-            lock.lock()
             self.continuation = continuation
-            // Armed before the listener starts so that a callback arriving
-            // immediately can cancel it, rather than leaving a stray timer.
             self.timeoutWork = work
             lock.unlock()
 
             queue.asyncAfter(deadline: .now() + timeout, execute: work)
-
-            do {
-                try start()
-            } catch {
-                finish(with: .failure(error))
-            }
         }
     }
 
@@ -64,47 +81,66 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
 
     // MARK: - Listener
 
-    private func start() throws {
+    private func listen(on port: NWEndpoint.Port) async throws -> UInt16 {
         let parameters = NWParameters.tcp
         // Without reuse, a listener torn down moments earlier leaves the port in
         // TIME_WAIT and a retried sign-in fails with EADDRINUSE.
         parameters.allowLocalEndpointReuse = true
-        // Restricting to lo0 keeps the socket off the LAN (so no Local Network
-        // permission prompt) while still covering both ::1 and 127.0.0.1 —
-        // Safari resolves "localhost" to ::1 first, so IPv4-only would miss it.
+        // Restricting to lo0 keeps the socket off the LAN, so no Local Network prompt.
         parameters.requiredInterfaceType = .loopback
-
-        guard let port = NWEndpoint.Port(rawValue: ChatGPTOAuth.callbackPort) else {
-            throw ChatGPTAuthError.portUnavailable
-        }
 
         let listener: NWListener
         do {
             listener = try NWListener(using: parameters, on: port)
         } catch {
-            logger.error("Failed to open port \(ChatGPTOAuth.callbackPort): \(error)")
-            throw ChatGPTAuthError.portUnavailable
+            throw ChatGPTAuthError.listenerUnavailable
         }
 
-        listener.stateUpdateHandler = { [weak self] state in
-            guard let self else { return }
-            switch state {
-            case .ready:
-                self.logger.info("Listening on 127.0.0.1:\(ChatGPTOAuth.callbackPort)")
-            case .failed(let error):
-                self.logger.error("Listener failed: \(error)")
-                self.finish(with: .failure(ChatGPTAuthError.portUnavailable))
-            default:
-                break
+        let once = ResumeOnce()
+        return try await withCheckedThrowingContinuation { continuation in
+            listener.stateUpdateHandler = { [weak self] state in
+                switch state {
+                case .ready:
+                    guard let bound = listener.port?.rawValue, bound != 0 else {
+                        if once.claim() {
+                            listener.cancel()
+                            continuation.resume(throwing: ChatGPTAuthError.listenerUnavailable)
+                        }
+                        return
+                    }
+                    if once.claim() {
+                        self?.logger.info("Listening on 127.0.0.1:\(bound)")
+                        continuation.resume(returning: bound)
+                    }
+                case .failed, .waiting:
+                    if once.claim() {
+                        listener.cancel()
+                        continuation.resume(throwing: ChatGPTAuthError.listenerUnavailable)
+                    } else if case .failed(let error) = state, let self, self.isCurrent(listener) {
+                        self.logger.error("Listener failed: \(error)")
+                        self.finish(with: .failure(ChatGPTAuthError.listenerUnavailable))
+                    }
+                default:
+                    break
+                }
             }
-        }
 
-        listener.newConnectionHandler = { [weak self] connection in
-            self?.handle(connection)
-        }
+            listener.newConnectionHandler = { [weak self] connection in
+                self?.handle(connection)
+            }
 
-        self.listener = listener
-        listener.start(queue: queue)
+            lock.lock()
+            self.listener = listener
+            lock.unlock()
+            listener.start(queue: queue)
+        }
+    }
+
+    /// A listener abandoned for the fallback port must not tear down its replacement.
+    private func isCurrent(_ listener: NWListener) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return self.listener === listener
     }
 
     private func handle(_ connection: NWConnection) {
@@ -150,7 +186,18 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
     }
 
     private func respond(on connection: NWConnection, to request: String) {
-        let result = Self.parse(request: request, expectedState: expectedState)
+        lock.lock()
+        let expectedState = self.expectedState
+        lock.unlock()
+
+        guard let result = Self.parse(request: request, expectedState: expectedState) else {
+            // Some other path (e.g. /favicon.ico); answer and keep waiting.
+            let body = Self.page(title: "Not found", message: "")
+            connection.send(content: Self.http(status: "404 Not Found", body: body), completion: .contentProcessed { _ in
+                connection.cancel()
+            })
+            return
+        }
 
         let (status, title, message): (String, String, String)
         switch result {
@@ -166,32 +213,26 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
                 "Sign-in failed",
                 error.localizedDescription
             )
-        case nil:
-            // Some other path (e.g. /favicon.ico); answer and keep waiting.
-            let body = Self.page(title: "Not found", message: "")
-            connection.send(content: Self.http(status: "404 Not Found", body: body), completion: .contentProcessed { _ in
-                connection.cancel()
-            })
-            return
         }
 
         let body = Self.page(title: title, message: message)
         connection.send(content: Self.http(status: status, body: body), completion: .contentProcessed { [weak self] _ in
             connection.cancel()
-            self?.finish(with: result!)
+            self?.finish(with: result)
         })
     }
 
     // MARK: - Parsing
 
     /// Returns nil when the request is for some path other than the callback.
-    static func parse(request: String, expectedState: String) -> Result<String, Error>? {
+    /// `state` is checked before anything else, including an error result.
+    static func parse(request: String, expectedState: String) -> Result<ChatGPTCallback, Error>? {
         guard let requestLine = request.split(separator: "\r\n").first else { return nil }
         let fields = requestLine.split(separator: " ")
         guard fields.count >= 2, fields[0] == "GET" else { return nil }
 
         let target = String(fields[1])
-        guard let components = URLComponents(string: "http://localhost\(target)"),
+        guard let components = URLComponents(string: "http://127.0.0.1\(target)"),
               components.path == ChatGPTOAuth.callbackPath else {
             return nil
         }
@@ -201,20 +242,26 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
             items.first { $0.name == name }?.value?.nilIfBlank
         }
 
-        if let error = value("error") {
-            let detail = value("error_description") ?? error
-            return .failure(ChatGPTAuthError.authorizationDenied(detail))
-        }
-
-        guard value("state") == expectedState else {
+        guard !expectedState.isEmpty, value("state") == expectedState else {
             return .failure(ChatGPTAuthError.stateMismatch)
         }
 
-        guard let code = value("code") else {
-            return .failure(ChatGPTAuthError.authorizationDenied("no authorization code was returned"))
+        if let error = value("error") {
+            if error == "access_denied" {
+                return .failure(ChatGPTAuthError.accessDenied)
+            }
+            return .failure(ChatGPTAuthError.authorizationFailed(value("error_description") ?? error))
         }
 
-        return .success(code)
+        guard let code = value("code") else {
+            return .failure(ChatGPTAuthError.authorizationFailed("no authorization code was returned"))
+        }
+
+        return .success(ChatGPTCallback(
+            code: code,
+            clientID: value("client_id"),
+            scopes: value("scope").map(ChatGPTOAuth.parseScopes)
+        ))
     }
 
     // MARK: - Responses
@@ -246,10 +293,13 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
 
     // MARK: - Teardown
 
-    private func finish(with result: Result<String, Error>) {
+    private func finish(with result: Result<ChatGPTCallback, Error>) {
         lock.lock()
         let continuation = self.continuation
         self.continuation = nil
+        if continuation == nil, pendingResult == nil {
+            pendingResult = result
+        }
         let listener = self.listener
         self.listener = nil
         let connections = self.connections
@@ -262,13 +312,21 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
         listener?.cancel()
         connections.forEach { $0.cancel() }
 
-        guard let continuation else { return }
-        switch result {
-        case .success(let code):
-            continuation.resume(returning: code)
-        case .failure(let error):
-            continuation.resume(throwing: error)
-        }
+        continuation?.resume(with: result)
+    }
+}
+
+/// Guards a continuation that several listener states could resume.
+private nonisolated final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !claimed else { return false }
+        claimed = true
+        return true
     }
 }
 
