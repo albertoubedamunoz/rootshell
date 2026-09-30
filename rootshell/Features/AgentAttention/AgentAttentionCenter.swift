@@ -825,6 +825,10 @@ final class AgentAttentionCenter {
             guard monitor.project == nil,
                   monitor.terminal?.tmuxPaneBinding == nil,
                   monitor.terminal?.herdrPaneBinding == nil else { return nil }
+            // Inside a raw multiplexer `noteProject` rejects every directory,
+            // so whatever the token lookup finds (the multiplexer client's cwd)
+            // would be discarded. Asking anyway is pure remote cost. (#565)
+            guard !monitor.isInsideRawMultiplexer else { return nil }
             // REMOTE panes only. The lookup identifies a pane by its position
             // in the ssh process tree; run locally it walks the helper's own
             // ancestors and returns some unrelated process's directory, which
@@ -1019,7 +1023,13 @@ final class AgentAttentionCenter {
         // pane with a project and no branch, and the floor stamped by this very
         // probe stranded it -- which is why, of two sessions recovering at
         // once, one resolved and the other never did. (id=agent-project)
-        guard monitor.agent != nil, repositoryNeedsRefresh else { return }
+        //
+        // Only with a project. `needsRepositoryRefresh` is true for a pane
+        // without one, but then there is no directory to ask about: the
+        // follow-up could only repeat the discovery that just failed, and with
+        // the floor cleared below it did so back to back, one probe after
+        // another for as long as the agent stayed on screen. (#565)
+        guard monitor.agent != nil, monitor.project != nil, repositoryNeedsRefresh else { return }
         // A probe just completed for this pane, so the floor has served its
         // purpose; clearing it lets the follow-up run now rather than in 8s.
         monitor.lastProjectRequestAt = nil

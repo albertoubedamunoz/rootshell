@@ -85,7 +85,7 @@ nonisolated enum ProjectProbeCommand {
         // does not emit OSC 7, which is most of them.
         //
         // Linux exposes the environment at /proc/<pid>/environ (NUL-separated,
-        // hence `tr`) and the cwd as a symlink. macOS has neither, so `ps -E`
+        // hence `grep -z` or `tr`) and the cwd as a symlink. macOS has neither, so `ps -E`
         // prints the environment inline and `lsof` reports the cwd. Both are
         // restricted to our own processes, which is exactly the scope wanted.
         if let paneToken, !paneToken.isEmpty {
@@ -95,11 +95,24 @@ nonisolated enum ProjectProbeCommand {
 
             // Linux: match the pane token in a process environment. Exact and
             // cheap where it is available.
+            //
+            // One `grep -z` reads every environ in a single process. A loop
+            // of `tr | grep` per PID cost two forks per process on the host,
+            // hundreds per probe on a busy box (#565). BusyBox grep has no
+            // `-z`, so there the loop remains, skipping the environ files of
+            // other users, which cannot be read anyway.
             script += " if [ -r /proc/self/environ ]; then"
+            script += " if printf 'x\\0' | grep -qxzF x 2>/dev/null; then"
+            script += " for _e in $(grep -lsxzF \(needle) /proc/[0-9]*/environ); do"
+            script += " _d=$(readlink \"${_e%/environ}/cwd\" 2>/dev/null) && [ -n \"$_d\" ] && break;"
+            script += " done;"
+            script += " else"
             script += " for _e in /proc/[0-9]*; do"
-            script += " tr '\\0' '\\n' < \"$_e/environ\" 2>/dev/null | grep -qxF \(needle) || continue;"
+            script += " [ -r \"$_e/environ\" ] || continue;"
+            script += " tr '\\0' '\\n' 2>/dev/null < \"$_e/environ\" | grep -qxF \(needle) || continue;"
             script += " _d=$(readlink \"$_e/cwd\" 2>/dev/null) && [ -n \"$_d\" ] && break;"
             script += " done;"
+            script += " fi;"
             script += " fi;"
 
             // Everywhere else (notably macOS, which does NOT expose process
