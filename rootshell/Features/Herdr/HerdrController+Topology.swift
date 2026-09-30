@@ -628,9 +628,10 @@ extension HerdrController {
                       self.managementRevision == revision, self.tabs[tabID] === tab,
                       tab.splitTree.zoomed != nil, layout.tab_id == tabID,
                       layout.workspace_id == tab.herdrWorkspaceId,
-                      Set(layout.root.paneIDs) == paneIDs,
+                      layout.root.paneIDs.count == paneIDs.count, Set(layout.root.paneIDs) == paneIDs,
                       Set(self.paneInfos.values.filter { $0.tab_id == tabID }.map(\.pane_id)) == paneIDs,
-                      let root = self.buildSplitNode(layout.root) else { return }
+                      let root = self.buildSplitNode(layout.root),
+                      Set(root.leaves().map { ObjectIdentifier($0) }).count == paneIDs.count else { return }
                 tab.splitTree = SplitTree(root: root, zoomed: tab.splitTree.zoomed)
                 self.tabsModel.syncDisplayedTab()
             } catch is CancellationError { } catch {
