@@ -2645,8 +2645,13 @@ extension Ghostty {
                 return
             }
             guard let surface = surface else { return }
+            // Surface userdata is unretained and a release can fire copy-on-select
+            // callbacks. Hold one retain across them and drop it only on main.
+            nonisolated(unsafe) let surfacePtr = surface
+            let owner = Unmanaged.passRetained(self)
             Self.ghosttyAPIQueue.async {
-                ghostty_surface_mouse_button(surface, action, button, mods)
+                ghostty_surface_mouse_button(surfacePtr, action, button, mods)
+                DispatchQueue.main.async { owner.release() }
             }
         }
 
