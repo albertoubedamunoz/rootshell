@@ -69,7 +69,8 @@ final class WindowSceneReportingView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         // Catalyst window resizes relayout the SwiftUI hierarchy, so this fires
-        // on every size/position change — the continuous per-window frame source.
+        // on every size change. A MOVE does not relayout: position changes are
+        // picked up by the move observers in registerWindowObservers.
         reportFrameIfChanged()
         // Rotation does not reliably deliver safeAreaInsetsDidChange to this
         // view (its own insets can be unchanged while the window's flip),
@@ -228,6 +229,25 @@ final class WindowSceneReportingView: UIView {
             didMiniaturize,
             didDeminiaturize
         ])
+
+        // Re-read this window's frame after a move. Without it the tracked
+        // frame kept the position of the last layout, often one taken mid-drag,
+        // and a save that runs after the scene disconnects at quit (where the
+        // live lookup fails) wrote that stale position over the correct one.
+        // NSWindowDidMove is not delivered on every Catalyst version, so the
+        // drag observer's end-of-move signal backs it up. Any window's move
+        // wakes every reporter; each re-reads only its own scene, and the
+        // unchanged ones return early. (#567)
+        for name in [Notification.Name("NSWindowDidMoveNotification"),
+                     WindowDragObserver.didFinishMoveNotification] {
+            windowObserverTokens.append(center.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.reportFrameIfChanged()
+            })
+        }
 #endif
     }
 

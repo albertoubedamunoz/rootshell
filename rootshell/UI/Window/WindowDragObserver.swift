@@ -37,6 +37,11 @@ final class WindowDragObserver {
     /// flag clears (there is no "move ended" event to key off).
     private static let quietPeriod: CFTimeInterval = 0.35
 
+    /// Posted when window frames have gone quiet after a move. A move does not
+    /// relayout the window, so this is the only reliable point to re-read a
+    /// window's position once the user lets go. (#567)
+    static let didFinishMoveNotification = Notification.Name("WindowDragObserver.didFinishMove")
+
     var isWindowMoving: Bool { dragStripTouches > 0 || moveActivityActive }
 
     private var dragStripTouches = 0
@@ -115,6 +120,7 @@ final class WindowDragObserver {
         if CACurrentMediaTime() - lastMovementTime > Self.quietPeriod {
             if moveActivityActive {
                 Self.logger.debug("Window move activity ended")
+                NotificationCenter.default.post(name: Self.didFinishMoveNotification, object: nil)
             }
             moveActivityActive = false
             if dragStripTouches == 0 {
