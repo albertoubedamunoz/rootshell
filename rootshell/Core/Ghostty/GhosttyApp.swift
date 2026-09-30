@@ -2127,6 +2127,13 @@ extension Ghostty {
             surfaceDelegates[Int(bitPattern: surface)]?.delegate as? TerminalView
         }
 
+        /// The `TerminalView` behind a surface's userdata, or nil for any other
+        /// owner. Preview surfaces (`TmuxPreviewView`) render untrusted captured
+        /// output, so clipboard and tmux callbacks must never act for them.
+        nonisolated static func terminalView(fromSurfaceUserdata userdata: UnsafeMutableRawPointer) -> TerminalView? {
+            Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue() as? TerminalView
+        }
+
         // MARK: - Runtime Callbacks
 
         /// Count wakeup calls for diagnostics (instance properties for MainActor isolation)
@@ -2512,13 +2519,13 @@ extension Ghostty {
                     // owns the per-connection TmuxController. The payload's
                     // refcounts keep the viewer pane boxes alive across this hop,
                     // so applying on the next main-actor turn is safe.
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        // Take a STRONG ref to the owner here, while the surface
-                        // (and its userdata owner) is still alive, and carry it
-                        // across the hop. The payload refcounts protect the viewer
-                        // panes but NOT this Swift owner; closing the tab/surface
-                        // before the task runs would otherwise use freed memory.
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    // Take a STRONG ref to the owner here, while the surface
+                    // (and its userdata owner) is still alive, and carry it
+                    // across the hop. The payload refcounts protect the viewer
+                    // panes but NOT this Swift owner; closing the tab/surface
+                    // before the task runs would otherwise use freed memory.
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         let delivery = TmuxReconcileDelivery(owner: owner, ops: ops, payload: payload)
                         // Creating tabs and panes is UI work: hold it for the
                         // foreground gate (releaseBackgroundHolds).
@@ -2564,8 +2571,8 @@ extension Ghostty {
                         body = ""
                     }
                     let reply = TmuxCommandReply(tag: response.tag, body: body, isError: response.is_err)
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         Task { @MainActor in
                             owner.tmuxController?.handleCommandReply(reply)
                         }
@@ -2580,8 +2587,8 @@ extension Ghostty {
                 // would only matter mid-display anyway).
                 if target.tag == GHOSTTY_TARGET_SURFACE {
                     let surface = target.target.surface
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         Task { @MainActor in
                             owner.tmuxController?.noteSessionsChanged()
                         }
@@ -2604,8 +2611,8 @@ extension Ghostty {
                         name = ""
                     }
                     let sessionId = Int(clamping: info.session_id)
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         Task { @MainActor in
                             if let controller = owner.tmuxController {
                                 controller.updateCurrentSession(id: sessionId, name: name)
@@ -2997,7 +3004,7 @@ extension Ghostty {
                 Ghostty.logger.warning("readClipboard called with nil userdata")
                 return false
             }
-            let terminalView = Unmanaged<TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+            guard let terminalView = Self.terminalView(fromSurfaceUserdata: userdata) else { return false }
             guard let surface = terminalView.surface else {
                 Ghostty.logger.warning("readClipboard: surface is nil")
                 return false
@@ -3034,8 +3041,8 @@ extension Ghostty {
             guard let userdata = userdata else { return }
             guard let string = string else { return }
 
-            let terminalView = Unmanaged<TerminalView>.fromOpaque(userdata).takeUnretainedValue()
-            guard let surface = terminalView.surface else { return }
+            guard let terminalView = Self.terminalView(fromSurfaceUserdata: userdata),
+                  let surface = terminalView.surface else { return }
 
             // Complete the request with confirmation (last parameter = true)
             ghostty_surface_complete_clipboard_request(surface, string, state, true)
@@ -3051,6 +3058,9 @@ extension Ghostty {
         ) {
             #if os(iOS) || os(visionOS)
             guard let content = content, len > 0 else { return }
+            // Preview surfaces replay captured remote output; never let it write.
+            guard let userdata,
+                  let terminalView = Self.terminalView(fromSurfaceUserdata: userdata) else { return }
 
             // Ghostty can emit multiple representations for a single copy (e.g.
             // `.mixed` emits text/plain + text/html). Route each to its proper
@@ -3091,11 +3101,6 @@ extension Ghostty {
             // hop; the property reads never happen off the main actor.
             let text = item[UTType.utf8PlainText.identifier]
             let isSelection = (location == GHOSTTY_CLIPBOARD_SELECTION)
-            let terminalView = text.flatMap { _ in
-                userdata.map {
-                    Unmanaged<TerminalView>.fromOpaque($0).takeUnretainedValue()
-                }
-            }
 
             // Background OSC 52 writes land on foreground (releaseBackgroundHolds);
             // reads are denied meanwhile, so write/read ordering holds.
