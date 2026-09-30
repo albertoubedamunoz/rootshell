@@ -3,14 +3,24 @@
 //  ChatGPTAuthCoordinator.swift
 //  rootshell
 //
-//  Drives the ChatGPT sign-in: opens the authorize URL in a Safari-backed
-//  session and pairs it with the loopback listener that catches the redirect.
+//  Drives Sign in with ChatGPT: opens the authorize URL in a Safari-backed
+//  session, catches the loopback redirect, exchanges the code, and validates
+//  the ID token and granted scopes.
 //
 
 import AuthenticationServices
 import Foundation
 import UIKit
 import os.log
+
+/// Which registration a sign-in attempt targets.
+enum ChatGPTSignInTarget: Sendable {
+    /// Registers a new client via `dynamic_agent_client`.
+    case newAccount
+    /// Reauthorizes a saved registration with its issued client ID.
+    /// `forceConsent` re-asks for ChatGPT plan permission after a decline.
+    case existing(ChatGPTRegistration, forceConsent: Bool)
+}
 
 @MainActor
 final class ChatGPTAuthCoordinator {
@@ -24,13 +34,38 @@ final class ChatGPTAuthCoordinator {
     private let anchorProvider = ChatGPTPresentationAnchorProvider()
     private var session: ASWebAuthenticationSession?
 
-    /// Runs the full flow and returns validated credentials.
-    func signIn() async throws -> ChatGPTCredentials {
+    /// Runs the full flow and returns a validated registration with a session.
+    /// The caller installs it with `ChatGPTCredentialStore.install`.
+    func signIn(_ target: ChatGPTSignInTarget) async throws -> ChatGPTRegistration {
+        let hostID = await ChatGPTCredentialStore.shared.hostID()
         let pkce = ChatGPTOAuth.generatePKCE()
-        let state = ChatGPTOAuth.generateState()
-        let authURL = ChatGPTOAuth.authorizationURL(state: state, challenge: pkce.challenge)
+        let state = ChatGPTOAuth.generateRandomToken()
+        let nonce = ChatGPTOAuth.generateRandomToken()
+
+        let mode: ChatGPTOAuth.AuthorizationMode
+        switch target {
+        case .newAccount:
+            mode = .register
+        case .existing(let registration, let forceConsent):
+            mode = .reauthorize(
+                clientID: registration.clientID,
+                idTokenHint: registration.idToken,
+                loginHint: registration.email,
+                forceConsent: forceConsent
+            )
+        }
 
         let server = ChatGPTLoopbackServer()
+        let port = try await server.start(expectedState: state)
+        let redirectURI = ChatGPTOAuth.redirectURI(port: port)
+        let authURL = ChatGPTOAuth.authorizationURL(
+            mode: mode,
+            hostID: hostID,
+            redirectURI: redirectURI,
+            state: state,
+            nonce: nonce,
+            challenge: pkce.challenge
+        )
 
         let session = ASWebAuthenticationSession(
             url: authURL,
@@ -57,18 +92,72 @@ final class ChatGPTAuthCoordinator {
             self.session = nil
         }
 
-        let code = try await server.waitForCallback(expectedState: state)
+        let callback = try await server.waitForCallback()
         session.cancel()
 
+        let clientID = try resolveClientID(target: target, callback: callback)
+
         logger.info("Received authorization code, exchanging for tokens")
-        let credentials = try await ChatGPTOAuth.exchangeCode(code, verifier: pkce.verifier)
-        logger.info("Signed in to ChatGPT (plan: \(credentials.planType ?? "unknown", privacy: .public))")
-        return credentials
+        let tokens: ChatGPTOAuth.TokenResponse
+        do {
+            tokens = try await ChatGPTOAuth.exchangeCode(
+                callback.code,
+                verifier: pkce.verifier,
+                clientID: clientID,
+                redirectURI: redirectURI
+            )
+        } catch ChatGPTAuthError.tokenEndpoint(_, let code, _) where code == "invalid_grant" {
+            // The code is spent; only a fresh authorization can recover.
+            throw ChatGPTAuthError.authorizationFailed(String(localized: "the sign-in code expired. Try again."))
+        }
+
+        guard let idToken = tokens.idToken else {
+            throw ChatGPTAuthError.invalidIDToken("missing ID token")
+        }
+        let discovery = try await ChatGPTOAuth.discovery()
+        let claims = try await ChatGPTIDToken.validate(idToken, clientID: clientID, nonce: nonce, discovery: discovery)
+
+        if case .existing(let registration, _) = target, registration.subject != claims.subject {
+            throw ChatGPTAuthError.accountMismatch
+        }
+
+        let sessionTokens = tokens.session(fallbackScopes: callback.scopes ?? [])
+        logger.info("Signed in to ChatGPT (plan usage \(sessionTokens.canUsePlan ? "granted" : "not granted", privacy: .public))")
+
+        let existing: ChatGPTRegistration?
+        if case .existing(let registration, _) = target { existing = registration } else { existing = nil }
+
+        return ChatGPTRegistration(
+            clientID: clientID,
+            issuer: claims.issuer,
+            subject: claims.subject,
+            email: claims.email ?? existing?.email,
+            label: existing?.label ?? "",
+            idToken: idToken,
+            session: sessionTokens
+        )
     }
 
     func cancel() {
         session?.cancel()
         session = nil
+    }
+
+    /// New registrations must return an issued ID; reauthorization keeps the
+    /// saved one and rejects a different one.
+    private func resolveClientID(target: ChatGPTSignInTarget, callback: ChatGPTCallback) throws -> String {
+        switch target {
+        case .newAccount:
+            guard let issued = callback.clientID, issued != ChatGPTOAuth.dynamicClientID else {
+                throw ChatGPTAuthError.registrationIncomplete
+            }
+            return issued
+        case .existing(let registration, _):
+            if let returned = callback.clientID, returned != registration.clientID {
+                throw ChatGPTAuthError.clientMismatch
+            }
+            return registration.clientID
+        }
     }
 }
 

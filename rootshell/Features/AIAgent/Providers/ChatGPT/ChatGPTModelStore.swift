@@ -3,15 +3,16 @@
 //  ChatGPTModelStore.swift
 //  rootshell
 //
-//  The ChatGPT-subscription backend serves its own model lineup, distinct from
-//  api.openai.com. Discover it rather than hardcoding SKUs that rotate.
+//  Each ChatGPT account has its own model catalog, served from
+//  api.openai.com/v1/models to its plan-usage access token. Discover it rather
+//  than hardcoding SKUs that rotate.
 //
 
 import Foundation
 import Observation
 import os.log
 
-/// A model discovered from the Codex backend, including its reasoning ladder.
+/// A model from the account's catalog, including its reasoning ladder.
 nonisolated struct CachedChatGPTModel: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let displayName: String
@@ -30,10 +31,9 @@ final class ChatGPTModelStore {
     // The ai. prefix keeps these keys inside the existing backup sweep.
     private static let cacheKey = "ai.chatgpt.models"
     private static let cacheDateKey = "ai.chatgpt.modelsRefreshDate"
-    private static let cacheVersionKey = "ai.chatgpt.modelsClientVersion"
 
-    /// Codex discovery omits `context_window` for the gpt-5.6 SKUs; OpenAI's
-    /// registry declares 372000 for those and 272000 elsewhere.
+    /// The catalog may omit `context_window`; OpenAI's registry declares
+    /// 372000 for the gpt-5.6 SKUs and 272000 elsewhere.
     private nonisolated static let defaultContextWindow = 272_000
     private nonisolated static let gpt56ContextWindow = 372_000
     private static let defaultMaxOutputTokens = 128_000
@@ -61,11 +61,8 @@ final class ChatGPTModelStore {
     private(set) var lastRefreshed: Date?
     private(set) var refreshError: String?
 
-    @ObservationIgnored
-    private var cachedClientVersion: String?
-
     /// True while the picker is showing the built-in list rather than the
-    /// backend's own lineup.
+    /// account's own catalog.
     var isUsingFallback: Bool { lastRefreshed == nil }
 
     private init() {
@@ -74,7 +71,6 @@ final class ChatGPTModelStore {
            !cached.isEmpty {
             models = cached
             lastRefreshed = UserDefaults.standard.object(forKey: Self.cacheDateKey) as? Date
-            cachedClientVersion = UserDefaults.standard.string(forKey: Self.cacheVersionKey)
         } else {
             models = Self.fallbackModels
         }
@@ -90,10 +86,10 @@ final class ChatGPTModelStore {
             AIProviderModel(
                 id: model.id,
                 displayName: model.displayName,
-                description: "ChatGPT subscription",
+                description: "ChatGPT plan",
                 tier: .standard,
                 supportsTools: true,
-                // The Codex backend rejects temperature outright.
+                // Plan usage rejects temperature outright.
                 supportsTemperature: false,
                 supportsThinking: true,
                 source: .chatGPT,
@@ -110,19 +106,14 @@ final class ChatGPTModelStore {
            !cached.isEmpty {
             models = cached
             lastRefreshed = UserDefaults.standard.object(forKey: Self.cacheDateKey) as? Date
-            cachedClientVersion = UserDefaults.standard.string(forKey: Self.cacheVersionKey)
         } else {
             models = Self.fallbackModels
             lastRefreshed = nil
-            cachedClientVersion = nil
         }
     }
 
     func refreshIfStale(maxAge: TimeInterval = 86_400) async {
-        // A recent response from an older client version can still omit new
-        // models. Keep it available offline, but fetch again after an upgrade.
-        if cachedClientVersion == ChatGPTOAuth.clientVersion,
-           let last = lastRefreshed, Date().timeIntervalSince(last) < maxAge {
+        if let last = lastRefreshed, Date().timeIntervalSince(last) < maxAge {
             return
         }
         await refresh()
@@ -130,88 +121,81 @@ final class ChatGPTModelStore {
 
     func refresh() async {
         guard !isRefreshing else { return }
-        guard ChatGPTCredentialStore.isSignedInCached else { return }
+        guard ChatGPTCredentialStore.isUsableCached else { return }
         isRefreshing = true
         refreshError = nil
         defer { isRefreshing = false }
 
         let accessToken: String
         do {
-            accessToken = try await ChatGPTCredentialStore.shared.validCredentials().accessToken
+            accessToken = try await ChatGPTCredentialStore.shared.validSession().accessToken
         } catch {
             refreshError = String(localized: "Could not load models. Check your ChatGPT sign-in and try again.")
             Self.logger.error("Cannot list ChatGPT models: \(error.localizedDescription, privacy: .public)")
             return
         }
 
-        // `/codex/models` is the current route; `/models` is the older one.
-        for path in ["/codex/models", "/models"] {
-            if let discovered = await fetchModels(path: path, accessToken: accessToken), !discovered.isEmpty {
-                models = discovered
-                lastRefreshed = Date()
-                cachedClientVersion = ChatGPTOAuth.clientVersion
-                if let encoded = try? JSONEncoder().encode(discovered) {
-                    UserDefaults.standard.set(encoded, forKey: Self.cacheKey)
-                    UserDefaults.standard.set(lastRefreshed, forKey: Self.cacheDateKey)
-                    UserDefaults.standard.set(cachedClientVersion, forKey: Self.cacheVersionKey)
-                }
-                let count = discovered.count
-                Self.logger.info("Discovered \(count) ChatGPT models from \(path, privacy: .public)")
-                return
+        if let discovered = await fetchModels(accessToken: accessToken), !discovered.isEmpty {
+            models = discovered
+            lastRefreshed = Date()
+            if let encoded = try? JSONEncoder().encode(discovered) {
+                UserDefaults.standard.set(encoded, forKey: Self.cacheKey)
+                UserDefaults.standard.set(lastRefreshed, forKey: Self.cacheDateKey)
             }
+            let count = discovered.count
+            Self.logger.info("Discovered \(count) ChatGPT models")
+            return
         }
 
         refreshError = String(localized: "Could not refresh models. The previous list is still available. Try again.")
         Self.logger.warning("ChatGPT model discovery failed; keeping the current list")
     }
 
+    /// Drops the cached catalog, e.g. when the active account changes.
+    func resetToFallback() {
+        models = Self.fallbackModels
+        lastRefreshed = nil
+        UserDefaults.standard.removeObject(forKey: Self.cacheKey)
+        UserDefaults.standard.removeObject(forKey: Self.cacheDateKey)
+    }
+
     // MARK: - Discovery
 
-    private func fetchModels(path: String, accessToken: String) async -> [CachedChatGPTModel]? {
-        guard var components = URLComponents(string: "https://chatgpt.com/backend-api" + path) else { return nil }
-        components.queryItems = [
-            URLQueryItem(name: "client_version", value: ChatGPTOAuth.clientVersion)
-        ]
-        guard let url = components.url else { return nil }
-
+    private func fetchModels(accessToken: String) async -> [CachedChatGPTModel]? {
+        let url = URL(string: ChatGPTOAuth.apiBaseURL + "/v1/models")!
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
         request.httpMethod = "GET"
-        for (header, value) in ChatGPTOAuth.requestHeaders(accessToken: accessToken, sessionID: UUID().uuidString) {
-            request.setValue(value, forHTTPHeaderField: header)
-        }
-        request.setValue("application/json", forHTTPHeaderField: "accept")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else { return nil }
             guard http.statusCode == 200 else {
                 let status = http.statusCode
-                Self.logger.warning("ChatGPT model discovery at \(path, privacy: .public) returned HTTP \(status)")
+                Self.logger.warning("ChatGPT model discovery returned HTTP \(status)")
                 return nil
             }
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
 
-            let entries = (json["models"] as? [[String: Any]]) ?? (json["data"] as? [[String: Any]]) ?? []
-            return Self.normalize(entries)
+            return Self.normalize(json["models"] as? [[String: Any]] ?? [])
         } catch {
-            Self.logger.warning("ChatGPT model discovery at \(path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            Self.logger.warning("ChatGPT model discovery failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
 
+    /// Keeps the server's ordering.
     nonisolated static func normalize(_ entries: [[String: Any]]) -> [CachedChatGPTModel] {
         var seen = Set<String>()
 
         return entries
-            .compactMap { entry -> (model: CachedChatGPTModel, priority: Int)? in
-                guard let id = (entry["slug"] as? String) ?? (entry["id"] as? String), !id.isEmpty else {
+            .compactMap { entry -> CachedChatGPTModel? in
+                guard let id = entry["slug"] as? String, !id.isEmpty else {
                     return nil
                 }
-                // The backend marks internal SKUs as hidden; don't offer them.
-                if let visibility = entry["visibility"] as? String,
-                   visibility == "hide" || visibility == "hidden" {
-                    return nil
-                }
+                // Only `visibility: "list"` entries are meant for display.
+                guard entry["visibility"] as? String == "list" else { return nil }
                 guard seen.insert(id).inserted else { return nil }
 
                 let contextWindow = entry["context_window"] as? Int
@@ -229,19 +213,14 @@ final class ChatGPTModelStore {
                 let defaultEffort = (entry["default_reasoning_level"] as? String)
                     .flatMap(ChatGPTReasoningEffort.init(rawValue:))
 
-                return (
-                    CachedChatGPTModel(
-                        id: id,
-                        displayName: (entry["display_name"] as? String) ?? id,
-                        contextWindow: contextWindow,
-                        supportedEfforts: efforts,
-                        defaultEffort: defaultEffort
-                    ),
-                    entry["priority"] as? Int ?? Int.max
+                return CachedChatGPTModel(
+                    id: id,
+                    displayName: (entry["display_name"] as? String) ?? id,
+                    contextWindow: contextWindow,
+                    supportedEfforts: efforts,
+                    defaultEffort: defaultEffort
                 )
             }
-            .sorted { $0.priority < $1.priority }
-            .map(\.model)
     }
 }
 #endif

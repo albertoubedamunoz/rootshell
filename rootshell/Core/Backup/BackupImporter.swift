@@ -502,6 +502,11 @@ enum BackupImporter {
         var errors: [String] = []
 
         for entry in backup.apiKeys {
+            // Minted under the Codex CLI client; no longer usable.
+            if entry.accountName == ChatGPTCredentialStore.legacyKeychainAccount {
+                skipped += 1
+                continue
+            }
             if credManager.hasAPIKey(for: entry.accountName) {
                 skipped += 1
                 continue

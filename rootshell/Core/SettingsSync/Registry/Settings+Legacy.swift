@@ -14,6 +14,7 @@ nonisolated extension Settings {
         /// Written by removed features; safe to delete from defaults.
         static let orphanedNames: [String] = [
             "ai.agent.displayMode",
+            "ai.chatgpt.modelsClientVersion",
             "ai.customEndpoint.apiFormat", "ai.customEndpoint.enabled", "ai.customEndpoint.models",
             "ai.customEndpoint.url", "ai.customEndpoint.useResponsesAPI", "ai.customEndpoint.useStreaming",
             "ai.tabSummaries.enabled", "ai.tabSummaries.model",
