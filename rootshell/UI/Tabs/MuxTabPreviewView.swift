@@ -68,6 +68,8 @@ final class MuxTabPreviewView: UIView {
     private static var lastCellSize: CGSize?
     /// Metal keeps a three-deep swap chain of 32-bit targets per surface.
     private static let bytesPerSurfacePixel = 4 * 3
+    /// 1 TB: over every budget, yet a million of them still sum within Int.
+    private static let maxSurfaceCost = 1 << 40
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -163,9 +165,13 @@ final class MuxTabPreviewView: UIView {
         return (grown.columns, grown.rows)
     }
 
+    /// Saturates at `maxSurfaceCost`, far above any budget, so absurd
+    /// geometry is refused by `grant` instead of trapping, and sums stay safe.
     private func surfaceCost(_ size: CGSize) -> Int {
         let scale = max(traitCollection.displayScale, 1)
-        return Int(size.width * scale) * Int(size.height * scale) * Self.bytesPerSurfacePixel
+        let bytes = Double(size.width * scale) * Double(size.height * scale) * Double(Self.bytesPerSurfacePixel)
+        guard !bytes.isNaN else { return Self.maxSurfaceCost }
+        return Int(min(max(bytes, 0), Double(Self.maxSurfaceCost)))
     }
 
     /// Refresh geometry and frames; cheap when nothing changed (per display tick).
