@@ -33,7 +33,16 @@ final class TerminalTouchKeyboardWindowState {
     private(set) lazy var keyboard: TerminalTouchKeyboardView = makeKeyboard()
     private(set) lazy var input: TerminalTouchKeyboardInputView = makeInput()
     private(set) lazy var toolbarInput = TerminalTouchKeyboardToolbarInputView(keyboard: keyboard)
-    private(set) lazy var controller = TerminalTouchKeyboardInputController(keyboardInput: input)
+    private var storedController: TerminalTouchKeyboardInputController?
+    /// Not `lazy`: UIKit can query input views re-entrantly while the controller
+    /// is built, and a lazy store would release that nested instance mid-access.
+    var controller: TerminalTouchKeyboardInputController {
+        if let storedController { return storedController }
+        let created = TerminalTouchKeyboardInputController(keyboardInput: input)
+        if let storedController { return storedController }
+        storedController = created
+        return created
+    }
 
     private init(window: UIWindow) { self.window = window }
 
