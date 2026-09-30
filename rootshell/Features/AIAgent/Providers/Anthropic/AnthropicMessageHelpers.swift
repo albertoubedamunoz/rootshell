@@ -22,6 +22,18 @@ enum AnthropicMessageHelpers {
         var result: [AnthropicMessage] = []
 
         for message in messages {
+            if message.role == .assistant, let replay = message.assistantBlocks {
+                var calls: [AIToolCall] = []
+                if case .toolCalls(let turnCalls, _, _) = message.content {
+                    calls = turnCalls
+                }
+                let blocks = replayBlocks(replay, calls: calls)
+                if !blocks.isEmpty {
+                    result.append(.assistant(blocks))
+                }
+                continue
+            }
+
             switch message.content {
             case .text(let text):
                 switch message.role {
@@ -113,6 +125,23 @@ enum AnthropicMessageHelpers {
         return result
     }
 
+    private nonisolated static func replayBlocks(_ replay: [AIAssistantBlock], calls: [AIToolCall]) -> [AnthropicContentBlock] {
+        replay.compactMap { block -> AnthropicContentBlock? in
+            switch block {
+            case .text(let text):
+                // The API rejects empty text blocks.
+                return text.isEmpty ? nil : .text(AnthropicTextBlock(text: text))
+            case .thinking(let thinking, let signature):
+                return .thinking(AnthropicThinkingBlock(thinking: thinking, signature: signature))
+            case .redactedThinking(let data):
+                return .redactedThinking(AnthropicRedactedThinkingBlock(data: data))
+            case .toolUse(let id):
+                guard let call = calls.first(where: { $0.id == id }) else { return nil }
+                return .toolUse(AnthropicToolUseBlock(id: call.id, name: call.name, input: parseJSONArguments(call.arguments)))
+            }
+        }
+    }
+
     nonisolated static func parseJSONArguments(_ jsonString: String) -> [String: AnyCodableValue] {
         guard let data = jsonString.data(using: .utf8),
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -168,7 +197,7 @@ enum AnthropicMessageHelpers {
                     thinkingText += "\n"
                 }
                 thinkingText += t
-            case .redactedThinking:
+            case .redactedThinking, .other:
                 break
             case .toolUse(let id, let name, let input):
                 if let jsonData = try? JSONSerialization.data(withJSONObject: input),
@@ -245,6 +274,11 @@ enum AnthropicMessageHelpers {
         var toolCallBuilders: [Int: ToolCallBuilder] = [:]
         var thinkingBuffers: [Int: String] = [:]
         var thinkingSignatures: [Int: String] = [:]
+        var textBuffers: [Int: String] = [:]
+        var redactedData: [Int: String] = [:]
+        var turnBlocks: [Int: AIAssistantBlock] = [:]
+        var emittedThinking = false
+        var needsThinkingSeparator = false
         var accumulatedUsage: AnthropicUsage?
 
         for try await event in events {
@@ -265,8 +299,12 @@ enum AnthropicMessageHelpers {
                 switch contentBlock.type {
                 case "thinking":
                     thinkingBuffers[index] = ""
+                    needsThinkingSeparator = emittedThinking
                 case "redacted_thinking":
                     thinkingBuffers[index] = ""
+                    redactedData[index] = contentBlock.data
+                case "text":
+                    textBuffers[index] = ""
                 case "tool_use":
                     if let id = contentBlock.id, let name = contentBlock.name {
                         toolCallBuilders[index] = ToolCallBuilder(id: id, name: name)
@@ -278,9 +316,16 @@ enum AnthropicMessageHelpers {
             case .contentBlockDelta(let index, let delta):
                 switch delta {
                 case .textDelta(let text):
+                    textBuffers[index, default: ""] += text
                     continuation.yield(.textDelta(text))
                 case .thinkingDelta(let thinking):
                     thinkingBuffers[index, default: ""] += thinking
+                    // Progress notes arrive as separate thinking blocks; keep them apart in the UI.
+                    if needsThinkingSeparator, !thinking.isEmpty {
+                        continuation.yield(.thinkingDelta("\n\n"))
+                        needsThinkingSeparator = false
+                    }
+                    emittedThinking = emittedThinking || !thinking.isEmpty
                     continuation.yield(.thinkingDelta(thinking))
                 case .signatureDelta(let signature):
                     thinkingSignatures[index, default: ""] += signature
@@ -301,13 +346,22 @@ enum AnthropicMessageHelpers {
                 if contentBlockTypes[index] == "thinking" {
                     let content = thinkingBuffers.removeValue(forKey: index) ?? ""
                     let signature = thinkingSignatures.removeValue(forKey: index)
+                    if let signature, !signature.isEmpty {
+                        turnBlocks[index] = .thinking(content, signature: signature)
+                    }
                     continuation.yield(.thinkingComplete(thinking: content, signature: signature))
                 } else if contentBlockTypes[index] == "redacted_thinking" {
                     thinkingBuffers.removeValue(forKey: index)
                     thinkingSignatures.removeValue(forKey: index)
+                    if let data = redactedData.removeValue(forKey: index) {
+                        turnBlocks[index] = .redactedThinking(data: data)
+                    }
+                } else if let text = textBuffers.removeValue(forKey: index) {
+                    turnBlocks[index] = .text(text)
                 }
                 if let builder = toolCallBuilders[index] {
                     let toolCall = builder.build()
+                    turnBlocks[index] = .toolUse(id: toolCall.id)
                     let argsPreview = String(toolCall.arguments.prefix(100))
                     logger.debug("Tool call complete: id=\(toolCall.id), name=\(toolCall.name), args=\(argsPreview)")
                     continuation.yield(.toolCallComplete(toolCall))
@@ -326,6 +380,20 @@ enum AnthropicMessageHelpers {
                         totalTokens: usage.totalTokens
                     )
                 }
+                // Exact replay only matters when there's bound thinking or a fallback boundary.
+                let needsExactReplay = turnBlocks.values.contains { block in
+                    switch block {
+                    case .thinking, .redactedThinking: return true
+                    case .text, .toolUse: return false
+                    }
+                } || contentBlockTypes.values.contains("fallback")
+                if needsExactReplay {
+                    // Some compatible servers never close their text blocks.
+                    for (index, text) in textBuffers where turnBlocks[index] == nil {
+                        turnBlocks[index] = .text(text)
+                    }
+                    continuation.yield(.assistantBlocks(orderedTurnBlocks(turnBlocks, blockTypes: contentBlockTypes)))
+                }
                 continuation.yield(.responseComplete(usage: usageStats, finishReason: finishReason))
 
             case .messageStop:
@@ -342,6 +410,21 @@ enum AnthropicMessageHelpers {
         }
 
         continuation.finish()
+    }
+
+    /// After a mid-stream refusal fallback, only text from before the last `fallback` block
+    /// goes back; the declined model's thinking and tool calls are dropped.
+    private nonisolated static func orderedTurnBlocks(
+        _ blocks: [Int: AIAssistantBlock],
+        blockTypes: [Int: String]
+    ) -> [AIAssistantBlock] {
+        let boundary = blockTypes.filter { $0.value == "fallback" }.keys.max() ?? -1
+        return blocks.keys.sorted().compactMap { index -> AIAssistantBlock? in
+            guard let block = blocks[index] else { return nil }
+            if index > boundary { return block }
+            if case .text = block { return block }
+            return nil
+        }
     }
 }
 

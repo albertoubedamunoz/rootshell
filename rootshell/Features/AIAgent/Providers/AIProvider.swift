@@ -58,6 +58,10 @@ enum AIProviderStreamEvent: Sendable {
     /// A complete tool call has been assembled
     case toolCallComplete(AIToolCall)
 
+    /// The assistant turn's blocks in order, sent before `responseComplete` by providers whose
+    /// history must be replayed verbatim
+    case assistantBlocks([AIAssistantBlock])
+
     /// The response is complete
     case responseComplete(usage: AIUsageStats?, finishReason: AIProviderResponse.FinishReason?)
 
