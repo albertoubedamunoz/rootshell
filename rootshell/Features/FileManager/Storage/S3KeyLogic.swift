@@ -48,19 +48,30 @@ nonisolated enum S3KeyLogic {
     private static let unreserved = copySourceAllowed.subtracting(CharacterSet(charactersIn: "/"))
 
     /// An object's URL on `endpoint`, addressed the way Soto's S3 middleware would:
-    /// virtual-host on AWS or when forced, unless the bucket name has a dot.
+    /// virtual-host on AWS or when forced, unless the bucket name isn't a plain DNS label.
+    /// Bucket names come from the server, so both are encoded or checked before use.
     static func objectURL(endpoint: String, bucket: String, key: String, forceVirtualHost: Bool) -> URL? {
         guard var components = URLComponents(string: endpoint), let host = components.host else { return nil }
         let encodedKey = key.addingPercentEncoding(withAllowedCharacters: copySourceAllowed) ?? key
         let base = components.percentEncodedPath.hasSuffix("/") ? String(components.percentEncodedPath.dropLast()) : components.percentEncodedPath
-        if (forceVirtualHost || host.hasSuffix("amazonaws.com")) && !bucket.contains(".") {
+        if (forceVirtualHost || host.hasSuffix("amazonaws.com")) && isHostLabel(bucket) {
             // An endpoint may already name the bucket as its first label.
             if host.split(separator: ".").first != Substring(bucket) { components.host = bucket + "." + host }
             components.percentEncodedPath = base + "/" + encodedKey
         } else {
-            components.percentEncodedPath = base + "/" + bucket + "/" + encodedKey
+            guard let encodedBucket = bucket.addingPercentEncoding(withAllowedCharacters: unreserved) else { return nil }
+            components.percentEncodedPath = base + "/" + encodedBucket + "/" + encodedKey
         }
         return components.url
+    }
+
+    private static let hostLabelAllowed = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-"
+    )
+
+    private static func isHostLabel(_ name: String) -> Bool {
+        !name.isEmpty && name.count <= 63 && name.unicodeScalars.allSatisfy(hostLabelAllowed.contains)
+            && !name.hasPrefix("-") && !name.hasSuffix("-")
     }
 
     /// ETags arrive quoted from some calls and unquoted from others.
