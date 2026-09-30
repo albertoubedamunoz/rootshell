@@ -275,19 +275,23 @@ final class BedrockProvider: AIProvider {
         )
 
         // Pick thinking flavor by family. Fable 5.x, Opus 5.x, Opus 4.x, Sonnet 4.6, and
-        // Sonnet 5 use `thinking.type: "adaptive"` (Fable, Opus 5.x, Opus 4.8, and Sonnet 5
+        // Sonnet 5.x use `thinking.type: "adaptive"` (Fable, Opus 5.x, Opus 4.8, and Sonnet 5.x
         // *require* it; sending `enabled` with `budget_tokens` returns a 400). Older thinking
         // models accept the classic `enabled`+budget shape paired with the
-        // `interleaved-thinking-2025-05-14` beta. We omit the
-        // `display: "summarized"` direct-API extension here — it isn't part
-        // of the Bedrock contract.
+        // `interleaved-thinking-2025-05-14` beta. Bedrock doesn't document
+        // `display: "summarized"`, but takes `"updates"` as a beta, which returns the
+        // progress notes models that write them leave between tool calls.
         let adaptivePrefixes = ["claude-fable-5", "claude-opus-5", "claude-opus-4-", "claude-sonnet-4-6", "claude-sonnet-5"]
         let usesAdaptiveThinking = adaptivePrefixes.contains { familyID.hasPrefix($0) }
+        let updatesPrefixes = ["claude-fable-5", "claude-opus-5-5", "claude-sonnet-5-5"]
         let thinkingConfig: AnthropicThinkingConfig?
         let beta: [String]?
         if !supportsThinking {
             thinkingConfig = nil
             beta = nil
+        } else if updatesPrefixes.contains(where: { familyID.hasPrefix($0) }) {
+            thinkingConfig = .adaptiveUpdates
+            beta = ["thinking-display-updates-2026-08-18"]
         } else if usesAdaptiveThinking {
             thinkingConfig = .adaptive
             beta = nil
@@ -304,9 +308,12 @@ final class BedrockProvider: AIProvider {
             maxTokens: maxTokens,
             tools: anthropicTools.isEmpty ? nil : anthropicTools,
             temperature: temperature,
-            thinking: thinkingConfig
+            thinking: thinkingConfig,
+            outputConfig: AnthropicProvider.outputConfig(for: familyID)
         )
-        request.httpBody = try JSONEncoder().encode(body)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        request.httpBody = try encoder.encode(body)
 
         // 5. Sign last so the body's payload SHA-256 covers what we just set.
         AWSSignatureV4.sign(

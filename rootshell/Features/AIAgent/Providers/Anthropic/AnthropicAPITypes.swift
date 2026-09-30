@@ -31,6 +31,9 @@ nonisolated struct AnthropicRequest: Encodable {
     let stream: Bool?
     let temperature: Double?
     let thinking: AnthropicThinkingConfig?
+    let output_config: AnthropicOutputConfig?
+    /// `"default"` routes a refusal to a fallback model server-side (Claude API only).
+    let fallbacks: String?
 
     /// Direct Anthropic Messages API request.
     init(
@@ -41,7 +44,9 @@ nonisolated struct AnthropicRequest: Encodable {
         tools: [AnthropicTool]? = nil,
         stream: Bool = true,
         temperature: Double? = nil,
-        thinking: AnthropicThinkingConfig? = nil
+        thinking: AnthropicThinkingConfig? = nil,
+        outputConfig: AnthropicOutputConfig? = nil,
+        fallbacks: String? = nil
     ) {
         self.model = model
         self.anthropic_version = nil
@@ -53,6 +58,8 @@ nonisolated struct AnthropicRequest: Encodable {
         self.stream = stream
         self.temperature = temperature
         self.thinking = thinking
+        self.output_config = outputConfig
+        self.fallbacks = fallbacks
     }
 
     /// Bedrock-flavored request body. `model` is in the URL path and omitted here;
@@ -65,7 +72,8 @@ nonisolated struct AnthropicRequest: Encodable {
         maxTokens: Int,
         tools: [AnthropicTool]? = nil,
         temperature: Double? = nil,
-        thinking: AnthropicThinkingConfig? = nil
+        thinking: AnthropicThinkingConfig? = nil,
+        outputConfig: AnthropicOutputConfig? = nil
     ) {
         self.model = nil
         self.anthropic_version = bedrockAnthropicVersion
@@ -77,11 +85,13 @@ nonisolated struct AnthropicRequest: Encodable {
         self.stream = nil
         self.temperature = temperature
         self.thinking = thinking
+        self.output_config = outputConfig
+        self.fallbacks = nil
     }
 
     private enum CodingKeys: String, CodingKey {
         case model, anthropic_version, anthropic_beta, messages, system, max_tokens
-        case tools, stream, temperature, thinking
+        case tools, stream, temperature, thinking, output_config, fallbacks
     }
 
     func encode(to encoder: Encoder) throws {
@@ -96,7 +106,13 @@ nonisolated struct AnthropicRequest: Encodable {
         try container.encodeIfPresent(stream, forKey: .stream)
         try container.encodeIfPresent(temperature, forKey: .temperature)
         try container.encodeIfPresent(thinking, forKey: .thinking)
+        try container.encodeIfPresent(output_config, forKey: .output_config)
+        try container.encodeIfPresent(fallbacks, forKey: .fallbacks)
     }
+}
+
+nonisolated struct AnthropicOutputConfig: Encodable {
+    let effort: String
 }
 
 /// Configuration for extended thinking mode
@@ -114,6 +130,9 @@ nonisolated struct AnthropicThinkingConfig: Encodable {
     static let adaptive = AnthropicThinkingConfig(type: "adaptive", budget_tokens: nil, display: nil)
 
     static let adaptiveSummarized = AnthropicThinkingConfig(type: "adaptive", budget_tokens: nil, display: "summarized")
+
+    /// Progress notes between tool calls only; needs the `thinking-display-updates-2026-08-18` beta.
+    static let adaptiveUpdates = AnthropicThinkingConfig(type: "adaptive", budget_tokens: nil, display: "updates")
 
     static let disabled = AnthropicThinkingConfig(type: "disabled", budget_tokens: nil, display: nil)
 }
@@ -144,6 +163,7 @@ nonisolated struct AnthropicMessage: Encodable {
 nonisolated enum AnthropicContentBlock: Encodable {
     case text(AnthropicTextBlock)
     case thinking(AnthropicThinkingBlock)
+    case redactedThinking(AnthropicRedactedThinkingBlock)
     case toolUse(AnthropicToolUseBlock)
     case toolResult(AnthropicToolResultBlock)
 
@@ -153,6 +173,8 @@ nonisolated enum AnthropicContentBlock: Encodable {
         case .text(let block):
             try container.encode(block)
         case .thinking(let block):
+            try container.encode(block)
+        case .redactedThinking(let block):
             try container.encode(block)
         case .toolUse(let block):
             try container.encode(block)
@@ -184,6 +206,12 @@ nonisolated struct AnthropicThinkingBlock: Codable {
         self.thinking = thinking
         self.signature = signature
     }
+}
+
+/// Encrypted thinking, replayed exactly as received
+nonisolated struct AnthropicRedactedThinkingBlock: Encodable {
+    let type = "redacted_thinking"
+    let data: String
 }
 
 /// Tool use content block (assistant requests tool call)
@@ -297,6 +325,8 @@ nonisolated enum AnthropicResponseContent: Decodable {
     case thinking(text: String, signature: String)
     case redactedThinking(data: String)  // Encrypted thinking
     case toolUse(id: String, name: String, input: [String: Any])
+    /// Block types this client doesn't read, such as a refusal fallback's `fallback` marker
+    case other
 
     enum CodingKeys: String, CodingKey {
         case type, text, thinking, signature, id, name, input, data
@@ -323,11 +353,7 @@ nonisolated enum AnthropicResponseContent: Decodable {
             let input = try container.decode([String: AnyCodableValue].self, forKey: .input)
             self = .toolUse(id: id, name: name, input: input.mapValues { $0.value })
         default:
-            throw DecodingError.dataCorruptedError(
-                forKey: .type,
-                in: container,
-                debugDescription: "Unknown content type: \(type)"
-            )
+            self = .other
         }
     }
 }

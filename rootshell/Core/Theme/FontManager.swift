@@ -167,6 +167,9 @@ class FontManager: ObservableObject {
     /// Currently selected font size
     @Published var currentFontSize: Double {
         didSet {
+            // Imports assign directly; callers convert this to Int, which traps on huge values.
+            let safeSize = Settings.Font.size.sanitized(currentFontSize)
+            if safeSize != currentFontSize { currentFontSize = safeSize }
             guard ProtectedDataGuard.isAvailable else { return }
             saveFontSize()
             fontSizeDidChange.send(currentFontSize)
@@ -214,9 +217,8 @@ class FontManager: ObservableObject {
     private init() {
         let store = SettingsStore.shared
 
-        // A stored 0 still falls back to the default size
-        let savedSize = store.get(Settings.Font.size)
-        self.currentFontSize = savedSize > 0 ? savedSize : Settings.Font.size.defaultValue
+        // A stored 0 or out-of-range size falls back to the default
+        self.currentFontSize = Settings.Font.size.sanitized(store.get(Settings.Font.size))
 
         // Load saved font family (nil = use Ghostty default)
         self.currentFontFamily = store.get(Settings.Font.family)
@@ -348,8 +350,7 @@ class FontManager: ObservableObject {
         defer { isReloading = false }
         let store = SettingsStore.shared
         if keys.contains(Settings.Font.size.name) {
-            let savedSize = store.get(Settings.Font.size)
-            currentFontSize = savedSize > 0 ? savedSize : Settings.Font.size.defaultValue
+            currentFontSize = Settings.Font.size.sanitized(store.get(Settings.Font.size))
         }
         if keys.contains(Settings.Font.family.name) {
             currentFontFamily = store.get(Settings.Font.family)

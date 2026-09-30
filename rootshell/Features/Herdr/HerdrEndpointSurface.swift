@@ -71,8 +71,16 @@ nonisolated enum HerdrEndpointSurface {
             guard width > 0, height > 0, width * height == cells.count else {
                 throw Failure.invalid("invalid surface grid")
             }
-            return try Self(cells: cells, width: width, height: height,
-                            cursor: r.optional(Cursor.read), hyperlinks: r.array { try $0.string() }, graphics: r.bytes())
+            let grid = try Self(cells: cells, width: width, height: height,
+                                cursor: r.optional(Cursor.read), hyperlinks: r.array { try $0.string() }, graphics: r.bytes())
+            try grid.validateLinks(cells)
+            return grid
+        }
+        /// Cells index into this grid's own hyperlink table; patches reuse the base table.
+        func validateLinks(_ cells: [Cell]) throws {
+            guard cells.allSatisfy({ $0.hyperlink.map { Int($0) < hyperlinks.count } ?? true }) else {
+                throw Failure.invalid("invalid hyperlink reference")
+            }
         }
     }
 
@@ -195,6 +203,7 @@ nonisolated enum HerdrEndpointSurface {
                 guard row.y >= 0, row.y < grid.height, row.x >= 0, row.x <= grid.width, row.cells.count <= grid.width - row.x else {
                     throw Failure.invalid("patch outside surface")
                 }
+                try grid.validateLinks(row.cells)
             }
             for pane in patch.panes {
                 guard let old = panes.first(where: { $0.id == pane.id }), old.inner == pane.inner else {

@@ -202,7 +202,20 @@ extension Ghostty {
             return secureDrawProhibitedFlag.withLock { $0 }
             #endif
         }
-        set { secureDrawProhibitedFlag.withLock { $0 = newValue } }
+        set {
+            secureDrawProhibitedFlag.withLock { $0 = newValue }
+            #if !targetEnvironment(macCatalyst)
+            // Mirror into the core's frame gate so no path can submit GPU work.
+            ghostty_presentation_set_allowed(!newValue)
+            #endif
+        }
+    }
+
+    /// Seeds the core frame gate from the latch, which starts armed.
+    nonisolated static func syncCorePresentationGate() {
+        #if !targetEnvironment(macCatalyst)
+        ghostty_presentation_set_allowed(!isSecureDrawProhibitedAtomic)
+        #endif
     }
 
     private nonisolated static let secureDrawProhibitedFlag = OSAllocatedUnfairLock(initialState: true)
@@ -522,6 +535,7 @@ extension Ghostty {
             }
             self.app = app
             LaunchSignposts.end("launch.ghostty.appNew", appSP)
+            Ghostty.syncCorePresentationGate()
 
             // Register this instance for callback access
             // Use raw pointer address as key (not ObjectIdentifier which creates new wrapper each time)
@@ -619,7 +633,12 @@ extension Ghostty {
             #if targetEnvironment(macCatalyst)
             guard let app = self.app else { return }
             #else
-            guard let app = self.app, !isInBackground else { return }
+            // While processing in the background the mailbox keeps draining so
+            // parsing never parks on it; the core's frame gate blocks presentation.
+            guard let app = self.app,
+                  BackgroundExecutionPolicy.allowsTick(
+                    isPresentationRevoked: isInBackground,
+                    phase: BackgroundExecutionCoordinator.phase) else { return }
             #endif
             let signpost = TmuxPipelineSignposts.begin("app.tick")
             defer { TmuxPipelineSignposts.end("app.tick", signpost) }
@@ -2108,6 +2127,13 @@ extension Ghostty {
             surfaceDelegates[Int(bitPattern: surface)]?.delegate as? TerminalView
         }
 
+        /// The `TerminalView` behind a surface's userdata, or nil for any other
+        /// owner. Preview surfaces (`TmuxPreviewView`) render untrusted captured
+        /// output, so clipboard and tmux callbacks must never act for them.
+        nonisolated static func terminalView(fromSurfaceUserdata userdata: UnsafeMutableRawPointer) -> TerminalView? {
+            Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue() as? TerminalView
+        }
+
         // MARK: - Runtime Callbacks
 
         /// Count wakeup calls for diagnostics (instance properties for MainActor isolation)
@@ -2150,6 +2176,10 @@ extension Ghostty {
                 let now = CFAbsoluteTimeGetCurrent()
 
                 if Ghostty.isAppBackgroundedAtomic {
+                    if BackgroundExecutionCoordinator.phase.allowsBackgroundTick {
+                        await runBackgroundPump(app)
+                        return
+                    }
                     LifecycleDebugLogger.shared.bumpSuppression("gate3_appTick")
                     let coalesced = wakeupCoalescer.withLock { state -> Int in
                         let coalesced = state.coalescedDuringBurst
@@ -2222,6 +2252,13 @@ extension Ghostty {
                         // wakeups arrive after that yield, the next wakeup_cb
                         // call sees pending=false and starts a fresh chain.
                         if Ghostty.isAppBackgroundedAtomic {
+                            // Backgrounded since the tick above: the pump takes
+                            // over the held bit, or wakeups arriving while the
+                            // mailbox is full would be lost.
+                            if BackgroundExecutionCoordinator.phase.allowsBackgroundTick {
+                                await runBackgroundPump(app)
+                                return
+                            }
                             LifecycleDebugLogger.shared.bumpSuppression("gate3_appTick")
                             wakeupCoalescer.withLock { state in
                                 state.pending = false
@@ -2248,6 +2285,101 @@ extension Ghostty {
             }
         }
 
+        // MARK: - Background Holds
+
+        private nonisolated struct HeldPasteboardWrite {
+            let item: [String: String]
+            let text: String?
+            let isSelection: Bool
+            let terminalView: TerminalView?
+        }
+
+        /// Tmux reconciles that arrived while backgrounded, coalesced per gateway
+        /// (see `HeldReconcileKind`).
+        private nonisolated static let heldTmuxReconciles = OSAllocatedUnfairLock(
+            uncheckedState: BackgroundHeldQueue<Int, TmuxReconcileDelivery>())
+
+        /// Latest OSC 52 write made while backgrounded.
+        private nonisolated static let heldPasteboardWrite = OSAllocatedUnfairLock<HeldPasteboardWrite?>(
+            uncheckedState: nil)
+
+        private nonisolated static func holdTmuxReconcile(_ delivery: TmuxReconcileDelivery, ownerSurface: Int) {
+            let kind = heldReconcileKind(for: delivery.ops)
+            let superseded = heldTmuxReconciles.withLockUnchecked {
+                $0.append(delivery, owner: ownerSurface, kind: kind)
+            }
+            for stale in superseded {
+                ghostty_tmux_reconcile_free(stale.payload)
+            }
+            TmuxDebugLogger.shared.event("RECONCILE", "held kind=\(kind) superseded=\(superseded.count)")
+        }
+
+        /// A full sync carries window titles but not focus or the session
+        /// title; focus and title payloads are single-op.
+        private nonisolated static func heldReconcileKind(for ops: [TmuxReconcileOp]) -> HeldReconcileKind {
+            switch ops.first {
+            case .syncBegin?:
+                let hasWindow = ops.contains {
+                    if case .ensureWindow = $0 { return true }
+                    return false
+                }
+                return hasWindow ? .fullSync : .teardown
+            case .setFocus(let windowId, _)? where ops.count == 1:
+                return .update(key: "focus:\(windowId)", coveredByFullSync: false)
+            case .setTabTitle(let windowId, _)? where ops.count == 1:
+                return .update(key: "tabTitle:\(windowId)", coveredByFullSync: true)
+            case .setWindowTitle? where ops.count == 1:
+                return .update(key: "sessionTitle", coveredByFullSync: false)
+            default:
+                return .update(key: "unkeyed:\(UUID().uuidString)", coveredByFullSync: false)
+            }
+        }
+
+        /// Applies what was held while backgrounded, in arrival order. Called at
+        /// the foreground gate, once presentation is allowed again.
+        func releaseBackgroundHolds() {
+            let reconciles = Self.heldTmuxReconciles.withLockUnchecked { $0.drain() }
+            for entry in reconciles {
+                let delivery = entry.element
+                TmuxReconcileSerializer.shared.enqueue {
+                    delivery.owner.applyTmuxReconcile(delivery.ops)
+                    ghostty_tmux_reconcile_free(delivery.payload)
+                }
+            }
+            #if os(iOS) || os(visionOS)
+            if let write = Self.heldPasteboardWrite.withLockUnchecked({ held in
+                defer { held = nil }
+                return held
+            }) {
+                Self.applyPasteboardItem(write.item)
+                Self.recordClipboardHistory(
+                    text: write.text,
+                    isSelection: write.isSelection,
+                    terminalView: write.terminalView)
+            }
+            #endif
+        }
+
+        /// Background mailbox pump. Holds the wakeup bit across a short delay so
+        /// a burst becomes one tick, and repeats while wakeups keep arriving.
+        private static func runBackgroundPump(_ app: App) async {
+            while true {
+                try? await Task.sleep(for: BackgroundExecutionPolicy.backgroundTickInterval)
+                app.appTick()
+                let again = wakeupCoalescer.withLock { state -> Bool in
+                    let coalesced = state.coalescedDuringBurst
+                    state.coalescedDuringBurst = 0
+                    guard coalesced > 0, Ghostty.isAppBackgroundedAtomic,
+                          BackgroundExecutionCoordinator.phase.allowsBackgroundTick else {
+                        state.pending = false
+                        return false
+                    }
+                    return true
+                }
+                guard again else { return }
+            }
+        }
+
         private static func scheduleDeferredResumeTick(for app: App) {
             let shouldSchedule = deferredResumeTickPending.withLock { pending -> Bool in
                 guard !pending else { return false }
@@ -2259,8 +2391,14 @@ extension Ghostty {
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(180))
                 deferredResumeTickPending.withLock { $0 = false }
-                guard !Ghostty.isAppBackgroundedAtomic else {
-                    LifecycleDebugLogger.shared.bumpSuppression("gate3_appTick")
+                if Ghostty.isAppBackgroundedAtomic {
+                    // This tick may own the only pending drain; producers
+                    // blocked on a full mailbox wake the pump once it runs.
+                    if BackgroundExecutionCoordinator.phase.allowsBackgroundTick {
+                        app.appTick()
+                    } else {
+                        LifecycleDebugLogger.shared.bumpSuppression("gate3_appTick")
+                    }
                     return
                 }
                 if BisectFlags.gate3_appTick && Ghostty.isInResumeQuietWindowAtomic {
@@ -2296,8 +2434,14 @@ extension Ghostty {
             //   - DESKTOP_NOTIFICATION: user-visible alert; must fire while
             //     backgrounded so notifications go through.
             //   - MOUSE_OVER_LINK: synchronous call, no Task spawned.
-            //   - OPEN_URL: rare and user-initiated.
+            //   - OPEN_URL: dropped while backgrounded (nothing user-initiated).
+            //
+            // While processing in the background, ticks keep running: title,
+            // pwd, progress and command state flow to handlers that cache
+            // without publishing, and tmux topology is held until foreground.
             let isBackgrounded = Ghostty.isAppBackgroundedAtomic
+            let isBackgroundProcessing = isBackgrounded
+                && BackgroundExecutionCoordinator.phase.allowsBackgroundTick
 
             // Handle specific actions
             switch action.tag {
@@ -2313,7 +2457,7 @@ extension Ghostty {
                 return true
 
             case GHOSTTY_ACTION_SET_TITLE:
-                if isBackgrounded { return true }
+                if isBackgrounded && !isBackgroundProcessing { return true }
                 let titleAction = action.action.set_title
 
                 // Route to the appropriate surface delegate
@@ -2323,6 +2467,15 @@ extension Ghostty {
 
                     guard let titleCStr = titleAction.title else { return true }
                     guard let title = String(cString: titleCStr, encoding: .utf8) else { return true }
+
+                    // Background tick on main: deliver inline so a title flood
+                    // never becomes a queue of tasks. The handler caches only.
+                    if isBackgroundProcessing && Thread.isMainThread {
+                        MainActor.assumeIsolated {
+                            appInstance.surfaceDelegates[surfaceId]?.delegate?.handleTitleChange(title)
+                        }
+                        return true
+                    }
 
                     Task { @MainActor in
                         if let delegate = appInstance.surfaceDelegates[surfaceId]?.delegate {
@@ -2366,14 +2519,20 @@ extension Ghostty {
                     // owns the per-connection TmuxController. The payload's
                     // refcounts keep the viewer pane boxes alive across this hop,
                     // so applying on the next main-actor turn is safe.
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        // Take a STRONG ref to the owner here, while the surface
-                        // (and its userdata owner) is still alive, and carry it
-                        // across the hop. The payload refcounts protect the viewer
-                        // panes but NOT this Swift owner; closing the tab/surface
-                        // before the task runs would otherwise use freed memory.
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    // Take a STRONG ref to the owner here, while the surface
+                    // (and its userdata owner) is still alive, and carry it
+                    // across the hop. The payload refcounts protect the viewer
+                    // panes but NOT this Swift owner; closing the tab/surface
+                    // before the task runs would otherwise use freed memory.
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         let delivery = TmuxReconcileDelivery(owner: owner, ops: ops, payload: payload)
+                        // Creating tabs and panes is UI work: hold it for the
+                        // foreground gate (releaseBackgroundHolds).
+                        if isBackgrounded {
+                            holdTmuxReconcile(delivery, ownerSurface: Int(bitPattern: surface))
+                            return true
+                        }
                         // Serialize the apply in ARRIVAL order. The action callback
                         // is off the main actor and a bare per-batch Task has no
                         // cross-task ordering guarantee, so a stale full-topology
@@ -2412,8 +2571,8 @@ extension Ghostty {
                         body = ""
                     }
                     let reply = TmuxCommandReply(tag: response.tag, body: body, isError: response.is_err)
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         Task { @MainActor in
                             owner.tmuxController?.handleCommandReply(reply)
                         }
@@ -2428,8 +2587,8 @@ extension Ghostty {
                 // would only matter mid-display anyway).
                 if target.tag == GHOSTTY_TARGET_SURFACE {
                     let surface = target.target.surface
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         Task { @MainActor in
                             owner.tmuxController?.noteSessionsChanged()
                         }
@@ -2452,8 +2611,8 @@ extension Ghostty {
                         name = ""
                     }
                     let sessionId = Int(clamping: info.session_id)
-                    if let userdata = ghostty_surface_userdata(surface) {
-                        let owner = Unmanaged<Ghostty.TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+                    if let userdata = ghostty_surface_userdata(surface),
+                       let owner = Self.terminalView(fromSurfaceUserdata: userdata) {
                         Task { @MainActor in
                             if let controller = owner.tmuxController {
                                 controller.updateCurrentSession(id: sessionId, name: name)
@@ -2470,7 +2629,8 @@ extension Ghostty {
                 return true
 
             case GHOSTTY_ACTION_PWD:
-                if isBackgrounded { return true }
+                // handlePwdChange caches while backgrounded; foreground replays it.
+                if isBackgrounded && !isBackgroundProcessing { return true }
                 let pwdAction = action.action.pwd
 
                 // Route to the appropriate surface delegate
@@ -2670,7 +2830,8 @@ extension Ghostty {
                 return true
 
             case GHOSTTY_ACTION_PROGRESS_REPORT:
-                if isBackgrounded { return true }
+                // handleProgressReport caches while backgrounded; foreground replays it.
+                if isBackgrounded && !isBackgroundProcessing { return true }
                 let progressReportAction = action.action.progress_report
 
                 // Route to the appropriate surface delegate
@@ -2810,6 +2971,7 @@ extension Ghostty {
                 return true
 
             case GHOSTTY_ACTION_OPEN_URL:
+                if isBackgrounded { return true }
                 let openUrl = action.action.open_url
                 guard let urlPtr = openUrl.url, openUrl.len > 0 else { return true }
                 let buf = UnsafeRawBufferPointer(start: urlPtr, count: Int(openUrl.len))
@@ -2833,13 +2995,16 @@ extension Ghostty {
             state: UnsafeMutableRawPointer?
         ) -> Bool {
             #if os(iOS) || os(visionOS)
+            // Only an OSC 52 read can arrive while backgrounded; never hand it
+            // the user's pasteboard.
+            if Ghostty.isAppBackgroundedAtomic { return false }
             // Extract TerminalView from userdata (same pattern as macOS SurfaceView)
             // For clipboard operations, Ghostty passes the surface's userdata, not the app's
             guard let userdata = userdata else {
                 Ghostty.logger.warning("readClipboard called with nil userdata")
                 return false
             }
-            let terminalView = Unmanaged<TerminalView>.fromOpaque(userdata).takeUnretainedValue()
+            guard let terminalView = Self.terminalView(fromSurfaceUserdata: userdata) else { return false }
             guard let surface = terminalView.surface else {
                 Ghostty.logger.warning("readClipboard: surface is nil")
                 return false
@@ -2876,8 +3041,8 @@ extension Ghostty {
             guard let userdata = userdata else { return }
             guard let string = string else { return }
 
-            let terminalView = Unmanaged<TerminalView>.fromOpaque(userdata).takeUnretainedValue()
-            guard let surface = terminalView.surface else { return }
+            guard let terminalView = Self.terminalView(fromSurfaceUserdata: userdata),
+                  let surface = terminalView.surface else { return }
 
             // Complete the request with confirmation (last parameter = true)
             ghostty_surface_complete_clipboard_request(surface, string, state, true)
@@ -2893,6 +3058,9 @@ extension Ghostty {
         ) {
             #if os(iOS) || os(visionOS)
             guard let content = content, len > 0 else { return }
+            // Preview surfaces replay captured remote output; never let it write.
+            guard let userdata,
+                  let terminalView = Self.terminalView(fromSurfaceUserdata: userdata) else { return }
 
             // Ghostty can emit multiple representations for a single copy (e.g.
             // `.mixed` emits text/plain + text/html). Route each to its proper
@@ -2933,10 +3101,14 @@ extension Ghostty {
             // hop; the property reads never happen off the main actor.
             let text = item[UTType.utf8PlainText.identifier]
             let isSelection = (location == GHOSTTY_CLIPBOARD_SELECTION)
-            let terminalView = text.flatMap { _ in
-                userdata.map {
-                    Unmanaged<TerminalView>.fromOpaque($0).takeUnretainedValue()
-                }
+
+            // Background OSC 52 writes land on foreground (releaseBackgroundHolds);
+            // reads are denied meanwhile, so write/read ordering holds.
+            if Ghostty.isAppBackgroundedAtomic {
+                let write = HeldPasteboardWrite(
+                    item: item, text: text, isSelection: isSelection, terminalView: terminalView)
+                heldPasteboardWrite.withLockUnchecked { $0 = write }
+                return
             }
 
             if Thread.isMainThread {

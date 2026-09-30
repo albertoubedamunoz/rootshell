@@ -31,7 +31,7 @@ nonisolated extension Settings {
             "ai.agent.sidebar.width", default: 400.0, group: .ai, policy: .deviceOnly,
             title: String(localized: "AI Sidebar Width", comment: "Setting title"))
         static let textSize = SettingKey(
-            "aiAgentTextSize", default: 14.0, group: .ai, configKey: "ai-agent-text-size",
+            "aiAgentTextSize", default: 14.0, group: .ai, configKey: "ai-agent-text-size", range: 10...24,
             title: String(localized: "AI Text Size", comment: "Setting title"))
         static let webSearchEnabled = SettingKey(
             "ai.webSearch.enabled", default: true, group: .ai, configKey: "ai-web-search-enabled",
@@ -70,6 +70,12 @@ nonisolated extension Settings {
         static let chatGPTModelsRefreshDate = AnySettingDefinition.opaque(
             "ai.chatgpt.modelsRefreshDate", group: .ai,
             title: String(localized: "ChatGPT Model Cache Date", comment: "Setting title"))
+        static let chatGPTNeedsReconnect = SettingKey(
+            "ai.chatgpt.needsReconnect", default: false, group: .ai, policy: .deviceOnly,
+            title: String(localized: "ChatGPT Sign-In Update Notice", comment: "Setting title"))
+        static let chatGPTPlanWelcomeShown = SettingKey(
+            "ai.chatgpt.planWelcomeShown", default: false, group: .ai, policy: .deviceOnly,
+            title: String(localized: "ChatGPT Plan Welcome Shown", comment: "Setting title"))
         static let yoloModeLegacy = SettingKey(
             "ai.yoloMode.enabled", default: false, group: .ai, policy: .deviceOnly,
             title: String(localized: "YOLO Mode (legacy)", comment: "Setting title"))
@@ -102,7 +108,8 @@ nonisolated extension Settings {
             textSize.erased, webSearchEnabled.erased, webSearchEngine.erased, commitMessageEnabled.erased,
             commitMessageModel.erased, bedrockRegion.erased, bedrockCloudAccountID.erased, openAIAuthMode.erased,
             customProviders.erased, openRouterFavorites.erased, openRouterDiscoveredModels.erased,
-            chatGPTModels.erased, chatGPTModelsRefreshDate, yoloModeLegacy.erased, fullscreenModeLegacy.erased,
+            chatGPTModels.erased, chatGPTModelsRefreshDate, chatGPTNeedsReconnect.erased,
+            chatGPTPlanWelcomeShown.erased, yoloModeLegacy.erased, fullscreenModeLegacy.erased,
             mcpServerConfig.erased, voiceConsultationMode.erased, voice.erased,
         ]
     }

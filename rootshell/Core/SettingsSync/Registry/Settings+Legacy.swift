@@ -14,6 +14,7 @@ nonisolated extension Settings {
         /// Written by removed features; safe to delete from defaults.
         static let orphanedNames: [String] = [
             "ai.agent.displayMode",
+            "ai.chatgpt.modelsClientVersion",
             "ai.customEndpoint.apiFormat", "ai.customEndpoint.enabled", "ai.customEndpoint.models",
             "ai.customEndpoint.url", "ai.customEndpoint.useResponsesAPI", "ai.customEndpoint.useStreaming",
             "ai.tabSummaries.enabled", "ai.tabSummaries.model",
@@ -33,7 +34,7 @@ nonisolated extension Settings {
         // Owned by unmerged branches; those branches should adopt these definitions on merge.
         static let externalDisplayFontSize = SettingKey(
             "externalDisplayFontSize", default: 0.0, group: .font, policy: .localByDefault,
-            configKey: "external-display-font-size",
+            configKey: "external-display-font-size", range: 0...255,
             title: String(localized: "External Display Font Size", comment: "Setting title"))
         static let topTabAgentDetailMode = SettingKey(
             "topTabAgentDetailMode", default: "off", group: .tabs, configKey: "top-tab-agent-detail-mode",

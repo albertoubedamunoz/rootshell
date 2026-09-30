@@ -163,6 +163,14 @@ final class StorageProviderTests: XCTestCase {
             S3KeyLogic.objectURL(endpoint: "https://mybucket.s3.us-west-2.amazonaws.com", bucket: "mybucket", key: "a", forceVirtualHost: true)?.absoluteString,
             "https://mybucket.s3.us-west-2.amazonaws.com/a", "an endpoint that already names the bucket isn't prefixed twice"
         )
+        XCTAssertEqual(
+            S3KeyLogic.objectURL(endpoint: "http://minio.local:9000", bucket: "bad%/..", key: "a", forceVirtualHost: false)?.absoluteString,
+            "http://minio.local:9000/bad%25%2F../a", "server-supplied bucket names are encoded as one path segment"
+        )
+        XCTAssertEqual(
+            S3KeyLogic.objectURL(endpoint: "https://nyc3.digitaloceanspaces.com", bucket: "bad%", key: "a", forceVirtualHost: true)?.absoluteString,
+            "https://nyc3.digitaloceanspaces.com/bad%25/a", "a bucket that isn't a host label falls back to path style"
+        )
     }
 
     func testGrantHeaders() {

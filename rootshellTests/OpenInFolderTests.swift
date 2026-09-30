@@ -21,6 +21,15 @@ final class InitialDirectoryCommandTests: XCTestCase {
         XCTAssertFalse(InitialDirectoryCommand.isSupportedDirectory("srv/app"))
         XCTAssertFalse(InitialDirectoryCommand.isSupportedDirectory("/a\nb"))
         XCTAssertFalse(InitialDirectoryCommand.isSupportedDirectory("/a\0b"))
+        XCTAssertFalse(InitialDirectoryCommand.isSupportedDirectory("/a\rb"))
+        // "\r\n" is a single Character in Swift.
+        XCTAssertFalse(InitialDirectoryCommand.isSupportedDirectory("/a\r\nb"))
+    }
+
+    /// Gates `tmuxStartDirectoryFlag`; a line break would split the control-mode command.
+    func testRejectsTmuxCommandInjection() {
+        let injected = "/tmp/safe\r\nrun-shell \"printf rootshell-poc\" #\r\nrest"
+        XCTAssertFalse(InitialDirectoryCommand.isSupportedDirectory(injected))
     }
 
     func testLoginShellWithoutCommand() {
@@ -89,6 +98,7 @@ final class DirectoryTargetTests: XCTestCase {
         XCTAssertEqual(DirectoryTarget.resolve("~bob/x/y", baseDirectory: nil), .userHome(user: "bob", rest: "x/y"))
         XCTAssertNil(DirectoryTarget.resolve("~bad name/x", baseDirectory: nil))
         XCTAssertNil(DirectoryTarget.resolve("/a\nb", baseDirectory: nil))
+        XCTAssertNil(DirectoryTarget.resolve("/a\r\nb", baseDirectory: nil))
     }
 
     func testShellExpressions() {
@@ -182,7 +192,7 @@ final class DirectoryListingProbeTests: XCTestCase {
     }
 
     func testScanAheadCommandFiltersUnsafeNames() {
-        let (command, nonce) = DirectoryListingProbe.scanAheadCommand(directory: "/home/kit", children: ["a", "..", "b\nc", "d e"])
+        let (command, nonce) = DirectoryListingProbe.scanAheadCommand(directory: "/home/kit", children: ["a", "..", "b\nc", "f\r\ng", "d e"])
         let script = unquoted(command)
         XCTAssertTrue(script.contains("cd '/home/kit' 2>/dev/null && for _d in 'a' 'd e'; do"))
         XCTAssertTrue(script.contains("head -n 301"))

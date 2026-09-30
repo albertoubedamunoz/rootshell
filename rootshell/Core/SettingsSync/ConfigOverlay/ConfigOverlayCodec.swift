@@ -23,8 +23,8 @@ nonisolated enum ConfigOverlayCodec {
         case .int(let i):
             return [String(i)]
         case .double(let d):
-            if configKey == "background-blur" { return [String(Int(d.rounded()))] }
-            return [d.rounded() == d ? String(Int(d)) : String(d)]
+            if configKey == "background-blur", let i = Int(exactly: d.rounded()) { return [String(i)] }
+            return [Int(exactly: d).map { String($0) } ?? String(d)]
         case .string(let s):
             if configKey == "macos-option-as-alt" {
                 switch s {

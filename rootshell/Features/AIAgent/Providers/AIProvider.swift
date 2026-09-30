@@ -58,6 +58,10 @@ enum AIProviderStreamEvent: Sendable {
     /// A complete tool call has been assembled
     case toolCallComplete(AIToolCall)
 
+    /// The assistant turn's blocks in order, sent before `responseComplete` by providers whose
+    /// history must be replayed verbatim
+    case assistantBlocks([AIAssistantBlock])
+
     /// The response is complete
     case responseComplete(usage: AIUsageStats?, finishReason: AIProviderResponse.FinishReason?)
 
@@ -124,6 +128,10 @@ enum AIProviderError: LocalizedError, Sendable {
     case invalidResponse(String)
     case toolCallFailed(String)
     case cancelled
+    /// The ChatGPT plan or this app's limit in ChatGPT settings was reached.
+    case chatGPTUsageLimit
+    /// Not retryable as-is; the message says what the user has to change.
+    case unavailable(String)
     case unknown(String)
 
     var errorDescription: String? {
@@ -149,6 +157,10 @@ enum AIProviderError: LocalizedError, Sendable {
             return "Tool call failed: \(message)"
         case .cancelled:
             return "Request cancelled"
+        case .chatGPTUsageLimit:
+            return "Usage limit reached. Review your plan or this app's limit in ChatGPT settings."
+        case .unavailable(let message):
+            return message
         case .unknown(let message):
             return message
         }

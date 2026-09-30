@@ -53,9 +53,7 @@ struct AIAgentSettingsView: View {
                     modelCount: credentialsManager.openAIAuthMode == .chatgptSignIn
                         ? ChatGPTModelStore.shared.models.count
                         : AIProviderModel.openAIModels.count,
-                    imageName: credentialsManager.openAIAuthMode == .chatgptSignIn
-                        ? "CodexLogo"
-                        : "OpenAILogo"
+                    imageName: "OpenAILogo"
                 )
             }
             .themedRow()

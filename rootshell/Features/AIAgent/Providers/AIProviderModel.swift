@@ -32,7 +32,7 @@ struct AIProviderModel: Identifiable, Codable, Sendable, Hashable {
     /// Where the model configuration came from
     enum ModelSource: String, Codable, Sendable {
         case openAI         // Built-in OpenAI models
-        case chatGPT        // ChatGPT subscription models (discovered from the Codex backend)
+        case chatGPT        // ChatGPT plan models (from the signed-in account's catalog)
         case anthropic      // Built-in Anthropic models
         case bedrock        // Anthropic models served via AWS Bedrock
         case google         // Built-in Google Gemini models
@@ -244,17 +244,17 @@ extension AIProviderModel {
             contextWindowTokens: 1_000_000
         ),
 
-        // Standard tier - Claude Sonnet 5 with adaptive thinking
+        // Standard tier - Claude Sonnet 5.5 with adaptive thinking
         .init(
-            id: "claude-sonnet-5",
-            displayName: "Claude Sonnet 5",
+            id: "claude-sonnet-5-5",
+            displayName: "Claude Sonnet 5.5",
             description: "Near-Opus quality, fast & capable, adaptive thinking",
             tier: .standard,
             supportsTools: true,
             supportsTemperature: true,
             supportsThinking: true,
             source: .anthropic,
-            maxCompletionTokens: nil,
+            maxCompletionTokens: 64_000,
             contextWindowTokens: 1_000_000
         ),
 
@@ -274,7 +274,7 @@ extension AIProviderModel {
     ]
 
     /// Default Anthropic model ID
-    static let defaultAnthropicModelID = "claude-sonnet-5"
+    static let defaultAnthropicModelID = "claude-sonnet-5-5"
 
     /// Get Anthropic model by ID
     static func anthropicModel(id: String) -> AIProviderModel? {
@@ -322,15 +322,15 @@ extension AIProviderModel {
             contextWindowTokens: 1_000_000
         ),
         .init(
-            id: "bedrock-claude-sonnet-5",
-            displayName: "Claude Sonnet 5 (Bedrock)",
+            id: "bedrock-claude-sonnet-5-5",
+            displayName: "Claude Sonnet 5.5 (Bedrock)",
             description: "Near-Opus quality, fast & capable, adaptive thinking",
             tier: .standard,
             supportsTools: true,
             supportsTemperature: true,
             supportsThinking: true,
             source: .bedrock,
-            maxCompletionTokens: nil,
+            maxCompletionTokens: 64_000,
             contextWindowTokens: 1_000_000
         ),
         .init(
@@ -348,7 +348,7 @@ extension AIProviderModel {
     ]
 
     /// Default Bedrock model when the user first configures the provider.
-    static let defaultBedrockModelID = "bedrock-claude-sonnet-5"
+    static let defaultBedrockModelID = "bedrock-claude-sonnet-5-5"
 
     /// Get a Bedrock model entry by internal ID.
     static func bedrockModel(id: String) -> AIProviderModel? {

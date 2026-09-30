@@ -48,12 +48,12 @@ nonisolated enum OpenSSHContainer {
         let data = Data(buffer.readableBytesView)
         let base64 = data.base64EncodedString()
 
+        // Single pass over the ASCII bytes; slicing the String per line is quadratic.
+        let base64Bytes = Array(base64.utf8)
         var pemLines = ["-----BEGIN OPENSSH PRIVATE KEY-----"]
-        var remaining = base64
-        while !remaining.isEmpty {
-            let lineLength = min(70, remaining.count)
-            pemLines.append(String(remaining.prefix(lineLength)))
-            remaining = String(remaining.dropFirst(lineLength))
+        for start in stride(from: 0, to: base64Bytes.count, by: 70) {
+            let end = min(start + 70, base64Bytes.count)
+            pemLines.append(String(decoding: base64Bytes[start..<end], as: UTF8.self))
         }
         pemLines.append("-----END OPENSSH PRIVATE KEY-----")
         return pemLines.joined(separator: "\n")

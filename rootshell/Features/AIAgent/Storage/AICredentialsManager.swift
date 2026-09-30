@@ -72,7 +72,7 @@ extension Notification.Name {
 }
 
 /// How the OpenAI slot authenticates: metered API key against api.openai.com,
-/// or a ChatGPT subscription via Codex OAuth. The modes are exclusive; flipping
+/// or ChatGPT plan usage via Sign in with ChatGPT. The modes are exclusive; flipping
 /// swaps both the model lineup and the provider implementation.
 enum OpenAIAuthMode: String, Codable, CaseIterable, Sendable {
     case apiKey
@@ -127,10 +127,12 @@ final class AICredentialsManager {
         "gpt-5.6-luna": "gpt-6-luna",
         "claude-opus-4-8": "claude-opus-5-5",
         "claude-opus-5": "claude-opus-5-5",
-        "claude-sonnet-4-6": "claude-sonnet-5",
+        "claude-sonnet-4-6": "claude-sonnet-5-5",
+        "claude-sonnet-5": "claude-sonnet-5-5",
         "bedrock-claude-opus-4-8": "bedrock-claude-opus-5-5",
         "bedrock-claude-opus-5": "bedrock-claude-opus-5-5",
-        "bedrock-claude-sonnet-4-6": "bedrock-claude-sonnet-5",
+        "bedrock-claude-sonnet-4-6": "bedrock-claude-sonnet-5-5",
+        "bedrock-claude-sonnet-5": "bedrock-claude-sonnet-5-5",
     ]
 
     // Keychain accounts
@@ -207,7 +209,7 @@ final class AICredentialsManager {
     /// Which auth path the OpenAI slot uses.
     private var _openAIAuthMode: OpenAIAuthMode = .apiKey
 
-    /// Cached mirror of `ChatGPTCredentialStore.isSignedInCached` so SwiftUI
+    /// Cached mirror of `ChatGPTCredentialStore.isUsableCached` so SwiftUI
     /// observation fires on sign-in/out.
     private var _isChatGPTSignedIn: Bool = false
 
@@ -309,6 +311,9 @@ final class AICredentialsManager {
         _openAIAuthMode = UserDefaults.standard.string(forKey: openAIAuthModeKey)
             .flatMap(OpenAIAuthMode.init(rawValue:)) ?? .apiKey
         Task { [weak self] in
+            if await ChatGPTCredentialStore.shared.migrateLegacyCredential() {
+                ChatGPTModelStore.shared.reloadFromDefaults()
+            }
             let signedIn = await ChatGPTCredentialStore.shared.refreshCachedState()
             self?._isChatGPTSignedIn = signedIn
             if signedIn {
@@ -416,6 +421,9 @@ final class AICredentialsManager {
             .flatMap(OpenAIAuthMode.init(rawValue:)) ?? .apiKey
         ChatGPTModelStore.shared.reloadFromDefaults()
         Task { [weak self] in
+            if await ChatGPTCredentialStore.shared.migrateLegacyCredential() {
+                ChatGPTModelStore.shared.reloadFromDefaults()
+            }
             let signedIn = await ChatGPTCredentialStore.shared.refreshCachedState()
             self?._isChatGPTSignedIn = signedIn
         }
@@ -978,7 +986,7 @@ final class AICredentialsManager {
         }
     }
 
-    /// Whether a ChatGPT subscription credential is stored.
+    /// Whether the active ChatGPT account is signed in with plan usage granted.
     var hasChatGPTSignIn: Bool {
         _isChatGPTSignedIn
     }

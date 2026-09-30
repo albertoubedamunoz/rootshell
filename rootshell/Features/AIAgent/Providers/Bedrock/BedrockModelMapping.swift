@@ -41,8 +41,8 @@ enum BedrockModelMapping {
             foundationID: "anthropic.claude-opus-5-5",
             geographies: ["us", "eu", "au", "jp", "global"]
         ),
-        "bedrock-claude-sonnet-5": ModelDefinition(
-            foundationID: "anthropic.claude-sonnet-5",
+        "bedrock-claude-sonnet-5-5": ModelDefinition(
+            foundationID: "anthropic.claude-sonnet-5-5",
             geographies: ["us", "eu", "au", "global"]
         ),
         "bedrock-claude-haiku-4-5": ModelDefinition(
@@ -69,7 +69,7 @@ enum BedrockModelMapping {
         switch internalID {
         case "bedrock-claude-fable-5-1": return "claude-fable-5-1"
         case "bedrock-claude-opus-5-5":  return "claude-opus-5-5"
-        case "bedrock-claude-sonnet-5":  return "claude-sonnet-5"
+        case "bedrock-claude-sonnet-5-5": return "claude-sonnet-5-5"
         case "bedrock-claude-haiku-4-5": return "claude-haiku-4-5-20251001"
         default: return nil
         }

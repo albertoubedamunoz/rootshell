@@ -64,7 +64,7 @@ nonisolated extension Settings {
             title: String(localized: "Tab Exposé Captions", comment: "Setting title"))
         /// Preview thumbnail scale set by pinching in the exposé; 1 = auto-fit.
         static let exposeZoom = SettingKey(
-            "tabExposeZoom", default: 1.0, group: .tabs, policy: .localByDefault, configKey: "tab-expose-zoom",
+            "tabExposeZoom", default: 1.0, group: .tabs, policy: .localByDefault, configKey: "tab-expose-zoom", range: 0.1...10,
             title: String(localized: "Tab Exposé Preview Size", comment: "Setting title"))
         /// Live thumbnail while the pointer rests on a tab (top bar or sidebar).
         static let hoverPreviews = SettingKey(
@@ -78,7 +78,7 @@ nonisolated extension Settings {
         /// Pinch-set hover preview scale; 1 = the default size.
         static let hoverPreviewZoom = SettingKey(
             "tabHoverPreviewZoom", default: 1.0, group: .tabs, policy: .localByDefault,
-            configKey: "tab-hover-preview-zoom",
+            configKey: "tab-hover-preview-zoom", range: 0.1...10,
             title: String(localized: "Tab Hover Preview Size", comment: "Setting title"))
         /// Open in Folder history, a JSON blob of folders per target.
         static let openInFolderRecents = SettingKey<Data?>(
@@ -103,7 +103,7 @@ nonisolated extension Settings {
             "tabSidebarAutoHideOnSelect", default: false, group: .sidebar, configKey: "tab-sidebar-auto-hide-on-select",
             title: String(localized: "Auto-Hide Sidebar After Selection", comment: "Setting title"))
         static let rowLines = SettingKey(
-            "tabSidebarRowLines", default: 1, group: .sidebar, configKey: "tab-sidebar-row-lines",
+            "tabSidebarRowLines", default: 1, group: .sidebar, configKey: "tab-sidebar-row-lines", range: 1...10,
             title: String(localized: "Sidebar Title Lines", comment: "Setting title"))
         static let largeControls = SettingKey(
             "tabSidebarLargeControls", default: SettingsPlatform.isPhone, group: .sidebar, policy: .localByDefault,
@@ -213,14 +213,14 @@ nonisolated extension Settings {
             title: String(localized: "Refresh Rate on Battery", comment: "Setting title"))
         static let alwaysOnDisplayMinutes = SettingKey(
             "alwaysOnDisplayMinutes", default: 0, group: .power, policy: .localByDefault,
-            configKey: "always-on-display-minutes",
+            configKey: "always-on-display-minutes", range: 0...31,
             title: String(localized: "Always On Display", comment: "Setting title"))
         static let alwaysOnDisplayEnabledLegacy = SettingKey(
             "alwaysOnDisplayEnabled", default: false, group: .power, policy: .deviceOnly,
             title: String(localized: "Always On Display (legacy)", comment: "Setting title"))
         static let brightnessGain = SettingKey(
             "brightnessGain", default: 1.0, group: .power, policy: .localByDefault,
-            configKey: "brightness-gain",
+            configKey: "brightness-gain", range: 1...16,
             title: String(localized: "Brightness Boost", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [

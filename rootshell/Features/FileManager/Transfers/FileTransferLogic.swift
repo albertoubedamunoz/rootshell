@@ -18,6 +18,24 @@ nonisolated enum TransferConflictResolution: String, CaseIterable, Sendable {
 }
 
 nonisolated enum FileTransferLogic {
+    /// Whether a listed name stays in its folder when joined. A slash or NUL can't
+    /// appear in one on disk; only a hostile server sends it, to steer a copy elsewhere.
+    static func isSingleComponent(_ name: String) -> Bool {
+        !name.isEmpty && name != "." && name != ".." && !name.contains("/") && !name.contains("\0")
+    }
+
+    /// A listed name that would place a copy outside its folder.
+    struct UnsafeName: LocalizedError {
+        let name: String
+
+        var errorDescription: String? {
+            String(
+                localized: "“\(name)” wasn't copied because its name isn't a valid file name.",
+                comment: "File transfer error; argument is a file name sent by the server"
+            )
+        }
+    }
+
     /// POSIX join that tolerates trailing and leading slashes.
     static func join(_ base: String, _ component: String) -> String {
         if component.isEmpty { return base }

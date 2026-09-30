@@ -228,6 +228,11 @@ final class TrzszGoTransport: NSObject {
             state = (lines: 0, bytes: 0)
             return taken
         }
+        // Foreground recovery: the reset below is queued ahead of any held
+        // bytes, so the next background period may write through again.
+        if !Ghostty.isAppBackgroundedAtomic {
+            backgroundLossLatched.withLock { $0 = false }
+        }
         guard lines > 0 || bytes > 0 else { return }
         delegate?.transport(self, didDiscardOutputLines: lines, bytes: bytes)
     }
@@ -302,6 +307,7 @@ final class TrzszGoTransport: NSObject {
     nonisolated func handleDiscardFromGoCallback(inputBytes: Int, outputLines: Int, outputBytes: Int) {
         guard outputLines > 0 || outputBytes > 0 else { return }
         if Ghostty.isAppBackgroundedAtomic {
+            backgroundLossLatched.withLock { $0 = true }
             accumulatePendingDiscard(lines: outputLines, bytes: outputBytes)
             return
         }
@@ -312,6 +318,7 @@ final class TrzszGoTransport: NSObject {
             // deferGoCallbackEvent). Fold any pending counts into an immediate
             // delivery so one lossy episode never splits across two resets.
             if Ghostty.isAppBackgroundedAtomic {
+                self.backgroundLossLatched.withLock { $0 = true }
                 self.accumulatePendingDiscard(lines: outputLines, bytes: outputBytes)
                 return
             }
@@ -337,10 +344,46 @@ final class TrzszGoTransport: NSObject {
         }
     }
 
+    /// Set by interactive sessions; other transports keep buffering.
+    private nonisolated let backgroundWriteThroughAllowed = OSAllocatedUnfairLock(initialState: false)
+
+    /// tsshd reported lost output while backgrounded. The stream buffers from
+    /// then until foreground, so a tmux -CC gateway's reset is queued before
+    /// any bytes after the gap are parsed.
+    private nonisolated let backgroundLossLatched = OSAllocatedUnfairLock(initialState: false)
+
+    nonisolated func setBackgroundWriteThrough(_ allowed: Bool) {
+        backgroundWriteThroughAllowed.withLock { $0 = allowed }
+    }
+
+    /// Headless transports (tunnels, SFTP, VNC) have no terminal reading their
+    /// output, so holding it for the foreground is pointless.
+    private nonisolated let isHeadless = OSAllocatedUnfairLock(initialState: false)
+
+    nonisolated func markHeadless() {
+        isHeadless.withLock { $0 = true }
+    }
+
+    /// Background output goes straight to the terminal only while the app is
+    /// processing in the background; otherwise it waits in the bounded buffer.
+    private nonisolated func writesThroughWhileBackgrounded() -> Bool {
+        if isHeadless.withLock({ $0 }) { return true }
+        return BackgroundExecutionPolicy.trzszOutputRoute(
+            isPresentationRevoked: true,
+            phase: BackgroundExecutionCoordinator.phase,
+            writeThroughAllowed: backgroundWriteThroughAllowed.withLock { $0 },
+            hasBackgroundLoss: backgroundLossLatched.withLock { $0 }
+        ) == .writeThrough
+    }
+
     nonisolated func emitOutputFromGoCallback(_ data: Data) {
         markRemoteActivityObserved()
 
-        if Ghostty.isAppBackgroundedAtomic {
+        let isBackgrounded = Ghostty.isAppBackgroundedAtomic
+        if !isBackgrounded {
+            backgroundLossLatched.withLock { $0 = false }
+        }
+        if isBackgrounded && !writesThroughWhileBackgrounded() {
             let dropped = backgroundedOutputBuffer.append(data)
             if dropped > 0 {
                 Self.logger.warning("tssh output buffer dropped \(dropped) oldest bytes while backgrounded")
@@ -371,6 +414,8 @@ final class TrzszGoTransport: NSObject {
                 accumulatePendingDiscard(lines: 0, bytes: dropped)
             }
             lifecycleEmitWasBuffered.withLock { $0 = true }
+            // Backgrounded write-through: the resume drain delivers the reset first.
+            guard !isBackgrounded else { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.deliverPendingDiscardIfAny()

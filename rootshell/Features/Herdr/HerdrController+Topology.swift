@@ -37,10 +37,11 @@ extension HerdrController {
         let livePaneIds = Set(snapshot.panes.map(\.pane_id))
         let liveTerminalIds = Set(snapshot.panes.map(\.terminal_id))
         for pane in snapshot.panes {
-            let current = mode == .legacy ? endpointMetadata?.panes.first(where: { $0.matches(pane) }) : nil
+            let current = mode == .legacy ? endpointMetadata?.pane(matching: pane) : nil
             ensurePane(current?.updatingDirectories(in: pane) ?? pane)
         }
         prune(tabIds: Set(snapshot.tabs.map(\.tab_id)), paneIds: livePaneIds, terminalIds: liveTerminalIds)
+        dropOrphanLayouts()
         for layout in snapshot.layouts {
             // Generic snapshots use the server TUI's area. Preserve a raw
             // layout for the same pane set so a topology refresh cannot
@@ -56,7 +57,7 @@ extension HerdrController {
                 applyLayout(controlled)
             } else {
                 // A protocol 2 snapshot layout is the tab's real geometry.
-                if mode == .raw, layout.carriesRealGeometry { controlLayouts[layout.tab_id] = layout }
+                if mode == .raw, layout.carriesRealGeometry { retainLayout(layout, in: &controlLayouts) }
                 applyGeometryController(layout.geometry_controller, tabId: layout.tab_id, carried: layout.carriesRealGeometry)
                 applyLayout(layout)
             }
@@ -511,9 +512,27 @@ extension HerdrController {
         tab.splitTree = tree
     }
 
+    /// Layouts can precede their tab's creation. Cap how many are held for
+    /// tabs that do not exist, so a peer cannot grow the caches unbounded.
+    func retainLayout(_ layout: HerdrControl.LayoutSnapshot,
+                      in cache: inout [String: HerdrControl.LayoutSnapshot]) {
+        if tabs[layout.tab_id] == nil, cache[layout.tab_id] == nil {
+            let orphans = cache.keys.filter { tabs[$0] == nil }
+            if orphans.count >= Self.maxOrphanLayouts, let evicted = orphans.first {
+                cache.removeValue(forKey: evicted)
+            }
+        }
+        cache[layout.tab_id] = layout
+    }
+
+    func dropOrphanLayouts() {
+        lastLayouts = lastLayouts.filter { tabs[$0.key] != nil }
+        controlLayouts = controlLayouts.filter { tabs[$0.key] != nil }
+    }
+
     func applyLayout(_ layout: HerdrControl.LayoutSnapshot, barrier: UInt64? = nil) {
         let previousLayout = lastLayouts[layout.tab_id]
-        lastLayouts[layout.tab_id] = layout
+        retainLayout(layout, in: &lastLayouts)
         guard let tab = tabs[layout.tab_id] else { return }
         guard let node = HerdrLayoutTree.build(layout) else { return }
         guard let builtRoot = buildSplitNode(node) else {
@@ -628,9 +647,10 @@ extension HerdrController {
                       self.managementRevision == revision, self.tabs[tabID] === tab,
                       tab.splitTree.zoomed != nil, layout.tab_id == tabID,
                       layout.workspace_id == tab.herdrWorkspaceId,
-                      Set(layout.root.paneIDs) == paneIDs,
+                      layout.root.paneIDs.count == paneIDs.count, Set(layout.root.paneIDs) == paneIDs,
                       Set(self.paneInfos.values.filter { $0.tab_id == tabID }.map(\.pane_id)) == paneIDs,
-                      let root = self.buildSplitNode(layout.root) else { return }
+                      let root = self.buildSplitNode(layout.root),
+                      Set(root.leaves().map { ObjectIdentifier($0) }).count == paneIDs.count else { return }
                 tab.splitTree = SplitTree(root: root, zoomed: tab.splitTree.zoomed)
                 self.tabsModel.syncDisplayedTab()
             } catch is CancellationError { } catch {

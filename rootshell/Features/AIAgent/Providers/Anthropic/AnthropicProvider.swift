@@ -49,7 +49,7 @@ final class AnthropicProvider: AIProvider {
     // MARK: - Initialization
 
     /// Initialize for direct Anthropic API
-    init(apiKey: String, selectedModelID: String = "claude-sonnet-5") {
+    init(apiKey: String, selectedModelID: String = "claude-sonnet-5-5") {
         self.apiKey = apiKey
         self.baseURL = Self.defaultBaseURL
         self.isCustomEndpoint = false
@@ -261,8 +261,18 @@ final class AnthropicProvider: AIProvider {
             ? ["claude-fable-5", "claude-opus-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-sonnet-5"]
             : ["claude-fable-5", "claude-opus-5", "claude-opus-4-", "claude-sonnet-4-6", "claude-sonnet-5"]
         let usesAdaptiveThinking = adaptivePrefixes.contains { selectedModelID.hasPrefix($0) }
+        // On a safety-classifier refusal the API retries on a model it picks by refusal category.
+        let fallbackPrefixes = ["claude-fable-5", "claude-opus-5", "claude-sonnet-5-5"]
+        let usesServerFallback = !isCustomEndpoint && fallbackPrefixes.contains { selectedModelID.hasPrefix($0) }
+        var betas: [String] = []
         if !usesAdaptiveThinking {
-            request.setValue("interleaved-thinking-2025-05-14", forHTTPHeaderField: "anthropic-beta")
+            betas.append("interleaved-thinking-2025-05-14")
+        }
+        if usesServerFallback {
+            betas.append("server-side-fallback-2026-07-01")
+        }
+        if !betas.isEmpty {
+            request.setValue(betas.joined(separator: ","), forHTTPHeaderField: "anthropic-beta")
         }
 
         // Check if model supports thinking
@@ -290,10 +300,14 @@ final class AnthropicProvider: AIProvider {
             tools: anthropicTools.isEmpty ? nil : anthropicTools,
             stream: stream,
             temperature: effectiveTemperature,
-            thinking: supportsThinking ? thinkingConfig(for: selectedModelID, usesAdaptive: usesAdaptiveThinking, isCustomEndpoint: isCustomEndpoint) : nil
+            thinking: supportsThinking ? thinkingConfig(for: selectedModelID, usesAdaptive: usesAdaptiveThinking, isCustomEndpoint: isCustomEndpoint) : nil,
+            outputConfig: isCustomEndpoint ? nil : Self.outputConfig(for: selectedModelID),
+            fallbacks: usesServerFallback ? "default" : nil
         )
 
         let encoder = JSONEncoder()
+        // Stable key order keeps each request's prefix byte-identical to the last.
+        encoder.outputFormatting = .sortedKeys
         request.httpBody = try encoder.encode(anthropicRequest)
 
         Self.logger.debug("Anthropic request: model=\(self.selectedModelID), stream=\(stream), messages=\(anthropicMessages.count)")
@@ -301,7 +315,13 @@ final class AnthropicProvider: AIProvider {
         return request
     }
 
-    /// Fable 5.x, Opus 5.x, Opus 4.8, and Sonnet 5 omit thinking content by default; opt in to
+    /// Sonnet 5.5's effort levels were recalibrated; Anthropic suggests `medium` for multistep
+    /// tool use. Other models keep their API default. Shared with Bedrock.
+    nonisolated static func outputConfig(for modelID: String) -> AnthropicOutputConfig? {
+        modelID.hasPrefix("claude-sonnet-5-5") ? AnthropicOutputConfig(effort: "medium") : nil
+    }
+
+    /// Fable 5.x, Opus 5.x, Opus 4.8, and Sonnet 5.x omit thinking content by default; opt in to
     /// "summarized" so the UI keeps showing reasoning progress during long thinking
     /// pauses. Only applied when talking to the real Anthropic API — custom endpoints
     /// may not support `display`.

@@ -34,6 +34,33 @@ enum PasteAttachmentDetector {
         let attachments: [PasteAttachment]
         // A failed attachment must not fall through to inserting its local path.
         let containsAttachments: Bool
+        var containsOversizedFiles = false
+    }
+
+    /// Caps dropped attachments per item and per drop, counting source bytes.
+    /// File sizes are reserved before reading, from concurrent callbacks.
+    nonisolated final class DropBudget: Sendable {
+        let fileLimit: Int
+        private let remaining: OSAllocatedUnfairLock<Int>
+
+        init(fileLimit: Int = 250 * 1024 * 1024, totalLimit: Int = 500 * 1024 * 1024) {
+            self.fileLimit = fileLimit
+            self.remaining = OSAllocatedUnfairLock(initialState: totalLimit)
+        }
+
+        func reserve(_ bytes: Int) -> Bool {
+            guard bytes <= fileLimit else { return false }
+            return remaining.withLock { remaining in
+                guard bytes <= remaining else { return false }
+                remaining -= bytes
+                return true
+            }
+        }
+
+        /// Return a reservation whose bytes did not become an attachment.
+        func release(_ bytes: Int) {
+            remaining.withLock { $0 += bytes }
+        }
     }
 
     private static let logger = Logger(
@@ -83,17 +110,22 @@ enum PasteAttachmentDetector {
     /// clipboard representation preferences. All completions run on main.
     static func loadDropped(
         from providers: [NSItemProvider],
+        budget: DropBudget = DropBudget(),
         completion: @escaping (DropResult) -> Void
     ) {
         let group = DispatchGroup()
         var attachments = Array<PasteAttachment?>(repeating: nil, count: providers.count)
         var containsAttachments = false
+        var containsOversizedFiles = false
         for (index, provider) in providers.enumerated() {
             group.enter()
-            loadDroppedAttachment(from: provider) { attachment, recognized in
+            loadDroppedAttachment(from: provider, budget: budget) { attachment, recognized, oversized in
                 attachments[index] = attachment
                 containsAttachments = containsAttachments || recognized
-                if recognized && attachment == nil {
+                containsOversizedFiles = containsOversizedFiles || oversized
+                if oversized {
+                    logger.error("Skipped dropped attachment over the size budget")
+                } else if recognized && attachment == nil {
                     let types = provider.registeredTypeIdentifiers.joined(separator: "|")
                     logger.error("Failed to decode dropped attachment with types: \(types, privacy: .public)")
                 }
@@ -103,14 +135,18 @@ enum PasteAttachmentDetector {
         group.notify(queue: .main) {
             completion(DropResult(
                 attachments: attachments.compactMap { $0 },
-                containsAttachments: containsAttachments
+                containsAttachments: containsAttachments,
+                containsOversizedFiles: containsOversizedFiles
             ))
         }
     }
 
+    /// Completion receives the attachment, whether the item was recognized as
+    /// one, and whether it was skipped for exceeding the budget.
     private static func loadDroppedAttachment(
         from provider: NSItemProvider,
-        completion: @escaping (PasteAttachment?, Bool) -> Void
+        budget: DropBudget,
+        completion: @escaping (PasteAttachment?, Bool, Bool) -> Void
     ) {
         let types = provider.registeredTypeIdentifiers.filter {
             guard let type = UTType($0) else { return false }
@@ -124,11 +160,16 @@ enum PasteAttachmentDetector {
         let urlTypes = [UTType.fileURL.identifier, finderNodeType, UTType.url.identifier]
             .filter { provider.hasItemConformingToTypeIdentifier($0) }
 
-        loadDroppedFileURL(from: provider, types: urlTypes, at: 0) { file in
+        loadDroppedFileURL(from: provider, types: urlTypes, at: 0, budget: budget) { file in
             // A known non-attachment file (including a folder) should keep its
             // path semantics even if the provider also offers a thumbnail.
             if let file, file.type == nil {
-                completion(nil, false)
+                completion(nil, false, false)
+                return
+            }
+            // Other representations of an oversized file are the same bytes.
+            if file?.oversized == true {
+                completion(nil, true, true)
                 return
             }
             let recognized = file?.type != nil || !types.isEmpty || hasImageObject
@@ -137,21 +178,29 @@ enum PasteAttachmentDetector {
             }
             prepareDroppedAttachment(content) { attachment in
                 if let attachment {
-                    completion(attachment, true)
+                    completion(attachment, true, false)
                 } else {
-                    loadDroppedRepresentations(from: provider, types: orderedTypes, at: 0) { attachment in
+                    budget.release(file?.reservedBytes ?? 0)
+                    loadDroppedRepresentations(from: provider, types: orderedTypes, at: 0, budget: budget) { attachment, oversized in
                         if let attachment {
-                            completion(attachment, true)
+                            completion(attachment, true, false)
+                        } else if oversized {
+                            completion(nil, true, true)
                         } else if hasImageObject {
                             // Do not use the paste loader here: its UIImage
                             // conversion runs on main along with paste handling.
+                            // No source bytes here, so count the encoded PNG.
                             _ = provider.loadObject(ofClass: UIImage.self) { image, _ in
-                                prepareDroppedAttachment((image as? UIImage).map(DropContent.image)) {
-                                    completion($0, recognized)
+                                prepareDroppedAttachment((image as? UIImage).map(DropContent.image)) { attachment in
+                                    if let attachment, !budget.reserve(attachment.data.count) {
+                                        completion(nil, true, true)
+                                    } else {
+                                        completion(attachment, recognized, false)
+                                    }
                                 }
                             }
                         } else {
-                            completion(nil, recognized)
+                            completion(nil, recognized, false)
                         }
                     }
                 }
@@ -162,11 +211,17 @@ enum PasteAttachmentDetector {
     private struct DroppedFile: Sendable {
         let type: UTType?
         let data: Data?
+        var oversized = false
+        var reservedBytes = 0
     }
 
     /// Read in the provider callback, before a promised temporary file expires.
     /// Callers run this on a background queue, never on the UI thread.
-    private nonisolated static func readDroppedFile(_ url: URL, hint: UTType? = nil) -> DroppedFile? {
+    private nonisolated static func readDroppedFile(
+        _ url: URL,
+        hint: UTType? = nil,
+        budget: DropBudget
+    ) -> DroppedFile? {
         guard url.isFileURL else { return nil }
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -184,10 +239,26 @@ enum PasteAttachmentDetector {
             return DroppedFile(type: nil, data: nil)
         }
         var data: Data?
+        var oversized = false
+        var reservedBytes = 0
         NSFileCoordinator().coordinate(readingItemAt: url, options: .withoutChanges, error: nil) { readableURL in
-            data = try? Data(contentsOf: readableURL)
+            // Reserve the size before reading, and never read past it in case
+            // the file grows in the meantime.
+            guard let size = try? readableURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                  let handle = try? FileHandle(forReadingFrom: readableURL) else { return }
+            defer { try? handle.close() }
+            guard budget.reserve(size) else {
+                oversized = true
+                return
+            }
+            data = try? handle.read(upToCount: size)
+            if data == nil {
+                budget.release(size)
+            } else {
+                reservedBytes = size
+            }
         }
-        return DroppedFile(type: type, data: data)
+        return DroppedFile(type: type, data: data, oversized: oversized, reservedBytes: reservedBytes)
     }
 
     private nonisolated static func droppedURL(from item: Any?) -> URL? {
@@ -204,6 +275,7 @@ enum PasteAttachmentDetector {
         from provider: NSItemProvider,
         types: [String],
         at index: Int,
+        budget: DropBudget,
         completion: @escaping (DroppedFile?) -> Void
     ) {
         guard index < types.count else {
@@ -213,12 +285,12 @@ enum PasteAttachmentDetector {
         provider.loadItem(forTypeIdentifier: types[index], options: nil) { item, _ in
             // Item-provider callbacks run off main. Read before returning so
             // temporary file representations remain available throughout I/O.
-            let file = droppedURL(from: item).flatMap { readDroppedFile($0) }
+            let file = droppedURL(from: item).flatMap { readDroppedFile($0, budget: budget) }
             DispatchQueue.main.async {
                 if let file {
                     completion(file)
                 } else {
-                    loadDroppedFileURL(from: provider, types: types, at: index + 1, completion: completion)
+                    loadDroppedFileURL(from: provider, types: types, at: index + 1, budget: budget, completion: completion)
                 }
             }
         }
@@ -228,34 +300,49 @@ enum PasteAttachmentDetector {
         from provider: NSItemProvider,
         types: [String],
         at index: Int,
-        completion: @escaping (PasteAttachment?) -> Void
+        budget: DropBudget,
+        completion: @escaping (PasteAttachment?, Bool) -> Void
     ) {
         guard index < types.count, let type = UTType(types[index]) else {
-            completion(nil)
+            completion(nil, false)
             return
         }
         // Keep the provider owned by main while conversion callbacks cross
         // queues; NSItemProvider itself is not Sendable.
         let loadNext: @MainActor @Sendable () -> Void = {
-            loadDroppedRepresentations(from: provider, types: types, at: index + 1, completion: completion)
+            loadDroppedRepresentations(from: provider, types: types, at: index + 1, budget: budget, completion: completion)
         }
         provider.loadDataRepresentation(forTypeIdentifier: types[index]) { data, _ in
+            // Provider data is already in memory; reserving before decoding
+            // still bounds what the drop retains and uploads. Later types are
+            // thumbnails, so an oversized document does not fall back to them.
+            let reserved = data?.count ?? 0
+            guard budget.reserve(reserved) else {
+                DispatchQueue.main.async { completion(nil, true) }
+                return
+            }
             prepareDroppedAttachment(.data(data, type)) { attachment in
                 if let attachment {
-                    completion(attachment)
+                    completion(attachment, false)
                     return
                 }
+                budget.release(reserved)
                 // Screenshot thumbnails and Files drags can provide a promised
                 // file instead of data. Consume it before returning the callback.
                 provider.loadFileRepresentation(forTypeIdentifier: types[index]) { url, _ in
-                    let file = url.flatMap { readDroppedFile($0, hint: type) }
+                    let file = url.flatMap { readDroppedFile($0, hint: type, budget: budget) }
+                    if file?.oversized == true {
+                        DispatchQueue.main.async { completion(nil, true) }
+                        return
+                    }
                     let content = file.flatMap { file in
                         file.type.map { DropContent.data(file.data, $0) }
                     }
                     prepareDroppedAttachment(content) { attachment in
                         if let attachment {
-                            completion(attachment)
+                            completion(attachment, false)
                         } else {
+                            budget.release(file?.reservedBytes ?? 0)
                             loadNext()
                         }
                     }

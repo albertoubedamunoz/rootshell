@@ -136,8 +136,12 @@ extension SSHAuthBannerCardProviding {
     }
 
     /// Registers a new subscriber stream; replays the current value first.
+    /// Each element is a full snapshot, so a lagging subscriber keeps only the newest.
     func states() -> AsyncStream<SSHAuthBannerCardState?> {
-        let (stream, continuation) = AsyncStream.makeStream(of: SSHAuthBannerCardState?.self)
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: SSHAuthBannerCardState?.self,
+            bufferingPolicy: .bufferingNewest(1)
+        )
         let id = UUID()
         continuation.yield(current)
         subscribers[id] = continuation

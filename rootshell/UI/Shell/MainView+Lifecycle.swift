@@ -6,39 +6,12 @@
 //  Extracted for build parallelization.
 //
 
-import Crypto
 import SwiftUI
 import GhosttyKit
 import os
 import UIKit
 
 // MARK: - Scene Phase Handling
-
-private enum BackgroundPersistenceQueue {
-    static let queue = DispatchQueue(label: "com.rootshell.background.persistence", qos: .utility)
-}
-
-#if !targetEnvironment(macCatalyst) && !os(visionOS)
-final class ShortRemoteSessionBackgroundTaskIDBox: @unchecked Sendable {
-    private let lock = OSAllocatedUnfairLock<UIBackgroundTaskIdentifier>(initialState: .invalid)
-
-    func load() -> UIBackgroundTaskIdentifier {
-        lock.withLock { $0 }
-    }
-
-    func store(_ taskID: UIBackgroundTaskIdentifier) {
-        lock.withLock { $0 = taskID }
-    }
-
-    func exchangeToInvalid() -> UIBackgroundTaskIdentifier {
-        lock.withLock { taskID in
-            let oldValue = taskID
-            taskID = .invalid
-            return oldValue
-        }
-    }
-}
-#endif
 
 /// Monotonic counter bumped synchronously inside `handleAppBackgrounded`.
 ///
@@ -102,11 +75,11 @@ extension MainView {
         let terminalCount = terminals.flatMap { $0.splitTree.terminalLeaves }.filter { terminal in
             guard terminal.session?.isRunning == true else { return false }
             switch terminal.connectionConfig {
-            case .ssh, .ec2Console, .shellLaunchedSSH:
+            case .ssh, .ec2Console, .shellLaunchedSSH, .trzsz, .shellLaunchedTrzsz:
                 return true
             case .local:
                 return terminal.hasActiveLocalTask
-            case .kubernetes, .console, .mosh, .trzsz, .trzszTransfer, .shellLaunchedMosh, .shellLaunchedTrzsz, .vnc:
+            case .kubernetes, .console, .mosh, .trzszTransfer, .shellLaunchedMosh, .vnc:
                 // `.vnc` is unreachable here (a VNC pane is not a terminal
                 // leaf, so the session guard above rejects it). Counted below.
                 return false
@@ -138,108 +111,6 @@ extension MainView {
         }
         return count
     }
-
-    #if !targetEnvironment(macCatalyst) && !os(visionOS)
-    private func beginShortRemoteSessionBackgroundTaskIfNeeded(
-        sessionCount: Int
-    ) {
-        // Mirrored into the VNC log as well: a Screen Sharing drop across a
-        // background window is indistinguishable from a network fault unless
-        // the assertion decision that preceded it is on the same record.
-        let noteSkip = { (reason: String) in
-            VNCDebugLogger.shared.lifecycle("backgroundAssertion.skipped", [
-                ("reason", reason),
-                ("sessions", sessionCount),
-            ])
-        }
-
-        // Request our own finite grace period even when a Live Activity exists
-        // or Location Diary is enabled; those are not execution guarantees.
-        if let reason = RemoteSessionBackgroundGracePolicy.skipReason(
-            isEnabled: UserPreferences.backgroundSessionKeepaliveEnabled,
-            sessionCount: sessionCount,
-            hasActiveTask: shortRemoteSessionBackgroundTaskID != .invalid
-        ) {
-            LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.skipped", ms: nil, [
-                ("reason", reason.rawValue),
-                ("sessions", sessionCount),
-                ("existing", shortRemoteSessionBackgroundTaskID),
-            ])
-            noteSkip(reason.rawValue)
-            return
-        }
-
-        let taskBox = ShortRemoteSessionBackgroundTaskIDBox()
-        let taskID = UIApplication.shared.beginBackgroundTask(withName: "RemoteSessionGrace") {
-            let expiredTaskID = taskBox.exchangeToInvalid()
-            guard expiredTaskID != .invalid else {
-                LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.expiredSkipped", ms: nil, [
-                    ("reason", "alreadyEnded"),
-                    ("remaining", UIApplication.shared.backgroundTimeRemaining),
-                ])
-                return
-            }
-
-            LifecycleDebugLogger.shared.criticalCheckpoint("BG.remoteSessionTask.expired", ms: nil, [
-                ("task", expiredTaskID),
-                ("remaining", UIApplication.shared.backgroundTimeRemaining),
-            ])
-            // From here on the process is suspendable again, so any Screen
-            // Sharing session still up is about to lose its socket.
-            VNCDebugLogger.shared.lifecycle("backgroundAssertion.expired")
-            UIApplication.shared.endBackgroundTask(expiredTaskID)
-            LifecycleDebugLogger.shared.criticalCheckpoint("BG.remoteSessionTask.expiredEnd", ms: nil, [
-                ("task", expiredTaskID),
-                ("remaining", UIApplication.shared.backgroundTimeRemaining),
-            ])
-
-            Task { @MainActor in
-                guard self.shortRemoteSessionBackgroundTaskID == expiredTaskID else { return }
-                self.shortRemoteSessionBackgroundTaskID = .invalid
-                self.shortRemoteSessionBackgroundTaskIDBox = nil
-                LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.expiredStateCleared", ms: nil, [
-                    ("task", expiredTaskID),
-                ])
-            }
-        }
-        taskBox.store(taskID)
-        shortRemoteSessionBackgroundTaskIDBox = taskBox
-        shortRemoteSessionBackgroundTaskID = taskID
-
-        LifecycleDebugLogger.shared.criticalCheckpoint("BG.remoteSessionTask.begin", ms: nil, [
-            ("sessions", sessionCount),
-            ("task", taskID),
-            ("remaining", UIApplication.shared.backgroundTimeRemaining),
-        ])
-        VNCDebugLogger.shared.lifecycle("backgroundAssertion.begin", [
-            ("sessions", sessionCount),
-            ("remaining", String(
-                format: "%.0fs", UIApplication.shared.backgroundTimeRemaining)),
-        ])
-    }
-
-    private func endShortRemoteSessionBackgroundTask(reason: String) {
-        let stateTaskID = shortRemoteSessionBackgroundTaskID
-        let taskID = shortRemoteSessionBackgroundTaskIDBox?.exchangeToInvalid() ?? stateTaskID
-        shortRemoteSessionBackgroundTaskID = .invalid
-        shortRemoteSessionBackgroundTaskIDBox = nil
-
-        guard taskID != .invalid else {
-            LifecycleDebugLogger.shared.checkpoint("BG.remoteSessionTask.endSkipped", ms: nil, [
-                ("reason", reason),
-                ("stateTask", stateTaskID),
-            ])
-            return
-        }
-
-        UIApplication.shared.endBackgroundTask(taskID)
-        LifecycleDebugLogger.shared.criticalCheckpoint("BG.remoteSessionTask.end", ms: nil, [
-            ("reason", reason),
-            ("task", taskID),
-            ("remaining", UIApplication.shared.backgroundTimeRemaining),
-        ])
-    }
-    #endif
 
     func handleScenePhaseChange(oldPhase: ScenePhase, newPhase: ScenePhase) {
         WedgeBreadcrumbLogger.shared.critical("MainView.scenePhase", [
@@ -581,12 +452,13 @@ extension MainView {
             ("backgroundKeepalive", UserPreferences.backgroundSessionKeepaliveEnabled),
             ("location", locationEnabled),
             ("liveActivity", liveActivityActive),
-            ("existing", shortRemoteSessionBackgroundTaskID),
+            ("existing", BackgroundExecutionCoordinator.shared.hasBackgroundTask),
         ])
-        beginShortRemoteSessionBackgroundTaskIfNeeded(
-            sessionCount: shortBackgroundKeepaliveSessionCount
-        )
         #endif
+        // Before the gates flip below: with a task granted, terminals keep
+        // parsing in the background until the coordinator finalizes.
+        BackgroundExecutionCoordinator.shared.windowDidEnterBackground(
+            sessionCount: shortBackgroundKeepaliveSessionCount)
 
         #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
         // Agent detection stops with this transition, so the Live Activity's
@@ -664,57 +536,6 @@ extension MainView {
             ])
             return
         }
-
-        // --- Phase 1: Gather lightweight state snapshots on main thread (fast) ---
-
-        // Gather window state (reads Swift properties, no I/O)
-        let gatherStart = CFAbsoluteTimeGetCurrent()
-        let windowState = WindowStateManager.shared.gatherState()
-        LifecycleDebugLogger.shared.checkpoint("BG.gather.windowState",
-            ms: (CFAbsoluteTimeGetCurrent() - gatherStart) * 1000,
-            [("present", windowState != nil)])
-
-        // gatherState() returned nil. Two cases:
-        //   - User has closed every window/tab and is backgrounding — we want
-        //     the file cleared so next launch is fresh.
-        //   - Restoration hasn't populated `terminals` yet (Catalyst's async
-        //     helper-warmup Task fired between launch and this BG tick) —
-        //     wiping the file here was the launch-then-quit data-loss bug.
-        // `hasObservedNonEmptyStateThisLaunch` distinguishes the two: it
-        // flips true the first time WindowStateManager has produced a
-        // populated state this launch, so a subsequent empty result is
-        // unambiguously user-driven.
-        if windowState == nil
-            && WindowStateManager.isSessionPersistenceEnabled
-            && WindowStateManager.shared.hasObservedNonEmptyStateThisLaunch {
-            WindowStateManager.shared.clearSavedState()
-        }
-
-        // Gather terminal refs for scrollback (reads surface pointers + session state, no I/O)
-        let refsStart = CFAbsoluteTimeGetCurrent()
-        let terminalRefs = ScrollbackPersistenceManager.shared.gatherTerminalRefs()
-        LifecycleDebugLogger.shared.checkpoint("BG.gather.terminalRefs",
-            ms: (CFAbsoluteTimeGetCurrent() - refsStart) * 1000,
-            [("n", terminalRefs.count)])
-
-        // Pre-fetch encryption key (Keychain read, cached after first call)
-        let keyStart = CFAbsoluteTimeGetCurrent()
-        let encryptionKey: SymmetricKey?
-        if !terminalRefs.isEmpty {
-            do {
-                encryptionKey = try ScrollbackEncryptionManager.shared.getKey()
-            } catch {
-                Ghostty.logger.warning("Failed to pre-fetch encryption key, scrollback will not be saved: \(error.localizedDescription)")
-                encryptionKey = nil
-                // Release in-flight markers since we won't be saving
-                ScrollbackPersistenceManager.clearInFlightSurfaces(terminalRefs)
-            }
-        } else {
-            encryptionKey = nil
-        }
-        LifecycleDebugLogger.shared.checkpoint("BG.fetch.encryptionKey",
-            ms: (CFAbsoluteTimeGetCurrent() - keyStart) * 1000,
-            [("present", encryptionKey != nil)])
 
         // Pause ocean animation timing to prevent catch-up on return
         if let effect = EffectManager.shared.activeEffect,
@@ -799,48 +620,16 @@ extension MainView {
             Ghostty.logger.debug("App backgrounded with no SSH sessions")
         }
 
-        if windowState != nil || (!terminalRefs.isEmpty && encryptionKey != nil) {
-            LifecycleDebugLogger.shared.checkpoint("BG.persist.dispatched", ms: nil, [
-                ("windowState", windowState != nil),
-                ("scrollbackRefs", terminalRefs.count),
-            ])
-            let refCount = terminalRefs.count
-            BackgroundPersistenceQueue.queue.async {
-                let persistStart = CFAbsoluteTimeGetCurrent()
-                LifecycleDebugLogger.shared.criticalCheckpoint("BG.persist.start", ms: nil, [
-                    ("refs", refCount),
-                ])
-                // Write window state to disk (JSON encode + file write)
-                if let windowState {
-                    WindowStateManager.writeStateToDisk(windowState)
-                }
-
-                // Save scrollback for each terminal (C API dump + encrypt + file write)
-                if let encryptionKey {
-                    for ref in terminalRefs {
-                        ScrollbackPersistenceManager.saveScrollbackInBackground(
-                            ref: ref,
-                            encryptionKey: encryptionKey
-                        )
-                    }
-                }
-                LifecycleDebugLogger.shared.criticalCheckpoint("BG.persist.complete",
-                    ms: (CFAbsoluteTimeGetCurrent() - persistStart) * 1000)
-            }
-        } else if !terminalRefs.isEmpty {
-            // We have terminal refs but no encryption key — release in-flight markers
-            // (already handled above in the catch block, but guard the skip-phase-2 path too)
-            ScrollbackPersistenceManager.clearInFlightSurfaces(terminalRefs)
-        }
+        // Early save; the coordinator saves again when background processing
+        // finalizes, capturing output parsed in the meantime.
+        BackgroundStatePersistence.save(label: "BG")
 
         LifecycleDebugLogger.shared.checkpoint("BG.complete",
             ms: (CFAbsoluteTimeGetCurrent() - transitionStart) * 1000)
     }
 
     func handleAppForegrounded() {
-        #if !targetEnvironment(macCatalyst) && !os(visionOS)
-        endShortRemoteSessionBackgroundTask(reason: "foreground")
-        #endif
+        BackgroundExecutionCoordinator.shared.appWillEnterForeground()
 
         WedgeBreadcrumbLogger.shared.critical("MainView.FG.enter", [
             ("scenePhase", String(describing: lifecycleScenePhase)),
@@ -1495,6 +1284,9 @@ extension MainView {
             ) {
                 session.flushBackgroundedOutputFully()
             }
+
+            // Tmux topology and OSC 52 writes held while processing in the background.
+            ghosttyApp.releaseBackgroundHolds()
 
             // BISECT GATE 3: defer the appTick mailbox drain during the
             // resume quiet window. Toggle via BisectFlags.gate3_appTick.

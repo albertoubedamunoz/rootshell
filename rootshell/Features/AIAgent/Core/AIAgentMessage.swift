@@ -14,12 +14,23 @@ struct AIThinkingBlock: Sendable, Equatable {
     let signature: String?  // nil means strip when sending back to API
 }
 
+/// One block of an assistant turn, in the order the model returned it. Claude models that bind
+/// thinking to the conversation reject a replay that drops or reorders any of them.
+nonisolated enum AIAssistantBlock: Sendable, Equatable {
+    case text(String)
+    case thinking(String, signature: String)
+    case redactedThinking(data: String)
+    case toolUse(id: String)
+}
+
 /// A message in the AI Agent conversation
 struct AIAgentMessage: Identifiable, Sendable {
     let id: UUID
     let role: Role
     let content: Content
     let timestamp: Date
+    /// Exact assistant content for providers that must replay it verbatim; nil elsewhere.
+    let assistantBlocks: [AIAssistantBlock]?
 
     // Cached parsed results (computed once at init for scroll performance)
     private let _cachedDisplayText: String?
@@ -59,11 +70,12 @@ struct AIAgentMessage: Identifiable, Sendable {
 
     // MARK: - Initializers
 
-    init(id: UUID = UUID(), role: Role, content: Content, timestamp: Date = Date()) {
+    init(id: UUID = UUID(), role: Role, content: Content, timestamp: Date = Date(), assistantBlocks: [AIAssistantBlock]? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
+        self.assistantBlocks = assistantBlocks
 
         // Pre-compute display text and thinking content at creation time
         // This eliminates 3 parser calls per render during scrolling
@@ -105,11 +117,11 @@ struct AIAgentMessage: Identifiable, Sendable {
     }
 
     /// Create an assistant message with optional thinking content
-    static func assistant(_ text: String, thinking: AIThinkingBlock?) -> AIAgentMessage {
+    static func assistant(_ text: String, thinking: AIThinkingBlock?, blocks: [AIAssistantBlock]? = nil) -> AIAgentMessage {
         if let thinking = thinking {
-            return AIAgentMessage(role: .assistant, content: .textWithThinking(text: text, thinking: thinking))
+            return AIAgentMessage(role: .assistant, content: .textWithThinking(text: text, thinking: thinking), assistantBlocks: blocks)
         }
-        return AIAgentMessage(role: .assistant, content: .text(text))
+        return AIAgentMessage(role: .assistant, content: .text(text), assistantBlocks: blocks)
     }
 
     /// Create a system message
@@ -118,8 +130,8 @@ struct AIAgentMessage: Identifiable, Sendable {
     }
 
     /// Create an assistant message with tool calls (and optional preceding text and thinking)
-    static func assistantToolCalls(_ calls: [AIToolCall], precedingText: String? = nil, thinking: AIThinkingBlock? = nil) -> AIAgentMessage {
-        AIAgentMessage(role: .assistant, content: .toolCalls(calls, precedingText: precedingText, thinking: thinking))
+    static func assistantToolCalls(_ calls: [AIToolCall], precedingText: String? = nil, thinking: AIThinkingBlock? = nil, blocks: [AIAssistantBlock]? = nil) -> AIAgentMessage {
+        AIAgentMessage(role: .assistant, content: .toolCalls(calls, precedingText: precedingText, thinking: thinking), assistantBlocks: blocks)
     }
 
     /// Create a tool result message

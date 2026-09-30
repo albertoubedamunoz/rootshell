@@ -175,7 +175,7 @@ struct TrzszServerInfo: Codable, Sendable {
     /// - Throws: TrzszError.invalidServerInfo if no valid JSON found
     static func parse(fromOutput output: String) throws -> TrzszServerInfo {
         guard let jsonStart = output.firstIndex(of: "{"),
-              let jsonEnd = output.lastIndex(of: "}") else {
+              let jsonEnd = output[jsonStart...].lastIndex(of: "}") else {
             throw TrzszError.invalidServerInfo(reason: "No JSON object found in output")
         }
 

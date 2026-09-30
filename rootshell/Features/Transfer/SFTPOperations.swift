@@ -20,10 +20,12 @@ enum SFTPOperations {
     // MARK: - Directory Listing
 
     /// List directory contents as RFEntry values. Symlinks are stat'ed so a link
-    /// to a directory lists as a directory, and their targets are read.
+    /// to a directory lists as a directory, and their targets are read. With
+    /// `strict`, a malformed name fails the listing instead of being hidden.
     nonisolated static func listDirectoryEntries(
         sftp: SFTPClient,
-        path: String
+        path: String,
+        strict: Bool = false
     ) async throws -> [RFEntry] {
         let nameMessages: [SFTPMessage.Name]
         do {
@@ -38,6 +40,10 @@ enum SFTPOperations {
             for component in nameMessage.components {
                 let filename = component.filename
                 guard filename != "." && filename != ".." else { continue }
+                guard FileTransferLogic.isSingleComponent(filename) else {
+                    if strict { throw FileTransferLogic.UnsafeName(name: filename) }
+                    continue
+                }
 
                 let entry = attributesToEntry(
                     filename: filename,
@@ -132,7 +138,8 @@ enum SFTPOperations {
     // MARK: - Recursive Enumeration
 
     /// Recursively enumerate all files in a remote directory.
-    /// Returns (path, size) pairs for files only.
+    /// Returns (path, size) pairs for files only. A malformed name fails it,
+    /// so a transfer never reports success with entries missing.
     static func enumerateRemoteDirectory(
         sftp: SFTPClient,
         path: String
@@ -144,6 +151,7 @@ enum SFTPOperations {
             for component in nameMessage.components {
                 let filename = component.filename
                 guard filename != "." && filename != ".." else { continue }
+                guard FileTransferLogic.isSingleComponent(filename) else { throw FileTransferLogic.UnsafeName(name: filename) }
 
                 let fullPath = joinPath(path, filename)
                 var attrs = component.attributes
@@ -423,7 +431,7 @@ enum SFTPOperations {
         for nameMessage in nameMessages {
             for component in nameMessage.components {
                 let filename = component.filename
-                guard filename != "." && filename != ".." else { continue }
+                guard FileTransferLogic.isSingleComponent(filename) else { continue }
                 if !includeDotfiles && filename.hasPrefix(".") { continue }
                 // SFTP-only path; its patterns use the canonical (escape-aware) form.
                 if matchesGlob(filename, pattern: filePattern, escapeAware: true) {

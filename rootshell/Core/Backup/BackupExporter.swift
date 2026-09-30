@@ -352,12 +352,12 @@ enum BackupExporter {
         let credManager = AICredentialsManager.shared
 
         var apiKeys: [AIAPIKeyEntry] = []
-        // "chatgpt-codex" holds the JSON-encoded ChatGPT OAuth credential; it
+        // "chatgpt-siwc" holds the JSON-encoded ChatGPT registrations; it
         // round-trips through the same string path as the plain API keys. A
         // restored refresh token may have been rotated by another device, in
         // which case first use fails with invalid_grant and the UI shows
-        // signed-out.
-        let accountNames = ["anthropic", "google", "openai", "openrouter", "chatgpt-codex"]
+        // signed-out. The device's agent host ID is deliberately not exported.
+        let accountNames = ["anthropic", "google", "openai", "openrouter", ChatGPTCredentialStore.keychainAccount]
 
         for name in accountNames {
             if let key = credManager.loadAPIKey(for: name) {

@@ -69,7 +69,7 @@ nonisolated extension Settings {
             configKey: "terminal-touch-keyboard-floating-glass-style", title: String(localized: "Detached Keyboard Glass Style"))
         static let touchFloatingGlassTintOpacity = SettingKey(
             "terminalTouchKeyboardFloatingGlassTintOpacity", default: 0.25, group: .keyboard, policy: .localByDefault,
-            configKey: "terminal-touch-keyboard-floating-glass-tint-opacity", title: String(localized: "Detached Keyboard Tint Strength"))
+            configKey: "terminal-touch-keyboard-floating-glass-tint-opacity", range: 0...1, title: String(localized: "Detached Keyboard Tint Strength"))
         static let touchChooserPresented = SettingKey(
             "terminalTouchKeyboardChooserPresented", default: false, group: .keyboard, policy: .deviceOnly,
             title: String(localized: "Keyboard Chooser Presented"))

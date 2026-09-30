@@ -3,10 +3,10 @@
 //  ChatGPTProvider.swift
 //  rootshell
 //
-//  AIProvider implementation for ChatGPT subscriptions. Speaks the Responses
-//  API against chatgpt.com/backend-api/codex/responses with Codex OAuth
-//  bearer tokens, reusing the SwiftOpenAI streaming machinery that already
-//  powers OpenAIProvider.
+//  AIProvider implementation for ChatGPT plan usage. Speaks the public
+//  Responses API at api.openai.com with a Sign in with ChatGPT access token,
+//  reusing the SwiftOpenAI streaming machinery that already powers
+//  OpenAIProvider.
 //
 
 import Foundation
@@ -47,7 +47,7 @@ final class ChatGPTProvider: AIProvider {
     var selectedModelID: String
 
     var isConfigured: Bool {
-        ChatGPTCredentialStore.isSignedInCached
+        ChatGPTCredentialStore.isUsableCached
     }
 
     private var currentStreamTask: Task<Void, Never>?
@@ -137,9 +137,9 @@ final class ChatGPTProvider: AIProvider {
                     }
 
                     // A fresh (or force-refreshed) access token per attempt.
-                    let credentials: ChatGPTCredentials
+                    let session: ChatGPTSession
                     do {
-                        credentials = try await ChatGPTCredentialStore.shared.validCredentials(forceRefresh: forcedRefresh)
+                        session = try await ChatGPTCredentialStore.shared.validSession(forceRefresh: forcedRefresh)
                     } catch {
                         continuation.finish(throwing: Self.mapAuthError(error))
                         return
@@ -147,7 +147,7 @@ final class ChatGPTProvider: AIProvider {
 
                     do {
                         try await Self.executeStreamRequest(
-                            accessToken: credentials.accessToken,
+                            accessToken: session.accessToken,
                             messages: messages,
                             systemPrompt: systemPrompt,
                             tools: tools,
@@ -163,15 +163,15 @@ final class ChatGPTProvider: AIProvider {
                             continuation.finish(throwing: AIProviderError.cancelled)
                             return
                         }
-                        // The backend rejects a token once (expired or revoked
-                        // server-side): force one refresh and retry. A second
-                        // rejection means the grant itself is gone.
+                        // A 401 may be a token expired or revoked server-side:
+                        // force one refresh and retry. A second rejection means
+                        // the grant itself is gone.
                         if !forcedRefresh, Self.isUnauthorized(error) {
-                            Self.logger.info("Codex backend rejected the token; refreshing and retrying once")
+                            Self.logger.info("Responses API rejected the token; refreshing and retrying once")
                             forcedRefresh = true
                             continue
                         }
-                        continuation.finish(throwing: Self.mapCodexError(error, modelID: modelID))
+                        continuation.finish(throwing: Self.mapRequestError(error, modelID: modelID))
                         return
                     }
                 }
@@ -204,37 +204,26 @@ final class ChatGPTProvider: AIProvider {
         commitReasoning: @Sendable ([String: ChatGPTCachedReasoning]) -> Void
     ) async throws {
         let inputItems = insertReasoningReplay(
-            into: OpenAIProvider.convertMessagesToInputItems(messages, isCustomEndpoint: false),
+            into: developerRoleMessages(OpenAIProvider.convertMessagesToInputItems(messages, isCustomEndpoint: false)),
             cache: replayCache
         )
         let responsesTools = OpenAIProvider.convertToolsToResponsesFormat(tools)
 
-        // One UUID shared by session_id / conversation_id / x-client-request-id,
-        // fresh per request. The factory's apiKey already becomes the bearer
-        // header, so it is stripped from the extras.
-        var extraHeaders = ChatGPTOAuth.requestHeaders(accessToken: accessToken, sessionID: UUID().uuidString)
-        extraHeaders.removeValue(forKey: "Authorization")
-        extraHeaders["x-codex-routing-hint"] = "model=\(modelID)"
-
+        // The access token becomes the bearer header; nothing else is sent.
         let service = OpenAIServiceFactory.service(
             apiKey: accessToken,
-            overrideBaseURL: "https://chatgpt.com",
-            proxyPath: "backend-api",
-            overrideVersion: "codex",
-            extraHeaders: extraHeaders,
             httpClient: sharedHTTPClient
         )
 
         let supportsSummary = ChatGPTModelCapabilities.supportsReasoningSummary(modelID)
         let reasoning = Reasoning(
             effort: effort.rawValue,
-            summary: supportsSummary ? .auto : nil,
-            context: ChatGPTModelCapabilities.supportsAllTurnsContext(modelID) ? "all_turns" : nil
+            summary: supportsSummary ? .auto : nil
         )
 
-        // store/stream/include/text are all required by this backend. Every
-        // sampling parameter is deliberately absent — temperature, top_p,
-        // penalties, stop, max_output_tokens, and text.format are each a 400.
+        // Plan usage requires store:false and stream:true with the full history
+        // in `input`. Sampling and output-limit fields (temperature, top_p,
+        // max_output_tokens, metadata, previous_response_id, …) are rejected.
         let parameters = ModelResponseParameter(
             input: .array(inputItems),
             model: .custom(modelID),
@@ -243,9 +232,6 @@ final class ChatGPTProvider: AIProvider {
             reasoning: reasoning,
             store: false,
             stream: true,
-            streamOptions: supportsSummary
-                ? StreamOptions(reasoningSummaryDelivery: "sequential_cutoff")
-                : nil,
             text: TextConfiguration(verbosity: "medium"),
             tools: responsesTools.isEmpty ? nil : responsesTools
         )
@@ -351,27 +337,47 @@ final class ChatGPTProvider: AIProvider {
                 return
 
             case .responseFailed(let failed):
-                let errorMessage = failed.response.error?.message ?? "Unknown error"
-                Self.logger.error("Response failed: \(errorMessage)")
-                continuation.finish(throwing: mapStreamFailureMessage(errorMessage))
+                let code = failed.response.error?.code
+                let errorMessage = failed.response.error?.message ?? code ?? "Unknown error"
+                Self.logger.error("Response failed: \(code ?? "-", privacy: .public) \(errorMessage)")
+                continuation.finish(throwing: mapPlanError(code: code, message: errorMessage, param: nil)
+                    ?? AIProviderError.unknown(errorMessage))
                 return
 
             case .error(let errorEvent):
                 let errorMessage = errorEvent.message ?? errorEvent.code ?? "Unknown API error"
-                Self.logger.error("Stream error: \(errorMessage)")
-                continuation.finish(throwing: mapStreamFailureMessage(errorMessage))
+                Self.logger.error("Stream error: \(errorEvent.code ?? "-", privacy: .public) \(errorMessage)")
+                continuation.finish(throwing: mapPlanError(code: errorEvent.code, message: errorMessage, param: errorEvent.param)
+                    ?? AIProviderError.unknown(errorMessage))
                 return
 
             default:
-                // Codex-only events (and everything else this provider doesn't
-                // need) fall through here, including unknownEventType.
+                // Everything this provider doesn't need falls through here,
+                // including unknownEventType.
                 break
             }
         }
 
-        // Stream ended without a completion event.
+        // Only response.completed counts as success.
         commitReasoning(reasoningAssociations)
-        continuation.finish()
+        continuation.finish(throwing: AIProviderError.networkError(
+            String(localized: "The response ended before it completed. Try again.")
+        ))
+    }
+
+    /// Explicit system-role input items are rejected on this route; the
+    /// Responses API's developer role carries the same weight.
+    nonisolated static func developerRoleMessages(_ items: [InputItem]) -> [InputItem] {
+        items.map { item in
+            guard case .message(let message) = item, message.role == "system" else { return item }
+            return .message(InputMessage(
+                role: "developer",
+                content: message.content,
+                type: message.type,
+                status: message.status,
+                id: message.id
+            ))
+        }
     }
 
     /// Inserts cached reasoning items ahead of the function calls they produced,
@@ -399,19 +405,14 @@ final class ChatGPTProvider: AIProvider {
 
     // MARK: - Error mapping
 
-    /// 401/403 from the responses endpoint means the token was rejected; usage
-    /// limits also arrive as 4xx and must not be mistaken for auth failures.
+    /// A 401 may be an access token revoked or expired server-side, worth one
+    /// forced refresh. 403s are policy decisions and are never retried.
     private nonisolated static func isUnauthorized(_ error: Error) -> Bool {
         guard let apiError = error as? APIError,
-              case .responseUnsuccessful(let description, let statusCode) = apiError else {
+              case .responseUnsuccessful(_, let statusCode) = apiError else {
             return false
         }
-        guard statusCode == 401 || statusCode == 403 else { return false }
-        let payload = parseErrorPayload(description)
-        if let code = payload.code, code == "usage_limit_reached" || code == "usage_not_included" {
-            return false
-        }
-        return true
+        return statusCode == 401
     }
 
     /// Errors thrown by the credential store before a request ever starts.
@@ -419,63 +420,75 @@ final class ChatGPTProvider: AIProvider {
         if error is CancellationError { return AIProviderError.cancelled }
         switch error {
         case ChatGPTAuthError.notSignedIn:
-            return AIProviderError.notConfigured
-        case ChatGPTAuthError.tokenEndpoint(let message) where message.contains("invalid_grant"):
-            // The store already cleared the credential; surface as sign-in-needed.
-            return AIProviderError.notConfigured
-        case ChatGPTAuthError.tokenEndpoint(let message):
-            return AIProviderError.networkError("ChatGPT token refresh failed: \(message)")
+            return AIProviderError.unavailable(String(localized: "Sign in with ChatGPT in Settings to use your ChatGPT plan."))
+        case ChatGPTAuthError.planNotEnabled, ChatGPTAuthError.sessionExpired, ChatGPTAuthError.invalidClient:
+            return AIProviderError.unavailable(error.localizedDescription)
+        case ChatGPTAuthError.tokenEndpoint(let status, let code, let message):
+            return AIProviderError.networkError("ChatGPT token refresh failed: \(status) \(code ?? message)")
         default:
             return AIProviderError.networkError(error.localizedDescription)
         }
     }
 
-    /// Maps request failures, handling the Codex-specific error vocabulary
-    /// before falling back to the generic OpenAI mapping.
-    nonisolated static func mapCodexError(_ error: Error, modelID: String?) -> AIProviderError {
-        if let apiError = error as? APIError,
-           case .responseUnsuccessful(let description, let statusCode) = apiError {
-            let payload = parseErrorPayload(description)
-
-            switch payload.code {
-            case "usage_limit_reached":
-                return .rateLimited(retryAfter: retryDelay(resetsAt: payload.resetsAt, fallback: 900))
-            case "usage_not_included":
-                let plan = payload.planType.map { " (\($0) plan)" } ?? ""
-                return .unknown(payload.message ?? "This ChatGPT subscription\(plan) does not include Codex model access.")
-            case "rate_limit_exceeded":
-                return .rateLimited(retryAfter: retryDelay(resetsAt: payload.resetsAt, fallback: 30))
-            default:
-                break
-            }
-
-            if statusCode == 401 || statusCode == 403 {
-                // Both attempts rejected: the stored grant no longer works.
-                return .notConfigured
-            }
-            if statusCode == 429 {
-                return .rateLimited(retryAfter: retryDelay(resetsAt: payload.resetsAt, fallback: 30))
-            }
+    /// Recovery for the documented plan-usage error codes; nil for anything else.
+    nonisolated static func mapPlanError(code: String?, message: String, param: String?) -> AIProviderError? {
+        switch code {
+        case "subscription_sharing_usage_limit_exceeded":
+            return .chatGPTUsageLimit
+        case "subscription_sharing_user_not_eligible":
+            return .unavailable(String(localized: "ChatGPT plan usage isn't available for this account or workspace."))
+        case "subscription_sharing_usage_unavailable", "subscription_sharing_user_unavailable":
+            return .networkError(String(localized: "ChatGPT usage couldn't be checked right now. Try again in a moment."))
+        case "subscription_sharing_unsupported_capability":
+            let feature = param ?? String(localized: "part of this request")
+            return .unavailable(String(localized: "ChatGPT plan usage doesn't support \(feature). \(message)"))
+        case "subscription_sharing_route_not_supported":
+            return .unavailable(message)
+        case "subscription_sharing_invalid_user":
+            return .unavailable(String(localized: "ChatGPT couldn't validate this account. Sign out of ChatGPT in Settings and sign in again."))
+        case "chatpass_v2_scope_not_authorized", "chatpass_v2_invalid_authorization_context":
+            return .unavailable(String(localized: "ChatGPT didn't authorize this request. Sign out of ChatGPT in Settings and sign in again."))
+        default:
+            return nil
         }
-        return OpenAIProvider.mapError(error, modelID: modelID)
     }
 
-    private nonisolated static func mapStreamFailureMessage(_ message: String) -> Error {
-        let lowered = message.lowercased()
-        if lowered.contains("usage_limit_reached") || lowered.contains("usage limit") {
-            return AIProviderError.rateLimited(retryAfter: 900)
+    /// Maps request failures: plan-usage codes first, then direct-admission
+    /// statuses (whose `{"detail": …}` body is diagnostic text only), then the
+    /// generic OpenAI mapping.
+    nonisolated static func mapRequestError(_ error: Error, modelID: String?) -> AIProviderError {
+        guard let apiError = error as? APIError,
+              case .responseUnsuccessful(let description, let statusCode) = apiError else {
+            return OpenAIProvider.mapError(error, modelID: modelID)
         }
-        if lowered.contains("rate_limit") || lowered.contains("rate limit") {
-            return AIProviderError.rateLimited(retryAfter: 30)
+
+        let payload = parseErrorPayload(description)
+        logger.error("Responses request failed: HTTP \(statusCode) \(payload.code ?? "-", privacy: .public)")
+
+        if let mapped = mapPlanError(code: payload.code, message: payload.message ?? description, param: payload.param) {
+            return mapped
         }
-        return AIProviderError.unknown(message)
+
+        let detail = payload.message ?? payload.detail
+        switch statusCode {
+        case 401:
+            return .unavailable(String(localized: "ChatGPT didn't accept this sign-in. Check the selected account in Settings, or sign in again."))
+        case 403:
+            return .unavailable(detail ?? String(localized: "ChatGPT blocked this request by policy."))
+        case 429:
+            return .rateLimited(retryAfter: nil)
+        case 503:
+            return .networkError(detail ?? String(localized: "ChatGPT plan usage is temporarily unavailable. Try again later."))
+        default:
+            return OpenAIProvider.mapError(error, modelID: modelID)
+        }
     }
 
-    /// Pulls `{error: {code, message, plan_type, resets_at}}` out of the raw
+    /// Pulls `{error: {code, message, param}}` or `{detail}` out of the raw
     /// body that the SDK appends to its error description.
     nonisolated static func parseErrorPayload(
         _ description: String
-    ) -> (code: String?, message: String?, planType: String?, resetsAt: Double?) {
+    ) -> (code: String?, message: String?, param: String?, detail: String?) {
         guard let braceIndex = description.firstIndex(of: "{"),
               let json = try? JSONSerialization.jsonObject(
                 with: Data(String(description[braceIndex...]).utf8)
@@ -483,23 +496,13 @@ final class ChatGPTProvider: AIProvider {
             return (nil, nil, nil, nil)
         }
 
-        let error = (json["error"] as? [String: Any]) ?? json
-        let code = (error["code"] as? String) ?? (error["type"] as? String)
-        let message = error["message"] as? String
-        let planType = error["plan_type"] as? String
-        var resetsAt: Double?
-        if let value = error["resets_at"] as? Double {
-            resetsAt = value
-        } else if let value = error["resets_at"] as? String {
-            resetsAt = Double(value)
-        }
-        return (code, message, planType, resetsAt)
-    }
-
-    /// `resets_at` is absolute epoch seconds.
-    private nonisolated static func retryDelay(resetsAt: Double?, fallback: TimeInterval) -> TimeInterval {
-        guard let resetsAt else { return fallback }
-        return max(1, resetsAt - Date().timeIntervalSince1970)
+        let error = json["error"] as? [String: Any]
+        return (
+            error?["code"] as? String,
+            error?["message"] as? String,
+            error?["param"] as? String,
+            json["detail"] as? String
+        )
     }
 }
 #endif

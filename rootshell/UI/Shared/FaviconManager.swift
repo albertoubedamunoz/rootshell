@@ -191,7 +191,7 @@ actor FaviconCache {
 // MARK: - FaviconFetcher
 
 enum FaviconFetcher {
-    private static let session: URLSession = {
+    private nonisolated static let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 5
         config.timeoutIntervalForResource = 10
@@ -256,7 +256,7 @@ enum FaviconFetcher {
 
     private static func fetchHTML(url: URL, depth: Int) async -> String? {
         guard depth < maxRedirects else { return nil }
-        guard let (data, response) = try? await session.data(from: url) else { return nil }
+        guard let (data, response) = await fetchPrefix(url: url, limit: maxHTMLSize) else { return nil }
 
         if let httpResponse = response as? HTTPURLResponse,
            (301...308).contains(httpResponse.statusCode),
@@ -265,8 +265,7 @@ enum FaviconFetcher {
             return await fetchHTML(url: redirectURL.absoluteURL, depth: depth + 1)
         }
 
-        let truncated = data.prefix(maxHTMLSize)
-        let html = String(decoding: truncated, as: UTF8.self)
+        let html = String(decoding: data, as: UTF8.self)
 
         // Check for meta-refresh redirect
         if let refreshURL = parseMetaRefresh(html: html, baseURL: url) {
@@ -387,15 +386,32 @@ enum FaviconFetcher {
     }
 
     private static func fetchDirect(url: URL) async -> Data? {
-        guard let (data, response) = try? await session.data(from: url) else { return nil }
+        guard let (data, response) = await fetchPrefix(url: url, limit: maxBodySize) else { return nil }
 
         if let httpResponse = response as? HTTPURLResponse,
            !(200...299).contains(httpResponse.statusCode) {
             return nil
         }
 
-        let capped = data.prefix(maxBodySize)
-        return processImage(Data(capped))
+        return processImage(data)
+    }
+
+    /// Reads at most `limit` bytes, then cancels the transfer so an oversized
+    /// body is never buffered whole.
+    @concurrent
+    private nonisolated static func fetchPrefix(url: URL, limit: Int) async -> (Data, URLResponse)? {
+        guard let (bytes, response) = try? await session.bytes(from: url) else { return nil }
+        defer { bytes.task.cancel() }
+        var data = Data()
+        do {
+            for try await byte in bytes {
+                data.append(byte)
+                if data.count >= limit { break }
+            }
+        } catch {
+            return nil
+        }
+        return (data, response)
     }
 
     private static func processImage(_ data: Data) -> Data? {

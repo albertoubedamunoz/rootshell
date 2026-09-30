@@ -14,6 +14,8 @@ struct ErrorCardView: View {
     let onRetry: () -> Void
     let onDismiss: () -> Void
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with icon and title
@@ -87,13 +89,24 @@ struct ErrorCardView: View {
 
             Spacer()
 
-            // Retry button
-            Button(action: onRetry) {
-                Label("Retry", systemImage: "arrow.clockwise.circle.fill")
-                    .font(AIAgentFonts.button)
+            if case .chatGPTUsageLimit = error {
+                Button {
+                    openURL(ChatGPTOAuth.manageUsageURL)
+                } label: {
+                    Label("Manage usage", systemImage: "arrow.up.right.square")
+                        .font(AIAgentFonts.button)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(error.color)
+            } else {
+                // Retry button
+                Button(action: onRetry) {
+                    Label("Retry", systemImage: "arrow.clockwise.circle.fill")
+                        .font(AIAgentFonts.button)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(error.color)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(error.color)
         }
         .padding(.top, 4)
     }

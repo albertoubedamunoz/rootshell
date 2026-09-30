@@ -232,7 +232,12 @@ _ghostty_deferred_init() {
 
     # Enable reporting current working dir to terminal. Ghostty supports
     # the kitty-shell-cwd format.
-    _ghostty_report_pwd() { builtin print -nu $_ghostty_fd '\e]7;kitty-shell-cwd://'"$HOST""$PWD"'\a'; }
+    # -r keeps backslashes in $PWD literal; a path with control characters
+    # could end the OSC early and inject sequences, so it is not reported.
+    _ghostty_report_pwd() {
+        [[ $PWD == *[[:cntrl:]]* ]] && return 0
+        builtin print -rnu $_ghostty_fd -- $'\e]7;kitty-shell-cwd://'"$HOST$PWD"$'\a'
+    }
     chpwd_functions=(${chpwd_functions[@]} "_ghostty_report_pwd")
     # An executed program could change cwd and report the changed cwd, so also report cwd at each new prompt
     # as in this case chpwd_functions is insufficient. chpwd_functions is still needed for things like: cd x && something

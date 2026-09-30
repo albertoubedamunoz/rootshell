@@ -38,7 +38,7 @@ nonisolated extension Settings {
             title: String(localized: "Visor Cross Axis Size", comment: "Setting title"))
         static let animationDurationMs = SettingKey(
             "visor.animationDurationMs", default: 200, group: .visor, policy: .localByDefault,
-            configKey: "visor-animation-duration-ms",
+            configKey: "visor-animation-duration-ms", range: 0...5000,
             title: String(localized: "Visor Animation Duration", comment: "Setting title"))
         static let autohide = SettingKey(
             "visor.autohide", default: true, group: .visor, policy: .localByDefault,
