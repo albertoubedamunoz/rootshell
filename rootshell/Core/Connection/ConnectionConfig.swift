@@ -107,6 +107,19 @@ enum ConnectionConfig: Equatable {
         }
     }
 
+    /// `displayName` without the "roam" decoration roaming transports add;
+    /// for places that name the host rather than the transport.
+    var hostDisplayName: String {
+        switch self {
+        case .mosh(let mosh), .shellLaunchedMosh(let mosh, _):
+            return mosh.sshConfig.displayName
+        case .trzsz(let trzsz), .shellLaunchedTrzsz(let trzsz, _):
+            return trzsz.sshConfig.displayName
+        default:
+            return displayName
+        }
+    }
+
     var lifecycleDebugKind: String {
         switch self {
         case .local:

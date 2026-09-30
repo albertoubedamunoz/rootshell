@@ -550,8 +550,14 @@ nonisolated final class TerminalBufferedPipeWriter: @unchecked Sendable {
     /// bound. On overflow the OLDEST chunks are dropped down to the low-water
     /// mark (halving amortizes the drop cost across writes) and the loss is
     /// reported via `onOverflow` once the queue next drains empty.
-    private static let maxBufferedBytes = 16 * 1024 * 1024
-    private static let overflowLowWaterBytes = maxBufferedBytes / 2
+    private static let foregroundMaxBufferedBytes = 16 * 1024 * 1024
+
+    /// Background jetsam limits are far tighter, so the cap shrinks while backgrounded.
+    private static func maxBufferedBytes() -> Int {
+        Ghostty.isAppBackgroundedAtomic
+            ? BackgroundExecutionPolicy.backgroundPipeWriterMaxBytes
+            : foregroundMaxBufferedBytes
+    }
     /// Prepended at the drop seam: the core parser may be mid-OSC/DCS whose
     /// terminator was just dropped and would swallow all subsequent output;
     /// a stray ST in ground state is a no-op.
@@ -611,6 +617,9 @@ nonisolated final class TerminalBufferedPipeWriter: @unchecked Sendable {
     func write(_ data: Data) {
         guard !data.isEmpty else { return }
 
+        let maxBufferedBytes = Self.maxBufferedBytes()
+        let overflowLowWaterBytes = maxBufferedBytes / 2
+
         os_unfair_lock_lock(&bufferLock)
 
         guard fd >= 0, let source = writeSource else {
@@ -622,7 +631,7 @@ nonisolated final class TerminalBufferedPipeWriter: @unchecked Sendable {
         let combinedSize = pendingByteCount + data.count
         var overflowToLog = 0
 
-        if combinedSize > Self.maxBufferedBytes {
+        if combinedSize > maxBufferedBytes {
             // Enforce the cap BEFORE storing so the pending bytes never
             // materialize above it. Drop exactly the bytes needed to reach
             // the low-water mark from the oldest end of the logical (queue +
@@ -633,11 +642,11 @@ nonisolated final class TerminalBufferedPipeWriter: @unchecked Sendable {
             // full scrollback restore passed as one Data).
             var incoming = data
             var dropped = 0
-            while pendingByteCount + incoming.count > Self.overflowLowWaterBytes,
+            while pendingByteCount + incoming.count > overflowLowWaterBytes,
                   headIndex < chunks.count {
                 let chunk = chunks[headIndex]
                 let remainder = chunk.count - headOffset
-                let excess = pendingByteCount + incoming.count - Self.overflowLowWaterBytes
+                let excess = pendingByteCount + incoming.count - overflowLowWaterBytes
                 if remainder <= excess {
                     chunks[headIndex] = Data()
                     headIndex += 1
@@ -653,10 +662,10 @@ nonisolated final class TerminalBufferedPipeWriter: @unchecked Sendable {
                 dropped += excess
                 break
             }
-            if incoming.count > Self.overflowLowWaterBytes {
-                dropped += incoming.count - Self.overflowLowWaterBytes
+            if incoming.count > overflowLowWaterBytes {
+                dropped += incoming.count - overflowLowWaterBytes
                 incoming = TerminalOutputChunkTuning.ownedSuffix(
-                    of: incoming, count: Self.overflowLowWaterBytes)
+                    of: incoming, count: overflowLowWaterBytes)
             }
             if headIndex == chunks.count {
                 chunks.removeAll(keepingCapacity: true)
@@ -686,7 +695,7 @@ nonisolated final class TerminalBufferedPipeWriter: @unchecked Sendable {
         os_unfair_lock_unlock(&bufferLock)
 
         if overflowToLog > 0 {
-            let cap = Self.maxBufferedBytes
+            let cap = maxBufferedBytes
             Ghostty.logger.error("BufferedPipeWriter: buffer exceeded \(cap) byte cap; dropping oldest \(overflowToLog) bytes (reader stalled or output firehose)")
         }
     }

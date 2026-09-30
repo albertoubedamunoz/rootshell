@@ -26,9 +26,9 @@ enum ForwardCallbackEvent: Sendable {
     case closed(idString: String, connectionID: Int64, bytesIn: Int64, bytesOut: Int64)
 }
 
-/// Bridges Go's `ForwardCallback` to `TrzszPortForwardManager`. Buffers
-/// callbacks while the app is backgrounded / in the resume quiet window,
-/// flushing once the foreground gate reopens.
+/// Bridges Go's `ForwardCallback` to `TrzszPortForwardManager`. Delivers
+/// callbacks while the app is processing in the background; buffers them only
+/// while parked or in the resume quiet window.
 nonisolated final class TrzszGoForwardCallbackBridge: NSObject, IosbridgeForwardCallbackProtocol, @unchecked Sendable {
     private nonisolated static let logger = Logger(
         subsystem: "com.rootshell",
@@ -48,7 +48,9 @@ nonisolated final class TrzszGoForwardCallbackBridge: NSObject, IosbridgeForward
     }
 
     private nonisolated static var shouldDeferEvents: Bool {
-        Ghostty.isAppBackgroundedAtomic || Ghostty.isInResumeQuietWindowAtomic
+        if Ghostty.isInResumeQuietWindowAtomic { return true }
+        return Ghostty.isAppBackgroundedAtomic
+            && !BackgroundExecutionCoordinator.phase.allowsBackgroundTick
     }
 
     private func receive(_ event: ForwardCallbackEvent) {

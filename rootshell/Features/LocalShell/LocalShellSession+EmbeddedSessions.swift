@@ -1,6 +1,7 @@
 #if !targetEnvironment(macCatalyst)
 
 import Foundation
+import os
 import OSLog
 import Citadel
 
@@ -23,6 +24,37 @@ enum EmbeddedSessionKind: Sendable {
     case ssh
     case mosh
     case trzsz
+}
+
+/// Carries an embedded session's output chunks to the main actor with at most
+/// one drain task in flight, so a busy stream never queues a task per chunk.
+/// A single queue keeps chunk order.
+private nonisolated final class EmbeddedOutputRelay: @unchecked Sendable {
+    private struct State {
+        var chunks: [Data] = []
+        var drainScheduled = false
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    /// Queues `data`; true when the caller must schedule a drain.
+    func append(_ data: Data) -> Bool {
+        state.withLock { state in
+            state.chunks.append(data)
+            guard !state.drainScheduled else { return false }
+            state.drainScheduled = true
+            return true
+        }
+    }
+
+    /// Takes every queued chunk; the next append schedules a new drain.
+    func takeAll() -> [Data] {
+        state.withLock { state in
+            state.drainScheduled = false
+            defer { state.chunks.removeAll() }
+            return state.chunks
+        }
+    }
 }
 
 extension LocalShellSession {
@@ -174,10 +206,15 @@ extension LocalShellSession {
                 outputCallback?(output)
             }
         }
+        let relay = EmbeddedOutputRelay()
         session.onOutputData = { [weak self] data in
+            guard relay.append(data) else { return }
             Task { @MainActor [weak self] in
+                let chunks = relay.takeAll()
                 guard let self, self.isCurrentEmbeddedSession(sessionID, kind: kind) else { return }
-                outputDataCallback?(data)
+                for chunk in chunks {
+                    outputDataCallback?(chunk)
+                }
             }
         }
     }

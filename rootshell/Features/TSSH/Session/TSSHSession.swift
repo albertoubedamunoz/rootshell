@@ -1205,6 +1205,9 @@ final class TrzszSession: TerminalSession {
         // Wire the byte path before connect() so any output from a fast
         // session start lands in the session's existing callbacks.
         transport.outputSink.update(onOutput: onOutput, onOutputData: onOutputData)
+        // Terminal output, tmux -CC gateways included, keeps parsing while
+        // the app processes in the background.
+        transport.setBackgroundWriteThrough(true)
         self.goTransport = transport
         self.sessionDebugLabel = transport.debugLabel
 
