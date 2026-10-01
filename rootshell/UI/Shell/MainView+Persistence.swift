@@ -166,8 +166,15 @@ extension MainView {
         // during the session (`lastKnownWindowFrame`). The live lookup returns nil
         // at terminate on macOS 27 (scenes are torn down before the save runs), so
         // the continuous capture is what makes per-window geometry reliable.
-        let savedFrame = Self.windowScene(forWindowId: windowId)?.effectiveGeometry.systemFrame
-            ?? lastKnownWindowFrame
+        let liveFrame = Self.windowScene(forWindowId: windowId)?.effectiveGeometry.systemFrame
+        let savedFrame = liveFrame ?? lastKnownWindowFrame
+        if liveFrame == nil {
+            // Info, not debug: this is the path that can save a stale frame,
+            // and it must be visible in a plain `log show`. (#567)
+            Ghostty.logger.info("Window \(windowId, privacy: .public) frame saved from tracked value: \(String(describing: savedFrame), privacy: .public)")
+        } else {
+            Ghostty.logger.debug("Window \(windowId, privacy: .public) frame saved from live scene: \(String(describing: savedFrame), privacy: .public)")
+        }
         #else
         let savedFrame: CGRect? = nil
         #endif
