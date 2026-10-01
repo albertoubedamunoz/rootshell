@@ -3,6 +3,47 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.13-159 - October 1, 2026
+
+### Background Sessions and Notifications
+
+- **Background Terminal Processing:** Previously, tssh sessions buffered incoming output when rootshell entered the background and processed it only after you returned. Now, on iOS and iPadOS, SSH and tssh terminals keep processing output during the background time granted by iOS. This includes tmux and herdr control-mode sessions, so terminal notifications can arrive while the app is backgrounded instead of waiting for you to reopen it.
+- **Background Grace Period:** Background tunnels and active local commands also request this grace period. Use Keep TCP SSH Alive in Background in SSH transport settings. Time remains OS-limited.
+- **Saved State:** Window state and scrollback are saved before background processing ends. Rendering stays paused; pending tmux tab and pane changes apply when you return.
+
+### AI Agent
+
+- **ChatGPT Sign-In:** ChatGPT sign-in now uses OpenAI's app registration flow and public API. Existing users must sign in again after updating: Settings -> AI Agent -> OpenAI -> Continue with ChatGPT.
+- **Multiple ChatGPT Accounts:** Save and switch between multiple ChatGPT accounts or workspaces. Each keeps its sign-in; switching refreshes the model list.
+- **Usage Management:** Manage usage links in settings, the model picker, and usage-limit errors open ChatGPT settings to review usage and set a limit for rootshell. Enable plan-use permission for your account or use an API key instead.
+- **Claude Sonnet 5.5:** Updated Claude Sonnet 5 to Sonnet 5.5 on Anthropic and AWS Bedrock, including saved selections. Improved multi-step tool conversations by preserving thinking blocks in order and showing progress updates. The direct Claude API can use a server-selected fallback for declined requests.
+
+### Keyboard, Selection, and Windows
+
+- **iPad Dock and Keyboard:** Fixed the iPad Dock hiding with Terminal Keyboard and a hardware keyboard. Enabling Terminal Keyboard with hardware attached no longer unexpectedly opens the onscreen keyboard.
+- **Keyboard and Pane Crash Fixes:** Fixed crashes when undocking a Magic Keyboard with Terminal Keyboard enabled, or closing a pane with queued mouse or selection events.
+- **Mac Window Positions:** Moved Mac windows now reopen at their last position after quitting. Fixed stale positions being saved when a window move did not trigger a layout update.
+
+### Multiplexers and Agent Detection
+
+- **Optional Detach Banner:** Turn off the tmux, zellij, herdr, and zmx detach confirmation in Settings -> Multiplexers -> Show Detach Banner, or choose Never Show Again in the banner.
+- **herdr Stability and Performance:** Fixed herdr crashes involving zoomed layouts, popup hyperlinks, and malformed Tab Expose geometry. Limited cached layouts and sped up metadata lookups for large sessions.
+- **Coding-Agent Discovery:** Fixed repeated project-directory probes while coding agents run inside plain tmux over SSH. Failed discovery no longer triggers immediate retries, and Linux discovery launches fewer remote processes.
+
+### File Transfers and Attachments
+
+- **Replacement Permissions:** Replacing a file keeps its existing permissions during copying. Preserve Permissions and Dates still applies source attributes when enabled.
+- **Safer Remote Copies:** SFTP copies reject server-supplied names that escape the destination folder. Failed copies prevent a move from deleting its source; `rf` image and editor downloads refuse unexpected folders.
+- **Attachment Size Limits:** Dropped images and PDFs are limited to 250 MB each and 500 MB per drop. Oversized attachments are skipped with an alert; attachments that fit can still proceed.
+- **S3 Share-Link Crash Fix:** Fixed S3 share-link crashes with unusual bucket names.
+
+### Security and Stability
+
+- **SSH Import and Startup Fixes:** Fixed encrypted SSH-key imports freezing on large keys and crashes from malformed tsshd startup output.
+- **Settings and Download Limits:** Added numeric limits for config files and synced settings, preventing crashes from invalid values such as font sizes. Capped SSH login banners and favicon downloads to reduce memory use.
+- **Preview and Folder-Name Safety:** Terminal previews no longer change the clipboard. Prevented control characters in folder names from injecting terminal sequences or extra tmux commands.
+- **VNC Memory Fix:** Fixed memory growth and eventual crashes in long-running VNC Screen Sharing sessions.
+
 ## 1.0.13-158 - September 28, 2026
 
 ### Dictation in More Languages
