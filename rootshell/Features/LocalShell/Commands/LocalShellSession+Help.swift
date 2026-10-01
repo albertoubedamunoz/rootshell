@@ -71,7 +71,7 @@ extension LocalShellSession {
   curl, ssh, scp, sftp, ssh-copy-id, mosh, roam, tssh, trzsz, croc,
   ping, ping6, mtr, mtr6, traceroute, traceroute6,
   nc, dig, host, nslookup, whois, ifconfig, wol,
-  bssid, whatismyip, whatismyip4, whatismyip6
+  bssid, whatismyip, whatismyip4, whatismyip6, vpn
 
 \(devToolsHeader)
   git       - \(gitDesc)

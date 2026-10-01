@@ -399,6 +399,11 @@ extension LocalShellSession {
             return
         }
 
+        if lowerCommand.hasPrefix("vpn ") || lowerCommand == "vpn" {
+            handleVPNCommand(trimmedCommand)
+            return
+        }
+
         // Route `wasm <file>` and any bare `*.wasm` invocation to the WASM
         // runtime, including forms with a leading shell-assignment prefix
         // like `FOO=bar wasm tool.wasm` — `wasmInvocationKind` peels off
@@ -1711,7 +1716,8 @@ extension LocalShellSession {
         "hx",
         "rf",
         "imgcat",
-        "croc"
+        "croc",
+        "vpn"
     ]
 
     /// Commands whose top-level Rootshell router provides behavior users
@@ -1732,7 +1738,8 @@ extension LocalShellSession {
         "hx",
         "rf",
         "imgcat",
-        "croc"
+        "croc",
+        "vpn"
     ]
 
     /// If `argv` is a `bash`/`sh -c <body> [name [args…]]` invocation, return

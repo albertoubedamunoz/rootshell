@@ -35,7 +35,7 @@ struct VPNProfileRow: View {
                         .foregroundStyle(.secondary)
                     HStack(spacing: 4) {
                         Image(systemName: profile.connectionProtocol.iconName)
-                        Text(profile.connectionProtocol == .trzsz ? "TSSH" : "SSH")
+                        Text(profile.vpnTransportName)
                     }
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
