@@ -173,7 +173,10 @@ final class TerminalTouchSteampunkMachineryView: UIView {
         }
         // Identical tooth module and common tooth phase keep the idlers meshed.
         let module = radius / 12.8
-        for (index, y) in (bottom - top > radius ? [top, bottom] : [top]).enumerated() {
+        let gearPositions: [CGFloat] = bottom - top > radius ? [top, bottom] : [top]
+        for position in gearPositions.enumerated() {
+            let index = position.offset
+            let y = position.element
             let gear = rotor(radius: radius, teeth: 24, copper: index == 1, scale: scale,
                              at: CGPoint(x: x, y: y))
             bank.root.addSublayer(gear)
