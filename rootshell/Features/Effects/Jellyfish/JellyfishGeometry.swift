@@ -75,10 +75,12 @@ enum JellyfishGeometry {
                     let f = min(t * Float(nodesPer), Float(nodesPer) - 0.0001)
                     let k = Int(f), u = f - Float(k)
                     let p0 = point(k - 1), p1 = point(k), p2 = point(k + 1), p3 = point(k + 2)
-                    let a = 2 * p1
-                    let b = (p2 - p0) * u
-                    let c = (2 * p0 - 5 * p1 + 4 * p2 - p3) * (u * u)
-                    let d = (-p0 + 3 * p1 - 3 * p2 + p3) * (u * u * u)
+                    let a: SIMD2<Float> = p1 * 2
+                    let b: SIMD2<Float> = (p2 - p0) * u
+                    let quadratic: SIMD2<Float> = p0 * 2 - p1 * 5 + p2 * 4 - p3
+                    let cubic: SIMD2<Float> = -p0 + p1 * 3 - p2 * 3 + p3
+                    let c = quadratic * (u * u)
+                    let d = cubic * (u * u * u)
                     return (a + b + c + d) * 0.5
                 }
                 let phase = Float(chain) * 2.399 + Float(jelly.pulsePhase0)

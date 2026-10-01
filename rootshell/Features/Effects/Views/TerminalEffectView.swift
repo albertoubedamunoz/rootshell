@@ -35,6 +35,11 @@ private struct BackgroundEffectSelectionPicker: View {
     @Binding var effectID: String
     private var effectManager = EffectManager.shared
 
+    init(title: LocalizedStringKey, effectID: Binding<String>) {
+        self.title = title
+        self._effectID = effectID
+    }
+
     var body: some View {
         Group {
             Picker(title, selection: $effectID) {
