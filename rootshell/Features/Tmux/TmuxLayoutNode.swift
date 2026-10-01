@@ -37,7 +37,7 @@ nonisolated indirect enum TmuxLayoutNode: Equatable {
     }
 }
 
-extension TmuxLayoutNode {
+nonisolated extension TmuxLayoutNode {
     var paneIDs: [Int] {
         switch self {
         case let .pane(id, _, _, _, _): return [id]

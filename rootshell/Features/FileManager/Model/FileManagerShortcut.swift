@@ -194,6 +194,6 @@ struct FileManagerShortcut {
         } else {
             commands = [.moveCursor, .open, .switchPane, .toggleSelection, .connect]
         }
-        return commands.map(shortcut(for:))
+        return commands.map { shortcut(for: $0) }
     }
 }

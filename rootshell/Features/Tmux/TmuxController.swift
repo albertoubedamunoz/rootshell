@@ -3598,7 +3598,7 @@ extension Ghostty.TerminalView {
 /// Carries a reconcile batch to the main actor. `owner` is strong so the gateway
 /// view survives the hop; free `payload` only after apply, since its refcounts
 /// keep the viewer pointers alive (Zig id=viewer-snapshot-refcount).
-struct TmuxReconcileDelivery: @unchecked Sendable {
+nonisolated struct TmuxReconcileDelivery: @unchecked Sendable {
     let owner: Ghostty.TerminalView
     let ops: [TmuxReconcileOp]
     let payload: UnsafeMutableRawPointer

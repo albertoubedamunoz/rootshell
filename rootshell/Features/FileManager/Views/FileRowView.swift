@@ -53,9 +53,9 @@ struct FileRowView: View, Equatable {
             if columns == .detailed {
                 Text(entry.isDirectory ? "—" : Self.sizeText(entry.size))
                     .frame(width: 70, alignment: .trailing)
-                Text(entry.modifiedDate.map(Self.dateText) ?? "")
+                Text(entry.modifiedDate.map { Self.dateText($0) } ?? "")
                     .frame(width: 118, alignment: .trailing)
-                Text(entry.permissions.map(Self.permissionsText) ?? "")
+                Text(entry.permissions.map { Self.permissionsText($0) } ?? "")
                     .font(.caption.monospaced())
                     .frame(width: 84, alignment: .trailing)
             }
@@ -84,7 +84,7 @@ struct FileRowView: View, Equatable {
 
     private var compactDetail: String? {
         if let target = entry.symlinkTarget { return "→ \(target)" }
-        guard !entry.isDirectory else { return entry.modifiedDate.map(Self.dateText) }
+        guard !entry.isDirectory else { return entry.modifiedDate.map { Self.dateText($0) } }
         let size = Self.sizeText(entry.size)
         return entry.modifiedDate.map { "\(size) · \(Self.dateText($0))" } ?? size
     }

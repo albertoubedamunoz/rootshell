@@ -41,9 +41,7 @@ nonisolated final class ChatGPTLoopbackServer: @unchecked Sendable {
 
     /// Binds the listener and returns the port the redirect URI must use.
     func start(expectedState: String) async throws -> UInt16 {
-        lock.lock()
-        self.expectedState = expectedState
-        lock.unlock()
+        lock.withLock { self.expectedState = expectedState }
 
         if let preferred = NWEndpoint.Port(rawValue: ChatGPTOAuth.preferredCallbackPort),
            let port = try? await listen(on: preferred) {
