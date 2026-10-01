@@ -14,6 +14,7 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
     var shellTask: Task<Void, Never>?
     var imgcatTask: Task<Void, Never>?
     var whatIsMyIPTask: Task<Void, Never>?
+    var vpnTask: Task<Void, Never>?
     // Set once in init and never mutated, safe to access from any thread
     nonisolated(unsafe) var sessionID: UUID
 
@@ -82,6 +83,7 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
         case scriptRunning                 // Shell script interpreter active
         case scriptReadPrompt              // Script waiting for `read` builtin input
         case wasmRunning                   // .wasm binary executing in the WKWebView-hosted runtime
+        case vpnRunning                    // Native vpn command running
 
         /// Whether this mode is an active trzsz (tssh) session.
         var isTrzsz: Bool {
@@ -579,6 +581,8 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
         imgcatTask = nil
         whatIsMyIPTask?.cancel()
         whatIsMyIPTask = nil
+        vpnTask?.cancel()
+        vpnTask = nil
 
         // Stop any embedded SSH session
         embeddedSSHSession?.stop()
@@ -835,6 +839,12 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
             whatIsMyIPTask = nil
             onOutput?("^C\r\n")
             displayPrompt()
+            return
+        }
+
+        if case .vpnRunning = sessionMode {
+            Self.logger.info("[Ctrl-C] Cancelling vpn command")
+            cancelVPNCommand()
             return
         }
 
@@ -1210,6 +1220,14 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
                     crocPromptHandler = nil
                     handler(response)
                 }
+            }
+            return
+        }
+
+        // Native vpn command only accepts Ctrl-C for cancellation.
+        if case .vpnRunning = sessionMode {
+            if data.contains(0x03) {
+                cancelVPNCommand()
             }
             return
         }

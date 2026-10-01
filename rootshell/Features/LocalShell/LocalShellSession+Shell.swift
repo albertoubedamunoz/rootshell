@@ -281,6 +281,7 @@ extension LocalShellSession {
         case bssid
         case whatIsMyIP
         case croc
+        case vpn
         case reset
         case wasm
     }
@@ -348,6 +349,8 @@ extension LocalShellSession {
             return .whatIsMyIP
         case "croc":
             return .croc
+        case "vpn":
+            return .vpn
         case "reset":
             return .reset
         case "wasm":
@@ -427,6 +430,8 @@ extension LocalShellSession {
             return bridgeToMainActor { self.handleWhatIsMyIPCommand(trimmed) }
         case .croc:
             return bridgeToMainActor { self.handleCrocCommand(trimmed) }
+        case .vpn:
+            return bridgeToMainActor { self.handleVPNCommand(trimmed) }
         case .reset:
             return bridgeToMainActor { self.handleResetCommand(trimmed) }
         case .wasm:

@@ -491,6 +491,11 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, SyncableRecord {
         !isDeleted && vpnEnabled && (connectionProtocol == .ssh || connectionProtocol == .trzsz)
     }
 
+    /// Short VPN transport label for profile lists.
+    var vpnTransportName: String {
+        connectionProtocol == .trzsz ? "TSSH" : "SSH"
+    }
+
     /// Display string for autocomplete/suggestions (shows host info)
     var displayString: String {
         if connectionProtocol == .local {

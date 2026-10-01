@@ -41,7 +41,7 @@ nonisolated enum VPNConnectionPoller {
         let clock = ContinuousClock()
         let deadline = clock.now + .seconds(seconds)
 
-        while clock.now < deadline {
+        while clock.now < deadline, !Task.isCancelled {
             if let state = VPNWidgetState.read(),
                state.profileID == snapshot.id,
                state.status == "connected" {
@@ -97,7 +97,7 @@ nonisolated enum VPNConnectionPoller {
         let clock = ContinuousClock()
         let deadline = clock.now + .seconds(seconds)
 
-        while clock.now < deadline {
+        while clock.now < deadline, !Task.isCancelled {
             if checkSharedState,
                let state = VPNWidgetState.read(),
                state.status == "disconnected" {

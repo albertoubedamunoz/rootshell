@@ -39,6 +39,7 @@ final class VPNManager {
     private var statusObserver: NSObjectProtocol?
     private var statsTimer: Timer?
     private let maxEventHistory = 100
+    private nonisolated static let statusReplyTimeout: TimeInterval = 2
     /// Tracks previous status to only reload widget timelines on state transitions
     private var previousStatus: NEVPNStatus = .disconnected
     private var initializationTask: Task<Void, Never>?
@@ -229,18 +230,27 @@ final class VPNManager {
         }
 
         // Bridge sendProviderMessage's completion handler into async/await
-        // so statistics is set directly in this async context.
-        let responseData: Data? = await withCheckedContinuation { continuation in
-            do {
-                let request = Data("getStatus".utf8)
-                try session.sendProviderMessage(request) { data in
-                    continuation.resume(returning: data)
+        // so statistics is set directly in this async context. The provider
+        // can hold a reply indefinitely, so stop waiting after the timeout.
+        let responseData: Data?
+        do {
+            responseData = try await withTimeout(seconds: Self.statusReplyTimeout) {
+                await withCheckedContinuation { continuation in
+                    do {
+                        let request = Data("getStatus".utf8)
+                        try session.sendProviderMessage(request) { data in
+                            continuation.resume(returning: data)
+                        }
+                    } catch {
+                        let errorMsg = error.localizedDescription
+                        Self.logger.error("sendProviderMessage failed: \(errorMsg)")
+                        continuation.resume(returning: nil)
+                    }
                 }
-            } catch {
-                let errorMsg = error.localizedDescription
-                Self.logger.error("sendProviderMessage failed: \(errorMsg)")
-                continuation.resume(returning: nil)
             }
+        } catch {
+            Self.logger.warning("requestStatusUpdate: no reply within \(Self.statusReplyTimeout)s")
+            return
         }
 
         guard let data = responseData else {

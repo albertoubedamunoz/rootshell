@@ -35,7 +35,7 @@ class CompletionProvider {
         commands.append(contentsOf: [
             "cd", "exit", "clear", "reset", "history", "help", "source", "editrc", "editprompt", "reloadconfig",
             "git", "hx", "imgcat", "imgtext", "mosh", "roam", "tssh",
-            "trzsz", "ssh-copy-id", "bssid", "whatismyip", "whatismyip4", "whatismyip6",
+            "trzsz", "ssh-copy-id", "bssid", "whatismyip", "whatismyip4", "whatismyip6", "vpn",
             // Shell interpreter builtins
             "sleep", "printf", "test", "read", "true", "false",
             "export", "unset", "local", "return", "break", "continue",
