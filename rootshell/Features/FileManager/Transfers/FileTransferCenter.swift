@@ -115,7 +115,7 @@ final class FileTransferCenter {
         let (stream, continuation) = AsyncStream<TransferJob>.makeStream(bufferingPolicy: .bufferingNewest(16))
         finishedObservers[id] = continuation
         continuation.onTermination = { [weak self] _ in
-            Task { @MainActor in self?.finishedObservers[id] = nil }
+            Task { @MainActor [weak self] in self?.finishedObservers[id] = nil }
         }
         return stream
     }
