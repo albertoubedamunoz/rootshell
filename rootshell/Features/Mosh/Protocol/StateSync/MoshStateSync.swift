@@ -792,7 +792,14 @@ final class MoshStateSync {
         }
 
         do {
+            let hadRemoteState = receiver.latestRemoteVersion != 0
             try receiver.processPacket(packet, synchronizer: &sender)
+            if !hadRemoteState || isResumeStabilizing || isThrottled || Ghostty.isAppBackgroundedAtomic {
+                // A synchronized clipboard value is state, not an event queue.
+                // Drop URL requests from initial/resumed/hidden frames instead
+                // of replaying them when the terminal becomes visible.
+                localFramebuffer.suppressProgramURLRequest(from: receiver.latestRemoteState.framebuffer)
+            }
             overlays.getNotificationEngine().serverHeard(receiver.getLatestRemoteTimestamp())
             overlays.getNotificationEngine().serverAcked(sender.getSentStateAckedTimestamp())
             overlays.getPredictionEngine().setLocalFrameAcked(sender.getSentStateAcked())

@@ -100,7 +100,14 @@ nonisolated struct TerminalURLRequestParser {
     private func decodeURL() -> URL? {
         guard !overflowed, payload.starts(with: Self.prefix),
               let decoded = Data(base64Encoded: Data(payload.dropFirst(Self.prefix.count))),
-              let text = String(data: decoded, encoding: .utf8),
+              let text = String(data: decoded, encoding: .utf8) else { return nil }
+        return TerminalWebURL.parse(text)
+    }
+}
+
+nonisolated enum TerminalWebURL {
+    static func parse(_ text: String) -> URL? {
+        guard text.utf8.count <= 16 * 1024,
               !text.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0) }),
               let url = URL(string: text),
               let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",

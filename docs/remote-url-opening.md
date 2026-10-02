@@ -19,7 +19,7 @@ BROWSER="$HOME/bin/rootshell-open" codex
 
 The helper writes to `/dev/tty`, because browser-launching libraries can discard a subprocess's standard output. It takes exactly one HTTP(S) URL; URLs exceeding its bounded payload size are rejected.
 
-## tmux
+## Ordinary tmux over SSH
 
 For ordinary tmux sessions over SSH, enable passthrough:
 
@@ -29,13 +29,33 @@ tmux set -g allow-passthrough on
 
 The helper detects `$TMUX` and wraps its request in tmux's DCS passthrough encoding. This helper targets a direct connection or one ordinary tmux layer. Rootshell's parser also accepts a second passthrough layer when an emitter wraps it explicitly.
 
-Native tmux control-mode panes (`tmux -CC`) are not supported by this Swift-side handler: their decoded output goes directly to Ghostty. Mosh screen synchronization also does not preserve this request. Use ordinary SSH/tmux for this feature; native pane support needs a Ghostty-level protocol hook.
+## Native tmux and Mosh
+
+Use the helper's clipboard-state transport for native `tmux -CC` panes and Mosh:
+
+```sh
+BROWSER="$HOME/bin/rootshell-open --clipboard" codex
+```
+
+This sends a reserved envelope using OSC 52's `c` selector. Native tmux delivers it to the pane's Ghostty clipboard callback, which associates the request with the correct terminal. Mosh 1.4 and newer preserve this clipboard state; no server patch or separate forwarding service is needed. Rootshell intercepts the reserved envelope before writing the device clipboard or clipboard history, including when the feature is disabled or the envelope is invalid.
+
+The `--clipboard` mode also works over plain SSH. For ordinary tmux nested inside SSH or Mosh, allow application clipboard updates:
+
+```sh
+tmux set -g set-clipboard on
+```
+
+Unlike the default mode, `--clipboard` sends an unwrapped OSC 52 request even when `$TMUX` is set. It does not require `allow-passthrough` for native tmux. Ordinary tmux must forward the `c` clipboard selector (its `Ms` terminal capability); Mosh discards other selectors.
+
+Mosh carries the most recent clipboard state rather than an event queue. Very rapid requests can be coalesced before reaching the device. Each helper invocation uses a random request ID so opening the same URL twice produces two different clipboard states. Rootshell discards URL state from initial, resumed, throttled, and background frames so it cannot open when a hidden tab later becomes visible. [Mosh's clipboard renderer](https://github.com/mobile-shell/mosh/blob/mosh-1.4.0/src/terminal/terminaldisplay.cc#L102-L112) describes the underlying state channel.
 
 ## Request protocol
 
 The sequence is `ESC ] 777;rootshell;open-url;<base64> BEL`, with UTF-8 URL bytes encoded using standard base64 without line breaks. `ESC \\` (ST) can replace BEL. Encoding the URL prevents embedded control characters or semicolons from changing the request framing.
 
 Rootshell observes live session output without modifying the bytes sent to Ghostty. It handles requests split across transport chunks and bounds buffered control strings to 16 KiB. Unrelated OSC, DCS, APC, PM, and SOS sequences do not trigger URL requests. Saved scrollback and local redraws are not observed.
+
+In `--clipboard` mode, the decoded clipboard payload is `rootshell-open-url:v1:<Unix timestamp>:<32 lowercase hex request ID>:<URL>`. The entire UTF-8 envelope is base64-encoded in `ESC ] 52;c;<base64> BEL`. URL validation is identical in both modes. Envelopes expire after 60 seconds and allow up to five seconds of future clock skew; synchronize the remote host and device clocks. A bounded, device-only replay cache stores request IDs and expiry times, never URLs, and survives app restarts. Requests consumed while disabled, hidden, or backgrounded cannot open upon later replay. Reserved-envelope handling never changes ordinary clipboard updates or selection copies.
 
 Only HTTP(S) URLs with a nonempty host and no credentials, whitespace, or control characters are accepted. Requests are dropped when the app is backgrounded or when the terminal is hidden or unfocused. Opening is limited to one request per second per terminal; suppressed requests are not queued. The remote helper does not receive an acknowledgement, so a successful exit means the request was written, not that the browser opened.
 
