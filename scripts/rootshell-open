@@ -1,5 +1,6 @@
 #!/bin/sh
-# BROWSER handler for Rootshell's opt-in device-side URL requests.
+# BROWSER handler for Rootshell's opt-in device-side URL requests. The default
+# mode emits iTerm2's OSC 1337 OpenURL; --clipboard emits an OSC 52 envelope.
 set -eu
 
 clipboard=false
@@ -35,7 +36,7 @@ if [ "$clipboard" = true ]; then
     printf '\033]52;c;%s\007' "$encoded" > /dev/tty
 elif [ -n "${TMUX:-}" ]; then
     # Requires: tmux set -g allow-passthrough on
-    printf '\033Ptmux;\033\033]777;rootshell;open-url;%s\007\033\\' "$encoded" > /dev/tty
+    printf '\033Ptmux;\033\033]1337;OpenURL=:%s\007\033\\' "$encoded" > /dev/tty
 else
-    printf '\033]777;rootshell;open-url;%s\007' "$encoded" > /dev/tty
+    printf '\033]1337;OpenURL=:%s\007' "$encoded" > /dev/tty
 fi

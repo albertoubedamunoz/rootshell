@@ -19,6 +19,15 @@ BROWSER="$HOME/bin/rootshell-open" codex
 
 The helper writes to `/dev/tty`, because browser-launching libraries can discard a subprocess's standard output. It takes exactly one HTTP(S) URL; URLs exceeding its bounded payload size are rejected.
 
+There are two transports:
+
+| Connection | Helper mode | Sequence |
+| --- | --- | --- |
+| SSH, tsshd, ordinary tmux | default | iTerm2's `OSC 1337 ; OpenURL` |
+| Mosh, native tmux (`tmux -CC`) | `--clipboard` | Reserved OSC 52 envelope |
+
+The default mode uses iTerm2's existing sequence, so the helper also opens links when the remote session runs in iTerm2, and programs that already emit that sequence work in Rootshell without the helper.
+
 ## Ordinary tmux over SSH
 
 For ordinary tmux sessions over SSH, enable passthrough:
@@ -51,7 +60,7 @@ Mosh carries the most recent clipboard state rather than an event queue. Very ra
 
 ## Request protocol
 
-The sequence is `ESC ] 777;rootshell;open-url;<base64> BEL`, with UTF-8 URL bytes encoded using standard base64 without line breaks. `ESC \\` (ST) can replace BEL. Encoding the URL prevents embedded control characters or semicolons from changing the request framing.
+The default sequence is [iTerm2's `OpenURL`](https://iterm2.com/documentation-escape-codes.html): `ESC ] 1337;OpenURL=:<base64> BEL`, with UTF-8 URL bytes encoded using standard base64 without line breaks. `ESC \\` (ST) can replace BEL. Rootshell ignores any arguments between `OpenURL=` and the colon. Encoding the URL prevents embedded control characters or semicolons from changing the request framing. Other OSC 1337 commands are ignored.
 
 Rootshell observes live session output without modifying the bytes sent to Ghostty. It handles requests split across transport chunks and bounds buffered control strings to 16 KiB. Unrelated OSC, DCS, APC, PM, and SOS sequences do not trigger URL requests. Saved scrollback and local redraws are not observed.
 

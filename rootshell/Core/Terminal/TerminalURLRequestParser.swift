@@ -1,7 +1,8 @@
 import Foundation
 
 /// Observes live PTY bytes without changing the stream sent to Ghostty.
-/// OSC 777;rootshell;open-url;<base64 UTF-8 URL>, terminated by BEL or ST.
+/// iTerm2's OSC 1337;OpenURL=[args]:<base64 UTF-8 URL>, terminated by BEL or
+/// ST. Arguments before the colon are ignored.
 /// Instances belong to one stream and must be called serially.
 nonisolated struct TerminalURLRequestParser {
     private enum State { case ground, escape, osc, oscEscape, dcs, dcsEscape, string, stringEscape }
@@ -10,7 +11,7 @@ nonisolated struct TerminalURLRequestParser {
     private var overflowed = false
     private let depth: Int
     private static let limit = 16 * 1024
-    private static let prefix = Data("777;rootshell;open-url;".utf8)
+    private static let prefix = Data("1337;OpenURL=".utf8)
 
     init(depth: Int = 0) { self.depth = depth }
 
@@ -99,7 +100,8 @@ nonisolated struct TerminalURLRequestParser {
 
     private func decodeURL() -> URL? {
         guard !overflowed, payload.starts(with: Self.prefix),
-              let decoded = Data(base64Encoded: Data(payload.dropFirst(Self.prefix.count))),
+              let colon = payload.dropFirst(Self.prefix.count).firstIndex(of: 0x3a),
+              let decoded = Data(base64Encoded: Data(payload[payload.index(after: colon)...])),
               let text = String(data: decoded, encoding: .utf8) else { return nil }
         return TerminalWebURL.parse(text)
     }

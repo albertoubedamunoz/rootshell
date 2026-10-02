@@ -17,6 +17,18 @@ nonisolated final class TerminalClipboardURLRequestTests: XCTestCase {
         }
     }
 
+    /// Mosh suppression keys on this: reserved envelopes, including invalid or
+    /// future versions, never reach the clipboard; ordinary copies always do.
+    func testReservedClipboardStateRecognition() {
+        for text in [envelope(), "rootshell-open-url:v2:anything", "rootshell-open-url:"] {
+            XCTAssertTrue(TerminalClipboardURLRequest.isReservedClipboardState(Data(text.utf8).base64EncodedString()), text)
+        }
+        for text in ["ordinary clipboard text", "https://example.com", "rootshell-open-url"] {
+            XCTAssertFalse(TerminalClipboardURLRequest.isReservedClipboardState(Data(text.utf8).base64EncodedString()), text)
+        }
+        XCTAssertFalse(TerminalClipboardURLRequest.isReservedClipboardState("not base64 %%%"))
+    }
+
     func testMalformedEnvelopeAndUnrelatedClipboard() {
         for text in ["ordinary clipboard contents", "https://example.com", "rootshell-open-url:v2:1000:\(id):https://example.com", envelope(id: "invalid"), envelope(id: String(repeating: "g", count: 32)), envelope(timestamp: -1), "\(TerminalClipboardURLRequest.prefix)NaN:\(id):https://example.com", envelope(url: String(repeating: "a", count: 20_000))] {
             XCTAssertNil(TerminalClipboardURLRequest.decode(text), text.prefix(100).description)

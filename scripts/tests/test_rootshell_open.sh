@@ -9,11 +9,11 @@ encoded=$(printf '%s' "$url" | base64 | tr -d '\r\n')
 
 # stdout is redirected by script; /dev/tty must still reach the PTY master.
 env -u TMUX script -q -e -c "./scripts/rootshell-open '$url'" /dev/null > "$test_dir/direct"
-printf '\033]777;rootshell;open-url;%s\007' "$encoded" > "$test_dir/expected"
+printf '\033]1337;OpenURL=:%s\007' "$encoded" > "$test_dir/expected"
 cmp "$test_dir/expected" "$test_dir/direct"
 
 TMUX=test script -q -e -c "./scripts/rootshell-open '$url'" /dev/null > "$test_dir/tmux"
-printf '\033Ptmux;\033\033]777;rootshell;open-url;%s\007\033\\' "$encoded" > "$test_dir/expected"
+printf '\033Ptmux;\033\033]1337;OpenURL=:%s\007\033\\' "$encoded" > "$test_dir/expected"
 cmp "$test_dir/expected" "$test_dir/tmux"
 
 # --clipboard must stay unwrapped even inside tmux: native pane parsing and

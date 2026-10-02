@@ -3,7 +3,7 @@ import XCTest
 
 nonisolated final class TerminalURLRequestParserTests: XCTestCase {
     private func request(_ url: String = "https://example.com/path?q=a&b=c#anchor", end: String = "\u{7}") -> Data {
-        Data(("\u{1b}]777;rootshell;open-url;" + Data(url.utf8).base64EncodedString() + end).utf8)
+        Data(("\u{1b}]1337;OpenURL=:" + Data(url.utf8).base64EncodedString() + end).utf8)
     }
 
     private func tmux(_ bytes: Data) -> Data {
@@ -46,6 +46,15 @@ nonisolated final class TerminalURLRequestParserTests: XCTestCase {
         XCTAssertTrue(parser.consume(Data("more output".utf8)).isEmpty)
     }
 
+    func testITermArgumentsAndOtherOSC1337Commands() {
+        let encoded = Data("https://example.com".utf8).base64EncodedString()
+        var parser = TerminalURLRequestParser()
+        XCTAssertEqual(parser.consume(Data("\u{1b}]1337;OpenURL=future=1:\(encoded)\u{7}".utf8)).map(\.host), ["example.com"])
+        for other in ["1337;OpenURL=\(encoded)", "1337;SetUserVar=url=\(encoded)", "1337;File=inline=1:\(encoded)", "777;rootshell;open-url;\(encoded)"] {
+            XCTAssertTrue(parser.consume(Data("\u{1b}]\(other)\u{7}".utf8)).isEmpty, other)
+        }
+    }
+
     func testRequestsInsideOtherControlStringsAreIgnored() {
         for prefix in ["\u{1b}Pimage;", "\u{1b}_G", "\u{1b}^", "\u{1b}X"] {
             var parser = TerminalURLRequestParser()
@@ -60,14 +69,14 @@ nonisolated final class TerminalURLRequestParserTests: XCTestCase {
             XCTAssertTrue(parser.consume(request(url)).isEmpty, url)
         }
         var parser = TerminalURLRequestParser()
-        XCTAssertTrue(parser.consume(Data("\u{1b}]777;rootshell;open-url;%%%\u{7}".utf8)).isEmpty)
+        XCTAssertTrue(parser.consume(Data("\u{1b}]1337;OpenURL=:%%%\u{7}".utf8)).isEmpty)
         let invalidUTF8 = Data([0xff]).base64EncodedString()
-        XCTAssertTrue(parser.consume(Data("\u{1b}]777;rootshell;open-url;\(invalidUTF8)\u{7}".utf8)).isEmpty)
+        XCTAssertTrue(parser.consume(Data("\u{1b}]1337;OpenURL=:\(invalidUTF8)\u{7}".utf8)).isEmpty)
     }
 
     func testOversizedRequestRecoversAfterTerminator() {
         var parser = TerminalURLRequestParser()
-        let bytes = Data("\u{1b}]777;rootshell;open-url;".utf8) + Data(repeating: 0x41, count: 100_000)
+        let bytes = Data("\u{1b}]1337;OpenURL=:".utf8) + Data(repeating: 0x41, count: 100_000)
         XCTAssertTrue(parser.consume(bytes).isEmpty)
         XCTAssertTrue(parser.consume(Data([0x07])).isEmpty)
         XCTAssertEqual(parser.consume(request()).count, 1)
@@ -76,7 +85,7 @@ nonisolated final class TerminalURLRequestParserTests: XCTestCase {
     func testCancelledAndInterruptedRequestsCannotInjectAnOSC() {
         for cancel: UInt8 in [0x18, 0x1a] {
             var parser = TerminalURLRequestParser()
-            XCTAssertTrue(parser.consume(Data("\u{1b}]777;rootshell;open-url;".utf8) + Data([cancel])).isEmpty)
+            XCTAssertTrue(parser.consume(Data("\u{1b}]1337;OpenURL=:".utf8) + Data([cancel])).isEmpty)
             XCTAssertEqual(parser.consume(request()).count, 1)
         }
         var parser = TerminalURLRequestParser()
