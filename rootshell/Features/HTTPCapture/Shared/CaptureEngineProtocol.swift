@@ -60,6 +60,8 @@ nonisolated enum CaptureMessage {
 
     enum Command: String, Sendable {
         case configure, stop, reset, sessions, list, read, delete
+        /// Engine status, answered in order after every earlier capture command.
+        case status
     }
 
     static func encode(_ command: Command, body: Data? = nil) -> Data {

@@ -12,6 +12,9 @@ import UIKit
 
 struct CaptureRequestList: View {
     @Bindable var model: HTTPCaptureModel
+    /// Narrow layouts push the detail with standard navigation links; the wide
+    /// split selects a row instead.
+    var pushesDetail = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,7 +22,7 @@ struct CaptureRequestList: View {
             filterBar
             Divider()
             if let document = model.document {
-                CaptureRequestRows(model: model, document: document)
+                CaptureRequestRows(model: model, document: document, pushesDetail: pushesDetail)
             } else {
                 emptyState
             }
@@ -119,6 +122,7 @@ struct CaptureRequestList: View {
 private struct CaptureRequestRows: View {
     @Bindable var model: HTTPCaptureModel
     let document: CaptureSessionDocument
+    let pushesDetail: Bool
 
     var body: some View {
         let rows = model.filtered(document.transactions)
@@ -132,13 +136,21 @@ private struct CaptureRequestRows: View {
             .frame(maxHeight: .infinity)
         } else {
             ScrollViewReader { proxy in
-                List(selection: selectionBinding) {
+                List(selection: pushesDetail ? nil : selectionBinding) {
                     ForEach(rows) { tx in
-                        CaptureRequestRow(tx: tx)
-                            .tag(tx.id)
-                            .contextMenu { CaptureTransactionMenu(model: model, document: document, tx: tx) }
-                            .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
-                            .listRowBackground(rowBackground(selected: model.selectedTransactionID == tx.id))
+                        Group {
+                            if pushesDetail {
+                                NavigationLink(value: HTTPCaptureModel.Route.transaction(tx.id)) {
+                                    CaptureRequestRow(tx: tx)
+                                }
+                            } else {
+                                CaptureRequestRow(tx: tx)
+                            }
+                        }
+                        .tag(tx.id)
+                        .contextMenu { CaptureTransactionMenu(model: model, document: document, tx: tx) }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+                        .listRowBackground(rowBackground(selected: !pushesDetail && model.selectedTransactionID == tx.id))
                     }
                 }
                 .listStyle(.plain)
@@ -167,15 +179,7 @@ private struct CaptureRequestRows: View {
     }
 
     private var selectionBinding: Binding<String?> {
-        Binding(
-            get: { model.selectedTransactionID },
-            set: { id in
-                model.selectedTransactionID = id
-                if let id, model.path.last != .transaction(id) {
-                    model.path = [.transaction(id)]
-                }
-            }
-        )
+        Binding(get: { model.selectedTransactionID }, set: { model.selectedTransactionID = $0 })
     }
 }
 

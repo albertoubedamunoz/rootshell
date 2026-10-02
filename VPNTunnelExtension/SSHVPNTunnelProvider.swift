@@ -77,6 +77,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     private let settingsShapeLock = NSLock()
     private nonisolated(unsafe) var settingsShape: TunnelSettingsShape?
     nonisolated static let directTunnelRemoteAddress = "192.0.2.1"
+    nonisolated static let captureQueue = DispatchQueue(label: "VPNTunnel.capture", qos: .userInitiated)
     private let failureStateLock = NSLock()
     private nonisolated(unsafe) var hasHandledGoFailure = false
 
@@ -498,8 +499,9 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     nonisolated override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         if CaptureMessage.isCaptureMessage(messageData) {
             // Off the delivery thread: Go work here must never hold up getStatus.
-            // NE allows a deferred completion handler.
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // Serial, so commands apply in the order the app sent them (a slow
+            // configure can't land after a stop). NE allows a deferred completion.
+            Self.captureQueue.async { [weak self] in
                 let (reply, wantsIPv6) = CaptureBridge.handle(messageData)
                 if wantsIPv6 {
                     self?.enableIPv6RoutingIfNeeded()

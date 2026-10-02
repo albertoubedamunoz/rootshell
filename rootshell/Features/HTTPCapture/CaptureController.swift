@@ -48,6 +48,7 @@ final class CaptureController {
 
     private(set) var activeSessionID: String?
     private(set) var isStarting = false
+    private(set) var isStopping = false
     private(set) var lastError: String?
 
     private let logger = CaptureSessionStore.logger
@@ -80,8 +81,71 @@ final class CaptureController {
 
     // MARK: - Start / stop
 
+    /// Lifecycle changes and settings pushes run one at a time, in call order,
+    /// so a push can never slip between a stop and its acknowledgement.
+    private var operationChain: Task<Void, Never>?
+
+    private func serialized(_ operation: @escaping @MainActor () async -> Void) async {
+        let previous = operationChain
+        let task = Task { @MainActor in
+            await previous?.value
+            await operation()
+        }
+        operationChain = task
+        await task.value
+    }
+
+    private enum EngineSession: Equatable {
+        case recording(String)
+        case idle
+        case unknown
+    }
+
+    /// What the engine is recording right now. Asked on the extension's capture
+    /// queue, so the answer reflects every command sent before it; no reply
+    /// (or a cached status) is never taken as authoritative.
+    private func currentEngineSession() async -> EngineSession {
+        guard let data = await send(.status),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return .unknown }
+        guard let capture = object["capture"],
+              let captureData = try? JSONSerialization.data(withJSONObject: capture),
+              let status = try? JSONDecoder().decode(EngineStatus.self, from: captureData) else {
+            // A live tunnel with no capture state isn't recording anything.
+            return object["connected"] as? Bool == true ? .idle : .unknown
+        }
+        if status.enabled, let id = status.sessionID, !id.isEmpty { return .recording(id) }
+        return .idle
+    }
+
+    private enum ConfigureOutcome {
+        case accepted
+        /// The engine is known not to be recording the requested session.
+        case rejected(String?)
+        /// No reply and no status: the engine may or may not have switched.
+        case unknown
+    }
+
+    /// Sends a configure and decides what the engine did. Without a reply, the
+    /// ordered status settles it; when that is missing too the outcome stays
+    /// unknown and callers must not finish or delete anything on that basis.
+    private func configure(_ config: CaptureEngineConfig) async -> ConfigureOutcome {
+        let reply = await send(.configure, json: configForTransport(config))
+        if let decoded = reply.flatMap({ try? JSONDecoder().decode(CaptureReply.self, from: $0) }) {
+            return decoded.ok ? .accepted : .rejected(decoded.error)
+        }
+        switch await currentEngineSession() {
+        case .recording(let id) where id == config.sessionID: return .accepted
+        case .unknown: return .unknown
+        default: return .rejected(nil)
+        }
+    }
+
     /// Starts recording. Brings up the Local Capture tunnel when no VPN is connected.
     func start(name: String? = nil) async {
+        await serialized { await self.performStart(name: name) }
+    }
+
+    private func performStart(name: String?) async {
         guard !isStarting, activeSessionID == nil else { return }
         isStarting = true
         lastError = nil
@@ -102,12 +166,16 @@ final class CaptureController {
             )
             let config = engineConfig(sessionID: meta.id)
             try CapturePaths.writeEngineConfig(config)
-            let reply = await send(.configure, json: configForTransport(config))
-            let decoded = reply.flatMap { try? JSONDecoder().decode(CaptureReply.self, from: $0) }
-            guard decoded?.ok == true else {
+            switch await configure(config) {
+            case .accepted:
+                break
+            case .unknown:
+                // It may be recording; showing it as recording keeps Stop reachable.
+                lastError = String(localized: "The VPN extension didn't confirm that recording started. If no requests appear, stop and record again.", comment: "HTTP capture warning")
+            case .rejected(let error):
                 try? CapturePaths.writeEngineConfig(engineConfig(sessionID: nil))
                 CaptureSessionStore.shared.markEnded(meta.id)
-                throw CaptureError.engineUnavailable(decoded?.error)
+                throw CaptureError.engineUnavailable(error)
             }
             activeSessionID = meta.id
             // Existing connections predate capture; make apps reconnect through it.
@@ -119,23 +187,94 @@ final class CaptureController {
         }
     }
 
+    /// Stops recording. The session is only marked finished once the engine
+    /// confirms, or when no tunnel is up (so no engine is running).
     func stop() async {
-        guard let id = activeSessionID else { return }
+        await serialized { await self.performStop() }
+    }
+
+    private func performStop() async {
+        guard let id = activeSessionID, !isStopping else { return }
+        lastError = nil
+        isStopping = true
+        defer { isStopping = false }
+        if VPNManager.shared.isTunnelUp, await send(.stop) == nil, await currentEngineSession() != .idle {
+            lastError = String(localized: "The VPN extension didn't confirm that recording stopped. Try again.", comment: "HTTP capture error")
+            return
+        }
         activeSessionID = nil
         try? CapturePaths.writeEngineConfig(engineConfig(sessionID: nil))
-        _ = await send(.stop)
-        CaptureSessionStore.shared.markEnded(id)
-        if CaptureSessionStore.isMirrored {
-            await CaptureSessionStore.shared.mirrorFully(session: id)
+        // The engine is idle now, so any session an unconfirmed start or clear
+        // left marked as recording is finished too.
+        let stillRecording = CaptureSessionStore.shared.sessions.filter(\.isRecording).map(\.id)
+        for sessionID in Set(stillRecording + [id]) {
+            CaptureSessionStore.shared.markEnded(sessionID)
+            if CaptureSessionStore.isMirrored {
+                await CaptureSessionStore.shared.mirrorFully(session: sessionID)
+            }
+        }
+    }
+
+    /// Empties the recording session: recording continues into a fresh session
+    /// with the same name, and the old one is deleted once the engine has switched.
+    func clearActiveSession() async {
+        await serialized { await self.performClear() }
+    }
+
+    private func performClear() async {
+        guard let oldID = activeSessionID, let old = CaptureSessionStore.shared.meta(oldID),
+              !isStopping, !isStarting else { return }
+        lastError = nil
+        isStarting = true
+        defer { isStarting = false }
+        do {
+            let meta = try CaptureSessionStore.shared.create(
+                name: old.name, profileName: old.profileName, recordPackets: old.recordedPackets)
+            let config = engineConfig(sessionID: meta.id)
+            switch await configure(config) {
+            case .accepted:
+                break
+            case .unknown:
+                // Either session may be recording: keep both untouched. The
+                // next confirmed Stop finishes whichever is still open.
+                lastError = String(localized: "Couldn't confirm the new session with the VPN extension. Both sessions were kept.", comment: "HTTP capture error")
+                return
+            case .rejected:
+                // The replacement is known not to be recording, so it can go.
+                await CaptureSessionStore.shared.delete(meta.id, engineConfirmedIdle: true)
+                switch await currentEngineSession() {
+                case .recording(oldID), .unknown:
+                    lastError = String(localized: "The VPN extension didn't switch to a new session. Nothing was cleared.", comment: "HTTP capture error")
+                default:
+                    // The engine stopped recording altogether.
+                    activeSessionID = nil
+                    try? CapturePaths.writeEngineConfig(engineConfig(sessionID: nil))
+                    CaptureSessionStore.shared.markEnded(oldID)
+                    lastError = String(localized: "Recording stopped because the new session couldn't be created.", comment: "HTTP capture error")
+                }
+                return
+            }
+            try? CapturePaths.writeEngineConfig(config)
+            activeSessionID = meta.id
+            // Confirmed: the engine now records the replacement, not the old one.
+            await CaptureSessionStore.shared.delete(oldID, engineConfirmedIdle: true)
+            // Open connections (e.g. WebSockets) were recording into the old
+            // session; reconnecting them puts their traffic in the new one.
+            _ = await send(.reset)
+        } catch {
+            lastError = error.localizedDescription
         }
     }
 
     /// Re-sends rules and options to the engine (same session, same segment).
+    /// Queued behind any start/stop/clear, so it always reflects the settled state.
     func pushConfig() async {
-        let config = engineConfig(sessionID: activeSessionID)
-        try? CapturePaths.writeEngineConfig(config)
-        guard VPNManager.shared.isTunnelUp else { return }
-        _ = await send(.configure, json: configForTransport(config))
+        await serialized {
+            let config = self.engineConfig(sessionID: self.activeSessionID)
+            try? CapturePaths.writeEngineConfig(config)
+            guard VPNManager.shared.isTunnelUp else { return }
+            _ = await self.send(.configure, json: self.configForTransport(config))
+        }
     }
 
     /// Closes existing connections so apps reconnect through the current rules.

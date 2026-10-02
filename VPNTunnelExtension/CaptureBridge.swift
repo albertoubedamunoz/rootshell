@@ -144,6 +144,9 @@ nonisolated enum CaptureBridge {
             }
             return (Data(VpntunnelCaptureStop().utf8), false)
 
+        case .status:
+            return (Data(VpntunnelGetStatus().utf8), false)
+
         case .reset:
             let count = VpntunnelCaptureResetFlows()
             return (encodeReply(CaptureReply(ok: true, count: Int(count))), false)

@@ -46,7 +46,7 @@ struct HTTPCaptureView: View {
                     }
                 } else {
                     NavigationStack(path: $model.path) {
-                        CaptureRequestList(model: model)
+                        CaptureRequestList(model: model, pushesDetail: true)
                             .toolbar(.hidden, for: .navigationBar)
                             .navigationDestination(for: HTTPCaptureModel.Route.self) { route in
                                 switch route {
@@ -161,11 +161,20 @@ struct HTTPCaptureView: View {
             ProgressView().controlSize(.small)
         } else if controller.isRecording {
             Button {
+                Task { await controller.clearActiveSession() }
+            } label: {
+                Image(systemName: "trash")
+            }
+            .disabled(controller.isStopping)
+            .help(String(localized: "Clear the captured requests and keep recording", comment: "HTTP capture clear tooltip"))
+            .accessibilityLabel(String(localized: "Clear", comment: "HTTP capture: clear the recording session"))
+            Button {
                 Task { await controller.stop() }
             } label: {
                 Label(String(localized: "Stop", comment: "HTTP capture: stop recording"), systemImage: "stop.circle.fill")
                     .foregroundStyle(.red)
             }
+            .disabled(controller.isStopping)
             .help(String(localized: "Stop recording", comment: "HTTP capture stop tooltip"))
         } else {
             Button {

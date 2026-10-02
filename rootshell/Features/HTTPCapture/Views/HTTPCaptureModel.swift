@@ -64,7 +64,10 @@ final class HTTPCaptureModel {
     var statusFilter: StatusClass?
     var sheet: Sheet?
     var errorMessage: String?
-    private var isVisible = false
+    /// On-screen panel instances. Switching sidebar ↔ overlay briefly has two,
+    /// and their appear/disappear calls can arrive in either order.
+    private var visibleCount = 0
+    private var isVisible: Bool { visibleCount > 0 }
 
     /// Opens the recording session, else the newest one.
     func openDefault() {
@@ -85,8 +88,8 @@ final class HTTPCaptureModel {
     }
 
     func setVisible(_ visible: Bool) {
-        isVisible = visible
-        if visible {
+        visibleCount = max(0, visibleCount + (visible ? 1 : -1))
+        if isVisible {
             if document == nil { openDefault() }
             document?.startWatching()
         } else {

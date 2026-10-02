@@ -57,6 +57,13 @@ final class CaptureCAManager {
 
     private init() {
         load()
+        // Trust is changed outside the app (Settings › Certificate Trust
+        // Settings, Keychain Access), so re-check whenever we come back.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { CaptureCAManager.shared.refreshTrust() }
+        }
     }
 
     var hasCA: Bool { certificateDER != nil }
@@ -84,12 +91,17 @@ final class CaptureCAManager {
     }
 
     private func apply(der: Data) {
+        let changed = certificateDER != der
         certificateDER = der
         if let cert = SecCertificateCreateWithData(nil, der as CFData) {
             commonName = SecCertificateCopySubjectSummary(cert) as String?
         }
         notAfter = Self.notAfter(of: der)
         fingerprint = SHA256.hash(data: der).map { String(format: "%02X", $0) }.joined(separator: ":")
+        // A loaded certificate's trust is unknown until evaluated; never show
+        // the default (or a previous certificate's) state for it.
+        if changed { trust = .checking }
+        refreshTrust()
     }
 
     /// Creates a new CA if none exists.
@@ -110,8 +122,6 @@ final class CaptureCAManager {
             throw CAError.keychainWriteFailed
         }
         apply(der: der)
-        trust = .untrusted
-        refreshTrust()
     }
 
     /// Replaces the CA. The old one stays trusted by the OS until the user
@@ -300,7 +310,6 @@ final class CaptureCAManager {
             throw CAError.keychainWriteFailed
         }
         apply(der: der)
-        refreshTrust()
     }
 
     // MARK: - Helpers

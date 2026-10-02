@@ -47,7 +47,8 @@ struct CaptureTransactionDetail: View {
                 content(tx)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle(tx.displayHost)
+            .navigationBarTitleDisplayMode(.inline)
             .id(transactionID)
         } else {
             ContentUnavailableView(String(localized: "Request Not Found", comment: "HTTP capture detail missing"), systemImage: "questionmark")
@@ -60,13 +61,6 @@ struct CaptureTransactionDetail: View {
 
     private func titleBar(_ tx: CaptureTransaction) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if !model.path.isEmpty {
-                Button { model.path.removeLast() } label: {
-                    Image(systemName: "chevron.left").font(.body.weight(.semibold))
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(String(localized: "Back", comment: "Back button"))
-            }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(tx.method).font(.caption.monospaced().weight(.bold)).foregroundStyle(.secondary)

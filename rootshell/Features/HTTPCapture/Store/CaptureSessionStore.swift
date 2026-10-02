@@ -109,8 +109,13 @@ final class CaptureSessionStore {
         try? write(meta)
     }
 
-    func delete(_ id: String) async {
-        guard id != CaptureController.shared.activeSessionID, let dir = Self.directory(for: id) else { return }
+    /// Deletes a session. Anything still marked recording is refused (it may be
+    /// what the engine writes to after an unconfirmed start or clear) unless the
+    /// caller has confirmed with the engine that it isn't: `engineConfirmedIdle`.
+    func delete(_ id: String, engineConfirmedIdle: Bool = false) async {
+        guard id != CaptureController.shared.activeSessionID,
+              engineConfirmedIdle || meta(id)?.isRecording != true,
+              let dir = Self.directory(for: id) else { return }
         try? FileManager.default.removeItem(at: dir)
         if Self.isMirrored {
             _ = await CaptureController.shared.send(.delete, json: CaptureSessionRef(session: id))
@@ -118,8 +123,9 @@ final class CaptureSessionStore {
         reload()
     }
 
+    /// Deletes every finished session; anything marked recording is kept.
     func deleteAll() async {
-        for meta in sessions where meta.id != CaptureController.shared.activeSessionID {
+        for meta in sessions where !meta.isRecording {
             await delete(meta.id)
         }
     }
@@ -252,20 +258,18 @@ final class CaptureSessionDocument {
         return transactions.last { $0.id == id }
     }
 
-    /// Polls the index while the session is recording (or not yet mirrored).
+    /// Polls the index until stopped: quickly while the session records, slowly
+    /// otherwise (a cheap size check), so a stale "not recording" read can
+    /// never end live updates.
     func startWatching() {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.refresh()
-                let meta = CaptureSessionStore.shared.meta(self.sessionID)
-                let live = meta?.isRecording == true
-                    || (CaptureSessionStore.isMirrored && meta?.mirrored != true)
-                if !live { break }
-                try? await Task.sleep(for: .milliseconds(750))
+                let recording = CaptureSessionStore.shared.meta(self.sessionID)?.isRecording ?? true
+                try? await Task.sleep(for: .milliseconds(recording ? 500 : 2000))
             }
-            self?.pollTask = nil
         }
     }
 
