@@ -42,6 +42,9 @@ struct FilePaneView: View {
             filterRow
             Divider()
             content
+                .contentShape(Rectangle())
+                // Rows keep their own menus; empty space gets the ⋯ menu for this pane.
+                .contextMenu { FileManagerMoreMenuItems(manager: manager, side: pane.id) }
             if isSelecting || (!usesPointerSemantics && !pane.selection.isEmpty) {
                 Divider()
                 selectionBar
@@ -150,6 +153,7 @@ struct FilePaneView: View {
                 onBackTab: { arrowRepeat.stop(); pane.goUp() },
                 extraCommands: keyCommands,
                 onSelectAll: { manager.perform(.selectAll) },
+                onPaste: { manager.paste($0, into: pane.id, directory: nil) },
                 claimsKeyboard: true
             )
             .frame(height: 22)
@@ -408,6 +412,10 @@ struct FilePaneView: View {
         }
         Button { manager.transferToOther(move: true, entries: targets, from: pane.id) } label: {
             Label(String(localized: "Move to \(otherPaneName)", comment: "File manager context menu; argument is the other pane's location"), systemImage: "arrow.right.doc.on.clipboard")
+        }
+        // Like a drop: onto a folder row pastes into that folder.
+        Button { manager.pasteFromClipboard(into: pane.id, directory: entry.isDirectory ? entry.path : nil) } label: {
+            Label(FileManagerShortcut.shortcut(for: .paste).title, systemImage: "doc.on.clipboard")
         }
         Divider()
         if !plural {

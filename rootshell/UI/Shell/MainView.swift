@@ -298,12 +298,23 @@ struct MainView: View {
     // File manager: the model is created on first open and kept while hidden.
     @State var showFileManager = false
     @State var fileManagerModel: FileManagerModel?
-    @State var fileManagerPresentation: FileManagerPresentation = SettingsStore.shared.value(Settings.Transfer.fileManagerPresentation)
+    @State var fileManagerPresentation: PanelPresentation = SettingsStore.shared.value(Settings.Transfer.fileManagerPresentation)
     /// Live width during a drag; persisted only on commit, like the AI sidebar's.
     @State var fileManagerSidebarWidth: CGFloat = CGFloat(SettingsStore.shared.value(Settings.Transfer.fileManagerSidebarWidth))
     @State var fileManagerSidebarIsDragging = false
     /// A Files-tab choice waiting for the connection sheet to finish dismissing.
-    @State var pendingFileManagerOpen: (endpoint: FileEndpoint, presentation: FileManagerPresentation?)?
+    @State var pendingFileManagerOpen: (endpoint: FileEndpoint, presentation: PanelPresentation?)?
+
+    #if !CHINA_BUILD
+    // HTTP capture panel: shares the trailing docked slot with the file manager.
+    @State var showHTTPCapture = false
+    @State var httpCaptureModel: HTTPCaptureModel?
+    @State var httpCapturePresentation: PanelPresentation = SettingsStore.shared.value(Settings.HTTPCapture.presentation)
+    @State var httpCaptureSidebarWidth: CGFloat = CGFloat(SettingsStore.shared.value(Settings.HTTPCapture.sidebarWidth))
+    @State var httpCaptureSidebarIsDragging = false
+    /// Settings asked for the capture panel; it opens once Settings has closed.
+    @State var pendingHTTPCaptureOpen = false
+    #endif
 
     /// Dictation HUD, used where the terminal keyboard's Dictation page is not showing.
     @State var showDictationHUD = false
@@ -672,7 +683,7 @@ struct MainView: View {
                     // (pinned) tab sidebar consumes the leading edge and the
                     // AI agent sidebar the trailing edge.
                     .padding(.leading, dockedTabSidebarWidth(windowWidth: geometry.size.width))
-                    .padding(.trailing, aiAgentSidebarCurrentWidth() + fileManagerSidebarCurrentWidth)
+                    .padding(.trailing, aiAgentSidebarCurrentWidth() + fileManagerSidebarCurrentWidth + httpCaptureDockedWidth)
                     .transition(.opacity)
                 }
             }

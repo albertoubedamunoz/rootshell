@@ -31,6 +31,14 @@ enum VPNControlCommand: String, Codable, Sendable {
     case stopVPN
     /// Query live tunnel status + stats. Response `VPNTunnelStatusResponse`.
     case getStatus
+    /// Relay an opaque provider message (HTTP capture) to the tunnel; the
+    /// response payload is the provider's reply.
+    case providerMessage
+    /// Add a DER certificate to the login keychain and trust it as an SSL root
+    /// (HTTP capture CA). Prompts the user for their password.
+    case installCATrust
+    /// Remove the trust settings and keychain item for a DER certificate.
+    case removeCATrust
 }
 
 // MARK: - Envelope
@@ -78,15 +86,20 @@ struct VPNStartRequest: Codable, Sendable {
     /// vice versa.
     let usesAgentSigning: Bool
 
-    init(profileID: UUID, transportType: String, resolvedConfig: Data? = nil, usesAgentSigning: Bool = false) {
+    /// HTTP capture engine config (including the CA key) for the sysext, which
+    /// can't read the user's keychain. Forwarded as the "captureConfig" start option.
+    let captureConfig: Data?
+
+    init(profileID: UUID, transportType: String, resolvedConfig: Data? = nil, usesAgentSigning: Bool = false, captureConfig: Data? = nil) {
         self.profileID = profileID
         self.transportType = transportType
         self.resolvedConfig = resolvedConfig
         self.usesAgentSigning = usesAgentSigning
+        self.captureConfig = captureConfig
     }
 
     enum CodingKeys: String, CodingKey {
-        case profileID, transportType, resolvedConfig, usesAgentSigning
+        case profileID, transportType, resolvedConfig, usesAgentSigning, captureConfig
     }
 
     init(from decoder: Decoder) throws {
@@ -95,6 +108,7 @@ struct VPNStartRequest: Codable, Sendable {
         transportType = try container.decode(String.self, forKey: .transportType)
         resolvedConfig = try container.decodeIfPresent(Data.self, forKey: .resolvedConfig)
         usesAgentSigning = try container.decodeIfPresent(Bool.self, forKey: .usesAgentSigning) ?? false
+        captureConfig = try container.decodeIfPresent(Data.self, forKey: .captureConfig)
     }
 }
 
@@ -104,6 +118,8 @@ struct VPNStartRequest: Codable, Sendable {
 /// payload — treated as stale.
 nonisolated struct VPNHostInfoResponse: Codable, Sendable {
     var supportsTSSHRelay: Bool? = nil
+    /// Host understands providerMessage / installCATrust / removeCATrust.
+    var supportsHTTPCapture: Bool? = nil
     let version: String
     let bundlePath: String
 }

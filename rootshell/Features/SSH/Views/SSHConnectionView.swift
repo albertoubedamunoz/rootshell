@@ -26,7 +26,7 @@ struct SSHConnectionView: View {
     @State var splitOption: SplitOption = .newTab
 
     // Files tab: where the file manager opens, and the location search
-    @State private var filePresentation: FileManagerPresentation = SettingsStore.shared.value(Settings.Transfer.fileManagerPresentation)
+    @State private var filePresentation: PanelPresentation = SettingsStore.shared.value(Settings.Transfer.fileManagerPresentation)
     @State private var fileLocationQuery: String = ""
 
     // Kubernetes-specific state
@@ -192,7 +192,7 @@ struct SSHConnectionView: View {
     var onProfileConnect: ((ConnectionProfile, SplitOption) -> Void)? = nil
 
     /// Callback when a Files location is chosen; presentation is nil on iPhone (always a sheet)
-    var onFileManagerOpen: ((FileEndpoint, FileManagerPresentation?) -> Void)? = nil
+    var onFileManagerOpen: ((FileEndpoint, PanelPresentation?) -> Void)? = nil
 
     /// When true, the Cancel button is hidden (no terminal to return to)
     var preventDismissal: Bool = false
@@ -224,7 +224,7 @@ struct SSHConnectionView: View {
         onConsoleConnect: ((ConsoleConfig, SplitOption) -> Void)? = nil,
         onEC2ConsoleConnect: ((EC2ConsoleConfig, SplitOption) -> Void)? = nil,
         onProfileConnect: ((ConnectionProfile, SplitOption) -> Void)? = nil,
-        onFileManagerOpen: ((FileEndpoint, FileManagerPresentation?) -> Void)? = nil,
+        onFileManagerOpen: ((FileEndpoint, PanelPresentation?) -> Void)? = nil,
         preventDismissal: Bool = false,
         onClose: (() -> Void)? = nil,
         initialTab: ConnectionSidebarTab? = nil
@@ -1344,7 +1344,7 @@ struct SSHConnectionView: View {
     private var filesOpenAsHeader: some View {
         VStack(spacing: 0) {
             Picker(String(localized: "Open In", comment: "Connection view: file manager presentation picker"), selection: $filePresentation) {
-                ForEach(FileManagerPresentation.allCases, id: \.self) { presentation in
+                ForEach(PanelPresentation.allCases, id: \.self) { presentation in
                     Text(presentation.title).tag(presentation)
                 }
             }

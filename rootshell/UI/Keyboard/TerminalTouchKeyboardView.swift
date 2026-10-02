@@ -1000,7 +1000,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 return Model.Key(title: custom.label, action: .custom(id), symbol: custom.iconName, accessibility: custom.label)
             case .builtIn(let id):
                 guard !manager.config.hiddenKeys.contains(id) else { return nil }
-                if id == .dictation, !DictationSupport.isEnabled { return nil }
+                guard id.isAvailable else { return nil }
                 let action: Model.Action
                 let title: String
                 switch id {

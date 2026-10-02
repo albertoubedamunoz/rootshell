@@ -41,6 +41,10 @@ final class MacVPNController {
     var onApprovalRequired: (() -> Void)?
     var onApprovalResolved: (() -> Void)?
 
+    /// HTTP capture engine config (with the CA key) forwarded to the sysext on
+    /// every start, since it can't read the user's keychain.
+    var captureConfigProvider: (() -> Data?)?
+
     enum MacVPNError: LocalizedError {
         case hostNotInstalled
         case hostUnreachable
@@ -240,7 +244,8 @@ final class MacVPNController {
             profileID: profileID,
             transportType: snapshot.transportType == .tssh && snapshot.jumpHost?.tsshRelay != nil ? "tssh-relay" : snapshot.transportType.rawValue,
             resolvedConfig: payload,
-            usesAgentSigning: isAgentKey(resolved.credential) || isAgentKey(resolved.jumpCredential)
+            usesAgentSigning: isAgentKey(resolved.credential) || isAgentKey(resolved.jumpCredential),
+            captureConfig: captureConfigProvider?()
         )
         let body = try JSONEncoder().encode(request)
 
@@ -252,6 +257,58 @@ final class MacVPNController {
         let response = try await send(VPNControlRequest(command: .startVPN, payload: body))
         if !response.success {
             throw VPNHostConnectionError.requestFailed(response.error ?? "start failed")
+        }
+    }
+
+    /// Starts the serverless "Local Capture" tunnel.
+    func startDirect(dnsServers: [String]) async throws {
+        let snapshot = VPNDirectProfile.snapshot(dnsServers: dnsServers)
+        let payload = try VPNCredentialResolver.encode(VPNResolvedConfig(snapshot: snapshot, credential: nil, jumpCredential: nil))
+        let request = VPNStartRequest(
+            profileID: VPNDirectProfile.id,
+            transportType: VPNSharedTransportType.direct.rawValue,
+            resolvedConfig: payload,
+            captureConfig: captureConfigProvider?()
+        )
+        try await ensureHostRunning()
+        try await requireCaptureSupport()
+        let response = try await send(VPNControlRequest(command: .startVPN, payload: try JSONEncoder().encode(request)))
+        if !response.success {
+            throw VPNHostConnectionError.requestFailed(response.error ?? "start failed")
+        }
+    }
+
+    /// Relays a provider message (HTTP capture) to the sysext. nil when the
+    /// tunnel isn't up or doesn't answer.
+    func providerMessage(_ message: Data, timeoutSeconds: Int = 10) async -> Data? {
+        guard let response = try? await send(VPNControlRequest(command: .providerMessage, payload: message), timeoutSeconds: timeoutSeconds),
+              response.success else { return nil }
+        return response.payload ?? Data()
+    }
+
+    /// Adds the capture CA to the login keychain as a trusted SSL root.
+    /// Waits for the user to answer the macOS password prompt.
+    func installCATrust(certificateDER: Data) async throws {
+        try await ensureHostRunning()
+        try await requireCaptureSupport()
+        let response = try await send(VPNControlRequest(command: .installCATrust, payload: certificateDER), timeoutSeconds: 300)
+        if !response.success {
+            throw VPNHostConnectionError.requestFailed(response.error ?? "Could not trust the certificate.")
+        }
+    }
+
+    func removeCATrust(certificateDER: Data) async throws {
+        try await ensureHostRunning()
+        try await requireCaptureSupport()
+        let response = try await send(VPNControlRequest(command: .removeCATrust, payload: certificateDER), timeoutSeconds: 300)
+        if !response.success {
+            throw VPNHostConnectionError.requestFailed(response.error ?? "Could not remove the certificate.")
+        }
+    }
+
+    private func requireCaptureSupport() async throws {
+        if await hostInfo()?.supportsHTTPCapture != true {
+            throw VPNHostConnectionError.requestFailed("Update the rootshell VPN host and system extension before using HTTP capture.")
         }
     }
 
@@ -308,10 +365,10 @@ final class MacVPNController {
         }
     }
 
-    private func send(_ request: VPNControlRequest) async throws -> VPNControlResponse {
+    private func send(_ request: VPNControlRequest, timeoutSeconds: Int = 10) async throws -> VPNControlResponse {
         try await withCheckedThrowingContinuation { continuation in
             Self.ioQueue.async {
-                do { continuation.resume(returning: try VPNHostConnection.send(request)) }
+                do { continuation.resume(returning: try VPNHostConnection.send(request, timeoutSeconds: timeoutSeconds)) }
                 catch { continuation.resume(throwing: error) }
             }
         }

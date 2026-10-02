@@ -74,6 +74,10 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     private nonisolated(unsafe) var tsshMode: String = ""
     private nonisolated(unsafe) var tsshMTU: Int = 0
     private nonisolated(unsafe) var tunMTU: Int = 0
+    private let settingsShapeLock = NSLock()
+    private nonisolated(unsafe) var settingsShape: TunnelSettingsShape?
+    nonisolated static let directTunnelRemoteAddress = "192.0.2.1"
+    nonisolated static let captureQueue = DispatchQueue(label: "VPNTunnel.capture", qos: .userInitiated)
     private let failureStateLock = NSLock()
     private nonisolated(unsafe) var hasHandledGoFailure = false
 
@@ -260,7 +264,15 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
         case .tssh:
             goConfigJSON = try await startTSSHTransport(config: config)
+
+        case .direct:
+            let index = await DirectInterfaceMonitor.shared.start()
+            debugLog.logMarker("DIRECT bound interface index=\(index)")
+            goConfigJSON = try config.toGoConfigJSON()
         }
+
+        let captureConfig = CaptureBridge.initialConfig(options: options)
+        let captureEnabled = captureConfig?.enabled == true
 
         // Start Go netstack tunnel
         debugLog.beginPhase("goNetstack", "Starting Go tunnel...")
@@ -272,7 +284,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             throw CancellationError()
         }
         let relay = sshStateLock.withLock { preparedRelay }
-        let started = VpntunnelStartTunnelWithRelay(goConfigJSON, callback, relay, &startError)
+        let started = VpntunnelStartTunnelWithRelay(CaptureBridge.attach(captureConfig, to: goConfigJSON), callback, relay, &startError)
         if !started {
             closePreparedRelay()
             let error = startError ?? NSError(domain: "TSSHRelay", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to start VPN transport."])
@@ -300,21 +312,21 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             Self.logger.info("TSSH spawn SSH connection closed")
         }
 
-        // Resolve server IP for route exclusion (NEIPv4Route requires IP literal)
-        debugLog.beginPhase("routeDNS", "Resolving \(config.sshHost) for route exclusion...")
-        let serverIP = await resolveHostToIP(relayEndpoint ?? config.sshHost)
-        debugLog.endPhase("routeDNS", "OK → \(serverIP)")
-
-        let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: serverIP)
-
-        // IPv4 settings
-        let ipv4 = NEIPv4Settings(addresses: ["10.0.0.2"], subnetMasks: ["255.255.255.0"])
-        ipv4.includedRoutes = [NEIPv4Route.default()]
+        // Resolve server IP for route exclusion (NEIPv4Route requires IP literal).
+        // Direct mode has no server; its upstream sockets bypass the tunnel.
+        let serverIP: String
+        if config.transportType == .direct {
+            serverIP = Self.directTunnelRemoteAddress
+        } else {
+            debugLog.beginPhase("routeDNS", "Resolving \(config.sshHost) for route exclusion...")
+            serverIP = await resolveHostToIP(relayEndpoint ?? config.sshHost)
+            debugLog.endPhase("routeDNS", "OK → \(serverIP)")
+        }
 
         // Build route exclusions
         var excluded: [NEIPv4Route] = []
         // Always exclude the SSH/TSSH server to prevent routing loops
-        if serverIP != "0.0.0.0" {
+        if serverIP != "0.0.0.0" && config.transportType != .direct {
             excluded.append(NEIPv4Route(destinationAddress: serverIP, subnetMask: "255.255.255.255"))
         }
         // Apply user-configured route exclusions
@@ -323,15 +335,12 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
                 excluded.append(route)
             }
         }
-        if !excluded.isEmpty {
-            ipv4.excludedRoutes = excluded
-        }
-        settings.ipv4Settings = ipv4
 
         // DNS settings — VPN routes all traffic through the remote server, so DNS
         // servers must be reachable from there. Default to public DNS if not configured.
+        // Direct mode needs explicit servers too: a default-route tunnel without
+        // DNS settings leaves iOS with no resolver and apps report no internet.
         let dnsServers = config.dnsServers.isEmpty ? ["8.8.8.8", "1.1.1.1"] : config.dnsServers
-        settings.dnsSettings = NEDNSSettings(servers: dnsServers)
 
         // MTU — for TSSH, Go auto-resolved TUN MTU from GetMaxDatagramSize();
         // read back the effective value. For SSH, config.mtu is already 1500.
@@ -342,12 +351,22 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         } else {
             effectiveMTU = config.mtu
         }
-        settings.mtu = NSNumber(value: effectiveMTU)
         runningStateLock.withLock { tunMTU = effectiveMTU }
 
+        // IPv6 is only routed for Direct and capture sessions, so capture
+        // doesn't miss dual-stack sites; other profiles keep IPv4-only behavior.
+        let shape = TunnelSettingsShape(
+            serverIP: serverIP,
+            excludedRoutes: excluded,
+            dnsServers: dnsServers,
+            mtu: effectiveMTU,
+            includeIPv6: config.transportType == .direct || captureEnabled
+        )
+        settingsShapeLock.withLock { settingsShape = shape }
+
         let tsshMTUDesc = config.trzszMTU ?? 1400
-        debugLog.beginPhase("tunnelSettings", "Applying network settings: tsshMTU=\(tsshMTUDesc) tunMTU=\(effectiveMTU) dns=\(dnsServers.joined(separator: ",")) excludedRoutes=\(excluded.count)")
-        try await setTunnelNetworkSettings(settings)
+        debugLog.beginPhase("tunnelSettings", "Applying network settings: tsshMTU=\(tsshMTUDesc) tunMTU=\(effectiveMTU) dns=\(dnsServers.joined(separator: ",")) excludedRoutes=\(excluded.count) ipv6=\(shape.includeIPv6)")
+        try await setTunnelNetworkSettings(shape.makeSettings())
         debugLog.endPhase("tunnelSettings", "OK")
         Self.logger.info("Tunnel network settings applied")
 
@@ -449,6 +468,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         }
 
         closePreparedRelay()
+        DirectInterfaceMonitor.shared.stop()
 
         // Clear Go debug logger to release Swift bridge object
         VpntunnelSetDebugLogger(nil)
@@ -477,6 +497,19 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     // nonisolated: must respond even when MainActor is blocked by the write loop.
     // Only calls VpntunnelGetStatus() (thread-safe Go function) and parameters.
     nonisolated override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
+        if CaptureMessage.isCaptureMessage(messageData) {
+            // Off the delivery thread: Go work here must never hold up getStatus.
+            // Serial, so commands apply in the order the app sent them (a slow
+            // configure can't land after a stop). NE allows a deferred completion.
+            Self.captureQueue.async { [weak self] in
+                let (reply, wantsIPv6) = CaptureBridge.handle(messageData)
+                if wantsIPv6 {
+                    self?.enableIPv6RoutingIfNeeded()
+                }
+                completionHandler?(reply)
+            }
+            return
+        }
         guard let message = String(data: messageData, encoding: .utf8) else {
             completionHandler?(nil)
             return
@@ -509,6 +542,25 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         default:
             Self.logger.debug("handleAppMessage: unknown message, replying nil")
             completionHandler?(nil)
+        }
+    }
+
+    /// Capture started on a tunnel that only routes IPv4: re-apply the settings
+    /// with an IPv6 default route so dual-stack traffic is captured too.
+    private nonisolated func enableIPv6RoutingIfNeeded() {
+        let shape = settingsShapeLock.withLock { () -> TunnelSettingsShape? in
+            guard var shape = settingsShape, !shape.includeIPv6 else { return nil }
+            shape.includeIPv6 = true
+            settingsShape = shape
+            return shape
+        }
+        guard let shape else { return }
+        Task { [weak self] in
+            do {
+                try await self?.setTunnelNetworkSettings(shape.makeSettings())
+            } catch {
+                Self.logger.error("IPv6 route enable failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 
@@ -599,8 +651,12 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         // This dramatically improves throughput for many concurrent TCP flows by
         // reducing per-packet syscall overhead and draining gVisor's outbound
         // queue faster (preventing packet drops that cause TCP retransmissions).
-        Task { [weak self] in
-            guard let self else { return }
+        //
+        // Runs on its own thread: ReadPacket blocks until traffic arrives, and
+        // NE delivers handleAppMessage on the main queue, so a main-actor loop
+        // left app messages (getStatus, capture) waiting on an idle tunnel.
+        let flow = packetFlow
+        let thread = Thread { [weak self] in
             Self.logger.info("Write loop started")
             let ipv4Protocol = NSNumber(value: 2)
             let ipv6Protocol = NSNumber(value: 30)
@@ -609,9 +665,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             packetBatch.reserveCapacity(maxBatchSize)
             var protocolBatch: [NSNumber] = []
             protocolBatch.reserveCapacity(maxBatchSize)
-            var packetsSinceYield = 0
-            while self.isRunning {
-                var batchCount = 0
+            while self?.isRunning == true {
                 let shouldContinue = autoreleasepool { () -> Bool in
                     // Block until at least one packet is available
                     guard let result = VpntunnelReadPacket() else {
@@ -636,22 +690,16 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
                         protocolBatch.append(extra.family == 30 ? ipv6Protocol : ipv4Protocol)
                     }
 
-                    batchCount = packetBatch.count
-                    self.packetFlow.writePackets(packetBatch, withProtocols: protocolBatch)
+                    flow.writePackets(packetBatch, withProtocols: protocolBatch)
                     return true
                 }
                 if !shouldContinue { break }
-                // Yield periodically so the main queue can process IPC
-                // (handleAppMessage, stopTunnel). Count packets not iterations
-                // since batches can be large.
-                packetsSinceYield += max(batchCount, 1)
-                if packetsSinceYield >= 50 {
-                    packetsSinceYield = 0
-                    await Task.yield()
-                }
             }
             Self.logger.info("Write loop ended")
         }
+        thread.name = "VPNTunnel.writeLoop"
+        thread.qualityOfService = .userInteractive
+        thread.start()
     }
 
     /// Completion-chaining read loop: reads packets from the TUN, injects into netstack,

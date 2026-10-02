@@ -15,18 +15,66 @@ struct VPNSettingsView: View {
     @State private var vpnManager = VPNManager.shared
     @State private var profileManager = ConnectionProfileManager.shared
     @State private var showDisconnectConfirmation = false
+    @Environment(\.openHTTPCapture) private var openHTTPCapture
 
     var body: some View {
         List {
             statusSection
             disconnectSection
             vpnProfilesSection
+            #if !CHINA_BUILD
+            httpCaptureSection
+            #endif
             eventHistorySection
             debugSection
         }
         .themedList()
         .navigationTitle("VPN")
     }
+
+    #if !CHINA_BUILD
+    // MARK: - HTTP Capture Section
+
+    private var httpCaptureSection: some View {
+        Section {
+            if let openHTTPCapture {
+                Button(String(localized: "Open HTTP Capture", comment: "VPN settings action: close Settings and show the capture panel")) {
+                    openHTTPCapture()
+                }
+                .themedRow()
+            }
+            NavigationLink {
+                CaptureSettingsView()
+            } label: {
+                HStack {
+                    Text(String(localized: "Capture Settings", comment: "VPN settings row"))
+                    Spacer(minLength: 8)
+                    if CaptureController.shared.isRecording {
+                        CaptureStatusText(
+                            text: String(localized: "Recording", comment: "HTTP capture session state"),
+                            systemImage: "record.circle", color: .red)
+                    } else if CaptureCAManager.shared.hasCA {
+                        CATrustBadge(state: CaptureCAManager.shared.trust)
+                    }
+                }
+            }
+            .themedRow()
+            if vpnManager.status != .connected {
+                Button(String(localized: "Connect Local Capture VPN", comment: "VPN settings action")) {
+                    Task {
+                        try? await vpnManager.startDirectVPN(
+                            dnsServers: SettingsStore.shared.value(Settings.HTTPCapture.directDNSServers))
+                    }
+                }
+                .themedRow()
+            }
+        } header: {
+            Text("HTTP Capture")
+        } footer: {
+            Text("Inspect HTTP and HTTPS traffic through the VPN. Open the capture panel here, from the File menu, the keyboard toolbar, or with its keyboard shortcut. Local Capture is a VPN without a server, for capturing only.")
+        }
+    }
+    #endif
 
     // MARK: - Status Section
 

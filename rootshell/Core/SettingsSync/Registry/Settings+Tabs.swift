@@ -89,12 +89,19 @@ nonisolated extension Settings {
             "openInFolder.placement", default: OpenInFolderPlacement.newTab, group: .tabs, policy: .localByDefault,
             configKey: "open-in-folder-placement",
             title: String(localized: "Open in Folder Placement", comment: "Setting title"))
+        static let openInFolderHUDWidth = SettingKey(
+            "openInFolder.hud.width", default: 720.0, group: .tabs, policy: .deviceOnly,
+            title: String(localized: "Open in Folder Width", comment: "Setting title"))
+        static let openInFolderHUDHeight = SettingKey(
+            "openInFolder.hud.height", default: 520.0, group: .tabs, policy: .deviceOnly,
+            title: String(localized: "Open in Folder Height", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             newTabAction.erased, barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
             showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
             hoverPreviews.erased, hoverPreviewActivation.erased, hoverPreviewZoom.erased,
             openInFolderRecents.erased, openInFolderPlacement.erased,
+            openInFolderHUDWidth.erased, openInFolderHUDHeight.erased,
         ]
     }
 
@@ -187,6 +194,12 @@ nonisolated extension Settings {
         static let titlebarLeadingInset = SettingKey(
             "titlebarLeadingInset", default: 0.0, group: .window, policy: .deviceOnly,
             title: String(localized: "Titlebar Leading Inset", comment: "Setting title"))
+        static let quickSettingsHUDWidth = SettingKey(
+            "quickSettings.hud.width", default: 520.0, group: .window, policy: .deviceOnly,
+            title: String(localized: "Quick Settings Overlay Width", comment: "Setting title"))
+        static let quickSettingsHUDHeight = SettingKey(
+            "quickSettings.hud.height", default: 560.0, group: .window, policy: .deviceOnly,
+            title: String(localized: "Quick Settings Overlay Height", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             hideTitleBar.erased, tabsInTitlebar.erased, fullScreenMode.erased,
@@ -194,7 +207,7 @@ nonisolated extension Settings {
             splitFocusBorderStyle.erased, splitFocusBorderColor.erased, splitFocusBorderCustomColor.erased,
             confirmBeforeClosingPane.erased,
             lastWidth.erased, lastHeight.erased, lastOriginX.erased, lastOriginY.erased, lastHasOrigin.erased,
-            titlebarLeadingInset.erased,
+            titlebarLeadingInset.erased, quickSettingsHUDWidth.erased, quickSettingsHUDHeight.erased,
         ]
     }
 

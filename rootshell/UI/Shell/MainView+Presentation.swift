@@ -67,6 +67,7 @@ extension MainView {
             showKeyboardChooser ||
             showOpenInFolderOverlay ||
             fileManagerOwnsKeyboard ||
+            httpCaptureHoldsKeyboard ||
             // The iPhone presentation is a sheet that owns the keyboard. On
             // regular width the clipboard manager is a passthrough glass HUD (like
             // the Find HUD, which is intentionally absent here) and must NOT count
@@ -149,7 +150,11 @@ extension MainView {
             .modifier(SettingsSheetModifier(
                 showSettings: $showSettings,
                 settingsDestination: settingsDestination,
-                onDismiss: { settingsDestination = nil },
+                onDismiss: {
+                    settingsDestination = nil
+                    flushPendingHTTPCaptureOpen()
+                },
+                openHTTPCapture: settingsOpenHTTPCapture,
                 themeColors: sheetTheme.themeColors,
                 accentColor: sheetTheme.accentColor,
                 colorScheme: sheetTheme.colorScheme
@@ -196,6 +201,9 @@ extension MainView {
             }
             // File manager: iPhone presentation. Larger screens use the sidebar or HUD.
             .modifier(fileManagerPhoneSheetModifier(sheetTheme: sheetTheme))
+            #if !CHINA_BUILD
+            .modifier(httpCapturePhoneSheetModifier(sheetTheme: sheetTheme))
+            #endif
             .sheet(item: $connectionInfoToShow) { info in
                 ConnectionInfoSheet(info: info)
                     .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)

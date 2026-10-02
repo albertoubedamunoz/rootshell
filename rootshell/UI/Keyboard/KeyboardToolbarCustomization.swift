@@ -78,6 +78,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
     case brightnessBoost
     case clipboardManager
     case fileManager
+    case httpCapture
     case dictation
 
     // Toggles (1)
@@ -142,6 +143,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .brightnessBoost: return String(localized: "Brightness Boost")
         case .clipboardManager: return String(localized: "Clipboard Manager")
         case .fileManager: return String(localized: "File Manager")
+        case .httpCapture: return String(localized: "HTTP Capture")
         case .dictation: return String(localized: "Dictation")
         case .drawerToggle: return String(localized: "Drawer Toggle")
         }
@@ -177,6 +179,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .brightnessBoost: return "sun.max"
         case .clipboardManager: return "list.clipboard"
         case .fileManager: return "folder.badge.gearshape"
+        case .httpCapture: return "network.badge.shield.half.filled"
         case .dictation: return "mic"
         case .drawerToggle: return "ellipsis"
         default: return nil
@@ -241,6 +244,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .brightnessBoost: return "__brightnessBoost__"
         case .clipboardManager: return "__clipboardManager__"
         case .fileManager: return "__fileManager__"
+        case .httpCapture: return "__httpCapture__"
         case .dictation: return "__dictation__"
         case .drawerToggle: return "__extraDrawer__"
         }
@@ -276,11 +280,26 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .brightnessBoost: return .brightnessBoost
         case .clipboardManager: return .clipboardManager
         case .fileManager: return .fileManager
+        case .httpCapture: return .httpCapture
         case .dictation: return .dictation
         case .drawerToggle: return .extraKeysDrawerToggle
         default:
             // All symbol keys use single-text display
             return .text(keyValue)
+        }
+    }
+
+    /// False for keys whose feature this build or device lacks; they stay in the layout but don't render.
+    var isAvailable: Bool {
+        switch self {
+        case .dictation: return DictationSupport.isEnabled
+        case .httpCapture:
+            #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+            return true
+            #else
+            return false
+            #endif
+        default: return true
         }
     }
 
@@ -300,7 +319,7 @@ enum KeyID: String, Codable, CaseIterable, Hashable, Sendable {
         case .arrowDrawerToggle, .arrowUp, .arrowDown, .arrowLeft, .arrowRight: return .navigation
         case .dismiss, .tabSwitcher, .compose, .writingAssistance, .toolbarSettings, .paste, .voiceAgent,
              .toggleFullScreen, .toggleTabBar, .newConnection, .appSettings,
-             .toggleMouseCapture, .aiAgent, .brightnessBoost, .clipboardManager, .fileManager, .dictation: return .action
+             .toggleMouseCapture, .aiAgent, .brightnessBoost, .clipboardManager, .fileManager, .httpCapture, .dictation: return .action
         case .drawerToggle: return .toggle
         default: return .symbol
         }
@@ -359,7 +378,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
 
     // MARK: - Defaults
 
-    static let currentVersion = 16
+    static let currentVersion = 17
 
     static func defaultConfig(for idiom: UIUserInterfaceIdiom) -> ToolbarLayoutConfig {
         switch idiom {
@@ -427,6 +446,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.brightnessBoost),
             .builtIn(.clipboardManager),
             .builtIn(.fileManager),
+            .builtIn(.httpCapture),
             .builtIn(.appSettings),
         ]],
         hiddenKeys: []
@@ -481,6 +501,7 @@ struct ToolbarLayoutConfig: Equatable, Sendable {
             .builtIn(.brightnessBoost),
             .builtIn(.clipboardManager),
             .builtIn(.fileManager),
+            .builtIn(.httpCapture),
             .builtIn(.appSettings),
         ]],
         hiddenKeys: []

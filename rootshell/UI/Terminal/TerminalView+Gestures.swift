@@ -1852,15 +1852,23 @@ extension Ghostty.TerminalView {
 
     /// Present the attachment upload confirmation sheet
     func showAttachmentUploadSheet(attachments: [PasteAttachment], sshConfig: SSHConfig) {
+        let host = sshConfig.host
+        let defaultDest = AttachmentUploadPreferences.destination(for: host)
+
+        guard AttachmentUploadPreferences.promptsBeforeUpload else {
+            startAttachmentUpload(
+                attachments: attachments,
+                sshConfig: sshConfig,
+                destination: defaultDest,
+                format: AttachmentUploadPreferences.defaultFormat
+            )
+            return
+        }
+
         guard let presenter = findPresenterViewController() else { return }
 
         // Dismiss the on-screen keyboard so the sheet isn't hidden behind it
         resignFirstResponder()
-
-        let host = sshConfig.host
-        let defaultDest = UserDefaults.standard.string(
-            forKey: "paste.destination.\(host)"
-        ) ?? "/tmp/rootshell-uploads/"
 
         let sheet = AttachmentUploadSheet(
             attachments: attachments,
@@ -1951,16 +1959,9 @@ extension Ghostty.TerminalView {
 
     /// Insert uploaded file paths into the terminal using bracketed paste
     private func handleUploadCompletion(paths: [String], format: PasteInsertFormat) {
-        let formatted: [String] = paths.map { path in
-            let escaped = Ghostty.Shell.escape(path)
-            switch format {
-            case .pathOnly:
-                return escaped
-            case .markdownImage:
-                return "![](\(escaped))"
-            }
-        }
-        let text = formatted.joined(separator: " ")
+        let text = paths
+            .map { format.format(Ghostty.Shell.escape($0)) }
+            .joined(separator: " ")
 
         _ = insertPastedText(text, recordHistory: false)
     }
@@ -2744,6 +2745,16 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             guard let self else { return }
             NotificationCenter.default.post(name: .toggleFileManager, object: self)
         })
+
+        #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+        menuItems.append(UIAction(
+            title: String(localized: "HTTP Capture"),
+            image: UIImage(systemName: "network.badge.shield.half.filled")
+        ) { [weak self] _ in
+            guard let self else { return }
+            NotificationCenter.default.post(name: .toggleHTTPCapture, object: self)
+        })
+        #endif
 
         // Split actions menu
         let splitRight = UIAction(

@@ -76,6 +76,7 @@ struct VPNTunnelConfig: Codable, Sendable {
     enum TransportType: String, Codable, Sendable {
         case ssh
         case tssh
+        case direct
     }
 
     /// Jump host config subset needed by the extension
@@ -181,7 +182,11 @@ extension VPNTunnelConfig {
 
         self.profileID = snapshot.id
         self.profileName = snapshot.name
-        self.transportType = snapshot.transportType == .tssh ? .tssh : .ssh
+        switch snapshot.transportType {
+        case .tssh: self.transportType = .tssh
+        case .direct: self.transportType = .direct
+        case .ssh: self.transportType = .ssh
+        }
         self.sshHost = snapshot.host
         self.sshPort = snapshot.port
         self.sshUsername = snapshot.username

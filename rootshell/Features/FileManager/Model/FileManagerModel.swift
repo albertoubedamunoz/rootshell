@@ -9,18 +9,6 @@
 
 import Foundation
 
-enum FileManagerPresentation: String, CaseIterable, Codable, Sendable {
-    case sidebar
-    case overlay
-
-    var title: String {
-        switch self {
-        case .sidebar: String(localized: "Sidebar", comment: "File manager presentation option")
-        case .overlay: String(localized: "Overlay", comment: "File manager presentation option")
-        }
-    }
-}
-
 @MainActor
 @Observable
 final class FileManagerModel {
@@ -165,6 +153,8 @@ final class FileManagerModel {
             transferToOther(move: false)
         case .moveToOther:
             transferToOther(move: true)
+        case .paste:
+            pasteFromClipboard(into: activeSide, directory: nil)
         case .rename:
             if let entry = pane.cursorEntry { sheet = .rename(entry) }
         case .newFolder:
@@ -228,14 +218,15 @@ final class FileManagerModel {
     }
 
     /// Drops onto a pane: items from the other pane, or local files dragged in.
-    func receive(paths: [String], from endpoint: FileEndpoint, into side: FilePaneModel.Side, directory: String? = nil, move: Bool = false) {
-        let destination = pane(side)
-        guard let directory = directory ?? (destination.path.isEmpty ? nil : destination.path) else { return }
+    /// `destination` pins the endpoint read before an async staging step.
+    func receive(paths: [String], from endpoint: FileEndpoint, into side: FilePaneModel.Side, directory: String? = nil, destination: FileEndpoint? = nil, move: Bool = false) {
+        let pane = pane(side)
+        guard let directory = directory ?? (pane.path.isEmpty ? nil : pane.path) else { return }
         enqueue(TransferJob(
             operation: move ? .move : .copy,
             source: endpoint,
             sourcePaths: paths,
-            destination: destination.endpoint,
+            destination: destination ?? pane.endpoint,
             destinationDirectory: directory
         ))
     }
@@ -393,11 +384,22 @@ final class FileManagerModel {
 
 enum FileManagerActionError: LocalizedError {
     case alreadyExists(String)
+    case nothingToPaste
+    case pasteNeedsBucket
+    case unreadableItems(Int, of: Int)
 
     var errorDescription: String? {
         switch self {
         case .alreadyExists(let name):
             String(localized: "“\(name)” already exists.", comment: "File manager error; argument is a file name")
+        case .nothingToPaste:
+            String(localized: "The clipboard has no files to paste.", comment: "File manager error: paste with only text on the clipboard")
+        case .pasteNeedsBucket:
+            String(localized: "Open a bucket to paste files into.", comment: "File manager error: paste at a storage provider's bucket list")
+        case .unreadableItems(let failed, let total) where failed == total:
+            String(localized: "Couldn’t read the pasted or dropped items.", comment: "File manager error: no clipboard or drop item could be loaded")
+        case .unreadableItems(let failed, let total):
+            String(localized: "Couldn’t read \(failed) of \(total) items; the rest are being copied.", comment: "File manager error: some clipboard or drop items could not be loaded; arguments are counts")
         }
     }
 }

@@ -325,6 +325,9 @@ extension MainView {
 
         // Release this window's file manager connections; queued transfers keep their own.
         fileManagerModel?.tearDown()
+        #if !CHINA_BUILD
+        httpCaptureModel?.tearDown()
+        #endif
 
         // Release this window's overlay keyboard-preservation claim (no-op
         // unless it owns the latch) so surviving windows don't stay frozen

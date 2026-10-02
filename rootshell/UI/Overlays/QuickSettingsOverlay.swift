@@ -145,23 +145,30 @@ struct QuickSettingsHUD: View {
     @State private var model = QuickSettingsModel()
 
     var body: some View {
-        GeometryReader { geometry in
-            DraggableHUDContainer(
-                dismissShortcuts: [.escape],
-                forwardsQuickSettingsToggle: true,
-                forwardsFindToggle: true,
-                onForwardedToggle: { isPresented = false },
-                onFind: { model.focusSearch() },
-                onDismiss: {
-                    if model.editing != nil { model.cancelEditor() } else { isPresented = false }
-                }
-            ) {
+        DraggableHUDContainer(
+            resizing: .quickSettings,
+            dismissShortcuts: [.escape],
+            forwardsQuickSettingsToggle: true,
+            forwardsFindToggle: true,
+            onForwardedToggle: { isPresented = false },
+            onFind: { model.focusSearch() },
+            onDismiss: {
+                if model.editing != nil { model.cancelEditor() } else { isPresented = false }
+            }
+        ) {
+            GeometryReader { geometry in
                 QuickSettingsOverlay(model: model, isPresented: $isPresented,
-                    width: min(520, max(240, geometry.size.width - 24)),
-                    height: min(560, max(200, geometry.size.height - 24)))
+                    width: geometry.size.width, height: geometry.size.height)
             }
         }
     }
+}
+
+extension HUDResizing {
+    static let quickSettings = HUDResizing(
+        minSize: CGSize(width: 240, height: 200),
+        widthKey: Settings.Window.quickSettingsHUDWidth,
+        heightKey: Settings.Window.quickSettingsHUDHeight)
 }
 
 struct QuickSettingsOverlay: View {

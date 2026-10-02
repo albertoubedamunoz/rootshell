@@ -593,6 +593,15 @@ extension MainView {
             self.toggleFileManager()
         }
 
+        // Needs the VPN: not on China builds or the sandboxed Catalyst App Store build.
+        #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+        observerBag.observeOnMainActor(.toggleHTTPCapture) { [self] notification in
+            guard self.shouldHandleNotification(notification) else { return }
+            if !self.showHTTPCapture, self.isSheetPresentedBesidesFloatingTabSidebar { return }
+            self.toggleHTTPCapture()
+        }
+        #endif
+
         observerBag.observeOnMainActor(.toggleIPLookup) { [self] notification in
             guard self.shouldHandleNotification(notification) else { return }
             if self.showIPLookup {
