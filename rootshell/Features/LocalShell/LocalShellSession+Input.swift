@@ -399,10 +399,12 @@ extension LocalShellSession {
             return
         }
 
+        #if !CHINA_BUILD
         if lowerCommand.hasPrefix("vpn ") || lowerCommand == "vpn" {
             handleVPNCommand(trimmedCommand)
             return
         }
+        #endif
 
         // Route `wasm <file>` and any bare `*.wasm` invocation to the WASM
         // runtime, including forms with a leading shell-assignment prefix
@@ -1716,9 +1718,15 @@ extension LocalShellSession {
         "hx",
         "rf",
         "imgcat",
-        "croc",
-        "vpn"
-    ]
+        "croc"
+    ].union(vpnCommandNames)
+
+    /// China builds exclude the vpn command source file.
+    #if CHINA_BUILD
+    nonisolated private static let vpnCommandNames: Set<String> = []
+    #else
+    nonisolated private static let vpnCommandNames: Set<String> = ["vpn"]
+    #endif
 
     /// Commands whose top-level Rootshell router provides behavior users
     /// expect aliases to inherit. Most stay fully native; `git` and report-mode
@@ -1738,9 +1746,8 @@ extension LocalShellSession {
         "hx",
         "rf",
         "imgcat",
-        "croc",
-        "vpn"
-    ]
+        "croc"
+    ].union(vpnCommandNames)
 
     /// If `argv` is a `bash`/`sh -c <body> [name [args…]]` invocation, return
     /// the script body. Skips POSIX flag bundles (`-eu`, `-l`, etc.) up to the

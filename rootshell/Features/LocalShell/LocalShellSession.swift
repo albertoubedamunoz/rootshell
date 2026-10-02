@@ -842,11 +842,13 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
             return
         }
 
+        #if !CHINA_BUILD
         if case .vpnRunning = sessionMode {
             Self.logger.info("[Ctrl-C] Cancelling vpn command")
             cancelVPNCommand()
             return
         }
+        #endif
 
         // Check for SCP transfer mode FIRST - handle synchronously on MainActor
         // This must happen before the local shell handler runs
@@ -1225,12 +1227,14 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
         }
 
         // Native vpn command only accepts Ctrl-C for cancellation.
+        #if !CHINA_BUILD
         if case .vpnRunning = sessionMode {
             if data.contains(0x03) {
                 cancelVPNCommand()
             }
             return
         }
+        #endif
 
         // Native ping session only accepts Ctrl-C for cancellation.
         if case .pingRunning = sessionMode {
