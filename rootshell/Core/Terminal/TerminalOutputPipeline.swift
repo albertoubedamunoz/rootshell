@@ -58,6 +58,8 @@ final class TerminalOutputPipeline {
     private let config: TerminalOutputCoalescingConfig
     private var isOutputCoalescingSuppressedByInput = false
     private var outputCoalescingResumeTimer: Timer?
+    private var onURLRequest: (@Sendable (URL) -> Void)?
+    private var urlRequestObserver: TerminalURLRequestObserver?
 
     let bufferedWriter: TerminalBufferedPipeWriter
     let scrollbackRestoreOutputGate = TerminalScrollbackRestoreOutputGate()
@@ -103,11 +105,22 @@ final class TerminalOutputPipeline {
     }
 
     func writeSessionOutput(_ data: Data) {
+        urlRequestObserver?.consume(data)
         scrollbackRestoreOutputGate.writeOrBuffer(data, to: bufferedWriter)
     }
 
     func enqueueCoalescedOutput(_ data: Data) {
+        urlRequestObserver?.consume(data)
         outputCoalescer.enqueue(data)
+    }
+
+    func setURLRequestHandler(_ handler: @escaping @Sendable (URL) -> Void) {
+        onURLRequest = handler
+        resetURLRequestObserver()
+    }
+
+    func resetURLRequestObserver() {
+        urlRequestObserver = onURLRequest.map { TerminalURLRequestObserver(onURL: $0) }
     }
 
     func setOutputCoalescingEnabled(_ enabled: Bool) {
@@ -179,6 +192,9 @@ final class TerminalOutputPipeline {
         let bufferedWriter = self.bufferedWriter
         let scrollbackRestoreOutputGate = self.scrollbackRestoreOutputGate
         let persistenceNotifyPending = OSAllocatedUnfairLock<Bool>(initialState: false)
+        // One fresh parser per adopted session. Saved scrollback and local
+        // redraws use writeDirect and cannot replay a browser request.
+        let urlObserver = onURLRequest.map { TerminalURLRequestObserver(onURL: $0) }
 
         let writeDirect: @Sendable (Data) -> Void = { data in
             scrollbackRestoreOutputGate.writeOrBuffer(data, to: bufferedWriter)
@@ -186,6 +202,7 @@ final class TerminalOutputPipeline {
 
         return { data in
             noteGatewayInboundBytes(data.count)
+            urlObserver?.consume(data)
 
             if let outputCoalescer {
                 outputCoalescer.enqueue(data)

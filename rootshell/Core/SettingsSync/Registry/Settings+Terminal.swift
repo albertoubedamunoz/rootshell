@@ -15,6 +15,10 @@ extension UserPreferences.ClockFormat: SettingValue {}
 
 nonisolated extension Settings {
     enum Terminal {
+        static let openLinksFromPrograms = SettingKey(
+            "openLinksFromPrograms", default: false, group: .terminal, policy: .localByDefault,
+            configKey: "open-links-from-programs",
+            title: String(localized: "Open Links from Programs", comment: "Setting title"))
         static let terminalTypeLocal = SettingKey(
             "terminalTypeLocal", default: TerminalTypeSettings.localFallback, group: .terminal, policy: .localByDefault,
             configKey: "terminal-type-local",
@@ -46,6 +50,7 @@ nonisolated extension Settings {
             title: String(localized: "RC File Last Failure", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
+            openLinksFromPrograms.erased,
             terminalTypeLocal.erased, terminalTypeRemote.erased, localShellCommand.erased,
             paddingXOverride.erased, paddingYOverride.erased,
             rcfileInProgress.erased, rcfileConsecutiveFailures.erased, rcfileLastFailureTimestamp.erased,

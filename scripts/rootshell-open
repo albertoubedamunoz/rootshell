@@ -1,0 +1,24 @@
+#!/bin/sh
+# BROWSER handler for Rootshell's opt-in device-side URL requests.
+set -eu
+
+if [ "$#" -ne 1 ]; then
+    printf 'Usage: rootshell-open HTTP(S)-URL\n' >&2
+    exit 64
+fi
+case "$1" in
+    http://*|https://*) ;;
+    *) printf 'rootshell-open: expected an HTTP(S) URL\n' >&2; exit 64 ;;
+esac
+# Do not write to stdout: browser libraries may discard subprocess output.
+encoded=$(printf '%s' "$1" | base64 | tr -d '\r\n')
+if [ "${#encoded}" -gt 16000 ]; then
+    printf 'rootshell-open: URL is too long\n' >&2
+    exit 64
+fi
+if [ -n "${TMUX:-}" ]; then
+    # Requires: tmux set -g allow-passthrough on
+    printf '\033Ptmux;\033\033]777;rootshell;open-url;%s\007\033\\' "$encoded" > /dev/tty
+else
+    printf '\033]777;rootshell;open-url;%s\007' "$encoded" > /dev/tty
+fi

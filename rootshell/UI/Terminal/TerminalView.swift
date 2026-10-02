@@ -933,6 +933,7 @@ extension Ghostty {
         /// Owns the terminal output byte path: buffered writes, scrollback
         /// restore gating, and mouse-capture coalescing.
         let outputPipeline = TerminalOutputPipeline()
+        var lastProgramURLRequestTime: TimeInterval = 0
 
         /// Compatibility accessors for existing persistence/tmux call sites.
         var bufferedWriter: TerminalBufferedPipeWriter { outputPipeline.bufferedWriter }
@@ -1504,6 +1505,23 @@ extension Ghostty {
             self.inputController = TerminalInputController()
             self.keyboardAccessoryController = TerminalKeyboardAccessoryController(host: self)
             self.connectionProgress = ConnectionProgressPresenter(host: self)
+
+            outputPipeline.setURLRequestHandler { [weak self] url in
+                // Drop background requests at receipt, even if the main actor
+                // resumes after the app becomes foreground again.
+                guard !Ghostty.isAppBackgroundedAtomic,
+                      SettingsStore.shared.value(Settings.Terminal.openLinksFromPrograms) else { return }
+                Task { @MainActor [weak self] in
+                    guard let self,
+                          !Ghostty.isAppBackgroundedAtomic,
+                          self.window != nil, self.isLogicallyFocused,
+                          SettingsStore.shared.get(Settings.Terminal.openLinksFromPrograms) else { return }
+                    let now = ProcessInfo.processInfo.systemUptime
+                    guard now - self.lastProgramURLRequestTime >= 1 else { return }
+                    self.lastProgramURLRequestTime = now
+                    UIApplication.shared.open(url)
+                }
+            }
 
             // A pipe-writer overflow dropped oldest output (reader stalled or
             // firehose). Non-tmux surfaces self-correct on the next repaint,

@@ -17,6 +17,7 @@ import GhosttyKit
 extension Ghostty.TerminalView: TerminalSessionControllerHost {
     func terminalSessionWillChange() {
         invalidateWritingAssistance(resetDocument: true)
+        outputPipeline.resetURLRequestObserver()
     }
 
     var terminalContainingTabID: UUID? { containingTabID }

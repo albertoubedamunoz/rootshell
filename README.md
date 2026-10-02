@@ -228,6 +228,7 @@ The generated command installs `rootshell-notify` in `~/.local/bin`, pairs the d
 
 ### Input & Interaction
 - **Terminal Mouse Support** - Full mouse event passthrough for tmux, vim, zellij
+- **Links from Remote Programs** - Opt-in device-side browser opening for tools such as Codex over SSH, with an included `BROWSER` helper and ordinary tmux passthrough support. See [remote URL opening](docs/remote-url-opening.md)
 - **Keyboard Shortcuts** - Fully customizable keybindings with menu bar integration and Ghostty keybind config compatibility
 - **Customizable Toolbar** - Drag-and-drop keyboard toolbar with custom keys that send arbitrary text or key sequences, plus up to five configurable drawer rows. Sticky modifier keys with single-tap one-shot and double-tap lock
 - **Clipboard Manager** - Optional device-only encrypted clipboard history (⌘⇧C) capturing copies, pastes, and OSC 52 writes, with transforms: base64, hex, URL encode/decode, JWT decode, hashes, JSON format, shell escape, ANSI strip. Off by default; turning it off wipes the store

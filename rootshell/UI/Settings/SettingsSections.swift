@@ -357,6 +357,15 @@ struct SettingsTerminalSection: View {
 
     var body: some View {
         List {
+            // MARK: - Program Links
+            Section {
+                SettingToggle(Settings.Terminal.openLinksFromPrograms,
+                              title: "Open Links from Programs", icon: "link")
+                    .themedRow()
+                Text("Allow programs in the focused terminal to open web links in this device's browser.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             // MARK: - Keyboard
             Section {
                 #if !targetEnvironment(macCatalyst) && !os(visionOS)
