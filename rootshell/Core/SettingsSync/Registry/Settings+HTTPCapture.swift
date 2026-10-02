@@ -60,11 +60,18 @@ extension Settings {
         static let sidebarWidth = SettingKey(
             "httpCapture.sidebar.width", default: 480.0, group: .connections, policy: .deviceOnly,
             title: String(localized: "HTTP Capture Sidebar Width", comment: "Setting title"))
+        static let hudWidth = SettingKey(
+            "httpCapture.hud.width", default: 1100.0, group: .connections, policy: .deviceOnly,
+            title: String(localized: "HTTP Capture Overlay Width", comment: "Setting title"))
+        static let hudHeight = SettingKey(
+            "httpCapture.hud.height", default: 720.0, group: .connections, policy: .deviceOnly,
+            title: String(localized: "HTTP Capture Overlay Height", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             mitmHosts.erased, rewriteRules.erased, enableHTTP2.erased, autoBypassPinned.erased,
             skipUpstreamVerify.erased, recordPackets.erased, maxBodyMB.erased, maxSessionMB.erased,
             retainedSessions.erased, directDNSServers.erased, presentation.erased, sidebarWidth.erased,
+            hudWidth.erased, hudHeight.erased,
         ]
     }
 }

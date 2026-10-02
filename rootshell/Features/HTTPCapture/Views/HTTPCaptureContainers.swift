@@ -57,23 +57,26 @@ struct HTTPCaptureHUD: View {
     let onSwitchPresentation: (PanelPresentation) -> Void
 
     var body: some View {
-        GeometryReader { geometry in
-            DraggableHUDContainer(
-                dismissShortcuts: [.escape],
-                forwardsHTTPCaptureToggle: true,
-                onDismiss: onClose
-            ) {
-                HTTPCaptureView(model: model, style: .overlay, onClose: onClose, onSwitchPresentation: onSwitchPresentation)
-                    .frame(
-                        width: min(1100, max(320, geometry.size.width - 24)),
-                        height: min(720, max(320, geometry.size.height - 24))
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .floatingHUDPanelBackground()
-                    .fileManagerTheme(theme)
-            }
+        DraggableHUDContainer(
+            resizing: .httpCapture,
+            dismissShortcuts: [.escape],
+            forwardsHTTPCaptureToggle: true,
+            onDismiss: onClose
+        ) {
+            HTTPCaptureView(model: model, style: .overlay, onClose: onClose, onSwitchPresentation: onSwitchPresentation)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .floatingHUDPanelBackground()
+                .fileManagerTheme(theme)
         }
     }
+}
+
+extension HUDResizing {
+    static let httpCapture = HUDResizing(
+        minSize: CGSize(width: 320, height: 320),
+        widthKey: Settings.HTTPCapture.hudWidth,
+        heightKey: Settings.HTTPCapture.hudHeight)
 }
 
 #endif

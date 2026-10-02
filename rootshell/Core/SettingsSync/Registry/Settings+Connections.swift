@@ -326,6 +326,12 @@ nonisolated extension Settings {
         static let fileManagerSidebarWidth = SettingKey(
             "fileManager.sidebar.width", default: 460.0, group: .transfer, policy: .deviceOnly,
             title: String(localized: "File Manager Sidebar Width", comment: "Setting title"))
+        static let fileManagerHUDWidth = SettingKey(
+            "fileManager.hud.width", default: 1000.0, group: .transfer, policy: .deviceOnly,
+            title: String(localized: "File Manager Overlay Width", comment: "Setting title"))
+        static let fileManagerHUDHeight = SettingKey(
+            "fileManager.hud.height", default: 680.0, group: .transfer, policy: .deviceOnly,
+            title: String(localized: "File Manager Overlay Height", comment: "Setting title"))
         static let fileManagerShowHidden = SettingKey(
             "fileManager.showHidden", default: false, group: .transfer,
             configKey: "file-manager-show-hidden",
@@ -352,6 +358,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             crocMachineID.erased,
             fileManagerPresentation.erased, fileManagerSidebarWidth.erased,
+            fileManagerHUDWidth.erased, fileManagerHUDHeight.erased,
             fileManagerShowHidden.erased, fileManagerConcurrentJobs.erased,
             fileManagerPreserveAttributes.erased, fileManagerIdleDisconnectMinutes.erased,
             fileManagerPaneState.erased, fileManagerShortcutsTipShown.erased,
