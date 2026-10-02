@@ -35,12 +35,15 @@ class CompletionProvider {
         commands.append(contentsOf: [
             "cd", "exit", "clear", "reset", "history", "help", "source", "editrc", "editprompt", "reloadconfig",
             "git", "hx", "imgcat", "imgtext", "mosh", "roam", "tssh",
-            "trzsz", "ssh-copy-id", "bssid", "whatismyip", "whatismyip4", "whatismyip6", "vpn",
+            "trzsz", "ssh-copy-id", "bssid", "whatismyip", "whatismyip4", "whatismyip6",
             // Shell interpreter builtins
             "sleep", "printf", "test", "read", "true", "false",
             "export", "unset", "local", "return", "break", "continue",
             "shift", "set", "trap", "eval", "type", "let", "pwd"
         ])
+        #if !CHINA_BUILD
+        commands.append("vpn")
+        #endif
 
         return commands.sorted()
     }()

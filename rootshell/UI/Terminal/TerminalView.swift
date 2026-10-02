@@ -1300,6 +1300,9 @@ extension Ghostty {
         var writingAssistanceMode = TerminalWritingAssistanceMode.off
         var writingAssistanceSource: String?
         var writingAssistanceRequeryPending = false
+        /// A document notification skipped under the secure-draw latch;
+        /// replayed on didBecomeActive.
+        var writingAssistanceRequeryDeferred = false
         var writingAssistanceNeedsTraitReload = false
         var writingAssistanceTraitReloadPending = false
         var lastHardwareTextInputTime: TimeInterval?
@@ -1322,6 +1325,13 @@ extension Ghostty {
         /// Must wrap every mutation of documentBuffer that happens OUTSIDE of
         /// insertText/deleteBackward/replace (iOS already brackets those).
         func notifyInputDelegateOfExternalChange(_ mutation: () -> Void) {
+            // The keyboard redraws in response, which lands in the lock
+            // snapshot (FrontBoard 0x2BAD45EC). Replay once unlocked.
+            guard !Ghostty.isSecureDrawProhibitedAtomic else {
+                mutation()
+                writingAssistanceRequeryDeferred = true
+                return
+            }
             inputDelegate?.textWillChange(self)
             inputDelegate?.selectionWillChange(self)
             mutation()
@@ -3210,6 +3220,17 @@ extension Ghostty {
                 // keyboard from appearing over Settings, PIN dialogs, etc.
                 if isModalPresented() {
                     Ghostty.logger.info("syncFocusForWindowStateChange: skipping focus - modal presented")
+                    #if !targetEnvironment(macCatalyst)
+                    // A resign refused while inactive leaves the keyboard over the sheet.
+                    // Deferred so the app's didBecomeActive clears the secure-draw latch first.
+                    if overlayOwnsKeyboard && isFirstResponder {
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self, self.overlayOwnsKeyboard, self.isFirstResponder,
+                                  self.isModalPresented(), self.windowIsActiveForFocus() else { return }
+                            _ = self.resignFirstResponder()
+                        }
+                    }
+                    #endif
                     return
                 }
                 // In-hierarchy overlays and focused passthrough HUD fields

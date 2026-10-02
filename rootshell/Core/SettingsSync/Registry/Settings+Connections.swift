@@ -13,7 +13,7 @@ extension KeyAuthRequirement: SettingValue {}
 extension KeyStorageLevel: SettingValue {}
 extension TmuxAutoMode: SettingValue {}
 extension HerdrAutoMode: SettingValue {}
-extension TmuxTabCloseAction: SettingValue {}
+extension MultiplexerTabCloseAction: SettingValue {}
 extension SessionDiscoverySortOrder: SettingValue {}
 extension MoshConfig.PredictionMode: SettingValue {}
 extension TrzszConfig.TransportMode: SettingValue {}
@@ -136,9 +136,12 @@ nonisolated extension Settings {
         static let tmuxDiscoveryAttachMode = SettingKey(
             "tmuxDiscoveryAttachMode", default: TmuxAutoMode.regular, group: .multiplexer, configKey: "tmux-discovery-attach-mode",
             title: String(localized: "tmux Attach Mode", comment: "Setting title"))
-        static let tmuxTabCloseAction = SettingKey(
-            "tmuxTabCloseAction", default: TmuxTabCloseAction.closeWindow, group: .multiplexer, configKey: "tmux-tab-close-action",
-            title: String(localized: "tmux Close Tab Action", comment: "Setting title"))
+        // Persisted name and group predate herdr support; keep them so stored
+        // values, sync records, and group pins carry over.
+        static let tabCloseAction = SettingKey(
+            "tmuxTabCloseAction", default: MultiplexerTabCloseAction.closeWindow, group: .multiplexer,
+            configKey: "multiplexer-tab-close-action",
+            title: String(localized: "Multiplexer Close Tab Action", comment: "Setting title"))
         static let zellijSessionDiscovery = SettingKey(
             "zellijSessionDiscoveryEnabled", default: true, group: .multiplexer, configKey: "zellij-session-discovery-enabled",
             title: String(localized: "Discover zellij Sessions", comment: "Setting title"))
@@ -195,7 +198,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             tmuxSessionName.erased, tmuxCustomCommand.erased, tmuxSessionDiscovery.erased,
             tmuxAutoHideGatewayOnAttach.erased, tmuxDiscoveryAttachMode.erased,
-            tmuxTabCloseAction.erased, zellijSessionDiscovery.erased, herdrSessionName.erased,
+            tabCloseAction.erased, zellijSessionDiscovery.erased, herdrSessionName.erased,
             herdrCustomCommand.erased, herdrSessionDiscovery.erased,
             herdrDiscoveryAttachMode.erased, herdrAutoHideGatewayOnAttach.erased, herdrControlHistoryLimitBytes.erased,
             zmxSessionName.erased, zmxCustomCommand.erased, zmxSessionDiscovery.erased, localSessionDiscovery.erased,

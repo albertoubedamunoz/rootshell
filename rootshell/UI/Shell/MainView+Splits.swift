@@ -334,6 +334,9 @@ extension MainView {
         if pendingClosePaneID == paneToClose.uuid {
             pendingClosePaneID = nil
         }
+        if pendingTabClose?.lastPaneID == paneToClose.uuid {
+            pendingTabClose = nil
+        }
 
         // tmux control mode: route a tmux PANE close to the tmux server. tmux
         // tears the pane down and emits a topology change; the reconcile's prune
@@ -357,6 +360,15 @@ extension MainView {
         // herdr control mode: the server closes the pane and its topology
         // events retire the surface (and the tab when it was the last pane).
         if let terminalToClose = paneToClose.asTerminal, terminalToClose.isHerdrPane {
+            // Whole-tab close honors a non-default close action. The default
+            // keeps pane.close, which retires the tab with its last pane.
+            if MultiplexerTabCloseAction.current != .closeWindow,
+               let tab = terminals.first(where: { $0.splitTree.contains(where: { $0 === terminalToClose }) }),
+               tab.isHerdrWindow,
+               tab.splitTree.terminalLeaves.filter({ $0.isHerdrPane }).count == 1,
+               handleHerdrWindowTabClose(tab) {
+                return
+            }
             terminalToClose.requestHerdrClosePane()
             return
         }
@@ -541,9 +553,10 @@ extension MainView {
         }
     }
 
-    /// Applies the optional confirmation only to an explicit Close Tab/Split
-    /// command and only while another pane will remain in the tab. Automatic
-    /// session-end teardown calls `closeSplit` directly and never reaches here.
+    /// Applies the optional confirmations only to an explicit Close Tab/Split
+    /// command: the pane one while another pane will remain, the tab one when
+    /// this is the tab's last pane. Automatic session-end teardown calls
+    /// `closeSplit` directly and never reaches here.
     func requestUserCloseSplit(targeting targetPane: SplitPaneView? = nil) {
         let resolved: (tabIndex: Int, pane: SplitPaneView)?
         if let targetPane,
@@ -562,15 +575,23 @@ extension MainView {
             closeSplit(targeting: targetPane)
             return
         }
-        guard PaneCloseConfirmationPolicy.shouldConfirm(
+        let tab = terminals[resolved.tabIndex]
+        let paneCount = tab.splitTree.count
+        if PaneCloseConfirmationPolicy.shouldConfirm(
             isEnabled: SettingsStore.shared.value(Settings.Window.confirmBeforeClosingPane),
-            paneCount: terminals[resolved.tabIndex].splitTree.count
-        ) else {
-            closeSplit(targeting: resolved.pane)
+            paneCount: paneCount
+        ) {
+            pendingClosePaneID = resolved.pane.uuid
             return
         }
-
-        pendingClosePaneID = resolved.pane.uuid
+        if paneCount == 1, PaneCloseConfirmationPolicy.closeTabNeedsConfirm(
+            isEnabled: SettingsStore.shared.value(Settings.Window.confirmBeforeClosingTab),
+            closesViaMultiplexer: closesViaMultiplexer(tab)
+        ) {
+            pendingTabClose = PendingTabClose(tabID: tab.id, lastPaneID: resolved.pane.uuid)
+            return
+        }
+        closeSplit(targeting: resolved.pane)
     }
 
     /// Closes the pane captured when the confirmation was requested, rather

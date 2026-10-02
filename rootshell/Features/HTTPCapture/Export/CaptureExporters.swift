@@ -16,11 +16,10 @@ nonisolated enum CaptureCURL {
     /// Headers curl derives itself or that would break a replay.
     private static let skippedHeaders: Set<String> = ["content-length", "host", "connection", "transfer-encoding", "accept-encoding"]
 
-    /// Chrome-style "Copy as cURL (bash)".
+    /// Chrome-style "Copy as cURL (bash)". `body` is the wire bytes, so signatures still verify.
     static func command(for tx: CaptureTransaction, body: Data?) -> String {
         var parts = ["curl \(quote(tx.url))"]
         let hasBody = !(body?.isEmpty ?? true)
-        var stdinPrefix = ""
         let method = tx.method.uppercased()
         if !(method == "GET" && !hasBody) && !(method == "POST" && hasBody) {
             parts.append("-X \(quote(method))")
@@ -32,9 +31,8 @@ nonisolated enum CaptureCURL {
             if let text = String(data: body, encoding: .utf8), !text.unicodeScalars.contains(where: isUnsafeControl) {
                 parts.append("--data-raw \(quote(text))")
             } else {
-                // Arguments can't carry NUL bytes; feed binary bodies through stdin.
-                stdinPrefix = "printf '%s' \(quote(body.base64EncodedString())) | base64 --decode | "
-                parts.append("--data-binary @-")
+                // Arguments can't carry NUL bytes; read binary bodies from a process substitution.
+                parts.append("--data-binary @<(printf '%s' \(quote(body.base64EncodedString())) | base64 --decode)")
             }
         }
         if tx.requestHeaders.first("accept-encoding") != nil {
@@ -43,7 +41,7 @@ nonisolated enum CaptureCURL {
         if tx.proto.hasPrefix("HTTP/2") {
             parts.append("--http2")
         }
-        return stdinPrefix + parts.joined(separator: " \\\n  ")
+        return parts.joined(separator: " \\\n  ")
     }
 
     private static func isUnsafeControl(_ s: Unicode.Scalar) -> Bool {

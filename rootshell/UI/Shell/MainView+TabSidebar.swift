@@ -94,7 +94,7 @@ extension MainView {
             },
             onCloseTab: { id in
                 guard let index = tabsModel.index(of: id) else { return }
-                closeTab(at: index)
+                requestUserCloseTab(at: index)
                 if terminals.isEmpty {
                     // Last tab closed: get out of the way before the
                     // connection sidebar takes over.

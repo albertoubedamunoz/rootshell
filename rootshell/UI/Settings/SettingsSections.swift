@@ -426,8 +426,6 @@ struct SettingsTerminalSection: View {
                 #endif
                 #endif
 
-                NewTabActionSettingsRow()
-
                 NavigationLink(value: SettingsSearchDestination.keyboardShortcuts) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "command")
@@ -475,6 +473,31 @@ struct SettingsTerminalSection: View {
                 #endif
             } header: {
                 Text("Keyboard")
+            }
+
+            // MARK: - Tabs
+            Section {
+                NewTabActionSettingsRow()
+
+                MultiplexerTabCloseActionSettingsRow()
+
+                SettingDescribedToggle(
+                    Settings.Window.confirmBeforeClosingTab,
+                    title: "Confirm Before Closing Tab",
+                    description: "Ask before ⌘W on a tab's last pane, the tab's ✕, or Close Tab closes a tab."
+                )
+                .themedRow()
+
+                SettingDescribedToggle(
+                    Settings.Window.confirmBeforeClosingPane,
+                    title: "Confirm Before Closing Pane",
+                    description: "Ask before ⌘W, or a custom Close Tab/Split shortcut, closes one pane in a multi-pane layout."
+                )
+                .themedRow()
+            } header: {
+                Text("Tabs")
+            } footer: {
+                Text("The tab-bar + always opens Connections. tmux -CC and herdr control-mode tabs follow the Multiplexer Close Tab Action instead of the tab confirmation; choose Ask Each Time to confirm those.")
             }
 
             // MARK: - Gestures

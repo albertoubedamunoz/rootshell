@@ -161,7 +161,7 @@ extension MainView {
             suppressSelectionAnimation: tabIndicator.suppressNextSelectionAnimation,
             wigglingTabIds: $wigglingTabIds,
             tabFrames: $tabFrames,
-            onCloseTab: { index in closeTab(at: index) },
+            onCloseTab: { index in requestUserCloseTab(at: index) },
             onMoveTab: { from, to in moveTab(from: from, to: to) },
             onSelectTab: { index in
                 guard index != selectedTabIndex else { return }

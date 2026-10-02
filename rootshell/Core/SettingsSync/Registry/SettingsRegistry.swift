@@ -58,9 +58,16 @@ nonisolated final class SettingsRegistry: Sendable {
         syncableKeys = Set(defs.values.filter(\.isSyncable).map(\.name))
     }
 
+    /// Retired text-config spellings mapped to their current names. The
+    /// current spelling wins when a config file carries both.
+    static let legacyConfigKeyAliases: [String: String] = [
+        "tmux-new-tab-action": "new-tab-action",
+        "tmux-tab-close-action": "multiplexer-tab-close-action",
+    ]
+
     /// Lookup by text-config name (`font-size`, `tab-bar-hidden`).
     func definition(forConfigKey configKey: String) -> AnySettingDefinition? {
-        byConfigKey[configKey == "tmux-new-tab-action" ? "new-tab-action" : configKey]
+        byConfigKey[Self.legacyConfigKeyAliases[configKey] ?? configKey]
     }
 
     /// Keys the text config overlay can carry, ordered by group then name.
