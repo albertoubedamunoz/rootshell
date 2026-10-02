@@ -16,7 +16,7 @@ struct FileManagerSidebarView: View {
     let canFocus: Bool
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
-    let onSwitchPresentation: (FileManagerPresentation) -> Void
+    let onSwitchPresentation: (PanelPresentation) -> Void
 
     static let minWidth: CGFloat = 300
     static let defaultWidth: CGFloat = 460
@@ -72,30 +72,33 @@ struct FileManagerHUD: View {
     let canFocus: Bool
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
-    let onSwitchPresentation: (FileManagerPresentation) -> Void
+    let onSwitchPresentation: (PanelPresentation) -> Void
 
     var body: some View {
-        GeometryReader { geometry in
-            DraggableHUDContainer(
-                dismissShortcuts: [.escape],
-                forwardsFileManagerToggle: true,
-                onDismiss: onClose
-            ) {
-                FileManagerView(
-                    manager: manager,
-                    style: .overlay,
-                    canFocus: canFocus,
-                    onClose: onClose,
-                    onSwitchPresentation: onSwitchPresentation
-                )
-                .frame(
-                    width: min(1000, max(320, geometry.size.width - 24)),
-                    height: min(680, max(320, geometry.size.height - 24))
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .floatingHUDPanelBackground()
-                .fileManagerTheme(theme)
-            }
+        DraggableHUDContainer(
+            resizing: .fileManager,
+            dismissShortcuts: [.escape],
+            forwardsFileManagerToggle: true,
+            onDismiss: onClose
+        ) {
+            FileManagerView(
+                manager: manager,
+                style: .overlay,
+                canFocus: canFocus,
+                onClose: onClose,
+                onSwitchPresentation: onSwitchPresentation
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .floatingHUDPanelBackground()
+            .fileManagerTheme(theme)
         }
     }
+}
+
+extension HUDResizing {
+    static let fileManager = HUDResizing(
+        minSize: CGSize(width: 320, height: 320),
+        widthKey: Settings.Transfer.fileManagerHUDWidth,
+        heightKey: Settings.Transfer.fileManagerHUDHeight)
 }

@@ -105,7 +105,7 @@ extension MainView {
             .onChange(of: showSettings) { oldValue, newValue in
                 if newValue {
                     resignFirstResponderForSheetPresentation()
-                } else if oldValue {
+                } else if oldValue, !httpCaptureWaitsForSettingsSheet {
                     restoreFirstResponderAfterSheetDismissal()
                 }
             }

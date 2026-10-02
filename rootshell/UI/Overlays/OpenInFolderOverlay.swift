@@ -19,26 +19,34 @@ struct OpenInFolderHUD: View {
     let onOpen: (String, OpenInFolderPlacement) -> Bool
 
     var body: some View {
-        GeometryReader { geometry in
-            DraggableHUDContainer(
-                dismissShortcuts: [.escape],
-                forwardsFindToggle: true,
-                forwardsOpenInFolderToggle: true,
-                onForwardedToggle: { isPresented = false },
-                onFind: { model.focusRequest += 1 },
-                onDismiss: { isPresented = false }
-            ) {
+        DraggableHUDContainer(
+            resizing: .openInFolder,
+            dismissShortcuts: [.escape],
+            forwardsFindToggle: true,
+            forwardsOpenInFolderToggle: true,
+            onForwardedToggle: { isPresented = false },
+            onFind: { model.focusRequest += 1 },
+            onDismiss: { isPresented = false }
+        ) {
+            GeometryReader { geometry in
                 OpenInFolderOverlay(
                     model: model,
                     isPresented: $isPresented,
                     shortcut: shortcut,
                     onOpen: onOpen,
-                    width: min(720, max(280, geometry.size.width - 24)),
-                    height: min(520, max(220, geometry.size.height - 24))
+                    width: geometry.size.width,
+                    height: geometry.size.height
                 )
             }
         }
     }
+}
+
+extension HUDResizing {
+    static let openInFolder = HUDResizing(
+        minSize: CGSize(width: 280, height: 220),
+        widthKey: Settings.Tabs.openInFolderHUDWidth,
+        heightKey: Settings.Tabs.openInFolderHUDHeight)
 }
 
 struct OpenInFolderOverlay: View {

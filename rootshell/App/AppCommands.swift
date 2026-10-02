@@ -227,6 +227,16 @@ struct FileCommands: Commands {
                 )
             }
             .modifier(DynamicShortcut(action: .toggle_file_manager, shortcuts: shortcutState.shortcuts))
+
+            #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+            Button("HTTP Capture") {
+                UIApplication.shared.sendMenuAction(
+                    #selector(Ghostty.TerminalView.menuToggleHTTPCapture(_:)),
+                    from: nil
+                )
+            }
+            .modifier(DynamicShortcut(action: .toggle_http_capture, shortcuts: shortcutState.shortcuts))
+            #endif
         }
     }
 }

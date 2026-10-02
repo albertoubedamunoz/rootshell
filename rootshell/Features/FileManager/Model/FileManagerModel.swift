@@ -9,18 +9,6 @@
 
 import Foundation
 
-enum FileManagerPresentation: String, CaseIterable, Codable, Sendable {
-    case sidebar
-    case overlay
-
-    var title: String {
-        switch self {
-        case .sidebar: String(localized: "Sidebar", comment: "File manager presentation option")
-        case .overlay: String(localized: "Overlay", comment: "File manager presentation option")
-        }
-    }
-}
-
 @MainActor
 @Observable
 final class FileManagerModel {

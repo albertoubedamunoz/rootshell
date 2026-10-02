@@ -737,6 +737,7 @@
 				Core/Security/AppIdentifiers.swift,
 				Core/Shell/LoginShellCommand.swift,
 				Core/Terminal/Reconnect/InitialConnectRetry.swift,
+				Features/HTTPCapture/Shared/CaptureEngineProtocol.swift,
 				Features/PortForwarding/SOCKS5Handler.swift,
 				Features/SSH/HostTrust/SSHHostKeyFormatter.swift,
 				Features/SSH/HostTrust/SSHHostPatternMatcher.swift,
@@ -764,6 +765,7 @@
 				Core/Security/AppIdentifiers.swift,
 				Core/Shell/LoginShellCommand.swift,
 				Core/Terminal/Reconnect/InitialConnectRetry.swift,
+				Features/HTTPCapture/Shared/CaptureEngineProtocol.swift,
 				Features/PortForwarding/SOCKS5Handler.swift,
 				Features/SSH/Agent/External/ExternalAgentNIOSSHKeys.swift,
 				Features/SSH/Agent/External/ExternalSSHAgentClient.swift,
@@ -785,7 +787,10 @@
 		47VPNT0100000000000000B1 /* Exceptions for "VPNTunnelExtension" folder in "tunnel" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				CaptureBridge.swift,
+				DirectInterfaceMonitor.swift,
 				SSHVPNTunnelProvider.swift,
+				TunnelSettingsShape.swift,
 				VPNAgentNIOSSHKeys.swift,
 				VPNAgentSignBroker.swift,
 				VPNConnectionDebugLogger.swift,
@@ -6992,7 +6997,7 @@
 			repositoryURL = "https://github.com/kitknox/trzsz-ssh-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.6;
+				version = 0.2.7;
 			};
 		};
 		47XZPKG02FF00000AABB0000 /* XCRemoteSwiftPackageReference "xz_ios-rootshell" */ = {

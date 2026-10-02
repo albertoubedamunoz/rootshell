@@ -2746,6 +2746,16 @@ extension Ghostty.TerminalView: UIContextMenuInteractionDelegate {
             NotificationCenter.default.post(name: .toggleFileManager, object: self)
         })
 
+        #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+        menuItems.append(UIAction(
+            title: String(localized: "HTTP Capture"),
+            image: UIImage(systemName: "network.badge.shield.half.filled")
+        ) { [weak self] _ in
+            guard let self else { return }
+            NotificationCenter.default.post(name: .toggleHTTPCapture, object: self)
+        })
+        #endif
+
         // Split actions menu
         let splitRight = UIAction(
             title: String(localized: "Split Right"),

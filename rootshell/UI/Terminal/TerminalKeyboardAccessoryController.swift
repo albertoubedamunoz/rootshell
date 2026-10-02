@@ -1003,6 +1003,11 @@ final class TerminalKeyboardAccessoryController: NSObject {
             NotificationCenter.default.post(name: .toggleFileManager, object: host)
         }
 
+        keyboardAccessory?.onHTTPCaptureRequested = { [weak host] in
+            guard let host else { return }
+            NotificationCenter.default.post(name: .toggleHTTPCapture, object: host)
+        }
+
         keyboardAccessory?.onLayoutInvalidated = { [weak self] in
             self?.refreshKeyboardLayoutAfterAccessoryChange()
         }

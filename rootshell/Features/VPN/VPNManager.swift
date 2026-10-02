@@ -64,6 +64,10 @@ final class VPNManager {
     /// Start VPN for a given connection profile.
     func startVPN(for profile: ConnectionProfile) async throws {
         Self.logger.info("Starting VPN for profile: \(profile.name)")
+#if !CHINA_BUILD
+        // Registers the capture config hand-off before the tunnel starts.
+        _ = CaptureController.shared
+#endif
         // Re-mirror snapshots so the pinned host key reflects the latest
         // known-hosts state at the moment of an app-initiated start.
         ConnectionProfileManager.shared.refreshVPNSharedProfiles()
@@ -89,6 +93,56 @@ final class VPNManager {
         // No NEVPNStatusDidChange in the Catalyst app (the manager lives in the
         // host), so poll the host for status transitions.
         startStatsPolling()
+#endif
+    }
+
+    /// Start the serverless "Local Capture" tunnel used for HTTP capture.
+    func startDirectVPN(dnsServers: [String]) async throws {
+        Self.logger.info("Starting Local Capture VPN")
+#if STANDALONE && targetEnvironment(macCatalyst)
+        try await MacVPNController.shared.activateExtension()
+        try await MacVPNController.shared.startDirect(dnsServers: dnsServers)
+#else
+        _ = try await VPNStartController.startDirect(dnsServers: dnsServers)
+#endif
+        await refreshStatusFromSystem()
+
+        let snapshot = VPNDirectProfile.snapshot(dnsServers: dnsServers)
+        activeProfileID = snapshot.id
+        activeProfileName = snapshot.name
+        if status == .disconnected || status == .invalid {
+            status = .connecting
+        }
+        previousStatus = status
+        addEvent(.connected(profileID: snapshot.id, message: snapshot.name))
+#if STANDALONE && targetEnvironment(macCatalyst)
+        startStatsPolling()
+#endif
+    }
+
+    /// Whether the tunnel is up and able to answer provider messages.
+    var isTunnelUp: Bool {
+        status == .connected || status == .reasserting
+    }
+
+    /// Send a raw provider message (HTTP capture). nil when no tunnel answers.
+    func sendProviderMessage(_ message: Data, timeout: TimeInterval = 8) async -> Data? {
+#if STANDALONE && targetEnvironment(macCatalyst)
+        return await MacVPNController.shared.providerMessage(message, timeoutSeconds: Int(timeout.rounded(.up)))
+#else
+        guard let session = tunnelManager?.connection as? NETunnelProviderSession,
+              session.status == .connected || session.status == .reasserting else { return nil }
+        return try? await withTimeout(seconds: timeout) {
+            await withCheckedContinuation { continuation in
+                do {
+                    try session.sendProviderMessage(message) { data in
+                        continuation.resume(returning: data)
+                    }
+                } catch {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
 #endif
     }
 
@@ -175,27 +229,41 @@ final class VPNManager {
         }
     }
 
-    /// Cold-start restore for the macOS host-agent path: query the host for a
-    /// live tunnel and rebuild the session state (profile, stats polling) so a
-    /// relaunched app can see and stop it. No-op when the host isn't running
-    /// (the socket connect fails fast) — a dead host can't have a session.
-    private func restoreMacVPNState() async {
-        guard await MacVPNController.shared.isHostResponsive() else { return }
-        guard let response = await MacVPNController.shared.status() else { return }
+    /// Rebuilds session state (status, profile, stats polling) from the host,
+    /// which owns the NE configuration; loadAllFromPreferences() is always
+    /// empty in this app. No-op when the host isn't running (the socket
+    /// connect fails fast) — a dead host can't have a session.
+    private func refreshMacVPNState(shouldApply: (@MainActor () -> Bool)? = nil) async {
+        guard await MacVPNController.shared.isHostResponsive(),
+              let response = await MacVPNController.shared.status() else { return }
+        if let shouldApply, !shouldApply() { return }
         applyMacStatus(response.status)
-        guard status == .connected || status == .connecting || status == .reasserting else { return }
 
-        if let profileID = response.profileID {
-            activeProfileID = profileID
-            activeProfileName =
-                ConnectionProfileManager.shared.profile(for: profileID)?.name ??
-                VPNSharedProfileStore.profile(id: profileID)?.name
+        switch status {
+        case .connected, .connecting, .reasserting:
+            if let profileID = response.profileID {
+                activeProfileID = profileID
+                activeProfileName =
+                    ConnectionProfileManager.shared.profile(for: profileID)?.name ??
+                    VPNSharedProfileStore.profile(id: profileID)?.name
+            }
+            if let json = response.statusJSON {
+                applyStatusJSON(json)
+            }
+            if statsTimer == nil {
+                startStatsPolling()
+            }
+        case .disconnected, .invalid:
+            activeProfileID = nil
+            activeProfileName = nil
+            statistics = nil
+            latestStatusJSON = nil
+            trafficHistory = []
+        default:
+            break
         }
-        if let json = response.statusJSON {
-            applyStatusJSON(json)
-        }
-        startStatsPolling()
-        Self.logger.info("Restored active macOS VPN session from host")
+        writeWidgetState()
+        reloadWidgetTimelines()
     }
 #endif
 
@@ -339,6 +407,9 @@ final class VPNManager {
             return
         }
 
+#if STANDALONE && targetEnvironment(macCatalyst)
+        await refreshMacVPNState(shouldApply: shouldApply)
+#else
         do {
             let managers = try await NETunnelProviderManager.loadAllFromPreferences()
 
@@ -401,6 +472,7 @@ final class VPNManager {
             let errorMsg = error.localizedDescription
             Self.logger.error("refreshStatusFromSystem failed: \(errorMsg)")
         }
+#endif
     }
 
     // MARK: - Private Helpers
@@ -410,7 +482,7 @@ final class VPNManager {
         // The NE configuration lives in the host agent, not this app, so
         // loadAllFromPreferences() finds nothing here. Ask the host instead;
         // a live tunnel must survive an app relaunch (visible + stoppable).
-        await restoreMacVPNState()
+        await refreshMacVPNState()
 #else
         do {
             let managers = try await NETunnelProviderManager.loadAllFromPreferences()

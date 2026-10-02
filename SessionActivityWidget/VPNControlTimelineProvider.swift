@@ -108,6 +108,7 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
                 switch $0.transportType {
                 case .ssh: "SSH"
                 case .tssh: "tssh"
+                case .direct: "Direct"
                 }
             }
         }

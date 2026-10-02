@@ -39,6 +39,12 @@ enum VPNStartController {
     private static let providerServerAddress = "rootshell VPN"
     private static let widgetKind = "VPNControlWidget"
 
+    /// Starts the serverless "Local Capture" tunnel.
+    static func startDirect(dnsServers: [String]) async throws -> StartResult {
+        VPNDirectProfile.store(VPNDirectProfile.snapshot(dnsServers: dnsServers))
+        return try await start(profileID: VPNDirectProfile.id)
+    }
+
     static func start(profileID: UUID) async throws -> StartResult {
         guard let snapshot = VPNSharedProfileStore.profile(id: profileID) else {
             throw StartError.profileNotFound
@@ -49,7 +55,7 @@ enum VPNStartController {
         // The VPN never prompts for host keys: require either a key accepted
         // in a regular SSH session or a trusted host CA covering the host
         // (both mirrored into the snapshot) before starting.
-        guard snapshot.hostKey != nil || !(snapshot.trustedCAKeys ?? []).isEmpty else {
+        guard snapshot.transportType == .direct || snapshot.hostKey != nil || !(snapshot.trustedCAKeys ?? []).isEmpty else {
             throw StartError.hostKeyNotTrusted(host: snapshot.host)
         }
         if let jump = snapshot.jumpHost, jump.hostKey == nil, (jump.trustedCAKeys ?? []).isEmpty {

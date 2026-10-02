@@ -331,6 +331,10 @@ extension MainView {
             // File manager HUD, or the transfer pill while it is hidden
             fileManagerOverlays()
 
+            #if !CHINA_BUILD
+            httpCaptureOverlays()
+            #endif
+
             // Theme picker overlay
             themePickerOverlayView(isPresented: $showThemePickerOverlay)
 
@@ -1388,7 +1392,15 @@ extension MainView {
         let fileManagerWidth = fileManagerShowsSidebar
             ? min(fileManagerSidebarWidth, max(FileManagerSidebarView.minWidth, geometry.size.width - dockedWidth - sidebarWidth - 320))
             : 0
-        let terminalWidth = geometry.size.width - sidebarWidth - dockedWidth - fileManagerWidth
+        // HTTP capture shares the file manager's slot; at most one is docked.
+        #if !CHINA_BUILD
+        let httpCaptureWidth = httpCaptureShowsSidebar
+            ? min(httpCaptureSidebarWidth, max(HTTPCaptureSidebarView.minWidth, geometry.size.width - dockedWidth - sidebarWidth - 320))
+            : 0
+        #else
+        let httpCaptureWidth: CGFloat = 0
+        #endif
+        let terminalWidth = geometry.size.width - sidebarWidth - dockedWidth - fileManagerWidth - httpCaptureWidth
 
         HStack(spacing: 0) {
             if let dockedSidebarTheme {
@@ -1413,6 +1425,8 @@ extension MainView {
             fileManagerSidebarColumn(width: fileManagerWidth, totalWidth: geometry.size.width)
 
             #if !CHINA_BUILD
+            httpCaptureSidebarColumn(width: httpCaptureWidth, totalWidth: geometry.size.width)
+
             if shouldShowSidebar, let session = aiAgentSessions[currentTabId] {
                 aiSidebarView(currentTabId: currentTabId, session: session, sidebarWidth: sidebarWidth, totalWidth: geometry.size.width)
             }
@@ -1446,6 +1460,7 @@ extension MainView {
         .animation(tabSidebarIsDragging ? .none : .interactiveSpring(), value: dockedWidth)
         .animation(fileManagerSidebarIsDragging ? .none : .spring(response: 0.3, dampingFraction: 0.85), value: fileManagerWidth)
         #if !CHINA_BUILD
+        .animation(httpCaptureSidebarIsDragging ? .none : .spring(response: 0.3, dampingFraction: 0.85), value: httpCaptureWidth)
         .animation(
             aiAgentSidebarIsDragging ? .none : .spring(response: 0.3, dampingFraction: 0.85),
             value: shouldShowSidebar

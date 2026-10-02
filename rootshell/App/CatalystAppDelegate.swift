@@ -1238,9 +1238,15 @@ class CatalystAppDelegate: AppDelegate {
             keybind: .toggle_file_manager
         )
 
-        builder.replaceChildren(ofMenu: .newScene) { _ in
-            [newLocalShell, newTab, newWindow, duplicateSshTab, openInFolder, fileManager]
-        }
+        var sceneItems: [UIMenuElement] = [newLocalShell, newTab, newWindow, duplicateSshTab, openInFolder, fileManager]
+        #if !CHINA_BUILD && STANDALONE
+        sceneItems.append(keybindMenuCommand(
+            title: String(localized: "HTTP Capture"),
+            action: #selector(UIApplication.menuToggleHTTPCapture(_:)),
+            keybind: .toggle_http_capture
+        ))
+        #endif
+        builder.replaceChildren(ofMenu: .newScene) { _ in sceneItems }
     }
 
     /// A menu item carrying the action's current single-chord binding, unless

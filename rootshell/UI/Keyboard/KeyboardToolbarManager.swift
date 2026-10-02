@@ -301,13 +301,13 @@ class KeyboardToolbarManager {
             keepsDrawerToggleVisible: !config.hiddenKeys.contains(.drawerToggle))
     }
 
-    /// Filter out slots that reference deleted custom keys or hidden built-in keys
+    /// Filter out slots that reference deleted custom keys or hidden or unavailable built-in keys
     private func validSlots(_ slots: [KeySlot]) -> [KeySlot] {
         let customIDs = Set(customKeys.map(\.id))
         return slots.filter { slot in
             switch slot {
             case .builtIn(let keyID):
-                return !config.hiddenKeys.contains(keyID)
+                return keyID.isAvailable && !config.hiddenKeys.contains(keyID)
             case .custom(let uuid):
                 return customIDs.contains(uuid)
             }
