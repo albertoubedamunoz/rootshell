@@ -64,6 +64,10 @@ final class VPNManager {
     /// Start VPN for a given connection profile.
     func startVPN(for profile: ConnectionProfile) async throws {
         Self.logger.info("Starting VPN for profile: \(profile.name)")
+#if !CHINA_BUILD
+        // Registers the capture config hand-off before the tunnel starts.
+        _ = CaptureController.shared
+#endif
         // Re-mirror snapshots so the pinned host key reflects the latest
         // known-hosts state at the moment of an app-initiated start.
         ConnectionProfileManager.shared.refreshVPNSharedProfiles()
@@ -89,6 +93,56 @@ final class VPNManager {
         // No NEVPNStatusDidChange in the Catalyst app (the manager lives in the
         // host), so poll the host for status transitions.
         startStatsPolling()
+#endif
+    }
+
+    /// Start the serverless "Local Capture" tunnel used for HTTP capture.
+    func startDirectVPN(dnsServers: [String]) async throws {
+        Self.logger.info("Starting Local Capture VPN")
+#if STANDALONE && targetEnvironment(macCatalyst)
+        try await MacVPNController.shared.activateExtension()
+        try await MacVPNController.shared.startDirect(dnsServers: dnsServers)
+#else
+        _ = try await VPNStartController.startDirect(dnsServers: dnsServers)
+#endif
+        await refreshStatusFromSystem()
+
+        let snapshot = VPNDirectProfile.snapshot(dnsServers: dnsServers)
+        activeProfileID = snapshot.id
+        activeProfileName = snapshot.name
+        if status == .disconnected || status == .invalid {
+            status = .connecting
+        }
+        previousStatus = status
+        addEvent(.connected(profileID: snapshot.id, message: snapshot.name))
+#if STANDALONE && targetEnvironment(macCatalyst)
+        startStatsPolling()
+#endif
+    }
+
+    /// Whether the tunnel is up and able to answer provider messages.
+    var isTunnelUp: Bool {
+        status == .connected || status == .reasserting
+    }
+
+    /// Send a raw provider message (HTTP capture). nil when no tunnel answers.
+    func sendProviderMessage(_ message: Data, timeout: TimeInterval = 8) async -> Data? {
+#if STANDALONE && targetEnvironment(macCatalyst)
+        return await MacVPNController.shared.providerMessage(message, timeoutSeconds: Int(timeout.rounded(.up)))
+#else
+        guard let session = tunnelManager?.connection as? NETunnelProviderSession,
+              session.status == .connected || session.status == .reasserting else { return nil }
+        return try? await withTimeout(seconds: timeout) {
+            await withCheckedContinuation { continuation in
+                do {
+                    try session.sendProviderMessage(message) { data in
+                        continuation.resume(returning: data)
+                    }
+                } catch {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
 #endif
     }
 

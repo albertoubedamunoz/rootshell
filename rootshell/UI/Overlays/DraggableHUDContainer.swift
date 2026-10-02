@@ -38,6 +38,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     var forwardsOpenInFolderToggle: Bool
     var forwardsFileManagerToggle: Bool
     var forwardsIPLookupToggle: Bool
+    var forwardsHTTPCaptureToggle: Bool
     /// Handles a forwarded toggle menu action instead of `onDismiss`. Needed by
     /// the clipboard manager, whose toggle is a 3-state cycle (open → keyboard
     /// mode → close) rather than a plain dismiss: the HUD's field can hold
@@ -58,6 +59,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
          forwardsOpenInFolderToggle: Bool = false,
          forwardsFileManagerToggle: Bool = false,
          forwardsIPLookupToggle: Bool = false,
+         forwardsHTTPCaptureToggle: Bool = false,
          onForwardedToggle: (() -> Void)? = nil,
          onFind: (() -> Void)? = nil,
          onDismiss: (() -> Void)? = nil,
@@ -72,6 +74,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         self.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         self.forwardsFileManagerToggle = forwardsFileManagerToggle
         self.forwardsIPLookupToggle = forwardsIPLookupToggle
+        self.forwardsHTTPCaptureToggle = forwardsHTTPCaptureToggle
         self.onForwardedToggle = onForwardedToggle
         self.onFind = onFind
         self.onDismiss = onDismiss
@@ -90,6 +93,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         view.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         view.forwardsFileManagerToggle = forwardsFileManagerToggle
         view.forwardsIPLookupToggle = forwardsIPLookupToggle
+        view.forwardsHTTPCaptureToggle = forwardsHTTPCaptureToggle
         view.onForwardedToggle = onForwardedToggle
         view.onFind = onFind
         view.onDismiss = onDismiss
@@ -122,6 +126,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         uiView.forwardsOpenInFolderToggle = forwardsOpenInFolderToggle
         uiView.forwardsFileManagerToggle = forwardsFileManagerToggle
         uiView.forwardsIPLookupToggle = forwardsIPLookupToggle
+        uiView.forwardsHTTPCaptureToggle = forwardsHTTPCaptureToggle
         uiView.onForwardedToggle = onForwardedToggle
         uiView.setNeedsLayout()
     }
@@ -180,6 +185,7 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     var forwardsOpenInFolderToggle = false
     var forwardsFileManagerToggle = false
     var forwardsIPLookupToggle = false
+    var forwardsHTTPCaptureToggle = false
     var onForwardedToggle: (() -> Void)?
     var onFind: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -207,7 +213,12 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
         if action == #selector(menuOpenInFolder(_:)) { return forwardsOpenInFolderToggle }
         if action == #selector(menuToggleFileManager(_:)) { return forwardsFileManagerToggle }
         if action == #selector(menuToggleIPLookup(_:)) { return forwardsIPLookupToggle }
+        if action == #selector(menuToggleHTTPCapture(_:)) { return forwardsHTTPCaptureToggle }
         return super.canPerformAction(action, withSender: sender)
+    }
+
+    @objc func menuToggleHTTPCapture(_ sender: Any?) {
+        (onForwardedToggle ?? onDismiss)?()
     }
 
     @objc func menuToggleFileManager(_ sender: Any?) {
@@ -282,6 +293,14 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
            !sequence.isSequence, let trigger = sequence.first {
             let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
                                        action: #selector(menuToggleIPLookup(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            commands.append(command)
+        }
+        if forwardsHTTPCaptureToggle,
+           let sequence = KeybindManager.shared.sequence(for: .toggle_http_capture),
+           !sequence.isSequence, let trigger = sequence.first {
+            let command = UIKeyCommand(input: trigger.uiKeyInput, modifierFlags: trigger.uiModifierFlags,
+                                       action: #selector(menuToggleHTTPCapture(_:)))
             command.wantsPriorityOverSystemBehavior = true
             commands.append(command)
         }

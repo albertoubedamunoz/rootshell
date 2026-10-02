@@ -119,6 +119,9 @@ final class KeybindCommandGenerator: ObservableObject {
 
     /// Determine if a binding should have a UIKeyCommand generated
     private func shouldGenerateCommand(for binding: Keybind) -> Bool {
+        #if CHINA_BUILD
+        if binding.action == .toggle_http_capture { return false }
+        #endif
         switch binding.action {
         // App actions need UIKeyCommands to trigger
         case .toggle_visor, .new_local_shell, .new_tab, .new_window, .close_tab, .duplicate_ssh_tab,
@@ -128,7 +131,7 @@ final class KeybindCommandGenerator: ObservableObject {
              .navigate_split_right, .navigate_split_up, .navigate_split_down,
              .toggle_split_zoom, .equalize_splits, .choose_pane_to_zoom, .choose_pane_to_swap,
              .open_settings, .toggle_quick_settings, .open_in_folder,
-             .toggle_file_manager, .toggle_ip_lookup, .browse_hosts,
+             .toggle_file_manager, .toggle_ip_lookup, .toggle_http_capture, .browse_hosts,
              .browse_profiles, .toggle_ai_agent, .toggle_voice_agent, .toggle_dictation, .toggle_tab_bar, .toggle_group_mode, .toggle_tab_switcher,
              .toggle_tab_expose, .previous_group, .next_group, .show_tmux_sessions, .discover_sessions,
              .detach_session, .detach_other_clients,

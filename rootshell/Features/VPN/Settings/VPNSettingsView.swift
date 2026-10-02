@@ -21,12 +21,53 @@ struct VPNSettingsView: View {
             statusSection
             disconnectSection
             vpnProfilesSection
+            #if !CHINA_BUILD
+            httpCaptureSection
+            #endif
             eventHistorySection
             debugSection
         }
         .themedList()
         .navigationTitle("VPN")
     }
+
+    #if !CHINA_BUILD
+    // MARK: - HTTP Capture Section
+
+    private var httpCaptureSection: some View {
+        Section {
+            NavigationLink {
+                CaptureSettingsView()
+            } label: {
+                HStack {
+                    Text(String(localized: "Capture Settings", comment: "VPN settings row"))
+                    Spacer(minLength: 8)
+                    if CaptureController.shared.isRecording {
+                        CaptureStatusText(
+                            text: String(localized: "Recording", comment: "HTTP capture session state"),
+                            systemImage: "record.circle", color: .red)
+                    } else if CaptureCAManager.shared.hasCA {
+                        CATrustBadge(state: CaptureCAManager.shared.trust)
+                    }
+                }
+            }
+            .themedRow()
+            if vpnManager.status != .connected {
+                Button(String(localized: "Connect Local Capture VPN", comment: "VPN settings action")) {
+                    Task {
+                        try? await vpnManager.startDirectVPN(
+                            dnsServers: SettingsStore.shared.value(Settings.HTTPCapture.directDNSServers))
+                    }
+                }
+                .themedRow()
+            }
+        } header: {
+            Text("HTTP Capture")
+        } footer: {
+            Text("Inspect HTTP and HTTPS traffic through the VPN. Open the capture panel from the File menu or with its keyboard shortcut. Local Capture is a VPN without a server, for capturing only.")
+        }
+    }
+    #endif
 
     // MARK: - Status Section
 

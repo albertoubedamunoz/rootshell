@@ -111,14 +111,20 @@ nonisolated extension Settings {
     }
 
     /// Every area the registry assembles. Add new areas here.
-    static let allAreas: [[AnySettingDefinition]] = [
-        Theme.all, Font.all, Cursor.all, Selection.all, Transparency.all, Palette.all, Shaders.all,
-        Tabs.all, Sidebar.all, Window.all, Power.all, Visor.all,
-        Terminal.all, Gestures.all, Prompt.all, Locale.all, SessionRestore.all,
-        Keyboard.all, KeyboardToolbar.all, Keybinds.all, Dictation.all,
-        Connections.all, Multiplexer.all, SSHAgent.all, HostTrust.all, Roam.all, ScreenSharing.all, Transfer.all,
-        AI.all,
-        Notifications.all, CodingAgents.all, Sounds.all, LiveActivity.all, Privacy.all, Clipboard.all,
-        System.all, Legacy.all,
-    ]
+    static let allAreas: [[AnySettingDefinition]] = {
+        var areas: [[AnySettingDefinition]] = [
+            Theme.all, Font.all, Cursor.all, Selection.all, Transparency.all, Palette.all, Shaders.all,
+            Tabs.all, Sidebar.all, Window.all, Power.all, Visor.all,
+            Terminal.all, Gestures.all, Prompt.all, Locale.all, SessionRestore.all,
+            Keyboard.all, KeyboardToolbar.all, Keybinds.all, Dictation.all,
+            Connections.all, Multiplexer.all, SSHAgent.all, HostTrust.all, Roam.all, ScreenSharing.all, Transfer.all,
+            AI.all,
+            Notifications.all, CodingAgents.all, Sounds.all, LiveActivity.all, Privacy.all, Clipboard.all,
+            System.all, Legacy.all,
+        ]
+        #if !CHINA_BUILD
+        areas.append(HTTPCapture.all)
+        #endif
+        return areas
+    }()
 }

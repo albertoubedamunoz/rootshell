@@ -16,7 +16,7 @@ struct FileManagerSidebarView: View {
     let canFocus: Bool
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
-    let onSwitchPresentation: (FileManagerPresentation) -> Void
+    let onSwitchPresentation: (PanelPresentation) -> Void
 
     static let minWidth: CGFloat = 300
     static let defaultWidth: CGFloat = 460
@@ -72,7 +72,7 @@ struct FileManagerHUD: View {
     let canFocus: Bool
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
-    let onSwitchPresentation: (FileManagerPresentation) -> Void
+    let onSwitchPresentation: (PanelPresentation) -> Void
 
     var body: some View {
         GeometryReader { geometry in

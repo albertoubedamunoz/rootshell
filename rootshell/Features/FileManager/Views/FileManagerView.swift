@@ -23,7 +23,7 @@ struct FileManagerView: View {
     let canFocus: Bool
     let onClose: () -> Void
     /// Switches between sidebar and overlay; nil where only one presentation exists.
-    let onSwitchPresentation: ((FileManagerPresentation) -> Void)?
+    let onSwitchPresentation: ((PanelPresentation) -> Void)?
 
     @State private var highlightsShortcutsTip = false
     @Environment(\.sheetThemeColors) private var sheetThemeColors
@@ -116,7 +116,7 @@ struct FileManagerView: View {
             Text("Files").font(.headline)
             Spacer()
             if let onSwitchPresentation {
-                FileManagerPresentationMenu(current: style == .sidebar ? .sidebar : .overlay, onSwitch: onSwitchPresentation)
+                PanelPresentationMenu(current: style == .sidebar ? .sidebar : .overlay, onSwitch: onSwitchPresentation)
                     .equatable()
             }
             FileManagerMoreMenu(manager: manager)
@@ -330,32 +330,6 @@ struct FileManagerView: View {
                 withAnimation(.easeInOut(duration: 0.6)) { highlightsShortcutsTip = false }
             }
         }
-    }
-}
-
-/// Equatable so FileManagerView and MainView renders skip this body and never
-/// rebuild the menu while it is open. `onSwitch` is excluded; it acts on live state.
-private struct FileManagerPresentationMenu: View, Equatable {
-    let current: FileManagerPresentation
-    let onSwitch: (FileManagerPresentation) -> Void
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.current == rhs.current
-    }
-
-    var body: some View {
-        Menu {
-            ForEach(FileManagerPresentation.allCases, id: \.self) { presentation in
-                Button {
-                    onSwitch(presentation)
-                } label: {
-                    Label(presentation.title, systemImage: presentation == .sidebar ? "sidebar.right" : "macwindow")
-                }
-            }
-        } label: {
-            Image(systemName: current == .sidebar ? "sidebar.right" : "macwindow")
-        }
-        .accessibilityLabel(String(localized: "Presentation", comment: "File manager presentation menu"))
     }
 }
 

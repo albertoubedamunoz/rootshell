@@ -12,6 +12,8 @@ import os.log
 nonisolated enum VPNSharedTransportType: String, Codable, Sendable, Hashable {
     case ssh
     case tssh
+    /// No remote server: the extension dials upstream itself (HTTP capture).
+    case direct
 }
 
 nonisolated enum VPNSharedAuthMethod: String, Codable, Sendable, Hashable {
@@ -146,6 +148,63 @@ nonisolated enum VPNSharedProfileStore {
     }
 
     static func profile(id: UUID) -> VPNSharedProfileSnapshot? {
-        readAll().first(where: { $0.id == id })
+        if id == VPNDirectProfile.id {
+            return VPNDirectProfile.stored()
+        }
+        return readAll().first(where: { $0.id == id })
+    }
+}
+
+/// The synthetic "Local Capture" profile: a Direct-transport tunnel with no
+/// server, used to capture HTTP traffic. Never part of the synced profile list.
+nonisolated enum VPNDirectProfile {
+    static let id = UUID(uuidString: "C0FFEE00-0000-4000-8000-00000000D1E7")!
+    static let fileName = "vpn_direct_profile.json"
+
+    static func snapshot(dnsServers: [String]) -> VPNSharedProfileSnapshot {
+        VPNSharedProfileSnapshot(
+            id: id,
+            modifiedAt: Date(),
+            name: String(localized: "Local Capture", comment: "Name of the serverless VPN used for HTTP capture"),
+            host: "",
+            port: 0,
+            username: "",
+            transportType: .direct,
+            auth: VPNSharedProfileAuth(method: .none, keyID: nil),
+            jumpHost: nil,
+            trzszMode: nil,
+            trzszUDPPortMin: nil,
+            trzszUDPPortMax: nil,
+            trzszMTU: nil,
+            trzszServerPath: nil,
+            dnsServers: dnsServers,
+            excludedRoutes: [],
+            blockQUIC: nil,
+            isBackgroundStartable: true,
+            hostKey: nil,
+            trustedCAKeys: nil
+        )
+    }
+
+    private static var fileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(fileName)
+    }
+
+    static func store(_ snapshot: VPNSharedProfileSnapshot) {
+        guard let fileURL else { return }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try? encoder.encode(snapshot).write(to: fileURL, options: .atomic)
+    }
+
+    static func stored() -> VPNSharedProfileSnapshot {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        if let fileURL, let data = try? Data(contentsOf: fileURL),
+           let snapshot = try? decoder.decode(VPNSharedProfileSnapshot.self, from: data) {
+            return snapshot
+        }
+        return snapshot(dnsServers: [])
     }
 }

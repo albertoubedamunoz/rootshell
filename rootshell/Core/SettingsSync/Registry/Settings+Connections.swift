@@ -8,7 +8,7 @@
 import Foundation
 
 extension ProfileSortOrder: SettingValue {}
-extension FileManagerPresentation: SettingValue {}
+extension PanelPresentation: SettingValue {}
 extension KeyAuthRequirement: SettingValue {}
 extension KeyStorageLevel: SettingValue {}
 extension TmuxAutoMode: SettingValue {}
@@ -320,7 +320,7 @@ nonisolated extension Settings {
             title: String(localized: "Croc Machine ID", comment: "Setting title"))
 
         static let fileManagerPresentation = SettingKey(
-            "fileManager.presentation", default: FileManagerPresentation.sidebar, group: .transfer,
+            "fileManager.presentation", default: PanelPresentation.sidebar, group: .transfer,
             configKey: "file-manager-presentation",
             title: String(localized: "File Manager Presentation", comment: "Setting title"))
         static let fileManagerSidebarWidth = SettingKey(
