@@ -22,6 +22,7 @@ extension ScreenSharingPanningDefault: SettingValue {}
 extension ScreenSharingPointerModeDefault: SettingValue {}
 extension ScreenSharingCursorRenderingDefault: SettingValue {}
 extension ScreenSharingCursorSizeDefault: SettingValue {}
+extension PasteInsertFormat: SettingValue {}
 
 nonisolated extension Settings {
     enum Connections {
@@ -349,12 +350,26 @@ nonisolated extension Settings {
             "fileManager.shortcutsTipShown", default: false, group: .transfer, policy: .deviceOnly,
             title: String(localized: "File Manager Shortcuts Tip Shown", comment: "Setting title"))
 
+        static let attachmentUploadConfirm = SettingKey(
+            "attachmentUpload.confirm", default: true, group: .transfer,
+            configKey: "attachment-upload-confirm",
+            title: String(localized: "Ask Before Uploading", comment: "Setting title"))
+        static let attachmentUploadFormat = SettingKey(
+            "attachmentUpload.format", default: PasteInsertFormat.pathOnly, group: .transfer,
+            configKey: "attachment-upload-format",
+            title: String(localized: "Insert Uploads As", comment: "Setting title"))
+        static let attachmentUploadDirectory = SettingKey(
+            "attachmentUpload.directory", default: "/tmp/rootshell-uploads/", group: .transfer,
+            configKey: "attachment-upload-directory",
+            title: String(localized: "Default Upload Directory", comment: "Setting title"))
+
         static let all: [AnySettingDefinition] = [
             crocMachineID.erased,
             fileManagerPresentation.erased, fileManagerSidebarWidth.erased,
             fileManagerShowHidden.erased, fileManagerConcurrentJobs.erased,
             fileManagerPreserveAttributes.erased, fileManagerIdleDisconnectMinutes.erased,
             fileManagerPaneState.erased, fileManagerShortcutsTipShown.erased,
+            attachmentUploadConfirm.erased, attachmentUploadFormat.erased, attachmentUploadDirectory.erased,
         ]
     }
 }

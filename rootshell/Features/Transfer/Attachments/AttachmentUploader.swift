@@ -29,9 +29,30 @@ enum AttachmentUploadState {
 }
 
 /// Format for inserting the uploaded path into the terminal
-enum PasteInsertFormat: Sendable {
-    case pathOnly
-    case markdownImage
+enum PasteInsertFormat: String, CaseIterable, Sendable {
+    case pathOnly = "path"
+    case markdownImage = "markdown-image"
+
+    var displayName: String {
+        switch self {
+        case .pathOnly: String(localized: "File path", comment: "Attachment upload insert format")
+        case .markdownImage: String(localized: "Markdown image", comment: "Attachment upload insert format")
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .pathOnly: String(localized: "Inserts the remote file path at cursor", comment: "Attachment upload insert format description")
+        case .markdownImage: String(localized: "Inserts as ![](path) for markdown-aware tools", comment: "Attachment upload insert format description")
+        }
+    }
+
+    func format(_ escapedPath: String) -> String {
+        switch self {
+        case .pathOnly: escapedPath
+        case .markdownImage: "![](\(escapedPath))"
+        }
+    }
 }
 
 /// Uploads paste attachments to a remote server via SFTP

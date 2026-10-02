@@ -751,7 +751,13 @@ struct SettingsConnectionsSection: View {
     @ObservedObject var wifiAPAccountManager = WiFiAPAccountManager.shared
     @Setting(Settings.Multiplexer.tmuxSessionName) private var tmuxSessionName
     @Setting(Settings.Multiplexer.tmuxCustomCommand) private var tmuxCustomCommand
+    @Setting(Settings.Transfer.attachmentUploadConfirm) private var attachmentUploadConfirm
+    @Setting(Settings.Transfer.attachmentUploadFormat) private var attachmentUploadFormat
     @State private var showClearHistoryAlert = false
+
+    private var uploadSettingsSummary: String {
+        attachmentUploadConfirm ? String(localized: "Ask", comment: "Uploads setting summary: prompt each time") : attachmentUploadFormat.displayName
+    }
 
     private var multiplexerSettingsSummary: String {
         if !tmuxCustomCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1026,6 +1032,21 @@ struct SettingsConnectionsSection: View {
                 }
                 .themedRow()
                 .settingGroupContextMenu(.screenSharing)
+
+                NavigationLink(value: SettingsSearchDestination.uploads) {
+                    HStack(spacing: 12) {
+                        SettingsIcon(systemName: "arrow.up.doc")
+                        Text("Uploads")
+                        SettingPinTag(group: .transfer)
+                        Spacer()
+                        Text(uploadSettingsSummary)
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                    }
+                }
+                .themedRow()
+                .settingGroupContextMenu(.transfer)
 
                 NavigationLink(value: SettingsSearchDestination.sshTransport) {
                     HStack(spacing: 12) {

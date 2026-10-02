@@ -18,7 +18,8 @@ struct AttachmentUploadSheet: View {
 
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     @State private var destination: String
-    @State private var insertFormat: PasteInsertFormat = .pathOnly
+    @State private var insertFormat: PasteInsertFormat
+    @State private var dontAskAgain = false
 
     init(
         attachments: [PasteAttachment],
@@ -32,6 +33,11 @@ struct AttachmentUploadSheet: View {
         self.onUpload = onUpload
         self.onCancel = onCancel
         self._destination = State(initialValue: defaultDestination)
+        self._insertFormat = State(initialValue: AttachmentUploadPreferences.defaultFormat)
+    }
+
+    private var trimmedDestination: String {
+        destination.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -64,15 +70,23 @@ struct AttachmentUploadSheet: View {
                 // Insert format section
                 Section {
                     Picker("Insert as", selection: $insertFormat) {
-                        Text("File path").tag(PasteInsertFormat.pathOnly)
-                        Text("Markdown image").tag(PasteInsertFormat.markdownImage)
+                        ForEach(PasteInsertFormat.allCases, id: \.rawValue) { format in
+                            Text(format.displayName).tag(format)
+                        }
                     }
                     .pickerStyle(.segmented)
                     .themedRow()
                 } header: {
                     Text("Format")
                 } footer: {
-                    Text(formatDescription)
+                    Text(insertFormat.detail)
+                }
+
+                Section {
+                    Toggle("Don't ask again", isOn: $dontAskAgain)
+                        .themedRow()
+                } footer: {
+                    Text("Future uploads go straight to this directory with this format. Change this in Settings → Connections → Uploads.")
                 }
             }
             .themedList()
@@ -87,12 +101,15 @@ struct AttachmentUploadSheet: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Upload") {
-                        // Save destination preference for this host
-                        let key = "paste.destination.\(host)"
-                        UserDefaults.standard.set(destination, forKey: key)
+                        let destination = trimmedDestination
+                        AttachmentUploadPreferences.remember(destination: destination, for: host)
+                        if dontAskAgain {
+                            AttachmentUploadPreferences.persistDefaults(destination: destination, format: insertFormat)
+                        }
                         onUpload(destination, insertFormat)
                     }
                     .fontWeight(.semibold)
+                    .disabled(trimmedDestination.isEmpty)
                 }
             }
         }
@@ -179,15 +196,6 @@ struct AttachmentUploadSheet: View {
     private var totalSize: String {
         let total = attachments.reduce(0) { $0 + Int64($1.data.count) }
         return ByteCountFormatter.string(fromByteCount: total, countStyle: .file)
-    }
-
-    private var formatDescription: String {
-        switch insertFormat {
-        case .pathOnly:
-            return "Inserts the remote file path at cursor"
-        case .markdownImage:
-            return "Inserts as ![](path) for markdown-aware tools"
-        }
     }
 
     private func iconForUTType(_ uti: UTType) -> String {
