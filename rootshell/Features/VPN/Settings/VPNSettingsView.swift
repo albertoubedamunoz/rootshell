@@ -15,6 +15,7 @@ struct VPNSettingsView: View {
     @State private var vpnManager = VPNManager.shared
     @State private var profileManager = ConnectionProfileManager.shared
     @State private var showDisconnectConfirmation = false
+    @Environment(\.openHTTPCapture) private var openHTTPCapture
 
     var body: some View {
         List {
@@ -36,6 +37,12 @@ struct VPNSettingsView: View {
 
     private var httpCaptureSection: some View {
         Section {
+            if let openHTTPCapture {
+                Button(String(localized: "Open HTTP Capture", comment: "VPN settings action: close Settings and show the capture panel")) {
+                    openHTTPCapture()
+                }
+                .themedRow()
+            }
             NavigationLink {
                 CaptureSettingsView()
             } label: {
@@ -64,7 +71,7 @@ struct VPNSettingsView: View {
         } header: {
             Text("HTTP Capture")
         } footer: {
-            Text("Inspect HTTP and HTTPS traffic through the VPN. Open the capture panel from the File menu or with its keyboard shortcut. Local Capture is a VPN without a server, for capturing only.")
+            Text("Inspect HTTP and HTTPS traffic through the VPN. Open the capture panel here, from the File menu, the keyboard toolbar, or with its keyboard shortcut. Local Capture is a VPN without a server, for capturing only.")
         }
     }
     #endif

@@ -294,6 +294,9 @@ class KeyboardToolbarView: UIView {
     /// Callback when the file manager button is tapped
     var onFileManagerRequested: (() -> Void)?
 
+    /// Callback when the HTTP capture button is tapped
+    var onHTTPCaptureRequested: (() -> Void)?
+
     /// Callback when drawer opens/closes (for height updates)
     var onDrawerStateChanged: (() -> Void)?
 
@@ -721,6 +724,8 @@ class KeyboardToolbarView: UIView {
             return createClipboardManagerButton()
         case .fileManager:
             return createFileManagerButton()
+        case .httpCapture:
+            return createHTTPCaptureButton()
         case .dictation:
             guard DictationSupport.isEnabled else { return nil }
             let button = KeyboardSymbolButton(key: keyID.keyValue, display: .icon("mic"), sizes: sizes)
@@ -1015,6 +1020,16 @@ class KeyboardToolbarView: UIView {
         let button = KeyboardSymbolButton(
             key: "__fileManager__",
             display: .icon("folder.badge.gearshape"),
+            sizes: sizes
+        )
+        button.delegate = self
+        return button
+    }
+
+    private func createHTTPCaptureButton() -> KeyboardSymbolButton {
+        let button = KeyboardSymbolButton(
+            key: KeyID.httpCapture.keyValue,
+            display: .icon("network.badge.shield.half.filled"),
             sizes: sizes
         )
         button.delegate = self
@@ -1423,6 +1438,10 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
         }
         if key == "__fileManager__" {
             onFileManagerRequested?()
+            return
+        }
+        if key == KeyID.httpCapture.keyValue {
+            onHTTPCaptureRequested?()
             return
         }
         if key == KeyID.dictation.keyValue {

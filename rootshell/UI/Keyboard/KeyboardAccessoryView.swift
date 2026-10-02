@@ -136,6 +136,13 @@ class KeyboardAccessoryView: UIInputView {
         }
     }
 
+    /// Callback when the HTTP capture button is tapped
+    var onHTTPCaptureRequested: (() -> Void)? {
+        didSet {
+            toolbarView.onHTTPCaptureRequested = onHTTPCaptureRequested
+        }
+    }
+
     /// Callback when accessory layout changes and input views should refresh
     var onLayoutInvalidated: (() -> Void)?
 

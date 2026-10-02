@@ -27,6 +27,33 @@ extension MainView {
         0
         #endif
     }
+
+    /// Handed to Settings so its capture rows can jump to the panel.
+    var settingsOpenHTTPCapture: OpenHTTPCaptureAction? {
+        #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+        OpenHTTPCaptureAction { openHTTPCaptureFromSettings() }
+        #else
+        nil
+        #endif
+    }
+
+    /// The iPhone Settings sheet is still sliding away; the capture sheet takes focus after it.
+    var httpCaptureWaitsForSettingsSheet: Bool {
+        #if !CHINA_BUILD
+        pendingHTTPCaptureOpen && isPhone
+        #else
+        false
+        #endif
+    }
+
+    /// Settings has closed: open the panel it asked for.
+    func flushPendingHTTPCaptureOpen() {
+        #if !CHINA_BUILD
+        guard pendingHTTPCaptureOpen else { return }
+        pendingHTTPCaptureOpen = false
+        if !showHTTPCapture { openHTTPCapture() }
+        #endif
+    }
 }
 
 #if !CHINA_BUILD
@@ -78,6 +105,13 @@ extension MainView {
         }
         showHTTPCapture = true
         if httpCaptureOwnsKeyboard { setOverlayOwnsKeyboardForAllTerminals(true) }
+    }
+
+    /// Opens after Settings closes, like the connection view's Files tab: a
+    /// sheet flushes from its onDismiss, the iPad panel as soon as it hides.
+    func openHTTPCaptureFromSettings() {
+        pendingHTTPCaptureOpen = true
+        showSettings = false
     }
 
     func closeHTTPCapture() {

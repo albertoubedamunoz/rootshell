@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 
 struct CaptureSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openHTTPCapture) private var openHTTPCapture
     @Setting(Settings.HTTPCapture.enableHTTP2) private var enableHTTP2
     @Setting(Settings.HTTPCapture.autoBypassPinned) private var autoBypassPinned
     @Setting(Settings.HTTPCapture.skipUpstreamVerify) private var skipUpstreamVerify
@@ -28,6 +29,16 @@ struct CaptureSettingsView: View {
 
     var body: some View {
         Form {
+            if let openHTTPCapture {
+                Section {
+                    Button(String(localized: "Open HTTP Capture", comment: "VPN settings action: close Settings and show the capture panel")) {
+                        saveDNS()
+                        openHTTPCapture()
+                    }
+                }
+                .themedRow()
+            }
+
             Section {
                 NavigationLink {
                     CATrustGuideView()

@@ -312,6 +312,8 @@ struct MainView: View {
     @State var httpCapturePresentation: PanelPresentation = SettingsStore.shared.value(Settings.HTTPCapture.presentation)
     @State var httpCaptureSidebarWidth: CGFloat = CGFloat(SettingsStore.shared.value(Settings.HTTPCapture.sidebarWidth))
     @State var httpCaptureSidebarIsDragging = false
+    /// Settings asked for the capture panel; it opens once Settings has closed.
+    @State var pendingHTTPCaptureOpen = false
     #endif
 
     /// Dictation HUD, used where the terminal keyboard's Dictation page is not showing.

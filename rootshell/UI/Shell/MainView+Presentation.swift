@@ -150,7 +150,11 @@ extension MainView {
             .modifier(SettingsSheetModifier(
                 showSettings: $showSettings,
                 settingsDestination: settingsDestination,
-                onDismiss: { settingsDestination = nil },
+                onDismiss: {
+                    settingsDestination = nil
+                    flushPendingHTTPCaptureOpen()
+                },
+                openHTTPCapture: settingsOpenHTTPCapture,
                 themeColors: sheetTheme.themeColors,
                 accentColor: sheetTheme.accentColor,
                 colorScheme: sheetTheme.colorScheme
