@@ -26,6 +26,7 @@ enum FileManagerCommand: CaseIterable {
     case quickLook
     case copyToOther
     case moveToOther
+    case paste
     case rename
     case newFolder
     case delete
@@ -95,7 +96,7 @@ struct FileManagerShortcut {
     let chords: [Chord]
     /// Shown as one badge (e.g. "↑↓") instead of the chord glyphs.
     var displayOverride: String?
-    /// Arrows, Tab, Return, Escape and ⌘A are handled by the filter field itself;
+    /// Arrows, Tab, Return, Escape, ⌘A and ⌘V are handled by the filter field itself;
     /// everything else becomes a key command.
     var isFieldHandled = false
 
@@ -149,6 +150,8 @@ struct FileManagerShortcut {
               chords: [Chord(input: UIKeyCommand.f5, modifiers: []), Chord(input: "c", modifiers: [.command, .alternate])]),
         .init(command: .moveToOther, title: String(localized: "Move to Other Pane", comment: "File manager shortcut"), group: .transfer,
               chords: [Chord(input: UIKeyCommand.f6, modifiers: []), Chord(input: "x", modifiers: [.command, .alternate])]),
+        .init(command: .paste, title: String(localized: "Paste", comment: "File manager shortcut: upload files from the clipboard"), group: .transfer,
+              chords: [Chord(input: "v", modifiers: .command)], isFieldHandled: true),
 
         .init(command: .rename, title: String(localized: "Rename", comment: "File manager shortcut"), group: .manage,
               chords: [Chord(input: UIKeyCommand.f2, modifiers: []), Chord(input: "r", modifiers: [.command, .alternate])]),

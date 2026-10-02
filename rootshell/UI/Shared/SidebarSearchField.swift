@@ -82,6 +82,8 @@ struct SidebarSearchField: UIViewRepresentable {
     var extraCommands: [SidebarSearchExtraCommand] = []
     /// ⌘A while the field is empty; nil keeps text select-all.
     var onSelectAll: (() -> Void)? = nil
+    /// ⌘V / Edit > Paste; returns false to paste as text instead.
+    var onPaste: (([NSItemProvider]) -> Bool)? = nil
     /// While focused, terminal focus recovery yields to this field as it does to a HUD's.
     var claimsKeyboard = false
 
@@ -156,7 +158,8 @@ struct SidebarSearchField: UIViewRepresentable {
             onTab: onTab,
             onBackTab: onBackTab,
             extraCommands: extraCommands,
-            onSelectAll: onSelectAll
+            onSelectAll: onSelectAll,
+            onPaste: onPaste
         )
     }
 
@@ -255,6 +258,7 @@ final class SidebarSearchTextField: UITextField {
         var onBackTab: (() -> Void)?
         var extraCommands: [SidebarSearchExtraCommand] = []
         var onSelectAll: (() -> Void)?
+        var onPaste: (([NSItemProvider]) -> Bool)?
     }
 
     var handlers: Handlers?
@@ -348,8 +352,20 @@ final class SidebarSearchTextField: UITextField {
         }
     }
 
+    /// An override rather than a ⌘V key command: only the paste: action carries the
+    /// user's intent, so reading the pasteboard here doesn't show the system prompt.
+    override func paste(_ sender: Any?) {
+        if let onPaste = handlers?.onPaste, onPaste(UIPasteboard.general.itemProviders) { return }
+        super.paste(sender)
+    }
+
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
         if action == #selector(selectAll(_:)), handlers?.onSelectAll != nil, text?.isEmpty ?? true {
+            return true
+        }
+        // Non-prompting checks only; an image-only clipboard leaves the text field's own check false.
+        if action == #selector(paste(_:)), handlers?.onPaste != nil,
+           UIPasteboard.general.hasPasteableContentWithoutPrompt || UIPasteboard.general.numberOfItems > 0 {
             return true
         }
         return super.canPerformAction(action, withSender: sender)
