@@ -330,7 +330,9 @@ extension MainView {
                 themeColors: sheetTheme.themeColors,
                 accentColor: sheetTheme.accentColor,
                 colorScheme: sheetTheme.colorScheme,
-                onSheetDismiss: { flushPendingFileManagerOpen() },
+                // onDismiss runs inside SwiftUI's presentation-state write; resigning
+                // first responder there re-enters SheetBridge and traps.
+                onSheetDismiss: { DispatchQueue.main.async { flushPendingFileManagerOpen() } },
                 phoneContent: { connectionSheetContentForPhone },
                 // Same SidePanelOverlay re-hosting as the tab sidebar above:
                 // inject so @EnvironmentObject reads under this overlay can

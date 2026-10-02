@@ -3210,6 +3210,17 @@ extension Ghostty {
                 // keyboard from appearing over Settings, PIN dialogs, etc.
                 if isModalPresented() {
                     Ghostty.logger.info("syncFocusForWindowStateChange: skipping focus - modal presented")
+                    #if !targetEnvironment(macCatalyst)
+                    // A resign refused while inactive leaves the keyboard over the sheet.
+                    // Deferred so the app's didBecomeActive clears the secure-draw latch first.
+                    if overlayOwnsKeyboard && isFirstResponder {
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self, self.overlayOwnsKeyboard, self.isFirstResponder,
+                                  self.isModalPresented(), self.windowIsActiveForFocus() else { return }
+                            _ = self.resignFirstResponder()
+                        }
+                    }
+                    #endif
                     return
                 }
                 // In-hierarchy overlays and focused passthrough HUD fields
