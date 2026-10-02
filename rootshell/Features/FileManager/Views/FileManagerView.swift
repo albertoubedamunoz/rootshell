@@ -378,20 +378,26 @@ private struct FileManagerMoreMenu: View, Equatable {
     }
 }
 
-private struct FileManagerMoreMenuItems: View {
+/// The ⋯ menu, also a pane's background context menu (`side` set: acts on that pane).
+struct FileManagerMoreMenuItems: View {
     let manager: FileManagerModel
+    var side: FilePaneModel.Side? = nil
 
     var body: some View {
-        let pane = manager.activePane
-        Button { manager.sheet = .newFolder } label: {
+        let pane = side.map { manager.pane($0) } ?? manager.activePane
+        Button { activate(); manager.perform(.paste) } label: {
+            Label(FileManagerShortcut.shortcut(for: .paste).title, systemImage: "doc.on.clipboard")
+        }
+        .disabled(pane.path.isEmpty)
+        Button { activate(); manager.sheet = .newFolder } label: {
             Label(FileManagerShortcut.shortcut(for: .newFolder).title, systemImage: "folder.badge.plus")
         }
         .disabled(pane.path.isEmpty)
-        Button { manager.sheet = .goToPath } label: {
+        Button { activate(); manager.sheet = .goToPath } label: {
             Label(FileManagerShortcut.shortcut(for: .goToPath).title, systemImage: "arrow.right.circle")
         }
-        if manager.canOpenActiveInTerminal {
-            Button { manager.perform(.openInTerminal) } label: {
+        if manager.openInTerminal != nil, !pane.path.isEmpty, pane.endpoint.supportsTerminal {
+            Button { activate(); manager.perform(.openInTerminal) } label: {
                 Label(FileManagerShortcut.shortcut(for: .openInTerminal).title, systemImage: "terminal")
             }
         }
@@ -424,5 +430,9 @@ private struct FileManagerMoreMenuItems: View {
         Button { manager.sheet = .shortcuts } label: {
             Label(FileManagerShortcut.shortcut(for: .showShortcuts).title, systemImage: "keyboard")
         }
+    }
+
+    private func activate() {
+        if let side { manager.activeSide = side }
     }
 }
