@@ -7,7 +7,7 @@ Enable **Open Links from Programs** in Settings → Terminal. It is off by defau
 Install the helper on the remote host from a checkout containing this feature:
 
 ```sh
-install -m 755 scripts/rootshell-open "$HOME/bin/rootshell-open"
+install -m 755 scripts/rootshell-open scripts/rootshell-open-clipboard "$HOME/bin/"
 export BROWSER="$HOME/bin/rootshell-open"
 ```
 
@@ -21,10 +21,10 @@ The helper writes to `/dev/tty`, because browser-launching libraries can discard
 
 There are two transports:
 
-| Connection | Helper mode | Sequence |
+| Connection | `BROWSER` | Sequence |
 | --- | --- | --- |
-| SSH, tsshd, ordinary tmux | default | iTerm2's `OSC 1337 ; OpenURL` |
-| Mosh, native tmux (`tmux -CC`) | `--clipboard` | Reserved OSC 52 envelope |
+| SSH, tsshd, ordinary tmux | `rootshell-open` | iTerm2's `OSC 1337 ; OpenURL` |
+| Mosh, native tmux (`tmux -CC`) | `rootshell-open-clipboard` | Reserved OSC 52 envelope |
 
 The default mode uses iTerm2's existing sequence, so the helper also opens links when the remote session runs in iTerm2, and programs that already emit that sequence work in Rootshell without the helper.
 
@@ -40,10 +40,10 @@ The helper detects `$TMUX` and wraps its request in tmux's DCS passthrough encod
 
 ## Native tmux and Mosh
 
-Use the helper's clipboard-state transport for native `tmux -CC` panes and Mosh:
+Use the clipboard-state transport for native `tmux -CC` panes and Mosh. `rootshell-open-clipboard` runs `rootshell-open --clipboard`; it exists because Python's `webbrowser` module runs a `BROWSER` value without `%s` as a single executable path, so `BROWSER="rootshell-open --clipboard"` would fail there:
 
 ```sh
-BROWSER="$HOME/bin/rootshell-open --clipboard" codex
+BROWSER="$HOME/bin/rootshell-open-clipboard" codex
 ```
 
 This sends a reserved envelope using OSC 52's `c` selector. Native tmux delivers it to the pane's Ghostty clipboard callback, which associates the request with the correct terminal. Mosh 1.4 and newer preserve this clipboard state; no server patch or separate forwarding service is needed. Rootshell intercepts the reserved envelope before writing the device clipboard or clipboard history, including when the feature is disabled or the envelope is invalid.
