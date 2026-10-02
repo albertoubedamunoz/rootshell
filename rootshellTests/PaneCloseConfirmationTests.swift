@@ -23,4 +23,11 @@ final class PaneCloseConfirmationTests: XCTestCase {
         XCTAssertTrue(PaneCloseConfirmationPolicy.shouldConfirm(isEnabled: true, paneCount: 2))
         XCTAssertTrue(PaneCloseConfirmationPolicy.shouldConfirm(isEnabled: true, paneCount: 4))
     }
+
+    func testTabConfirmationSkipsMultiplexerTabs() {
+        XCTAssertFalse(PaneCloseConfirmationPolicy.closeTabNeedsConfirm(isEnabled: false, closesViaMultiplexer: false))
+        XCTAssertFalse(PaneCloseConfirmationPolicy.closeTabNeedsConfirm(isEnabled: false, closesViaMultiplexer: true))
+        XCTAssertFalse(PaneCloseConfirmationPolicy.closeTabNeedsConfirm(isEnabled: true, closesViaMultiplexer: true))
+        XCTAssertTrue(PaneCloseConfirmationPolicy.closeTabNeedsConfirm(isEnabled: true, closesViaMultiplexer: false))
+    }
 }

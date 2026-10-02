@@ -202,6 +202,7 @@ enum QuickSettingsCatalog {
                 SettingsStore.shared.get(Settings.Window.splitFocusBorderColor) == .custom ? nil : String(localized: "Choose Custom Split Border Color first.")
             },
             toggle(Settings.Window.confirmBeforeClosingPane),
+            toggle(Settings.Window.confirmBeforeClosingTab),
         ]
         entries += [
             choices(Settings.Tabs.newTabAction, label: { $0.displayName }),
@@ -265,7 +266,7 @@ enum QuickSettingsCatalog {
             toggle(Settings.Multiplexer.zmxSessionDiscovery),
             toggle(Settings.Multiplexer.remoteSessionDiscovery),
             choices(Settings.Multiplexer.sessionDiscoverySortOrder, label: { $0.displayName }),
-            choices(Settings.Multiplexer.tmuxTabCloseAction, label: { $0.displayName }),
+            choices(Settings.Multiplexer.tabCloseAction, label: { $0.displayName }),
             toggle(Settings.Multiplexer.tabExposeMultiplexer),
             toggle(Settings.Multiplexer.detachBanner),
         ]

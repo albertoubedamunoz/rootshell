@@ -43,7 +43,7 @@ struct TmuxGuideView: View {
                     GuideRow(
                         icon: "command",
                         title: "Tab Shortcuts",
-                        description: "Close Tab Action sets what ⌘W or the tab's ✕ does on a tmux -CC tab. New Tab Action sets what ⌘T does while attached. Outside tmux, ⌘T always opens a local shell."
+                        description: "Multiplexer Close Tab Action sets what ⌘W or the tab's ✕ does on a tmux -CC or herdr control-mode tab. New Tab Action sets what ⌘T does while attached. Outside tmux, ⌘T always opens a local shell."
                     )
                 }
                 .padding(.vertical, 4)

@@ -169,6 +169,10 @@ nonisolated extension Settings {
             "confirmBeforeClosingPane", default: false, group: .window,
             configKey: "confirm-before-closing-pane",
             title: String(localized: "Confirm Before Closing Pane", comment: "Setting title"))
+        static let confirmBeforeClosingTab = SettingKey(
+            "confirmBeforeClosingTab", default: false, group: .window,
+            configKey: "confirm-before-closing-tab",
+            title: String(localized: "Confirm Before Closing Tab", comment: "Setting title"))
         static let lastWidth = SettingKey(
             "lastWindowWidth", default: 0.0, group: .window, policy: .deviceOnly,
             title: String(localized: "Last Window Width", comment: "Setting title"))
@@ -192,7 +196,7 @@ nonisolated extension Settings {
             hideTitleBar.erased, tabsInTitlebar.erased, fullScreenMode.erased,
             fullScreenLaunchNoticeDismissed.erased, extendUnderHomeIndicator.erased,
             splitFocusBorderStyle.erased, splitFocusBorderColor.erased, splitFocusBorderCustomColor.erased,
-            confirmBeforeClosingPane.erased,
+            confirmBeforeClosingPane.erased, confirmBeforeClosingTab.erased,
             lastWidth.erased, lastHeight.erased, lastOriginX.erased, lastOriginY.erased, lastHasOrigin.erased,
             titlebarLeadingInset.erased,
         ]

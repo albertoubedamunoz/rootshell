@@ -129,14 +129,15 @@ struct MainView: View {
     @State var keyResolutionTrzszServerPath: String?
     @State var keyResolutionSplitOption: SSHConnectionView.SplitOption = .newTab
     @State var pendingBrowseSelection: BrowseHostSelection? = nil
-    /// "Ask Each Time" tmux tab-close: the tab whose ⌘W/✕ is awaiting the
-    /// user's choice in the close action sheet. (id=tmux-tab-close-action)
-    @State var pendingTmuxCloseTabID: UUID?
-    /// "Ask Each Time" close of a herdr control-mode tab.
-    @State var pendingHerdrCloseTabID: UUID?
+    /// "Ask Each Time" close of a tmux or herdr control-mode tab: the tab whose
+    /// ⌘W/✕ is awaiting the user's choice in the close action sheet.
+    /// (id=tmux-tab-close-action)
+    @State var pendingMuxCloseTabID: UUID?
     /// User-requested pane close awaiting confirmation. The UUID preserves the
     /// original target if focus or tab selection changes while the dialog is up.
     @State var pendingClosePaneID: UUID?
+    /// User-requested tab close awaiting confirmation.
+    @State var pendingTabClose: PendingTabClose?
     @State var pendingNewTabRequest: NewTabRequest?
     /// Transient post-detach / already-attached banner.
     @State var muxDetachBanner: MuxDetachBannerState?
