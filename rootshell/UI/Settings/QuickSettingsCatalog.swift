@@ -279,6 +279,8 @@ enum QuickSettingsCatalog {
             toggle(Settings.ScreenSharing.routeReservedShortcutsToVNCDefault),
             choices(Settings.ScreenSharing.clipboardSyncDefault, label: { $0.displayName }),
             choices(Settings.ScreenSharing.panningDefault, label: { $0.displayName }),
+            toggle(Settings.Transfer.attachmentUploadConfirm),
+            choices(Settings.Transfer.attachmentUploadFormat, label: { $0.displayName }),
         ]
         entries += [
             toggle(Settings.CodingAgents.detectionEnabled, set: {
