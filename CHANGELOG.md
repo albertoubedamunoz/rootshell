@@ -3,6 +3,38 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.13-160 - October 1, 2026
+
+### HTTP and HTTPS Capture
+
+- **Built-In Traffic Inspection:** HTTP capture is included with rootshell. Inspect traffic through the rootshell VPN, including HTTP/1.1, HTTP/2, and WebSocket frames. Use an existing SSH or tssh VPN, or press Record to start Local Capture through your device's internet connection without a remote server. Stopping recording leaves the VPN connected.
+- **Quick Access:** Open HTTP Capture from Settings -> Connections -> VPN, the File menu, the terminal context menu, or Control-Command-H, or add it to the keyboard toolbar. Choose a sidebar or overlay on iPad and standalone Mac; iPhone uses a sheet.
+- **Selective HTTPS Decryption:** Install and trust the capture certificate using the guided setup, then add hosts under Decrypted Hosts. Host rules support wildcards, exclusions, and ports; HTTPS is not decrypted by default. Apps that reject the certificate are automatically skipped on subsequent connections. HTTP/3 is blocked while recording so clients can retry over HTTP/2 or HTTP/1.1.
+- **Request Details and Exports:** Search and filter requests; inspect headers, cookies, bodies, and timing; view JSON trees, HTML, images, forms, source, or hex. Copy requests as cURL, save messages or bodies, and export HAR or ZIP sessions. HAR export can omit cookie and authorization headers. Enable packet recording before starting a session to export pcapng with TLS keys for Wireshark.
+- **Rewrite Rules and Storage Limits:** Add request and response rewrite rules to change headers or replace body text, with wildcard or regular-expression URL matching. Body rewrites apply to bodies up to 1 MB. Set body-storage limits, session-size limits, and how many sessions to retain; recording stops at the session-size limit.
+
+### VPN Controls
+
+- **Local Shell VPN Command:** Added `vpn` to the local shell on iOS and visionOS. `vpn status` shows the active profile, uptime, traffic, and connection counts; `vpn list`, `vpn start <profile>`, and `vpn stop` manage saved VPN profiles.
+- **Mac VPN Status:** Fixed the standalone Mac app losing the active VPN profile or showing stale status when refreshing.
+
+### Files and Uploads
+
+- **Paste Into the File Manager:** Paste copied files, images, and PDFs with Command-V, the overflow menu, or a context menu. Pasting on a folder targets that folder; otherwise it targets the current pane's directory. This uses the normal transfer system for local, remote, and cloud destinations.
+- **Upload Preferences:** Settings -> Connections -> Uploads now controls the default directory, file-path or Markdown-image insertion, and whether pasted or dropped images and PDFs need confirmation. Choose Don't ask again in the upload sheet to save its choices and upload immediately next time. Remembered directories for individual hosts take priority and can be cleared in settings.
+- **SFTP Folder Browsing:** Folder listings make fewer server requests and now release directory handles, preventing repeated browsing from exhausting the server's open-file limit.
+
+### Tabs and Panels
+
+- **Tab Close Confirmation:** Enable Confirm Before Closing Tab in Settings -> Terminal -> Tabs to ask before the tab's close button, Close Tab, or Command-W on its last pane ends the session. It is off by default. The existing pane confirmation also lives here.
+- **Multiplexer Close Preferences:** tmux and herdr control-mode tabs use Multiplexer Close Tab Action instead; choose Ask Each Time to confirm those. Closing herdr's last pane now honors detach and ask preferences.
+- **Resizable Overlays:** Resize the Files, HTTP Capture, Quick Settings, and Open in Folder overlays by dragging a bottom corner. Each remembers its size on that device.
+
+### Stability
+
+- **Locked iPad Fix:** Fixed iPadOS terminating rootshell when session changes updated keyboard suggestions while the iPad was locked. Updates resume when the app becomes active.
+- **iPhone Files and Keyboard Fixes:** Fixed a crash when opening Files from the iPhone connection sheet with the terminal keyboard still active, and a keyboard left covering the sheet after an authentication prompt.
+
 ## 1.0.13-159 - October 1, 2026
 
 ### Background Sessions and Notifications
