@@ -6,7 +6,8 @@ extension Ghostty.TerminalView {
         writingAssistanceMode = SettingsStore.shared.value(Settings.Keyboard.writingAssistance)
         for name in [Notification.Name.settingsDidChange,
                      UITextInputMode.currentInputModeDidChangeNotification,
-                     UIResponder.keyboardDidShowNotification, UIResponder.keyboardDidHideNotification] {
+                     UIResponder.keyboardDidShowNotification, UIResponder.keyboardDidHideNotification,
+                     UIApplication.didBecomeActiveNotification] {
             let observer = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
                 MainActor.assumeIsolated {
                     guard let self else { return }
@@ -22,6 +23,10 @@ extension Ghostty.TerminalView {
                         self.writingAssistanceSource = nil
                     } else if name == UITextInputMode.currentInputModeDidChangeNotification {
                         self.syncDictationSessionWithSignals()
+                    } else if name == UIApplication.didBecomeActiveNotification,
+                              self.writingAssistanceRequeryDeferred {
+                        self.writingAssistanceRequeryDeferred = false
+                        self.requestWritingAssistanceRequery()
                     }
                     // Repeated show notifications (including trait reloads)
                     // are not input-source changes. refresh compares identity.
@@ -111,6 +116,8 @@ extension Ghostty.TerminalView {
             guard let self else { return }
             self.writingAssistanceTraitReloadPending = false
             guard self.markedTextString == nil, !self.koreanCompositionModel.hasActiveComposition else { return }
+            // Keep the reload owed; the guarded reloadInputViews() would drop it.
+            guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
             self.writingAssistanceNeedsTraitReload = false
             // Never reload inside an insert/replace/marked-text callback, and
             // never park or replace the first responder to change traits.
@@ -129,6 +136,11 @@ extension Ghostty.TerminalView {
             // input session; notifying the old delegate starts unnecessary
             // keyboard work and can query the wrong document during the switch.
             guard self.isFirstResponder, self.window != nil else { return }
+            // Suggestion rebuilds draw into the keyboard window (0x2BAD45EC).
+            guard !Ghostty.isSecureDrawProhibitedAtomic else {
+                self.writingAssistanceRequeryDeferred = true
+                return
+            }
             self.notifyInputDelegateOfExternalChange { }
             #if !os(visionOS) && !targetEnvironment(macCatalyst)
             self.keyboardAccessoryController?.touchKeyboard?.updateSuggestions()
