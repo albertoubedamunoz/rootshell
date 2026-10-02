@@ -1707,7 +1707,7 @@ extension LocalShellSession {
     /// arguments — e.g., `whatismyip "$(printf "1'2\"3")"` would falsely
     /// surface an "unsupported characters" error even though ios_system can
     /// tokenise the shellEscape form produced by the runScript fallback.
-    nonisolated static let nativeRoutedCommandNames: Set<String> = [
+    nonisolated static let nativeRoutedCommandNames = Set<String>([
         "ssh", "scp", "sftp", "ssh-copy-id",
         "mosh", "roam",
         "tssh", "trzsz",
@@ -1719,7 +1719,7 @@ extension LocalShellSession {
         "rf",
         "imgcat",
         "croc"
-    ].union(vpnCommandNames)
+    ]).union(vpnCommandNames)
 
     /// China builds exclude the vpn command source file.
     #if CHINA_BUILD
@@ -1734,7 +1734,7 @@ extension LocalShellSession {
     /// routing decisions as direct commands. Leading aliases are pre-expanded
     /// for this set and when they shadow a shell function. Other aliases
     /// (`ls='ls --color'`) still expand exactly once inside ios_system.
-    private static let aliasPreExpansionCommandNames: Set<String> = [
+    private static let aliasPreExpansionCommandNames = Set<String>([
         "clear", "exit", "logout",
         "ssh", "scp", "sftp", "ssh-copy-id",
         "mosh", "roam",
@@ -1747,7 +1747,7 @@ extension LocalShellSession {
         "rf",
         "imgcat",
         "croc"
-    ].union(vpnCommandNames)
+    ]).union(vpnCommandNames)
 
     /// If `argv` is a `bash`/`sh -c <body> [name [args…]]` invocation, return
     /// the script body. Skips POSIX flag bundles (`-eu`, `-l`, etc.) up to the
