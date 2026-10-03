@@ -76,13 +76,8 @@ struct CaptureTransactionDetail: View {
                     .textSelection(.enabled)
             }
             Spacer(minLength: 4)
-            Menu {
-                CaptureTransactionMenu(model: model, document: document, tx: tx)
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(String(localized: "Actions", comment: "HTTP capture request actions"))
+            CaptureTransactionActionsMenu(model: model, document: document, transactionID: transactionID)
+                .equatable()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -99,6 +94,41 @@ struct CaptureTransactionDetail: View {
             case .response: CaptureMessageView(document: document, tx: tx, side: .response)
             case .frames: CaptureWebSocketFramesView(document: document, tx: tx)
             }
+        }
+    }
+}
+
+/// Equatable owner for the request's ⋯ menu. The detail redraws on every
+/// document refresh while recording, which would rebuild an open menu.
+private struct CaptureTransactionActionsMenu: View, Equatable {
+    let model: HTTPCaptureModel
+    let document: CaptureSessionDocument
+    let transactionID: String
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.document === rhs.document && lhs.transactionID == rhs.transactionID
+    }
+
+    var body: some View {
+        Menu {
+            CaptureTransactionActionsMenuItems(model: model, document: document, transactionID: transactionID)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(String(localized: "Actions", comment: "HTTP capture request actions"))
+    }
+}
+
+/// Looks the request up per presentation so the actions see its latest state.
+private struct CaptureTransactionActionsMenuItems: View {
+    let model: HTTPCaptureModel
+    let document: CaptureSessionDocument
+    let transactionID: String
+
+    var body: some View {
+        if let tx = document.transaction(transactionID) {
+            CaptureTransactionMenu(model: model, document: document, tx: tx)
         }
     }
 }

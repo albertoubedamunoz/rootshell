@@ -35,7 +35,7 @@ struct HTTPCaptureView: View {
             VStack(spacing: 0) {
                 header
                 Divider()
-                banners
+                CaptureStatusBanners(model: model)
                 if geometry.size.width >= Self.splitMinWidth {
                     HStack(spacing: 0) {
                         CaptureRequestList(model: model)
@@ -100,10 +100,12 @@ struct HTTPCaptureView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Image(systemName: "network.badge.shield.half.filled").foregroundStyle(Color.accentColor)
-            sessionMenu
+            CaptureSessionMenu(model: model, title: currentSessionTitle)
+                .equatable()
             Spacer(minLength: 4)
             recordButton
-            moreMenu
+            CaptureMoreMenu(model: model)
+                .equatable()
             if let onSwitchPresentation {
                 PanelPresentationMenu(current: style == .sidebar ? .sidebar : .overlay, onSwitch: onSwitchPresentation)
                     .equatable()
@@ -117,35 +119,6 @@ struct HTTPCaptureView: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-    }
-
-    private var sessionMenu: some View {
-        Menu {
-            ForEach(CaptureSessionStore.shared.sessions.prefix(15)) { meta in
-                Button {
-                    model.open(sessionID: meta.id)
-                } label: {
-                    if meta.isRecording {
-                        Label(meta.name, systemImage: "record.circle")
-                    } else {
-                        Text(meta.name)
-                    }
-                }
-            }
-            Divider()
-            Button {
-                model.sheet = .sessions
-            } label: {
-                Label(String(localized: "All Sessions…", comment: "HTTP capture: open session list"), systemImage: "list.bullet")
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text(currentSessionTitle).font(.headline).lineLimit(1)
-                Image(systemName: "chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-            }
-        }
-        .menuStyle(.button)
-        .accessibilityLabel(String(localized: "Capture Session", comment: "HTTP capture session picker"))
     }
 
     private var currentSessionTitle: String {
@@ -186,73 +159,6 @@ struct HTTPCaptureView: View {
         }
     }
 
-    private var moreMenu: some View {
-        Menu {
-            if let meta = model.sessionID.flatMap(CaptureSessionStore.shared.meta) {
-                CaptureSessionExportMenu(meta: meta, model: model)
-                Divider()
-            }
-            Button {
-                Task { await controller.resetConnections() }
-            } label: {
-                Label(String(localized: "Reset Connections", comment: "HTTP capture: close existing connections"), systemImage: "arrow.clockwise")
-            }
-            .disabled(!VPNManager.shared.isTunnelUp)
-            Button {
-                model.sheet = .trustGuide
-            } label: {
-                Label(String(localized: "Certificate…", comment: "HTTP capture: CA certificate"), systemImage: "checkmark.seal")
-            }
-            Button {
-                model.sheet = .settings
-            } label: {
-                Label(String(localized: "Capture Settings…", comment: "HTTP capture: settings"), systemImage: "gearshape")
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-        }
-        .accessibilityLabel(String(localized: "More", comment: "HTTP capture overflow menu"))
-    }
-
-    // MARK: - Banners
-
-    @ViewBuilder
-    private var banners: some View {
-        if ca.trust == .untrusted || ca.trust == .missing {
-            banner(
-                icon: "exclamationmark.shield",
-                text: String(localized: "Trust the capture certificate to decrypt HTTPS.", comment: "HTTP capture banner"),
-                action: String(localized: "Set Up", comment: "HTTP capture banner button")
-            ) { model.sheet = .trustGuide }
-        } else if let status = controller.engineStatus, let reason = status.stopReason, controller.isRecording {
-            banner(
-                icon: "exclamationmark.triangle",
-                text: Self.stopReasonText(reason),
-                action: String(localized: "Stop", comment: "HTTP capture banner button")
-            ) { Task { await controller.stop() } }
-        }
-    }
-
-    static func stopReasonText(_ reason: String) -> String {
-        switch reason {
-        case "sizeLimit": String(localized: "Recording paused: the session reached its size limit.", comment: "HTTP capture stop reason")
-        case "writeError": String(localized: "Recording paused: the capture could not be written to disk.", comment: "HTTP capture stop reason")
-        default: String(localized: "Recording paused.", comment: "HTTP capture stop reason")
-        }
-    }
-
-    private func banner(icon: String, text: String, action: String, perform: @escaping () -> Void) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon).foregroundStyle(.orange)
-            Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 4)
-            Button(action, action: perform).buttonStyle(.bordered).controlSize(.small)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.orange.opacity(0.1))
-    }
-
     // MARK: - Sheets
 
     @ViewBuilder
@@ -283,6 +189,144 @@ struct HTTPCaptureView: View {
 
     private var errorBinding: Binding<Bool> {
         Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })
+    }
+}
+
+/// Own scope for `engineStatus`: the VPN status JSON changes on every poll
+/// while traffic flows, and reading it in the panel redraws the whole panel.
+private struct CaptureStatusBanners: View {
+    let model: HTTPCaptureModel
+
+    private var controller: CaptureController { .shared }
+    private var ca: CaptureCAManager { .shared }
+
+    var body: some View {
+        if ca.trust == .untrusted || ca.trust == .missing {
+            banner(
+                icon: "exclamationmark.shield",
+                text: String(localized: "Trust the capture certificate to decrypt HTTPS.", comment: "HTTP capture banner"),
+                action: String(localized: "Set Up", comment: "HTTP capture banner button")
+            ) { model.sheet = .trustGuide }
+        } else if controller.isRecording, let reason = controller.engineStatus?.stopReason {
+            banner(
+                icon: "exclamationmark.triangle",
+                text: Self.stopReasonText(reason),
+                action: String(localized: "Stop", comment: "HTTP capture banner button")
+            ) { Task { await controller.stop() } }
+        }
+    }
+
+    private static func stopReasonText(_ reason: String) -> String {
+        switch reason {
+        case "sizeLimit": String(localized: "Recording paused: the session reached its size limit.", comment: "HTTP capture stop reason")
+        case "writeError": String(localized: "Recording paused: the capture could not be written to disk.", comment: "HTTP capture stop reason")
+        default: String(localized: "Recording paused.", comment: "HTTP capture stop reason")
+        }
+    }
+
+    private func banner(icon: String, text: String, action: String, perform: @escaping () -> Void) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundStyle(.orange)
+            Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button(action, action: perform).buttonStyle(.bordered).controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.1))
+    }
+}
+
+/// Equatable owner for the session picker. The header redraws on every VPN
+/// status tick while recording, which would rebuild an open menu.
+private struct CaptureSessionMenu: View, Equatable {
+    let model: HTTPCaptureModel
+    let title: String
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.title == rhs.title
+    }
+
+    var body: some View {
+        Menu {
+            CaptureSessionMenuItems(model: model)
+        } label: {
+            HStack(spacing: 4) {
+                Text(title).font(.headline).lineLimit(1)
+                Image(systemName: "chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            }
+        }
+        .menuStyle(.button)
+        .accessibilityLabel(String(localized: "Capture Session", comment: "HTTP capture session picker"))
+    }
+}
+
+private struct CaptureSessionMenuItems: View {
+    let model: HTTPCaptureModel
+
+    var body: some View {
+        ForEach(CaptureSessionStore.shared.sessions.prefix(15)) { meta in
+            Button {
+                model.open(sessionID: meta.id)
+            } label: {
+                if meta.isRecording {
+                    Label(meta.name, systemImage: "record.circle")
+                } else {
+                    Text(meta.name)
+                }
+            }
+        }
+        Divider()
+        Button {
+            model.sheet = .sessions
+        } label: {
+            Label(String(localized: "All Sessions…", comment: "HTTP capture: open session list"), systemImage: "list.bullet")
+        }
+    }
+}
+
+/// Equatable owner for the overflow menu, same contract as the session picker.
+private struct CaptureMoreMenu: View, Equatable {
+    let model: HTTPCaptureModel
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model
+    }
+
+    var body: some View {
+        Menu {
+            CaptureMoreMenuItems(model: model)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .accessibilityLabel(String(localized: "More", comment: "HTTP capture overflow menu"))
+    }
+}
+
+private struct CaptureMoreMenuItems: View {
+    let model: HTTPCaptureModel
+
+    var body: some View {
+        if let meta = model.sessionID.flatMap(CaptureSessionStore.shared.meta) {
+            CaptureSessionExportMenu(meta: meta, model: model)
+            Divider()
+        }
+        Button {
+            Task { await CaptureController.shared.resetConnections() }
+        } label: {
+            Label(String(localized: "Reset Connections", comment: "HTTP capture: close existing connections"), systemImage: "arrow.clockwise")
+        }
+        .disabled(!VPNManager.shared.isTunnelUp)
+        Button {
+            model.sheet = .trustGuide
+        } label: {
+            Label(String(localized: "Certificate…", comment: "HTTP capture: CA certificate"), systemImage: "checkmark.seal")
+        }
+        Button {
+            model.sheet = .settings
+        } label: {
+            Label(String(localized: "Capture Settings…", comment: "HTTP capture: settings"), systemImage: "gearshape")
+        }
     }
 }
 
