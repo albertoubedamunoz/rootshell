@@ -15,13 +15,23 @@ struct HTTPCaptureView: View {
     enum Style {
         case sidebar
         case overlay
+        case full
         case sheet
+
+        var presentation: PanelPresentation? {
+            switch self {
+            case .sidebar: .sidebar
+            case .overlay: .overlay
+            case .full: .full
+            case .sheet: nil
+            }
+        }
     }
 
     @Bindable var model: HTTPCaptureModel
     let style: Style
     let onClose: () -> Void
-    /// Switches between sidebar and overlay; nil where only one presentation exists.
+    /// Switches between presentations; nil where only one presentation exists.
     let onSwitchPresentation: ((PanelPresentation) -> Void)?
 
     @Environment(\.sheetThemeColors) private var sheetThemeColors
@@ -106,8 +116,8 @@ struct HTTPCaptureView: View {
             recordButton
             CaptureMoreMenu(model: model)
                 .equatable()
-            if let onSwitchPresentation {
-                PanelPresentationMenu(current: style == .sidebar ? .sidebar : .overlay, onSwitch: onSwitchPresentation)
+            if let onSwitchPresentation, let current = style.presentation {
+                PanelPresentationMenu(current: current, onSwitch: onSwitchPresentation)
                     .equatable()
             }
             Button(action: onClose) {

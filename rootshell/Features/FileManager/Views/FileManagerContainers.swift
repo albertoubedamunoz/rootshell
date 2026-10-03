@@ -3,7 +3,8 @@
 //  rootshell
 //
 //  Hosts for FileManagerView: a resizable column beside the terminal (the AI
-//  sidebar's pattern) and a draggable HUD over it (Open in Folder's pattern).
+//  sidebar's pattern) and a HUD over it (Open in Folder's pattern), either
+//  floating and draggable or covering the whole terminal area.
 //
 
 import SwiftUI
@@ -65,10 +66,26 @@ extension View {
             .tint(theme.accentColor)
             .optionalColorSchemeEnvironment(theme.colorScheme)
     }
+
+    /// A panel HUD's backdrop: glass when floating, the opaque themed fill
+    /// when it covers the terminal.
+    @ViewBuilder
+    func panelHUDBackground(fills: Bool, theme: ResolvedSheetTheme) -> some View {
+        if fills {
+            // Content stays above the home indicator; the fill covers the terminal below it.
+            background((theme.themeColors?.background ?? Color(uiColor: .systemBackground))
+                .ignoresSafeArea(.container, edges: .bottom))
+        } else {
+            clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .floatingHUDPanelBackground()
+        }
+    }
 }
 
 struct FileManagerHUD: View {
     let manager: FileManagerModel
+    /// Covers the whole terminal area instead of floating.
+    let fills: Bool
     let canFocus: Bool
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
@@ -76,23 +93,24 @@ struct FileManagerHUD: View {
 
     var body: some View {
         DraggableHUDContainer(
-            resizing: .fileManager,
+            resizing: fills ? nil : .fileManager,
+            fills: fills,
             dismissShortcuts: [.escape],
             forwardsFileManagerToggle: true,
             onDismiss: onClose
         ) {
             FileManagerView(
                 manager: manager,
-                style: .overlay,
+                style: fills ? .full : .overlay,
                 canFocus: canFocus,
                 onClose: onClose,
                 onSwitchPresentation: onSwitchPresentation
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .floatingHUDPanelBackground()
+            .panelHUDBackground(fills: fills, theme: theme)
             .fileManagerTheme(theme)
         }
+        .ignoresSafeArea(.container, edges: fills ? .bottom : [])
     }
 }
 
