@@ -256,7 +256,7 @@ struct TailnetSettingsView: View {
     // MARK: - Helpers
 
     private var sshProfiles: [ConnectionProfile] {
-        profileManager.profiles.filter { !$0.isDeleted && $0.connectionProtocol == .ssh }
+        profileManager.profiles.filter { !$0.isDeleted && ($0.connectionProtocol == .ssh || $0.connectionProtocol == .trzsz) }
     }
 
     private var statusText: String {

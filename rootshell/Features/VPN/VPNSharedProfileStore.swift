@@ -299,7 +299,8 @@ nonisolated enum VPNTailnetProfile {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         guard let snapshot = try? decoder.decode(VPNSharedProfileSnapshot.self, from: data),
-              snapshot.id == egressID, snapshot.transportType == .ssh else { return nil }
+              snapshot.id == egressID,
+              snapshot.transportType == .ssh || snapshot.transportType == .tssh else { return nil }
         return snapshot
     }
 }

@@ -31,7 +31,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     nonisolated(unsafe) var sshClient: SSHClient?
     nonisolated(unsafe) var jumpClient: SSHClient?
     // Protected by sshStateLock until ownership passes to Go netstack.
-    private nonisolated(unsafe) var preparedRelay: VpntunnelRelay?
+    nonisolated(unsafe) var preparedRelay: VpntunnelRelay?
     private var relayEndpoint: String?
     nonisolated(unsafe) var socksProxy: VPNSOCKS5Proxy?
     nonisolated(unsafe) var sshEventLoopGroup: MultiThreadedEventLoopGroup?
@@ -756,7 +756,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - SSH Cleanup
 
-    nonisolated private func closePreparedRelay() {
+    nonisolated func closePreparedRelay() {
         let relay = sshStateLock.withLock { let value = preparedRelay; preparedRelay = nil; return value }
         relay?.close()
     }
@@ -1183,7 +1183,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     /// Start TSSH transport: SSH to server, spawn tsshd, parse server info, pass to Go.
     /// SSH connections are kept alive on self so tsshd doesn't die before Go connects.
     /// Call cleanupTSSHSpawnConnection() after Go StartTunnel succeeds.
-    private func startTSSHTransport(config: VPNTunnelConfig) async throws -> String {
+    func startTSSHTransport(config: VPNTunnelConfig) async throws -> String {
         let debugLog = VPNConnectionDebugLogger.shared
         Self.logger.info("TSSH mode: spawning tsshd via SSH")
 

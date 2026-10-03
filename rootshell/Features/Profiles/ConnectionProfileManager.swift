@@ -942,7 +942,7 @@ final class ConnectionProfileManager {
         // Tailscale's SSH egress host needs no VPN toggle of its own.
         let egressID = VPNTailnetProfile.settings().sshEgressProfileID
         let egress = egressID.flatMap { id in
-            profiles.first { $0.id == id && !$0.isDeleted && $0.connectionProtocol == .ssh }
+            profiles.first { $0.id == id && !$0.isDeleted && ($0.connectionProtocol == .ssh || $0.connectionProtocol == .trzsz) }
         }
         VPNTailnetProfile.storeEgress(egress.map(makeVPNSharedProfileSnapshot))
         #endif

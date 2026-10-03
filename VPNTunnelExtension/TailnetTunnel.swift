@@ -289,19 +289,23 @@ nonisolated final class TailnetSession: NSObject, VpntunnelTailscaleCallbackProt
 
         setEgress("connecting")
         let debugLog = VPNConnectionDebugLogger.shared
-        debugLog.beginPhase("sshEgress", "Connecting to \(config.sshHost):\(config.sshPort) for Tailscale egress...")
-        let sshGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        provider.sshStateLock.withLock { provider.sshEventLoopGroup = sshGroup }
-        provider.storedConfig = config
+        debugLog.beginPhase("sshEgress", "Connecting to \(config.sshHost):\(config.sshPort) for Tailscale egress (\(config.transportType.rawValue))...")
         do {
-            let conn = try await provider.connectSSHWithBootstrapRetry(config: config, group: sshGroup)
-            let proxy = provider.sshStateLock.withLock { () -> VPNSOCKS5Proxy? in
-                provider.sshClient = conn.client
-                provider.jumpClient = conn.jumpClient
-                return provider.socksProxy
+            if config.transportType == .tssh {
+                try await provider.attachTailnetTSSHEgress(config: config)
+            } else {
+                let sshGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+                provider.sshStateLock.withLock { provider.sshEventLoopGroup = sshGroup }
+                provider.storedConfig = config
+                let conn = try await provider.connectSSHWithBootstrapRetry(config: config, group: sshGroup)
+                let proxy = provider.sshStateLock.withLock { () -> VPNSOCKS5Proxy? in
+                    provider.sshClient = conn.client
+                    provider.jumpClient = conn.jumpClient
+                    return provider.socksProxy
+                }
+                proxy?.updateSSHClient(conn.client)
+                provider.monitorSSHConnection(conn.client)
             }
-            proxy?.updateSSHClient(conn.client)
-            provider.monitorSSHConnection(conn.client)
             debugLog.endPhase("sshEgress", "OK")
             setEgress("connected")
         } catch is CancellationError {
@@ -412,10 +416,11 @@ extension SSHVPNTunnelProvider {
             }
         }
 
-        // The SOCKS listener comes first so Go knows its address; it refuses
-        // connections until the SSH client is attached.
+        // SSH egress: the SOCKS listener comes first so Go knows its address;
+        // it refuses connections until the SSH client is attached. TSSH
+        // egress attaches straight to Go once tsshd is spawned.
         var socksAddress: String?
-        if egress != nil {
+        if egress?.transportType == .ssh {
             let socksGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
             let proxy = VPNSOCKS5Proxy(sshClient: nil, eventLoopGroup: socksGroup, maxConnections: 64)
             sshStateLock.withLock {
@@ -439,7 +444,8 @@ extension SSHVPNTunnelProvider {
         // A capture that was recording resumes; Go reroutes only while it records.
         let json = CaptureBridge.attach(
             CaptureBridge.initialConfig(options: options),
-            to: try Self.tailnetGoConfigJSON(settings: settings, rules: rules, socksAddress: socksAddress)
+            to: try Self.tailnetGoConfigJSON(settings: settings, rules: rules, socksAddress: socksAddress,
+                                             tsshEgress: egress?.transportType == .tssh)
         )
         var startError: NSError?
         let started = VpntunnelStartTailscaleTunnel(json, TailnetKeychainStateStore(), session, TunnelCallbackImpl(provider: self), &startError)
@@ -498,7 +504,25 @@ extension SSHVPNTunnelProvider {
         debugLog.logMarker("VPN CONNECT COMPLETE: tailscale total=\(debugLog.sessionElapsedMs())ms")
     }
 
-    private static func tailnetGoConfigJSON(settings: VPNTailnetSettings, rules: [VPNRoutingRule], socksAddress: String?) throws -> String {
+    /// Spawns tsshd on the egress host (reusing the TSSH VPN's path) and hands
+    /// the connection to Go; the SSH spawn connection then closes, as in TSSH mode.
+    func attachTailnetTSSHEgress(config: VPNTunnelConfig) async throws {
+        let json = try await startTSSHTransport(config: config)
+        let relay = sshStateLock.withLock { preparedRelay }
+        var attachError: NSError?
+        let attached = VpntunnelTailscaleAttachTSSH(json, relay, &attachError)
+        if attached {
+            sshStateLock.withLock { preparedRelay = nil } // Go owns it now
+        } else {
+            closePreparedRelay()
+        }
+        await cleanupSSH()
+        if !attached {
+            throw attachError ?? NSError(domain: "TSSH", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to connect to tsshd."])
+        }
+    }
+
+    private static func tailnetGoConfigJSON(settings: VPNTailnetSettings, rules: [VPNRoutingRule], socksAddress: String?, tsshEgress: Bool) throws -> String {
         struct Rule: Encodable {
             let pattern: String
             let action: String
@@ -511,6 +535,7 @@ extension SSHVPNTunnelProvider {
             let hostname: String?
             let acceptRoutes: Bool
             let stateDir: String
+            let egress: String?
         }
         struct GoConfig: Encodable {
             let transportType = "tailscale"
@@ -527,7 +552,8 @@ extension SSHVPNTunnelProvider {
             tailscale: Tailscale(
                 hostname: settings.hostname.isEmpty ? nil : settings.hostname,
                 acceptRoutes: settings.acceptRoutes,
-                stateDir: caches.appendingPathComponent("tailscale").path
+                stateDir: caches.appendingPathComponent("tailscale").path,
+                egress: tsshEgress ? "tssh" : nil
             ),
             routing: Routing(
                 sendAllViaSSH: settings.sendAllViaSSH,
