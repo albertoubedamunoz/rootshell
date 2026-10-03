@@ -76,13 +76,8 @@ struct CaptureTransactionDetail: View {
                     .textSelection(.enabled)
             }
             Spacer(minLength: 4)
-            Menu {
-                CaptureTransactionMenu(model: model, document: document, tx: tx)
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(String(localized: "Actions", comment: "HTTP capture request actions"))
+            CaptureTransactionActionsMenu(model: model, document: document, transactionID: transactionID)
+                .equatable()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -103,67 +98,164 @@ struct CaptureTransactionDetail: View {
     }
 }
 
+/// Equatable owner for the request's ⋯ menu. The detail redraws on every
+/// document refresh while recording, which would rebuild an open menu.
+private struct CaptureTransactionActionsMenu: View, Equatable {
+    let model: HTTPCaptureModel
+    let document: CaptureSessionDocument
+    let transactionID: String
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.document === rhs.document && lhs.transactionID == rhs.transactionID
+    }
+
+    var body: some View {
+        Menu {
+            CaptureTransactionActionsMenuItems(model: model, document: document, transactionID: transactionID)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(String(localized: "Actions", comment: "HTTP capture request actions"))
+    }
+}
+
+/// Looks the request up per presentation so the actions see its latest state.
+private struct CaptureTransactionActionsMenuItems: View {
+    let model: HTTPCaptureModel
+    let document: CaptureSessionDocument
+    let transactionID: String
+
+    var body: some View {
+        if let tx = document.transaction(transactionID) {
+            CaptureTransactionMenu(model: model, document: document, tx: tx)
+        }
+    }
+}
+
 // MARK: - Overview
 
 struct CaptureOverview: View {
     let tx: CaptureTransaction
+    @Setting(Settings.HTTPCapture.lookUpServerLocation) private var lookUpServerLocation
+    @Setting(Settings.HTTPCapture.showFavicons) private var showFavicons
 
+    private var geoIP: String? { lookUpServerLocation ? tx.serverIP : nil }
+    private var geo: GeoInfo? { CaptureGeoLookup.shared.geo(for: geoIP) }
+
+    // Same scroll-and-card layout as the request/response tabs; a grouped Form
+    // paints an opaque background that clashes with the HUD's glass.
     var body: some View {
-        Form {
-            if let problem = problemText {
-                Section {
-                    Label(problem, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
-                    if tx.kind == .rejected || tx.kind == .failure {
-                        Button(String(localized: "Don't Decrypt This Host", comment: "HTTP capture action")) {
-                            CaptureController.shared.excludeHost(tx.host)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if let problem = problemText {
+                    problemBanner(problem)
+                }
+                section(String(localized: "General", comment: "HTTP capture overview section")) {
+                    row(String(localized: "URL", comment: "HTTP capture field"), tx.url)
+                    row(String(localized: "Protocol", comment: "HTTP capture field"), tx.proto)
+                    if let status = tx.status { row(String(localized: "Status", comment: "HTTP capture field"), String(status)) }
+                    row(String(localized: "Started", comment: "HTTP capture field"), tx.started.formatted(date: .abbreviated, time: .standard))
+                    if let reason = tx.tunnelReason { row(String(localized: "Handling", comment: "HTTP capture field"), CaptureFormat.tunnelReason(reason)) }
+                }
+                section(String(localized: "Connection", comment: "HTTP capture overview section")) {
+                    if let client = tx.client { row(String(localized: "Client", comment: "HTTP capture field"), client) }
+                    if let server = tx.server { serverRow(server) }
+                    if let sni = tx.sni, !sni.isEmpty { row("SNI", sni) }
+                    if let tls = tx.tlsVersion { row("TLS", tls) }
+                    if let alpn = tx.alpn, !alpn.isEmpty { row("ALPN", alpn) }
+                    if tx.reused { row(String(localized: "Connection", comment: "HTTP capture field"), String(localized: "Reused", comment: "HTTP capture: kept-alive connection")) }
+                }
+                if let geo {
+                    section(String(localized: "Server Network", comment: "HTTP capture overview section: geo info for the server IP")) {
+                        if let place = Self.place(geo) {
+                            row(String(localized: "Location", comment: "HTTP capture field"), [geo.flag, place].compactMap { $0 }.joined(separator: " "))
                         }
+                        if !geo.asNumber.isEmpty { row("ASN", geo.asNumber) }
+                        if let name = geo.asName, !name.isEmpty { row(String(localized: "AS Name", comment: "HTTP capture field"), name) }
+                        if let domain = geo.asDomain, !domain.isEmpty {
+                            field(String(localized: "AS Domain", comment: "HTTP capture field")) {
+                                HStack(spacing: 6) {
+                                    if showFavicons {
+                                        FaviconImage(domain: domain, size: 14)
+                                    }
+                                    Text(domain).font(.caption.monospaced()).textSelection(.enabled)
+                                }
+                            }
+                        }
+                        if !geo.network.isEmpty { row(String(localized: "Network", comment: "HTTP capture field"), geo.network) }
                     }
                 }
-                .themedRow()
-            }
-            Section(String(localized: "General", comment: "HTTP capture overview section")) {
-                row(String(localized: "URL", comment: "HTTP capture field"), tx.url)
-                row(String(localized: "Protocol", comment: "HTTP capture field"), tx.proto)
-                if let status = tx.status { row(String(localized: "Status", comment: "HTTP capture field"), String(status)) }
-                row(String(localized: "Started", comment: "HTTP capture field"), tx.started.formatted(date: .abbreviated, time: .standard))
-                if let reason = tx.tunnelReason { row(String(localized: "Handling", comment: "HTTP capture field"), CaptureFormat.tunnelReason(reason)) }
-            }
-            .themedRow()
-            Section(String(localized: "Connection", comment: "HTTP capture overview section")) {
-                if let client = tx.client { row(String(localized: "Client", comment: "HTTP capture field"), client) }
-                if let server = tx.server { row(String(localized: "Server", comment: "HTTP capture field"), server) }
-                if let sni = tx.sni, !sni.isEmpty { row("SNI", sni) }
-                if let tls = tx.tlsVersion { row("TLS", tls) }
-                if let alpn = tx.alpn, !alpn.isEmpty { row("ALPN", alpn) }
-                if tx.reused { row(String(localized: "Connection", comment: "HTTP capture field"), String(localized: "Reused", comment: "HTTP capture: kept-alive connection")) }
-            }
-            .themedRow()
-            if tx.kind == .http {
-                Section(String(localized: "Timing", comment: "HTTP capture overview section")) {
-                    CaptureTimingBars(tx: tx)
-                }
-                .themedRow()
-            }
-            Section(String(localized: "Size", comment: "HTTP capture overview section")) {
-                row(tx.kind == .http ? String(localized: "Request Body", comment: "HTTP capture field") : String(localized: "Sent", comment: "HTTP capture field"),
-                    CaptureFormat.bytes(tx.requestBytes) + (tx.requestTruncated ? " · " + String(localized: "truncated", comment: "HTTP capture: body over the size limit") : ""))
-                row(tx.kind == .http ? String(localized: "Response Body", comment: "HTTP capture field") : String(localized: "Received", comment: "HTTP capture field"),
-                    CaptureFormat.bytes(tx.responseBytes) + (tx.responseTruncated ? " · " + String(localized: "truncated", comment: "HTTP capture: body over the size limit") : ""))
-            }
-            .themedRow()
-            if tx.wasRewritten {
-                Section(String(localized: "Rewrites Applied", comment: "HTTP capture overview section")) {
-                    let rules = CaptureController.rewriteRules()
-                    ForEach(tx.requestRewrites + tx.responseRewrites, id: \.self) { id in
-                        Text(rules.first { $0.id == id }.map { $0.name.isEmpty ? $0.match : $0.name } ?? id)
+                if tx.kind == .http {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(String(localized: "Timing", comment: "HTTP capture overview section")).font(.headline)
+                        CaptureTimingBars(tx: tx)
+                            .padding(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.08)))
                     }
-                    if let note = tx.note { Text(note).foregroundStyle(.secondary) }
                 }
-                .themedRow()
+                section(String(localized: "Size", comment: "HTTP capture overview section")) {
+                    row(tx.kind == .http ? String(localized: "Request Body", comment: "HTTP capture field") : String(localized: "Sent", comment: "HTTP capture field"),
+                        CaptureFormat.bytes(tx.requestBytes) + (tx.requestTruncated ? " · " + String(localized: "truncated", comment: "HTTP capture: body over the size limit") : ""))
+                    row(tx.kind == .http ? String(localized: "Response Body", comment: "HTTP capture field") : String(localized: "Received", comment: "HTTP capture field"),
+                        CaptureFormat.bytes(tx.responseBytes) + (tx.responseTruncated ? " · " + String(localized: "truncated", comment: "HTTP capture: body over the size limit") : ""))
+                }
+                if tx.wasRewritten {
+                    section(String(localized: "Rewrites Applied", comment: "HTTP capture overview section")) {
+                        let rules = CaptureController.rewriteRules()
+                        ForEach(tx.requestRewrites + tx.responseRewrites, id: \.self) { id in
+                            Text(rules.first { $0.id == id }.map { $0.name.isEmpty ? $0.match : $0.name } ?? id)
+                                .font(.caption)
+                        }
+                        if let note = tx.note { Text(note).font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+            }
+            .padding(12)
+        }
+        .modifier(ScrollEdgeEffectHiddenModifier())
+        .task(id: CaptureGeoLookup.shared.key(for: geoIP)) { await CaptureGeoLookup.shared.track(geoIP) }
+    }
+
+    private func problemBanner(_ problem: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(problem, systemImage: "exclamationmark.triangle")
+                .font(.callout)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+            if tx.kind == .rejected || tx.kind == .failure {
+                Button(String(localized: "Don't Decrypt This Host", comment: "HTTP capture action")) {
+                    CaptureController.shared.excludeHost(tx.host)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
         }
-        .formStyle(.grouped)
-        .themedList()
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func serverRow(_ server: String) -> some View {
+        field(String(localized: "Server", comment: "HTTP capture field")) {
+            HStack(spacing: 6) {
+                if let flag = geo?.flag {
+                    Text(flag).help(geo?.countryName ?? geo?.countryCode ?? "")
+                }
+                Text(server).font(.caption.monospaced()).textSelection(.enabled)
+                Spacer(minLength: 4)
+                if let ip = tx.serverIP {
+                    CopyButton(text: ip)
+                }
+            }
+        }
+        .hostAddressCopyMenu(ipAddress: tx.serverIP)
+    }
+
+    private static func place(_ geo: GeoInfo) -> String? {
+        let country = geo.countryName.flatMap { $0.isEmpty ? nil : $0 } ?? geo.countryCode
+        let parts = [geo.cityName ?? "", country].filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
     private var problemText: String? {
@@ -178,10 +270,56 @@ struct CaptureOverview: View {
         }
     }
 
-    private func row(_ title: String, _ value: String) -> some View {
-        LabeledContent(title) {
-            Text(value).textSelection(.enabled).multilineTextAlignment(.trailing)
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.headline)
+            CaptureFieldTable(content: content)
         }
+    }
+
+    private func row(_ title: String, _ value: String) -> some View {
+        field(title) {
+            Text(value).font(.caption.monospaced()).textSelection(.enabled)
+        }
+        .contextMenu {
+            Button(String(localized: "Copy Value", comment: "HTTP capture action")) { UIPasteboard.general.string = value }
+        }
+    }
+
+    private func field<Value: View>(_ title: String, @ViewBuilder value: () -> Value) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 100, alignment: .leading)
+            value()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// Striped rows in a hairline card, matching `CaptureKeyValueTable`.
+private struct CaptureFieldTable<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Group(subviews: content) { rows in
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    row
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(index.isMultiple(of: 2) ? Color.primary.opacity(0.035) : .clear)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.08)))
     }
 }
 

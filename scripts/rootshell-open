@@ -1,0 +1,42 @@
+#!/bin/sh
+# BROWSER handler for Rootshell's opt-in device-side URL requests. The default
+# mode emits iTerm2's OSC 1337 OpenURL; --clipboard emits an OSC 52 envelope.
+set -eu
+
+clipboard=false
+if [ "${1:-}" = --clipboard ]; then
+    clipboard=true
+    shift
+fi
+if [ "$#" -ne 1 ]; then
+    printf 'Usage: rootshell-open [--clipboard] HTTP(S)-URL\n' >&2
+    exit 64
+fi
+case "$1" in
+    http://*|https://*) ;;
+    *) printf 'rootshell-open: expected an HTTP(S) URL\n' >&2; exit 64 ;;
+esac
+# Do not write to stdout: browser libraries may discard subprocess output.
+if [ "$clipboard" = true ]; then
+    # Each request changes Mosh's synchronized clipboard state. Rootshell
+    # consumes this reserved envelope without writing the device clipboard.
+    request_id=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \r\n')
+    payload="rootshell-open-url:v1:$(date +%s):$request_id:$1"
+else
+    payload=$1
+fi
+encoded=$(printf '%s' "$payload" | base64 | tr -d '\r\n')
+if [ "${#encoded}" -gt 16000 ]; then
+    printf 'rootshell-open: URL is too long\n' >&2
+    exit 64
+fi
+if [ "$clipboard" = true ]; then
+    # Unwrapped OSC 52 is parsed per pane in native tmux. Ordinary tmux can
+    # forward it with set-clipboard on; Mosh 1.4+ preserves the c selector.
+    printf '\033]52;c;%s\007' "$encoded" > /dev/tty
+elif [ -n "${TMUX:-}" ]; then
+    # Requires: tmux set -g allow-passthrough on
+    printf '\033Ptmux;\033\033]1337;OpenURL=:%s\007\033\\' "$encoded" > /dev/tty
+else
+    printf '\033]1337;OpenURL=:%s\007' "$encoded" > /dev/tty
+fi

@@ -14,7 +14,7 @@
 
 ## About
 
-rootshell is an MIT-licensed open source terminal emulator built for Apple platforms. It features GPU-accelerated rendering powered by libghostty, native SSH with post-quantum key exchange, Secure Enclave key storage, VPN tunneling, high performance HEVC screen sharing, an agent inbox that tracks coding agents and long-running commands across sessions, end-to-end encrypted push notifications and coding-agent hooks, a built-in file browser and native git client, a voice-controlled AI agent, cloud provider integration (AWS, Azure, Linode, DigitalOcean), Kubernetes node debugging, native tmux and herdr control modes, and Rootshell Roam, a mosh-compatible and tssh (QUIC+KCP) mobile terminal protocol with seamless network roaming and session persistence.
+rootshell is an MIT-licensed open source terminal emulator built for Apple platforms. It features GPU-accelerated rendering powered by libghostty, native SSH with post-quantum key exchange, Secure Enclave key storage, VPN tunneling, HTTP and HTTPS traffic capture, high performance HEVC screen sharing, an agent inbox that tracks coding agents and long-running commands across sessions, end-to-end encrypted push notifications and coding-agent hooks, a built-in file browser and native git client, a voice-controlled AI agent, cloud provider integration (AWS, Azure, Linode, DigitalOcean), Kubernetes node debugging, native tmux and herdr control modes, and Rootshell Roam, a mosh-compatible and tssh (QUIC+KCP) mobile terminal protocol with seamless network roaming and session persistence.
 
 For full feature details, screenshots, and documentation, visit **[www.rootshell.com](https://www.rootshell.com)**.
 
@@ -146,6 +146,24 @@ See the [herdr control mode guide](docs/herdr-control-mode.md) for setup, the fo
 - **Login Banners** - Server banners shown inline, sanitized against control-sequence injection
 - **Scrollback Encryption** - Persisted scrollback encrypted at rest with AES-256-GCM and restored on session reconnect with full ANSI colors
 
+### HTTP & HTTPS Capture
+
+Available on iPhone, iPad, visionOS, and macOS Standalone; excluded from sandboxed macOS builds. HTTP capture requires the VPN extension, so it is also unavailable in the China App Store version, where we were blocked from including VPN support.
+
+- **Traffic Inspection** - Capture HTTP/1.1, HTTP/2, and WebSocket frames through an existing SSH or tssh VPN, or use Local Capture through your device's internet connection without a remote server
+- **Selective HTTPS Decryption** - Guided capture-certificate setup and host rules with wildcards, exclusions, and ports. HTTPS is not decrypted by default; unmatched hosts appear as connections. Apps that reject the certificate are automatically skipped on subsequent connections. HTTP/3 (QUIC) is blocked while recording so clients can retry over HTTP/2 or HTTP/1.1
+- **Request Details** - Search and filter traffic, inspect headers, cookies, bodies, and timing, and view JSON trees, HTML previews, images, forms, source, or hex
+- **Copy & Export** - Copy requests as cURL, save request/response messages or bodies, and export sessions as HAR or ZIP. Choose **HAR without Cookies and Auth** to omit cookie and authorization headers. Enable **Record Packets for pcap** before starting a session to export pcapng with embedded TLS keys for Wireshark
+- **Rewrite Rules** - Change request or response headers and replace body text using wildcard or regular-expression URL matching. Body rewrites apply to bodies up to 1 MB
+- **Sessions & Storage** - Review and rename saved sessions, configure body and session size limits, and choose how many sessions to keep. Recording pauses at the session-size limit
+- **Flexible Placement** - Dock capture beside the terminal, use a resizable floating overlay, or expand it to full size on iPad and Mac; iPhone uses a sheet
+
+To start capturing:
+
+1. Open **Settings → Connections → VPN → Open HTTP Capture**, the **File** menu, or the terminal context menu, or press **⌃⌘H**. You can also add HTTP Capture to the keyboard toolbar.
+2. For HTTPS, choose **Set Up** in the capture panel or **Capture Settings → Certificate** and follow the trust guide. On iPhone and iPad, download and install the profile in **Settings → General → VPN & Device Management**, then enable full trust in **Settings → General → About → Certificate Trust Settings**. On Mac, choose **Install and Trust…**. Add the hosts to decrypt under **Capture Settings → Decrypted Hosts**, such as `api.example.com` or `*.example.com`; the first matching rule wins, and `-host` excludes a host.
+3. Press **Record**, then generate traffic in the app or browser you want to inspect. If no rootshell VPN is connected, Record starts Local Capture automatically. Press **Stop** to finish the session; the VPN stays connected and can be disconnected in VPN settings.
+
 ### Screen Sharing
 - **High Performance Mode** - Adaptive-bitrate HEVC over UDP, decoded on the GPU through Metal and tuned for Apple silicon. Up to 4K at 60 FPS and 60 Mbps, tracking the network as conditions change, with video and audio encrypted with AES-256 SRTP
 - **Nothing to Install** - Connect to any Mac with Screen Sharing enabled in System Settings
@@ -228,6 +246,7 @@ The generated command installs `rootshell-notify` in `~/.local/bin`, pairs the d
 
 ### Input & Interaction
 - **Terminal Mouse Support** - Full mouse event passthrough for tmux, vim, zellij
+- **Links from Remote Programs** - Opt-in device-side browser opening for tools such as Codex over SSH, native tmux, and Mosh, with an included `BROWSER` helper. See [remote URL opening](docs/remote-url-opening.md)
 - **Keyboard Shortcuts** - Fully customizable keybindings with menu bar integration and Ghostty keybind config compatibility
 - **Customizable Toolbar** - Drag-and-drop keyboard toolbar with custom keys that send arbitrary text or key sequences, plus up to five configurable drawer rows. Sticky modifier keys with single-tap one-shot and double-tap lock
 - **Clipboard Manager** - Optional device-only encrypted clipboard history (⌘⇧C) capturing copies, pastes, and OSC 52 writes, with transforms: base64, hex, URL encode/decode, JWT decode, hashes, JSON format, shell escape, ANSI strip. Off by default; turning it off wipes the store

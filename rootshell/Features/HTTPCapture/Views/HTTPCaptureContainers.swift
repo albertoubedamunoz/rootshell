@@ -3,7 +3,7 @@
 //  rootshell
 //
 //  Hosts for HTTPCaptureView: a resizable column beside the terminal and a
-//  draggable HUD over it, matching the file manager's containers.
+//  HUD over it (floating or full size), matching the file manager's containers.
 //
 
 #if !CHINA_BUILD
@@ -52,23 +52,26 @@ struct HTTPCaptureSidebarView: View {
 
 struct HTTPCaptureHUD: View {
     let model: HTTPCaptureModel
+    /// Covers the whole terminal area instead of floating.
+    let fills: Bool
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
     let onSwitchPresentation: (PanelPresentation) -> Void
 
     var body: some View {
         DraggableHUDContainer(
-            resizing: .httpCapture,
+            resizing: fills ? nil : .httpCapture,
+            fills: fills,
             dismissShortcuts: [.escape],
             forwardsHTTPCaptureToggle: true,
             onDismiss: onClose
         ) {
-            HTTPCaptureView(model: model, style: .overlay, onClose: onClose, onSwitchPresentation: onSwitchPresentation)
+            HTTPCaptureView(model: model, style: fills ? .full : .overlay, onClose: onClose, onSwitchPresentation: onSwitchPresentation)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .floatingHUDPanelBackground()
+                .panelHUDBackground(fills: fills, theme: theme)
                 .fileManagerTheme(theme)
         }
+        .ignoresSafeArea(.container, edges: fills ? .bottom : [])
     }
 }
 

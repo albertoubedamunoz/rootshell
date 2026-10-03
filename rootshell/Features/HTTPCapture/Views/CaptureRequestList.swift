@@ -59,7 +59,7 @@ struct CaptureRequestList: View {
                 Divider().frame(height: 16)
                 Menu {
                     Button(String(localized: "Any Type", comment: "HTTP capture filter")) { model.kindFilter = nil }
-                    ForEach([CaptureContentKind.json, .html, .javascript, .css, .image, .xml, .text, .form, .font, .media, .binary], id: \.self) { kind in
+                    ForEach([CaptureContentKind.json, .html, .javascript, .css, .image, .xml, .plist, .text, .form, .font, .media, .binary], id: \.self) { kind in
                         Button { model.kindFilter = kind } label: { Label(kind.title, systemImage: kind.systemImage) }
                     }
                 } label: {
@@ -185,6 +185,9 @@ private struct CaptureRequestRows: View {
 
 struct CaptureRequestRow: View {
     let tx: CaptureTransaction
+    @Setting(Settings.HTTPCapture.lookUpServerLocation) private var lookUpServerLocation
+
+    private var geoIP: String? { lookUpServerLocation ? tx.serverIP : nil }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -202,6 +205,11 @@ struct CaptureRequestRow: View {
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if let geo = CaptureGeoLookup.shared.geo(for: geoIP), let flag = geo.flag {
+                        Text(flag)
+                            .font(.caption)
+                            .help(geo.countryName ?? geo.countryCode)
+                    }
                     if tx.wasRewritten {
                         Image(systemName: "wand.and.stars").font(.caption2).foregroundStyle(.purple)
                     }
@@ -228,6 +236,7 @@ struct CaptureRequestRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .task(id: CaptureGeoLookup.shared.key(for: geoIP)) { await CaptureGeoLookup.shared.track(geoIP) }
     }
 
     private var subtitle: String {
@@ -317,6 +326,9 @@ struct CaptureTransactionMenu: View {
             } label: { Label(String(localized: "Add Rewrite Rule…", comment: "HTTP capture action"), systemImage: "wand.and.stars") }
         }
         let host = tx.kind == .tunnel ? (tx.sni ?? tx.host) : tx.host
+        Section {
+            HostAddressCopyActions(hostname: host, ipAddress: tx.serverIP)
+        }
         if !host.isEmpty {
             if tx.kind == .http && tx.scheme == "https" {
                 Button {

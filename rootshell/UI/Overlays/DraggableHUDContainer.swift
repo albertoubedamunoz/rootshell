@@ -43,6 +43,8 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     var draggable: Bool
     /// When set, the host owns the HUD's size and `content` should fill it.
     var resizing: HUDResizing?
+    /// Fills the whole area instead of floating; `content` should fill it.
+    var fills: Bool
     var dismissShortcuts: [HUDKeyShortcut]
     var forwardsQuickSettingsToggle: Bool
     var forwardsThemePickerToggle: Bool
@@ -65,6 +67,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     init(inset: CGFloat = 12,
          draggable: Bool = true,
          resizing: HUDResizing? = nil,
+         fills: Bool = false,
          dismissShortcuts: [HUDKeyShortcut] = [],
          forwardsQuickSettingsToggle: Bool = false,
          forwardsThemePickerToggle: Bool = false,
@@ -81,6 +84,7 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         self.inset = inset
         self.draggable = draggable
         self.resizing = resizing
+        self.fills = fills
         self.dismissShortcuts = dismissShortcuts
         self.forwardsQuickSettingsToggle = forwardsQuickSettingsToggle
         self.forwardsThemePickerToggle = forwardsThemePickerToggle
@@ -99,7 +103,8 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
     func makeUIView(context: Context) -> DraggableHUDHostView {
         let view = DraggableHUDHostView()
         view.inset = inset
-        view.isDraggable = draggable
+        view.isDraggable = draggable && !fills
+        view.fills = fills
         view.dismissShortcuts = dismissShortcuts
         view.forwardsQuickSettingsToggle = forwardsQuickSettingsToggle
         view.forwardsThemePickerToggle = forwardsThemePickerToggle
@@ -116,8 +121,8 @@ struct DraggableHUDContainer<Content: View>: UIViewRepresentable {
         let host = UIHostingController(rootView: AnyView(content()))
         host.view.backgroundColor = .clear
         // Self-size to the SwiftUI content (matters for the theme picker's ScrollView).
-        // A resizable HUD is sized by the host instead.
-        host.sizingOptions = resizing == nil ? .intrinsicContentSize : []
+        // A resizable or filling HUD is sized by the host instead.
+        host.sizingOptions = resizing == nil && !fills ? .intrinsicContentSize : []
         context.coordinator.host = host
 
         view.hostController = host
@@ -194,6 +199,7 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     weak var hostedView: UIView?
     var inset: CGFloat = 12
     var isDraggable = true
+    var fills = false
     var dismissShortcuts: [HUDKeyShortcut] = []
     var forwardsQuickSettingsToggle = false
     var forwardsThemePickerToggle = false
@@ -518,6 +524,10 @@ final class DraggableHUDHostView: UIView, UIGestureRecognizerDelegate {
     override func layoutSubviews() {
         super.layoutSubviews()
         guard let bar = hostedView, bounds.width > 0, bounds.height > 0 else { return }
+        if fills {
+            if bar.frame != bounds { bar.frame = bounds }
+            return
+        }
 
         // Ask the hosting controller for the SwiftUI content's ideal size directly.
         // This forces layout of the content synchronously, so the FIRST measurement

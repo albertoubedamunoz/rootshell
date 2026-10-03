@@ -224,6 +224,15 @@ final class VTFramebuffer: Equatable, @unchecked Sendable {
     func setWindowTitle(_ title: TitleType) { windowTitle = title }
     func setClipboard(_ title: TitleType) { clipboard = title }
 
+    /// Track discarded URL envelopes in the display baseline while output is
+    /// suppressed, so focusing a tab cannot render an old browser request.
+    /// Ordinary clipboard updates keep their existing delivery behavior.
+    func suppressProgramURLRequest(from remote: VTFramebuffer) {
+        let encoded = String(String.UnicodeScalarView(remote.clipboard))
+        guard TerminalClipboardURLRequest.isReservedClipboardState(encoded) else { return }
+        clipboard = remote.clipboard
+    }
+
     func getIconName() -> TitleType { iconName }
     func getWindowTitle() -> TitleType { windowTitle }
     func getClipboard() -> TitleType { clipboard }

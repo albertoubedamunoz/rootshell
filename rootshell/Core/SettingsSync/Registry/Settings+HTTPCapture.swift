@@ -37,6 +37,14 @@ nonisolated extension Settings {
             "httpCapture.recordPackets", default: false, group: .connections,
             configKey: "http-capture-record-packets",
             title: String(localized: "Record Packets for pcap", comment: "Setting title"))
+        static let lookUpServerLocation = SettingKey(
+            "httpCapture.lookUpServerLocation", default: true, group: .connections,
+            configKey: "http-capture-server-location",
+            title: String(localized: "Look Up Server Locations", comment: "Setting title"))
+        static let showFavicons = SettingKey(
+            "httpCapture.showFavicons", default: true, group: .connections,
+            configKey: "http-capture-favicons",
+            title: String(localized: "Show Network Favicons", comment: "Setting title"))
         static let maxBodyMB = SettingKey(
             "httpCapture.maxBodyMB", default: 10, group: .connections,
             configKey: "http-capture-max-body-mb", range: 1...200,
@@ -69,7 +77,8 @@ nonisolated extension Settings {
 
         static let all: [AnySettingDefinition] = [
             mitmHosts.erased, rewriteRules.erased, enableHTTP2.erased, autoBypassPinned.erased,
-            skipUpstreamVerify.erased, recordPackets.erased, maxBodyMB.erased, maxSessionMB.erased,
+            skipUpstreamVerify.erased, recordPackets.erased, lookUpServerLocation.erased, showFavicons.erased,
+            maxBodyMB.erased, maxSessionMB.erased,
             retainedSessions.erased, directDNSServers.erased, presentation.erased, sidebarWidth.erased,
             hudWidth.erased, hudHeight.erased,
         ]

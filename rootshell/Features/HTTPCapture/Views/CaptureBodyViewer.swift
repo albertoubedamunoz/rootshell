@@ -2,8 +2,8 @@
 //  CaptureBodyViewer.swift
 //  rootshell
 //
-//  Picks a viewer from the body's content type: JSON tree / pretty, rendered
-//  HTML, highlighted source, image, form and multipart tables, or hex. Every
+//  Picks a viewer from the body's content type: JSON or plist tree, pretty,
+//  rendered HTML, highlighted source, image, form and multipart tables, or hex. Every
 //  body can also open in Quick Look, be copied, or be shared.
 //
 
@@ -45,12 +45,20 @@ struct CaptureBodyViewer: View {
 
     private var contentType: String? { tx.headers(side).first("content-type") }
     private var kind: CaptureContentKind {
-        side == .response ? tx.contentKind : CaptureContentKind(contentType: contentType)
+        let declared = side == .response ? tx.contentKind : CaptureContentKind(contentType: contentType)
+        // Plists often arrive as octet-stream or generic XML.
+        switch declared {
+        case .xml, .text, .binary, .none:
+            if let data = body_?.data, CapturePlist.isPlist(data) { return .plist }
+        default: break
+        }
+        return declared
     }
 
     private var modes: [Mode] {
         switch kind {
         case .json: [.tree, .pretty, .raw, .hex]
+        case .plist: [.tree, .source, .hex]
         case .html: [.preview, .source, .hex]
         case .javascript, .css, .xml, .text: [.source, .hex]
         case .image: contentType?.contains("svg") == true ? [.preview, .source, .hex] : [.image, .hex]
@@ -125,12 +133,17 @@ struct CaptureBodyViewer: View {
     @ViewBuilder
     private func viewer(for mode: Mode, data: Data) -> some View {
         switch mode {
-        case .tree: CaptureJSONTree(data: data)
+        case .tree: CaptureJSONTree(data: data, format: kind == .plist ? .plist : .json)
         case .pretty: CaptureCodeView(text: CaptureJSONFormatter.pretty(String(decoding: data, as: UTF8.self)), language: .json)
         case .preview:
             CaptureHTMLPreview(data: data, mimeType: contentType ?? "text/html")
                 .frame(minHeight: 320)
-        case .source: CaptureCodeView(text: String(decoding: data, as: UTF8.self), language: CaptureSyntax.Language(kind: kind))
+        case .source:
+            if kind == .plist {
+                CapturePlistSource(data: data)
+            } else {
+                CaptureCodeView(text: String(decoding: data, as: UTF8.self), language: CaptureSyntax.Language(kind: kind))
+            }
         case .image:
             if let image = UIImage(data: data) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -231,39 +244,105 @@ enum CaptureJSONFormatter {
 
 struct CaptureJSONTree: View {
     let data: Data
+    var format: CaptureJSONNode.Format = .json
     @State private var root: CaptureJSONNode?
     @State private var failed = false
+    @State private var expanded: Set<Int> = []
+    @State private var limits: [Int: Int] = [:]
+
+    private static let initialLimit = 200
+
+    private struct Row: Identifiable {
+        enum Kind {
+            case node(CaptureJSONNode)
+            case more(parent: Int, remaining: Int)
+        }
+
+        let id: Int
+        let depth: Int
+        let kind: Kind
+    }
 
     var body: some View {
         Group {
             if let root {
-                VStack(alignment: .leading, spacing: 0) {
-                    CaptureJSONNodeView(node: root, depth: 0, startExpanded: true)
+                // Flat and lazy: nested stacks build every expanded row up front.
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(rows(root)) { row in
+                        switch row.kind {
+                        case .node(let node):
+                            CaptureJSONNodeView(node: node, isOpen: expanded.contains(node.id)) { toggle(node.id) }
+                                .padding(.leading, CGFloat(row.depth) * 14)
+                        case .more(let parent, let remaining):
+                            Button(String(localized: "Show \(remaining) More", comment: "HTTP capture JSON tree")) {
+                                limits[parent, default: Self.initialLimit] += 500
+                            }
+                            .font(.caption)
+                            .buttonStyle(.borderless)
+                            .padding(.leading, CGFloat(row.depth) * 14)
+                        }
+                    }
                 }
                 .padding(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
             } else if failed {
-                CaptureCodeView(text: String(decoding: data, as: UTF8.self), language: .json)
+                switch format {
+                case .json: CaptureCodeView(text: String(decoding: data, as: UTF8.self), language: .json)
+                case .plist: CaptureHexView(data: data)
+                }
             } else {
                 ProgressView()
             }
         }
         .task(id: data) {
-            let parsed = await Task.detached { CaptureJSONNode.parse(data) }.value
+            let format = format
+            let (parsed, open) = await Task.detached { () -> (CaptureJSONNode?, Set<Int>) in
+                let root = CaptureJSONNode.parse(data, format: format)
+                // Root and its direct containers start open.
+                let open = root.map { root in
+                    Set([root.id] + (root.children ?? []).filter { $0.children != nil }.map(\.id))
+                } ?? []
+                return (root, open)
+            }.value
             root = parsed
             failed = parsed == nil
+            limits = [:]
+            expanded = open
         }
+    }
+
+    private func rows(_ root: CaptureJSONNode) -> [Row] {
+        var out: [Row] = []
+        func visit(_ node: CaptureJSONNode, depth: Int) {
+            out.append(Row(id: node.id, depth: depth, kind: .node(node)))
+            guard expanded.contains(node.id), let children = node.children else { return }
+            let limit = limits[node.id] ?? Self.initialLimit
+            for child in children.prefix(limit) { visit(child, depth: depth + 1) }
+            if children.count > limit {
+                out.append(Row(id: -node.id, depth: depth + 1, kind: .more(parent: node.id, remaining: children.count - limit)))
+            }
+        }
+        visit(root, depth: 0)
+        return out
+    }
+
+    private func toggle(_ id: Int) {
+        if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
     }
 }
 
 nonisolated struct CaptureJSONNode: Identifiable, Sendable {
+    enum Format: Sendable { case json, plist }
+
     enum Value: Sendable {
         case object([CaptureJSONNode])
         case array([CaptureJSONNode])
         case string(String)
         case number(String)
         case bool(Bool)
+        case date(Date)
+        case data(Data)
         case null
     }
 
@@ -271,8 +350,19 @@ nonisolated struct CaptureJSONNode: Identifiable, Sendable {
     let key: String?
     let value: Value
 
-    nonisolated static func parse(_ data: Data) -> CaptureJSONNode? {
-        guard let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) else { return nil }
+    var children: [CaptureJSONNode]? {
+        switch value {
+        case .object(let children), .array(let children): children
+        default: nil
+        }
+    }
+
+    nonisolated static func parse(_ data: Data, format: Format = .json) -> CaptureJSONNode? {
+        let parsed: Any? = switch format {
+        case .json: try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        case .plist: try? PropertyListSerialization.propertyList(from: data, format: nil)
+        }
+        guard let object = parsed else { return nil }
         var counter = 0
         return build(object, key: nil, counter: &counter)
     }
@@ -294,55 +384,38 @@ nonisolated struct CaptureJSONNode: Identifiable, Sendable {
                 return CaptureJSONNode(id: id, key: key, value: .bool(number.boolValue))
             }
             return CaptureJSONNode(id: id, key: key, value: .number(number.stringValue))
+        case let date as Date:
+            return CaptureJSONNode(id: id, key: key, value: .date(date))
+        case let data as Data:
+            return CaptureJSONNode(id: id, key: key, value: .data(data))
         default:
             return CaptureJSONNode(id: id, key: key, value: .null)
         }
     }
 }
 
+/// One row of the tree; children are separate rows in CaptureJSONTree.
 private struct CaptureJSONNodeView: View {
     let node: CaptureJSONNode
-    let depth: Int
-    let startExpanded: Bool
-    @State private var expanded: Bool?
-    @State private var limit = 200
+    let isOpen: Bool
+    let toggle: () -> Void
 
     var body: some View {
         switch node.value {
         case .object(let children), .array(let children):
-            let isOpen = expanded ?? (startExpanded || depth < 2)
-            VStack(alignment: .leading, spacing: 0) {
-                Button {
-                    expanded = !isOpen
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: isOpen ? "chevron.down" : "chevron.right")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 12)
-                        keyText
-                        Text(summary(node.value, count: children.count))
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-                if isOpen {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(children.prefix(limit)) { child in
-                            CaptureJSONNodeView(node: child, depth: depth + 1, startExpanded: false)
-                        }
-                        if children.count > limit {
-                            Button(String(localized: "Show \(children.count - limit) More", comment: "HTTP capture JSON tree")) {
-                                limit += 500
-                            }
-                            .font(.caption)
-                            .buttonStyle(.borderless)
-                        }
-                    }
-                    .padding(.leading, 14)
+            Button(action: toggle) {
+                HStack(spacing: 4) {
+                    Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 12)
+                    keyText
+                    Text(summary(node.value, count: children.count))
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
                 }
             }
+            .buttonStyle(.plain)
         default:
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Spacer().frame(width: 12)
@@ -351,7 +424,7 @@ private struct CaptureJSONNodeView: View {
                     .textSelection(.enabled)
             }
             .contextMenu {
-                Button(String(localized: "Copy Value", comment: "HTTP capture action")) { UIPasteboard.general.string = leafString }
+                Button(String(localized: "Copy Value", comment: "HTTP capture action")) { UIPasteboard.general.string = copyString }
             }
         }
     }
@@ -368,9 +441,18 @@ private struct CaptureJSONNodeView: View {
         case .string(let s): s
         case .number(let n): n
         case .bool(let b): b ? "true" : "false"
+        case .date(let d): d.ISO8601Format()
+        case .data(let d):
+            "<\(CaptureFormat.bytes(Int64(d.count)))> " + d.prefix(32).map { String(format: "%02x", $0) }.joined() + (d.count > 32 ? "…" : "")
         case .null: "null"
         default: ""
         }
+    }
+
+    /// Encoded only when copied, never during rendering.
+    private var copyString: String {
+        if case .data(let d) = node.value { return d.base64EncodedString() }
+        return leafString
     }
 
     private var leafText: some View {
@@ -382,6 +464,8 @@ private struct CaptureJSONNodeView: View {
             text = "\"\(text)\""
         case .number: color = .blue
         case .bool, .null: color = .orange
+        case .date: color = .teal
+        case .data: color = .secondary
         default: color = .primary
         }
         return Text(text).font(.caption.monospaced()).foregroundStyle(color).lineLimit(8)
@@ -390,6 +474,44 @@ private struct CaptureJSONNodeView: View {
     private func summary(_ value: CaptureJSONNode.Value, count: Int) -> String {
         if case .array = value { return "[\(count)]" }
         return "{\(count)}"
+    }
+}
+
+// MARK: - Property lists
+
+nonisolated enum CapturePlist {
+    static func isPlist(_ data: Data) -> Bool {
+        if data.starts(with: Data("bplist".utf8)) { return true }
+        return String(decoding: data.prefix(512), as: UTF8.self).contains("<plist")
+    }
+
+    /// XML form of a binary plist; XML (or unparseable) input comes back as text.
+    static func xmlText(_ data: Data) -> String {
+        guard data.starts(with: Data("bplist".utf8)),
+              let object = try? PropertyListSerialization.propertyList(from: data, format: nil),
+              let xml = try? PropertyListSerialization.data(fromPropertyList: object, format: .xml, options: 0)
+        else { return String(decoding: data, as: UTF8.self) }
+        return String(decoding: xml, as: UTF8.self)
+    }
+}
+
+/// Converts off the main thread once per body; binary plists can be large.
+private struct CapturePlistSource: View {
+    let data: Data
+    @State private var text: String?
+
+    var body: some View {
+        Group {
+            if let text {
+                CaptureCodeView(text: text, language: .markup)
+            } else {
+                ProgressView().frame(maxWidth: .infinity, minHeight: 80)
+            }
+        }
+        .task(id: data) {
+            let data = data
+            text = await Task.detached(priority: .userInitiated) { CapturePlist.xmlText(data) }.value
+        }
     }
 }
 
@@ -404,7 +526,7 @@ nonisolated enum CaptureSyntax {
             case .json: self = .json
             case .javascript: self = .javascript
             case .css: self = .css
-            case .html, .xml, .image: self = .markup
+            case .html, .xml, .plist, .image: self = .markup
             default: self = .plain
             }
         }

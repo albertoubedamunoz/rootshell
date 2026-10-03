@@ -3,9 +3,10 @@
 //  rootshell
 //
 //  Presents HTTP capture like the file manager: a resizable column beside the
-//  terminal, a HUD over it, or a sheet on iPhone. The two panels share the
-//  trailing docked slot (and the overlay layer): opening one in a spot the
-//  other occupies hides the other, keeping its state for next time.
+//  terminal, a HUD over it (floating or covering it), or a sheet on iPhone.
+//  The two panels share the trailing docked slot (and the overlay layer):
+//  opening one in a spot the other occupies hides the other, keeping its
+//  state for next time. Full size occupies every spot.
 //
 
 import SwiftUI
@@ -63,13 +64,14 @@ extension MainView {
         showHTTPCapture && !isPhone && httpCapturePresentation == .sidebar && httpCaptureModel != nil
     }
 
+    /// The floating or full-size HUD.
     var httpCaptureShowsOverlay: Bool {
-        showHTTPCapture && !isPhone && httpCapturePresentation == .overlay && httpCaptureModel != nil
+        showHTTPCapture && !isPhone && httpCapturePresentation != .sidebar && httpCaptureModel != nil
     }
 
     /// The HUD and the iPhone sheet own the keyboard; the sidebar shares the window with the terminal.
     var httpCaptureOwnsKeyboard: Bool {
-        showHTTPCapture && (isPhone || httpCapturePresentation == .overlay)
+        showHTTPCapture && (isPhone || httpCapturePresentation.ownsKeyboard)
     }
 
     var httpCaptureSidebarCurrentWidth: CGFloat {
@@ -139,16 +141,16 @@ extension MainView {
     }
 
     /// HTTP capture is about to show as `presentation`: hide the file manager
-    /// if it holds that spot (docked column or overlay).
+    /// if it holds that spot (docked column or overlay), or either covers the terminal.
     private func yieldSlotToHTTPCapture(_ presentation: PanelPresentation) {
-        guard !isPhone, showFileManager, fileManagerPresentation == presentation else { return }
+        guard !isPhone, showFileManager, fileManagerPresentation.sharesSlot(with: presentation) else { return }
         closeFileManager()
     }
 
     /// The file manager is about to show as `presentation`: hide HTTP capture
     /// if it holds that spot.
     func yieldSlotToFileManager(_ presentation: PanelPresentation) {
-        guard !isPhone, showHTTPCapture, httpCapturePresentation == presentation else { return }
+        guard !isPhone, showHTTPCapture, httpCapturePresentation.sharesSlot(with: presentation) else { return }
         closeHTTPCapture()
     }
 
@@ -176,11 +178,14 @@ extension MainView {
         if httpCaptureShowsOverlay, let model = httpCaptureModel {
             HTTPCaptureHUD(
                 model: model,
+                fills: httpCapturePresentation == .full,
                 theme: resolvedSheetTheme(),
                 onClose: { closeHTTPCapture() },
                 onSwitchPresentation: { switchHTTPCapturePresentation($0) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // A fresh host per presentation; the HUD host sets up dragging and resizing once.
+            .id(httpCapturePresentation)
         }
     }
 

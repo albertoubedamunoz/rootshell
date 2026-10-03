@@ -14,7 +14,17 @@ struct FileManagerView: View {
     enum Style {
         case sidebar
         case overlay
+        case full
         case sheet
+
+        var presentation: PanelPresentation? {
+            switch self {
+            case .sidebar: .sidebar
+            case .overlay: .overlay
+            case .full: .full
+            case .sheet: nil
+            }
+        }
     }
 
     @Bindable var manager: FileManagerModel
@@ -22,7 +32,7 @@ struct FileManagerView: View {
     /// False while hidden, so no field reclaims the keyboard.
     let canFocus: Bool
     let onClose: () -> Void
-    /// Switches between sidebar and overlay; nil where only one presentation exists.
+    /// Switches between presentations; nil where only one presentation exists.
     let onSwitchPresentation: ((PanelPresentation) -> Void)?
 
     @State private var highlightsShortcutsTip = false
@@ -115,8 +125,8 @@ struct FileManagerView: View {
             Image(systemName: "folder.badge.gearshape").foregroundStyle(Color.accentColor)
             Text("Files").font(.headline)
             Spacer()
-            if let onSwitchPresentation {
-                PanelPresentationMenu(current: style == .sidebar ? .sidebar : .overlay, onSwitch: onSwitchPresentation)
+            if let onSwitchPresentation, let current = style.presentation {
+                PanelPresentationMenu(current: current, onSwitch: onSwitchPresentation)
                     .equatable()
             }
             FileManagerMoreMenu(manager: manager)

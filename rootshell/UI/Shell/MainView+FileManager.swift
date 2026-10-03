@@ -3,7 +3,7 @@
 //  rootshell
 //
 //  Presents the file manager: a resizable column beside the terminal, a HUD
-//  over it, or a sheet on iPhone. The window's model is created on first use
+//  over it (floating or covering it), or a sheet on iPhone. The window's model is created on first use
 //  and kept while hidden, so reopening restores panes, selection and focus.
 //
 
@@ -14,13 +14,14 @@ extension MainView {
         showFileManager && !isPhone && fileManagerPresentation == .sidebar && fileManagerModel != nil
     }
 
+    /// The floating or full-size HUD.
     var fileManagerShowsOverlay: Bool {
-        showFileManager && !isPhone && fileManagerPresentation == .overlay && fileManagerModel != nil
+        showFileManager && !isPhone && fileManagerPresentation != .sidebar && fileManagerModel != nil
     }
 
     /// The HUD and the iPhone sheet own the keyboard; the sidebar shares the window with the terminal.
     var fileManagerOwnsKeyboard: Bool {
-        showFileManager && (isPhone || fileManagerPresentation == .overlay)
+        showFileManager && (isPhone || fileManagerPresentation.ownsKeyboard)
     }
 
     var fileManagerSidebarCurrentWidth: CGFloat {
@@ -213,12 +214,15 @@ extension MainView {
         if fileManagerShowsOverlay, let model = fileManagerModel {
             FileManagerHUD(
                 manager: model,
+                fills: fileManagerPresentation == .full,
                 canFocus: showFileManager,
                 theme: resolvedSheetTheme(),
                 onClose: { closeFileManager() },
                 onSwitchPresentation: { switchFileManagerPresentation($0) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // A fresh host per presentation; the HUD host sets up dragging and resizing once.
+            .id(fileManagerPresentation)
         }
         if !showFileManager {
             TransferPill(onOpen: { openFileManager() })

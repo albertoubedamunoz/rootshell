@@ -3102,6 +3102,24 @@ extension Ghostty {
             let text = item[UTType.utf8PlainText.identifier]
             let isSelection = (location == GHOSTTY_CLIPBOARD_SELECTION)
 
+            // The clipboard-state channel survives Mosh synchronization and
+            // reaches native tmux pane surfaces. Reserved URL envelopes never
+            // become clipboard contents, history entries or held writes, even
+            // when malformed or the feature is disabled. Selection copies
+            // still behave as ordinary copies rather than launching a URL.
+            if !isSelection, let text, text.hasPrefix(TerminalClipboardURLRequest.namespace) {
+                // Replay windows can lapse before the hop runs. The tmux parent
+                // check needs the main actor; off-main falls back to this pane.
+                let replaying = Thread.isMainThread
+                    ? MainActor.assumeIsolated { terminalView.isReplayingForcedOutput }
+                    : TerminalBellSuppressor.isSuppressed(terminalView.uuid)
+                let suppressedAtReceipt = Ghostty.isAppBackgroundedAtomic || replaying
+                Task { @MainActor in
+                    terminalView.handleClipboardURLRequest(text, suppressedAtReceipt: suppressedAtReceipt)
+                }
+                return
+            }
+
             // Background OSC 52 writes land on foreground (releaseBackgroundHolds);
             // reads are denied meanwhile, so write/read ordering holds.
             if Ghostty.isAppBackgroundedAtomic {
