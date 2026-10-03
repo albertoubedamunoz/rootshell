@@ -16,8 +16,11 @@ import GhosttyKit
 
 extension Ghostty.TerminalView: TerminalSessionControllerHost {
     /// Shared device-side policy for live OSC requests and OSC 52 envelopes.
+    /// `windowGenuineFocusSignal` rejects inactive windows: `isKeyWindow` on
+    /// Catalyst, `activeAppearance` on iPadOS where `isKeyWindow` is unreliable.
     func openProgramURL(_ url: URL) {
-        guard !Ghostty.isAppBackgroundedAtomic, window != nil, isLogicallyFocused,
+        guard !Ghostty.isAppBackgroundedAtomic, isLogicallyFocused, isTabVisible, !isHidden,
+              windowGenuineFocusSignal(), !isReplayingForcedOutput,
               SettingsStore.shared.get(Settings.Terminal.openLinksFromPrograms) else { return }
         let now = ProcessInfo.processInfo.systemUptime
         guard now - lastProgramURLRequestTime >= 1 else { return }
@@ -25,14 +28,14 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
         UIApplication.shared.open(url)
     }
 
-    func handleClipboardURLRequest(_ text: String, receivedWhileBackgrounded: Bool) {
+    func handleClipboardURLRequest(_ text: String, suppressedAtReceipt: Bool) {
         guard let request = TerminalClipboardURLRequest.decode(text) else { return }
         // Consume even while disabled, hidden or backgrounded, so replaying
         // synchronized clipboard state later cannot turn it into a new click.
         var ledger = TerminalURLRequestLedger(data: SettingsStore.shared.get(Settings.Terminal.programURLRequestReplayCache))
         let isNew = ledger.consume(request, now: Date().timeIntervalSince1970)
         SettingsStore.shared.set(Settings.Terminal.programURLRequestReplayCache, ledger.data)
-        guard isNew, !receivedWhileBackgrounded else { return }
+        guard isNew, !suppressedAtReceipt else { return }
         openProgramURL(request.url)
     }
 

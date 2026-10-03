@@ -2,7 +2,8 @@ import Foundation
 import os
 
 /// Tracks repaints we forced ourselves, per terminal, for the consumers that
-/// must not mistake them for news: bells, and agent detection.
+/// must not mistake them for news: bells, program URL requests, and agent
+/// detection.
 ///
 /// A tssh reattach makes the remote redraw from both ends: the app sends a
 /// resize jiggle (`TrzszSession.attemptResume`) and tsshd's attach handler

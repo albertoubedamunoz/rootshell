@@ -3108,9 +3108,14 @@ extension Ghostty {
             // when malformed or the feature is disabled. Selection copies
             // still behave as ordinary copies rather than launching a URL.
             if !isSelection, let text, text.hasPrefix(TerminalClipboardURLRequest.namespace) {
-                let receivedWhileBackgrounded = Ghostty.isAppBackgroundedAtomic
+                // Replay windows can lapse before the hop runs. The tmux parent
+                // check needs the main actor; off-main falls back to this pane.
+                let replaying = Thread.isMainThread
+                    ? MainActor.assumeIsolated { terminalView.isReplayingForcedOutput }
+                    : TerminalBellSuppressor.isSuppressed(terminalView.uuid)
+                let suppressedAtReceipt = Ghostty.isAppBackgroundedAtomic || replaying
                 Task { @MainActor in
-                    terminalView.handleClipboardURLRequest(text, receivedWhileBackgrounded: receivedWhileBackgrounded)
+                    terminalView.handleClipboardURLRequest(text, suppressedAtReceipt: suppressedAtReceipt)
                 }
                 return
             }
