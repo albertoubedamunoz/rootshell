@@ -783,6 +783,10 @@ final class TabsModel {
     /// Invalidates in-flight reveal waiters when selection changes again.
     @ObservationIgnored private var displayRevealGeneration = 0
 
+    /// Closes held by holdClose(of:untilDrawn:close:), keyed by closing tab;
+    /// true while the held close runs.
+    @ObservationIgnored private var heldCloses: [UUID: Bool] = [:]
+
     /// Title writers defer while this is up so churn can't starve the selection
     /// spring. Ignored by Observation so flipping it invalidates nothing.
     @ObservationIgnored private(set) var isTabSwitchAnimating = false
@@ -1980,6 +1984,40 @@ final class TabsModel {
             Ghostty.logger.warning("herdr gateway reveal timed out waiting for its snapshot; revealing anyway")
             self.displayedTabID = targetID
         }
+    }
+
+    /// Closing the displayed tab before its successor has drawn leaves nothing
+    /// to show but the reveal backdrop. Returns true when the caller must not
+    /// close now: `close` reruns it once the successor draws (or after 150ms).
+    func holdClose(of closingID: UUID, untilDrawn successorID: UUID?, close: @escaping @MainActor () -> Void) -> Bool {
+        if let releasing = heldCloses[closingID] { return !releasing }
+        guard closingID == displayedTabID, let successorID,
+              let successor = tab(withID: successorID) else { return false }
+        let pending = successor.splitTree.terminalLeaves.filter { !$0.hasRenderedFirstFrame }
+        guard !pending.isEmpty else { return false }
+
+        heldCloses[closingID] = false
+        let release: @MainActor () -> Void = { [weak self] in
+            guard let self, self.heldCloses[closingID] == false else { return }
+            self.heldCloses[closingID] = true
+            close()
+            self.heldCloses[closingID] = nil
+        }
+        // Hidden at opacity 0, it renders without showing.
+        for pane in successor.splitTree { pane.setOcclusion(true) }
+        for view in pending {
+            view.notifyOnFirstFrame { [weak self] in
+                guard let self, let successor = self.tab(withID: successorID),
+                      successor.splitTree.terminalLeaves.allSatisfy({ $0.hasRenderedFirstFrame }) else { return }
+                // Off the first-frame callback loop.
+                Task { @MainActor in release() }
+            }
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            release()
+        }
+        return true
     }
 
     /// Reveals at once if the target has presented, else waits for first frames

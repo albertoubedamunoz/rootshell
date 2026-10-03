@@ -783,6 +783,9 @@ extension MainView {
             bgColor
                 .opacity(transparencyManager.backgroundOpacity)
                 .ignoresSafeArea()
+                // Closing a tab clears the displayed tab inside its animation;
+                // a fade-in would dip the window's opacity.
+                .transition(.identity)
         }
     }
 
@@ -1231,6 +1234,9 @@ extension MainView {
                             $0.animation = nil
                         }
                     }
+                    // An animated close would fade a translucent tab over the
+                    // reveal backdrop. Hidden tabs are at opacity 0 anyway.
+                    .transition(.identity)
                 }
             }
         }
