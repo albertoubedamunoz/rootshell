@@ -755,6 +755,19 @@ struct SettingsTerminalSection: View {
                 Text("Shell")
             }
 #endif
+
+            // MARK: - Program Links
+            Section {
+                SettingToggle(Settings.Terminal.openLinksFromPrograms,
+                              title: "Open Links from Programs", icon: "link")
+                    .themedRow()
+                Text("Let programs open web links in this device's browser using iTerm2's OpenURL sequence (OSC 1337). For Mosh and tmux -CC, use the rootshell-open-clipboard helper.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .themedRow()
+            } header: {
+                Text("Program Links")
+            }
         }
         .themedList()
         .navigationTitle("Terminal")

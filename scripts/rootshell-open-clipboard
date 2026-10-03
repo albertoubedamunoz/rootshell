@@ -1,0 +1,5 @@
+#!/bin/sh
+# BROWSER handler for Mosh and native tmux. Python's webbrowser runs a
+# BROWSER value without %s as one executable path, so a value such as
+# "rootshell-open --clipboard" fails there; this name needs no argument.
+exec "$(dirname "$0")/rootshell-open" --clipboard "$@"

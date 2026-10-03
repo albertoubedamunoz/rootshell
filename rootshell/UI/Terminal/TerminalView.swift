@@ -933,6 +933,7 @@ extension Ghostty {
         /// Owns the terminal output byte path: buffered writes, scrollback
         /// restore gating, and mouse-capture coalescing.
         let outputPipeline = TerminalOutputPipeline()
+        var lastProgramURLRequestTime: TimeInterval = 0
 
         /// Compatibility accessors for existing persistence/tmux call sites.
         var bufferedWriter: TerminalBufferedPipeWriter { outputPipeline.bufferedWriter }
@@ -1514,6 +1515,19 @@ extension Ghostty {
             self.inputController = TerminalInputController()
             self.keyboardAccessoryController = TerminalKeyboardAccessoryController(host: self)
             self.connectionProgress = ConnectionProgressPresenter(host: self)
+
+            let terminalUUID = self.uuid
+            outputPipeline.setURLRequestHandler { [weak self] url in
+                // Drop background requests and replayed backlogs at receipt,
+                // even if the main actor resumes after the app becomes
+                // foreground again or the replay window lapses.
+                guard !Ghostty.isAppBackgroundedAtomic,
+                      !TerminalBellSuppressor.isSuppressed(terminalUUID),
+                      SettingsStore.shared.value(Settings.Terminal.openLinksFromPrograms) else { return }
+                Task { @MainActor [weak self] in
+                    self?.openProgramURL(url)
+                }
+            }
 
             // A pipe-writer overflow dropped oldest output (reader stalled or
             // firehose). Non-tmux surfaces self-correct on the next repaint,
@@ -2397,7 +2411,7 @@ extension Ghostty {
         /// `isKeyWindow` here would let an inactive window steal first responder. So
         /// non-Catalyst requires the authoritative `activeAppearance` trait only;
         /// Catalyst keeps `isKeyWindow` (reliable there, matching MainView).
-        private func windowGenuineFocusSignal() -> Bool {
+        func windowGenuineFocusSignal() -> Bool {
             guard let window = window else { return false }
             if let scene = window.windowScene, scene.activationState != .foregroundActive {
                 return false
@@ -5023,6 +5037,13 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         ringBell()
     }
 
+    /// This pane, or its tmux -CC gateway, is replaying output we forced.
+    var isReplayingForcedOutput: Bool {
+        if TerminalBellSuppressor.isSuppressed(uuid) { return true }
+        guard let parentUUID = tmuxPaneBinding?.parentUUID else { return false }
+        return TerminalBellSuppressor.isSuppressed(parentUUID)
+    }
+
     /// The one bell sink: sound, haptic, and the `.bellTriggered` post that
     /// drives the tab wiggle. A suppressed bell does none of the three —
     /// see `TerminalBellSuppressor` for why a reattach's bells are noise.
@@ -5032,11 +5053,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     /// reattach has no reference to. `parentUUID` is the gateway's stable
     /// identity, so this is safe against the `parentSurface` ABA problem.
     func ringBell() {
-        guard !TerminalBellSuppressor.isSuppressed(uuid) else { return }
-        if let parentUUID = tmuxPaneBinding?.parentUUID,
-           TerminalBellSuppressor.isSuppressed(parentUUID) {
-            return
-        }
+        guard !isReplayingForcedOutput else { return }
         let preset = SoundManager.shared.bellPreset
         if preset.includesHaptic {
             triggerHapticFeedback()
