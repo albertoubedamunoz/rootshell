@@ -61,9 +61,11 @@ final class TerminalSurfaceController: NSObject {
     var responseFd: Int32 = -1
 
     private(set) var hasRenderedFirstFrame = false
-    /// The frame the layer showed when the pane was occluded. The hidden
-    /// renderer purges it, so it doesn't count as a first frame on re-show.
+    /// The frame the layer showed when the pane was occluded or re-shown. The
+    /// hidden renderer purges it, so it doesn't count as a first frame.
     private var staleFrameContents: CFTypeRef?
+    /// The last value setOcclusion was given.
+    private var isOccluded = false
     private var firstFrameCallbacks: [@MainActor () -> Void] = []
     private var firstFramePollLink: CADisplayLink?
     private var firstFramePollTarget: FirstFramePollTarget?
@@ -280,10 +282,19 @@ final class TerminalSurfaceController: NSObject {
 
     /// Occlusion releases the renderer's frames and empties the one still on
     /// the layer, so re-showing must wait for a frame drawn after this.
+    /// Also covers a pane hidden before its first frame was marked.
     private func expireRenderedFrame() {
-        guard hasRenderedFirstFrame else { return }
         hasRenderedFirstFrame = false
         staleFrameContents = rendererLayer()?.contents.map { $0 as CFTypeRef }
+    }
+
+    /// The renderer keeps presenting until the hide reaches it (a focus-out
+    /// redraw, say), and those frames land after expireRenderedFrame and are
+    /// emptied too. Re-snapshot on re-show so only a post-show frame counts.
+    private func expireFramesPresentedWhileHiding() {
+        guard !hasRenderedFirstFrame,
+              let contents = rendererLayer()?.contents else { return }
+        staleFrameContents = contents as CFTypeRef
     }
 
     func createSurfaceIfNeeded() {
@@ -718,6 +729,10 @@ final class TerminalSurfaceController: NSObject {
     func setOcclusion(_ visible: Bool) {
         let terminalID = host.surfaceTerminalDebugID
         Ghostty.logger.info("setOcclusion(\(visible)): terminal=\(terminalID)")
+        // The host updates surfaceIsTabVisible before calling in, so it can't
+        // tell a re-show from a re-assert.
+        let wasOccluded = isOccluded
+        isOccluded = !visible
         host.surfaceIsTabVisible = visible
 
         if !visible {
@@ -733,6 +748,7 @@ final class TerminalSurfaceController: NSObject {
         }
 
         if visible {
+            if wasOccluded { expireFramesPresentedWhileHiding() }
             startFirstFramePolling()
         } else {
             expireRenderedFrame()

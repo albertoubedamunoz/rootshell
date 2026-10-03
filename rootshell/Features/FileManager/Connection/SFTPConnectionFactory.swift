@@ -221,19 +221,27 @@ enum SFTPConnectionFactory {
     private static func borrowPane(_ source: FileEndpoint.PaneSource) async throws -> SFTPConnection? {
         guard let terminal = source.terminal else { return nil }
         let label = source.displayName
+        let host = source.fallbackConfig.underlyingSSHConfig?.host ?? label
+        guard let openChannel = paneChannelOpener(for: terminal, host: host) else { return nil }
+        return SFTPConnection(browseClient: try await openChannel(), label: label, openChannel: openChannel, teardown: {})
+    }
 
+    /// Opens SFTP channels on a pane's live Citadel client or tssh transport,
+    /// or nil when it has none to lend (Mosh, local shells). `terminal` must
+    /// be the pane that owns the connection, not a tmux or herdr pane.
+    static func paneChannelOpener(
+        for terminal: Ghostty.TerminalView,
+        host: String
+    ) -> (@Sendable () async throws -> SFTPClient)? {
         if let citadel = terminal.session as? CitadelSSHSession, let client = citadel.client {
-            let openChannel: @Sendable () async throws -> SFTPClient = { try await client.openSFTP() }
-            return SFTPConnection(browseClient: try await openChannel(), label: label, openChannel: openChannel, teardown: {})
+            return { try await client.openSFTP() }
         }
         if let trzsz = TmuxController.gatewayTrzszSession(for: terminal.session) {
-            let host = source.fallbackConfig.underlyingSSHConfig?.host ?? label
-            let openChannel: @Sendable () async throws -> SFTPClient = {
+            return {
                 try await sftpOverExec(host: host) { command in
                     try await trzsz.openExecChannel(command)
                 }
             }
-            return SFTPConnection(browseClient: try await openChannel(), label: label, openChannel: openChannel, teardown: {})
         }
         return nil
     }

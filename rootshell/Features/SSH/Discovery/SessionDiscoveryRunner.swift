@@ -406,6 +406,33 @@ enum SessionDiscoveryParser {
     }
 }
 
+// MARK: - tssh Exec Channel
+
+/// Hands a discovery exec channel from the worker that opens it to the
+/// cleanup that closes it. A channel that opens after cleanup already ran is
+/// closed on arrival, so a late open never leaks a remote session.
+private actor DiscoveryExecChannel {
+    private var pipe: (any AsyncBytePipe)?
+    private var isClosed = false
+
+    /// False when cleanup already ran; the pipe has been closed.
+    func adopt(_ pipe: any AsyncBytePipe) async -> Bool {
+        guard !isClosed else {
+            await pipe.close()
+            return false
+        }
+        self.pipe = pipe
+        return true
+    }
+
+    func close() async {
+        isClosed = true
+        let pipe = self.pipe
+        self.pipe = nil
+        await pipe?.close()
+    }
+}
+
 // MARK: - Combined Runner
 
 @MainActor
@@ -430,7 +457,7 @@ enum SessionDiscoveryRunner {
             throw TmuxDiscoveryError.notConnected
         }
         return try await execute(
-            on: client,
+            run: citadelRunner(client),
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
@@ -438,6 +465,73 @@ enum SessionDiscoveryRunner {
             discoverTmuxBindings: discoverTmuxBindings,
             discoverZellijBindings: discoverZellijBindings
         )
+    }
+
+    /// Discover sessions over a tssh pane's own transport. A temporary SSH
+    /// connection would authenticate again, prompting Face ID on every connect
+    /// and every roam resume.
+    static func discover(
+        using session: TrzszSession,
+        skipTmuxSessions: Bool = false,
+        skipZellijSessions: Bool = false,
+        skipHerdrSessions: Bool = false,
+        skipZmxSessions: Bool = false,
+        discoverTmuxBindings: Bool = true,
+        discoverZellijBindings: Bool = true
+    ) async throws -> SessionDiscoveryResult {
+        try await execute(
+            run: { command in try await runOverExecChannel(command, on: session) },
+            skipTmuxSessions: skipTmuxSessions,
+            skipZellijSessions: skipZellijSessions,
+            skipHerdrSessions: skipHerdrSessions,
+            skipZmxSessions: skipZmxSessions,
+            discoverTmuxBindings: discoverTmuxBindings,
+            discoverZellijBindings: discoverZellijBindings
+        )
+    }
+
+    /// Streams the command's stdout over its own exec channel, so memory stays
+    /// bounded by the cap and every exit (overflow, timeout, cancel) closes the
+    /// channel and its remote session. The open and the reads run inside the
+    /// race: neither observes cancellation, so the deadline must not wait on them.
+    private static func runOverExecChannel(_ command: String, on session: TrzszSession) async throws -> String {
+        let cap = maxDiscoveryResponseBytes
+        let race = ProbeRace()
+        let channel = DiscoveryExecChannel()
+        let worker = Task.detached {
+            do {
+                let pipe = try await session.openExecChannel(command)
+                guard await channel.adopt(pipe) else { return }
+                // tsshd runs `sh` directly, so a shell redirect can't silence
+                // login-profile stderr; read it off the wire instead.
+                if let exec = pipe as? TrzszExecPipe {
+                    Task.detached { await exec.drainStderr() }
+                }
+                var output = Data()
+                while let chunk = try await pipe.read(maxBytes: 64 * 1024) {
+                    output.append(chunk)
+                    guard output.count <= cap else { throw DiscoveryOutputTooLarge() }
+                }
+                // Tolerant decode, matching the Citadel path.
+                await race.finish(.success(String(decoding: output, as: UTF8.self)))
+            } catch {
+                await race.finish(.failure(error))
+            }
+        }
+        let timer = Task.detached {
+            guard (try? await Task.sleep(for: .seconds(7))) != nil else { return }
+            await race.finish(.failure(TmuxDiscoveryError.timeout))
+        }
+        defer {
+            timer.cancel()
+            worker.cancel()
+            Task.detached { await channel.close() }
+        }
+        return try await withTaskCancellationHandler {
+            try await race.value
+        } onCancel: {
+            Task { await race.finish(.failure(CancellationError())) }
+        }
     }
 
     /// Discover sessions by creating a temporary SSH connection.
@@ -473,7 +567,7 @@ enum SessionDiscoveryRunner {
         }
 
         return try await execute(
-            on: client,
+            run: citadelRunner(client),
             skipTmuxSessions: skipTmuxSessions,
             skipZellijSessions: skipZellijSessions,
             skipHerdrSessions: skipHerdrSessions,
@@ -486,17 +580,50 @@ enum SessionDiscoveryRunner {
     /// Defense-in-depth cap on total exec response. Sized to comfortably hold
     /// the 128 KiB zellij config head-cap plus tmux list-keys/list-sessions/
     /// list-panes/capture-pane output and discovery markers. If a remote
-    /// bypasses the shell-side bound, Citadel aborts the exec early with
-    /// `CitadelError.commandOutputTooLarge` and discovery retries with a
-    /// minimal command shape.
+    /// bypasses the shell-side bound, the runner throws
+    /// `DiscoveryOutputTooLarge` and discovery retries with a minimal
+    /// command shape.
     private static let maxDiscoveryResponseBytes = 256 * 1024
+
+    /// Runs one discovery command and returns its output.
+    private typealias CommandRunner = (String) async throws -> String
+
+    nonisolated private struct DiscoveryOutputTooLarge: Error {}
+
+    /// Runs commands on a Citadel client, which aborts the exec past the cap.
+    private static func citadelRunner(_ client: SSHClient) -> CommandRunner {
+        let cap = maxDiscoveryResponseBytes
+        return { command in
+            do {
+                return try await withThrowingTaskGroup(of: String.self) { group in
+                    group.addTask { @Sendable in
+                        let buf = try await client.executeCommand(command, maxResponseSize: cap)
+                        // Tolerant UTF-8 decode: replaces any invalid sequences (e.g.
+                        // from a mid-scalar truncation by `head -c`) with U+FFFD so a
+                        // partial response still parses instead of collapsing to "".
+                        let data = Data(buffer: buf)
+                        return String(decoding: data, as: UTF8.self)
+                    }
+                    group.addTask { @Sendable in
+                        try await Task.sleep(for: .seconds(7))
+                        throw TmuxDiscoveryError.timeout
+                    }
+                    let result = try await group.next()!
+                    group.cancelAll()
+                    return result
+                }
+            } catch CitadelError.commandOutputTooLarge {
+                throw DiscoveryOutputTooLarge()
+            }
+        }
+    }
 
     /// Execute a combined discovery command, retrying with a minimal shape if
     /// the response exceeds `maxDiscoveryResponseBytes`. Session enumeration is
     /// preserved across retries; only the heavy parts (capture-pane/dump-screen
     /// loops and binding discovery) are dropped on overflow.
     private static func execute(
-        on client: SSHClient,
+        run: CommandRunner,
         skipTmuxSessions: Bool,
         skipZellijSessions: Bool,
         skipHerdrSessions: Bool,
@@ -506,7 +633,7 @@ enum SessionDiscoveryRunner {
     ) async throws -> SessionDiscoveryResult {
         do {
             return try await runDiscovery(
-                on: client,
+                run: run,
                 skipTmuxSessions: skipTmuxSessions,
                 skipZellijSessions: skipZellijSessions,
                 skipHerdrSessions: skipHerdrSessions,
@@ -515,7 +642,7 @@ enum SessionDiscoveryRunner {
                 discoverZellijBindings: discoverZellijBindings,
                 skipCaptures: false
             )
-        } catch CitadelError.commandOutputTooLarge {
+        } catch is DiscoveryOutputTooLarge {
             let cap = maxDiscoveryResponseBytes
             logger.notice("Discovery output exceeded \(cap) bytes; retrying without captures or bindings")
         }
@@ -526,7 +653,7 @@ enum SessionDiscoveryRunner {
         // overflow.
         do {
             return try await runDiscovery(
-                on: client,
+                run: run,
                 skipTmuxSessions: skipTmuxSessions,
                 skipZellijSessions: skipZellijSessions,
                 skipHerdrSessions: skipHerdrSessions,
@@ -535,7 +662,7 @@ enum SessionDiscoveryRunner {
                 discoverZellijBindings: false,
                 skipCaptures: true
             )
-        } catch CitadelError.commandOutputTooLarge {
+        } catch is DiscoveryOutputTooLarge {
             logger.notice("Minimal discovery still exceeded cap; giving up")
             return SessionDiscoveryResult(
                 sessions: [],
@@ -545,9 +672,9 @@ enum SessionDiscoveryRunner {
         }
     }
 
-    /// Execute a single combined discovery command with timeout.
+    /// Execute a single combined discovery command.
     private static func runDiscovery(
-        on client: SSHClient,
+        run: CommandRunner,
         skipTmuxSessions: Bool,
         skipZellijSessions: Bool,
         skipHerdrSessions: Bool,
@@ -566,24 +693,7 @@ enum SessionDiscoveryRunner {
             skipCaptures: skipCaptures
         )
 
-        let cap = maxDiscoveryResponseBytes
-        let output: String = try await withThrowingTaskGroup(of: String.self) { group in
-            group.addTask { @Sendable in
-                let buf = try await client.executeCommand(command, maxResponseSize: cap)
-                // Tolerant UTF-8 decode: replaces any invalid sequences (e.g.
-                // from a mid-scalar truncation by `head -c`) with U+FFFD so a
-                // partial response still parses instead of collapsing to "".
-                let data = Data(buffer: buf)
-                return String(decoding: data, as: UTF8.self)
-            }
-            group.addTask { @Sendable in
-                try await Task.sleep(for: .seconds(7))
-                throw TmuxDiscoveryError.timeout
-            }
-            let result = try await group.next()!
-            group.cancelAll()
-            return result
-        }
+        let output = try await run(command)
 
         return SessionDiscoveryParser.parse(
             output: output,

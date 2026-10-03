@@ -418,6 +418,18 @@ extension MainView {
         let windowSceneToClose = isLastSplitInTab && isLastTab ? paneToClose.window?.windowScene : nil
         Ghostty.logger.info("closeSplit: tabIndex=\(tabIndex), isLastSplitInTab=\(isLastSplitInTab), isLastTab=\(isLastTab), capturedWindowScene=\(windowSceneToClose != nil)")
 
+        // Closing the tab: hold before cleanup frees the pane still on screen.
+        if isLastSplitInTab, !isLastTab,
+           holdCloseForSuccessor(ofTabAt: tabIndex, close: { [weak paneToClose] in
+               // A nil target would close whatever pane is focused instead.
+               guard let paneToClose,
+                     terminals.contains(where: { $0.splitTree.contains(where: { $0 === paneToClose }) })
+               else { return }
+               closeSplit(targeting: paneToClose, leaveMuxSession: leaveMuxSession)
+           }) {
+            return
+        }
+
         // Find a logical neighbor to focus before removing the node
         // This ensures we focus the "other side" of the split that is disappearing
         var nextFocusTarget: SplitPaneView?

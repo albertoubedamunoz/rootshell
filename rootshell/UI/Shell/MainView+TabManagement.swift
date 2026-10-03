@@ -979,6 +979,20 @@ extension MainView {
         }
     }
 
+    /// Holds closing the tab at `index` until the tab that replaces it has
+    /// drawn (see TabsModel.holdClose). True when the caller must stop.
+    func holdCloseForSuccessor(ofTabAt index: Int, close: @escaping @MainActor () -> Void) -> Bool {
+        guard terminals.indices.contains(index) else { return false }
+        let closingID = terminals[index].id
+        // Mirrors closeTab's choice of the tab selected after closing this one.
+        var successorID: UUID?
+        if index == selectedTabIndex, terminals.count > 1 {
+            successorID = tabsModel.groupedCloseNeighbor(for: closingID)
+                ?? terminals[index + 1 < terminals.count ? index + 1 : index - 1].id
+        }
+        return tabsModel.holdClose(of: closingID, untilDrawn: successorID, close: close)
+    }
+
     func closeTab(at index: Int) {
         // Validate index before accessing array
         guard terminals.indices.contains(index) else { return }
@@ -1038,6 +1052,14 @@ extension MainView {
 
         // Allow closing the last tab (will show empty state or new connection sheet)
         // guard terminals.count > 1 else { return }
+
+        let closingID = closingTab.id
+        if holdCloseForSuccessor(ofTabAt: index, close: {
+            guard let resolved = terminals.firstIndex(where: { $0.id == closingID }) else { return }
+            closeTab(at: resolved)
+        }) {
+            return
+        }
 
         let tabId = terminals[index].id
         #if !CHINA_BUILD

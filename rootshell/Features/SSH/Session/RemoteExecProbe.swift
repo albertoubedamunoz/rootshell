@@ -25,7 +25,7 @@ import NIOFoundationCompat
 /// cancelling them, and the tssh transport blocks in a continuation with no
 /// cancellation path — so a group would not release at the deadline at all.
 /// First result wins; later ones are dropped. (id=agent-project)
-private actor ProbeRace {
+actor ProbeRace {
     private var continuation: CheckedContinuation<String, Error>?
     private var settled: Result<String, Error>?
 

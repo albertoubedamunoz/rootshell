@@ -646,6 +646,29 @@ actor TSSHCallGate {
         }
     }
 
+    /// Read up to `maxBytes` of the command's stderr. Same blocking and EOF
+    /// convention as `execRead`.
+    func execReadStderr(
+        on ref: TSSHTransportRef,
+        channelRef: Int64,
+        maxBytes: Int
+    ) async throws -> Data? {
+        let transport = registry.withLock { $0.transports[ref] }
+        guard let transport else {
+            throw TSSHCallGateError.unknownTransport
+        }
+        nonisolated(unsafe) let t = transport
+        let clamped = min(maxBytes, Int(Int32.max))
+        return try await runOnWorker {
+            do {
+                let data = try t.execReadStderr(channelRef, maxBytes: clamped)
+                return data.isEmpty ? nil : data
+            } catch let error where Self.isBridgedNilReturn(error) {
+                return nil
+            }
+        }
+    }
+
     /// Swift's `_GenericObjCError.nilError`: a throwing ObjC method that
     /// returned nil without setting an error.
     private nonisolated static func isBridgedNilReturn(_ error: Error) -> Bool {
