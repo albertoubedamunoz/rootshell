@@ -98,9 +98,8 @@ actor OAuthCallbackServer {
             do {
                 let params = NWParameters.tcp
                 params.allowLocalEndpointReuse = true
-
-                // Allow connections from any interface (important for iOS sandbox)
-                params.acceptLocalOnly = false
+                // The browser redirects to localhost; lo0 keeps the socket off the LAN.
+                params.requiredInterfaceType = .loopback
                 params.allowFastOpen = true
 
                 Self.logger.info("Creating NWListener on port \(self.port)")
@@ -271,11 +270,16 @@ actor OAuthCallbackServer {
             return
         }
 
-        let queryItems = urlComponents.queryItems ?? []
-        let params = Dictionary(uniqueKeysWithValues: queryItems.compactMap { item -> (String, String)? in
-            guard let value = item.value else { return nil }
-            return (item.name, value)
-        })
+        // RFC 6749 §3.1 forbids repeated parameters; reject rather than pick one.
+        var params: [String: String] = [:]
+        for item in urlComponents.queryItems ?? [] {
+            guard let value = item.value else { continue }
+            guard params.updateValue(value, forKey: item.name) == nil else {
+                Self.logger.error("Duplicate query parameter in callback: \(item.name)")
+                sendResponse(to: connection, status: "400 Bad Request", body: errorHTML("Invalid callback parameters"))
+                return
+            }
+        }
 
         // Check for error response
         if let error = params["error"] {
