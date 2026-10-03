@@ -569,7 +569,7 @@ private final class TerminalTouchKeyboardFloatingPanel {
         // attachment can freeze a transient pinch/presentation scale forever.
         if !placementRejected, panel.center != lastAppliedCenter {
             baseCenter = panel.center
-            if let lastAppliedCenter {
+            if lastAppliedCenter != nil {
                 // UIKit re-asserted its own placement after our write, and it
                 // keeps doing so after every later write. Writing center again
                 // only makes the card fight and freeze: leave center to UIKit
