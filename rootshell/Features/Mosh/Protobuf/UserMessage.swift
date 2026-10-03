@@ -147,9 +147,7 @@ struct UserMessage: Sendable {
                         reason: "Expected message for keystroke"
                     )
                 }
-                let (length, lengthOffset) = try decodeVarint(data, from: offset)
-                offset = lengthOffset
-                let keystrokeData = Data(data[offset..<(offset + Int(length))])
+                let (keystrokeData, endOffset) = try decodeLengthDelimited(data, from: offset, messageType: "Instruction")
 
                 // Parse Keystroke submessage to get field 4 (keys)
                 var keystrokeOffset = 0
@@ -157,17 +155,17 @@ struct UserMessage: Sendable {
                     let (keystrokeTag, keystrokeNewOffset) = try decodeVarint(keystrokeData, from: keystrokeOffset)
                     keystrokeOffset = keystrokeNewOffset
                     let keystrokeField = Int(keystrokeTag >> 3)
+                    let keystrokeWireType = WireType(rawValue: Int(keystrokeTag & 0x7))
 
-                    if keystrokeField == 4 {  // keys field
-                        let (keysLength, keysLengthOffset) = try decodeVarint(keystrokeData, from: keystrokeOffset)
-                        keystrokeOffset = keysLengthOffset
-                        keystroke = Data(keystrokeData[keystrokeOffset..<(keystrokeOffset + Int(keysLength))])
-                        keystrokeOffset += Int(keysLength)
+                    if keystrokeField == 4, keystrokeWireType == .lengthDelimited {  // keys field
+                        let (keys, keysEndOffset) = try decodeLengthDelimited(keystrokeData, from: keystrokeOffset, messageType: "Keystroke")
+                        keystroke = keys
+                        keystrokeOffset = keysEndOffset
                     } else {
-                        keystrokeOffset = try skipField(keystrokeData, from: keystrokeOffset, wireType: .lengthDelimited)
+                        keystrokeOffset = try skipField(keystrokeData, from: keystrokeOffset, wireType: keystrokeWireType ?? .varint)
                     }
                 }
-                offset += Int(length)
+                offset = endOffset
 
             case 3:  // resize (ResizeMessage)
                 guard wireType == .lengthDelimited else {
@@ -176,9 +174,7 @@ struct UserMessage: Sendable {
                         reason: "Expected message for resize"
                     )
                 }
-                let (length, lengthOffset) = try decodeVarint(data, from: offset)
-                offset = lengthOffset
-                let resizeData = Data(data[offset..<(offset + Int(length))])
+                let (resizeData, endOffset) = try decodeLengthDelimited(data, from: offset, messageType: "Instruction")
 
                 // Parse ResizeMessage submessage
                 var resizeOffset = 0
@@ -186,20 +182,21 @@ struct UserMessage: Sendable {
                     let (resizeTag, resizeNewOffset) = try decodeVarint(resizeData, from: resizeOffset)
                     resizeOffset = resizeNewOffset
                     let resizeField = Int(resizeTag >> 3)
+                    let resizeWireType = WireType(rawValue: Int(resizeTag & 0x7))
 
-                    if resizeField == 5 {  // width
-                        let (w, wOffset) = try decodeVarint(resizeData, from: resizeOffset)
-                        resizeWidth = UInt32(w)
+                    if resizeField == 5, resizeWireType == .varint {  // width
+                        let (w, wOffset) = try decodeUInt32(resizeData, from: resizeOffset, messageType: "ResizeMessage")
+                        resizeWidth = w
                         resizeOffset = wOffset
-                    } else if resizeField == 6 {  // height
-                        let (h, hOffset) = try decodeVarint(resizeData, from: resizeOffset)
-                        resizeHeight = UInt32(h)
+                    } else if resizeField == 6, resizeWireType == .varint {  // height
+                        let (h, hOffset) = try decodeUInt32(resizeData, from: resizeOffset, messageType: "ResizeMessage")
+                        resizeHeight = h
                         resizeOffset = hOffset
                     } else {
-                        resizeOffset = try skipField(resizeData, from: resizeOffset, wireType: .varint)
+                        resizeOffset = try skipField(resizeData, from: resizeOffset, wireType: resizeWireType ?? .varint)
                     }
                 }
-                offset += Int(length)
+                offset = endOffset
 
             default:
                 offset = try skipField(data, from: offset, wireType: wireType ?? .varint)

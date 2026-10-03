@@ -9,7 +9,7 @@
 
 import Foundation
 
-extension Settings {
+nonisolated extension Settings {
     enum HTTPCapture {
         /// Surge-style hostname list: `*.example.com`, `-exclude.com`, `host:8443`, `*`.
         static let mitmHosts = SettingKey(

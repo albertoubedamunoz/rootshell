@@ -66,24 +66,67 @@ nonisolated func decodeVarint(_ data: Data, from offset: Int) throws -> (value: 
     )
 }
 
+/// Decodes a varint that must fit in UInt32, throwing instead of trapping on
+/// negative or oversized values.
+nonisolated func decodeUInt32(_ data: Data, from offset: Int, messageType: String) throws -> (value: UInt32, newOffset: Int) {
+    let (raw, newOffset) = try decodeVarint(data, from: offset)
+    guard let value = UInt32(exactly: raw) else {
+        throw MoshError.protobufDeserializationFailed(
+            messageType: messageType,
+            reason: "Value out of range for uint32"
+        )
+    }
+    return (value, newOffset)
+}
+
+/// Decodes a length prefix and returns the bytes it covers. Rejects negative
+/// lengths and lengths past the end of `data` without overflowing.
+nonisolated func decodeLengthDelimited(_ data: Data, from offset: Int, messageType: String) throws -> (bytes: Data, newOffset: Int) {
+    let (length, start) = try decodeVarint(data, from: offset)
+    guard length >= 0, length <= Int64(data.count - start) else {
+        throw MoshError.protobufDeserializationFailed(
+            messageType: messageType,
+            reason: "Length exceeds data"
+        )
+    }
+    let end = start + Int(length)
+    return (Data(data[start..<end]), end)
+}
+
 nonisolated func skipField(_ data: Data, from offset: Int, wireType: WireType) throws -> Int {
     switch wireType {
     case .varint:
         let (_, newOffset) = try decodeVarint(data, from: offset)
         return newOffset
     case .fixed64:
-        return offset + 8
+        return try skipBytes(data, from: offset, count: 8)
     case .lengthDelimited:
         let (length, newOffset) = try decodeVarint(data, from: offset)
+        guard length >= 0, length <= Int64(data.count - newOffset) else {
+            throw MoshError.protobufDeserializationFailed(
+                messageType: "field",
+                reason: "Length exceeds data"
+            )
+        }
         return newOffset + Int(length)
     case .fixed32:
-        return offset + 4
+        return try skipBytes(data, from: offset, count: 4)
     case .startGroup, .endGroup:
         throw MoshError.protobufDeserializationFailed(
             messageType: "field",
             reason: "Groups not supported"
         )
     }
+}
+
+private nonisolated func skipBytes(_ data: Data, from offset: Int, count: Int) throws -> Int {
+    guard count <= data.count - offset else {
+        throw MoshError.protobufDeserializationFailed(
+            messageType: "field",
+            reason: "Fixed-width field exceeds data"
+        )
+    }
+    return offset + count
 }
 
 /// Decodes a message whose only field is `repeated` field 1 of length-delimited
@@ -108,18 +151,9 @@ nonisolated func parseRepeatedSubmessages<T>(
             continue
         }
 
-        let (length, lengthOffset) = try decodeVarint(data, from: offset)
-        offset = lengthOffset
-
-        guard offset + Int(length) <= data.count else {
-            throw MoshError.protobufDeserializationFailed(
-                messageType: messageType,
-                reason: "Instruction length exceeds data"
-            )
-        }
-
-        results.append(try parse(Data(data[offset..<(offset + Int(length))])))
-        offset += Int(length)
+        let (submessage, endOffset) = try decodeLengthDelimited(data, from: offset, messageType: messageType)
+        results.append(try parse(submessage))
+        offset = endOffset
     }
 
     return results

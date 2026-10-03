@@ -162,9 +162,7 @@ struct HostMessage: Sendable {
                         reason: "Expected message for hostbytes"
                     )
                 }
-                let (length, lengthOffset) = try decodeVarint(data, from: offset)
-                offset = lengthOffset
-                let hostData = Data(data[offset..<(offset + Int(length))])
+                let (hostData, _) = try decodeLengthDelimited(data, from: offset, messageType: "Instruction")
                 let bytes = try parseHostBytes(hostData)
                 return .hostBytes(bytes)
 
@@ -175,9 +173,7 @@ struct HostMessage: Sendable {
                         reason: "Expected message for resize"
                     )
                 }
-                let (length, lengthOffset) = try decodeVarint(data, from: offset)
-                offset = lengthOffset
-                let resizeData = Data(data[offset..<(offset + Int(length))])
+                let (resizeData, _) = try decodeLengthDelimited(data, from: offset, messageType: "Instruction")
                 let (width, height) = try parseResize(resizeData)
                 return .resize(width: width, height: height)
 
@@ -188,9 +184,7 @@ struct HostMessage: Sendable {
                         reason: "Expected message for echoack"
                     )
                 }
-                let (length, lengthOffset) = try decodeVarint(data, from: offset)
-                offset = lengthOffset
-                let ackData = Data(data[offset..<(offset + Int(length))])
+                let (ackData, _) = try decodeLengthDelimited(data, from: offset, messageType: "Instruction")
                 let ack = try parseEchoAck(ackData)
                 return .echoAck(ack)
 
@@ -218,10 +212,9 @@ struct HostMessage: Sendable {
 
             // Field 4: hoststring (bytes)
             if fieldNumber == 4, wireType == .lengthDelimited {
-                let (length, lengthOffset) = try decodeVarint(data, from: offset)
-                offset = lengthOffset
-                outputData = Data(data[offset..<(offset + Int(length))])
-                offset += Int(length)
+                let (bytes, endOffset) = try decodeLengthDelimited(data, from: offset, messageType: "HostBytes")
+                outputData = bytes
+                offset = endOffset
             } else {
                 offset = try skipField(data, from: offset, wireType: wireType ?? .varint)
             }
@@ -247,23 +240,31 @@ struct HostMessage: Sendable {
             offset = newOffset
 
             let fieldNumber = Int(tag >> 3)
+            let wireType = WireType(rawValue: Int(tag & 0x7))
 
             // Field 5: width, Field 6: height
-            if fieldNumber == 5 {
-                let (w, wOffset) = try decodeVarint(data, from: offset)
-                width = UInt32(w)
-                offset = wOffset
-            } else if fieldNumber == 6 {
-                let (h, hOffset) = try decodeVarint(data, from: offset)
-                height = UInt32(h)
-                offset = hOffset
+            if fieldNumber == 5, wireType == .varint {
+                (width, offset) = try decodeUInt32(data, from: offset, messageType: "ResizeMessage")
+            } else if fieldNumber == 6, wireType == .varint {
+                (height, offset) = try decodeUInt32(data, from: offset, messageType: "ResizeMessage")
             } else {
-                offset = try skipField(data, from: offset, wireType: .varint)
+                offset = try skipField(data, from: offset, wireType: wireType ?? .varint)
             }
+        }
+
+        // The framebuffer preconditions on a non-empty size. mosh-server sizes come
+        // from struct winsize (unsigned short), so nothing legitimate exceeds UInt16.
+        guard (1...maxResizeDimension).contains(width), (1...maxResizeDimension).contains(height) else {
+            throw MoshError.protobufDeserializationFailed(
+                messageType: "ResizeMessage",
+                reason: "Size \(width)x\(height) out of range"
+            )
         }
 
         return (width, height)
     }
+
+    nonisolated private static let maxResizeDimension = UInt32(UInt16.max)
 
     nonisolated private static func parseEchoAck(_ data: Data) throws -> EchoAck {
         var offset = 0
@@ -274,14 +275,15 @@ struct HostMessage: Sendable {
             offset = newOffset
 
             let fieldNumber = Int(tag >> 3)
+            let wireType = WireType(rawValue: Int(tag & 0x7))
 
             // Field 8: echo_ack_num
-            if fieldNumber == 8 {
+            if fieldNumber == 8, wireType == .varint {
                 let (n, nOffset) = try decodeVarint(data, from: offset)
                 echoNum = UInt64(bitPattern: Int64(n))
                 offset = nOffset
             } else {
-                offset = try skipField(data, from: offset, wireType: .varint)
+                offset = try skipField(data, from: offset, wireType: wireType ?? .varint)
             }
         }
 

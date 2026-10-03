@@ -113,10 +113,10 @@ struct TrzszServerInfo: Codable, Sendable {
         }
 
         // ClientID is 0 (absent) in attachable mode — client must generate one
-        let clientId = object["ClientID"] as? UInt64 ?? (object["ClientID"] as? Int).map({ UInt64($0) }) ?? 0
+        let clientId = try parseID(object, key: "ClientID")
 
         // ServerID may also be absent in attachable mode
-        let serverId = object["ServerID"] as? UInt64 ?? (object["ServerID"] as? Int).map({ UInt64($0) }) ?? 0
+        let serverId = try parseID(object, key: "ServerID")
 
         // Proxy key (common to both modes)
         var proxyKey: Data?
@@ -166,6 +166,16 @@ struct TrzszServerInfo: Codable, Sendable {
             clientId: clientId,
             serverId: serverId
         )
+    }
+
+    /// Absent IDs default to 0; present ones must be non-negative integers.
+    /// NSNumber bridging to UInt64 is exact, so negatives and fractions fail here instead of trapping.
+    private static func parseID(_ object: [String: Any], key: String) throws -> UInt64 {
+        guard let value = object[key] else { return 0 }
+        guard let id = value as? UInt64 else {
+            throw TrzszError.invalidServerInfo(reason: "Invalid \(key)")
+        }
+        return id
     }
 
     /// Extracts JSON from output that may contain other text

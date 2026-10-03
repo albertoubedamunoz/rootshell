@@ -131,8 +131,8 @@ struct TransportInstruction: Sendable {
                         reason: "Expected varint for field 1"
                     )
                 }
-                let (value, newOffset) = try decodeVarint(data, from: offset)
-                instruction.protocolVersion = UInt32(value)
+                let (value, newOffset) = try decodeUInt32(data, from: offset, messageType: "TransportInstruction")
+                instruction.protocolVersion = value
                 offset = newOffset
 
             case 2:  // old_num
@@ -186,16 +186,7 @@ struct TransportInstruction: Sendable {
                         reason: "Expected length-delimited for field 6"
                     )
                 }
-                let (length, newOffset) = try decodeVarint(data, from: offset)
-                offset = newOffset
-                guard offset + Int(length) <= data.count else {
-                    throw MoshError.protobufDeserializationFailed(
-                        messageType: "TransportInstruction",
-                        reason: "Diff length exceeds data"
-                    )
-                }
-                instruction.diff = Data(data[offset..<(offset + Int(length))])
-                offset += Int(length)
+                (instruction.diff, offset) = try decodeLengthDelimited(data, from: offset, messageType: "TransportInstruction")
 
             case 7:  // chaff
                 guard wireType == .lengthDelimited else {
@@ -204,20 +195,11 @@ struct TransportInstruction: Sendable {
                         reason: "Expected length-delimited for field 7"
                     )
                 }
-                let (length, newOffset) = try decodeVarint(data, from: offset)
-                offset = newOffset
-                guard offset + Int(length) <= data.count else {
-                    throw MoshError.protobufDeserializationFailed(
-                        messageType: "TransportInstruction",
-                        reason: "Chaff length exceeds data"
-                    )
-                }
-                instruction.chaff = Data(data[offset..<(offset + Int(length))])
-                offset += Int(length)
+                (instruction.chaff, offset) = try decodeLengthDelimited(data, from: offset, messageType: "TransportInstruction")
 
             default:
                 // Skip unknown field
-                offset = try skipField(data, from: offset - (newOffset - offset), wireType: wireType ?? .varint)
+                offset = try skipField(data, from: offset, wireType: wireType ?? .varint)
             }
         }
 

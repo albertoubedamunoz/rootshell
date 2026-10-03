@@ -9,6 +9,7 @@
 
 import Foundation
 import Network
+import os
 @preconcurrency import VPNTunnel
 
 nonisolated final class DirectInterfaceMonitor: @unchecked Sendable {
@@ -24,22 +25,21 @@ nonisolated final class DirectInterfaceMonitor: @unchecked Sendable {
         let monitor = NWPathMonitor(prohibitedInterfaceTypes: [.other, .loopback])
         queue.sync { self.monitor = monitor }
         return await withCheckedContinuation { continuation in
-            var resumed = false // touched only on `queue`
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            let resumeOnce: @Sendable (Int) -> Void = { index in
+                let first = resumed.withLock { flag in
+                    defer { flag = true }
+                    return !flag
+                }
+                if first { continuation.resume(returning: index) }
+            }
             monitor.pathUpdateHandler = { path in
                 let index = Self.physicalInterfaceIndex(path)
                 VpntunnelSetDirectInterface(index)
-                if !resumed {
-                    resumed = true
-                    continuation.resume(returning: index)
-                }
+                resumeOnce(index)
             }
             monitor.start(queue: queue)
-            queue.asyncAfter(deadline: .now() + 1.5) {
-                if !resumed {
-                    resumed = true
-                    continuation.resume(returning: 0)
-                }
-            }
+            queue.asyncAfter(deadline: .now() + 1.5) { resumeOnce(0) }
         }
     }
 
