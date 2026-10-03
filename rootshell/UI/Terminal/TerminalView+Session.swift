@@ -859,15 +859,16 @@ extension Ghostty.TerminalView {
 
         // Determine discovery strategy:
         // - CitadelSSHSession: reuse existing client (fast, no extra connection)
-        // - Trzsz/Mosh/other SSH sessions: create temporary connection using SSHConfig
+        // - TrzszSession: run over the tssh transport (no second authentication)
+        // - MoshSession: create temporary connection using SSHConfig
         let citadelSession = session as? CitadelSSHSession
-        let needsTemporaryConnection = citadelSession == nil
+        let trzszSession = session as? TrzszSession
 
         // Only support SSH-based sessions
-        guard citadelSession != nil || session is TrzszSession || session is MoshSession else { return }
+        guard citadelSession != nil || trzszSession != nil || session is MoshSession else { return }
 
         // Route a keyboard-interactive challenge during a temporary discovery
-        // connection (Mosh/Trzsz) to the shared prompt sheet, so a PAM/OTP/2FA
+        // connection (Mosh) to the shared prompt sheet, so a PAM/OTP/2FA
         // host can re-authenticate for discovery instead of failing. Captured
         // weakly so the escaping discovery task doesn't retain the terminal view.
         let discoveryKeyboardInteractive: (KeyboardInteractiveChallenge) async -> [String]? = { [weak self] challenge in
@@ -879,9 +880,21 @@ extension Ghostty.TerminalView {
         }
 
         startSessionDiscoveryTask(allowSessionPickerOverlay: allowSessionPickerOverlay, manual: manual) {
-            if let citadelSession, !needsTemporaryConnection {
+            if let citadelSession {
                 return try await SessionDiscoveryRunner.discover(
                     using: citadelSession,
+                    skipTmuxSessions: skipTmuxSessions,
+                    skipZellijSessions: skipZellijSessions,
+                    skipHerdrSessions: skipHerdrSessions,
+                    skipZmxSessions: skipZmxSessions,
+                    discoverTmuxBindings: discoverTmuxBindings,
+                    discoverZellijBindings: discoverZellijBindings
+                )
+            }
+
+            if let trzszSession {
+                return try await SessionDiscoveryRunner.discover(
+                    using: trzszSession,
                     skipTmuxSessions: skipTmuxSessions,
                     skipZellijSessions: skipZellijSessions,
                     skipHerdrSessions: skipHerdrSessions,

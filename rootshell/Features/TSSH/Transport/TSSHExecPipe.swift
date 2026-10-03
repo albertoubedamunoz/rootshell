@@ -34,6 +34,16 @@ nonisolated final class TrzszExecPipe: AsyncBytePipe, @unchecked Sendable {
         )
     }
 
+    /// Reads and discards stderr until EOF or close. tsshd forwards stderr on
+    /// its own stream, and leaving it unread can stall the remote command.
+    func drainStderr() async {
+        while (try? await TSSHCallGate.shared.execReadStderr(
+            on: transportRef,
+            channelRef: channelRef,
+            maxBytes: 16 * 1024
+        )) != nil {}
+    }
+
     func write(_ data: Data) async throws {
         var remaining = data
         while !remaining.isEmpty {

@@ -1914,7 +1914,8 @@ extension Ghostty.TerminalView {
         let uploader = AttachmentUploader(
             config: sshConfig,
             attachments: attachments,
-            destination: destination
+            destination: destination,
+            connectionOwner: TerminalConnectionOwner.resolve(for: self)
         )
         activeUploader = uploader
 
