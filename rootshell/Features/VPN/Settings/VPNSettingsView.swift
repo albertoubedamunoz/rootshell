@@ -22,6 +22,9 @@ struct VPNSettingsView: View {
             statusSection
             disconnectSection
             vpnProfilesSection
+            #if !CHINA_BUILD && os(iOS) && !targetEnvironment(macCatalyst)
+            tailscaleSection
+            #endif
             #if !CHINA_BUILD
             httpCaptureSection
             #endif
@@ -31,6 +34,30 @@ struct VPNSettingsView: View {
         .themedList()
         .navigationTitle("VPN")
     }
+
+    #if !CHINA_BUILD && os(iOS) && !targetEnvironment(macCatalyst)
+    // MARK: - Tailscale Section
+
+    private var tailscaleSection: some View {
+        Section {
+            NavigationLink {
+                TailnetSettingsView()
+            } label: {
+                HStack {
+                    Label(String(localized: "Tailscale", comment: "VPN settings row"), systemImage: "point.3.connected.trianglepath.dotted")
+                    Spacer(minLength: 8)
+                    if vpnManager.isVPNActive(for: VPNTailnetProfile.id) {
+                        Text(String(localized: "On", comment: "Tailscale VPN is active"))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .themedRow()
+        } footer: {
+            Text("Join your tailnet, optionally sending chosen domains through an SSH host.")
+        }
+    }
+    #endif
 
     #if !CHINA_BUILD
     // MARK: - HTTP Capture Section

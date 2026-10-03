@@ -120,6 +120,24 @@ final class VPNManager {
 #endif
     }
 
+    /// Start the Tailscale VPN; `restart` reconnects so changed settings apply.
+    func startTailnetVPN(restart: Bool = false) async throws {
+        Self.logger.info("Starting Tailscale VPN (restart=\(restart))")
+        // Mirrors the SSH egress profile with its current host key.
+        ConnectionProfileManager.shared.refreshVPNSharedProfiles()
+        _ = try await VPNStartController.startTailnet(restart: restart)
+        await refreshStatusFromSystem()
+
+        let snapshot = VPNTailnetProfile.snapshot()
+        activeProfileID = snapshot.id
+        activeProfileName = snapshot.name
+        if status == .disconnected || status == .invalid {
+            status = .connecting
+        }
+        previousStatus = status
+        addEvent(.connected(profileID: snapshot.id, message: snapshot.name))
+    }
+
     /// Whether the tunnel is up and able to answer provider messages.
     var isTunnelUp: Bool {
         status == .connected || status == .reasserting

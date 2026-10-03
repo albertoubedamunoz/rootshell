@@ -14,6 +14,8 @@ nonisolated enum VPNSharedTransportType: String, Codable, Sendable, Hashable {
     case tssh
     /// No remote server: the extension dials upstream itself (HTTP capture).
     case direct
+    /// Tailscale, optionally with an SSH egress host (iOS only).
+    case tailscale
 }
 
 nonisolated enum VPNSharedAuthMethod: String, Codable, Sendable, Hashable {
@@ -151,7 +153,154 @@ nonisolated enum VPNSharedProfileStore {
         if id == VPNDirectProfile.id {
             return VPNDirectProfile.stored()
         }
+        if id == VPNTailnetProfile.id {
+            return VPNTailnetProfile.snapshot()
+        }
         return readAll().first(where: { $0.id == id })
+    }
+}
+
+/// Where a routing rule sends matching traffic in the Tailscale VPN.
+nonisolated enum VPNRoutingAction: String, Codable, Sendable, Hashable, CaseIterable {
+    case ssh
+    case direct
+}
+
+/// A domain, glob, IP, or CIDR and where it goes. A bare domain also covers
+/// its subdomains; the first matching rule wins.
+nonisolated struct VPNRoutingRule: Codable, Sendable, Hashable, Identifiable {
+    var id = UUID()
+    var pattern: String
+    var action: VPNRoutingAction
+}
+
+/// Device-local settings for the Tailscale VPN. No secrets: the node's keys
+/// live in the keychain under `VPNTailnetProfile.keychainService`.
+nonisolated struct VPNTailnetSettings: Codable, Sendable, Hashable {
+    var hostname: String = ""
+    var acceptRoutes: Bool = true
+    /// SSH profile whose host carries rule-matched traffic; nil = Tailscale only.
+    var sshEgressProfileID: UUID?
+    /// Everything outside the tailnet goes through SSH, not just rule matches.
+    var sendAllViaSSH: Bool = false
+    var rules: [VPNRoutingRule] = []
+    /// Resolvers for names Tailscale doesn't own; empty uses public defaults.
+    var dnsServers: [String] = []
+
+    init() {}
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        hostname = try c.decodeIfPresent(String.self, forKey: .hostname) ?? ""
+        acceptRoutes = try c.decodeIfPresent(Bool.self, forKey: .acceptRoutes) ?? true
+        sshEgressProfileID = try c.decodeIfPresent(UUID.self, forKey: .sshEgressProfileID)
+        sendAllViaSSH = try c.decodeIfPresent(Bool.self, forKey: .sendAllViaSSH) ?? false
+        rules = try c.decodeIfPresent([VPNRoutingRule].self, forKey: .rules) ?? []
+        dnsServers = try c.decodeIfPresent([String].self, forKey: .dnsServers) ?? []
+    }
+}
+
+/// The synthetic Tailscale VPN profile. Its settings stay on this device and
+/// out of the synced profile list.
+nonisolated enum VPNTailnetProfile {
+    static let id = UUID(uuidString: "7A11E700-0000-4000-8000-0000000075AE")!
+    static let fileName = "vpn_tailnet_settings.json"
+    /// The egress profile's snapshot, kept apart from vpn_profiles.json so a
+    /// profile without its own VPN toggle stays out of widget and Shortcuts lists.
+    static let egressFileName = "vpn_tailnet_egress.json"
+    /// Keychain service for the node's Tailscale state (one item per key).
+    static let keychainService = "com.rootshell.tailscale.state"
+
+    private static var fileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(fileName)
+    }
+
+    private static var egressFileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(egressFileName)
+    }
+
+    static func storeEgress(_ snapshot: VPNSharedProfileSnapshot?) {
+        guard let egressFileURL else { return }
+        guard let snapshot else {
+            try? FileManager.default.removeItem(at: egressFileURL)
+            return
+        }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try? encoder.encode(snapshot).write(to: egressFileURL, options: .atomic)
+    }
+
+    static func settings() -> VPNTailnetSettings {
+        guard let fileURL, let data = try? Data(contentsOf: fileURL),
+              let settings = try? JSONDecoder().decode(VPNTailnetSettings.self, from: data) else {
+            return VPNTailnetSettings()
+        }
+        return settings
+    }
+
+    static func store(_ settings: VPNTailnetSettings) {
+        guard let fileURL else { return }
+        try? JSONEncoder().encode(settings).write(to: fileURL, options: .atomic)
+    }
+
+    /// Settings the running tunnel started with, written by the extension;
+    /// edits save immediately, so this is what "unapplied" compares against.
+    static let appliedFileName = "vpn_tailnet_applied.json"
+
+    private static var appliedFileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(appliedFileName)
+    }
+
+    static func storeApplied(_ settings: VPNTailnetSettings) {
+        guard let appliedFileURL else { return }
+        try? JSONEncoder().encode(settings).write(to: appliedFileURL, options: .atomic)
+    }
+
+    static func appliedSettings() -> VPNTailnetSettings? {
+        guard let appliedFileURL, let data = try? Data(contentsOf: appliedFileURL) else { return nil }
+        return try? JSONDecoder().decode(VPNTailnetSettings.self, from: data)
+    }
+
+    /// Profile shape the start path and widgets use; host names the egress.
+    static func snapshot() -> VPNSharedProfileSnapshot {
+        let egress = egressSnapshot()
+        let settings = settings()
+        return VPNSharedProfileSnapshot(
+            id: id,
+            modifiedAt: Date(),
+            name: String(localized: "Tailscale", comment: "Name of the Tailscale VPN profile"),
+            host: egress?.host ?? "",
+            port: 0,
+            username: "",
+            transportType: .tailscale,
+            auth: VPNSharedProfileAuth(method: .none, keyID: nil),
+            jumpHost: nil,
+            trzszMode: nil,
+            trzszUDPPortMin: nil,
+            trzszUDPPortMax: nil,
+            trzszMTU: nil,
+            trzszServerPath: nil,
+            dnsServers: settings.dnsServers,
+            excludedRoutes: [],
+            blockQUIC: nil,
+            isBackgroundStartable: egress?.isBackgroundStartable ?? true,
+            hostKey: nil,
+            trustedCAKeys: nil
+        )
+    }
+
+    /// The SSH egress profile snapshot, if one is set and still mirrored.
+    static func egressSnapshot(_ settings: VPNTailnetSettings = settings()) -> VPNSharedProfileSnapshot? {
+        guard let egressID = settings.sshEgressProfileID,
+              let egressFileURL, let data = try? Data(contentsOf: egressFileURL) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let snapshot = try? decoder.decode(VPNSharedProfileSnapshot.self, from: data),
+              snapshot.id == egressID, snapshot.transportType == .ssh else { return nil }
+        return snapshot
     }
 }
 

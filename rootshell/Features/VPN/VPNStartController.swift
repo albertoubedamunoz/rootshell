@@ -45,21 +45,29 @@ enum VPNStartController {
         return try await start(profileID: VPNDirectProfile.id)
     }
 
-    static func start(profileID: UUID) async throws -> StartResult {
+    /// Starts the Tailscale tunnel, with SSH egress if one is configured.
+    /// `restart` reconnects a running Tailscale tunnel so new settings apply.
+    static func startTailnet(restart: Bool = false) async throws -> StartResult {
+        try await start(profileID: VPNTailnetProfile.id, restart: restart)
+    }
+
+    static func start(profileID: UUID, restart: Bool = false) async throws -> StartResult {
         guard let snapshot = VPNSharedProfileStore.profile(id: profileID) else {
             throw StartError.profileNotFound
         }
         guard snapshot.isBackgroundStartable else {
             throw StartError.profileNotStartable
         }
-        // The VPN never prompts for host keys: require either a key accepted
-        // in a regular SSH session or a trusted host CA covering the host
-        // (both mirrored into the snapshot) before starting.
-        guard snapshot.transportType == .direct || snapshot.hostKey != nil || !(snapshot.trustedCAKeys ?? []).isEmpty else {
-            throw StartError.hostKeyNotTrusted(host: snapshot.host)
-        }
-        if let jump = snapshot.jumpHost, jump.hostKey == nil, (jump.trustedCAKeys ?? []).isEmpty {
-            throw StartError.hostKeyNotTrusted(host: jump.host)
+        // Tailscale itself needs no host key; its SSH egress host does.
+        if snapshot.transportType == .tailscale {
+            if VPNTailnetProfile.settings().sshEgressProfileID != nil {
+                guard let egress = VPNTailnetProfile.egressSnapshot() else {
+                    throw StartError.profileNotFound
+                }
+                try requireTrustedHostKeys(egress)
+            }
+        } else if snapshot.transportType != .direct {
+            try requireTrustedHostKeys(snapshot)
         }
 
         let manager = try await getOrCreateManager()
@@ -69,7 +77,7 @@ enum VPNStartController {
         let requestedRelay = snapshot.transportType == .tssh && snapshot.jumpHost?.tsshRelay != nil
         let activeRelay = ((manager.protocolConfiguration as? NETunnelProviderProtocol)?
             .providerConfiguration?["tsshRelay"] as? Bool) ?? false
-        if currentProfileID == snapshot.id, activeRelay == requestedRelay,
+        if !restart, currentProfileID == snapshot.id, activeRelay == requestedRelay,
            (currentStatus == .connecting || currentStatus == .connected || currentStatus == .reasserting) {
             writeWidgetState(for: snapshot, status: currentStatus)
             reloadWidgetTimelines()
@@ -105,6 +113,21 @@ enum VPNStartController {
         }
 
         return .started
+    }
+
+    /// The VPN never prompts for host keys: require either a key accepted
+    /// in a regular SSH session or a trusted host CA covering the host
+    /// (both mirrored into the snapshot) before starting.
+    private static func requireTrustedHostKeys(_ snapshot: VPNSharedProfileSnapshot) throws {
+        guard snapshot.isBackgroundStartable else {
+            throw StartError.profileNotStartable
+        }
+        guard snapshot.hostKey != nil || !(snapshot.trustedCAKeys ?? []).isEmpty else {
+            throw StartError.hostKeyNotTrusted(host: snapshot.host)
+        }
+        if let jump = snapshot.jumpHost, jump.hostKey == nil, (jump.trustedCAKeys ?? []).isEmpty {
+            throw StartError.hostKeyNotTrusted(host: jump.host)
+        }
     }
 
     private static func getOrCreateManager() async throws -> NETunnelProviderManager {

@@ -67,6 +67,9 @@ struct VPNTunnelConfig: Codable, Sendable {
     // budget is too small to carry QUIC packets.
     var blockQUIC: Bool = false
 
+    // Halved SSH channel windows, for SSH egress beside Tailscale.
+    var compactChannelWindows: Bool = false
+
     // Secrets pushed by the macOS host (nil on iOS/Catalyst — the keychain is
     // read in-process). When set, VPNSSHConnector uses these instead of the
     // shared keychain, which a root system extension cannot access.
@@ -77,6 +80,8 @@ struct VPNTunnelConfig: Codable, Sendable {
         case ssh
         case tssh
         case direct
+        /// Tailscale, optionally with an SSH egress host (iOS only).
+        case tailscale
     }
 
     /// Jump host config subset needed by the extension
@@ -186,6 +191,7 @@ extension VPNTunnelConfig {
         case .tssh: self.transportType = .tssh
         case .direct: self.transportType = .direct
         case .ssh: self.transportType = .ssh
+        case .tailscale: self.transportType = .tailscale
         }
         self.sshHost = snapshot.host
         self.sshPort = snapshot.port
