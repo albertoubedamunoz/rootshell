@@ -59,7 +59,7 @@ struct CaptureRequestList: View {
                 Divider().frame(height: 16)
                 Menu {
                     Button(String(localized: "Any Type", comment: "HTTP capture filter")) { model.kindFilter = nil }
-                    ForEach([CaptureContentKind.json, .html, .javascript, .css, .image, .xml, .text, .form, .font, .media, .binary], id: \.self) { kind in
+                    ForEach([CaptureContentKind.json, .html, .javascript, .css, .image, .xml, .plist, .text, .form, .font, .media, .binary], id: \.self) { kind in
                         Button { model.kindFilter = kind } label: { Label(kind.title, systemImage: kind.systemImage) }
                     }
                 } label: {

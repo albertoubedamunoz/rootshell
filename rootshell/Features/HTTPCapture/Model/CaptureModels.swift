@@ -180,7 +180,7 @@ nonisolated struct CaptureTransaction: Identifiable, Hashable, Sendable {
 
 /// Coarse body type used for filters, icons, and viewer choice.
 nonisolated enum CaptureContentKind: String, CaseIterable, Sendable {
-    case json, html, javascript, css, xml, image, text, form, multipart, font, media, binary, none
+    case json, html, javascript, css, xml, plist, image, text, form, multipart, font, media, binary, none
 
     init(contentType: String?, url: String = "") {
         let ct = (contentType ?? "").lowercased()
@@ -188,6 +188,7 @@ nonisolated enum CaptureContentKind: String, CaseIterable, Sendable {
         switch true {
         case mime.isEmpty:
             self = Self.fromExtension(URL(string: url)?.pathExtension ?? "")
+        case mime.contains("plist"): self = .plist
         case mime.contains("json"): self = .json
         case mime.contains("html"): self = .html
         case mime.contains("javascript") || mime.contains("ecmascript"): self = .javascript
@@ -210,6 +211,7 @@ nonisolated enum CaptureContentKind: String, CaseIterable, Sendable {
         case "js", "mjs": .javascript
         case "css": .css
         case "xml": .xml
+        case "plist": .plist
         case "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "heic", "avif": .image
         case "woff", "woff2", "ttf", "otf": .font
         case "mp4", "mov", "m3u8", "mp3", "aac", "m4a", "webm": .media
@@ -225,6 +227,7 @@ nonisolated enum CaptureContentKind: String, CaseIterable, Sendable {
         case .javascript: "chevron.left.forwardslash.chevron.right"
         case .css: "paintbrush"
         case .xml: "chevron.left.slash.chevron.right"
+        case .plist: "list.bullet.indent"
         case .image: "photo"
         case .text: "doc.plaintext"
         case .form, .multipart: "list.bullet.rectangle"
@@ -242,6 +245,7 @@ nonisolated enum CaptureContentKind: String, CaseIterable, Sendable {
         case .javascript: "JS"
         case .css: "CSS"
         case .xml: "XML"
+        case .plist: "Plist"
         case .image: String(localized: "Image", comment: "HTTP capture content type filter")
         case .text: String(localized: "Text", comment: "HTTP capture content type filter")
         case .form: String(localized: "Form", comment: "HTTP capture content type filter")
@@ -261,6 +265,7 @@ nonisolated enum CaptureContentKind: String, CaseIterable, Sendable {
         case .javascript: "js"
         case .css: "css"
         case .xml: "xml"
+        case .plist: "plist"
         case .text, .form: "txt"
         default: "bin"
         }
