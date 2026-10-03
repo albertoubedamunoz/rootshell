@@ -535,7 +535,7 @@ private struct CaptureTextView: UIViewRepresentable {
 }
 
 /// Moves an immutable UIKit value (font, attributed string) across a detached task.
-private struct UncheckedSendableBox<T>: @unchecked Sendable {
+nonisolated private struct UncheckedSendableBox<T>: @unchecked Sendable {
     let value: T
     init(_ value: T) { self.value = value }
 }

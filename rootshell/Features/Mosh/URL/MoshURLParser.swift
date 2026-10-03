@@ -44,6 +44,6 @@ enum MoshURLParser {
     /// - Parameter url: The URL to parse (must have `mosh` scheme)
     /// - Returns: Parsed components, or nil if URL is invalid
     static func parse(_ url: URL) -> MoshURLComponents? {
-        SSHURLParser.parse(url, scheme: "mosh").map(MoshURLComponents.init)
+        SSHURLParser.parse(url, scheme: "mosh").map { MoshURLComponents($0) }
     }
 }

@@ -31,7 +31,7 @@ final class CAProfileServer {
             parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
             let listener = try NWListener(using: parameters)
             listener.newConnectionHandler = { [weak self] connection in
-                Task { @MainActor in self?.handle(connection) }
+                Task { @MainActor [weak self] in self?.handle(connection) }
             }
             self.listener = listener
             try await waitUntilReady(listener)
