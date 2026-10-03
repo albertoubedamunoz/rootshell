@@ -107,8 +107,11 @@ struct CaptureTransactionDetail: View {
 
 struct CaptureOverview: View {
     let tx: CaptureTransaction
+    @Setting(Settings.HTTPCapture.lookUpServerLocation) private var lookUpServerLocation
+    @Setting(Settings.HTTPCapture.showFavicons) private var showFavicons
 
-    private var geo: GeoInfo? { CaptureGeoLookup.shared.geo(for: tx.serverIP) }
+    private var geoIP: String? { lookUpServerLocation ? tx.serverIP : nil }
+    private var geo: GeoInfo? { CaptureGeoLookup.shared.geo(for: geoIP) }
 
     // Same scroll-and-card layout as the request/response tabs; a grouped Form
     // paints an opaque background that clashes with the HUD's glass.
@@ -143,7 +146,9 @@ struct CaptureOverview: View {
                         if let domain = geo.asDomain, !domain.isEmpty {
                             field(String(localized: "AS Domain", comment: "HTTP capture field")) {
                                 HStack(spacing: 6) {
-                                    FaviconImage(domain: domain, size: 14)
+                                    if showFavicons {
+                                        FaviconImage(domain: domain, size: 14)
+                                    }
                                     Text(domain).font(.caption.monospaced()).textSelection(.enabled)
                                 }
                             }
@@ -179,7 +184,7 @@ struct CaptureOverview: View {
             .padding(12)
         }
         .modifier(ScrollEdgeEffectHiddenModifier())
-        .task(id: CaptureGeoLookup.shared.key(for: tx.serverIP)) { await CaptureGeoLookup.shared.track(tx.serverIP) }
+        .task(id: CaptureGeoLookup.shared.key(for: geoIP)) { await CaptureGeoLookup.shared.track(geoIP) }
     }
 
     private func problemBanner(_ problem: String) -> some View {

@@ -185,6 +185,9 @@ private struct CaptureRequestRows: View {
 
 struct CaptureRequestRow: View {
     let tx: CaptureTransaction
+    @Setting(Settings.HTTPCapture.lookUpServerLocation) private var lookUpServerLocation
+
+    private var geoIP: String? { lookUpServerLocation ? tx.serverIP : nil }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -202,7 +205,7 @@ struct CaptureRequestRow: View {
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    if let geo = CaptureGeoLookup.shared.geo(for: tx.serverIP), let flag = geo.flag {
+                    if let geo = CaptureGeoLookup.shared.geo(for: geoIP), let flag = geo.flag {
                         Text(flag)
                             .font(.caption)
                             .help(geo.countryName ?? geo.countryCode)
@@ -233,7 +236,7 @@ struct CaptureRequestRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .task(id: CaptureGeoLookup.shared.key(for: tx.serverIP)) { await CaptureGeoLookup.shared.track(tx.serverIP) }
+        .task(id: CaptureGeoLookup.shared.key(for: geoIP)) { await CaptureGeoLookup.shared.track(geoIP) }
     }
 
     private var subtitle: String {

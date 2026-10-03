@@ -18,6 +18,8 @@ struct CaptureSettingsView: View {
     @Setting(Settings.HTTPCapture.autoBypassPinned) private var autoBypassPinned
     @Setting(Settings.HTTPCapture.skipUpstreamVerify) private var skipUpstreamVerify
     @Setting(Settings.HTTPCapture.recordPackets) private var recordPackets
+    @Setting(Settings.HTTPCapture.lookUpServerLocation) private var lookUpServerLocation
+    @Setting(Settings.HTTPCapture.showFavicons) private var showFavicons
     @Setting(Settings.HTTPCapture.maxBodyMB) private var maxBodyMB
     @Setting(Settings.HTTPCapture.maxSessionMB) private var maxSessionMB
     @Setting(Settings.HTTPCapture.retainedSessions) private var retainedSessions
@@ -83,6 +85,17 @@ struct CaptureSettingsView: View {
                 Text("Options")
             } footer: {
                 Text("Apps that pin certificates refuse decrypted connections; skipping them keeps those apps working. Packet recording applies to new sessions and makes a pcapng that Wireshark can decrypt.")
+            }
+            .themedRow()
+
+            Section {
+                Toggle(String(localized: "Look Up Server Locations", comment: "HTTP capture option"), isOn: $lookUpServerLocation)
+                Toggle(String(localized: "Show Network Favicons", comment: "HTTP capture option"), isOn: $showFavicons)
+                    .disabled(!lookUpServerLocation)
+            } header: {
+                Text("Server Info")
+            } footer: {
+                Text("Server addresses are looked up with the location provider chosen in Settings. Favicons are downloaded from the server network's website.")
             }
             .themedRow()
 
