@@ -73,6 +73,9 @@ final class GeoResolver {
 
     private let cache = GeoCache()
     private(set) var cacheEntryCount: Int = 0
+    /// Bumped once a cache clear (including any MMDB change) completes, so
+    /// in-memory copies of earlier results can be dropped.
+    private(set) var cacheGeneration = 0
 
     private init() {
         // Unset resolves to the dynamic `defaultProvider`, not the registry default, so presence is checked raw
@@ -146,6 +149,7 @@ final class GeoResolver {
             guard let self else { return }
             await self.cache.clear()
             self.cacheEntryCount = 0
+            self.cacheGeneration += 1
         }
     }
 

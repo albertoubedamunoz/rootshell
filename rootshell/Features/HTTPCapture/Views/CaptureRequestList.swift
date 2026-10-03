@@ -202,6 +202,11 @@ struct CaptureRequestRow: View {
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if let geo = CaptureGeoLookup.shared.geo(for: tx.serverIP), let flag = geo.flag {
+                        Text(flag)
+                            .font(.caption)
+                            .help(geo.countryName ?? geo.countryCode)
+                    }
                     if tx.wasRewritten {
                         Image(systemName: "wand.and.stars").font(.caption2).foregroundStyle(.purple)
                     }
@@ -228,6 +233,7 @@ struct CaptureRequestRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .task(id: CaptureGeoLookup.shared.key(for: tx.serverIP)) { await CaptureGeoLookup.shared.track(tx.serverIP) }
     }
 
     private var subtitle: String {
@@ -317,6 +323,9 @@ struct CaptureTransactionMenu: View {
             } label: { Label(String(localized: "Add Rewrite Rule…", comment: "HTTP capture action"), systemImage: "wand.and.stars") }
         }
         let host = tx.kind == .tunnel ? (tx.sni ?? tx.host) : tx.host
+        Section {
+            HostAddressCopyActions(hostname: host, ipAddress: tx.serverIP)
+        }
         if !host.isEmpty {
             if tx.kind == .http && tx.scheme == "https" {
                 Button {

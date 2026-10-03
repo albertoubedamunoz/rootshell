@@ -155,6 +155,9 @@ nonisolated struct CaptureTransaction: Identifiable, Hashable, Sendable {
         return sni ?? server ?? ""
     }
 
+    /// The upstream address without its port or brackets, when `server` is an IP literal.
+    var serverIP: String? { server.flatMap(IPAddressExtractor.address(fromToken:)) }
+
     var durationMs: Double? {
         guard let ended else { return nil }
         return ended.timeIntervalSince(started) * 1000
