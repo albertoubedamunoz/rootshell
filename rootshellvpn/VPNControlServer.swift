@@ -163,6 +163,7 @@ final class VPNControlServer: @unchecked Sendable {
             let info = VPNHostInfoResponse(
                 supportsTSSHRelay: true,
                 supportsHTTPCapture: true,
+                supportsTailscale: true,
                 version: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
                 bundlePath: Bundle.main.bundlePath
             )

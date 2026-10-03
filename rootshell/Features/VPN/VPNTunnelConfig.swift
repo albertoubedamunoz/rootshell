@@ -29,6 +29,16 @@ nonisolated struct VPNResolvedConfig: Codable, Sendable {
     var snapshot: VPNSharedProfileSnapshot
     var credential: VPNResolvedCredential?
     var jumpCredential: VPNResolvedCredential?
+    /// Tailscale tunnels only: the sysext can't read the app group either.
+    var tailnet: VPNResolvedTailnet? = nil
+}
+
+/// Tailscale settings and the resolved SSH egress host, if one is set.
+nonisolated struct VPNResolvedTailnet: Codable, Sendable {
+    var settings: VPNTailnetSettings
+    var egress: VPNSharedProfileSnapshot?
+    var egressCredential: VPNResolvedCredential?
+    var egressJumpCredential: VPNResolvedCredential?
 }
 
 /// Runtime VPN tunnel config resolved inside the extension from the shared profile mirror.

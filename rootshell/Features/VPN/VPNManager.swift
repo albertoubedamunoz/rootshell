@@ -125,7 +125,12 @@ final class VPNManager {
         Self.logger.info("Starting Tailscale VPN (restart=\(restart))")
         // Mirrors the SSH egress profile with its current host key.
         ConnectionProfileManager.shared.refreshVPNSharedProfiles()
+#if STANDALONE && targetEnvironment(macCatalyst)
+        try await MacVPNController.shared.activateExtension()
+        try await MacVPNController.shared.startTailnet(restart: restart)
+#else
         _ = try await VPNStartController.startTailnet(restart: restart)
+#endif
         await refreshStatusFromSystem()
 
         let snapshot = VPNTailnetProfile.snapshot()
@@ -136,6 +141,9 @@ final class VPNManager {
         }
         previousStatus = status
         addEvent(.connected(profileID: snapshot.id, message: snapshot.name))
+#if STANDALONE && targetEnvironment(macCatalyst)
+        startStatsPolling()
+#endif
     }
 
     /// Whether the tunnel is up and able to answer provider messages.

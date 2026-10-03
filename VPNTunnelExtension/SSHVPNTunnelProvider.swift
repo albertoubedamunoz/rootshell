@@ -44,10 +44,8 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     private nonisolated(unsafe) var healthMonitor: VPNSSHHealthMonitor?
     nonisolated(unsafe) var sshProxyPort: Int = 0
     nonisolated(unsafe) var storedConfig: VPNTunnelConfig?
-#if !os(macOS)
     // Tailscale mode only; protected by runningStateLock.
     nonisolated(unsafe) var tailnetSession: TailnetSession?
-#endif
     private let reconnectLock = NSLock()
     private nonisolated(unsafe) var isReconnecting = false
     private nonisolated(unsafe) var reconnectAttempts = 0
@@ -223,6 +221,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         var config = try VPNTunnelConfig(snapshot: resolved.snapshot)
         config.resolvedCredential = resolved.credential
         config.jumpResolvedCredential = resolved.jumpCredential
+        let tailnetResolved = resolved.tailnet
         debugLog.endPhase("loadProfile", "OK")
 #else
         let profileID = try configuredProfileID(options: options)
@@ -233,6 +232,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             throw VPNError.configNotFound
         }
         let config = try VPNTunnelConfig(snapshot: snapshot)
+        let tailnetResolved: VPNResolvedTailnet? = nil
         debugLog.endPhase("loadProfile", "OK")
 #endif
 
@@ -259,12 +259,11 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         Self.logger.info("VPN config loaded: transport=\(transport), host=\(host)")
         debugLog.logMarker("VPN CONNECT START: transport=\(transport) host=\(host)")
 
-#if !os(macOS)
         if config.transportType == .tailscale {
-            try await startTailnetTunnel(config: config, options: options)
+            let (settings, egress) = try Self.tailnetInputs(resolved: tailnetResolved)
+            try await startTailnetTunnel(config: config, settings: settings, egress: egress, options: options)
             return
         }
-#endif
 
         // Build the Go config JSON based on transport type
         let goConfigJSON: String
@@ -473,14 +472,12 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         }
         monitor?.stop()
 
-#if !os(macOS)
         let tailnet = runningStateLock.withLock { () -> TailnetSession? in
             let s = tailnetSession
             tailnetSession = nil
             return s
         }
         tailnet?.stop()
-#endif
 
         // Stop Go netstack — makes ReadPacket return nil, unblocking MainActor
         var stopError: NSError?
@@ -552,7 +549,6 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         }
         #endif
 
-#if !os(macOS)
         // Off the delivery thread: logout can take seconds.
         if message.hasPrefix(TailnetSession.messagePrefix) {
             TailnetSession.messageQueue.async {
@@ -560,7 +556,6 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             }
             return
         }
-#endif
 
         switch message {
         case "getStatus":
@@ -1034,13 +1029,11 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         Self.logger.error("SSH reconnection giving up: \(failureReason)")
         VPNSOCKS5DebugMetrics.shared.addEvent("ssh.reconnect.exhausted")
         debugLog.logMarker("RECONNECTION FAILED: \(failureReason)")
-#if !os(macOS)
         // Tailscale stays up; only rule-matched traffic loses its egress.
         if let session = runningStateLock.withLock({ tailnetSession }) {
             session.egressLost(failureReason)
             return
         }
-#endif
         // Re-enable so handleGoTunnelFailure actually fires
         failureStateLock.withLock { hasHandledGoFailure = false }
         handleGoTunnelFailure(failureReason)

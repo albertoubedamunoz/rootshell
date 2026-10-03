@@ -47,7 +47,11 @@ struct TailnetSettingsView: View {
         .navigationTitle(String(localized: "Tailscale", comment: "Tailscale VPN settings title"))
         .onAppear {
             if settings.hostname.isEmpty {
+                #if targetEnvironment(macCatalyst)
+                settings.hostname = "rootshell-mac"
+                #else
                 settings.hostname = "rootshell-" + UIDevice.current.model.lowercased().replacingOccurrences(of: " ", with: "-")
+                #endif
             }
         }
         .onChange(of: settings) { old, new in
@@ -226,17 +230,27 @@ struct TailnetSettingsView: View {
                     Button(String(localized: "Sign Out", comment: "Tailscale sign-out button"), role: .destructive) { signOut() }
                 }
                 .themedRow()
-            } else if !isActive {
+            } else if !isActive && Self.canForgetDevice {
                 Button(String(localized: "Forget This Device", comment: "Tailscale: delete stored node keys"), role: .destructive) {
                     TailnetKeychain.deleteAll()
                 }
                 .themedRow()
             }
         } footer: {
-            if !isActive {
+            if !isActive && Self.canForgetDevice {
                 Text("Forgetting the device deletes its Tailscale keys here; the next connect signs in as a new device.")
             }
         }
+    }
+
+    /// On the Mac the keys live in the VPN system extension, out of the app's
+    /// reach; Sign Out (while connected) forgets them there.
+    private static var canForgetDevice: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        true
+        #endif
     }
 
     @ViewBuilder

@@ -122,6 +122,38 @@ nonisolated final class TailnetKeychainStateStore: NSObject, VpntunnelTailscaleS
     }
 }
 
+#if os(macOS)
+/// Tailscale node state for the root system extension, which can't use the
+/// user's keychain: one root-only file per key in its own container.
+nonisolated final class TailnetFileStateStore: NSObject, VpntunnelTailscaleStateStoreProtocol {
+    private static var directory: URL? {
+        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let dir = base.appendingPathComponent("tailscale-state", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        return dir
+    }
+
+    private func fileURL(_ key: String?) throws -> URL {
+        // Keys are Tailscale's own ("_machinekey", "profile-…"); keep names safe.
+        let safe = (key ?? "").map { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" ? $0 : "_" }
+        guard let dir = Self.directory, !safe.isEmpty else {
+            throw NSError(domain: NSCocoaErrorDomain, code: NSFileNoSuchFileError)
+        }
+        return dir.appendingPathComponent(String(safe))
+    }
+
+    func readState(_ key: String?) throws -> Data {
+        (try? Data(contentsOf: fileURL(key))) ?? Data()
+    }
+
+    func writeState(_ key: String?, value: Data?) throws {
+        let url = try fileURL(key)
+        try (value ?? Data()).write(to: url, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+}
+#endif
+
 /// One Tailscale tunnel session: receives Go state, applies network
 /// settings in order, and brings up the SSH egress connection.
 nonisolated final class TailnetSession: NSObject, VpntunnelTailscaleCallbackProtocol, @unchecked Sendable {
@@ -374,18 +406,35 @@ nonisolated final class TailnetSession: NSObject, VpntunnelTailscaleCallbackProt
 extension SSHVPNTunnelProvider {
     /// Starts Tailscale mode. Tailscale owns the tunnel; SSH egress, when
     /// configured, connects afterwards so a tailnet egress host is reachable.
-    func startTailnetTunnel(config: VPNTunnelConfig, options: [String: NSObject]?) async throws {
-        let debugLog = VPNConnectionDebugLogger.shared
-        guard VpntunnelTailscaleSupported() else {
-            throw VPNError.unsupportedTransport(config.transportType.rawValue)
+    /// Tailscale settings and SSH egress: from the app group on iOS; on macOS
+    /// from the host-resolved config, since the root sysext can't read the group.
+    static func tailnetInputs(resolved: VPNResolvedTailnet?) throws -> (VPNTailnetSettings, VPNTunnelConfig?) {
+        #if os(macOS)
+        guard let resolved else { throw VPNError.configNotFound }
+        var egress: VPNTunnelConfig?
+        if let snapshot = resolved.egress {
+            var egressConfig = try VPNTunnelConfig(snapshot: snapshot)
+            egressConfig.resolvedCredential = resolved.egressCredential
+            egressConfig.jumpResolvedCredential = resolved.egressJumpCredential
+            egress = egressConfig
         }
-
+        return (resolved.settings, egress)
+        #else
         let settings = VPNTailnetProfile.settings()
         var egress: VPNTunnelConfig?
         if let snapshot = VPNTailnetProfile.egressSnapshot(settings) {
             var egressConfig = try VPNTunnelConfig(snapshot: snapshot)
             egressConfig.compactChannelWindows = true
             egress = egressConfig
+        }
+        return (settings, egress)
+        #endif
+    }
+
+    func startTailnetTunnel(config: VPNTunnelConfig, settings: VPNTailnetSettings, egress: VPNTunnelConfig?, options: [String: NSObject]?) async throws {
+        let debugLog = VPNConnectionDebugLogger.shared
+        guard VpntunnelTailscaleSupported() else {
+            throw VPNError.unsupportedTransport(config.transportType.rawValue)
         }
 
         let index = await DirectInterfaceMonitor.shared.start()
@@ -448,7 +497,12 @@ extension SSHVPNTunnelProvider {
                                              tsshEgress: egress?.transportType == .tssh)
         )
         var startError: NSError?
-        let started = VpntunnelStartTailscaleTunnel(json, TailnetKeychainStateStore(), session, TunnelCallbackImpl(provider: self), &startError)
+        #if os(macOS)
+        let store: VpntunnelTailscaleStateStoreProtocol = TailnetFileStateStore()
+        #else
+        let store: VpntunnelTailscaleStateStoreProtocol = TailnetKeychainStateStore()
+        #endif
+        let started = VpntunnelStartTailscaleTunnel(json, store, session, TunnelCallbackImpl(provider: self), &startError)
         guard started else {
             session.stop()
             await cleanupSSH()
@@ -463,7 +517,9 @@ extension SSHVPNTunnelProvider {
             throw CancellationError()
         }
         debugLog.endPhase("goTailscale", "OK")
-        VPNTailnetProfile.storeApplied(settings)
+        #if !os(macOS)
+        VPNTailnetProfile.storeApplied(settings) // the Mac app records it itself
+        #endif
 
         // Placeholder until logged in; updates arrive through the session.
         guard let initial = TailnetNetworkSettings.decode(VpntunnelTailscaleNetworkSettings()) else {

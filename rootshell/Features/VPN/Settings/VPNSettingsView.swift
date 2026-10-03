@@ -22,7 +22,7 @@ struct VPNSettingsView: View {
             statusSection
             disconnectSection
             vpnProfilesSection
-            #if !CHINA_BUILD && os(iOS) && !targetEnvironment(macCatalyst)
+            #if !CHINA_BUILD && os(iOS) && (!targetEnvironment(macCatalyst) || STANDALONE)
             tailscaleSection
             #endif
             #if !CHINA_BUILD
@@ -35,7 +35,7 @@ struct VPNSettingsView: View {
         .navigationTitle("VPN")
     }
 
-    #if !CHINA_BUILD && os(iOS) && !targetEnvironment(macCatalyst)
+    #if !CHINA_BUILD && os(iOS) && (!targetEnvironment(macCatalyst) || STANDALONE)
     // MARK: - Tailscale Section
 
     private var tailscaleSection: some View {

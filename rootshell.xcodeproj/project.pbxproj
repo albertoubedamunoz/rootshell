@@ -794,6 +794,7 @@
 				CaptureBridge.swift,
 				DirectInterfaceMonitor.swift,
 				SSHVPNTunnelProvider.swift,
+				TailnetTunnel.swift,
 				TunnelSettingsShape.swift,
 				VPNAgentNIOSSHKeys.swift,
 				VPNAgentSignBroker.swift,
