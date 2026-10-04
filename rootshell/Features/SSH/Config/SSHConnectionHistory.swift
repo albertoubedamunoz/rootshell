@@ -124,6 +124,9 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     // that the same as `.disabled`).
     var gpgAgentConfig: GPGAgentConfig?
 
+    // Remote credential requests. Rides the CloudKit `extensionData` envelope.
+    var askpassConfig: RemoteAskpassConfig?
+
     // SSH port forwarding config (optional for backward compatibility)
     var portForwardConfig: PortForwardConfig?
 
@@ -187,7 +190,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     init(username: String, host: String, port: Int = 22, authType: SSHAuthType,
          connectionProtocol: ConnectionProtocol? = nil,
          jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
-         lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil, agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, herdrAutoMode: HerdrAutoMode? = nil, zmxAutoEnable: Bool? = nil, launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
+         lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil, agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, askpassConfig: RemoteAskpassConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, herdrAutoMode: HerdrAutoMode? = nil, zmxAutoEnable: Bool? = nil, launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
          terminalType: String? = nil,
          multiplexerSessionName: String? = nil,
          keyResolutionHints: [String: KeyResolutionHint]? = nil) {
@@ -206,6 +209,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.hssShorthand = hssShorthand
         self.agentConfig = agentConfig
         self.gpgAgentConfig = gpgAgentConfig
+        self.askpassConfig = askpassConfig
         self.portForwardConfig = portForwardConfig
         self.tmuxAutoEnable = tmuxAutoEnable
         self.tmuxAutoMode = tmuxAutoMode
@@ -226,7 +230,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
          connectionProtocol: ConnectionProtocol? = nil,
          jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
          lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil,
-         agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, herdrAutoMode: HerdrAutoMode? = nil, zmxAutoEnable: Bool? = nil,
+         agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, askpassConfig: RemoteAskpassConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, herdrAutoMode: HerdrAutoMode? = nil, zmxAutoEnable: Bool? = nil,
          launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil, terminalType: String? = nil, multiplexerSessionName: String? = nil, keyResolutionHints: [String: KeyResolutionHint]? = nil,
          modifiedAt: Date? = nil, isDeleted: Bool = false) {
         self.id = id
@@ -244,6 +248,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.hssShorthand = hssShorthand
         self.agentConfig = agentConfig
         self.gpgAgentConfig = gpgAgentConfig
+        self.askpassConfig = askpassConfig
         self.portForwardConfig = portForwardConfig
         self.tmuxAutoEnable = tmuxAutoEnable
         self.tmuxAutoMode = tmuxAutoMode
@@ -264,7 +269,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     private enum CodingKeys: String, CodingKey {
         case id, username, host, port, authType, lastUsed, cachedIP
         case jumpHost, jumpPort, jumpUsername, jumpAuthType, tsshRelay
-        case hssShorthand, agentConfig, gpgAgentConfig, portForwardConfig, tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, herdrAutoMode, zmxAutoEnable, launchCommand, launchCommandMode
+        case hssShorthand, agentConfig, gpgAgentConfig, askpassConfig, portForwardConfig, tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, herdrAutoMode, zmxAutoEnable, launchCommand, launchCommandMode
         case connectionProtocol, keyResolutionHints
         case terminalType, multiplexerSessionName
         case modifiedAt, isDeleted
@@ -292,6 +297,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         hssShorthand = try container.decodeIfPresent(String.self, forKey: .hssShorthand)
         agentConfig = try container.decodeIfPresent(SSHAgentConfig.self, forKey: .agentConfig)
         gpgAgentConfig = try container.decodeIfPresent(GPGAgentConfig.self, forKey: .gpgAgentConfig)
+        askpassConfig = try container.decodeIfPresent(RemoteAskpassConfig.self, forKey: .askpassConfig)
         portForwardConfig = try container.decodeIfPresent(PortForwardConfig.self, forKey: .portForwardConfig)
         tmuxAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .tmuxAutoEnable)
         tmuxAutoMode = try container.decodeIfPresent(TmuxAutoMode.self, forKey: .tmuxAutoMode)
@@ -479,6 +485,7 @@ class SSHConnectionHistoryManager: ObservableObject {
         hssShorthand: String? = nil,
         agentConfig: SSHAgentConfig? = nil,
         gpgAgentConfig: GPGAgentConfig? = nil,
+        askpassConfig: RemoteAskpassConfig? = nil,
         portForwardConfig: PortForwardConfig? = nil,
         tmuxAutoEnable: Bool? = nil,
         tmuxAutoMode: TmuxAutoMode? = nil,
@@ -515,6 +522,7 @@ class SSHConnectionHistoryManager: ObservableObject {
             // value or a previously-enabled history entry would
             // silently re-enable forwarding on next reconnect.
             updated.gpgAgentConfig = gpgAgentConfig
+            updated.askpassConfig = askpassConfig
             if let portForwardConfig = portForwardConfig {
                 updated.portForwardConfig = portForwardConfig
             }
@@ -577,6 +585,7 @@ class SSHConnectionHistoryManager: ObservableObject {
             // value or a previously-enabled history entry would
             // silently re-enable forwarding on next reconnect.
             updated.gpgAgentConfig = gpgAgentConfig
+            updated.askpassConfig = askpassConfig
             if let portForwardConfig = portForwardConfig {
                 updated.portForwardConfig = portForwardConfig
             }
@@ -623,6 +632,7 @@ class SSHConnectionHistoryManager: ObservableObject {
                 hssShorthand: hssShorthand,
                 agentConfig: agentConfig,
                 gpgAgentConfig: gpgAgentConfig,
+                askpassConfig: askpassConfig,
                 portForwardConfig: portForwardConfig,
                 tmuxAutoEnable: tmuxAutoEnable,
                 tmuxAutoMode: tmuxAutoMode,
@@ -758,6 +768,10 @@ class SSHConnectionHistoryManager: ObservableObject {
                     envelopeVersion >= HistoryExtensionPayload.herdrAutoModeVersion
                         ? remote.herdrAutoMode
                         : (remote.herdrAutoMode ?? existing.herdrAutoMode)
+                let mergedAskpassConfig: RemoteAskpassConfig? =
+                    envelopeVersion >= HistoryExtensionPayload.askpassConfigVersion
+                        ? remote.askpassConfig
+                        : (remote.askpassConfig ?? existing.askpassConfig)
                 let updated = SSHConnectionHistoryEntry(
                     id: existingUUID,  // Keep local UUID for consistency
                     username: remote.username,
@@ -774,6 +788,7 @@ class SSHConnectionHistoryManager: ObservableObject {
                     hssShorthand: remote.hssShorthand ?? existing.hssShorthand,
                     agentConfig: remote.agentConfig ?? existing.agentConfig,
                     gpgAgentConfig: remote.gpgAgentConfig ?? existing.gpgAgentConfig,
+                    askpassConfig: mergedAskpassConfig,
                     portForwardConfig: remote.portForwardConfig ?? existing.portForwardConfig,
                     tmuxAutoEnable: remote.tmuxAutoEnable ?? existing.tmuxAutoEnable,
                     tmuxAutoMode: remote.tmuxAutoMode ?? existing.tmuxAutoMode,

@@ -85,6 +85,12 @@ extension MainView {
         terminalView.onKeyboardInteractiveChallengeRequired = { @MainActor @Sendable challenge, validatedTerminal in
             await self.handleKeyboardInteractiveChallenge(challenge, terminalView: validatedTerminal)
         }
+        terminalView.onAskpassRequired = { @MainActor @Sendable request in
+            self.enqueueAskpassRequest(request)
+        }
+        terminalView.onAskpassWithdrawn = { @MainActor @Sendable requestID in
+            self.withdrawAskpassRequest(id: requestID)
+        }
     }
 }
 
@@ -166,5 +172,38 @@ extension MainView {
         }
         keyboardInteractiveQueue = remaining
         showKeyboardInteractivePrompt = !keyboardInteractiveQueue.isEmpty
+    }
+}
+
+// MARK: - Remote Credential Requests
+//
+// The session's RemoteAskpassServer owns the timeout and the reply; this
+// queue only holds what is on screen. Withdrawal arrives by id once the
+// server stops waiting, whatever the reason.
+
+extension MainView {
+
+    @MainActor
+    func enqueueAskpassRequest(_ request: RemoteAskpassRequest) {
+        askpassQueue.append(request)
+        if !showAskpassPrompt {
+            showAskpassPrompt = true
+        }
+    }
+
+    /// Answers request `id`, never whichever is first: a sheet still showing a
+    /// withdrawn request must not send its value to the next one. `nil` = cancelled.
+    @MainActor
+    func respondToAskpass(id: UUID, value: String?) {
+        guard let index = askpassQueue.firstIndex(where: { $0.id == id }) else { return }
+        let request = askpassQueue.remove(at: index)
+        request.completion(value)
+        showAskpassPrompt = !askpassQueue.isEmpty
+    }
+
+    @MainActor
+    func withdrawAskpassRequest(id: UUID) {
+        askpassQueue.removeAll { $0.id == id }
+        showAskpassPrompt = !askpassQueue.isEmpty
     }
 }

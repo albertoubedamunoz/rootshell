@@ -120,7 +120,8 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
         let envelope = HistoryExtensionPayload(terminalType: terminalType,
                                                multiplexerSessionName: multiplexerSessionName,
                                                zmxAutoEnable: zmxAutoEnable,
-                                               herdrAutoMode: herdrAutoMode)
+                                               herdrAutoMode: herdrAutoMode,
+                                               askpassConfig: askpassConfig)
         if let envelopeData = try? JSONEncoder().encode(envelope) {
             record["extensionData"] = envelopeData
         } else {
@@ -236,6 +237,7 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
             hssShorthand: hssShorthand,
             agentConfig: agentConfig,
             gpgAgentConfig: gpgAgentConfig,
+            askpassConfig: extensionPayload?.askpassConfig,
             portForwardConfig: portForwardConfig,
             tmuxAutoEnable: tmuxAutoEnable,
             tmuxAutoMode: tmuxAutoMode,

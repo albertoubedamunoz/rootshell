@@ -10,6 +10,8 @@ protocol SSHAgentForwardingCallbacks: AnyObject {
     var onAgentApprovalRequest: ((SSHAgentApprovalRequest) -> Void)? { get set }
     var onGPGAgentApprovalRequest: ((GPGAgentApprovalRequest) -> Void)? { get set }
     var onGPGAgentApprovalWithdrawn: ((UUID) -> Void)? { get set }
+    var onAskpassRequest: ((RemoteAskpassRequest) -> Void)? { get set }
+    var onAskpassRequestWithdrawn: ((UUID) -> Void)? { get set }
 }
 
 extension CitadelSSHSession: SSHAgentForwardingCallbacks {}

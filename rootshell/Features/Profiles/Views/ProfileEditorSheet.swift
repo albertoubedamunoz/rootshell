@@ -162,6 +162,9 @@ struct ProfileEditorSheet: View {
     @State private var gpgSelectedKeyIDs: Set<UUID> = []
     @State private var gpgRemoteSocketPath: String = GPGAgentConfig.defaultRemoteSocketPath
 
+    // Remote credential requests (rootshell-askpass)
+    @State private var enableAskpass: Bool = false
+
     // tmux auto-enable state
     @State private var enableTmux: Bool = false
 
@@ -349,6 +352,7 @@ struct ProfileEditorSheet: View {
                 // there is misleading.
                 if connectionProtocol != .mosh {
                     gpgAgentForwardingSection
+                    askpassSection
                 }
 
                 // Port Forwarding Section
@@ -1297,6 +1301,19 @@ struct ProfileEditorSheet: View {
         }
     }
 
+    // MARK: - Credential Requests Section
+
+    private var askpassSection: some View {
+        Section {
+            Toggle("Allow Credential Requests", isOn: $enableAskpass)
+                .themedRow()
+        } header: {
+            Text("Credential Requests")
+        } footer: {
+            Text("Programs on the server can ask for a password with `rootshell-askpass`. Each request opens a sheet you can fill from your password manager.")
+        }
+    }
+
     /// Shared row renderer for the GPG forwarding key picker —
     /// same shape used by SSHConnectionView. Badge differentiates
     /// SSH keys (promoted via cached keygrip) from imported GPG keys.
@@ -2137,6 +2154,7 @@ struct ProfileEditorSheet: View {
             gpgForwardAllKeys = config.gpgAgentConfig.forwardedKeyIDs.isEmpty
             gpgSelectedKeyIDs = config.gpgAgentConfig.forwardedKeyIDs
             gpgRemoteSocketPath = config.gpgAgentConfig.remoteSocketPath
+            enableAskpass = config.askpassConfig.enabled
 
             // Load port forwarding
             portForwards = config.portForwardConfig.forwards
@@ -2256,6 +2274,7 @@ struct ProfileEditorSheet: View {
                 gpgSelectedKeyIDs = []
                 gpgRemoteSocketPath = GPGAgentConfig.defaultRemoteSocketPath
             }
+            enableAskpass = entry.askpassConfig?.enabled ?? false
 
             // Port forwarding from history
             if let pfConfig = entry.portForwardConfig {
@@ -2483,6 +2502,8 @@ struct ProfileEditorSheet: View {
         } else {
             finalConfig.gpgAgentConfig = .disabled
         }
+        // Mosh can't forward the socket; the hidden toggle must not persist as on.
+        finalConfig.askpassConfig = RemoteAskpassConfig(enabled: enableAskpass && connectionProtocol != .mosh)
 
         // Populate key resolution hints for cross-device sync
         finalConfig.keyResolutionHints = KeyResolutionHint.hints(for: finalConfig)
