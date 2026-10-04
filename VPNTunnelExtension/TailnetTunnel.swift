@@ -552,6 +552,7 @@ extension SSHVPNTunnelProvider {
         )
         #if !os(macOS)
         VPNLastConnected.record(config.profileID)
+        VPNAutoRecovery.markRunning(config.profileID)
         #endif
         WidgetCenter.shared.reloadTimelines(ofKind: Self.widgetKind)
         #if !os(visionOS)

@@ -407,6 +407,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         )
         #if !os(macOS)
         VPNLastConnected.record(config.profileID)
+        VPNAutoRecovery.markRunning(config.profileID)
         #endif
         WidgetCenter.shared.reloadTimelines(ofKind: Self.widgetKind)
         #if !os(visionOS)
@@ -424,6 +425,15 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     nonisolated override func stopTunnel(with reason: NEProviderStopReason) async {
         let reasonStr = String(describing: reason)
         Self.logger.info("Stopping VPN tunnel: reason=\(reasonStr)")
+        #if !os(macOS)
+        // Deliberate stops aren't recovered; reboots and app updates are.
+        switch reason {
+        case .userInitiated, .superceded, .configurationDisabled, .configurationRemoved:
+            VPNAutoRecovery.clear()
+        default:
+            break
+        }
+        #endif
 
         // Mark the tunnel as stopped BEFORE cancelling the bootstrap retry.
         // Order matters: the bootstrap's post-await guard reads stopRequested

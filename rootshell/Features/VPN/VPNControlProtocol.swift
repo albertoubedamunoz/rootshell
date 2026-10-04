@@ -207,4 +207,10 @@ nonisolated enum VPNControlPaths {
     static var controlSocketPath: String? {
         containerURL?.appendingPathComponent("vpnControl.sock").path
     }
+
+    /// Clears `VPNAutoRecovery`'s marker from the host, which doesn't build that type.
+    static func clearAutoRecovery() {
+        guard let url = containerURL?.appendingPathComponent("vpn_auto_recovery.txt") else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
 }

@@ -182,6 +182,34 @@ nonisolated enum VPNLastConnected {
     }
 }
 
+/// The VPN to reconnect at launch: set while one is up, cleared when it is
+/// turned off on purpose, so a reboot or app update leaves it set.
+nonisolated enum VPNAutoRecovery {
+    static let fileName = "vpn_auto_recovery.txt"
+
+    private static var fileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(fileName)
+    }
+
+    /// Local Capture replaces the previous VPN but is never recovered itself.
+    static func markRunning(_ id: UUID) {
+        guard id != VPNDirectProfile.id else { return clear() }
+        guard id != pendingProfileID(), let fileURL else { return }
+        try? Data(id.uuidString.utf8).write(to: fileURL, options: .atomic)
+    }
+
+    static func clear() {
+        guard let fileURL else { return }
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    static func pendingProfileID() -> UUID? {
+        guard let fileURL, let data = try? Data(contentsOf: fileURL) else { return nil }
+        return UUID(uuidString: String(decoding: data, as: UTF8.self))
+    }
+}
+
 /// Where a routing rule sends matching traffic in the Tailscale VPN.
 nonisolated enum VPNRoutingAction: String, Codable, Sendable, Hashable, CaseIterable {
     case ssh

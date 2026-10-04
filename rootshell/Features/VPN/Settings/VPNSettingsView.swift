@@ -29,6 +29,7 @@ struct VPNSettingsView: View {
             tailscaleSection
             #endif
             #if !CHINA_BUILD
+            autoRecoverySection
             httpCaptureSection
             #endif
             eventHistorySection
@@ -89,6 +90,17 @@ struct VPNSettingsView: View {
     #endif
 
     #if !CHINA_BUILD
+    // MARK: - Auto Recovery Section
+
+    private var autoRecoverySection: some View {
+        Section {
+            SettingToggle(Settings.VPN.autoRecovery, title: "Auto Recovery")
+                .themedRow()
+        } footer: {
+            Text("When rootshell opens, reconnect the VPN or Tailscale that was on when it last ran, such as after a restart or an app update. Skipped if another VPN app is connected.")
+        }
+    }
+
     // MARK: - HTTP Capture Section
 
     private var httpCaptureSection: some View {
