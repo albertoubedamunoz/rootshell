@@ -50,7 +50,7 @@ nonisolated final class HerdrOutputRouter: @unchecked Sendable {
     /// Per attach, the escape or UTF-8 sequence the last emitted chunk ended
     /// inside. herdr forwards raw PTY reads, so a sequence can straddle two
     /// records; Ghostty only ever receives whole ones.
-    private var carries: [String: Data] = [:]
+    private var carries: [String: TerminalSequenceBoundary.Carry] = [:]
     /// Per attach, records not yet delivered, in arrival order. Non-empty
     /// while the sink is missing (the snapshot follows the attach response
     /// on the stream and can beat the main-actor hop that registers it),
@@ -332,13 +332,7 @@ nonisolated final class HerdrOutputRouter: @unchecked Sendable {
     /// was dequeued ahead of any barrier that arrives later, so a sequence
     /// straddling a layout goes out whole once that barrier releases.
     private func splitCarry(attachId: String, appending bytes: Data) -> Data? {
-        var joined = carries.removeValue(forKey: attachId) ?? Data()
-        if joined.isEmpty { joined = bytes } else { joined.append(bytes) }
-        let cut = joined.withUnsafeBytes { TerminalSequenceBoundary.incompleteTailStart($0) }
-        guard let cut, joined.count - cut <= Self.maxCarryBytes else { return joined }
-        let split = joined.startIndex + cut
-        carries[attachId] = joined.subdata(in: split..<joined.endIndex)
-        return cut > 0 ? joined.subdata(in: joined.startIndex..<split) : nil
+        carries[attachId, default: .init()].split(appending: bytes, limit: Self.maxCarryBytes)
     }
 
     /// Emits `bytes` ahead of everything this attach has queued: live
@@ -374,6 +368,7 @@ nonisolated final class HerdrOutputRouter: @unchecked Sendable {
     }
 
     func write(attachId: String, _ data: Data) {
+        guard !data.isEmpty else { return }
         deliver(attachId: attachId, .data(data), isSnapshot: false)
     }
 

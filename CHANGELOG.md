@@ -3,6 +3,34 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.13-161 - October 4, 2026
+
+### Tailscale and VPN
+
+- **Built-In Tailscale:** Stay connected to your tailnet while optionally routing selected traffic through SSH or tssh. Capture HTTP(S) traffic from tailnet and non-tailnet destinations without disconnecting from Tailscale. Tailscale and HTTP capture work without an SSH host.
+- **Tailnet Access:** Connect in Settings -> VPN -> Tailscale on iPhone, iPad, or standalone Mac. Reach tailnet IPs, MagicDNS names, and subnet routes from other apps, and view or copy peer hostnames and IPs. Disconnect the separate Tailscale app before connecting here. HTTPS decryption still requires a trusted capture certificate and selected hosts.
+- **Selective SSH Routing:** Optionally choose a saved SSH or tssh egress host, including one on your tailnet. Domain, wildcard, IP, and CIDR rules route matching traffic through SSH or Direct; the first match wins. SSH-matched names resolve on the host. Send Other Traffic Through SSH routes remaining IPv4 traffic through it. Trust the host key in a terminal first; Apply Changes reconnects with edited settings.
+- **Reconnect and Auto Recovery:** VPN now has a top-level Settings section with one-tap reconnect to the last VPN or Tailscale connection. Auto Recovery is on by default: reopening rootshell reconnects a VPN left on before a restart or app update. Manual disconnect clears recovery, another active VPN prevents it, and Local Capture is never automatically restored.
+- **General Settings:** Privacy & Data, notifications, sounds, and updates now live under Settings -> General.
+
+### Open Web Links from Remote Programs
+
+- **Browser Requests:** Remote tools can open HTTP(S) links in this device's browser. Enable Open Links from Programs in Settings -> Terminal -> Program Links; it is off by default.
+- **Remote Helpers:** Install `scripts/rootshell-open` and `scripts/rootshell-open-clipboard` on the remote host. Set `BROWSER` to the full path of `rootshell-open` for SSH/tssh, or `rootshell-open-clipboard` for Mosh 1.4+ and native tmux. Ordinary tmux needs `allow-passthrough on` or `set-clipboard on`, respectively. See the [setup guide](docs/remote-url-opening.md).
+- **Focused-Terminal Requests:** Links open only from the focused terminal in the active window, at most once per second. Background or replayed output cannot open them later, and the clipboard stays untouched. Remote localhost callbacks still need the tool's remote/device authentication flow.
+
+### HTTP Capture and Panels
+
+- **XML and Plist Views:** View XML and binary plists as trees, readable XML, or hex, including bodies with generic content types. JSON and plist trees render lazily. Depth, node, and XML-size limits prevent excessive expansion; oversized plist views fall back to hex.
+- **Server Information:** Request lists show country flags; details add server location and network information, plus hostname, IP, and value copy actions. Look Up Server Locations and Show Network Favicons default to on in Capture Settings -> Server Info. They use your selected location provider and the network's website; private and local addresses are skipped.
+- **Capture Controls:** Fixed capture menu freezes during recording. The certificate sheet now has a Done button.
+- **Full-Size Panels:** Files and HTTP Capture offer Full Size alongside Sidebar and Overlay on larger screens, remembering each panel's presentation. Fixed transparent-background flashes when switching or closing tabs.
+
+### Connections and Preventive Hardening
+
+- **Connection Reuse:** tssh multiplexer discovery reuses its transport, avoiding a second Face ID prompt on connect or roam resume. Attachment uploads reuse live SSH/tssh connections, including native tmux and herdr; a separate connection is the fallback.
+- **Preventive Validation:** Added validation for malformed Mosh messages, invalid tssh IDs, and repeated OAuth callback parameters to prevent potential crashes; none were observed in the wild. OAuth callbacks now listen only on localhost.
+
 ## 1.0.13-160 - October 1, 2026
 
 ### HTTP and HTTPS Capture

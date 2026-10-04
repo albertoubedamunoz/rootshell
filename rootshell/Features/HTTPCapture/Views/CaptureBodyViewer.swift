@@ -758,7 +758,8 @@ enum CaptureForm {
 
     static func parseMultipart(_ data: Data, contentType: String) -> [Part] {
         guard let boundaryParam = contentType.split(separator: ";").first(where: { $0.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("boundary=") }) else { return [] }
-        let boundary = boundaryParam.split(separator: "=", maxSplits: 1)[1].trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
+        let boundary = boundaryParam.drop(while: { $0 != "=" }).dropFirst().trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
+        guard !boundary.isEmpty else { return [] }
         let delimiter = Data("--\(boundary)".utf8)
         var parts: [Part] = []
         var searchStart = data.startIndex
