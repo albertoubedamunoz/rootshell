@@ -82,7 +82,7 @@ struct TailnetSettingsView: View {
                 LabeledContent(node.displayName) {
                     Text(node.ips?.first ?? "").font(.body.monospaced()).foregroundStyle(.secondary)
                 }
-                .contextMenu { copyMenu(for: node) }
+                .hostAddressCopyMenu(name: node.displayName, hostname: node.dnsName, ipAddress: node.ips?.first)
                 .themedRow()
             }
             if let tailnet = status?.tailnet, !tailnet.isEmpty {
@@ -121,7 +121,7 @@ struct TailnetSettingsView: View {
         } header: {
             Text("Status")
         } footer: {
-            Text("Joins this device to your tailnet. MagicDNS names and tailnet addresses work in every app, including SSH sessions here. Only one VPN can run at a time, so the Tailscale app disconnects while this is on.")
+            Text("Use this instead of the Tailscale app. Only one VPN can be on at a time, so with the Tailscale app connected, HTTP capture can't run. Connected here, capture works on tailnet and internet traffic alike. MagicDNS names and tailnet addresses work in every app.")
         }
     }
 
@@ -188,20 +188,32 @@ struct TailnetSettingsView: View {
     private func peersSection(_ peers: [TailnetStatus.Peer]) -> some View {
         Section {
             ForEach(peers) { peer in
-                HStack {
+                HStack(alignment: .firstTextBaseline) {
                     Image(systemName: "circle.fill")
                         .font(.caption2)
                         .foregroundStyle(peer.online ? .green : .secondary)
-                    VStack(alignment: .leading) {
-                        Text(peer.displayName)
-                        if let os = peer.os, !os.isEmpty {
-                            Text(os).font(.caption).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(peer.displayName)
+                            Spacer(minLength: 8)
+                            if let os = peer.os, !os.isEmpty {
+                                Text(os).font(.caption).foregroundStyle(.secondary)
+                            }
                         }
+                        Group {
+                            if let dnsName = peer.dnsName, !dnsName.isEmpty {
+                                Text(dnsName).truncationMode(.middle)
+                            }
+                            if let ip = peer.ips?.first {
+                                Text(ip)
+                            }
+                        }
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                     }
-                    Spacer(minLength: 8)
-                    Text(peer.ips?.first ?? "").font(.caption.monospaced()).foregroundStyle(.secondary)
                 }
-                .contextMenu { copyMenu(for: peer) }
+                .hostAddressCopyMenu(name: peer.displayName, hostname: peer.dnsName, ipAddress: peer.ips?.first)
                 .themedRow()
             }
         } header: {
@@ -249,20 +261,6 @@ struct TailnetSettingsView: View {
         #else
         true
         #endif
-    }
-
-    @ViewBuilder
-    private func copyMenu(for peer: TailnetStatus.Peer) -> some View {
-        if let dnsName = peer.dnsName {
-            Button(String(localized: "Copy Name", comment: "Tailscale device context menu")) {
-                UIPasteboard.general.string = dnsName
-            }
-        }
-        if let ip = peer.ips?.first {
-            Button(String(localized: "Copy IP Address", comment: "Tailscale device context menu")) {
-                UIPasteboard.general.string = ip
-            }
-        }
     }
 
     // MARK: - Helpers

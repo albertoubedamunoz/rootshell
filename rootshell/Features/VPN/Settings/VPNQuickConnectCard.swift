@@ -45,9 +45,7 @@ struct VPNQuickConnectCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
+                icon
                     .frame(width: 44, height: 44)
                     .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -121,10 +119,19 @@ struct VPNQuickConnectCard: View {
         }
     }
 
-    private var icon: String {
+    @ViewBuilder
+    private var icon: some View {
         switch target {
-        case .profile(let profile): profile.connectionProtocol.iconName
-        case .tailscale: "point.3.connected.trianglepath.dotted"
+        case .profile(let profile):
+            Image(systemName: profile.connectionProtocol.iconName)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+        case .tailscale:
+            Image("TailscaleLogo")
+                .renderingMode(.original)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
         }
     }
 

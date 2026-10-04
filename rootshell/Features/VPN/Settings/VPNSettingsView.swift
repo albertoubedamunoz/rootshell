@@ -65,7 +65,15 @@ struct VPNSettingsView: View {
                 TailnetSettingsView()
             } label: {
                 HStack {
-                    Label(String(localized: "Tailscale", comment: "VPN settings row"), systemImage: "point.3.connected.trianglepath.dotted")
+                    Label {
+                        Text(String(localized: "Tailscale", comment: "VPN settings row"))
+                    } icon: {
+                        Image("TailscaleLogo")
+                            .renderingMode(.original)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                    }
                     Spacer(minLength: 8)
                     if vpnManager.isVPNActive(for: VPNTailnetProfile.id) {
                         Text(String(localized: "On", comment: "Tailscale VPN is active"))
@@ -75,7 +83,7 @@ struct VPNSettingsView: View {
             }
             .themedRow()
         } footer: {
-            Text("Join your tailnet, optionally sending chosen domains through an SSH host.")
+            Text("Use this instead of the Tailscale app to reach your tailnet and still use HTTP capture and SSH routing. Only one VPN can be on at a time.")
         }
     }
     #endif
