@@ -110,6 +110,12 @@ struct RootShellApp: App {
                     Self.didRunAppStartupTasks = true
                     LaunchSignposts.event("app.startupTask.begin")
 
+                    // Bring back the VPN a reboot or app update took down, early
+                    // so restored sessions can reach hosts behind it.
+                    #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+                    Task { await VPNManager.shared.recoverLastVPNIfNeeded() }
+                    #endif
+
                     // Register notification categories (deferred from App.init —
                     // not required before first paint).
                     NotificationManager.shared.registerNotificationCategories()

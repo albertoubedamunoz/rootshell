@@ -57,6 +57,7 @@ final class SystemExtensionController: NSObject, OSSystemExtensionRequestDelegat
         actionForReplacingExtension existing: OSSystemExtensionProperties,
         withExtension ext: OSSystemExtensionProperties
     ) -> OSSystemExtensionRequest.ReplacementAction {
+        Task { @MainActor in VPNTunnelController.shared.holdRecoveryForExtensionUpdate() }
         return .replace
     }
 

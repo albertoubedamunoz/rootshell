@@ -69,7 +69,8 @@ nonisolated struct VPNControlResponse: Codable, Sendable {
 
 struct VPNStartRequest: Codable, Sendable {
     let profileID: UUID
-    /// "ssh" | "tssh" — mirrors `VPNTunnelConfig.TransportType.rawValue`.
+    /// "ssh" | "tssh" | "tssh-relay" | "direct" | "tailscale" — mirrors
+    /// `VPNTunnelConfig.TransportType.rawValue`.
     let transportType: String
 
     /// Fully-resolved runtime config (JSON-encoded `VPNTunnelConfig`), populated
@@ -120,6 +121,8 @@ nonisolated struct VPNHostInfoResponse: Codable, Sendable {
     var supportsTSSHRelay: Bool? = nil
     /// Host understands providerMessage / installCATrust / removeCATrust.
     var supportsHTTPCapture: Bool? = nil
+    /// Host and sysext can run the Tailscale tunnel.
+    var supportsTailscale: Bool? = nil
     let version: String
     let bundlePath: String
 }
@@ -203,5 +206,11 @@ nonisolated enum VPNControlPaths {
 
     static var controlSocketPath: String? {
         containerURL?.appendingPathComponent("vpnControl.sock").path
+    }
+
+    /// Clears `VPNAutoRecovery`'s marker from the host, which doesn't build that type.
+    static func clearAutoRecovery() {
+        guard let url = containerURL?.appendingPathComponent("vpn_auto_recovery.txt") else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 }

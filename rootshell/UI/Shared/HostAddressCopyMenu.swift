@@ -10,15 +10,25 @@ import UIKit
 
 /// Context-menu actions for the host addresses available on a row.
 struct HostAddressCopyActions: View {
+    let name: String?
     let hostname: String?
     let ipAddress: String?
 
-    init(hostname: String? = nil, ipAddress: String? = nil) {
+    init(name: String? = nil, hostname: String? = nil, ipAddress: String? = nil) {
+        self.name = Self.nonEmpty(name)
         self.hostname = Self.nonEmpty(hostname)
         self.ipAddress = Self.nonEmpty(ipAddress)
     }
 
     var body: some View {
+        if let name, name != hostname {
+            Button {
+                UIPasteboard.general.string = name
+            } label: {
+                Label("Copy Name", systemImage: "doc.on.doc")
+            }
+        }
+
         if let hostname {
             Button {
                 UIPasteboard.general.string = hostname
@@ -36,8 +46,8 @@ struct HostAddressCopyActions: View {
         }
     }
 
-    static func hasActions(hostname: String?, ipAddress: String?) -> Bool {
-        nonEmpty(hostname) != nil || nonEmpty(ipAddress) != nil
+    static func hasActions(name: String? = nil, hostname: String?, ipAddress: String?) -> Bool {
+        nonEmpty(name) != nil || nonEmpty(hostname) != nil || nonEmpty(ipAddress) != nil
     }
 
     private static func nonEmpty(_ value: String?) -> String? {
@@ -49,14 +59,15 @@ struct HostAddressCopyActions: View {
 }
 
 private struct HostAddressCopyMenuModifier: ViewModifier {
+    let name: String?
     let hostname: String?
     let ipAddress: String?
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if HostAddressCopyActions.hasActions(hostname: hostname, ipAddress: ipAddress) {
+        if HostAddressCopyActions.hasActions(name: name, hostname: hostname, ipAddress: ipAddress) {
             content.contextMenu {
-                HostAddressCopyActions(hostname: hostname, ipAddress: ipAddress)
+                HostAddressCopyActions(name: name, hostname: hostname, ipAddress: ipAddress)
             }
         } else {
             content
@@ -66,7 +77,7 @@ private struct HostAddressCopyMenuModifier: ViewModifier {
 
 extension View {
     /// Adds long-press/right-click copy actions when at least one address exists.
-    func hostAddressCopyMenu(hostname: String? = nil, ipAddress: String? = nil) -> some View {
-        modifier(HostAddressCopyMenuModifier(hostname: hostname, ipAddress: ipAddress))
+    func hostAddressCopyMenu(name: String? = nil, hostname: String? = nil, ipAddress: String? = nil) -> some View {
+        modifier(HostAddressCopyMenuModifier(name: name, hostname: hostname, ipAddress: ipAddress))
     }
 }

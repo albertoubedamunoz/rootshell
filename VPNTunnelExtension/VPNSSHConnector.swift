@@ -65,6 +65,12 @@ nonisolated enum VPNSSHConnector {
         .channelOpenWindowSize(vpnChannelOpenWindowSize),
         .maximumAggregateWindowSize(vpnAggregateWindowBudget),
     ]
+    // Tailscale+SSH shares the extension's memory with WireGuard: half the windows.
+    private static let vpnCompactProtocolOptions: Set<SSHProtocolOption> = [
+        .initialChannelWindowSize(vpnInitialChannelWindowSize / 2),
+        .channelOpenWindowSize(vpnChannelOpenWindowSize / 2),
+        .maximumAggregateWindowSize(vpnAggregateWindowBudget),
+    ]
 
     /// Connect to SSH server using VPN tunnel config credentials.
     /// - Parameters:
@@ -110,7 +116,8 @@ nonisolated enum VPNSSHConnector {
         // Servers only present a host certificate when the client advertises
         // certificate host-key algorithms, so opt in whenever a CA applies.
         let targetProtocolOptions = protocolOptions(
-            advertisingHostCertificates: !(config.trustedCAKeys ?? []).isEmpty
+            advertisingHostCertificates: !(config.trustedCAKeys ?? []).isEmpty,
+            compact: config.compactChannelWindows
         )
 
         if let jump = config.jumpHostConfig {
@@ -123,7 +130,8 @@ nonisolated enum VPNSSHConnector {
                 trustedCAKeys: jump.trustedCAKeys
             )
             let jumpProtocolOptions = protocolOptions(
-                advertisingHostCertificates: !(jump.trustedCAKeys ?? []).isEmpty
+                advertisingHostCertificates: !(jump.trustedCAKeys ?? []).isEmpty,
+                compact: config.compactChannelWindows
             )
 
             let jumpAuth = try buildAuthMethod(
@@ -230,9 +238,9 @@ nonisolated enum VPNSSHConnector {
         ))
     }
 
-    private static func protocolOptions(advertisingHostCertificates: Bool) -> Set<SSHProtocolOption> {
-        guard advertisingHostCertificates else { return vpnProtocolOptions }
-        var options = vpnProtocolOptions
+    private static func protocolOptions(advertisingHostCertificates: Bool, compact: Bool) -> Set<SSHProtocolOption> {
+        var options = compact ? vpnCompactProtocolOptions : vpnProtocolOptions
+        guard advertisingHostCertificates else { return options }
         options.insert(.advertiseHostCertificateAlgorithms)
         return options
     }

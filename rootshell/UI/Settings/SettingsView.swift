@@ -21,8 +21,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case terminal
     case connections
     case aiAssistant
-    case privacyData
-    case notifications
+    /// Privacy & data, notifications, sounds and updates.
+    case general
+    case vpn
     case about
 
     var id: String { rawValue }
@@ -33,8 +34,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .terminal: String(localized: "Terminal", comment: "Settings section title")
         case .connections: String(localized: "Connections", comment: "Settings section title")
         case .aiAssistant: String(localized: "AI Assistant", comment: "Settings section title")
-        case .privacyData: String(localized: "Privacy & Data", comment: "Settings section title")
-        case .notifications: String(localized: "Notifications", comment: "Settings section title")
+        case .general: String(localized: "General", comment: "Settings section title")
+        case .vpn: String(localized: "VPN", comment: "Settings section title")
         case .about: String(localized: "About", comment: "Settings section title")
         }
     }
@@ -45,8 +46,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .terminal: "terminal"
         case .connections: "network"
         case .aiAssistant: "sparkles"
-        case .privacyData: "hand.raised"
-        case .notifications: "bell"
+        case .general: "gearshape"
+        case .vpn: "network.badge.shield.half.filled"
         case .about: "info.circle"
         }
     }
@@ -64,6 +65,14 @@ struct SettingsHomeList: View {
                         HStack(spacing: 12) {
                             SettingsIcon(systemName: section.icon)
                             Text(section.title)
+                            #if !CHINA_BUILD
+                            if section == .vpn {
+                                Spacer()
+                                Text(VPNManager.shared.status.isActive ? "Active" : "Off")
+                                    .foregroundColor(.secondary)
+                                    .font(.subheadline)
+                            }
+                            #endif
                         }
                     }
                     .themedRow()
@@ -420,7 +429,6 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @State private var navigationPath = NavigationPath()
     @State private var hasNavigatedToInitialDestination = false
-    @State private var navigateToVPN = false
 
     @State private var showDebugSettings = false
     @State private var searchReservedHeight: CGFloat = 88
@@ -487,13 +495,17 @@ struct SettingsView: View {
         case .terminal:
             SettingsTerminalSection()
         case .connections:
-            SettingsConnectionsSection(navigateToVPN: $navigateToVPN)
+            SettingsConnectionsSection()
         case .aiAssistant:
             SettingsAISection()
-        case .privacyData:
-            SettingsPrivacySection()
-        case .notifications:
-            SettingsNotificationsSection()
+        case .general:
+            SettingsGeneralSection()
+        case .vpn:
+            #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+            VPNSettingsView()
+            #else
+            EmptyView()
+            #endif
         case .about:
             SettingsAboutSection()
         }
@@ -507,11 +519,7 @@ struct SettingsView: View {
         DispatchQueue.main.async {
             switch initialDestination {
             case .vpn:
-                navigationPath.append(SettingsSection.connections)
-                // Second tick to push VPN after Connections is on the stack.
-                DispatchQueue.main.async {
-                    navigateToVPN = true
-                }
+                navigationPath.append(SettingsSection.vpn)
             case .touchKeyboard:
                 navigationPath.append(SettingsSection.terminal)
                 navigationPath.append(SettingsSearchDestination.touchKeyboard)

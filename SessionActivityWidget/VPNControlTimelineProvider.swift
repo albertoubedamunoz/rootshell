@@ -109,6 +109,7 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
                 case .ssh: "SSH"
                 case .tssh: "tssh"
                 case .direct: "Direct"
+                case .tailscale: "Tailscale"
                 }
             }
         }

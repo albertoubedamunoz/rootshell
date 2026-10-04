@@ -53,7 +53,6 @@ enum SettingsSearchDestination: String, Hashable, CaseIterable {
     case wifiAPProviders
     case kubernetesClusters
     case backgroundTunnels
-    case vpn
     case roam
     case screenSharing
     case uploads
@@ -269,10 +268,6 @@ extension SettingsSearchDestination {
         case .backgroundTunnels:
             Meta(section: .connections, title: String(localized: "Background Tunnels"), systemImage: "arrow.triangle.swap",
                  keywords: ["port forwarding", "tunnels", "stop all", "event history", "profiles", "local forward"])
-        case .vpn:
-            Meta(section: .connections, title: String(localized: "VPN"), systemImage: "network.badge.shield.half.filled",
-                 keywords: ["networking", "tunnel", "wireguard", "disconnect", "dns servers", "route exclusions",
-                            "split tunnel", "cidr", "debug"])
         case .roam:
             Meta(section: .connections, title: String(localized: "Roam"), systemImage: "antenna.radiowaves.left.and.right",
                  keywords: ["mobility", "handoff", "mosh"])
@@ -296,7 +291,7 @@ extension SettingsSearchDestination {
                  keywords: ["command", "task", "long running", "sudo", "password", "prompt", "build", "test", "pytest",
                             "cargo", "terraform", "rsync", "transfer", "detect"])
         case .pushNotifications:
-            Meta(section: .notifications, title: String(localized: "Push Notifications"), systemImage: "lock.shield",
+            Meta(section: .general, title: String(localized: "Push Notifications"), systemImage: "lock.shield",
                  keywords: ["push", "apns", "hook", "claude code", "codex", "remote", "encrypted", "pair", "background"])
         case .aiConfiguration:
             Meta(section: .aiAssistant, title: String(localized: "Configuration"), systemImage: "gearshape",
@@ -311,41 +306,41 @@ extension SettingsSearchDestination {
             Meta(section: .aiAssistant, title: String(localized: "Voice Agent"), systemImage: "waveform",
                  keywords: ["voice", "gemini", "audio", "speech"])
         case .iCloudSync:
-            Meta(section: .privacyData, title: String(localized: "iCloud Sync"), systemImage: "arrow.triangle.2.circlepath.icloud",
+            Meta(section: .general, title: String(localized: "iCloud Sync"), systemImage: "arrow.triangle.2.circlepath.icloud",
                  keywords: ["sync", "cloudkit", "backup"])
         case .backupRestore:
-            Meta(section: .privacyData, title: String(localized: "Backup & Restore"), systemImage: "archivebox",
+            Meta(section: .general, title: String(localized: "Backup & Restore"), systemImage: "archivebox",
                  keywords: ["export", "import", "archive", "encrypted", "password", "categories", "transfer", "migrate"])
         case .syncedGroups:
-            Meta(section: .privacyData, title: String(localized: "Synced Groups"), systemImage: "square.grid.2x2",
+            Meta(section: .general, title: String(localized: "Synced Groups"), systemImage: "square.grid.2x2",
                  keywords: ["sync", "group", "groups", "icloud", "pin", "local", "device", "sync all groups", "keep all on this device"])
         case .pinnedSettings:
-            Meta(section: .privacyData, title: String(localized: "Pinned Settings"), systemImage: "pin",
+            Meta(section: .general, title: String(localized: "Pinned Settings"), systemImage: "pin",
                  keywords: ["pin", "pinned", "local", "device", "sync", "icloud", "sync again", "always on this device"])
         case .configFile:
-            Meta(section: .privacyData, title: String(localized: "Config File"), systemImage: "doc.text",
+            Meta(section: .general, title: String(localized: "Config File"), systemImage: "doc.text",
                  keywords: ["config", "dotfile", "text", "file", "ghostty", "rootshell.conf", "editor", "create", "edit",
                             "reload", "show in finder"])
         case .locationDiary:
-            Meta(section: .privacyData, title: String(localized: "View Diary"), systemImage: "book",
+            Meta(section: .general, title: String(localized: "View Diary"), systemImage: "book",
                  keywords: ["entries", "location history"])
         case .liveActivity:
-            Meta(section: .privacyData, title: String(localized: "Live Activity"), systemImage: "record.circle",
+            Meta(section: .general, title: String(localized: "Live Activity"), systemImage: "record.circle",
                  keywords: ["dynamic island", "activity"])
         case .clipboardManager:
-            Meta(section: .privacyData, title: String(localized: "Clipboard Manager"), systemImage: "list.clipboard",
+            Meta(section: .general, title: String(localized: "Clipboard Manager"), systemImage: "list.clipboard",
                  keywords: ["clipboard", "history", "copy", "paste", "transform", "base64", "jwt"])
         case .autoRedact:
-            Meta(section: .privacyData, title: String(localized: "Auto-Redact"), systemImage: "eye.slash",
+            Meta(section: .general, title: String(localized: "Auto-Redact"), systemImage: "eye.slash",
                  keywords: ["redact", "privacy", "pii", "mask", "hide", "email", "name", "screenshot", "recording", "sensitive"])
         case .acknowledgements:
             Meta(section: .about, title: String(localized: "Acknowledgements"), systemImage: "doc.text",
                  keywords: ["licenses", "credits"])
         case .openSSHImport:
-            Meta(section: .privacyData, title: String(localized: "Import from OpenSSH"), systemImage: "key.horizontal",
+            Meta(section: .general, title: String(localized: "Import from OpenSSH"), systemImage: "key.horizontal",
                  keywords: ["ssh config", "ssh_config", "import", "migrate", ".ssh", "identityfile", "openssh", "hosts"])
         case .ghosttyConfigImport:
-            Meta(section: .privacyData, title: String(localized: "Import from Ghostty Config"), systemImage: "square.and.arrow.down.on.square",
+            Meta(section: .general, title: String(localized: "Import from Ghostty Config"), systemImage: "square.and.arrow.down.on.square",
                  keywords: ["ghostty", "config", "import", "migrate", "theme", "font", "keybinds", "palette"])
         }
     }
@@ -388,8 +383,6 @@ extension SettingsSearchDestination {
             #endif
         case .localShell, .localSSHAgent, .externalSSHAgents:
             return SearchBuild.isStandalone && SearchBuild.isCatalyst
-        case .vpn:
-            return !SearchBuild.isChinaBuild && (!SearchBuild.isCatalyst || SearchBuild.isStandalone)
         default:
             return true
         }
@@ -412,6 +405,7 @@ extension SettingsSection {
     var isAvailable: Bool {
         switch self {
         case .aiAssistant: !SearchBuild.isChinaBuild
+        case .vpn: !SearchBuild.isChinaBuild && (!SearchBuild.isCatalyst || SearchBuild.isStandalone)
         default: true
         }
     }
@@ -420,10 +414,12 @@ extension SettingsSection {
         switch self {
         case .appearance: ["theme", "font", "cursor", "window", "colors"]
         case .terminal: ["keyboard", "locale", "prompt", "sessions"]
-        case .connections: ["ssh", "cloud", "vpn", "hosts", "tmux", "vnc", "screen sharing", "remote desktop", "storage", "s3"]
+        case .connections: ["ssh", "cloud", "hosts", "tmux", "vnc", "screen sharing", "remote desktop", "storage", "s3"]
         case .aiAssistant: ["providers", "mcp", "agent", "text size"]
-        case .privacyData: ["icloud", "location", "sync", "live activity"]
-        case .notifications: ["sound", "bell", "reminders"]
+        case .general: ["privacy", "data", "icloud", "location", "sync", "live activity",
+                        "notifications", "sound", "bell", "reminders", "updates"]
+        case .vpn: ["networking", "tunnel", "tailscale", "tailnet", "wireguard", "disconnect", "dns servers",
+                    "route exclusions", "split tunnel", "cidr", "auto recovery", "reconnect", "debug"]
         case .about: ["version", "acknowledgements", "licenses"]
         }
     }
@@ -436,7 +432,7 @@ extension SettingsSection {
             systemImage: icon,
             action: .section(self),
             keywords: searchKeywords,
-            isSuggested: self != .privacyData && self != .notifications && self != .about
+            isSuggested: self != .general && self != .about
         )
     }
 }
@@ -1033,7 +1029,7 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["restore", "select backup file", "password"]),
 
             // MARK: Privacy & Data (inline, touch)
-            row("location-diary-mode", String(localized: "Location Diary Mode"), in: .privacyData, icon: "mappin.and.ellipse",
+            row("location-diary-mode", String(localized: "Location Diary Mode"), in: .general, icon: "mappin.and.ellipse",
                 keywords: ["tracking", "location", "diary", "session only", "auto during active sessions"],
                 available: !isCatalyst),
 
@@ -1070,19 +1066,19 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["hook", "install", "upgrade", "shell command", "rootshell-push"]),
 
             // MARK: Notifications (inline)
-            row("terminal-notifications", String(localized: "Terminal Notifications"), in: .notifications, icon: "bell",
+            row("terminal-notifications", String(localized: "Terminal Notifications"), in: .general, icon: "bell",
                 keywords: ["osc", "alerts"]),
-            row("ssh-session-reminders", String(localized: "SSH Session Reminders"), in: .notifications, icon: "bell.badge",
+            row("ssh-session-reminders", String(localized: "SSH Session Reminders"), in: .general, icon: "bell.badge",
                 keywords: ["background", "reminders"], available: !isCatalyst),
-            row("bell-sound", String(localized: "Bell Sound"), in: .notifications, icon: "speaker.wave.2",
+            row("bell-sound", String(localized: "Bell Sound"), in: .general, icon: "speaker.wave.2",
                 keywords: ["audio", "alerts"]),
-            row("notification-sound", String(localized: "Notification Sound"), in: .notifications, icon: "music.note",
+            row("notification-sound", String(localized: "Notification Sound"), in: .general, icon: "music.note",
                 keywords: ["audio", "reminders"]),
-            row("volume", String(localized: "Volume"), in: .notifications, icon: "speaker.wave.3",
+            row("volume", String(localized: "Volume"), in: .general, icon: "speaker.wave.3",
                 keywords: ["sound level", "bell volume"]),
-            row("updates-automatic", String(localized: "Automatically Check for Updates"), in: .notifications, icon: "arrow.down.circle",
+            row("updates-automatic", String(localized: "Automatically Check for Updates"), in: .general, icon: "arrow.down.circle",
                 keywords: ["sparkle", "update", "check interval", "daily", "weekly"], available: isStandaloneMac),
-            row("updates-check-now", String(localized: "Check for Updates Now"), in: .notifications, icon: "arrow.clockwise.circle",
+            row("updates-check-now", String(localized: "Check for Updates Now"), in: .general, icon: "arrow.clockwise.circle",
                 keywords: ["update", "check now", "version"], available: isStandaloneMac),
         ]
     }
@@ -1227,12 +1223,6 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
         KubernetesSettingsView()
     case .backgroundTunnels:
         TunnelSettingsView()
-    case .vpn:
-        #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
-        VPNSettingsView()
-        #else
-        EmptyView()
-        #endif
     case .roam:
         RoamSettingsView()
     case .screenSharing:

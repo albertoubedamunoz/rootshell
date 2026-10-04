@@ -32,13 +32,14 @@ ROOTSHELL_APP_GROUP = $(ROOTSHELL_DEFAULT_APP_GROUP).cn
 //     Path glob plus a filename-pattern fallback. Individual AIAgent files also
 //     have file-level #if !CHINA_BUILD guards as a belt-and-suspenders measure
 //     in case Xcode's path globbing doesn't match fileSystemSynchronizedGroups.
-//   - Core/VPN: main-app VPN manager layer.
+//   - Features/VPN tree: main-app VPN layer, including subfolders (Tailnet/,
+//     Settings/, Mac/); those files also carry #if !CHINA_BUILD guards.
 //   - *VPN*.swift: catches VPN settings views, VPN app intents, and VPN widget
 //     files in the widget extension (though the widget target also sets its own
 //     exclusions for these).
 //   - AIAgentSettingsView.swift: the one AI Agent settings view that lives under
 //     Settings/ rather than AIAgent/.
-EXCLUDED_SOURCE_FILE_NAMES = rootshell-helper.app UpdateManager.swift rootshell/Features/AIAgent/**/*.swift rootshell/Features/VPN/*.swift *VPN*.swift AIAgentSettingsView.swift
+EXCLUDED_SOURCE_FILE_NAMES = rootshell-helper.app UpdateManager.swift rootshell/Features/AIAgent/**/*.swift rootshell/Features/VPN/*.swift rootshell/Features/VPN/**/*.swift *VPN*.swift AIAgentSettingsView.swift
 
 // Swift conditional compilation flags
 //   - CHINA_BUILD: gates cross-reference sites in mixed files
