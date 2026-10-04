@@ -174,10 +174,11 @@ final class MacVPNController {
         _ = try await send(VPNControlRequest(command: .activateExtension))
 
         var announcedApproval = false
+        // Resolved on every exit (success, failure, timeout, cancellation).
+        defer { if announcedApproval { onApprovalResolved?() } }
         for _ in 0..<300 {   // up to ~5 min
             switch await extensionStatus()?.state {
             case .activated:
-                if announcedApproval { onApprovalResolved?() }
                 return
             case .awaitingApproval:
                 if !announcedApproval { announcedApproval = true; onApprovalRequired?() }
@@ -202,12 +203,89 @@ final class MacVPNController {
     }
 
     func start(profileID: UUID) async throws {
-        guard var snapshot = VPNSharedProfileStore.profile(id: profileID) else {
+        guard let stored = VPNSharedProfileStore.profile(id: profileID) else {
             throw MacVPNError.profileNotFound
         }
-        // Pin fresh host keys / trusted host CAs from the app's stores
-        // (unreachable from the root sysext) and refuse to start when neither
-        // exists. The sysext verifies the server against these on connect.
+        let snapshot = try Self.pinningHostKeys(stored)
+        let resolved = try await Self.resolveCredentials(snapshot)
+        let payload = try VPNCredentialResolver.encode(resolved)
+
+        let request = VPNStartRequest(
+            profileID: profileID,
+            transportType: snapshot.transportType == .tssh && snapshot.jumpHost?.tsshRelay != nil ? "tssh-relay" : snapshot.transportType.rawValue,
+            resolvedConfig: payload,
+            usesAgentSigning: Self.isAgentKey(resolved.credential) || Self.isAgentKey(resolved.jumpCredential),
+            captureConfig: captureConfigProvider?()
+        )
+        let body = try JSONEncoder().encode(request)
+
+        try await ensureHostRunning()
+        if snapshot.transportType == .tssh, snapshot.jumpHost?.tsshRelay != nil,
+           await hostInfo()?.supportsTSSHRelay != true {
+            throw VPNHostConnectionError.requestFailed("Update the rootshell VPN host and system extension before using tssh jump relay.")
+        }
+        let response = try await send(VPNControlRequest(command: .startVPN, payload: body))
+        if !response.success {
+            throw VPNHostConnectionError.requestFailed(response.error ?? "start failed")
+        }
+    }
+
+#if !CHINA_BUILD
+    /// Starts the Tailscale tunnel. The sysext can't read the app group, so the
+    /// settings and the SSH egress host (with resolved secrets) travel in the
+    /// start request. `restart` reconnects a running one so new settings apply.
+    func startTailnet(restart: Bool) async throws {
+        let settings = VPNTailnetProfile.settings()
+        var tailnet = VPNResolvedTailnet(settings: settings)
+        var usesAgentSigning = false
+        if settings.sshEgressProfileID != nil {
+            guard let stored = VPNTailnetProfile.egressSnapshot(settings) else {
+                throw MacVPNError.profileNotFound
+            }
+            let egress = try Self.pinningHostKeys(stored)
+            let resolved = try await Self.resolveCredentials(egress)
+            tailnet.egress = egress
+            tailnet.egressCredential = resolved.credential
+            tailnet.egressJumpCredential = resolved.jumpCredential
+            usesAgentSigning = Self.isAgentKey(resolved.credential) || Self.isAgentKey(resolved.jumpCredential)
+        }
+        let config = VPNResolvedConfig(snapshot: VPNTailnetProfile.snapshot(), credential: nil, jumpCredential: nil, tailnet: tailnet)
+        let request = VPNStartRequest(
+            profileID: VPNTailnetProfile.id,
+            transportType: VPNSharedTransportType.tailscale.rawValue,
+            resolvedConfig: try VPNCredentialResolver.encode(config),
+            usesAgentSigning: usesAgentSigning,
+            captureConfig: captureConfigProvider?()
+        )
+
+        try await ensureHostRunning()
+        if await hostInfo()?.supportsTailscale != true {
+            throw VPNHostConnectionError.requestFailed("Update the rootshell VPN host and system extension before using Tailscale.")
+        }
+        // The host treats a start for the running profile as a no-op.
+        if restart, let current = await status(), current.profileID == VPNTailnetProfile.id,
+           ["connected", "connecting", "reasserting"].contains(current.status) {
+            _ = try await send(VPNControlRequest(command: .stopVPN))
+            for _ in 0..<50 {   // ~10s
+                try? await Task.sleep(for: .milliseconds(200))
+                let state = await status()?.status
+                if state == "disconnected" || state == "invalid" { break }
+            }
+        }
+        let response = try await send(VPNControlRequest(command: .startVPN, payload: try JSONEncoder().encode(request)))
+        if !response.success {
+            throw VPNHostConnectionError.requestFailed(response.error ?? "start failed")
+        }
+        // The root sysext can't write the app group; record what it started with.
+        VPNTailnetProfile.storeApplied(settings)
+    }
+#endif
+
+    /// Pins fresh host keys / trusted host CAs from the app's stores
+    /// (unreachable from the root sysext) and refuses to start when neither
+    /// exists. The sysext verifies the server against these on connect.
+    private static func pinningHostKeys(_ input: VPNSharedProfileSnapshot) throws -> VPNSharedProfileSnapshot {
+        var snapshot = input
         let known = KnownHostsManager.shared.getHost(hostname: snapshot.host, port: snapshot.port)
         let caKeys = HostCAManager.shared.trustedCAOpenSSHKeys(forHost: snapshot.host)
         guard known != nil || !caKeys.isEmpty else {
@@ -225,39 +303,24 @@ final class MacVPNController {
             jump.trustedCAKeys = jumpCAKeys.isEmpty ? nil : jumpCAKeys
             snapshot.jumpHost = jump
         }
-        // Agent keys resolve exactly only after a verification probe; the
-        // credential resolver itself is synchronous.
+        return snapshot
+    }
+
+    /// Agent keys resolve exactly only after a verification probe; the
+    /// credential resolver itself is synchronous.
+    private static func resolveCredentials(_ snapshot: VPNSharedProfileSnapshot) async throws -> VPNResolvedConfig {
         let keyIDs = [snapshot.auth.keyID, snapshot.jumpHost?.auth.keyID].compactMap { $0 }
         await withTaskGroup(of: Void.self) { group in
             for keyID in keyIDs {
                 group.addTask { await ExternalSSHAgentRegistry.shared.verifyAgent(forKeyID: keyID) }
             }
         }
-        let resolved = try VPNCredentialResolver.resolve(snapshot: snapshot)
-        let payload = try VPNCredentialResolver.encode(resolved)
+        return try VPNCredentialResolver.resolve(snapshot: snapshot)
+    }
 
-        let isAgentKey = { (credential: VPNResolvedCredential?) -> Bool in
-            if case .agentKey = credential { return true }
-            return false
-        }
-        let request = VPNStartRequest(
-            profileID: profileID,
-            transportType: snapshot.transportType == .tssh && snapshot.jumpHost?.tsshRelay != nil ? "tssh-relay" : snapshot.transportType.rawValue,
-            resolvedConfig: payload,
-            usesAgentSigning: isAgentKey(resolved.credential) || isAgentKey(resolved.jumpCredential),
-            captureConfig: captureConfigProvider?()
-        )
-        let body = try JSONEncoder().encode(request)
-
-        try await ensureHostRunning()
-        if snapshot.transportType == .tssh, snapshot.jumpHost?.tsshRelay != nil,
-           await hostInfo()?.supportsTSSHRelay != true {
-            throw VPNHostConnectionError.requestFailed("Update the rootshell VPN host and system extension before using tssh jump relay.")
-        }
-        let response = try await send(VPNControlRequest(command: .startVPN, payload: body))
-        if !response.success {
-            throw VPNHostConnectionError.requestFailed(response.error ?? "start failed")
-        }
+    private static func isAgentKey(_ credential: VPNResolvedCredential?) -> Bool {
+        if case .agentKey = credential { return true }
+        return false
     }
 
     /// Starts the serverless "Local Capture" tunnel.

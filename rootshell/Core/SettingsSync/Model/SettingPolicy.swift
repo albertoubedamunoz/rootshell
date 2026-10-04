@@ -124,10 +124,8 @@ nonisolated enum SettingGroup: String, Codable, CaseIterable, Sendable {
             .connections
         case .ai:
             .aiAssistant
-        case .privacy, .clipboard, .system:
-            .privacyData
-        case .notifications, .sounds, .liveActivity:
-            .notifications
+        case .privacy, .clipboard, .system, .notifications, .sounds, .liveActivity:
+            .general
         }
     }
 }

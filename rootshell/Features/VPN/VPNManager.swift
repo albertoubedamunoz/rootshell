@@ -29,6 +29,12 @@ final class VPNManager {
     private(set) var trafficHistory: [VPNTrafficSnapshot] = []
     private(set) var eventHistory: [VPNEvent] = []
     private(set) var lastExtensionError: String?
+#if !CHINA_BUILD
+    /// The profile (or Tailscale) that last connected on this device, offered
+    /// for a quick reconnect. Local Capture is never remembered.
+    private(set) var lastVPNProfileID: UUID? = VPNLastConnected.read()
+    @ObservationIgnored private var didAttemptRecovery = false
+#endif
     /// True while the macOS system extension is waiting on user approval in
     /// System Settings, so the UI can prompt the user. (macOS Standalone only.)
     private(set) var extensionApprovalPending = false
@@ -120,6 +126,34 @@ final class VPNManager {
 #endif
     }
 
+#if !CHINA_BUILD
+    /// Start the Tailscale VPN; `restart` reconnects so changed settings apply.
+    func startTailnetVPN(restart: Bool = false) async throws {
+        Self.logger.info("Starting Tailscale VPN (restart=\(restart))")
+        // Mirrors the SSH egress profile with its current host key.
+        ConnectionProfileManager.shared.refreshVPNSharedProfiles()
+#if STANDALONE && targetEnvironment(macCatalyst)
+        try await MacVPNController.shared.activateExtension()
+        try await MacVPNController.shared.startTailnet(restart: restart)
+#else
+        _ = try await VPNStartController.startTailnet(restart: restart)
+#endif
+        await refreshStatusFromSystem()
+
+        let snapshot = VPNTailnetProfile.snapshot()
+        activeProfileID = snapshot.id
+        activeProfileName = snapshot.name
+        if status == .disconnected || status == .invalid {
+            status = .connecting
+        }
+        previousStatus = status
+        addEvent(.connected(profileID: snapshot.id, message: snapshot.name))
+#if STANDALONE && targetEnvironment(macCatalyst)
+        startStatsPolling()
+#endif
+    }
+#endif
+
     /// Whether the tunnel is up and able to answer provider messages.
     var isTunnelUp: Bool {
         status == .connected || status == .reasserting
@@ -148,6 +182,9 @@ final class VPNManager {
 
     /// Stop the active VPN tunnel.
     func stopVPN() async throws {
+#if !CHINA_BUILD
+        VPNAutoRecovery.clear()
+#endif
 #if STANDALONE && targetEnvironment(macCatalyst)
         try await MacVPNController.shared.stop()
         extensionApprovalPending = false
@@ -216,15 +253,21 @@ final class VPNManager {
         case "invalid": mapped = .invalid
         default: mapped = .disconnected
         }
+        // No noteTunnelEnded here: the host owns clearing auto recovery on the
+        // Mac, since only it can tell extension updates and shutdowns apart.
         if status != mapped {
             status = mapped
             previousStatus = mapped
         }
+        if mapped == .connected {
+            rememberActiveVPN()
+        }
         if mapped == .connected, connectedSince == nil {
             connectedSince = Date()
         } else if mapped == .disconnected || mapped == .invalid {
+            // Not extensionApprovalPending: the tunnel stays down while approval
+            // is pending, and activateExtension() owns that flag.
             connectedSince = nil
-            extensionApprovalPending = false
             stopStatsPolling()
         }
     }
@@ -246,6 +289,7 @@ final class VPNManager {
                 activeProfileName =
                     ConnectionProfileManager.shared.profile(for: profileID)?.name ??
                     VPNSharedProfileStore.profile(id: profileID)?.name
+                if status == .connected { rememberActiveVPN() }
             }
             if let json = response.statusJSON {
                 applyStatusJSON(json)
@@ -406,6 +450,7 @@ final class VPNManager {
             ])
             return
         }
+        reloadLastVPN()
 
 #if STANDALONE && targetEnvironment(macCatalyst)
         await refreshMacVPNState(shouldApply: shouldApply)
@@ -440,6 +485,7 @@ final class VPNManager {
             observeStatus(manager)
 
             let systemStatus = manager.connection.status
+            noteTunnelEnded(from: status, to: systemStatus)
             status = systemStatus
             previousStatus = systemStatus
 
@@ -517,8 +563,42 @@ final class VPNManager {
 #endif
     }
 
+    /// Records the active VPN as the one to reconnect to. Called only once it
+    /// is connected, so a failed attempt doesn't replace a working choice. The
+    /// iOS tunnel records it too; on the Mac only the app can write the group.
+    private func rememberActiveVPN() {
+#if !CHINA_BUILD
+        guard let id = activeProfileID else { return }
+        VPNLastConnected.record(id)
+        VPNAutoRecovery.markRunning(id)
+        reloadLastVPN()
+#endif
+    }
+
+    /// A tunnel that goes down while the app watches wasn't up when it last ran.
+    /// A failed connect (from `.connecting`) keeps the marker for the next launch.
+    private func noteTunnelEnded(from oldStatus: NEVPNStatus, to newStatus: NEVPNStatus) {
+#if !CHINA_BUILD
+        guard newStatus == .disconnected || newStatus == .invalid,
+              oldStatus == .connected || oldStatus == .reasserting || oldStatus == .disconnecting else { return }
+        VPNAutoRecovery.clear()
+#endif
+    }
+
+    /// Picks up connections made while the app wasn't running (widget,
+    /// Shortcuts, Control Center), which the tunnel recorded.
+    func reloadLastVPN() {
+#if !CHINA_BUILD
+        let stored = VPNLastConnected.read()
+        if stored != lastVPNProfileID { lastVPNProfileID = stored }
+#endif
+    }
+
     /// Restore activeProfileID and activeProfileName from the saved NE protocol configuration.
     private func restoreActiveProfile(from manager: NETunnelProviderManager) {
+        defer {
+            if manager.connection.status == .connected { rememberActiveVPN() }
+        }
         if let widgetState = VPNWidgetState.read(),
            let profileID = widgetState.profileID,
            manager.connection.status == .connecting || manager.connection.status == .connected || manager.connection.status == .reasserting {
@@ -619,6 +699,7 @@ final class VPNManager {
         }
 
         let statusChanged = newStatus != previousStatus
+        noteTunnelEnded(from: previousStatus, to: newStatus)
         previousStatus = newStatus
 
         LifecycleDebugLogger.shared.checkpoint("VPN.status.applied", ms: nil, [
@@ -819,6 +900,46 @@ final class VPNManager {
             return false
         }
     }
+
+#if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+    /// Reconnects the VPN that was up when the app last ran, e.g. after a
+    /// reboot or app update. Runs at most once per launch.
+    func recoverLastVPNIfNeeded() async {
+        guard !didAttemptRecovery else { return }
+        didAttemptRecovery = true
+        guard SettingsStore.shared.value(Settings.VPN.autoRecovery) else { return }
+        await initializationTask?.value
+        // Read after the await: a stop during startup clears the marker.
+        guard let id = VPNAutoRecovery.pendingProfileID(),
+              !status.isActive, status != .disconnecting else { return }
+        guard !Self.isOtherVPNActive() else {
+            Self.logger.info("Auto recovery skipped: another VPN is connected")
+            return
+        }
+        Self.logger.info("Auto recovery: reconnecting \(id.uuidString, privacy: .public)")
+        do {
+            if id == VPNTailnetProfile.id {
+                #if os(iOS) && (!targetEnvironment(macCatalyst) || STANDALONE)
+                try await startTailnetVPN()
+                TailnetLoginCoordinator.shared.watch()
+                #endif
+            } else if let profile = ConnectionProfileManager.shared.profiles.first(where: { $0.id == id && $0.isVPNCapable }) {
+                try await startVPN(for: profile)
+            }
+        } catch {
+            Self.logger.error("Auto recovery failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Any tunnel interface with scoped network settings. Only meaningful while
+    /// ours is down, when such an interface belongs to another VPN app.
+    private static func isOtherVPNActive() -> Bool {
+        guard let settings = CFNetworkCopySystemProxySettings()?.takeRetainedValue() as? [String: Any],
+              let scoped = settings["__SCOPED__"] as? [String: Any] else { return false }
+        let prefixes = ["utun", "ipsec", "ppp", "tun", "tap"]
+        return scoped.keys.contains { name in prefixes.contains { name.hasPrefix($0) } }
+    }
+#endif
 
     private func addEvent(_ event: VPNEvent) {
         eventHistory.append(event)

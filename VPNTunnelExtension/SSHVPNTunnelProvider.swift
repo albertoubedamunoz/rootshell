@@ -27,23 +27,25 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     // SSH transport state (SSH profiles only)
     // Protected by sshStateLock for thread-safe access from both MainActor
     // (startup/cleanup) and nonisolated (reconnection) contexts.
-    private let sshStateLock = NSLock()
-    private nonisolated(unsafe) var sshClient: SSHClient?
-    private nonisolated(unsafe) var jumpClient: SSHClient?
+    let sshStateLock = NSLock()
+    nonisolated(unsafe) var sshClient: SSHClient?
+    nonisolated(unsafe) var jumpClient: SSHClient?
     // Protected by sshStateLock until ownership passes to Go netstack.
-    private nonisolated(unsafe) var preparedRelay: VpntunnelRelay?
+    nonisolated(unsafe) var preparedRelay: VpntunnelRelay?
     private var relayEndpoint: String?
-    private nonisolated(unsafe) var socksProxy: VPNSOCKS5Proxy?
-    private nonisolated(unsafe) var sshEventLoopGroup: MultiThreadedEventLoopGroup?
-    private nonisolated(unsafe) var socksEventLoopGroup: MultiThreadedEventLoopGroup?
+    nonisolated(unsafe) var socksProxy: VPNSOCKS5Proxy?
+    nonisolated(unsafe) var sshEventLoopGroup: MultiThreadedEventLoopGroup?
+    nonisolated(unsafe) var socksEventLoopGroup: MultiThreadedEventLoopGroup?
 
     // Traffic time-series recorder
-    private nonisolated(unsafe) var trafficRecorder: VPNTrafficRecorder?
+    nonisolated(unsafe) var trafficRecorder: VPNTrafficRecorder?
 
     // SSH health monitoring & reconnection state
     private nonisolated(unsafe) var healthMonitor: VPNSSHHealthMonitor?
-    private nonisolated(unsafe) var sshProxyPort: Int = 0
-    private nonisolated(unsafe) var storedConfig: VPNTunnelConfig?
+    nonisolated(unsafe) var sshProxyPort: Int = 0
+    nonisolated(unsafe) var storedConfig: VPNTunnelConfig?
+    // Tailscale mode only; protected by runningStateLock.
+    nonisolated(unsafe) var tailnetSession: TailnetSession?
     private let reconnectLock = NSLock()
     private nonisolated(unsafe) var isReconnecting = false
     private nonisolated(unsafe) var reconnectAttempts = 0
@@ -53,8 +55,8 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     // nonisolated methods (stopTunnel, handleAppMessage, Go callbacks).
     // Manual lock-based synchronization — nonisolated(unsafe) tells the
     // compiler we handle thread safety ourselves.
-    private let runningStateLock = NSLock()
-    private nonisolated(unsafe) var runningState = false
+    let runningStateLock = NSLock()
+    nonisolated(unsafe) var runningState = false
     /// True between `stopTunnel` being called and the next `startTunnelInner`
     /// resetting state. Distinct from `runningState` because `runningState`
     /// is also `false` during normal bootstrap, so it can't tell the two
@@ -64,16 +66,16 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     /// stage may still return a result) is detected and the freshly-built
     /// SSH client is torn down instead of getting wired into a stopped
     /// tunnel's SOCKS / Go path.
-    private nonisolated(unsafe) var stopRequested = false
+    nonisolated(unsafe) var stopRequested = false
     /// Monotonically increasing generation counter. Incremented on each startTunnel
     /// so that reconnection tasks from a previous session detect staleness and exit
     /// rather than tearing down a newly started tunnel.
     private nonisolated(unsafe) var tunnelGeneration: UInt64 = 0
-    private nonisolated(unsafe) var tunnelStartDate: Date?
+    nonisolated(unsafe) var tunnelStartDate: Date?
     private nonisolated(unsafe) var tsshPort: Int = 0
     private nonisolated(unsafe) var tsshMode: String = ""
     private nonisolated(unsafe) var tsshMTU: Int = 0
-    private nonisolated(unsafe) var tunMTU: Int = 0
+    nonisolated(unsafe) var tunMTU: Int = 0
     private let settingsShapeLock = NSLock()
     private nonisolated(unsafe) var settingsShape: TunnelSettingsShape?
     nonisolated static let directTunnelRemoteAddress = "192.0.2.1"
@@ -117,7 +119,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         bootstrapTaskLock.unlock()
         cancel?()
     }
-    nonisolated private var isRunning: Bool {
+    nonisolated var isRunning: Bool {
         get {
             runningStateLock.lock()
             defer { runningStateLock.unlock() }
@@ -219,6 +221,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         var config = try VPNTunnelConfig(snapshot: resolved.snapshot)
         config.resolvedCredential = resolved.credential
         config.jumpResolvedCredential = resolved.jumpCredential
+        let tailnetResolved = resolved.tailnet
         debugLog.endPhase("loadProfile", "OK")
 #else
         let profileID = try configuredProfileID(options: options)
@@ -229,6 +232,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             throw VPNError.configNotFound
         }
         let config = try VPNTunnelConfig(snapshot: snapshot)
+        let tailnetResolved: VPNResolvedTailnet? = nil
         debugLog.endPhase("loadProfile", "OK")
 #endif
 
@@ -255,10 +259,19 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         Self.logger.info("VPN config loaded: transport=\(transport), host=\(host)")
         debugLog.logMarker("VPN CONNECT START: transport=\(transport) host=\(host)")
 
+        if config.transportType == .tailscale {
+            let (settings, egress) = try Self.tailnetInputs(resolved: tailnetResolved)
+            try await startTailnetTunnel(config: config, settings: settings, egress: egress, options: options)
+            return
+        }
+
         // Build the Go config JSON based on transport type
         let goConfigJSON: String
 
         switch config.transportType {
+        case .tailscale:
+            throw VPNError.unsupportedTransport(config.transportType.rawValue)
+
         case .ssh:
             goConfigJSON = try await startSSHTransport(config: config)
 
@@ -392,6 +405,10 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
                 lastUpdated: Date()
             )
         )
+        #if !os(macOS)
+        VPNLastConnected.record(config.profileID)
+        VPNAutoRecovery.markRunning(config.profileID)
+        #endif
         WidgetCenter.shared.reloadTimelines(ofKind: Self.widgetKind)
         #if !os(visionOS)
         ControlCenter.shared.reloadControls(ofKind: "VPNControlCenterToggle")
@@ -408,6 +425,15 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     nonisolated override func stopTunnel(with reason: NEProviderStopReason) async {
         let reasonStr = String(describing: reason)
         Self.logger.info("Stopping VPN tunnel: reason=\(reasonStr)")
+        #if !os(macOS)
+        // Deliberate stops aren't recovered; reboots and app updates are.
+        switch reason {
+        case .userInitiated, .superceded, .configurationDisabled, .configurationRemoved:
+            VPNAutoRecovery.clear()
+        default:
+            break
+        }
+        #endif
 
         // Mark the tunnel as stopped BEFORE cancelling the bootstrap retry.
         // Order matters: the bootstrap's post-await guard reads stopRequested
@@ -458,6 +484,13 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             return m
         }
         monitor?.stop()
+
+        let tailnet = runningStateLock.withLock { () -> TailnetSession? in
+            let s = tailnetSession
+            tailnetSession = nil
+            return s
+        }
+        tailnet?.stop()
 
         // Stop Go netstack — makes ReadPacket return nil, unblocking MainActor
         var stopError: NSError?
@@ -528,6 +561,14 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             return
         }
         #endif
+
+        // Off the delivery thread: logout can take seconds.
+        if message.hasPrefix(TailnetSession.messagePrefix) {
+            TailnetSession.messageQueue.async {
+                completionHandler?(TailnetSession.handleMessage(message))
+            }
+            return
+        }
 
         switch message {
         case "getStatus":
@@ -640,7 +681,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - Packet Forwarding
 
-    private func startPacketForwarding() {
+    func startPacketForwarding() {
         // Read loop: OS → netstack
         // Uses completion-chaining pattern: each readPackets callback schedules the next read.
         startReadLoop()
@@ -723,12 +764,12 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - SSH Cleanup
 
-    nonisolated private func closePreparedRelay() {
+    nonisolated func closePreparedRelay() {
         let relay = sshStateLock.withLock { let value = preparedRelay; preparedRelay = nil; return value }
         relay?.close()
     }
 
-    nonisolated private func cleanupSSH() async {
+    nonisolated func cleanupSSH() async {
         let (monitor, proxy, client, jump, sshGroup, socksGroup) = sshStateLock.withLock {
             let result = (healthMonitor, socksProxy, sshClient, jumpClient, sshEventLoopGroup, socksEventLoopGroup)
             healthMonitor = nil
@@ -764,7 +805,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
     // nonisolated: called from Go's thread via TunnelCallbackImpl.
     // Only accesses lock-protected state and dispatches cancelTunnelWithError.
-    nonisolated fileprivate func handleGoTunnelFailure(_ reason: String) {
+    nonisolated func handleGoTunnelFailure(_ reason: String) {
         failureStateLock.lock()
         let shouldHandle = !hasHandledGoFailure
         if shouldHandle {
@@ -940,20 +981,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
                     self.sshEventLoopGroup = sshGroup
                 }
 
-                // Register disconnect callback on new client
-                connResult.client.onDisconnect { [weak self] in
-                    VPNSOCKS5DebugMetrics.shared.addEvent("ssh.onDisconnect.fired")
-                    VPNSOCKS5DebugMetrics.shared.tsLog("SSH-DISCONNECT")
-                    self?.handleSSHConnectionLost(reason: "SSH disconnected")
-                }
-
-                // Start new health monitor
-                let monitor = VPNSSHHealthMonitor()
-                monitor.onConnectionLost = { [weak self] in
-                    self?.handleSSHConnectionLost(reason: "keepalive timeout")
-                }
-                monitor.start(client: connResult.client)
-                sshStateLock.withLock { self.healthMonitor = monitor }
+                monitorSSHConnection(connResult.client)
 
                 // Success — re-enable Go tunnel failure handling now that
                 // the new SSH client is live and SOCKS connections will succeed.
@@ -1014,6 +1042,11 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         Self.logger.error("SSH reconnection giving up: \(failureReason)")
         VPNSOCKS5DebugMetrics.shared.addEvent("ssh.reconnect.exhausted")
         debugLog.logMarker("RECONNECTION FAILED: \(failureReason)")
+        // Tailscale stays up; only rule-matched traffic loses its egress.
+        if let session = runningStateLock.withLock({ tailnetSession }) {
+            session.egressLost(failureReason)
+            return
+        }
         // Re-enable so handleGoTunnelFailure actually fires
         failureStateLock.withLock { hasHandledGoFailure = false }
         handleGoTunnelFailure(failureReason)
@@ -1050,54 +1083,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
         do {
             debugLog.beginPhase("sshConnect", "Connecting to \(config.sshHost):\(config.sshPort) user=\(config.sshUsername) auth=\(authMethod) jumpHost=\(hasJumpHost) (with bounded retry)...")
-            // Bounded retry on transient connection failures, up to ~5 minutes.
-            // Per-attempt loginTimeout ramps so the first attempt fails fast
-            // on a stuck SYN and later attempts get more patience.
-            let retryTask = Task<VPNSSHConnector.ConnectionResult, Error> {
-                try await InitialConnectRetry.run(
-                    label: "vpn-bootstrap-ssh:\(config.sshHost)",
-                    // VPNSSHError covers missing/mismatched pinned host keys —
-                    // never transient, and a mismatch must not be retried.
-                    isPermanent: { $0 is VPNSSHError || InitialConnectRetry.isPermanentConnectError($0) }
-                ) { attempt, timeout in
-                    if attempt > 1 {
-                        let timeoutSec = Double(timeout.nanoseconds) / 1_000_000_000
-                        Self.logger.info("VPN SSH bootstrap retry attempt \(attempt) (timeout=\(timeoutSec)s)")
-                    }
-                    return try await VPNSSHConnector.connect(
-                        config: config,
-                        group: sshGroup,
-                        loginTimeout: timeout
-                    )
-                }
-            }
-            setBootstrapCancellable(retryTask)
-            // `defer` (not just an explicit cancel-in-catch) so that if our
-            // own awaiting Task is cancelled by any path other than
-            // stopTunnel — system cancellation, parent-task chain, an
-            // unexpected throw — the unstructured retryTask is still
-            // cancelled instead of being orphaned with no handle.
-            // `task.cancel()` is a no-op on a completed Task.
-            defer {
-                retryTask.cancel()
-                clearBootstrapCancellable()
-            }
-            let connResult = try await retryTask.value
-
-            // Post-await stopped-guard: Task.cancel() is cooperative, so a
-            // VPNSSHConnector.connect that was in its final stage may still
-            // return a valid ConnectionResult after stopTunnel called
-            // cancelBootstrapIfRunning(). If the tunnel was stopped while we
-            // were retrying, close the freshly-built SSH client(s) and
-            // throw — do NOT wire them into the (already-torn-down) tunnel.
-            let stopped = runningStateLock.withLock { stopRequested }
-            if stopped {
-                Self.logger.info("VPN SSH bootstrap completed but stopTunnel was called; abandoning connection")
-                try? await connResult.client.close()
-                if let jc = connResult.jumpClient { try? await jc.close() }
-                throw CancellationError()
-            }
-
+            let connResult = try await connectSSHWithBootstrapRetry(config: config, group: sshGroup)
             debugLog.endPhase("sshConnect", "OK")
             sshStateLock.withLock {
                 self.sshClient = connResult.client
@@ -1119,20 +1105,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
             self.storedConfig = config
             self.sshProxyPort = proxyPort
 
-            // Register disconnect callback for immediate detection
-            connResult.client.onDisconnect { [weak self] in
-                VPNSOCKS5DebugMetrics.shared.addEvent("ssh.onDisconnect.fired")
-                VPNSOCKS5DebugMetrics.shared.tsLog("SSH-DISCONNECT")
-                self?.handleSSHConnectionLost(reason: "SSH disconnected")
-            }
-
-            // Start keepalive health monitor
-            let monitor = VPNSSHHealthMonitor()
-            monitor.onConnectionLost = { [weak self] in
-                self?.handleSSHConnectionLost(reason: "keepalive timeout")
-            }
-            monitor.start(client: connResult.client)
-            sshStateLock.withLock { self.healthMonitor = monitor }
+            monitorSSHConnection(connResult.client)
 
             return try config.toGoConfigJSON(socks5Address: socks5Addr)
         } catch {
@@ -1141,12 +1114,82 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
+    /// Initial SSH connect with bounded retry (~5 minutes) that stopTunnel can
+    /// cancel. Throws CancellationError if the tunnel stopped meanwhile.
+    func connectSSHWithBootstrapRetry(
+        config: VPNTunnelConfig,
+        group: MultiThreadedEventLoopGroup
+    ) async throws -> VPNSSHConnector.ConnectionResult {
+        // Per-attempt loginTimeout ramps so the first attempt fails fast
+        // on a stuck SYN and later attempts get more patience.
+        let retryTask = Task<VPNSSHConnector.ConnectionResult, Error> {
+            try await InitialConnectRetry.run(
+                label: "vpn-bootstrap-ssh:\(config.sshHost)",
+                // VPNSSHError covers missing/mismatched pinned host keys —
+                // never transient, and a mismatch must not be retried.
+                isPermanent: { $0 is VPNSSHError || InitialConnectRetry.isPermanentConnectError($0) }
+            ) { attempt, timeout in
+                if attempt > 1 {
+                    let timeoutSec = Double(timeout.nanoseconds) / 1_000_000_000
+                    Self.logger.info("VPN SSH bootstrap retry attempt \(attempt) (timeout=\(timeoutSec)s)")
+                }
+                return try await VPNSSHConnector.connect(
+                    config: config,
+                    group: group,
+                    loginTimeout: timeout
+                )
+            }
+        }
+        setBootstrapCancellable(retryTask)
+        // `defer` (not just an explicit cancel-in-catch) so that if our
+        // own awaiting Task is cancelled by any path other than
+        // stopTunnel — system cancellation, parent-task chain, an
+        // unexpected throw — the unstructured retryTask is still
+        // cancelled instead of being orphaned with no handle.
+        // `task.cancel()` is a no-op on a completed Task.
+        defer {
+            retryTask.cancel()
+            clearBootstrapCancellable()
+        }
+        let connResult = try await retryTask.value
+
+        // Post-await stopped-guard: Task.cancel() is cooperative, so a
+        // VPNSSHConnector.connect that was in its final stage may still
+        // return a valid ConnectionResult after stopTunnel called
+        // cancelBootstrapIfRunning(). If the tunnel was stopped while we
+        // were retrying, close the freshly-built SSH client(s) and
+        // throw — do NOT wire them into the (already-torn-down) tunnel.
+        let stopped = runningStateLock.withLock { stopRequested }
+        if stopped {
+            Self.logger.info("VPN SSH bootstrap completed but stopTunnel was called; abandoning connection")
+            try? await connResult.client.close()
+            if let jc = connResult.jumpClient { try? await jc.close() }
+            throw CancellationError()
+        }
+        return connResult
+    }
+
+    /// Reconnect on disconnect or keepalive timeout.
+    nonisolated func monitorSSHConnection(_ client: SSHClient) {
+        client.onDisconnect { [weak self] in
+            VPNSOCKS5DebugMetrics.shared.addEvent("ssh.onDisconnect.fired")
+            VPNSOCKS5DebugMetrics.shared.tsLog("SSH-DISCONNECT")
+            self?.handleSSHConnectionLost(reason: "SSH disconnected")
+        }
+        let monitor = VPNSSHHealthMonitor()
+        monitor.onConnectionLost = { [weak self] in
+            self?.handleSSHConnectionLost(reason: "keepalive timeout")
+        }
+        monitor.start(client: client)
+        sshStateLock.withLock { self.healthMonitor = monitor }
+    }
+
     // MARK: - TSSH Transport
 
     /// Start TSSH transport: SSH to server, spawn tsshd, parse server info, pass to Go.
     /// SSH connections are kept alive on self so tsshd doesn't die before Go connects.
     /// Call cleanupTSSHSpawnConnection() after Go StartTunnel succeeds.
-    private func startTSSHTransport(config: VPNTunnelConfig) async throws -> String {
+    func startTSSHTransport(config: VPNTunnelConfig) async throws -> String {
         let debugLog = VPNConnectionDebugLogger.shared
         Self.logger.info("TSSH mode: spawning tsshd via SSH")
 
@@ -1517,7 +1560,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
     }
 
     /// Resolve a hostname to an IPv4 address string. Returns the original string if already an IP.
-    private func resolveHostToIP(_ host: String) async -> String {
+    func resolveHostToIP(_ host: String) async -> String {
         // Quick check: if it already looks like an IPv4 address, return as-is
         let parts = host.split(separator: ".")
         if parts.count == 4, parts.allSatisfy({ UInt8($0) != nil }) {
@@ -1588,7 +1631,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 // MARK: - Go Callback Implementation
 
 /// Implements the VpntunnelTunnelCallbackProtocol for receiving events from Go.
-private class TunnelCallbackImpl: NSObject, VpntunnelTunnelCallbackProtocol {
+final class TunnelCallbackImpl: NSObject, VpntunnelTunnelCallbackProtocol {
     weak var provider: SSHVPNTunnelProvider?
 
     init(provider: SSHVPNTunnelProvider) {

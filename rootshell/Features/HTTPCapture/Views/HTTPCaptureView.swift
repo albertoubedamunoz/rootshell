@@ -179,7 +179,7 @@ struct HTTPCaptureView: View {
         case .settings:
             NavigationStack { CaptureSettingsView() }
         case .trustGuide:
-            NavigationStack { CATrustGuideView() }
+            NavigationStack { CATrustGuideView(showsDone: true) }
         case .share(let url):
             CaptureShareSheet(items: [url])
         case .rewriteRule(let rule):

@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A live tunnel using an agent-backed key needs its signing broker
         // back after a host relaunch, or in-tunnel reconnects can't re-auth.
         Task { @MainActor in
+            VPNTunnelController.shared.watchForStops()
             await VPNTunnelController.shared.resumeAgentBrokerIfNeeded()
         }
     }

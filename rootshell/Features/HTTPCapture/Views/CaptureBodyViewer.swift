@@ -362,9 +362,36 @@ nonisolated struct CaptureJSONNode: Identifiable, Sendable {
         case .json: try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
         case .plist: try? PropertyListSerialization.propertyList(from: data, format: nil)
         }
-        guard let object = parsed else { return nil }
+        guard let object = parsed, fitsBudget(object, inputSize: data.count) else { return nil }
         var counter = 0
         return build(object, key: nil, counter: &counter)
+    }
+
+    private static let maxDepth = 512
+
+    /// Binary plists can reference one container many times, so a tiny body can expand
+    /// exponentially. Without sharing, every node costs at least one input byte.
+    /// `xmlBytes` also caps the estimated XML size, which repeats every referenced payload.
+    nonisolated static func fitsBudget(_ object: Any, inputSize: Int, xmlBytes: Int = .max) -> Bool {
+        var remaining = max(inputSize, 100_000)
+        var bytes = xmlBytes
+        func visit(_ object: Any, depth: Int) -> Bool {
+            remaining -= 1
+            bytes -= 32 + depth
+            guard remaining >= 0, bytes >= 0, depth <= maxDepth else { return false }
+            switch object {
+            case let dict as [String: Any]:
+                for key in dict.keys { bytes -= 16 + depth + 5 * key.utf8.count }
+                return dict.values.allSatisfy { visit($0, depth: depth + 1) }
+            case let array as [Any]: return array.allSatisfy { visit($0, depth: depth + 1) }
+            // Worst-case entity escaping and base64 with line breaks.
+            case let string as String: bytes -= 5 * string.utf8.count
+            case let data as Data: bytes -= 2 * data.count
+            default: break
+            }
+            return bytes >= 0
+        }
+        return visit(object, depth: 0)
     }
 
     nonisolated private static func build(_ object: Any, key: String?, counter: inout Int) -> CaptureJSONNode {
@@ -486,11 +513,14 @@ nonisolated enum CapturePlist {
     }
 
     /// XML form of a binary plist; XML (or unparseable) input comes back as text.
-    static func xmlText(_ data: Data) -> String {
+    /// Nil when the binary plist expands past the node or XML size budget.
+    static func xmlText(_ data: Data) -> String? {
         guard data.starts(with: Data("bplist".utf8)),
-              let object = try? PropertyListSerialization.propertyList(from: data, format: nil),
-              let xml = try? PropertyListSerialization.data(fromPropertyList: object, format: .xml, options: 0)
+              let object = try? PropertyListSerialization.propertyList(from: data, format: nil)
         else { return String(decoding: data, as: UTF8.self) }
+        guard CaptureJSONNode.fitsBudget(object, inputSize: data.count, xmlBytes: 32 << 20),
+              let xml = try? PropertyListSerialization.data(fromPropertyList: object, format: .xml, options: 0)
+        else { return nil }
         return String(decoding: xml, as: UTF8.self)
     }
 }
@@ -499,11 +529,14 @@ nonisolated enum CapturePlist {
 private struct CapturePlistSource: View {
     let data: Data
     @State private var text: String?
+    @State private var loaded = false
 
     var body: some View {
         Group {
             if let text {
                 CaptureCodeView(text: text, language: .markup)
+            } else if loaded {
+                CaptureHexView(data: data)
             } else {
                 ProgressView().frame(maxWidth: .infinity, minHeight: 80)
             }
@@ -511,6 +544,7 @@ private struct CapturePlistSource: View {
         .task(id: data) {
             let data = data
             text = await Task.detached(priority: .userInitiated) { CapturePlist.xmlText(data) }.value
+            loaded = true
         }
     }
 }

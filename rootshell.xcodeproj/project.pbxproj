@@ -794,6 +794,7 @@
 				CaptureBridge.swift,
 				DirectInterfaceMonitor.swift,
 				SSHVPNTunnelProvider.swift,
+				TailnetTunnel.swift,
 				TunnelSettingsShape.swift,
 				VPNAgentNIOSSHKeys.swift,
 				VPNAgentSignBroker.swift,
@@ -7005,7 +7006,7 @@
 			repositoryURL = "https://github.com/kitknox/trzsz-ssh-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.7;
+				version = 0.2.8;
 			};
 		};
 		47XZPKG02FF00000AABB0000 /* XCRemoteSwiftPackageReference "xz_ios-rootshell" */ = {

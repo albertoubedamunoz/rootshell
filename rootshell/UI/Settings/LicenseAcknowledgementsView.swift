@@ -283,6 +283,20 @@ struct LicenseAcknowledgementsView: View {
                 licenseText: mitLicenseText
             ),
             LicenseEntry(
+                name: "Tailscale",
+                licenseType: "BSD 3-Clause",
+                copyright: "Copyright (c) 2020 Tailscale Inc & AUTHORS",
+                repositoryURL: "https://github.com/tailscale/tailscale",
+                licenseText: bsd3ClauseLicenseText
+            ),
+            LicenseEntry(
+                name: "wireguard-go",
+                licenseType: "MIT",
+                copyright: "Copyright (C) 2017-2025 WireGuard LLC",
+                repositoryURL: "https://github.com/tailscale/wireguard-go",
+                licenseText: mitLicenseText
+            ),
+            LicenseEntry(
                 name: "YubiKit",
                 licenseType: "Apache 2.0",
                 copyright: "Copyright (c) Yubico AB",

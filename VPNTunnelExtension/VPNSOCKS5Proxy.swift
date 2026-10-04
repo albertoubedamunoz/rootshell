@@ -190,16 +190,17 @@ nonisolated final class VPNSOCKS5Proxy: @unchecked Sendable {
     private static let socksWriteWatermarkHigh = 32 * 1024
 
     private let clientLock = NSLock()
-    private var _sshClient: SSHClient
+    private var _sshClient: SSHClient?
     private let eventLoopGroup: EventLoopGroup
     private let connectionLimiter: VPNConnectionLimiter
     private var serverChannel: Channel?
     private var boundPort: Int = 0
 
-    /// Current SSH client used for new DirectTCPIP channels.
+    /// Current SSH client used for new DirectTCPIP channels; nil until the
+    /// first connect (Tailscale egress starts the proxy before SSH is up).
     /// Lock-protected so it can be swapped during reconnection without
     /// restarting the proxy (which would leave Go without a SOCKS port).
-    var currentSSHClient: SSHClient {
+    var currentSSHClient: SSHClient? {
         clientLock.withLock { _sshClient }
     }
 
@@ -211,12 +212,12 @@ nonisolated final class VPNSOCKS5Proxy: @unchecked Sendable {
         Self.logger.info("SOCKS5 proxy SSH client swapped")
     }
 
-    init(sshClient: SSHClient, eventLoopGroup: EventLoopGroup) {
+    init(sshClient: SSHClient?, eventLoopGroup: EventLoopGroup, maxConnections: Int = maxConcurrentConnections) {
         self._sshClient = sshClient
         self.eventLoopGroup = eventLoopGroup
-        self.connectionLimiter = VPNConnectionLimiter(maxConnections: Self.maxConcurrentConnections)
+        self.connectionLimiter = VPNConnectionLimiter(maxConnections: maxConnections)
         VPNSOCKS5DebugMetrics.shared.resetSession(reason: "proxy-init")
-        VPNSOCKS5DebugMetrics.shared.set("config.maxConcurrentConnections", value: Int64(Self.maxConcurrentConnections))
+        VPNSOCKS5DebugMetrics.shared.set("config.maxConcurrentConnections", value: Int64(maxConnections))
         VPNSOCKS5DebugMetrics.shared.set("config.localSocketBufferSize", value: Int64(Self.localSocketBufferSize))
     }
 
@@ -240,7 +241,10 @@ nonisolated final class VPNSOCKS5Proxy: @unchecked Sendable {
                     return channel.eventLoop.makeFailedFuture(
                         VPNSSHError.connectionFailed("SOCKS5 proxy deallocated"))
                 }
-                let client = self.currentSSHClient
+                guard let client = self.currentSSHClient else {
+                    return channel.eventLoop.makeFailedFuture(
+                        VPNSSHError.connectionFailed("SSH egress is not connected yet"))
+                }
                 let handler = makeVPNSOCKS5Handler(sshClient: client, connectionLimiter: limiter)
                 return channel.pipeline.addHandler(handler)
             }

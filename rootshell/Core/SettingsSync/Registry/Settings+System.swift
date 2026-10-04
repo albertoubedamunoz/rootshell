@@ -124,6 +124,7 @@ nonisolated extension Settings {
         ]
         #if !CHINA_BUILD
         areas.append(HTTPCapture.all)
+        areas.append(VPN.all)
         #endif
         return areas
     }()

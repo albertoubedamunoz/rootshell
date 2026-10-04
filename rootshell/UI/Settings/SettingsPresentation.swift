@@ -15,7 +15,6 @@ struct SettingsSplitView: View {
     @ObservedObject private var menuShortcuts = MenuShortcutState.shared
     @State private var navigationPath = NavigationPath()
     @State private var hasNavigatedToInitialDestination = false
-    @State private var navigateToVPN = false
 
     @State private var showDebugSettings = false
     @State private var searchReservedHeight: CGFloat = 88
@@ -115,13 +114,17 @@ struct SettingsSplitView: View {
         case .terminal:
             SettingsTerminalSection()
         case .connections:
-            SettingsConnectionsSection(navigateToVPN: $navigateToVPN)
+            SettingsConnectionsSection()
         case .aiAssistant:
             SettingsAISection()
-        case .privacyData:
-            SettingsPrivacySection()
-        case .notifications:
-            SettingsNotificationsSection()
+        case .general:
+            SettingsGeneralSection()
+        case .vpn:
+            #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+            VPNSettingsView()
+            #else
+            EmptyView()
+            #endif
         case .about:
             SettingsAboutSection(externalShowDebugSettings: $showDebugSettings)
         }
@@ -133,10 +136,7 @@ struct SettingsSplitView: View {
         DispatchQueue.main.async {
             switch initialDestination {
             case .vpn:
-                navigationPath.append(SettingsSection.connections)
-                DispatchQueue.main.async {
-                    navigateToVPN = true
-                }
+                navigationPath.append(SettingsSection.vpn)
             case .touchKeyboard:
                 navigationPath.append(SettingsSection.terminal)
                 navigationPath.append(SettingsSearchDestination.touchKeyboard)
