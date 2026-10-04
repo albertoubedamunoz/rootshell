@@ -154,6 +154,8 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         /// older serialized profiles decode as nil and we apply
         /// `.disabled` on restore.
         let gpgAgentConfig: GPGAgentConfig?
+        /// Optional for backward compat; nil restores as `.disabled`.
+        let askpassConfig: RemoteAskpassConfig?
         let portForwardConfig: PortForwardConfig
         let tmuxAutoEnable: Bool?
         let tmuxAutoMode: TmuxAutoMode?
@@ -203,6 +205,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             self.cloudInstanceLabel = config.cloudInstanceLabel
             self.agentConfig = config.agentConfig
             self.gpgAgentConfig = config.gpgAgentConfig
+            self.askpassConfig = config.askpassConfig
             self.portForwardConfig = config.portForwardConfig
             self.tmuxAutoEnable = config.tmuxAutoEnable
             self.tmuxAutoMode = config.tmuxAutoMode
@@ -289,6 +292,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             // serialized profiles decode cleanly — fall back to
             // .disabled when absent.
             config.gpgAgentConfig = gpgAgentConfig ?? .disabled
+            config.askpassConfig = askpassConfig ?? .disabled
             config.portForwardConfig = portForwardConfig
             config.tmuxAutoEnable = tmuxAutoEnable ?? false
             config.tmuxAutoMode = tmuxAutoMode ?? .regular

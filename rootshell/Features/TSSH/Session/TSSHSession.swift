@@ -294,6 +294,14 @@ final class TrzszSession: TerminalSession {
     /// queue so a disconnected session can't leave a stale prompt up.
     var onGPGAgentApprovalWithdrawn: ((UUID) -> Void)?
 
+    /// Remote credential requests (`rootshell-askpass`).
+    private var askpassServer: RemoteAskpassServer?
+    private var askpassForwardTask: Task<Void, Never>?
+    private var askpassStreamLocalBridge: TrzszStreamLocalBridge?
+    private var askpassRemoteSocketPath: String?
+    var onAskpassRequest: ((RemoteAskpassRequest) -> Void)?
+    var onAskpassRequestWithdrawn: ((UUID) -> Void)?
+
     /// Disconnects the transport (sends "close" to server)
     private func disconnectTransport() {
         pendingRelay?.disconnect()
@@ -1312,10 +1320,9 @@ final class TrzszSession: TerminalSession {
                 // session-bringup flow intact — `start()` continues
                 // to the shell/exec setup that follows this block.
                 if let resolvedPath = resolvedPathOpt {
-                let gpgBridge = TrzszStreamLocalBridge(
-                    gpgAgentManager: gpgManager,
-                    transportRef: transportRef
-                )
+                let gpgBridge = TrzszStreamLocalBridge(transportRef: transportRef) { pipe in
+                    await gpgManager.serve(stream: pipe)
+                }
                 self.gpgStreamLocalBridge = gpgBridge
                 self.gpgRemoteSocketPath = resolvedPath
 
@@ -1354,6 +1361,10 @@ final class TrzszSession: TerminalSession {
             } else {
                 Self.logger.warning("GPG agent forwarding requested but no transport ref available; continuing without it")
             }
+        }
+
+        if config.sshConfig.askpassConfig.enabled, let transportRef = transport.activeTransportRef {
+            startAskpassForwarding(transport: transport, transportRef: transportRef)
         }
 
         // When connectOnly, the caller will handle session setup (e.g. Attach)
@@ -1912,6 +1923,8 @@ final class TrzszSession: TerminalSession {
         gpgStreamLocalBridge = nil
         gpgRemoteSocketPath = nil
 
+        stopAskpassForwarding()
+
         if shouldCloseTransport {
             disconnectTransport()
         } else {
@@ -1983,6 +1996,60 @@ final class TrzszSession: TerminalSession {
         // and the foreground gate flip. Take-and-clear makes repeats free.
         goTransport?.deliverPendingDiscardIfAny()
         goTransport?.flushBackgroundedOutput()
+    }
+
+    // MARK: - Remote credential requests
+
+    /// Runs in the background so the remote setup round-trip never delays
+    /// the shell. Failures are logged and leave the session untouched.
+    private func startAskpassForwarding(transport: TrzszGoTransport, transportRef: TSSHTransportRef) {
+        stopAskpassForwarding()
+        let server = RemoteAskpassServer(
+            remoteHost: config.sshConfig.host,
+            remoteUser: config.sshConfig.username,
+            sessionName: config.displayName,
+            onRequest: { [weak self] request in
+                guard let handler = self?.onAskpassRequest else { return request.completion(nil) }
+                handler(request)
+            },
+            onWithdrawal: { [weak self] id in self?.onAskpassRequestWithdrawn?(id) }
+        )
+        askpassServer = server
+
+        let socketID = RemoteAskpassSetup.socketID(paneToken: terminalId?.uuidString)
+        let host = config.sshConfig.host
+        askpassForwardTask = Task { @MainActor [weak self] in
+            do {
+                let path = try await RemoteAskpassSetup.prepare(socketID: socketID, usingTrzsz: transport)
+                guard !Task.isCancelled, let self else { return }
+                let bridge = TrzszStreamLocalBridge(transportRef: transportRef) { pipe in
+                    await server.serve(stream: pipe)
+                }
+                self.askpassStreamLocalBridge = bridge
+                self.askpassRemoteSocketPath = path
+                try await transport.enableStreamLocalForwardingAsync(remotePath: path, callback: bridge)
+                Self.logger.info("Credential request socket enabled for \(host) at \(path)")
+            } catch {
+                Self.logger.warning("""
+                Credential request forwarding failed for \(host): \(error.localizedDescription). \
+                Check that sshd allows `AllowStreamLocalForwarding`.
+                """)
+                self?.askpassStreamLocalBridge = nil
+                self?.askpassRemoteSocketPath = nil
+            }
+        }
+    }
+
+    private func stopAskpassForwarding() {
+        askpassForwardTask?.cancel()
+        askpassForwardTask = nil
+        if let path = askpassRemoteSocketPath, let transport = goTransport {
+            Task { await transport.disableStreamLocalForwardingAsync(remotePath: path) }
+        }
+        askpassServer?.shutdown()
+        askpassServer = nil
+        askpassStreamLocalBridge = nil
+        askpassRemoteSocketPath = nil
     }
 }
 

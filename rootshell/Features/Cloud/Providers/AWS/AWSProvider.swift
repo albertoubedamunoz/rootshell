@@ -9,11 +9,7 @@ struct AWSProvider: CloudProvider {
     nonisolated static let iconName = "cloud.fill"
     nonisolated static let logoImageName: String? = "AWSLogo"
 
-    #if AWS_SSO_ENABLED
     nonisolated static let supportedAuthMethods: [CloudAuthMethod] = [.awsAccessKey, .awsSSO]
-    #else
-    nonisolated static let supportedAuthMethods: [CloudAuthMethod] = [.awsAccessKey]
-    #endif
 
     nonisolated static let capabilities: Set<CloudProviderCapability> = [
         .virtualMachines,
@@ -113,7 +109,10 @@ struct AWSProvider: CloudProvider {
 
     static let ssoHelpText = """
     Enter your AWS SSO start URL (e.g., https://your-org.awsapps.com/start) \
-    and select a region. You'll be prompted to sign in via your browser.
+    and the SSO region where IAM Identity Center lives. Both are in your AWS \
+    access portal under Access keys › IAM Identity Center credentials. Region \
+    is where instances, clusters, and Bedrock are used. You'll be prompted to \
+    sign in via your browser.
     """
 }
 
@@ -156,6 +155,8 @@ struct AWSSSOSession: Codable, Sendable {
     let clientId: String
     let clientSecret: String
     let clientSecretExpiresAt: Date
+    /// nil for registrations made without scopes, which never receive refresh tokens
+    var registrationScopes: [String]?
 
     // SSO tokens (short-lived, ~8 hours)
     var accessToken: String

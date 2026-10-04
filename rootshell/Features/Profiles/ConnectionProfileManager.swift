@@ -265,6 +265,7 @@ final class ConnectionProfileManager {
         // don't use it). Apply directly so profile creation preserves
         // the history entry's GPG setup.
         sshConfig.gpgAgentConfig = historyEntry.gpgAgentConfig ?? .disabled
+        sshConfig.askpassConfig = historyEntry.askpassConfig ?? .disabled
 
         // Use history display string as default name if not provided
         let profileName = name ?? historyEntry.displayString

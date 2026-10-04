@@ -21,6 +21,12 @@ class CloudAccountManager: ObservableObject {
     /// Publisher for account changes
     let accountsDidChange = PassthroughSubject<Void, Never>()
 
+    /// In-flight AWS SSO refreshes, keyed by account
+    private var ssoRefreshTasks: [UUID: Task<CloudCredentials, Error>] = [:]
+
+    /// Bumped per account by Sign In Again, so refreshes started earlier are discarded
+    private var ssoGenerations: [UUID: Int] = [:]
+
     // MARK: - Dependencies
 
     private let keychainManager: KeychainManager
@@ -199,38 +205,7 @@ class CloudAccountManager: ObservableObject {
             return awsCreds
 
         case .awsSSO:
-            let flowManager = AWSSSOFlowManager()
-            var didChange = false
-
-            // The SSO access token (issued to the device) authorizes the call
-            // that fetches role credentials below — refresh it first if it's
-            // near expiry so the subsequent portal call doesn't 401.
-            if credentials.needsSSOTokenRefresh, let session = credentials.awsSSOSession {
-                let refreshed = try await flowManager.refreshToken(session: session)
-                credentials.awsSSOSession = refreshed
-                didChange = true
-            }
-
-            // STS role credentials live ~1 hour; mint fresh ones whenever the
-            // current set is missing or near expiry.
-            let stsNeedsRefresh = credentials.awsSTSCredentials?.needsRefresh ?? true
-            if stsNeedsRefresh,
-               let session = credentials.awsSSOSession,
-               let accountId = credentials.awsSSOAccountId,
-               let roleName = credentials.awsSSORole {
-                let newSTS = try await flowManager.getCredentials(
-                    session: session,
-                    accountId: accountId,
-                    roleName: roleName
-                )
-                credentials.awsSTSCredentials = newSTS
-                didChange = true
-            }
-
-            if didChange {
-                try updateCredentials(credentials)
-            }
-
+            credentials = try await refreshedSSOCredentials(credentials)
             guard let awsCreds = credentials.awsCredentials else {
                 throw AccountError.invalidCredentials
             }
@@ -239,6 +214,89 @@ class CloudAccountManager: ObservableObject {
         default:
             throw AccountError.invalidCredentials
         }
+    }
+
+    /// Refreshes the SSO access token and STS role credentials when near expiry.
+    /// Persists the result once the account exists (the add flow validates before saving).
+    /// Throws `AWSSSOError.sessionExpired` when the user has to sign in again.
+    func refreshedSSOCredentials(_ credentials: CloudCredentials) async throws -> CloudCredentials {
+        // Refresh tokens rotate: share one refresh per account and start from the stored copy.
+        let id = credentials.accountID
+        let task: Task<CloudCredentials, Error>
+        if let inFlight = ssoRefreshTasks[id] {
+            task = inFlight
+        } else {
+            let latest = (try? getCredentials(for: id)) ?? credentials
+            let generation = ssoGenerations[id, default: 0]
+            task = Task { try await performSSORefresh(latest, generation: generation) }
+            ssoRefreshTasks[id] = task
+        }
+        defer {
+            if ssoRefreshTasks[id] == task { ssoRefreshTasks[id] = nil }
+        }
+        return try await task.value
+    }
+
+    /// Saves credentials from Sign In Again; refreshes already in flight neither save nor return theirs.
+    func saveReauthenticatedSSOCredentials(_ credentials: CloudCredentials) throws {
+        let id = credentials.accountID
+        ssoGenerations[id, default: 0] += 1
+        ssoRefreshTasks[id] = nil
+        try updateCredentials(credentials)
+    }
+
+    private func performSSORefresh(_ start: CloudCredentials, generation: Int) async throws -> CloudCredentials {
+        let id = start.accountID
+        var credentials = start
+        let flowManager = AWSSSOFlowManager()
+        let isSaved = account(for: id) != nil
+        // Checked after every await, before saving: a newer sign-in wins.
+        func superseded() -> Bool { ssoGenerations[id, default: 0] != generation }
+
+        do {
+            // The SSO access token (issued to the device) authorizes the call
+            // that fetches role credentials below — refresh it first if it's
+            // near expiry so the subsequent portal call doesn't 401.
+            if credentials.needsSSOTokenRefresh, let session = credentials.awsSSOSession {
+                if session.refreshToken != nil {
+                    credentials.awsSSOSession = try await flowManager.refreshToken(session: session)
+                    if superseded() { return try getCredentials(for: id) }
+                    // Save now: the old refresh token may already be revoked if the role call fails.
+                    if isSaved {
+                        try updateCredentials(credentials)
+                    }
+                } else if session.isTokenExpired {
+                    throw AWSSSOError.sessionExpired
+                }
+            }
+
+            // STS role credentials live 1-12 hours; mint fresh ones whenever the
+            // current set is missing or near expiry.
+            let stsNeedsRefresh = credentials.awsSTSCredentials?.needsRefresh ?? true
+            if stsNeedsRefresh,
+               let session = credentials.awsSSOSession,
+               let accountId = credentials.awsSSOAccountId,
+               let roleName = credentials.awsSSORole {
+                do {
+                    credentials.awsSTSCredentials = try await flowManager.getCredentials(
+                        session: session,
+                        accountId: accountId,
+                        roleName: roleName
+                    )
+                } catch AWSSSOError.accessDenied {
+                    throw AWSSSOError.sessionExpired
+                }
+                if superseded() { return try getCredentials(for: id) }
+                if isSaved {
+                    try updateCredentials(credentials)
+                }
+            }
+        } catch {
+            if superseded() { return try getCredentials(for: id) }
+            throw error
+        }
+
+        return credentials
     }
 
     // MARK: - API Client Factory

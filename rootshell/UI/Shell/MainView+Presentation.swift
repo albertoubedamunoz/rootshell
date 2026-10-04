@@ -381,6 +381,19 @@ extension MainView {
                     .id(entry.id)
                 }
             }
+            .sheet(isPresented: $showAskpassPrompt) {
+                if let request = askpassQueue.first {
+                    RemoteAskpassPromptView(
+                        request: request,
+                        onSubmit: { value in respondToAskpass(id: request.id, value: value) },
+                        onCancel: { respondToAskpass(id: request.id, value: nil) }
+                    )
+                    // Explicit Send/Cancel so the remote helper always gets an answer.
+                    .interactiveDismissDisabled()
+                    .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
+                    .id(request.id)
+                }
+            }
             #if !CHINA_BUILD
             .modifier(AIAgentSheetModifier(
                 showOverlay: $showAIAgentOverlay,

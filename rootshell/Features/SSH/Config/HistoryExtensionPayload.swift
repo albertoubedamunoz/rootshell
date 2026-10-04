@@ -34,7 +34,7 @@ import Foundation
 /// from the record being replaced.
 struct HistoryExtensionPayload: Codable, Hashable, Sendable {
     /// Envelope schema version. Bump on every added member.
-    static let currentVersion = 4
+    static let currentVersion = 5
 
     /// Envelope version that introduced `multiplexerSessionName`. Writers below
     /// this predate the field, so their nil is a gap, not a clear.
@@ -45,6 +45,9 @@ struct HistoryExtensionPayload: Codable, Hashable, Sendable {
 
     /// Envelope version that introduced `herdrAutoMode`. Same rule.
     static let herdrAutoModeVersion = 4
+
+    /// Envelope version that introduced `askpassConfig`. Same rule.
+    static let askpassConfigVersion = 5
 
     var version: Int
 
@@ -69,22 +72,27 @@ struct HistoryExtensionPayload: Codable, Hashable, Sendable {
     /// same reason `zmxAutoEnable` does.
     var herdrAutoMode: HerdrAutoMode?
 
+    /// Remote credential requests. Rides the envelope for the same reason.
+    var askpassConfig: RemoteAskpassConfig?
+
     init(
         version: Int = HistoryExtensionPayload.currentVersion,
         terminalType: String? = nil,
         multiplexerSessionName: String? = nil,
         zmxAutoEnable: Bool? = nil,
-        herdrAutoMode: HerdrAutoMode? = nil
+        herdrAutoMode: HerdrAutoMode? = nil,
+        askpassConfig: RemoteAskpassConfig? = nil
     ) {
         self.version = version
         self.terminalType = terminalType
         self.multiplexerSessionName = multiplexerSessionName
         self.zmxAutoEnable = zmxAutoEnable
         self.herdrAutoMode = herdrAutoMode
+        self.askpassConfig = askpassConfig
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, terminalType, multiplexerSessionName, zmxAutoEnable, herdrAutoMode
+        case version, terminalType, multiplexerSessionName, zmxAutoEnable, herdrAutoMode, askpassConfig
     }
 
     init(from decoder: Decoder) throws {
@@ -98,6 +106,7 @@ struct HistoryExtensionPayload: Codable, Hashable, Sendable {
         multiplexerSessionName = (try? container.decodeIfPresent(String.self, forKey: .multiplexerSessionName)) ?? nil
         zmxAutoEnable = (try? container.decodeIfPresent(Bool.self, forKey: .zmxAutoEnable)) ?? nil
         herdrAutoMode = (try? container.decodeIfPresent(HerdrAutoMode.self, forKey: .herdrAutoMode)) ?? nil
+        askpassConfig = (try? container.decodeIfPresent(RemoteAskpassConfig.self, forKey: .askpassConfig)) ?? nil
     }
 
     func encode(to encoder: Encoder) throws {
@@ -107,5 +116,6 @@ struct HistoryExtensionPayload: Codable, Hashable, Sendable {
         try container.encodeIfPresent(multiplexerSessionName, forKey: .multiplexerSessionName)
         try container.encodeIfPresent(zmxAutoEnable, forKey: .zmxAutoEnable)
         try container.encodeIfPresent(herdrAutoMode, forKey: .herdrAutoMode)
+        try container.encodeIfPresent(askpassConfig, forKey: .askpassConfig)
     }
 }

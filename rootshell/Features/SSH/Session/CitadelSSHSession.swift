@@ -76,6 +76,12 @@ final class CitadelSSHSession: SSHTerminalSession {
     /// queue so a disconnected session can't leave a stale prompt up.
     var onGPGAgentApprovalWithdrawn: ((UUID) -> Void)?
 
+    /// Remote credential requests (`rootshell-askpass`).
+    private var askpassServer: RemoteAskpassServer?
+    private var askpassForwardTask: Task<Void, Never>?
+    var onAskpassRequest: ((RemoteAskpassRequest) -> Void)?
+    var onAskpassRequestWithdrawn: ((UUID) -> Void)?
+
     // Port forwarding
     private var portForwardManager: PortForwardManager?
 
@@ -1119,6 +1125,10 @@ final class CitadelSSHSession: SSHTerminalSession {
             Self.logger.info("GPG agent forwarding requested for \(self.config.host) (path template: \(configuredPath))")
         }
 
+        if config.askpassConfig.enabled {
+            startAskpassForwarding(client: client)
+        }
+
         sessionTask = Task { @MainActor [weak self] in
             guard let self = self else { return }
 
@@ -1250,6 +1260,65 @@ final class CitadelSSHSession: SSHTerminalSession {
         stdinWriterTask = nil
     }
 
+    // MARK: - Remote credential requests
+
+    /// Prepares `~/.rootshell` and holds a streamlocal forward to
+    /// ``RemoteAskpassServer`` until cancelled. Failures are logged and
+    /// leave the session untouched.
+    private func startAskpassForwarding(client: SSHClient) {
+        stopAskpassForwarding()
+        let server = RemoteAskpassServer(
+            remoteHost: config.host,
+            remoteUser: config.username,
+            sessionName: config.displayName,
+            onRequest: { [weak self] request in
+                guard let handler = self?.onAskpassRequest else { return request.completion(nil) }
+                handler(request)
+            },
+            onWithdrawal: { [weak self] id in self?.onAskpassRequestWithdrawn?(id) }
+        )
+        askpassServer = server
+
+        let socketID = RemoteAskpassSetup.socketID(paneToken: paneToken)
+        let host = config.host
+        askpassForwardTask = Task {
+            do {
+                let path = try await RemoteAskpassSetup.prepare(socketID: socketID, usingCitadel: client)
+                try await client.forwardRemoteUnixSocket(
+                    remotePath: path,
+                    handleChannel: { channel in
+                        do {
+                            let pipe = try CitadelStreamLocalPipe.install(on: channel)
+                            Task { @MainActor in await server.serve(stream: pipe) }
+                            return channel.eventLoop.makeSucceededVoidFuture()
+                        } catch {
+                            return channel.eventLoop.makeFailedFuture(error)
+                        }
+                    },
+                    body: { @Sendable in
+                        while !Task.isCancelled {
+                            try await Task.sleep(for: .seconds(60))
+                        }
+                    }
+                )
+            } catch is CancellationError {
+                // Session teardown.
+            } catch {
+                Self.logger.warning("""
+                Credential request forwarding failed for \(host): \(error.localizedDescription). \
+                Check that sshd allows `AllowStreamLocalForwarding`.
+                """)
+            }
+        }
+    }
+
+    private func stopAskpassForwarding() {
+        askpassForwardTask?.cancel()
+        askpassForwardTask = nil
+        askpassServer?.shutdown()
+        askpassServer = nil
+    }
+
     private func cleanup() {
         sessionTask?.cancel()
         sessionTask = nil
@@ -1269,6 +1338,7 @@ final class CitadelSSHSession: SSHTerminalSession {
         gpgApprovalTask?.cancel()
         gpgApprovalTask = nil
         gpgAgentManager = nil
+        stopAskpassForwarding()
 
         // Stop health monitoring
         healthMonitor?.stop()
