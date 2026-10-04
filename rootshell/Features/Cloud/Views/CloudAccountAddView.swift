@@ -34,6 +34,7 @@ struct CloudAccountAddView: View {
 
     // AWS SSO state
     @State private var awsSSOStartURL = ""
+    @State private var awsSSORegion = AWSProvider.defaultRegion
     @State private var awsSSOSession: AWSSSOSession?
     @State private var selectedAWSAccount: AWSSSOAccount?
     @State private var selectedAWSRole: AWSSSORole?
@@ -454,6 +455,14 @@ struct CloudAccountAddView: View {
                 .autocapitalization(.none)
                 .keyboardType(.URL)
                 .themedRow()
+
+            Picker("SSO Region", selection: $awsSSORegion) {
+                ForEach(AWSProvider.regions) { region in
+                    Text(region.displayName)
+                        .tag(region.id)
+                }
+            }
+            .themedRow()
 
             Picker("Region", selection: $awsRegion) {
                 ForEach(AWSProvider.regions) { region in
@@ -1070,7 +1079,7 @@ struct CloudAccountAddView: View {
         Task {
             do {
                 // Start SSO flow
-                let session = try await awsSSOManager.startSSOFlow(startURL: startURL, region: awsRegion)
+                let session = try await awsSSOManager.startSSOFlow(startURL: startURL, region: awsSSORegion)
                 awsSSOSession = session
 
                 // Load available accounts
@@ -1079,6 +1088,8 @@ struct CloudAccountAddView: View {
                 // Show account/role selection
                 showingAccountRoleSelection = true
             } catch is CancellationError {
+                // User cancelled
+            } catch AWSSSOError.cancelled {
                 // User cancelled
             } catch {
                 validationError = error.localizedDescription
