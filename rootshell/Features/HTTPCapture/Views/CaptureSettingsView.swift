@@ -213,6 +213,10 @@ struct CaptureStatusText: View {
 }
 
 struct CATrustGuideView: View {
+    /// Set when presented as its own sheet rather than pushed from Capture Settings.
+    var showsDone = false
+
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
     @State private var errorMessage: String?
@@ -298,6 +302,13 @@ struct CATrustGuideView: View {
         .disabled(isWorking)
         .navigationTitle(String(localized: "Capture Certificate", comment: "HTTP capture CA title"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if showsDone {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "Done", comment: "Done button")) { dismiss() }
+                }
+            }
+        }
         .onAppear { ca.refreshTrust() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { ca.refreshTrust() }
