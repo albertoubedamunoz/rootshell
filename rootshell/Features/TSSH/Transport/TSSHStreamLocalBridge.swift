@@ -2,13 +2,13 @@
 //  TSSHStreamLocalBridge.swift
 //  rootshell
 //
-//  Bridges Go's `StreamLocalCallback` interface to ``GPGAgentManager``.
+//  Bridges Go's `StreamLocalCallback` interface to a Swift handler.
 //  For each accepted Unix-socket connection delivered by TSSHD's
 //  remote-listen mechanism, this bridge wraps the opaque Go channel
-//  reference in an ``AsyncBytePipe`` and hands it to
-//  ``GPGAgentManager/serve(stream:)`` — the same entry point the
-//  Citadel transport uses, so the Assuan / signing logic stays one
-//  source of truth across transports.
+//  reference in an ``AsyncBytePipe`` and hands it to `onConnection`
+//  (``GPGAgentManager/serve(stream:)`` or
+//  ``RemoteAskpassServer/serve(stream:)``) — the same entry points the
+//  Citadel transport uses.
 //
 //  Lifecycle mirrors ``TrzszAgentBridge``: the Go callback method runs
 //  on a goroutine, we hop to MainActor to instantiate Swift state, and
@@ -22,8 +22,8 @@ import Foundation
 import os
 @preconcurrency import TrzszSSH
 
-/// Receives forwarded GPG-agent (or generic Unix-socket) channels from
-/// the TSSHD UDP transport and feeds them to ``GPGAgentManager``.
+/// Receives forwarded Unix-socket channels from the TSSHD UDP transport
+/// and feeds them to `onConnection`.
 ///
 /// One bridge instance per active forward (per remote socket path).
 /// Lifetime is bounded by ``TrzszSession`` — when the session
@@ -39,11 +39,14 @@ nonisolated final class TrzszStreamLocalBridge: NSObject,
         category: "TrzszStreamLocalBridge"
     )
 
-    private let gpgAgentManager: GPGAgentManager
+    private let onConnection: @MainActor @Sendable (any AsyncBytePipe) async -> Void
     private let transportRef: TSSHTransportRef
 
-    init(gpgAgentManager: GPGAgentManager, transportRef: TSSHTransportRef) {
-        self.gpgAgentManager = gpgAgentManager
+    init(
+        transportRef: TSSHTransportRef,
+        onConnection: @escaping @MainActor @Sendable (any AsyncBytePipe) async -> Void
+    ) {
+        self.onConnection = onConnection
         self.transportRef = transportRef
         super.init()
     }
@@ -52,15 +55,15 @@ nonisolated final class TrzszStreamLocalBridge: NSObject,
 
     /// Called per accepted connection from a Go goroutine. Hops to
     /// MainActor, builds an ``AsyncBytePipe`` adapter that drives byte
-    /// I/O through ``TSSHCallGate``, and starts the Assuan server.
+    /// I/O through ``TSSHCallGate``, and hands it to `onConnection`.
     func onAccept(_ channelRef: Int64) {
-        let manager = self.gpgAgentManager
+        let onConnection = self.onConnection
         let pipe = TrzszStreamLocalPipe(
             channelRef: channelRef,
             transportRef: self.transportRef
         )
         Task { @MainActor in
-            await manager.serve(stream: pipe)
+            await onConnection(pipe)
         }
     }
 

@@ -806,6 +806,10 @@ extension Ghostty {
         /// removes the matching queued entry by id.
         var onGPGAgentApprovalWithdrawn: (@MainActor @Sendable (UUID) -> Void)?
 
+        // Credential requests from `rootshell-askpass` on the remote, and their withdrawal.
+        var onAskpassRequired: (@MainActor @Sendable (RemoteAskpassRequest) -> Void)?
+        var onAskpassWithdrawn: (@MainActor @Sendable (UUID) -> Void)?
+
         // Connection health for SSH sessions.
         // Mutate via `applyConnectionHealth(_:)` so writes are equality-guarded
         // and suppressed while the app is backgrounded; the cached value is

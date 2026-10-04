@@ -146,6 +146,9 @@ struct SSHConfig: Codable, Hashable {
     /// existing profiles decode unchanged.
     var gpgAgentConfig: GPGAgentConfig = .disabled
 
+    /// Remote credential requests (`rootshell-askpass`). Off by default.
+    var askpassConfig: RemoteAskpassConfig = .disabled
+
     /// SSH port forwarding configuration
     var portForwardConfig: PortForwardConfig = .none
 
@@ -581,7 +584,7 @@ struct SSHConfig: Codable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case host, port, username, authMethod, cachedIP, jumpHost
-        case hssShorthand, cloudInstanceLabel, agentConfig, gpgAgentConfig, portForwardConfig
+        case hssShorthand, cloudInstanceLabel, agentConfig, gpgAgentConfig, askpassConfig, portForwardConfig
         case tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, herdrAutoMode, zmxAutoEnable, launchCommand, launchCommandMode, fallbackKeyIDs, keyResolutionHints
         case terminalType, multiplexerSessionName
     }
@@ -599,6 +602,7 @@ struct SSHConfig: Codable, Hashable {
         cloudInstanceLabel = try container.decodeIfPresent(String.self, forKey: .cloudInstanceLabel)
         agentConfig = try container.decodeIfPresent(SSHAgentConfig.self, forKey: .agentConfig) ?? .disabled
         gpgAgentConfig = try container.decodeIfPresent(GPGAgentConfig.self, forKey: .gpgAgentConfig) ?? .disabled
+        askpassConfig = try container.decodeIfPresent(RemoteAskpassConfig.self, forKey: .askpassConfig) ?? .disabled
         portForwardConfig = try container.decodeIfPresent(PortForwardConfig.self, forKey: .portForwardConfig) ?? .none
         tmuxAutoEnable = try container.decodeIfPresent(Bool.self, forKey: .tmuxAutoEnable) ?? false
         tmuxAutoMode = try container.decodeIfPresent(TmuxAutoMode.self, forKey: .tmuxAutoMode) ?? .regular

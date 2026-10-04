@@ -252,6 +252,10 @@ struct MainView: View {
     // rounds, presented one at a time via a sheet (needs free-form text entry).
     @State var keyboardInteractiveQueue: [PendingKeyboardInteractiveChallenge] = []
     @State var showKeyboardInteractivePrompt = false
+
+    // Credential requests from `rootshell-askpass`, presented one at a time.
+    @State var askpassQueue: [RemoteAskpassRequest] = []
+    @State var showAskpassPrompt = false
     
     
     // Search state change trigger - incremented to force re-render when search opens/closes

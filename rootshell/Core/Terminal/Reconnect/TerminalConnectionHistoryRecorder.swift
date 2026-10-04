@@ -98,6 +98,7 @@ final class TerminalConnectionHistoryRecorder {
                 hssShorthand: sshConfig.hssShorthand,
                 agentConfig: sshConfig.agentConfig,
                 gpgAgentConfig: sshConfig.gpgAgentConfig,
+                askpassConfig: sshConfig.askpassConfig,
                 portForwardConfig: sshConfig.portForwardConfig,
                 tmuxAutoEnable: sshConfig.tmuxAutoEnable,
                 tmuxAutoMode: sshConfig.tmuxAutoMode,

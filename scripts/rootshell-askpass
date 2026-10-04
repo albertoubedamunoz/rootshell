@@ -1,0 +1,87 @@
+#!/bin/sh
+# Askpass helper for Rootshell's opt-in remote credential requests. Asks the
+# Rootshell pane over its forwarded socket in ~/.rootshell, prints the value
+# entered on the device, and exits 1 when the request is cancelled.
+set -eu
+
+dir=${ROOTSHELL_ASKPASS_DIR:-$HOME/.rootshell}
+prompt=${1:-Password:}
+command=$(ps -o args= -p "$PPID" 2>/dev/null || true)
+nl='
+'
+
+flatten() {
+    printf '%s' "$1" | tr '\r\n\t' '   '
+}
+
+if command -v perl >/dev/null 2>&1; then
+    client=perl
+elif command -v socat >/dev/null 2>&1; then
+    client=socat
+elif nc -h 2>&1 | grep -q -- '-U'; then
+    client=nc
+else
+    printf 'rootshell-askpass: needs perl, socat, or nc with -U\n' >&2
+    exit 1
+fi
+
+# Sends stdin to socket $1 and prints the reply. The write side must stay
+# open until the reply arrives: Rootshell's forwarded channel closes on EOF.
+send() {
+    case "$client" in
+        perl)
+            perl -MIO::Socket::UNIX -e '
+                my $s = IO::Socket::UNIX->new(Peer => $ARGV[0]) or exit 1;
+                local $/; print $s scalar(<STDIN>);
+                binmode STDOUT; print $_ while sysread($s, $_, 4096);
+            ' "$1"
+            ;;
+        socat) socat -t 1 STDIO,ignoreeof "UNIX-CONNECT:$1" ;;
+        nc) nc -U "$1" ;;
+    esac
+}
+
+# Explicit override, then this pane's socket, then the newest one (tmux panes
+# and reattached sessions can carry another pane's token).
+candidates() {
+    if [ -n "${ROOTSHELL_ASKPASS_SOCK:-}" ]; then
+        printf '%s\n' "$ROOTSHELL_ASKPASS_SOCK"
+        return
+    fi
+    case "${LC_ROOTSHELL_PANE:-}" in
+        ''|*[!A-Za-z0-9-]*) ;;
+        *) printf '%s\n' "$dir/askpass-$LC_ROOTSHELL_PANE.sock" ;;
+    esac
+    ls -t "$dir"/askpass-*.sock 2>/dev/null || true
+}
+
+request=$(printf 'ROOTSHELL-ASKPASS 1\nPROMPT %s\nCOMMAND %s\nEND' \
+    "$(flatten "$prompt")" "$(flatten "$command")")
+
+reply=
+old_ifs=$IFS
+IFS=$nl
+for sock in $(candidates); do
+    [ -S "$sock" ] || continue
+    reply=$(printf '%s\n' "$request" | send "$sock" 2>/dev/null) || reply=
+    [ -n "$reply" ] && break
+done
+IFS=$old_ifs
+
+case "$reply" in
+    "OK$nl"*)
+        printf '%s\n' "${reply#"OK$nl"}"
+        ;;
+    "ERR "*)
+        printf 'rootshell-askpass: %s\n' "${reply#ERR }" >&2
+        exit 1
+        ;;
+    '')
+        printf 'rootshell-askpass: no Rootshell connection with credential requests enabled\n' >&2
+        exit 1
+        ;;
+    *)
+        printf 'rootshell-askpass: unexpected reply\n' >&2
+        exit 1
+        ;;
+esac

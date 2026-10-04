@@ -33,6 +33,19 @@ extension Ghostty.TerminalView {
                 self?.onGPGAgentApprovalWithdrawn?(requestID)
             }
         }
+        // Synchronous, unlike the alerts above: the sessions call these on the
+        // main actor, and a hop could let a withdrawal overtake its request.
+        session.onAskpassRequest = { [weak self] request in
+            MainActor.assumeIsolated {
+                guard let handler = self?.onAskpassRequired else { return request.completion(nil) }
+                handler(request)
+            }
+        }
+        session.onAskpassRequestWithdrawn = { [weak self] requestID in
+            MainActor.assumeIsolated {
+                self?.onAskpassWithdrawn?(requestID)
+            }
+        }
     }
 
     /// Wire the standard "display the error in the terminal" onError handler.

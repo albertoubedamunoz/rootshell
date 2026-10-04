@@ -83,6 +83,10 @@ struct SSHConnectionView: View {
     @State private var gpgSelectedKeyIDs: Set<UUID> = []
     @State private var gpgRemoteSocketPath: String = GPGAgentConfig.defaultRemoteSocketPath
 
+    // Remote credential requests (rootshell-askpass)
+    @State private var isAskpassExpanded: Bool = false
+    @State private var enableAskpass: Bool = false
+
     // Port forwarding
     @State private var portForwards: [PortForwardConfig.PortForward] = []
     @State private var showPortForwardBackgroundAlert: Bool = false
@@ -811,6 +815,9 @@ struct SSHConnectionView: View {
             if connectionProtocol != .mosh {
                 gpgAgentForwardingDisclosure
                     .themedRow()
+
+                askpassDisclosure
+                    .themedRow()
             }
 
             portForwardingDisclosure
@@ -1064,6 +1071,26 @@ struct SSHConnectionView: View {
                     : String(localized: "Disabled")
             )
         }
+    }
+
+    private var askpassDisclosure: some View {
+        DisclosureGroup(isExpanded: $isAskpassExpanded) {
+            Toggle("Allow Credential Requests", isOn: $enableAskpass)
+            Text("Programs on the server can ask for a password with `rootshell-askpass`. Each request opens a sheet you can fill from your password manager.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } label: {
+            advancedSectionLabel(
+                title: String(localized: "Credential Requests"),
+                systemImage: "key.horizontal",
+                summary: enableAskpass ? String(localized: "Allowed") : String(localized: "Disabled")
+            )
+        }
+    }
+
+    /// Mosh can't forward the socket, so a hidden toggle never persists as on.
+    private var askpassConfigForSave: RemoteAskpassConfig {
+        RemoteAskpassConfig(enabled: enableAskpass && connectionProtocol != .mosh)
     }
 
     private var portForwardingDisclosure: some View {
@@ -2001,6 +2028,7 @@ struct SSHConnectionView: View {
             hssShorthand: currentHSSShorthand,
             agentConfig: agentConfig,
             gpgAgentConfig: gpgAgentConfigForEntry,
+            askpassConfig: askpassConfigForSave,
             portForwardConfig: portForwards.isEmpty ? nil : PortForwardConfig(forwards: portForwards),
             tmuxAutoEnable: enableTmux ? true : nil,
             tmuxAutoMode: enableTmux ? effectiveTmuxAutoMode : nil,
@@ -2212,6 +2240,7 @@ struct SSHConnectionView: View {
         // Apply the GPG agent config after the SSHConfig is built —
         // the convenience initializers above don't carry it.
         config.gpgAgentConfig = gpgConfig
+        config.askpassConfig = askpassConfigForSave
 
         // Quick Connect has no TERM or session-name field; these carry the
         // overrides forward when the form was populated from a history entry or
@@ -2694,6 +2723,7 @@ struct SSHConnectionView: View {
             gpgSelectedKeyIDs = []
             gpgRemoteSocketPath = GPGAgentConfig.defaultRemoteSocketPath
         }
+        enableAskpass = entry.askpassConfig?.enabled ?? false
 
         // Restore port forwarding settings if present
         if let portForwardConfig = entry.portForwardConfig {
@@ -2827,6 +2857,7 @@ struct SSHConnectionView: View {
 
         // Set GPG agent forwarding settings
         enableGPGAgentForwarding = config.gpgAgentConfig.enabled
+        enableAskpass = config.askpassConfig.enabled
         gpgAgentApprovalMode = config.gpgAgentConfig.approvalMode
         gpgForwardAllKeys = config.gpgAgentConfig.forwardedKeyIDs.isEmpty
         gpgSelectedKeyIDs = config.gpgAgentConfig.forwardedKeyIDs
