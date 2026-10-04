@@ -174,10 +174,11 @@ final class MacVPNController {
         _ = try await send(VPNControlRequest(command: .activateExtension))
 
         var announcedApproval = false
+        // Resolved on every exit (success, failure, timeout, cancellation).
+        defer { if announcedApproval { onApprovalResolved?() } }
         for _ in 0..<300 {   // up to ~5 min
             switch await extensionStatus()?.state {
             case .activated:
-                if announcedApproval { onApprovalResolved?() }
                 return
             case .awaitingApproval:
                 if !announcedApproval { announcedApproval = true; onApprovalRequired?() }

@@ -265,8 +265,9 @@ final class VPNManager {
         if mapped == .connected, connectedSince == nil {
             connectedSince = Date()
         } else if mapped == .disconnected || mapped == .invalid {
+            // Not extensionApprovalPending: the tunnel stays down while approval
+            // is pending, and activateExtension() owns that flag.
             connectedSince = nil
-            extensionApprovalPending = false
             stopStatsPolling()
         }
     }

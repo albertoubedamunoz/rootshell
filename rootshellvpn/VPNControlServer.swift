@@ -39,8 +39,8 @@ final class VPNControlServer: @unchecked Sendable {
     }
 
     /// Bind + accept, rebinding whenever the listener dies or the socket path
-    /// is deleted out from under us (app builds prior to 2026-07 sweep every
-    /// `*.sock` in the container when relaunching rootshell-helper, leaving
+    /// is deleted out from under us (older app builds sweep every `*.sock` in
+    /// the container when relaunching rootshell-helper, leaving
     /// this server accepting on an unlinked inode nobody can connect to).
     private func serverLoop(_ path: String) {
         while true {

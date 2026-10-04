@@ -40,6 +40,10 @@ struct VPNSettingsView: View {
         #if !CHINA_BUILD
         .onAppear { vpnManager.reloadLastVPN() }
         #endif
+        #if STANDALONE && targetEnvironment(macCatalyst)
+        // The launch-time check misses a host that was still rebinding its socket.
+        .task { await vpnManager.refreshStatusFromSystem() }
+        #endif
     }
 
     #if !CHINA_BUILD
