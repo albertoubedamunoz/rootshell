@@ -229,6 +229,7 @@ final class MacVPNController {
         }
     }
 
+#if !CHINA_BUILD
     /// Starts the Tailscale tunnel. The sysext can't read the app group, so the
     /// settings and the SSH egress host (with resolved secrets) travel in the
     /// start request. `restart` reconnects a running one so new settings apply.
@@ -277,6 +278,7 @@ final class MacVPNController {
         // The root sysext can't write the app group; record what it started with.
         VPNTailnetProfile.storeApplied(settings)
     }
+#endif
 
     /// Pins fresh host keys / trusted host CAs from the app's stores
     /// (unreachable from the root sysext) and refuses to start when neither

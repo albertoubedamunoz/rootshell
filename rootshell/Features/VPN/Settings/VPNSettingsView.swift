@@ -19,6 +19,9 @@ struct VPNSettingsView: View {
 
     var body: some View {
         List {
+            #if !CHINA_BUILD
+            quickConnectSection
+            #endif
             statusSection
             disconnectSection
             vpnProfilesSection
@@ -33,7 +36,25 @@ struct VPNSettingsView: View {
         }
         .themedList()
         .navigationTitle("VPN")
+        #if !CHINA_BUILD
+        .onAppear { vpnManager.reloadLastVPN() }
+        #endif
     }
+
+    #if !CHINA_BUILD
+    // MARK: - Quick Connect
+
+    /// One-tap reconnect to the last VPN, while nothing is connected.
+    @ViewBuilder
+    private var quickConnectSection: some View {
+        if !vpnManager.status.isActive, let target = VPNQuickConnectCard.lastTarget() {
+            Section {
+                VPNQuickConnectCard(target: target)
+                    .themedRow()
+            }
+        }
+    }
+    #endif
 
     #if !CHINA_BUILD && os(iOS) && (!targetEnvironment(macCatalyst) || STANDALONE)
     // MARK: - Tailscale Section

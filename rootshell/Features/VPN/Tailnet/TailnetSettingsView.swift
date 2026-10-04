@@ -21,9 +21,7 @@ struct TailnetSettingsView: View {
     @State private var status: TailnetStatus?
     @State private var errorMessage: String?
     @State private var isWorking = false
-    @State private var signInRequested = false
-    @State private var webAuth = ASWebAuthSessionProvider()
-    @State private var presentedAuthURL: String?
+    @State private var login = TailnetLoginCoordinator.shared
     @State private var showSignOutConfirmation = false
 
     private var isActive: Bool { vpnManager.isVPNActive(for: VPNTailnetProfile.id) }
@@ -101,7 +99,7 @@ struct TailnetSettingsView: View {
             if isActive {
                 if status?.needsLogin == true {
                     Button(String(localized: "Sign In", comment: "Tailscale sign-in button")) { signIn() }
-                        .disabled(isWorking)
+                        .disabled(isWorking || login.isSigningIn)
                         .themedRow()
                 }
                 if needsRestart {
@@ -299,32 +297,29 @@ struct TailnetSettingsView: View {
 
     private func connect(restart: Bool) {
         isWorking = true
-        signInRequested = true
         Task {
             defer { isWorking = false }
             do {
                 try await vpnManager.startTailnetVPN(restart: restart)
+                login.watch()
             } catch {
-                signInRequested = false
                 errorMessage = error.localizedDescription
             }
         }
     }
 
     private func signIn() {
-        signInRequested = true
-        presentedAuthURL = nil
         isWorking = true
         Task {
             defer { isWorking = false }
-            if let error = await vpnManager.tailnetLogin() {
+            if let error = await login.signIn() {
                 errorMessage = error
             }
         }
     }
 
     private func signOut() {
-        signInRequested = false
+        login.cancel()
         Task {
             if let error = await vpnManager.tailnetLogout() {
                 errorMessage = error
@@ -332,8 +327,8 @@ struct TailnetSettingsView: View {
         }
     }
 
-    /// Polls the extension while connected, opening the login page when one
-    /// is pending and closing it once the node is running.
+    /// Polls the extension for display while connected; the login
+    /// coordinator owns the login page.
     private func pollStatus() async {
         guard isConnected else {
             status = nil
@@ -342,31 +337,7 @@ struct TailnetSettingsView: View {
         while !Task.isCancelled {
             status = await vpnManager.tailnetStatus()
             appliedSettings = VPNTailnetProfile.appliedSettings()
-            if let status {
-                if status.isRunning, presentedAuthURL != nil {
-                    webAuth.cancel()
-                    presentedAuthURL = nil
-                    signInRequested = false
-                } else if signInRequested, status.needsLogin,
-                          let raw = status.authURL, raw != presentedAuthURL, let url = URL(string: raw) {
-                    presentedAuthURL = raw
-                    presentLogin(url)
-                }
-            }
-            try? await Task.sleep(for: .seconds(presentedAuthURL == nil ? 3 : 1))
-        }
-    }
-
-    private func presentLogin(_ url: URL) {
-        Task {
-            do {
-                // Tailscale never redirects back; the poll closes the sheet.
-                _ = try await webAuth.startSession(authorizationURL: url, callbackURLScheme: "rootshell")
-            } catch {
-                if presentedAuthURL == url.absoluteString {
-                    signInRequested = false
-                }
-            }
+            try? await Task.sleep(for: .seconds(login.isSigningIn ? 1 : 3))
         }
     }
 }

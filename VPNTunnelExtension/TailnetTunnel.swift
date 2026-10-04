@@ -550,6 +550,9 @@ extension SSHVPNTunnelProvider {
                 lastUpdated: Date()
             )
         )
+        #if !os(macOS)
+        VPNLastConnected.record(config.profileID)
+        #endif
         WidgetCenter.shared.reloadTimelines(ofKind: Self.widgetKind)
         #if !os(visionOS)
         ControlCenter.shared.reloadControls(ofKind: "VPNControlCenterToggle")

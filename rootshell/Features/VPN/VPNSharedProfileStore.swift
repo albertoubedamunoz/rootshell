@@ -160,6 +160,28 @@ nonisolated enum VPNSharedProfileStore {
     }
 }
 
+/// The last VPN that connected on this device. The tunnel writes it, so starts
+/// from widgets, Shortcuts or Control Center count while the app isn't running.
+nonisolated enum VPNLastConnected {
+    static let fileName = "vpn_last_connected.txt"
+
+    private static var fileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(fileName)
+    }
+
+    /// Local Capture is a capture tool, not a VPN to reconnect to.
+    static func record(_ id: UUID) {
+        guard id != VPNDirectProfile.id, id != read(), let fileURL else { return }
+        try? Data(id.uuidString.utf8).write(to: fileURL, options: .atomic)
+    }
+
+    static func read() -> UUID? {
+        guard let fileURL, let data = try? Data(contentsOf: fileURL) else { return nil }
+        return UUID(uuidString: String(decoding: data, as: UTF8.self))
+    }
+}
+
 /// Where a routing rule sends matching traffic in the Tailscale VPN.
 nonisolated enum VPNRoutingAction: String, Codable, Sendable, Hashable, CaseIterable {
     case ssh

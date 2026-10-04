@@ -45,11 +45,13 @@ enum VPNStartController {
         return try await start(profileID: VPNDirectProfile.id)
     }
 
+#if !CHINA_BUILD
     /// Starts the Tailscale tunnel, with SSH egress if one is configured.
     /// `restart` reconnects a running Tailscale tunnel so new settings apply.
     static func startTailnet(restart: Bool = false) async throws -> StartResult {
         try await start(profileID: VPNTailnetProfile.id, restart: restart)
     }
+#endif
 
     static func start(profileID: UUID, restart: Bool = false) async throws -> StartResult {
         guard let snapshot = VPNSharedProfileStore.profile(id: profileID) else {
