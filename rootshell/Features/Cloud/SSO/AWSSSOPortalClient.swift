@@ -6,7 +6,6 @@ import Foundation
 actor AWSSSOPortalClient {
     private let region: String
     private let accessToken: String
-    private let baseURL: String
 
     private let jsonDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -16,7 +15,6 @@ actor AWSSSOPortalClient {
     init(region: String, accessToken: String) {
         self.region = region
         self.accessToken = accessToken
-        self.baseURL = "https://portal.sso.\(region).amazonaws.com"
     }
 
     // MARK: - List Accounts
@@ -38,12 +36,12 @@ actor AWSSSOPortalClient {
     }
 
     private func fetchAccounts(nextToken: String? = nil) async throws -> SSOListAccountsResponse {
-        var urlString = "\(baseURL)/assignment/accounts"
+        var query: [(name: String, value: String)] = []
         if let token = nextToken {
-            urlString += "?next_token=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)"
+            query.append(("next_token", token))
         }
 
-        guard let url = URL(string: urlString) else {
+        guard let url = AWSSSOPortalURL.make(region: region, path: "/assignment/accounts", query: query) else {
             throw AWSSSOError.invalidURL
         }
 
@@ -88,12 +86,12 @@ actor AWSSSOPortalClient {
     }
 
     private func fetchAccountRoles(accountId: String, nextToken: String? = nil) async throws -> SSOListAccountRolesResponse {
-        var urlString = "\(baseURL)/assignment/roles?account_id=\(accountId)"
+        var query: [(name: String, value: String)] = [("account_id", accountId)]
         if let token = nextToken {
-            urlString += "&next_token=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)"
+            query.append(("next_token", token))
         }
 
-        guard let url = URL(string: urlString) else {
+        guard let url = AWSSSOPortalURL.make(region: region, path: "/assignment/roles", query: query) else {
             throw AWSSSOError.invalidURL
         }
 
@@ -123,10 +121,8 @@ actor AWSSSOPortalClient {
 
     /// Get temporary AWS credentials for a specific role
     func getRoleCredentials(accountId: String, roleName: String) async throws -> AWSSTSCredentials {
-        let encodedRole = roleName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? roleName
-        let urlString = "\(baseURL)/federation/credentials?account_id=\(accountId)&role_name=\(encodedRole)"
-
-        guard let url = URL(string: urlString) else {
+        let query: [(name: String, value: String)] = [("account_id", accountId), ("role_name", roleName)]
+        guard let url = AWSSSOPortalURL.make(region: region, path: "/federation/credentials", query: query) else {
             throw AWSSSOError.invalidURL
         }
 

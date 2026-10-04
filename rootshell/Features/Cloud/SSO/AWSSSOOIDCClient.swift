@@ -4,6 +4,9 @@ import Foundation
 
 /// AWS SSO OIDC API client for device authorization flow
 actor AWSSSOOIDCClient {
+    /// Without a scope the service never issues refresh tokens (the CLI's "legacy" flow).
+    nonisolated static let registrationScopes = ["sso:account:access"]
+
     private let region: String
     private let baseURL: String
 
@@ -37,7 +40,8 @@ actor AWSSSOOIDCClient {
 
         let body: [String: Any] = [
             "clientName": clientName,
-            "clientType": "public"
+            "clientType": "public",
+            "scopes": Self.registrationScopes
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -186,10 +190,15 @@ actor AWSSSOOIDCClient {
 
         if httpResponse.statusCode != 200 {
             let errorResponse = try? jsonDecoder.decode(SSOOIDCError.self, from: data)
-            throw AWSSSOError.apiError(
-                code: errorResponse?.error ?? "unknown",
-                message: errorResponse?.error_description ?? "Token refresh failed"
-            )
+            switch errorResponse?.error {
+            case "invalid_grant", "invalid_client", "expired_token", "access_denied":
+                throw AWSSSOError.sessionExpired
+            default:
+                throw AWSSSOError.apiError(
+                    code: errorResponse?.error ?? "unknown",
+                    message: errorResponse?.error_description ?? "Token refresh failed"
+                )
+            }
         }
 
         return try jsonDecoder.decode(SSOTokenResponse.self, from: data)
@@ -208,6 +217,7 @@ enum AWSSSOError: LocalizedError {
     case accessDenied
     case timeout
     case cancelled
+    case sessionExpired
 
     var errorDescription: String? {
         switch self {
@@ -229,6 +239,8 @@ enum AWSSSOError: LocalizedError {
             return "Authorization timed out"
         case .cancelled:
             return "Authorization cancelled"
+        case .sessionExpired:
+            return String(localized: "Your AWS SSO session has expired. Open this account in Settings › Cloud Providers and choose Sign In Again.", comment: "Cloud account: AWS SSO session expired error")
         }
     }
 

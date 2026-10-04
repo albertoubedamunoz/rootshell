@@ -30,8 +30,9 @@ class AWSSSOFlowManager: ObservableObject {
 
     // MARK: - Private State
 
-    private var isCancelled = false
-    private var currentTask: Task<Void, Never>?
+    /// Bumped by every start and cancel; a flow whose id is stale stops and leaves the UI alone.
+    private var attempt = 0
+    private var currentTask: Task<AWSSSOSession, Error>?
 
     // MARK: - Constants
 
@@ -44,39 +45,72 @@ class AWSSSOFlowManager: ObservableObject {
     /// - Parameters:
     ///   - startURL: The AWS SSO start URL (e.g., https://my-org.awsapps.com/start)
     ///   - region: AWS region for SSO
+    ///   - existing: A previous session whose client registration can be reused
     /// - Returns: The SSO session with tokens
-    func startSSOFlow(startURL: String, region: String) async throws -> AWSSSOSession {
+    func startSSOFlow(startURL: String, region: String, reusing existing: AWSSSOSession? = nil) async throws -> AWSSSOSession {
         guard !isAuthenticating else {
             throw AWSSSOError.apiError(code: "in_progress", message: "Authentication already in progress")
         }
 
+        attempt += 1
+        let id = attempt
         isAuthenticating = true
-        isCancelled = false
         statusMessage = "Starting authentication..."
 
+        let task = Task { try await runSSOFlow(id: id, startURL: startURL, region: region, reusing: existing) }
+        currentTask = task
+        do {
+            return try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
+        } catch {
+            try ensureCurrent(id)
+            throw error
+        }
+    }
+
+    private func runSSOFlow(id: Int, startURL: String, region: String, reusing existing: AWSSSOSession?) async throws -> AWSSSOSession {
         defer {
-            isAuthenticating = false
-            userCode = nil
-            verificationURL = nil
+            if id == attempt {
+                isAuthenticating = false
+                userCode = nil
+                verificationURL = nil
+                currentTask = nil
+            }
         }
 
         let oidcClient = AWSSSOOIDCClient(region: region)
 
-        // Step 1: Register client (or use cached)
-        statusMessage = "Registering client..."
-        let clientRegistration = try await oidcClient.registerClient()
+        // Step 1: Register client (or reuse a previous registration that can issue refresh tokens)
+        let clientId: String
+        let clientSecret: String
+        let clientSecretExpiresAt: Date
+        if let existing, existing.region == region, !existing.isClientExpired,
+           existing.registrationScopes == AWSSSOOIDCClient.registrationScopes {
+            clientId = existing.clientId
+            clientSecret = existing.clientSecret
+            clientSecretExpiresAt = existing.clientSecretExpiresAt
+        } else {
+            statusMessage = "Registering client..."
+            let registration = try await oidcClient.registerClient()
+            clientId = registration.clientId
+            clientSecret = registration.clientSecret
+            clientSecretExpiresAt = Date(timeIntervalSince1970: TimeInterval(registration.clientSecretExpiresAt))
+        }
 
-        if isCancelled { throw AWSSSOError.cancelled }
+        try ensureCurrent(id)
 
         // Step 2: Start device authorization
         statusMessage = "Starting device authorization..."
         let deviceAuth = try await oidcClient.startDeviceAuthorization(
-            clientId: clientRegistration.clientId,
-            clientSecret: clientRegistration.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             startURL: startURL
         )
 
-        if isCancelled { throw AWSSSOError.cancelled }
+        try ensureCurrent(id)
 
         // Step 3: Display user code and open browser
         userCode = deviceAuth.userCode
@@ -98,21 +132,23 @@ class AWSSSOFlowManager: ObservableObject {
         // Step 4: Poll for token
         let pollingInterval = max(TimeInterval(deviceAuth.interval), Self.defaultPollingInterval)
         let tokenResponse = try await pollForToken(
+            id: id,
             oidcClient: oidcClient,
-            clientId: clientRegistration.clientId,
-            clientSecret: clientRegistration.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             deviceCode: deviceAuth.deviceCode,
             interval: pollingInterval,
             expiresIn: deviceAuth.expiresIn
         )
 
-        if isCancelled { throw AWSSSOError.cancelled }
+        try ensureCurrent(id)
 
         // Step 5: Create SSO session
         let session = AWSSSOSession(
-            clientId: clientRegistration.clientId,
-            clientSecret: clientRegistration.clientSecret,
-            clientSecretExpiresAt: Date(timeIntervalSince1970: TimeInterval(clientRegistration.clientSecretExpiresAt)),
+            clientId: clientId,
+            clientSecret: clientSecret,
+            clientSecretExpiresAt: clientSecretExpiresAt,
+            registrationScopes: AWSSSOOIDCClient.registrationScopes,
             accessToken: tokenResponse.accessToken,
             refreshToken: tokenResponse.refreshToken,
             tokenExpiresAt: Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn)),
@@ -122,6 +158,10 @@ class AWSSSOFlowManager: ObservableObject {
 
         statusMessage = "Authentication successful!"
         return session
+    }
+
+    private func ensureCurrent(_ id: Int) throws {
+        if id != attempt || Task.isCancelled { throw AWSSSOError.cancelled }
     }
 
     /// Get available accounts for an SSO session
@@ -180,10 +220,30 @@ class AWSSSOFlowManager: ObservableObject {
         return updatedSession
     }
 
+    /// Sign in again for a saved account, keeping its AWS account and role.
+    func reauthenticate(_ credentials: CloudCredentials) async throws -> CloudCredentials {
+        guard let previous = credentials.awsSSOSession,
+              let accountId = credentials.awsSSOAccountId,
+              let roleName = credentials.awsSSORole else {
+            throw AWSSSOError.apiError(code: "missing_session", message: "This account has no saved AWS SSO configuration")
+        }
+
+        let session = try await startSSOFlow(startURL: previous.startURL, region: previous.region, reusing: previous)
+        let id = attempt
+        let stsCredentials = try await getCredentials(session: session, accountId: accountId, roleName: roleName)
+        try ensureCurrent(id)
+
+        var updated = credentials
+        updated.awsSSOSession = session
+        updated.awsSTSCredentials = stsCredentials
+        return updated
+    }
+
     /// Cancel the current authentication flow
     func cancel() {
-        isCancelled = true
+        attempt += 1
         currentTask?.cancel()
+        currentTask = nil
         isAuthenticating = false
         userCode = nil
         verificationURL = nil
@@ -193,6 +253,7 @@ class AWSSSOFlowManager: ObservableObject {
     // MARK: - Private Methods
 
     private func pollForToken(
+        id: Int,
         oidcClient: AWSSSOOIDCClient,
         clientId: String,
         clientSecret: String,
@@ -204,7 +265,7 @@ class AWSSSOFlowManager: ObservableObject {
         let maxDuration = min(TimeInterval(expiresIn), Self.maxPollingDuration)
         var currentInterval = interval
 
-        while !isCancelled {
+        while true {
             // Check timeout
             if Date().timeIntervalSince(startTime) > maxDuration {
                 throw AWSSSOError.timeout
@@ -212,10 +273,10 @@ class AWSSSOFlowManager: ObservableObject {
 
             statusMessage = "Waiting for authorization..."
 
-            // Wait before polling
+            // Wait before polling; throws immediately when the task is cancelled
             try await Task.sleep(nanoseconds: UInt64(currentInterval * 1_000_000_000))
 
-            if isCancelled { throw AWSSSOError.cancelled }
+            try ensureCurrent(id)
 
             do {
                 // Try to get token
@@ -239,7 +300,5 @@ class AWSSSOFlowManager: ObservableObject {
                 }
             }
         }
-
-        throw AWSSSOError.cancelled
     }
 }

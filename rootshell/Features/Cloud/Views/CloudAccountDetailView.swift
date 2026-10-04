@@ -23,6 +23,11 @@ struct CloudAccountDetailView: View {
     @State private var showImportError = false
     @State private var showImportSuccess = false
 
+    // AWS SSO sign-in state
+    @StateObject private var awsSSOManager = AWSSSOFlowManager()
+    @State private var ssoSignInError: String?
+    @State private var showSSOSignInError = false
+
     var body: some View {
         List {
             accountInfoSection
@@ -113,6 +118,11 @@ struct CloudAccountDetailView: View {
         } message: {
             Text("Enter a new display name for this account.")
         }
+        .alert("Sign In Failed", isPresented: $showSSOSignInError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(ssoSignInError ?? String(localized: "An unknown error occurred", comment: "Generic error fallback message"))
+        }
     }
 
     // MARK: - Computed Properties
@@ -177,6 +187,56 @@ struct CloudAccountDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var awsSSOSignInRow: some View {
+        if awsSSOManager.isAuthenticating {
+            awsSSOSignInProgress
+        } else {
+            Button {
+                signInAgain()
+            } label: {
+                Label("Sign In Again", systemImage: "person.badge.key.fill")
+            }
+            .themedRow()
+        }
+    }
+
+    private var awsSSOSignInProgress: some View {
+        VStack(spacing: 12) {
+            HStack {
+                ProgressView()
+                Text(awsSSOManager.statusMessage ?? "")
+                    .foregroundColor(.secondary)
+            }
+
+            if let userCode = awsSSOManager.userCode {
+                Text("Confirm this code in your browser:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Text(userCode)
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.secondary.opacity(0.1))
+                    .cornerRadius(8)
+
+                if let url = awsSSOManager.verificationURL {
+                    Link("Open Browser", destination: url)
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+
+            Button("Cancel", role: .cancel) {
+                awsSSOManager.cancel()
+            }
+            .buttonStyle(.borderless)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .themedRow()
+    }
+
     // MARK: - Account Info Section
 
     private var accountInfoSection: some View {
@@ -218,6 +278,10 @@ struct CloudAccountDetailView: View {
                     .foregroundColor(.secondary)
             }
             .themedRow()
+
+            if account.authMethod == .awsSSO {
+                awsSSOSignInRow
+            }
 
             if let providerName = account.providerDisplayName {
                 HStack {
@@ -395,6 +459,24 @@ struct CloudAccountDetailView: View {
 
     private func refreshAsync() async {
         await cacheManager.syncAccount(account.id)
+    }
+
+    private func signInAgain() {
+        Task {
+            do {
+                let credentials = try accountManager.getCredentials(for: account.id)
+                let updated = try await awsSSOManager.reauthenticate(credentials)
+                try accountManager.saveReauthenticatedSSOCredentials(updated)
+                await cacheManager.syncAccount(account.id)
+            } catch is CancellationError {
+                // User cancelled
+            } catch AWSSSOError.cancelled {
+                // User cancelled
+            } catch {
+                ssoSignInError = error.localizedDescription
+                showSSOSignInError = true
+            }
+        }
     }
 
     private func renameAccount() {

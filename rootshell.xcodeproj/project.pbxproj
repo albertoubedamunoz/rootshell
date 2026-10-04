@@ -152,6 +152,7 @@
 		47AF05740000000000000A01 /* rootshell/Core/Terminal/TerminalURLRequestParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05740000000000000B01 /* rootshell/Core/Terminal/TerminalURLRequestParser.swift */; };
 		47AF05740000000000000A02 /* rootshell/Core/Terminal/TerminalClipboardURLRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05740000000000000B02 /* rootshell/Core/Terminal/TerminalClipboardURLRequest.swift */; };
 		47AF05880000000000000A01 /* rootshell/Features/Askpass/RemoteAskpassProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05880000000000000B01 /* rootshell/Features/Askpass/RemoteAskpassProtocol.swift */; };
+		47AF05890000000000000A01 /* rootshell/Features/Cloud/SSO/AWSSSOPortalURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05890000000000000B01 /* rootshell/Features/Cloud/SSO/AWSSSOPortalURL.swift */; };
 		47AF0F1D0000000000000B01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */; };
 		47AF0F1D0000000000000B02 /* rootshell/Core/Terminal/TerminalTargetKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */; };
 		47AF0F1D0000000000000B03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */; };
@@ -637,6 +638,7 @@
 		47AF05740000000000000B01 /* rootshell/Core/Terminal/TerminalURLRequestParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalURLRequestParser.swift; sourceTree = SOURCE_ROOT; };
 		47AF05740000000000000B02 /* rootshell/Core/Terminal/TerminalClipboardURLRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalClipboardURLRequest.swift; sourceTree = SOURCE_ROOT; };
 		47AF05880000000000000B01 /* rootshell/Features/Askpass/RemoteAskpassProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Askpass/RemoteAskpassProtocol.swift; sourceTree = SOURCE_ROOT; };
+		47AF05890000000000000B01 /* rootshell/Features/Cloud/SSO/AWSSSOPortalURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Cloud/SSO/AWSSSOPortalURL.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Shell/InitialDirectoryCommand.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalTargetKey.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxCommandQuoting.swift; sourceTree = SOURCE_ROOT; };
@@ -1277,6 +1279,7 @@
 				47AF05740000000000000B01 /* rootshell/Core/Terminal/TerminalURLRequestParser.swift */,
 				47AF05740000000000000B02 /* rootshell/Core/Terminal/TerminalClipboardURLRequest.swift */,
 				47AF05880000000000000B01 /* rootshell/Features/Askpass/RemoteAskpassProtocol.swift */,
+				47AF05890000000000000B01 /* rootshell/Features/Cloud/SSO/AWSSSOPortalURL.swift */,
 				47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */,
 				47AF04960000000000000B02 /* rootshell/Core/Terminal/BackgroundExecutionPolicy.swift */,
 				47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */,
@@ -2293,6 +2296,7 @@
 				47AF05740000000000000A01 /* rootshell/Core/Terminal/TerminalURLRequestParser.swift in Sources */,
 				47AF05740000000000000A02 /* rootshell/Core/Terminal/TerminalClipboardURLRequest.swift in Sources */,
 				47AF05880000000000000A01 /* rootshell/Features/Askpass/RemoteAskpassProtocol.swift in Sources */,
+				47AF05890000000000000A01 /* rootshell/Features/Cloud/SSO/AWSSSOPortalURL.swift in Sources */,
 				47AF04960000000000000A01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift in Sources */,
 				47AF04960000000000000A02 /* rootshell/Core/Terminal/BackgroundExecutionPolicy.swift in Sources */,
 				47AF04850000000000000A01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift in Sources */,

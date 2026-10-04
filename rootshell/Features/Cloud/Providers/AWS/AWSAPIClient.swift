@@ -7,7 +7,7 @@ import os.log
 actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapableProvider {
     private nonisolated static let logger = Logger(subsystem: "com.rootshell", category: "AWSAPIClient")
 
-    private let credentials: CloudCredentials
+    private var credentials: CloudCredentials
     private let accountID: UUID
 
     private nonisolated static let jsonDecoder: JSONDecoder = {
@@ -20,12 +20,22 @@ actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapable
         self.accountID = accountID ?? credentials.accountID
     }
 
-    // MARK: - CloudProviderAPIClient
-
-    func validateCredentials() async throws -> Bool {
+    /// SSO role credentials expire after 1-12 hours; refresh them before each call.
+    private func currentAWSCredentials() async throws -> AWSCredentials {
+        if credentials.authMethod == .awsSSO && credentials.needsRefresh {
+            let current = credentials
+            credentials = try await CloudAccountManager.shared.refreshedSSOCredentials(current)
+        }
         guard let awsCreds = credentials.awsCredentials else {
             throw CloudAPIError.invalidCredentials
         }
+        return awsCreds
+    }
+
+    // MARK: - CloudProviderAPIClient
+
+    func validateCredentials() async throws -> Bool {
+        let awsCreds = try await currentAWSCredentials()
 
         // Call STS GetCallerIdentity to validate credentials
         let identity = try await getCallerIdentity(credentials: awsCreds)
@@ -33,9 +43,7 @@ actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapable
     }
 
     func getAccountInfo() async throws -> ProviderAccountInfo {
-        guard let awsCreds = credentials.awsCredentials else {
-            throw CloudAPIError.invalidCredentials
-        }
+        let awsCreds = try await currentAWSCredentials()
 
         let identity = try await getCallerIdentity(credentials: awsCreds)
 
@@ -48,9 +56,7 @@ actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapable
     // MARK: - VMCapableProvider
 
     func listInstances() async throws -> [CloudInstance] {
-        guard let awsCreds = credentials.awsCredentials else {
-            throw CloudAPIError.invalidCredentials
-        }
+        let awsCreds = try await currentAWSCredentials()
 
         var instances: [CloudInstance] = []
         var nextToken: String? = nil
@@ -109,9 +115,7 @@ actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapable
     // MARK: - KubernetesCapableProvider
 
     func listClusters() async throws -> [CloudKubernetesCluster] {
-        guard let awsCreds = credentials.awsCredentials else {
-            throw CloudAPIError.invalidCredentials
-        }
+        let awsCreds = try await currentAWSCredentials()
 
         var clusters: [CloudKubernetesCluster] = []
         var nextToken: String? = nil
@@ -143,9 +147,7 @@ actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapable
     }
 
     func getKubeconfig(clusterID: String) async throws -> String {
-        guard let awsCreds = credentials.awsCredentials else {
-            throw CloudAPIError.invalidCredentials
-        }
+        let awsCreds = try await currentAWSCredentials()
 
         // clusterID is the cluster ARN or name
         let clusterName: String
@@ -427,9 +429,7 @@ actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapable
         serialPort: Int = 0,
         sshPublicKey: String
     ) async throws -> String {
-        guard let awsCreds = credentials.awsCredentials else {
-            throw CloudAPIError.invalidCredentials
-        }
+        let awsCreds = try await currentAWSCredentials()
 
         let targetRegion = region ?? awsCreds.region
 
@@ -561,9 +561,7 @@ actor AWSAPIClient: CloudProviderAPIClient, VMCapableProvider, KubernetesCapable
     /// Enable EC2 Serial Console access for the account.
     /// This is a one-time operation per account/region.
     func enableSerialConsoleAccess(region: String? = nil) async throws {
-        guard let awsCreds = credentials.awsCredentials else {
-            throw CloudAPIError.invalidCredentials
-        }
+        let awsCreds = try await currentAWSCredentials()
 
         let targetRegion = region ?? awsCreds.region
         let endpoint = "https://ec2.\(targetRegion).amazonaws.com"
