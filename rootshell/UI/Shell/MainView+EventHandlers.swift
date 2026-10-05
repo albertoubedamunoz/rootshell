@@ -651,10 +651,10 @@ extension MainView {
 
     // MARK: - Window Focus
 
-    func updateWindowFocusState() {
+    func updateWindowFocusState(assumeKey: Bool = false) {
         let isFocused: Bool
 #if targetEnvironment(macCatalyst)
-        isFocused = windowIsKeyWindow
+        isFocused = windowIsKeyWindow || assumeKey
 #else
         // iOS/iPadOS/visionOS: Use windowIsKeyWindow (derived from activeAppearance trait)
         // Guard against false positives from background snapshotting - activeAppearance can
@@ -690,4 +690,28 @@ extension MainView {
             }
         }
     }
+
+#if STANDALONE && targetEnvironment(macCatalyst)
+    /// The summon is the key event even when UIKit already considered the
+    /// visor key, so focus can't wait for a `windowIsKeyWindow` edge.
+    func reclaimFocusAfterVisorSummon() {
+        guard isVisorWindow else { return }
+        updateWindowFocusState(assumeKey: true)
+        // focusDidChange(true) inside the refresh ignores HUD fields; leave Find focused.
+        if let window = VisorWindowBridge.shared.uiWindow,
+           DraggableHUDHostView.ownsFirstResponder(in: window) { return }
+        refreshSelectionAfterExternalTabMutation(allowFocus: true)
+
+        // The scene can still be moving to foreground after orderFront.
+        for delay in [0, 0.05, 0.15, 0.3] as [TimeInterval] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard VisorController.shared.isVisible,
+                      terminals.indices.contains(selectedTabIndex),
+                      let terminal = terminals[selectedTabIndex].focusedTerminal,
+                      !terminal.isFirstResponder else { return }
+                _ = terminal.reassertFirstResponderIfFocused()
+            }
+        }
+    }
+#endif
 }

@@ -42,11 +42,11 @@ struct HTTPCaptureView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            if geometry.size.width >= Self.splitMinWidth {
-                VStack(spacing: 0) {
-                    header
-                    Divider()
-                    CaptureStatusBanners(model: model)
+            VStack(spacing: 0) {
+                header
+                Divider()
+                CaptureStatusBanners(model: model)
+                if geometry.size.width >= Self.splitMinWidth {
                     HStack(spacing: 0) {
                         CaptureRequestList(model: model)
                             .frame(width: max(320, geometry.size.width * 0.42))
@@ -54,24 +54,18 @@ struct HTTPCaptureView: View {
                         detailColumn
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                }
-            } else {
-                // The bar stays visible on the list too: hiding it there made
-                // the pushed detail jump down once the push finished.
-                NavigationStack(path: $model.path) {
-                    VStack(spacing: 0) {
-                        CaptureStatusBanners(model: model)
+                } else {
+                    NavigationStack(path: $model.path) {
                         CaptureRequestList(model: model, pushesDetail: true)
-                    }
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { compactToolbar }
-                    .navigationDestination(for: HTTPCaptureModel.Route.self) { route in
-                        switch route {
-                        case .transaction(let id):
-                            if let document = model.document {
-                                CaptureTransactionDetail(model: model, document: document, transactionID: id)
+                            .toolbar(.hidden, for: .navigationBar)
+                            .navigationDestination(for: HTTPCaptureModel.Route.self) { route in
+                                switch route {
+                                case .transaction(let id):
+                                    if let document = model.document {
+                                        CaptureTransactionDetail(model: model, document: document, transactionID: id)
+                                    }
+                                }
                             }
-                        }
                     }
                 }
             }
@@ -122,44 +116,19 @@ struct HTTPCaptureView: View {
             recordButton
             CaptureMoreMenu(model: model)
                 .equatable()
-            presentationMenu
-            closeButton {
+            if let onSwitchPresentation, let current = style.presentation {
+                PanelPresentationMenu(current: current, onSwitch: onSwitchPresentation)
+                    .equatable()
+            }
+            Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary)
             }
+            .help(String(localized: "Close (esc)", comment: "HTTP capture close button tooltip"))
+            .accessibilityLabel(String(localized: "Close HTTP Capture", comment: "HTTP capture close button"))
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-    }
-
-    /// The header's controls in the navigation bar, for the narrow layout.
-    @ToolbarContentBuilder
-    private var compactToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            CaptureSessionMenu(model: model, title: currentSessionTitle)
-                .equatable()
-        }
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            recordButton
-            CaptureMoreMenu(model: model)
-                .equatable()
-            presentationMenu
-            closeButton { Image(systemName: "xmark") }
-        }
-    }
-
-    @ViewBuilder
-    private var presentationMenu: some View {
-        if let onSwitchPresentation, let current = style.presentation {
-            PanelPresentationMenu(current: current, onSwitch: onSwitchPresentation)
-                .equatable()
-        }
-    }
-
-    private func closeButton<Content: View>(@ViewBuilder label: () -> Content) -> some View {
-        Button(action: onClose, label: label)
-            .help(String(localized: "Close (esc)", comment: "HTTP capture close button tooltip"))
-            .accessibilityLabel(String(localized: "Close HTTP Capture", comment: "HTTP capture close button"))
     }
 
     private var currentSessionTitle: String {

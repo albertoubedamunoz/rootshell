@@ -138,11 +138,15 @@ extension MainView {
 
         paneFullScreen.enter(pane, tabsModel: tabsModel) { [self] exitedPane in
             // Restore focus through the standard path when the pane is
-            // still hosted by one of this window's tabs (teardown exits
-            // clear this closure and never reach here).
+            // still hosted by the selected tab (teardown exits clear this
+            // closure and never reach here). A tab-switch exit runs after
+            // handleSelectedTabChange has focused the destination tab:
+            // focusing the pane in its now-background tab would re-arm VNC
+            // keyboard capture, and the package reclaims first responder on
+            // every decoded frame, taking the keyboard from that terminal.
             guard let index = tabsModel.tabs.firstIndex(where: { tab in
                 tab.splitTree.contains(where: { $0 === exitedPane })
-            }) else { return }
+            }), index == selectedTabIndex else { return }
             setFocusedPane(exitedPane, inTab: index)
         }
 
