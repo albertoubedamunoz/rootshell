@@ -3,6 +3,30 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-162 - October 5, 2026
+
+### Tailscale Quick Controls
+
+- **Quick Connect:** Start the built-in Tailscale connection from the VPN widget, Control Center toggle, or Connect VPN shortcut once you have signed in on this device.
+- **Sign-In Status:** When Tailscale needs a login, the controls show that status. The widget opens rootshell for sign-in instead of offering a connection that cannot start.
+
+### AWS SSO
+
+- **IAM Identity Center Sign-In:** Sign in to AWS cloud accounts through IAM Identity Center (AWS SSO). Enter your organization's start URL and SSO region, complete browser sign-in, then choose an account and role.
+- **Regions and Credential Refresh:** Choose the SSO region separately from the AWS region you work in. Temporary credentials refresh automatically for cloud sync, Kubernetes, and Bedrock. If your session requires a new login, use Sign In Again in the saved account's details.
+
+### Passwords from Your Password Manager for Remote Programs
+
+- **Remote Credential Requests:** Programs on an SSH or tssh host can ask rootshell for a password or token using `rootshell-askpass`. A sheet shows the host, requesting command, and prompt; fill it with password-manager AutoFill and tap Send to return the value to the requesting program.
+- **Opt-In Per Connection:** Enable Allow Credential Requests under the connection's Advanced -> Credential Requests settings or in its profile editor, then reconnect. It is off by default and is unavailable for Mosh.
+- **Remote Helper:** Install `scripts/rootshell-askpass` on the remote host. Use it with `SUDO_ASKPASS` and `sudo -A`, or call it directly for keyring passwords and CLI tokens. The helper needs `perl`, `socat`, or an `nc` with Unix-socket support; the server must allow Unix-socket forwarding. See the [setup guide and examples](docs/remote-credential-requests.md).
+- **Approval and Privacy:** Each request needs your approval. Values are not stored, logged, or cached. Requests cancel when the helper exits or the connection ends, and unanswered prompts time out after two minutes. The command label comes from the requesting program; cancel unexpected requests.
+
+### Keyboard Fixes
+
+- **VNC Keyboard Focus:** Fixed terminal tabs losing keyboard input after leaving full-screen VNC.
+- **Mac Visor Focus:** Summoning the visor on standalone Mac now gives its terminal keyboard focus even after the main window has been closed, so you can type immediately without clicking it.
+
 ## 1.0.13-161 - October 4, 2026
 
 ### Tailscale and VPN
