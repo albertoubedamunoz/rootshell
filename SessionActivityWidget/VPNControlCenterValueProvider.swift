@@ -14,6 +14,8 @@ struct VPNControlCenterValue {
     var isOn: Bool
     var profileID: String?
     var profileName: String?
+    /// Tailscale needs a login, which only the app can show.
+    var needsSignIn = false
 }
 
 /// Reads VPN state from the shared app group and returns a boolean value.
@@ -44,8 +46,15 @@ struct VPNControlCenterValueProvider: AppIntentControlValueProvider {
         return VPNControlCenterValue(
             isOn: isOn,
             profileID: profileID.uuidString,
-            profileName: profile.name
+            profileName: profile.name,
+            needsSignIn: profileID == VPNTailnetProfile.id && tailnetNeedsSignIn(isOn: isOn)
         )
+    }
+
+    /// Signed out while off, or the running tunnel asked for a login.
+    private func tailnetNeedsSignIn(isOn: Bool) -> Bool {
+        let login = VPNTailnetProfile.loginState()
+        return isOn ? login.needsLogin : !login.signedIn
     }
 
     /// Derive a boolean on/off from the shared state, applying staleness timeouts.

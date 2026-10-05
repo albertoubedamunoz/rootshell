@@ -14,10 +14,10 @@ import WidgetKit
 
 // MARK: - Configuration Intent
 
-/// Lets the user pick which VPN profile the Control Center toggle controls.
+/// Lets the user pick which VPN profile or Tailscale the Control Center toggle controls.
 struct VPNControlCenterConfigurationIntent: ControlConfigurationIntent {
     static var title: LocalizedStringResource = "Select VPN Profile"
-    static var description: IntentDescription = "Choose which VPN profile to toggle from Control Center."
+    static var description: IntentDescription = "Choose which VPN profile or Tailscale to toggle from Control Center."
 
     @Parameter(title: "VPN Profile")
     var profile: VPNWidgetProfileEntity?
@@ -73,7 +73,7 @@ struct ToggleVPNIntent: SetValueIntent {
         }
 
         do {
-            let result = try await VPNStartController.start(profileID: uuid)
+            let result = try await VPNStartController.start(profileID: uuid, background: true)
             switch result {
             case .alreadyActive:
                 Self.logger.info("ToggleVPNIntent: already active \(profileID)")
@@ -102,6 +102,10 @@ struct ToggleVPNIntent: SetValueIntent {
         case .connected:
             await VPNLiveActivityUpdater.syncFromWidgetState()
         case .failed:
+            await VPNLiveActivityUpdater.clearVPNState()
+        case .needsSignIn:
+            // The control then says to sign in from the app.
+            await VPNStartController.stopForSignIn()
             await VPNLiveActivityUpdater.clearVPNState()
         case .timeout:
             break

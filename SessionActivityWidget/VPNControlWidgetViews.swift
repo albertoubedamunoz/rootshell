@@ -18,8 +18,15 @@ private struct VPNStatusStyle {
     let isConnected: Bool
     let isTransitioning: Bool
 
-    init(status: String) {
+    init(status: String, needsSignIn: Bool = false) {
         switch status {
+        case "connected" where needsSignIn:
+            // Up, but Tailscale is waiting for a login: still disconnectable.
+            color = .orange
+            symbol = "exclamationmark.shield.fill"
+            title = String(localized: "Sign In Needed")
+            isConnected = true
+            isTransitioning = false
         case "connected":
             color = .green
             symbol = "checkmark.shield.fill"
@@ -59,9 +66,10 @@ private struct VPNStatusStyle {
 /// Neutral widget fill with a status-tinted wash from the top-leading corner.
 struct VPNControlWidgetBackground: View {
     let status: String
+    var needsSignIn = false
 
     var body: some View {
-        let style = VPNStatusStyle(status: status)
+        let style = VPNStatusStyle(status: status, needsSignIn: needsSignIn)
         ZStack {
             Rectangle().fill(.fill.tertiary)
             LinearGradient(
@@ -80,7 +88,7 @@ struct VPNControlWidgetView: View {
 
     @Environment(\.widgetFamily) private var widgetFamily
 
-    private var style: VPNStatusStyle { VPNStatusStyle(status: entry.status) }
+    private var style: VPNStatusStyle { VPNStatusStyle(status: entry.status, needsSignIn: entry.needsSignIn) }
 
     private var canConnect: Bool {
         entry.profileID != nil && entry.profileName != nil && entry.host != nil
@@ -288,7 +296,7 @@ struct VPNControlWidgetView: View {
                         .controlSize(.small)
                         .tint(style.color)
                         .padding(.top, 8)
-                } else if let host = entry.host {
+                } else if let host = entry.host, !host.isEmpty {
                     detail("Server", host, mono: true)
                         .padding(.top, 8)
                 }
@@ -321,6 +329,13 @@ struct VPNControlWidgetView: View {
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
             .tint(.red)
+        } else if entry.needsSignIn {
+            // Not a button: tapping the widget opens the app to sign in (widgetURL).
+            buttonLabel(fullWidth: fullWidth, systemImage: "person.crop.circle.badge.exclamationmark", title: String(localized: "Sign In"))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .foregroundStyle(.white)
+                .background(Color.accentColor.gradient, in: Capsule())
         } else if canConnect, let profileID = entry.profileID {
             Button(intent: ConnectVPNWidgetIntent(profileID: profileID.uuidString)) {
                 buttonLabel(fullWidth: fullWidth, systemImage: "bolt.fill", title: String(localized: "Connect"))

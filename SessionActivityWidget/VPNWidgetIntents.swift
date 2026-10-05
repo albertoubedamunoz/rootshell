@@ -18,7 +18,7 @@ private nonisolated let controlCenterToggleKind = "VPNControlCenterToggle"
 /// Starts VPN directly from the widget without opening the app.
 struct ConnectVPNWidgetIntent: AppIntent {
     static var title: LocalizedStringResource = "Connect VPN"
-    static var description: IntentDescription = "Connects VPN using the selected profile."
+    static var description: IntentDescription = "Connects VPN using the selected profile or Tailscale."
     static var openAppWhenRun = false
 
     private static let logger = Logger(subsystem: "com.rootshell", category: "ConnectVPNWidgetIntent")
@@ -44,7 +44,7 @@ struct ConnectVPNWidgetIntent: AppIntent {
         }
 
         do {
-            let result = try await VPNStartController.start(profileID: profileID)
+            let result = try await VPNStartController.start(profileID: profileID, background: true)
             switch result {
             case .alreadyActive:
                 Self.logger.info("ConnectVPNWidgetIntent: already active \(profileID.uuidString)")
@@ -80,6 +80,10 @@ struct ConnectVPNWidgetIntent: AppIntent {
         case .connected:
             await VPNLiveActivityUpdater.syncFromWidgetState()
         case .failed:
+            await VPNLiveActivityUpdater.clearVPNState()
+        case .needsSignIn:
+            // The widget then offers to open the app and sign in.
+            await VPNStartController.stopForSignIn()
             await VPNLiveActivityUpdater.clearVPNState()
         case .timeout:
             // Still connecting → shared state stays "connecting";
@@ -152,7 +156,7 @@ struct DisconnectVPNWidgetIntent: AppIntent {
 /// select which VPN profile the widget controls.
 struct VPNProfileSelectionIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Select VPN Profile"
-    static var description: IntentDescription = "Choose which VPN profile to control from the widget."
+    static var description: IntentDescription = "Choose which VPN profile or Tailscale to control from the widget."
 
     @Parameter(title: "VPN Profile")
     var profile: VPNWidgetProfileEntity?

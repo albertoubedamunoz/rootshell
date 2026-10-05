@@ -17,6 +17,8 @@ nonisolated enum VPNConnectionPoller {
 
     enum ConnectOutcome {
         case connected, failed, timeout
+        /// Tailscale came up but wants a login only the app can show.
+        case needsSignIn
     }
 
     enum DisconnectOutcome {
@@ -44,16 +46,17 @@ nonisolated enum VPNConnectionPoller {
         while clock.now < deadline, !Task.isCancelled {
             if let state = VPNWidgetState.read(),
                state.profileID == snapshot.id,
-               state.status == "connected" {
-                return .connected
+               state.status == "connected",
+               let outcome = readiness(of: snapshot) {
+                return outcome
             }
 
             let status = await systemVPNStatus()
-            if status == .connected {
-                if writeConnectedState {
+            if status == .connected, let outcome = readiness(of: snapshot) {
+                if writeConnectedState, outcome == .connected {
                     self.writeConnectedState(snapshot: snapshot)
                 }
-                return .connected
+                return outcome
             }
             if status == .disconnected || status == .invalid {
                 writeDisconnectedState()
@@ -64,17 +67,26 @@ nonisolated enum VPNConnectionPoller {
         }
 
         // Timeout: check one last time
+        var tunnelUp = false
         if let state = VPNWidgetState.read(),
            state.profileID == snapshot.id,
            state.status == "connected" {
-            return .connected
+            if let outcome = readiness(of: snapshot) { return outcome }
+            tunnelUp = true
         }
         let finalStatus = await systemVPNStatus()
         if finalStatus == .connected {
-            if writeConnectedState {
+            // Up, but Tailscale may still be starting: report it as connecting.
+            guard let outcome = readiness(of: snapshot) else { return .timeout }
+            if writeConnectedState, outcome == .connected {
                 self.writeConnectedState(snapshot: snapshot)
             }
-            return .connected
+            return outcome
+        }
+        // Tailscale is still starting in a running tunnel; the extension
+        // refreshes widgets when it decides, so keep the connected state.
+        if tunnelUp, finalStatus != .disconnected, finalStatus != .invalid {
+            return .timeout
         }
         if finalStatus == .disconnected || finalStatus == .invalid
             || (finalStatus == nil && treatUnknownFinalStatusAsFailed) {
@@ -124,6 +136,15 @@ nonisolated enum VPNConnectionPoller {
     }
 
     // MARK: - Helpers
+
+    /// `.connected` once the tunnel is usable. Tailscale waits for this session
+    /// to reach Running (nil until then) or to ask for a login.
+    private static func readiness(of snapshot: VPNSharedProfileSnapshot) -> ConnectOutcome? {
+        guard snapshot.transportType == .tailscale else { return .connected }
+        let login = VPNTailnetProfile.loginState()
+        if login.state == "Running" { return .connected }
+        return login.needsLogin ? .needsSignIn : nil
+    }
 
     static func systemVPNStatus() async -> NEVPNStatus? {
         do {

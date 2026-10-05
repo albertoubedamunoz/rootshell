@@ -213,6 +213,15 @@ nonisolated final class TailnetSession: NSObject, VpntunnelTailscaleCallbackProt
         guard let message = try? JSONDecoder().decode(Message.self, from: data) else { return }
         Self.logger.info("Tailscale state \(message.state, privacy: .public)")
         VPNConnectionDebugLogger.shared.log("tailscale", "state=\(message.state)")
+        #if !os(macOS)
+        // Widget starts may have stopped polling while Tailscale was still starting.
+        if VPNTailnetProfile.recordBackendState(message.state) {
+            WidgetCenter.shared.reloadTimelines(ofKind: SSHVPNTunnelProvider.widgetKind)
+            #if !os(visionOS)
+            ControlCenter.shared.reloadControls(ofKind: "VPNControlCenterToggle")
+            #endif
+        }
+        #endif
         lock.withLock {
             backendState = message.state
             if let settings = message.settings { latest = settings }
@@ -501,6 +510,7 @@ extension SSHVPNTunnelProvider {
         let store: VpntunnelTailscaleStateStoreProtocol = TailnetFileStateStore()
         #else
         let store: VpntunnelTailscaleStateStoreProtocol = TailnetKeychainStateStore()
+        VPNTailnetProfile.recordBackendState("") // this session hasn't reported yet
         #endif
         let started = VpntunnelStartTailscaleTunnel(json, store, session, TunnelCallbackImpl(provider: self), &startError)
         guard started else {

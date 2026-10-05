@@ -158,6 +158,29 @@ nonisolated enum VPNSharedProfileStore {
         }
         return readAll().first(where: { $0.id == id })
     }
+
+    /// Profiles widgets, Control Center and Shortcuts can start: the mirrored
+    /// list, led by Tailscale while it is signed in. `includingSignedOutTailnet`
+    /// keeps a configured Tailscale widget or Shortcut resolving after sign-out.
+    static func startableProfiles(includingSignedOutTailnet: Bool = false) -> [VPNSharedProfileSnapshot] {
+        var profiles = readAll()
+        #if !CHINA_BUILD && os(iOS) && !targetEnvironment(macCatalyst)
+        if VPNTailnetProfile.isSignedIn
+            || (includingSignedOutTailnet && VPNTailnetProfile.appliedSettings() != nil) {
+            profiles.insert(VPNTailnetProfile.snapshot(), at: 0)
+        }
+        #endif
+        return profiles.filter(\.isBackgroundStartable)
+    }
+}
+
+extension VPNSharedProfileSnapshot {
+    /// Picker subtitle: "user@host", or what Tailscale routes.
+    nonisolated var pickerSubtitle: String {
+        if transportType == .tailscale { return VPNTailnetProfile.summary() }
+        if username.isEmpty || host.isEmpty { return host }
+        return "\(username)@\(host)"
+    }
 }
 
 /// The last VPN that connected on this device. The tunnel writes it, so starts
@@ -250,11 +273,64 @@ nonisolated struct VPNTailnetSettings: Codable, Sendable, Hashable {
     }
 }
 
+/// Tailscale's sign-in state, written by the iOS extension for surfaces that
+/// can't show the login page (widgets, Control Center, Shortcuts).
+nonisolated struct VPNTailnetLoginState: Codable, Sendable, Equatable {
+    /// Backend state of the current session; empty until it reports one.
+    var state = ""
+    /// Last definite answer: Running sets it, a login request clears it.
+    var signedIn = false
+
+    var needsLogin: Bool { state == "NeedsLogin" || state == "NeedsMachineAuth" }
+}
+
 /// The synthetic Tailscale VPN profile. Its settings stay on this device and
 /// out of the synced profile list.
 nonisolated enum VPNTailnetProfile {
     static let id = UUID(uuidString: "7A11E700-0000-4000-8000-0000000075AE")!
     static let fileName = "vpn_tailnet_settings.json"
+    static let loginFileName = "vpn_tailnet_login.json"
+    /// Opens the app to start Tailscale, showing the login page if needed.
+    static let connectURL = URL(string: "rootshell://vpn/connect/\(id.uuidString)")!
+
+    private static var loginFileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(loginFileName)
+    }
+
+    static func loginState() -> VPNTailnetLoginState {
+        guard let loginFileURL, let data = try? Data(contentsOf: loginFileURL),
+              let state = try? JSONDecoder().decode(VPNTailnetLoginState.self, from: data) else {
+            return VPNTailnetLoginState()
+        }
+        return state
+    }
+
+    static var isSignedIn: Bool { loginState().signedIn }
+
+    static func storeLoginState(_ state: VPNTailnetLoginState) {
+        guard let loginFileURL else { return }
+        try? JSONEncoder().encode(state).write(to: loginFileURL, options: .atomic)
+    }
+
+    /// Extension: records a backend state change from Tailscale. Returns
+    /// whether widgets should refresh (running, signed in or needing a login changed).
+    @discardableResult
+    static func recordBackendState(_ backendState: String) -> Bool {
+        var login = loginState()
+        let previous = login
+        login.state = backendState
+        if backendState == "Running" {
+            login.signedIn = true
+        } else if login.needsLogin {
+            login.signedIn = false
+        }
+        guard login != previous else { return false }
+        storeLoginState(login)
+        return (login.state == "Running") != (previous.state == "Running")
+            || login.needsLogin != previous.needsLogin
+            || login.signedIn != previous.signedIn
+    }
     /// The egress profile's snapshot, kept apart from vpn_profiles.json so a
     /// profile without its own VPN toggle stays out of widget and Shortcuts lists.
     static let egressFileName = "vpn_tailnet_egress.json"
@@ -340,6 +416,17 @@ nonisolated enum VPNTailnetProfile {
             hostKey: nil,
             trustedCAKeys: nil
         )
+    }
+
+    /// What Tailscale routes, naming the SSH egress profile if one is set.
+    static func summary() -> String {
+        let settings = settings()
+        guard let egress = egressSnapshot(settings) else {
+            return String(localized: "Tailnet only", comment: "VPN quick connect: Tailscale without SSH egress")
+        }
+        return settings.sendAllViaSSH
+            ? String(localized: "Tailnet, everything else via \(egress.name)", comment: "VPN quick connect: Tailscale with full SSH egress")
+            : String(localized: "Tailnet, with rules via \(egress.name)", comment: "VPN quick connect: Tailscale with rule-based SSH egress")
     }
 
     /// The SSH egress profile snapshot, if one is set and still mirrored.

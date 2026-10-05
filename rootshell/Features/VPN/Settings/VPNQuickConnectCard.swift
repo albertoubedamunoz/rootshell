@@ -18,7 +18,6 @@ struct VPNQuickConnectCard: View {
 
     let target: Target
     @State private var vpnManager = VPNManager.shared
-    @State private var profileManager = ConnectionProfileManager.shared
     @State private var isStarting = false
     @State private var errorMessage: String?
 
@@ -108,14 +107,7 @@ struct VPNQuickConnectCard: View {
         case .profile(let profile):
             return "\(profile.displayString) · \(profile.vpnTransportName)"
         case .tailscale:
-            let settings = VPNTailnetProfile.settings()
-            if let egressID = settings.sshEgressProfileID,
-               let egress = profileManager.profiles.first(where: { $0.id == egressID }) {
-                return settings.sendAllViaSSH
-                    ? String(localized: "Tailnet, everything else via \(egress.name)", comment: "VPN quick connect: Tailscale with full SSH egress")
-                    : String(localized: "Tailnet, with rules via \(egress.name)", comment: "VPN quick connect: Tailscale with rule-based SSH egress")
-            }
-            return String(localized: "Tailnet only", comment: "VPN quick connect: Tailscale without SSH egress")
+            return VPNTailnetProfile.summary()
         }
     }
 

@@ -22,15 +22,20 @@ struct VPNControlCenterToggle: ControlWidget {
                 isOn: value.isOn,
                 action: ToggleVPNIntent(profileID: value.profileID ?? "")
             ) { toggledOn in
-                Label(
-                    toggledOn ? "Connected" : "Disconnected",
-                    systemImage: toggledOn ? "shield.lefthalf.filled" : "shield.slash"
-                )
-                .controlWidgetActionHint(toggledOn ? "Disconnect VPN" : "Connect VPN")
+                if value.needsSignIn && toggledOn == value.isOn {
+                    Label("Sign in from rootshell", systemImage: "person.crop.circle.badge.exclamationmark")
+                        .controlWidgetActionHint(toggledOn ? "Disconnect VPN" : "Open rootshell to sign in to Tailscale")
+                } else {
+                    Label(
+                        toggledOn ? "Connected" : "Disconnected",
+                        systemImage: toggledOn ? "shield.lefthalf.filled" : "shield.slash"
+                    )
+                    .controlWidgetActionHint(toggledOn ? "Disconnect VPN" : "Connect VPN")
+                }
             }
         }
         .displayName("VPN Toggle")
-        .description("Connect or disconnect your VPN.")
+        .description("Connect or disconnect your VPN or Tailscale.")
         .promptsForUserConfiguration()
     }
 }
