@@ -87,6 +87,7 @@ enum TailnetKeychain {
             kSecAttrAccessGroup as String: AppIdentifiers.keychainAccessGroup,
         ]
         SecItemDelete(query as CFDictionary)
+        VPNTailnetProfile.storeLoginState(VPNTailnetLoginState())
     }
 }
 

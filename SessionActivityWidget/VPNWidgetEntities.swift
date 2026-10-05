@@ -9,7 +9,7 @@
 
 import AppIntents
 
-/// Widget-specific entity representing a VPN-capable profile.
+/// Widget-specific entity representing a VPN-capable profile or Tailscale.
 /// Distinct from the main app's VPNProfileEntity to avoid pulling in main app dependencies.
 struct VPNWidgetProfileEntity: AppEntity {
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
@@ -25,16 +25,10 @@ struct VPNWidgetProfileEntity: AppEntity {
     var name: String
     var host: String
     var username: String
+    var subtitle: String
 
     var displayRepresentation: DisplayRepresentation {
-        let subtitle: String
-        if username.isEmpty || host.isEmpty {
-            subtitle = host
-        } else {
-            subtitle = "\(username)@\(host)"
-        }
-
-        return DisplayRepresentation(
+        DisplayRepresentation(
             title: "\(name)",
             subtitle: "\(subtitle)",
             image: .init(systemName: "network.badge.shield.half.filled")
@@ -42,10 +36,10 @@ struct VPNWidgetProfileEntity: AppEntity {
     }
 }
 
-/// Reads VPN-capable profiles from the shared app-group mirror.
+/// Reads startable profiles, including Tailscale, from the shared app group.
 struct VPNWidgetProfileEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [UUID]) async -> [VPNWidgetProfileEntity] {
-        let profiles = loadProfiles()
+        let profiles = loadProfiles(includingSignedOutTailnet: true)
         let idSet = Set(identifiers)
         return profiles.filter { idSet.contains($0.id) }
     }
@@ -63,16 +57,15 @@ struct VPNWidgetProfileEntityQuery: EntityQuery, EntityStringQuery {
         loadProfiles()
     }
 
-    private func loadProfiles() -> [VPNWidgetProfileEntity] {
-        VPNSharedProfileStore.readAll()
-            .filter(\.isBackgroundStartable)
-            .map { profile in
-                VPNWidgetProfileEntity(
-                    id: profile.id,
-                    name: profile.name,
-                    host: profile.host,
-                    username: profile.username
-                )
-            }
+    private func loadProfiles(includingSignedOutTailnet: Bool = false) -> [VPNWidgetProfileEntity] {
+        VPNSharedProfileStore.startableProfiles(includingSignedOutTailnet: includingSignedOutTailnet).map { profile in
+            VPNWidgetProfileEntity(
+                id: profile.id,
+                name: profile.name,
+                host: profile.host,
+                username: profile.username,
+                subtitle: profile.pickerSubtitle
+            )
+        }
     }
 }

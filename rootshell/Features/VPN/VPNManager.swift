@@ -891,6 +891,14 @@ final class VPNManager {
         await initializationTask?.value
         await refreshStatusFromSystem()
         do {
+            #if !CHINA_BUILD && os(iOS) && !targetEnvironment(macCatalyst)
+            if profileID == VPNTailnetProfile.id {
+                // The widget sends Tailscale here when it needs a login.
+                try await startTailnetVPN()
+                TailnetLoginCoordinator.shared.watch()
+                return true
+            }
+            #endif
             _ = try await VPNStartController.start(profileID: profileID)
             await refreshStatusFromSystem()
             return isVPNActive(for: profileID) || (activeProfileID == profileID && status == .connecting)

@@ -2,17 +2,17 @@
 //  ConnectVPNIntent.swift
 //  rootshell
 //
-//  Shortcuts action that connects VPN to a saved profile.
+//  Shortcuts action that connects VPN to a saved profile or Tailscale.
 //
 
 import AppIntents
 import NetworkExtension
 import WidgetKit
 
-/// Shortcuts action: connect VPN using a saved connection profile.
+/// Shortcuts action: connect VPN using a saved connection profile or Tailscale.
 struct ConnectVPNIntent: AppIntent {
     static var title: LocalizedStringResource = "Connect VPN"
-    static var description: IntentDescription = "Connects VPN to a saved connection profile."
+    static var description: IntentDescription = "Connects VPN to a saved connection profile or Tailscale."
     static var openAppWhenRun = false
 
     @Parameter(title: "VPN Profile")
@@ -25,7 +25,7 @@ struct ConnectVPNIntent: AppIntent {
         }
 
         do {
-            let result = try await VPNStartController.start(profileID: snapshot.id)
+            let result = try await VPNStartController.start(profileID: snapshot.id, background: true)
             switch result {
             case .alreadyActive:
                 reloadWidgets()
@@ -55,6 +55,10 @@ struct ConnectVPNIntent: AppIntent {
                     )
                 case .failed:
                     throw IntentError.connectionFailed("Tunnel failed to start")
+                case .needsSignIn:
+                    await VPNStartController.stopForSignIn()
+                    reloadWidgets()
+                    throw IntentError.connectionFailed(VPNStartController.StartError.tailnetSignInRequired.localizedDescription)
                 case .timeout:
                     return .result(
                         value: "Connecting",

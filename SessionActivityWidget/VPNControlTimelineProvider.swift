@@ -18,6 +18,7 @@ struct VPNControlTimelineEntry: TimelineEntry {
     let transport: String?      // "SSH" / "tssh", nil when unknown
     let connectedSince: Date?
     let isConfigured: Bool      // Whether user has selected a profile in widget config
+    var needsSignIn = false     // Tailscale needs a login, which only the app can show
 }
 
 /// Timeline provider that reads VPN state exclusively from the shared app group file.
@@ -70,7 +71,8 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
                     username: entry.username,
                     transport: entry.transport,
                     connectedSince: entry.connectedSince,
-                    isConfigured: entry.isConfigured
+                    isConfigured: entry.isConfigured,
+                    needsSignIn: entry.needsSignIn
                 )
             }
             return Timeline(entries: entries, policy: .atEnd)
@@ -86,6 +88,9 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
         let isConfigured = configuredProfileID != nil
 
         let widgetState = VPNWidgetState.read()
+        // Fresh, so a changed Tailscale egress shows without reconfiguring.
+        let snapshot = configuredProfileID.flatMap(VPNSharedProfileStore.profile(id:))
+        let profileHost = snapshot?.host ?? configuration.profile?.host
 
         let effectiveStatus: String
         let effectiveHost: String?
@@ -95,22 +100,21 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
            widgetState?.profileID == configuredProfileID,
            let state = widgetState {
             effectiveStatus = resolvedStatus(from: state)
-            effectiveHost = state.host ?? configuration.profile?.host
+            // The tunnel keeps the last host when it disconnects; it may be a stale egress.
+            effectiveHost = effectiveStatus == "disconnected" ? profileHost : (state.host ?? profileHost)
             effectiveConnectedSince = (effectiveStatus == "connected") ? state.connectedSince : nil
         } else {
             effectiveStatus = "disconnected"
-            effectiveHost = configuration.profile?.host
+            effectiveHost = profileHost
             effectiveConnectedSince = nil
         }
 
-        let transport: String? = configuredProfileID.flatMap { id in
-            VPNSharedProfileStore.readAll().first { $0.id == id }.map {
-                switch $0.transportType {
-                case .ssh: "SSH"
-                case .tssh: "tssh"
-                case .direct: "Direct"
-                case .tailscale: "Tailscale"
-                }
+        let transport: String? = snapshot.map {
+            switch $0.transportType {
+            case .ssh: "SSH"
+            case .tssh: "tssh"
+            case .direct: "Direct"
+            case .tailscale: "Tailscale"
             }
         }
 
@@ -123,8 +127,19 @@ struct VPNControlTimelineProvider: AppIntentTimelineProvider {
             username: configuration.profile?.username,
             transport: transport,
             connectedSince: effectiveConnectedSince,
-            isConfigured: isConfigured
+            isConfigured: isConfigured,
+            needsSignIn: snapshot?.transportType == .tailscale && tailnetNeedsSignIn(status: effectiveStatus)
         )
+    }
+
+    /// Signed out while off, or the running tunnel asked for a login.
+    private func tailnetNeedsSignIn(status: String) -> Bool {
+        let login = VPNTailnetProfile.loginState()
+        switch status {
+        case "disconnected": return !login.signedIn
+        case "connected": return login.needsLogin
+        default: return false
+        }
     }
 
     /// Derive the widget display status from the shared state file.

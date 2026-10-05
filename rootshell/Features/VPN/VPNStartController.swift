@@ -15,6 +15,7 @@ enum VPNStartController {
         case profileNotStartable
         case hostKeyNotTrusted(host: String)
         case disconnectTimeout
+        case tailnetSignInRequired
 
         var errorDescription: String? {
             switch self {
@@ -26,6 +27,8 @@ enum VPNStartController {
                 return String(localized: "No trusted SSH host key for \(host). Connect to this server in a regular SSH terminal session first so its host key can be verified and saved, then start the VPN.", comment: "VPN start error: the server's host key has not been accepted yet")
             case .disconnectTimeout:
                 return String(localized: "Timed out waiting for the current VPN tunnel to disconnect.", comment: "VPN start error: previous tunnel did not stop in time")
+            case .tailnetSignInRequired:
+                return String(localized: "Tailscale needs you to sign in. Open rootshell and connect Tailscale from VPN settings.", comment: "VPN start error: Tailscale was started from a widget or Shortcut while signed out")
             }
         }
     }
@@ -53,12 +56,17 @@ enum VPNStartController {
     }
 #endif
 
-    static func start(profileID: UUID, restart: Bool = false) async throws -> StartResult {
+    /// `background`: started from a widget, Control Center or Shortcuts, which
+    /// can't show Tailscale's login page.
+    static func start(profileID: UUID, restart: Bool = false, background: Bool = false) async throws -> StartResult {
         guard let snapshot = VPNSharedProfileStore.profile(id: profileID) else {
             throw StartError.profileNotFound
         }
         guard snapshot.isBackgroundStartable else {
             throw StartError.profileNotStartable
+        }
+        if background, snapshot.transportType == .tailscale, !VPNTailnetProfile.isSignedIn {
+            throw StartError.tailnetSignInRequired
         }
         // Tailscale itself needs no host key; its SSH egress host does.
         if snapshot.transportType == .tailscale {
@@ -115,6 +123,13 @@ enum VPNStartController {
         }
 
         return .started
+    }
+
+    /// Stops a background Tailscale start that turned out to need a login.
+    static func stopForSignIn() async {
+        guard let manager = try? await NETunnelProviderManager.loadAllFromPreferences().first else { return }
+        manager.connection.stopVPNTunnel()
+        _ = await VPNConnectionPoller.pollForDisconnection(manager: manager, checkSharedState: false)
     }
 
     /// The VPN never prompts for host keys: require either a key accepted

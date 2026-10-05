@@ -19,12 +19,12 @@ struct VPNControlWidget: Widget {
         ) { entry in
             VPNControlWidgetView(entry: entry)
                 .containerBackground(for: .widget) {
-                    VPNControlWidgetBackground(status: entry.status)
+                    VPNControlWidgetBackground(status: entry.status, needsSignIn: entry.needsSignIn)
                 }
-                .widgetURL(URL(string: "rootshell://vpn/settings"))
+                .widgetURL(entry.needsSignIn ? VPNTailnetProfile.connectURL : URL(string: "rootshell://vpn/settings"))
         }
         .configurationDisplayName("VPN Control")
-        .description("Start and stop your VPN connection.")
+        .description("Start and stop your VPN or Tailscale connection.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

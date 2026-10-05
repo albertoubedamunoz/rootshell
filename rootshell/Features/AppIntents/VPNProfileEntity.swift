@@ -2,12 +2,12 @@
 //  VPNProfileEntity.swift
 //  rootshell
 //
-//  AppEntity exposing VPN-capable ConnectionProfiles to Shortcuts.
+//  AppEntity exposing VPN-capable ConnectionProfiles and Tailscale to Shortcuts.
 //
 
 import AppIntents
 
-/// Shortcuts-visible entity representing a VPN-capable connection profile.
+/// Shortcuts-visible entity representing a VPN-capable connection profile or Tailscale.
 struct VPNProfileEntity: AppEntity {
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
         TypeDisplayRepresentation(
@@ -23,32 +23,13 @@ struct VPNProfileEntity: AppEntity {
     var host: String
     var username: String
     var connectionProtocol: String
+    var subtitle: String
 
     var displayRepresentation: DisplayRepresentation {
-        let subtitle: String
-        if username.isEmpty || host.isEmpty {
-            subtitle = host
-        } else {
-            subtitle = "\(username)@\(host)"
-        }
-
-        return DisplayRepresentation(
+        DisplayRepresentation(
             title: "\(name)",
             subtitle: "\(subtitle)",
             image: .init(systemName: "network.badge.shield.half.filled")
-        )
-    }
-}
-
-extension ConnectionProfile {
-    /// Converts this profile into a VPN Shortcuts entity.
-    func toVPNEntity() -> VPNProfileEntity {
-        VPNProfileEntity(
-            id: id,
-            name: name,
-            host: sshConfig.host,
-            username: sshConfig.username,
-            connectionProtocol: connectionProtocol.displayName
         )
     }
 }

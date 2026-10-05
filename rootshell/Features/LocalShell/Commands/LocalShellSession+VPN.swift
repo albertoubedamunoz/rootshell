@@ -264,6 +264,9 @@ extension LocalShellSession {
         case .timeout:
             vpnFailure("Still connecting to \(profile.name). Check 'vpn status'.")
             return false
+        case .needsSignIn:
+            vpnFailure(VPNStartController.StartError.tailnetSignInRequired.localizedDescription)
+            return false
         }
     }
 
