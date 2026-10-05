@@ -245,6 +245,9 @@ extension MainView {
     private static let didEnterBackgroundPublisher = NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
     private static let didBecomeActivePublisher = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
     #endif
+    #if STANDALONE && targetEnvironment(macCatalyst)
+    private static let visorDidPresentPublisher = NotificationCenter.default.publisher(for: .visorDidPresent)
+    #endif
 
     /// herdr controllers post per-window notifications; only the window that
     /// hosts the gateway answers them.
@@ -422,6 +425,9 @@ extension MainView {
             #if STANDALONE
             .onChange(of: ghosttyApp.readiness) { _, readiness in
                 handleVisorGhosttyReadinessChange(readiness)
+            }
+            .onReceive(Self.visorDidPresentPublisher) { _ in
+                reclaimFocusAfterVisorSummon()
             }
             #endif
 #else

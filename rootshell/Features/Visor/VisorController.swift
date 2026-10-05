@@ -282,6 +282,10 @@ final class VisorController: NSObject, ObservableObject {
                 window.setValue(Self.floatingWindowLevel, forKey: "level")
                 self.isVisible = true
                 self.orderFrontAndKey(window, orderFront: false)
+                // Closing the last main window leaves UIKit treating the hidden
+                // visor as key, so no key edge fires on summon. Claim focus here.
+                VisorWindowBridge.shared.uiWindow?.makeKey()
+                NotificationCenter.default.post(name: .visorDidPresent, object: nil)
 
                 // A height mismatch here would mean the UIKit scene is being
                 // laid out from a different size than the AppKit window shows
@@ -464,6 +468,8 @@ extension Notification.Name {
     /// true→false. Visor terminal views respond by re-sending their current
     /// size, recovering any resize dropped during the suppression window.
     static let visorResizeSuppressionEnded = Notification.Name("com.rootshell.visorResizeSuppressionEnded")
+    /// Posted when a summon animation finishes and the visor is key.
+    static let visorDidPresent = Notification.Name("com.rootshell.visorDidPresent")
 }
 
 
