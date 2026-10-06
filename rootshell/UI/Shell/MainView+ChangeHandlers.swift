@@ -245,9 +245,6 @@ extension MainView {
     private static let didEnterBackgroundPublisher = NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
     private static let didBecomeActivePublisher = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
     #endif
-    #if STANDALONE && targetEnvironment(macCatalyst)
-    private static let visorDidPresentPublisher = NotificationCenter.default.publisher(for: .visorDidPresent)
-    #endif
 
     /// herdr controllers post per-window notifications; only the window that
     /// hosts the gateway answers them.
@@ -374,7 +371,8 @@ extension MainView {
             .onChange(of: windowIsKeyWindow) { _, newValue in
                 updateWindowFocusState()
                 if newValue {
-                    refreshSelectionAfterExternalTabMutation(allowFocus: true)
+                    // focusDidChange(true) inside the refresh ignores HUD fields; leave Find focused.
+                    refreshSelectionAfterExternalTabMutation(allowFocus: !hudFieldOwnsKeyboard)
                     consumePendingFileOpens()
                     consumePendingIntentRequests()
                 }
@@ -425,9 +423,6 @@ extension MainView {
             #if STANDALONE
             .onChange(of: ghosttyApp.readiness) { _, readiness in
                 handleVisorGhosttyReadinessChange(readiness)
-            }
-            .onReceive(Self.visorDidPresentPublisher) { _ in
-                reclaimFocusAfterVisorSummon()
             }
             #endif
 #else
