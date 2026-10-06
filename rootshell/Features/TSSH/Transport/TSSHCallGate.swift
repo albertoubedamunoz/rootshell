@@ -779,7 +779,6 @@ actor TSSHCallGate {
     func openShellOrCommand(
         on sessionRef: TSSHSessionRef,
         lang: String?,
-        languages: String?,
         agentForwarding: Bool,
         term: String,
         rows: Int,
@@ -793,19 +792,12 @@ actor TSSHCallGate {
         }
         nonisolated(unsafe) let s = session
         return try await runOnWorker { () -> Int64 in
-            // LANG / LANGUAGE — server may reject env requests; log but continue.
+            // LANG — server may reject env requests; log but continue.
             if let lang {
                 do {
                     try s.setenv("LANG", value: lang)
                 } catch {
                     Self.logger.warning("Failed to set LANG: \(error.localizedDescription)")
-                }
-            }
-            if let languages {
-                do {
-                    try s.setenv("LANGUAGE", value: languages)
-                } catch {
-                    Self.logger.warning("Failed to set LANGUAGE: \(error.localizedDescription)")
                 }
             }
             // Identify the client to the remote host; same silent-drop caveat as LANG.

@@ -219,11 +219,6 @@ extension LocalShellSession {
         // Only set LANG (not LC_ALL) to allow customization of individual LC_* categories
         if let effectiveLocale = LocaleHelper.effectiveLocale {
             ios_setenv("LANG", effectiveLocale, 1)
-
-            // Set LANGUAGE for gettext translation priority if available
-            if let preferredLanguages = LocaleHelper.effectivePreferredLanguages {
-                ios_setenv("LANGUAGE", preferredLanguages, 1)
-            }
         }
 
         // Set terminal identification for apps that check capabilities

@@ -104,16 +104,6 @@ nonisolated final class SSHPTYHandler: ChannelDuplexHandler, @unchecked Sendable
                 value: locale
             )
             context.triggerUserOutboundEvent(langEnv, promise: nil)
-
-            // Send LANGUAGE environment variable for gettext translation priority
-            if let preferredLanguages = LocaleHelper.effectivePreferredLanguages {
-                let languageEnv = SSHChannelRequestEvent.EnvironmentRequest(
-                    wantReply: false,
-                    name: "LANGUAGE",
-                    value: preferredLanguages
-                )
-                context.triggerUserOutboundEvent(languageEnv, promise: nil)
-            }
         }
 
         // Identify the client to the remote host; dropped silently by servers

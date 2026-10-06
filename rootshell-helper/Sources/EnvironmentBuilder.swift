@@ -168,11 +168,7 @@ class EnvironmentBuilder {
         // Only set LANG (not LC_ALL) to allow users to customize individual LC_* categories
         let locale = systemLocale
         env["LANG"] = locale
-
-        // LANGUAGE: Set for gettext translation priority if available
-        if let preferredLanguages = LocaleHelper.preferredLanguages {
-            env["LANGUAGE"] = preferredLanguages
-        }
+        // No LANGUAGE: gettext would skip English and use a second language (#596).
 
         // GHOSTTY_RESOURCES_DIR: Path to resources
         // Only set if shell integration is enabled, otherwise bash will try to
