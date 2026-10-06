@@ -13,6 +13,7 @@ struct HostRulesEditor: View {
     @State var rules: [String]
     @State private var newRule = ""
     @State private var testHost = ""
+    @State private var confirmReset = false
 
     var body: some View {
         Form {
@@ -69,11 +70,29 @@ struct HostRulesEditor: View {
                 Text("Test")
             }
             .themedRow()
+
+            Section {
+                Button(role: .destructive) {
+                    confirmReset = true
+                } label: {
+                    Label(String(localized: "Reset to Defaults", comment: "HTTP capture host rules reset"), systemImage: "arrow.counterclockwise")
+                }
+                .disabled(rules == Settings.HTTPCapture.mitmHosts.defaultValue)
+            }
+            .themedRow()
         }
         .formStyle(.grouped)
         .themedList()
         .navigationTitle(String(localized: "Decrypted Hosts", comment: "HTTP capture host rules title"))
         .toolbar { EditButton() }
+        .confirmationDialog(String(localized: "Reset to Defaults?", comment: "HTTP capture host rules reset confirmation"), isPresented: $confirmReset) {
+            Button(String(localized: "Reset", comment: "Reset button"), role: .destructive) {
+                rules = Settings.HTTPCapture.mitmHosts.defaultValue
+                save()
+            }
+        } message: {
+            Text("Replace your decrypted host rules with the default Apple exclusions.")
+        }
     }
 
     private func add() {

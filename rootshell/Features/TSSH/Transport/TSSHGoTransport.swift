@@ -896,14 +896,12 @@ final class TrzszGoTransport: NSObject {
 
         // Respect the user's locale forwarding mode, matching SSH and Mosh.
         let locale = LocaleHelper.effectiveLocale
-        let preferredLanguages = LocaleHelper.effectivePreferredLanguages
 
         let openedSessionID: UInt64
         do {
             let id = try await TSSHCallGate.shared.openShellOrCommand(
                 on: sRef,
                 lang: locale,
-                languages: preferredLanguages,
                 agentForwarding: agentEnabled,
                 term: terminalType,
                 rows: rows,

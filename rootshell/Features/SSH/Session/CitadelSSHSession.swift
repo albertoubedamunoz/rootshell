@@ -1154,9 +1154,6 @@ final class CitadelSSHSession: SSHTerminalSession {
                 var envVars: [SSHChannelRequestEvent.EnvironmentRequest] = []
                 if let userLocale = LocaleHelper.effectiveLocale {
                     envVars.append(SSHChannelRequestEvent.EnvironmentRequest(wantReply: false, name: "LANG", value: userLocale))
-                    if let languages = LocaleHelper.effectivePreferredLanguages {
-                        envVars.append(SSHChannelRequestEvent.EnvironmentRequest(wantReply: false, name: "LANGUAGE", value: languages))
-                    }
                 }
 
                 // Identify the client to the remote host. LC_* is the only namespace

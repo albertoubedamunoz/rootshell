@@ -47,8 +47,11 @@ enum LocaleHelper: Sendable {
     /// Returns the effective locale to send to remote servers, or nil if locale forwarding is disabled.
     ///
     /// - `.auto`: returns the system POSIX locale
-    /// - `.none`: returns nil (don't send LANG/LANGUAGE)
+    /// - `.none`: returns nil (don't send LANG)
     /// - `.custom`: returns the user-specified locale string
+    ///
+    /// LANGUAGE is deliberately never sent: gettext skips English (no catalog)
+    /// and falls through to the next preferred language (#596).
     nonisolated static var effectiveLocale: String? {
         switch localeMode {
         case .auto:
@@ -59,15 +62,6 @@ enum LocaleHelper: Sendable {
             let value = customLocale
             return value.isEmpty ? nil : value
         }
-    }
-
-    /// Returns the effective LANGUAGE value, or nil when locale is overridden or disabled.
-    ///
-    /// LANGUAGE is only meaningful when using the system locale (auto mode).
-    /// In custom/none modes, we skip it entirely.
-    nonisolated static var effectivePreferredLanguages: String? {
-        guard localeMode == .auto else { return nil }
-        return preferredLanguages
     }
 
     // MARK: - System Locale (always returns system value)
@@ -116,26 +110,6 @@ enum LocaleHelper: Sendable {
             return "\(lang)-\(script)-\(region)"
         }
         return naivePair
-    }
-
-    /// Returns the LANGUAGE environment variable value for gettext
-    ///
-    /// macOS/iOS has a concept of preferred languages separate from the system locale.
-    /// The LANGUAGE env var overrides translations and uses colon-separated priority.
-    ///
-    /// Example: "en_US.UTF-8:de_DE.UTF-8" means prefer English, fall back to German.
-    ///
-    /// Returns nil if preferred languages cannot be determined.
-    nonisolated static var preferredLanguages: String? {
-        let preferred = Locale.preferredLanguages
-        guard !preferred.isEmpty else { return nil }
-
-        var seen = Set<String>()
-        let formatted = preferred.compactMap { serverCompatiblePosix(from: $0) }
-            .filter { seen.insert($0).inserted }
-        guard !formatted.isEmpty else { return nil }
-
-        return formatted.joined(separator: ":")
     }
 
     // MARK: - Validation
