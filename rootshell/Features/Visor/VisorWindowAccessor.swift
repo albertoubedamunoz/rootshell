@@ -560,6 +560,12 @@ final class VisorWindowBridge: ObservableObject {
         NotificationCenter.default.post(name: .visorWindowAttached, object: nil)
         VisorController.shared.handleWindowAttached()
     }
+
+    /// AppKit key state of the visor's NSWindow, or nil if `window` isn't the visor.
+    func keyState(for window: UIWindow?) -> Bool? {
+        guard let window, window === uiWindow, let nsWindow else { return nil }
+        return (nsWindow.value(forKey: "isKeyWindow") as? Bool) == true
+    }
 }
 
 extension Notification.Name {

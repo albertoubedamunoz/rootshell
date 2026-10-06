@@ -291,6 +291,14 @@ final class WindowSceneReportingView: UIView {
             cachedKeyState = keyState
             return keyState
         }
+        #if STANDALONE
+        // The visor's NSWindow isn't WindowAccessor-claimed. UIKit keeps the hidden
+        // visor key once the last main window closes, so summons had no key edge (#593).
+        if let keyState = VisorWindowBridge.shared.keyState(for: window) {
+            cachedKeyState = keyState
+            return keyState
+        }
+        #endif
         // Fallback if WindowAccessor not available yet
         return window?.isKeyWindow ?? false
 #else
