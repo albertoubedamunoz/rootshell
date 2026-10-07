@@ -622,7 +622,7 @@ extension MainView {
 
         // Early save; the coordinator saves again when background processing
         // finalizes, capturing output parsed in the meantime.
-        BackgroundStatePersistence.save(label: "BG")
+        BackgroundStatePersistence.save(label: "BG", clearsWhenClosed: true)
 
         LifecycleDebugLogger.shared.checkpoint("BG.complete",
             ms: (CFAbsoluteTimeGetCurrent() - transitionStart) * 1000)
