@@ -107,6 +107,15 @@ final class MtrCommand {
     // MARK: - Main Run Loop
 
     private func run() async {
+        #if !CHINA_BUILD
+        // In-app Tailscale is one WireGuard hop with no TTL to walk.
+        if await TailnetDialer.route(config.target) != nil {
+            output("mtr: route tracing isn't available for hosts reached through Tailscale in rootshell. Use ping.\r\n")
+            didFail = true
+            finish()
+            return
+        }
+        #endif
         // Resolve hostname
         let engine = MtrProbeEngine(isIPv6: config.addressFamily == .ipv6)
         guard let addrInfo = await engine.resolveHost(config.target, family: config.addressFamily) else {

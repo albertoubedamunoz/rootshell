@@ -44,6 +44,9 @@ class EnvironmentBuilder {
         /// Stable pane identity supplied by the app for deterministic push
         /// notification routing.
         var paneToken: String?
+
+        /// Variables the app adds last, such as ALL_PROXY for in-app Tailscale.
+        var extraEnvironment: [String: String] = [:]
     }
 
     private let config: Config
@@ -254,6 +257,8 @@ class EnvironmentBuilder {
                ?? Self.shellIntegrationDirectory(resourcesDir: config.resourcesDir) {
             env["GHOSTTY_SHELL_INTEGRATION_DIR"] = shellPath
         }
+
+        env.merge(config.extraEnvironment) { _, new in new }
 
         return env
     }

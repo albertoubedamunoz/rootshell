@@ -69,6 +69,8 @@ struct CreateShellRequest: Codable, Sendable {
     /// wire compatibility with helpers from before pane-aware push routing.
     let paneToken: String?
     var recoveryAttachment: LocalMultiplexerAttachment? = nil
+    /// Extra variables for the new shell, such as in-app Tailscale's ALL_PROXY.
+    var extraEnvironment: [String: String]? = nil
 }
 
 struct CreateShellResponse: Codable, Sendable {

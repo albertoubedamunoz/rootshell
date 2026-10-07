@@ -2,7 +2,8 @@
 //  TailnetSettingsView.swift
 //  rootshell
 //
-//  Tailscale VPN: sign-in, device settings, SSH egress and routing rules.
+//  Tailscale: how it connects (device VPN or inside rootshell only),
+//  sign-in, device settings, SSH egress, exit node and routing rules.
 //
 
 #if !CHINA_BUILD
@@ -14,8 +15,10 @@ import UIKit
 struct TailnetSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     @State private var vpnManager = VPNManager.shared
+    @State private var engine = TailnetInAppEngine.shared
     @State private var profileManager = ConnectionProfileManager.shared
     @State private var settings = VPNTailnetProfile.settings()
+    @State private var modeSettings = TailnetModeSettings.load()
     /// Settings the running tunnel started with (written by the extension).
     @State private var appliedSettings = VPNTailnetProfile.appliedSettings()
     @State private var status: TailnetStatus?
@@ -23,19 +26,32 @@ struct TailnetSettingsView: View {
     @State private var isWorking = false
     @State private var login = TailnetLoginCoordinator.shared
     @State private var showSignOutConfirmation = false
+    @State private var pendingMode: TailnetMode?
+    @State private var handoffMessage: String?
 
-    private var isActive: Bool { vpnManager.isVPNActive(for: VPNTailnetProfile.id) }
-    private var isConnected: Bool { isActive && vpnManager.isTunnelUp }
+    private var mode: TailnetMode { modeSettings.effectiveMode }
+    private var isWholeDevice: Bool { mode == .wholeDevice }
+
+    private var isVPNActive: Bool { vpnManager.isVPNActive(for: VPNTailnetProfile.id) }
+    /// Turned on. In-app with Connect Automatically, that may be before the engine starts.
+    private var isActive: Bool { isWholeDevice ? isVPNActive : modeSettings.inAppEnabled || engine.isStarted }
+    private var isConnected: Bool { isWholeDevice ? isVPNActive && vpnManager.isTunnelUp : engine.isStarted }
     private var needsRestart: Bool {
-        guard isConnected, let appliedSettings else { return false }
+        guard isWholeDevice, isConnected, let appliedSettings else { return false }
         return settings != appliedSettings
     }
 
     var body: some View {
         List {
+            modeSection
             statusSection
+            if !isWholeDevice {
+                inAppSection
+            }
             deviceSection
-            egressSection
+            if isWholeDevice {
+                egressSection
+            }
             if let peers = status?.peers, !peers.isEmpty {
                 peersSection(peers)
             }
@@ -45,20 +61,44 @@ struct TailnetSettingsView: View {
         .navigationTitle(String(localized: "Tailscale", comment: "Tailscale VPN settings title"))
         .onAppear {
             if settings.hostname.isEmpty {
-                #if targetEnvironment(macCatalyst)
-                settings.hostname = "rootshell-mac"
-                #else
-                settings.hostname = "rootshell-" + UIDevice.current.model.lowercased().replacingOccurrences(of: " ", with: "-")
-                #endif
+                settings.hostname = TailnetInAppEngine.defaultHostname
             }
+        }
+        .onDisappear {
+            if !isWholeDevice { Task { await engine.applyPrefs() } }
         }
         .onChange(of: settings) { old, new in
             VPNTailnetProfile.store(new)
             if old.sshEgressProfileID != new.sshEgressProfileID {
                 profileManager.refreshVPNSharedProfiles()
             }
+            if !isWholeDevice, old.acceptRoutes != new.acceptRoutes {
+                Task { await engine.applyPrefs() }
+            }
         }
-        .task(id: isConnected) { await pollStatus() }
+        .onChange(of: modeSettings) { old, new in
+            TailnetModeSettings.store(new)
+            engine.syncRouting()
+            if old.useInLocalShell != new.useInLocalShell {
+                Task { await engine.updateShellProxy() }
+            }
+            if old.exitNodeID != new.exitNodeID || old.exitNodeAllowLAN != new.exitNodeAllowLAN {
+                Task { await engine.applyPrefs() }
+            }
+        }
+        .task(id: "\(isConnected)-\(mode.rawValue)") { await pollStatus() }
+        .confirmationDialog(
+            switchTitle,
+            isPresented: Binding(get: { pendingMode != nil }, set: { if !$0 { pendingMode = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "Switch", comment: "Tailscale: confirm switching mode")) {
+                if let pendingMode { switchMode(to: pendingMode) }
+                pendingMode = nil
+            }
+        } message: {
+            Text(switchMessage)
+        }
         .alert(
             String(localized: "Tailscale", comment: "Tailscale error alert title"),
             isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
@@ -70,6 +110,80 @@ struct TailnetSettingsView: View {
     }
 
     // MARK: - Sections
+
+    @ViewBuilder
+    private var modeSection: some View {
+        if TailnetPlatform.supportsWholeDevice {
+            Section {
+                modeRow(
+                    .wholeDevice,
+                    title: String(localized: "Whole Device (VPN)", comment: "Tailscale mode: system VPN"),
+                    detail: String(localized: "Uses the device's VPN slot. Every app can reach your tailnet, and SSH routing and HTTP capture work. Turns off any other VPN.", comment: "Tailscale mode: system VPN description")
+                )
+                modeRow(
+                    .rootshellOnly,
+                    title: String(localized: "rootshell Only", comment: "Tailscale mode: in-app networking"),
+                    detail: inAppModeDetail
+                )
+                if let handoffMessage {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(handoffMessage).foregroundStyle(.secondary)
+                    }
+                    .themedRow()
+                }
+            } header: {
+                Text("How Tailscale Connects")
+            } footer: {
+                if mode == .rootshellOnly {
+                    Text(modeFooter)
+                }
+            }
+        } else {
+            Section {
+            } footer: {
+                Text("Tailscale runs inside rootshell. Other apps aren't affected, and another VPN can stay on.")
+            }
+        }
+    }
+
+    private var inAppModeDetail: String {
+        #if targetEnvironment(macCatalyst)
+        String(localized: "No VPN. rootshell's SSH, SFTP, Mosh, TSSH and Screen Sharing connections reach your tailnet. Your other VPN stays on.", comment: "Tailscale mode: in-app description (Mac)")
+        #else
+        String(localized: "No VPN. rootshell's SSH, SFTP, Mosh, TSSH, Screen Sharing, curl and git reach your tailnet. Your other VPN stays on.", comment: "Tailscale mode: in-app description")
+        #endif
+    }
+
+    private var modeFooter: String {
+        #if targetEnvironment(macCatalyst)
+        String(localized: "Other Mac apps don't see the tailnet. In the local shell, only tools that use a proxy setting, like curl, can reach it.", comment: "Tailscale rootshell Only footer (Mac)")
+        #else
+        String(localized: "In the local shell, ping reaches tailnet devices; mtr, traceroute and nc don't.", comment: "Tailscale rootshell Only footer")
+        #endif
+    }
+
+    private func modeRow(_ rowMode: TailnetMode, title: String, detail: String) -> some View {
+        Button {
+            selectMode(rowMode)
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).foregroundStyle(.primary)
+                    Text(detail).font(.footnote).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                if mode == rowMode {
+                    Image(systemName: "checkmark").foregroundStyle(.tint).fontWeight(.semibold)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isWorking || handoffMessage != nil)
+        .accessibilityAddTraits(mode == rowMode ? .isSelected : [])
+        .themedRow()
+    }
 
     private var statusSection: some View {
         Section {
@@ -89,7 +203,7 @@ struct TailnetSettingsView: View {
                 LabeledContent(String(localized: "Tailnet", comment: "Tailscale tailnet name row"), value: tailnet)
                     .themedRow()
             }
-            if let egress = status?.egress {
+            if isWholeDevice, let egress = status?.egress {
                 LabeledContent(String(localized: "SSH Egress", comment: "Tailscale SSH egress status row")) {
                     Text(egressText(egress)).foregroundStyle(egress.state == "failed" ? .orange : .secondary)
                 }
@@ -110,19 +224,69 @@ struct TailnetSettingsView: View {
                     .themedRow()
                 }
                 Button(String(localized: "Disconnect", comment: "Tailscale disconnect button"), role: .destructive) {
-                    Task { try? await vpnManager.stopVPN() }
+                    disconnect()
                 }
                 .themedRow()
             } else {
                 Button(String(localized: "Connect", comment: "Tailscale connect button")) { connect(restart: false) }
-                    .disabled(isWorking)
+                    .disabled(isWorking || handoffMessage != nil)
                     .themedRow()
             }
         } header: {
             Text("Status")
         } footer: {
-            Text("Use this instead of the Tailscale app. Only one VPN can be on at a time, so with the Tailscale app connected, HTTP capture can't run. Connected here, capture works on tailnet and internet traffic alike. MagicDNS names and tailnet addresses work in every app.")
+            if isWholeDevice {
+                Text("Use this instead of the Tailscale app. Only one VPN can be on at a time, so with the Tailscale app connected, HTTP capture can't run. Connected here, capture works on tailnet and internet traffic alike. MagicDNS names and tailnet addresses work in every app.")
+            } else {
+                Text("MagicDNS names and tailnet addresses work in rootshell's connections. Other apps on this device don't see the tailnet.")
+            }
         }
+    }
+
+    private var inAppSection: some View {
+        Section {
+            Toggle(String(localized: "Connect Automatically", comment: "Tailscale in-app: start on demand"), isOn: $modeSettings.connectOnDemand)
+                .themedRow()
+            Toggle(String(localized: "Use in Local Shell", comment: "Tailscale in-app: local shell proxy"), isOn: $modeSettings.useInLocalShell)
+                .themedRow()
+            Picker(String(localized: "Exit Node", comment: "Tailscale in-app exit node picker"), selection: $modeSettings.exitNodeID) {
+                Text(String(localized: "None", comment: "Tailscale exit node: none")).tag(String?.none)
+                ForEach(exitNodeChoices) { peer in
+                    Text(peer.displayName).tag(String?.some(peer.nodeID ?? ""))
+                }
+            }
+            .themedRow()
+            if modeSettings.exitNodeID != nil {
+                Toggle(String(localized: "Allow Local Network Access", comment: "Tailscale exit node LAN access toggle"), isOn: $modeSettings.exitNodeAllowLAN)
+                    .themedRow()
+            }
+        } header: {
+            Text("rootshell Only")
+        } footer: {
+            Text(inAppFooter)
+        }
+    }
+
+    private var inAppFooter: String {
+        var parts = [
+            String(localized: "Connect Automatically starts Tailscale the first time you connect to a tailnet device.", comment: "Tailscale in-app footer: on demand"),
+        ]
+        #if targetEnvironment(macCatalyst)
+        parts.append(String(localized: "Use in Local Shell sets ALL_PROXY in new local shells, so tools that honor it, like curl, reach your tailnet.", comment: "Tailscale in-app footer: local shell (Mac)"))
+        #else
+        parts.append(String(localized: "Use in Local Shell lets curl and git in the local shell reach your tailnet.", comment: "Tailscale in-app footer: local shell"))
+        #endif
+        parts.append(String(localized: "An exit node sends all of rootshell's connections through that device. Other apps aren't affected.", comment: "Tailscale in-app footer: exit node"))
+        return parts.joined(separator: " ")
+    }
+
+    /// Exit-capable peers, plus the saved choice so the picker keeps a tag for it.
+    private var exitNodeChoices: [TailnetStatus.Peer] {
+        let peers = (status?.peers ?? []).filter { $0.exitNodeOption == true && $0.nodeID != nil }
+        if let id = modeSettings.exitNodeID, !peers.contains(where: { $0.nodeID == id }) {
+            return peers + [TailnetStatus.Peer(name: id, dnsName: nil, os: nil, ips: nil, online: false, nodeID: id, exitNodeOption: true)]
+        }
+        return peers
     }
 
     private var deviceSection: some View {
@@ -132,6 +296,9 @@ struct TailnetSettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .onSubmit {
+                        if !isWholeDevice { Task { await engine.applyPrefs() } }
+                    }
             }
             .themedRow()
             Toggle(String(localized: "Use Subnet Routes", comment: "Tailscale accept-routes toggle"), isOn: $settings.acceptRoutes)
@@ -240,24 +407,24 @@ struct TailnetSettingsView: View {
                     Button(String(localized: "Sign Out", comment: "Tailscale sign-out button"), role: .destructive) { signOut() }
                 }
                 .themedRow()
-            } else if !isActive && Self.canForgetDevice {
+            } else if !isActive && canForgetDevice {
                 Button(String(localized: "Forget This Device", comment: "Tailscale: delete stored node keys"), role: .destructive) {
                     TailnetKeychain.deleteAll()
                 }
                 .themedRow()
             }
         } footer: {
-            if !isActive && Self.canForgetDevice {
+            if !isActive && canForgetDevice {
                 Text("Forgetting the device deletes its Tailscale keys here; the next connect signs in as a new device.")
             }
         }
     }
 
-    /// On the Mac the keys live in the VPN system extension, out of the app's
-    /// reach; Sign Out (while connected) forgets them there.
-    private static var canForgetDevice: Bool {
+    /// On the Mac the VPN's keys live in the system extension, out of the
+    /// app's reach; the in-app engine keeps them in the keychain.
+    private var canForgetDevice: Bool {
         #if targetEnvironment(macCatalyst)
-        false
+        !isWholeDevice
         #else
         true
         #endif
@@ -271,9 +438,15 @@ struct TailnetSettingsView: View {
 
     private var statusText: String {
         guard isActive else { return String(localized: "Off", comment: "Tailscale state") }
+        if !isWholeDevice, !engine.isStarted {
+            return String(localized: "On, starts when needed", comment: "Tailscale in-app state before first use")
+        }
         guard let status else { return String(localized: "Connecting…", comment: "Tailscale state") }
         switch status.state {
-        case "Running": return String(localized: "Connected", comment: "Tailscale state")
+        case "Running":
+            return isWholeDevice
+                ? String(localized: "Connected", comment: "Tailscale state")
+                : String(localized: "Connected (rootshell only)", comment: "Tailscale state when running inside the app")
         case "NeedsLogin": return String(localized: "Needs Sign-In", comment: "Tailscale state")
         case "NeedsMachineAuth": return String(localized: "Waiting for Admin Approval", comment: "Tailscale state")
         case "Starting": return String(localized: "Starting…", comment: "Tailscale state")
@@ -291,17 +464,96 @@ struct TailnetSettingsView: View {
         }
     }
 
+    private var switchTitle: String {
+        pendingMode == .rootshellOnly
+            ? String(localized: "Switch to rootshell Only?", comment: "Tailscale mode switch confirmation title")
+            : String(localized: "Switch to Whole Device?", comment: "Tailscale mode switch confirmation title")
+    }
+
+    private var switchMessage: String {
+        let signInNote = TailnetStateHandoff.keepsIdentity
+            ? String(localized: "You won't need to sign in again.", comment: "Tailscale mode switch: same device")
+            : String(localized: "You may need to sign in again.", comment: "Tailscale mode switch: new sign-in")
+        if pendingMode == .rootshellOnly {
+            return String(localized: "The rootshell VPN will disconnect and Tailscale will reconnect inside rootshell.", comment: "Tailscale switch to in-app message") + " " + signInNote
+        }
+        return String(localized: "Tailscale will stop inside rootshell and reconnect as this device's VPN, replacing any other VPN.", comment: "Tailscale switch to VPN message") + " " + signInNote
+    }
+
     // MARK: - Actions
+
+    private func selectMode(_ newMode: TailnetMode) {
+        guard newMode != mode else { return }
+        if isActive {
+            pendingMode = newMode
+        } else {
+            switchMode(to: newMode)
+        }
+    }
+
+    /// Changes mode, moving a running Tailscale over to the other side.
+    private func switchMode(to newMode: TailnetMode) {
+        let wasActive = isActive
+        isWorking = true
+        Task {
+            defer {
+                isWorking = false
+                handoffMessage = nil
+            }
+            handoffMessage = String(localized: "Moving Tailscale…", comment: "Tailscale mode switch progress")
+            do {
+                switch newMode {
+                case .rootshellOnly:
+                    try await TailnetStateHandoff.moveToApp()
+                    modeSettings.mode = .rootshellOnly
+                    TailnetModeSettings.store(modeSettings)
+                    engine.syncRouting()
+                    if wasActive { try await engine.turnOn() }
+                case .wholeDevice:
+                    let engineWasOn = modeSettings.inAppEnabled
+                    if engineWasOn { await engine.turnOff() }
+                    modeSettings = TailnetModeSettings.load()
+                    modeSettings.mode = .wholeDevice
+                    TailnetModeSettings.store(modeSettings)
+                    engine.syncRouting()
+                    if wasActive {
+                        try await vpnManager.startTailnetVPN()
+                        login.watch()
+                    }
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            modeSettings = TailnetModeSettings.load()
+            status = nil
+        }
+    }
 
     private func connect(restart: Bool) {
         isWorking = true
         Task {
             defer { isWorking = false }
             do {
-                try await vpnManager.startTailnetVPN(restart: restart)
-                login.watch()
+                if isWholeDevice {
+                    try await vpnManager.startTailnetVPN(restart: restart)
+                    login.watch()
+                } else {
+                    try await engine.turnOn()
+                    modeSettings = TailnetModeSettings.load()
+                }
             } catch {
                 errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func disconnect() {
+        Task {
+            if isWholeDevice {
+                try? await vpnManager.stopVPN()
+            } else {
+                await engine.turnOff()
+                modeSettings = TailnetModeSettings.load()
             }
         }
     }
@@ -319,21 +571,21 @@ struct TailnetSettingsView: View {
     private func signOut() {
         login.cancel()
         Task {
-            if let error = await vpnManager.tailnetLogout() {
+            if let error = await TailnetController.logout() {
                 errorMessage = error
             }
         }
     }
 
-    /// Polls the extension for display while connected; the login
-    /// coordinator owns the login page.
+    /// Polls for display while connected; the login coordinator owns the
+    /// login page.
     private func pollStatus() async {
         guard isConnected else {
             status = nil
             return
         }
         while !Task.isCancelled {
-            status = await vpnManager.tailnetStatus()
+            status = await TailnetController.status()
             appliedSettings = VPNTailnetProfile.appliedSettings()
             try? await Task.sleep(for: .seconds(login.isSigningIn ? 1 : 3))
         }

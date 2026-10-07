@@ -127,9 +127,22 @@ final class VPNManager {
     }
 
 #if !CHINA_BUILD
+    /// Stops a running Tailscale VPN and waits for it to go down, so the
+    /// in-app engine can take over the node key.
+    func stopTailnetVPNAndWait() async {
+        guard isVPNActive(for: VPNTailnetProfile.id) || (activeProfileID == VPNTailnetProfile.id && status == .disconnecting) else { return }
+        try? await stopVPN()
+        let deadline = ContinuousClock.now + .seconds(8)
+        while ContinuousClock.now < deadline, status != .disconnected, status != .invalid {
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+    }
+
     /// Start the Tailscale VPN; `restart` reconnects so changed settings apply.
     func startTailnetVPN(restart: Bool = false) async throws {
         Self.logger.info("Starting Tailscale VPN (restart=\(restart))")
+        // The in-app engine holds the same node key.
+        await TailnetInAppEngine.shared.stopForVPN()
         // Mirrors the SSH egress profile with its current host key.
         ConnectionProfileManager.shared.refreshVPNSharedProfiles()
 #if STANDALONE && targetEnvironment(macCatalyst)
@@ -928,6 +941,8 @@ final class VPNManager {
         do {
             if id == VPNTailnetProfile.id {
                 #if os(iOS) && (!targetEnvironment(macCatalyst) || STANDALONE)
+                // rootshell Only runs Tailscale in-app instead.
+                guard TailnetModeSettings.load().effectiveMode == .wholeDevice else { return }
                 try await startTailnetVPN()
                 TailnetLoginCoordinator.shared.watch()
                 #endif

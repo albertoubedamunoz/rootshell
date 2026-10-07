@@ -405,7 +405,7 @@ extension SettingsSection {
     var isAvailable: Bool {
         switch self {
         case .aiAssistant: !SearchBuild.isChinaBuild
-        case .vpn: !SearchBuild.isChinaBuild && (!SearchBuild.isCatalyst || SearchBuild.isStandalone)
+        case .vpn: !SearchBuild.isChinaBuild
         default: true
         }
     }

@@ -164,6 +164,7 @@ final class VPNControlServer: @unchecked Sendable {
                 supportsTSSHRelay: true,
                 supportsHTTPCapture: true,
                 supportsTailscale: true,
+                supportsTailnetStateHandoff: true,
                 version: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
                 bundlePath: Bundle.main.bundlePath
             )

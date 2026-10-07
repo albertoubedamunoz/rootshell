@@ -19,21 +19,24 @@ struct VPNSettingsView: View {
 
     var body: some View {
         List {
+            #if targetEnvironment(macCatalyst) && !STANDALONE
+            // No VPN in this build; Tailscale runs inside rootshell.
+            tailscaleSection
+            #else
             #if !CHINA_BUILD
             quickConnectSection
             #endif
             statusSection
             disconnectSection
             vpnProfilesSection
-            #if !CHINA_BUILD && os(iOS) && (!targetEnvironment(macCatalyst) || STANDALONE)
-            tailscaleSection
-            #endif
             #if !CHINA_BUILD
+            tailscaleSection
             autoRecoverySection
             httpCaptureSection
             #endif
             eventHistorySection
             debugSection
+            #endif
         }
         .themedList()
         .navigationTitle("VPN")
@@ -61,7 +64,7 @@ struct VPNSettingsView: View {
     }
     #endif
 
-    #if !CHINA_BUILD && os(iOS) && (!targetEnvironment(macCatalyst) || STANDALONE)
+    #if !CHINA_BUILD
     // MARK: - Tailscale Section
 
     private var tailscaleSection: some View {
@@ -80,15 +83,33 @@ struct VPNSettingsView: View {
                             .frame(width: 20, height: 20)
                     }
                     Spacer(minLength: 8)
-                    if vpnManager.isVPNActive(for: VPNTailnetProfile.id) {
-                        Text(String(localized: "On", comment: "Tailscale VPN is active"))
-                            .foregroundStyle(.secondary)
+                    if let state = tailscaleRowState {
+                        Text(state).foregroundStyle(.secondary)
                     }
                 }
             }
             .themedRow()
         } footer: {
-            Text("Use this instead of the Tailscale app to reach your tailnet and still use HTTP capture and SSH routing. Only one VPN can be on at a time.")
+            if TailnetPlatform.supportsWholeDevice {
+                Text("Reach your tailnet as a VPN for the whole device, or only inside rootshell so another VPN can stay on.")
+            } else {
+                Text("Reach your tailnet from rootshell's connections. Tailscale runs inside the app, so other apps aren't affected.")
+            }
+        }
+    }
+
+    /// "On · Whole Device" or "On · rootshell Only"; nil while off.
+    private var tailscaleRowState: String? {
+        let mode = TailnetModeSettings.load()
+        switch mode.effectiveMode {
+        case .wholeDevice:
+            guard vpnManager.isVPNActive(for: VPNTailnetProfile.id) else { return nil }
+            return String(localized: "On · Whole Device", comment: "Tailscale row: VPN mode is on")
+        case .rootshellOnly:
+            guard mode.inAppEnabled || TailnetInAppEngine.shared.isStarted else { return nil }
+            return TailnetPlatform.supportsWholeDevice
+                ? String(localized: "On · rootshell Only", comment: "Tailscale row: in-app mode is on")
+                : String(localized: "On", comment: "Tailscale VPN is active")
         }
     }
     #endif

@@ -116,6 +116,11 @@ struct RootShellApp: App {
                     Task { await VPNManager.shared.recoverLastVPNIfNeeded() }
                     #endif
 
+                    // Tailscale inside rootshell (no VPN), when it was left on.
+                    #if !CHINA_BUILD
+                    TailnetInAppEngine.shared.appDidLaunch()
+                    #endif
+
                     // Register notification categories (deferred from App.init —
                     // not required before first paint).
                     NotificationManager.shared.registerNotificationCategories()

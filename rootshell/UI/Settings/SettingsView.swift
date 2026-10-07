@@ -57,6 +57,21 @@ struct SettingsHomeList: View {
     @Binding var showDebugSettings: Bool
     @Setting(Settings.System.screenshotMode) private var screenshotMode
 
+    #if !CHINA_BUILD
+    /// "Active" while a VPN or in-app Tailscale runs; "On" while in-app
+    /// Tailscale waits to start on demand.
+    private var vpnRowState: String {
+        if VPNManager.shared.status.isActive || TailnetInAppEngine.shared.isStarted {
+            return String(localized: "Active", comment: "Settings VPN row: a VPN or Tailscale is running")
+        }
+        let mode = TailnetModeSettings.load()
+        if mode.effectiveMode == .rootshellOnly, mode.inAppEnabled {
+            return String(localized: "On", comment: "Settings VPN row: in-app Tailscale waits to start")
+        }
+        return String(localized: "Off", comment: "Settings VPN row: nothing running")
+    }
+    #endif
+
     var body: some View {
         List {
             Section {
@@ -68,7 +83,7 @@ struct SettingsHomeList: View {
                             #if !CHINA_BUILD
                             if section == .vpn {
                                 Spacer()
-                                Text(VPNManager.shared.status.isActive ? "Active" : "Off")
+                                Text(vpnRowState)
                                     .foregroundColor(.secondary)
                                     .font(.subheadline)
                             }
@@ -461,7 +476,7 @@ struct SettingsView: View {
                     .navigationDestination(for: SettingsDestination.self) { destination in
                         switch destination {
                         case .vpn:
-                            #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+                            #if !CHINA_BUILD
                             VPNSettingsView()
                             #else
                             EmptyView()
@@ -501,7 +516,7 @@ struct SettingsView: View {
         case .general:
             SettingsGeneralSection()
         case .vpn:
-            #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+            #if !CHINA_BUILD
             VPNSettingsView()
             #else
             EmptyView()

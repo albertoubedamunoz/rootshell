@@ -83,42 +83,12 @@ nonisolated struct TailnetNetworkSettings: Decodable, Equatable, Sendable {
 /// Tailscale node state in the shared keychain, one item per state key.
 /// This-device-only: node keys must not travel in backups.
 nonisolated final class TailnetKeychainStateStore: NSObject, VpntunnelTailscaleStateStoreProtocol {
-    private func baseQuery(_ key: String) -> [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: VPNTailnetProfile.keychainService,
-            kSecAttrAccount as String: key,
-            kSecAttrAccessGroup as String: AppIdentifiers.keychainAccessGroup,
-        ]
-    }
-
     func readState(_ key: String?) throws -> Data {
-        var query = baseQuery(key ?? "")
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound { return Data() }
-        guard status == errSecSuccess else {
-            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
-        }
-        return (result as? Data) ?? Data()
+        try TailnetKeychainState.read(key ?? "")
     }
 
     func writeState(_ key: String?, value: Data?) throws {
-        let query = baseQuery(key ?? "")
-        let data = value ?? Data()
-        let update: [String: Any] = [kSecValueData as String: data]
-        var status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecItemNotFound {
-            var add = query
-            add[kSecValueData as String] = data
-            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            status = SecItemAdd(add as CFDictionary, nil)
-        }
-        guard status == errSecSuccess else {
-            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
-        }
+        try TailnetKeychainState.write(key ?? "", value ?? Data())
     }
 }
 
@@ -150,6 +120,30 @@ nonisolated final class TailnetFileStateStore: NSObject, VpntunnelTailscaleState
         let url = try fileURL(key)
         try (value ?? Data()).write(to: url, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    /// Every stored key and value, for handing the node to the in-app engine.
+    static func exportAll() -> [String: Data] {
+        guard let dir = directory,
+              let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return [:] }
+        var state: [String: Data] = [:]
+        for name in names {
+            if let data = try? Data(contentsOf: dir.appendingPathComponent(name)) { state[name] = data }
+        }
+        return state
+    }
+
+    /// Replaces the stored node state with the in-app engine's copy.
+    static func replaceAll(_ state: [String: Data]) {
+        guard let dir = directory else { return }
+        let store = TailnetFileStateStore()
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        for name in names where state[name] == nil {
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent(name))
+        }
+        for (key, value) in state {
+            try? store.writeState(key, value: value)
+        }
     }
 }
 #endif

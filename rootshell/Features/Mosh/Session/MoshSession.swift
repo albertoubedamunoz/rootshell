@@ -2073,6 +2073,13 @@ extension MoshSession {
     static func isLocalDestination(_ host: String) -> Bool {
         let lowercased = host.lowercased()
 
+        #if !CHINA_BUILD
+        // In-app Tailscale carries it; there is no NAT to punch.
+        if TailnetRouting.shared.wasRouted(host) {
+            return true
+        }
+        #endif
+
         // Check for localhost variants
         if lowercased == "localhost" || lowercased == "localhost." {
             return true
