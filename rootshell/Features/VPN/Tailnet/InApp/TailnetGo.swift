@@ -148,6 +148,15 @@ nonisolated enum TailnetGo {
     static func defaultInterfaceChanged(_ name: String) {
         IosbridgeTailnetDefaultInterfaceChanged(name)
     }
+
+    /// Replaces the engine's UDP sockets, which iOS may reclaim while the app
+    /// is suspended. Open tailnet connections survive.
+    static func resetSockets() async throws {
+        try await run {
+            var error: NSError?
+            try check(IosbridgeTailnetResetSockets(&error), error)
+        }
+    }
 }
 
 private extension Duration {

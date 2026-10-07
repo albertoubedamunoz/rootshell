@@ -25,18 +25,47 @@ final class TailnetInAppEngine {
     private(set) var isStarted = false
     private(set) var lastError: String?
     private var startTask: Task<Void, Error>?
+    #if !targetEnvironment(macCatalyst)
+    private var backgroundedAt: ContinuousClock.Instant?
+    #endif
 
     var isRunning: Bool { status?.isRunning == true }
 
     private init() {
-        // A suspended app misses network changes; let Tailscale re-check.
+        #if !targetEnvironment(macCatalyst)
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { TailnetInAppEngine.shared.backgroundedAt = .now }
+        }
+        #endif
         NotificationCenter.default.addObserver(
             forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main
         ) { _ in
-            MainActor.assumeIsolated {
-                if TailnetInAppEngine.shared.isStarted { TailnetPathMonitor.shared.refresh() }
+            MainActor.assumeIsolated { TailnetInAppEngine.shared.returnedToForeground() }
+        }
+    }
+
+    private func returnedToForeground() {
+        #if !targetEnvironment(macCatalyst)
+        let away = backgroundedAt.map { ContinuousClock.now - $0 }
+        backgroundedAt = nil
+        #endif
+        guard isStarted else { return }
+        // A suspended app misses network changes; let Tailscale re-check.
+        TailnetPathMonitor.shared.refresh()
+        #if !targetEnvironment(macCatalyst)
+        // iOS reclaims a suspended app's UDP sockets, which strands every
+        // peer on DERP. Catalyst keeps running in the background.
+        guard let away, away >= .seconds(5) else { return }
+        Task {
+            do {
+                try await TailnetGo.resetSockets()
+            } catch {
+                Self.logger.error("Tailscale socket reset failed: \(error.localizedDescription, privacy: .public)")
             }
         }
+        #endif
     }
 
     // MARK: - Lifecycle
