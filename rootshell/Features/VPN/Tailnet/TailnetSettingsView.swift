@@ -77,7 +77,14 @@ struct TailnetSettingsView: View {
             }
         }
         .onChange(of: modeSettings) { old, new in
-            TailnetModeSettings.store(new)
+            // Only the fields edited here. The mode and on/off are written by
+            // switchMode and the engine; a stale copy must never undo them.
+            var stored = TailnetModeSettings.load()
+            stored.connectOnDemand = new.connectOnDemand
+            stored.useInLocalShell = new.useInLocalShell
+            stored.exitNodeID = new.exitNodeID
+            stored.exitNodeAllowLAN = new.exitNodeAllowLAN
+            TailnetModeSettings.store(stored)
             engine.syncRouting()
             if old.useInLocalShell != new.useInLocalShell {
                 Task { await engine.updateShellProxy() }
@@ -491,6 +498,14 @@ struct TailnetSettingsView: View {
         }
     }
 
+    /// Saves the mode on the latest stored settings (never the view's copy).
+    private func storeMode(_ newMode: TailnetMode) {
+        var stored = TailnetModeSettings.load()
+        stored.mode = newMode
+        TailnetModeSettings.store(stored)
+        engine.syncRouting()
+    }
+
     /// Changes mode, moving a running Tailscale over to the other side.
     private func switchMode(to newMode: TailnetMode) {
         let wasActive = isActive
@@ -505,17 +520,11 @@ struct TailnetSettingsView: View {
                 switch newMode {
                 case .rootshellOnly:
                     try await TailnetStateHandoff.moveToApp()
-                    modeSettings.mode = .rootshellOnly
-                    TailnetModeSettings.store(modeSettings)
-                    engine.syncRouting()
+                    storeMode(.rootshellOnly)
                     if wasActive { try await engine.turnOn() }
                 case .wholeDevice:
-                    let engineWasOn = modeSettings.inAppEnabled
-                    if engineWasOn { await engine.turnOff() }
-                    modeSettings = TailnetModeSettings.load()
-                    modeSettings.mode = .wholeDevice
-                    TailnetModeSettings.store(modeSettings)
-                    engine.syncRouting()
+                    if TailnetModeSettings.load().inAppEnabled { await engine.turnOff() }
+                    storeMode(.wholeDevice)
                     if wasActive {
                         try await vpnManager.startTailnetVPN()
                         login.watch()
