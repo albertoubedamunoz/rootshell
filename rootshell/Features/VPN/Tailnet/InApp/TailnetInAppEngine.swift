@@ -28,7 +28,16 @@ final class TailnetInAppEngine {
 
     var isRunning: Bool { status?.isRunning == true }
 
-    private init() {}
+    private init() {
+        // A suspended app misses network changes; let Tailscale re-check.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated {
+                if TailnetInAppEngine.shared.isStarted { TailnetPathMonitor.shared.refresh() }
+            }
+        }
+    }
 
     // MARK: - Lifecycle
 
@@ -99,7 +108,13 @@ final class TailnetInAppEngine {
             Task { @MainActor in TailnetInAppEngine.shared.apply(status) }
         }
         Self.logger.info("Starting in-app Tailscale")
-        try await TailnetGo.start(configJSON: json, store: TailnetGoStateStore(), callback: callback)
+        await TailnetPathMonitor.shared.start()
+        do {
+            try await TailnetGo.start(configJSON: json, store: TailnetGoStateStore(), callback: callback)
+        } catch {
+            TailnetPathMonitor.shared.stop()
+            throw error
+        }
         isStarted = true
         lastError = nil
         TailnetStateHandoff.engineDidStart()
@@ -112,6 +127,7 @@ final class TailnetInAppEngine {
         Self.logger.info("Stopping in-app Tailscale")
         await TailnetGo.stop()
         isStarted = false
+        TailnetPathMonitor.shared.stop()
         status = nil
         TailnetRouting.shared.update { $0.routedHosts = [] }
     }

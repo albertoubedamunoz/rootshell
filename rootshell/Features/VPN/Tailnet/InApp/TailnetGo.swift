@@ -143,6 +143,11 @@ nonisolated enum TailnetGo {
     static func stopProxy() async {
         _ = try? await run { IosbridgeTailnetProxyStop() }
     }
+
+    /// The physical interface carrying the network, "" when offline. Cheap.
+    static func defaultInterfaceChanged(_ name: String) {
+        IosbridgeTailnetDefaultInterfaceChanged(name)
+    }
 }
 
 private extension Duration {
