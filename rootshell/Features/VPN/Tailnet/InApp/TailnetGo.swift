@@ -33,6 +33,15 @@ nonisolated enum TailnetGo {
         var error: String?
     }
 
+    /// Counts for rootshell's own tailnet connections since the engine started.
+    struct Traffic: Decodable, Sendable {
+        let bytesIn: Int64
+        let bytesOut: Int64
+        let activeTCPConnections: Int
+        let activeUDPConnections: Int
+        let totalConnections: Int64
+    }
+
     private static let queue = DispatchQueue(
         label: "com.rootshell.tailnet.go",
         qos: .userInitiated,
@@ -147,6 +156,11 @@ nonisolated enum TailnetGo {
     /// The physical interface carrying the network, "" when offline. Cheap.
     static func defaultInterfaceChanged(_ name: String) {
         IosbridgeTailnetDefaultInterfaceChanged(name)
+    }
+
+    /// Nil when the engine isn't running. Cheap (no network).
+    static func traffic() -> Traffic? {
+        try? JSONDecoder().decode(Traffic.self, from: Data(IosbridgeTailnetTraffic().utf8))
     }
 
     /// Replaces the engine's UDP sockets, which iOS may reclaim while the app

@@ -24,7 +24,15 @@ final class TailnetInAppEngine {
     /// The Go engine is up (in any login state).
     private(set) var isStarted = false
     private(set) var lastError: String?
+    /// Traffic while running, shaped like the VPN's for the same views.
+    private(set) var statistics: VPNStatistics?
+    private(set) var trafficHistory: [VPNTrafficSnapshot] = []
+    private(set) var connectedSince: Date?
     private var startTask: Task<Void, Error>?
+    private var trafficTask: Task<Void, Never>?
+    #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+    private var feedsLiveActivity = false
+    #endif
     #if !targetEnvironment(macCatalyst)
     private var backgroundedAt: ContinuousClock.Instant?
     #endif
@@ -158,6 +166,7 @@ final class TailnetInAppEngine {
         isStarted = false
         TailnetPathMonitor.shared.stop()
         status = nil
+        stopTrafficSampling()
         TailnetRouting.shared.update { $0.routedHosts = [] }
     }
 
@@ -250,11 +259,77 @@ final class TailnetInAppEngine {
     private func apply(_ newStatus: TailnetStatus?) {
         guard isStarted else { return }
         status = newStatus
+        updateTrafficSampling()
         guard let newStatus else { return }
         VPNTailnetProfile.recordBackendState(newStatus.state)
         if newStatus.isRunning {
             cachePeers(newStatus)
         }
+    }
+
+    // MARK: - Traffic
+
+    /// Samples every 2 s while running, like the VPN's stats poll.
+    private func updateTrafficSampling() {
+        guard isRunning else { return stopTrafficSampling() }
+        guard trafficTask == nil else { return }
+        connectedSince = .now
+        trafficTask = Task {
+            while !Task.isCancelled {
+                sampleTraffic()
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+
+    private func stopTrafficSampling() {
+        guard let trafficTask else { return }
+        trafficTask.cancel()
+        self.trafficTask = nil
+        statistics = nil
+        trafficHistory = []
+        connectedSince = nil
+        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+        if feedsLiveActivity {
+            feedsLiveActivity = false
+            LiveActivityManager.shared.clearVPNState()
+        }
+        #endif
+    }
+
+    private func sampleTraffic() {
+        guard let traffic = TailnetGo.traffic() else { return }
+        let now = Date()
+        trafficHistory.append(VPNTrafficSnapshot(timestamp: now, bytesIn: traffic.bytesIn, bytesOut: traffic.bytesOut))
+        trafficHistory.removeAll { now.timeIntervalSince($0.timestamp) > 300 }
+        let active = traffic.activeTCPConnections + traffic.activeUDPConnections
+        statistics = VPNStatistics(
+            bytesIn: traffic.bytesIn,
+            bytesOut: traffic.bytesOut,
+            activeConnections: active,
+            activeTCPConnections: traffic.activeTCPConnections,
+            activeUDPConnections: traffic.activeUDPConnections,
+            totalConnections: traffic.totalConnections,
+            connectedSince: connectedSince
+        )
+        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+        // A VPN that is up owns the Live Activity's VPN row.
+        guard !VPNManager.shared.status.isActive else {
+            feedsLiveActivity = false
+            return
+        }
+        feedsLiveActivity = true
+        LiveActivityManager.shared.updateVPNState(
+            profileName: "Tailscale",
+            host: status?.tailnet,
+            status: "connected",
+            bytesIn: traffic.bytesIn,
+            bytesOut: traffic.bytesOut,
+            activeConnections: active,
+            connectedSince: connectedSince,
+            fromInAppTailnet: true
+        )
+        #endif
     }
 
     /// Mirrors settings into the thread-safe routing snapshot.

@@ -13,6 +13,9 @@ import UIKit
 struct VPNSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     @State private var vpnManager = VPNManager.shared
+    #if !CHINA_BUILD
+    @State private var tailnetEngine = TailnetInAppEngine.shared
+    #endif
     @State private var profileManager = ConnectionProfileManager.shared
     @State private var showDisconnectConfirmation = false
     @Environment(\.openHTTPCapture) private var openHTTPCapture
@@ -205,6 +208,26 @@ struct VPNSettingsView: View {
                         .themedRow()
                 }
             }
+            #if !CHINA_BUILD
+            if !vpnManager.status.isActive && tailnetEngine.isRunning {
+                if let since = tailnetEngine.connectedSince {
+                    LabeledContent("Uptime") {
+                        Text(since, style: .timer)
+                            .foregroundStyle(.secondary)
+                    }
+                    .themedRow()
+                }
+                if let stats = tailnetEngine.statistics {
+                    VPNStatsGrid(stats: stats)
+                        .themedRow()
+                }
+                if tailnetEngine.trafficHistory.count >= 2 {
+                    VPNTrafficChart(snapshots: tailnetEngine.trafficHistory)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .themedRow()
+                }
+            }
+            #endif
         }
     }
 

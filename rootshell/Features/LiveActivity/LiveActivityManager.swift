@@ -211,6 +211,10 @@ class LiveActivityManager {
     private var lastVPNConnectedSince: Date?
     @ObservationIgnored
     private var lastVPNStatus: String?
+    /// In-app Tailscale fills the VPN fields; the widget state only knows
+    /// about the VPN, so its sync leaves them alone.
+    @ObservationIgnored
+    private var vpnStateFromInAppTailnet = false
 
     // MARK: - WiFi Cached State
 
@@ -454,9 +458,11 @@ class LiveActivityManager {
         bytesIn: Int64,
         bytesOut: Int64,
         activeConnections: Int,
-        connectedSince: Date?
+        connectedSince: Date?,
+        fromInAppTailnet: Bool = false
     ) {
         guard isEnabled else { return }
+        vpnStateFromInAppTailnet = fromInAppTailnet
 
         // Reset dismiss suppression when VPN connects (status transitions to non-nil)
         if lastVPNStatus == nil {
@@ -480,6 +486,7 @@ class LiveActivityManager {
         // Reset dismiss suppression on VPN disconnect
         userDismissed = false
 
+        vpnStateFromInAppTailnet = false
         lastVPNProfileName = nil
         lastVPNHost = nil
         lastVPNStatus = nil
@@ -496,7 +503,10 @@ class LiveActivityManager {
     func syncVPNStateFromWidgetState(reason: String) {
         #if !CHINA_BUILD
         guard isEnabled else { return }
-        guard let state = VPNWidgetState.read() else {
+        let widgetState = VPNWidgetState.read()
+        let vpnUp = widgetState.map { ["connected", "connecting", "reconnecting", "disconnecting"].contains($0.status) } ?? false
+        if vpnStateFromInAppTailnet && !vpnUp { return }
+        guard let state = widgetState else {
             if lastVPNStatus != nil {
                 clearVPNState()
             }
