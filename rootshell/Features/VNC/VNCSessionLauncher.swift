@@ -63,7 +63,14 @@ enum VNCSessionLauncher {
 
         switch config.effectiveJump {
         case .none:
-            break
+            #if !CHINA_BUILD
+            // In-app Tailscale: the stream and High Performance media both ride
+            // the tailnet. The datagram path goes first so .adaptive survives.
+            if let ip = await TailnetDialer.route(config.host) {
+                configuration.datagramProvider = TailnetVNCTransport.datagramProvider
+                configuration.transportProvider = { _, port in TailnetVNCTransport(host: ip, port: port) }
+            }
+            #endif
 
         case .sshProfile(let profileID):
             guard let profile = ConnectionProfileManager.shared.profile(for: profileID) else {

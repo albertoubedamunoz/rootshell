@@ -39,6 +39,11 @@ nonisolated struct VPNResolvedTailnet: Codable, Sendable {
     var egress: VPNSharedProfileSnapshot?
     var egressCredential: VPNResolvedCredential?
     var egressJumpCredential: VPNResolvedCredential?
+    /// Node state the in-app engine last used; replaces the sysext's copy so
+    /// both modes stay one device.
+    var importState: [String: Data]? = nil
+    /// Come up without Tailscale or routes, only so the app can read the node state.
+    var exportOnly: Bool? = nil
 }
 
 /// Runtime VPN tunnel config resolved inside the extension from the shared profile mirror.

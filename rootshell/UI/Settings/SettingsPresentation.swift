@@ -120,7 +120,7 @@ struct SettingsSplitView: View {
         case .general:
             SettingsGeneralSection()
         case .vpn:
-            #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
+            #if !CHINA_BUILD
             VPNSettingsView()
             #else
             EmptyView()

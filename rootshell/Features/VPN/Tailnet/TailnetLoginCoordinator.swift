@@ -28,8 +28,8 @@ final class TailnetLoginCoordinator {
 
     private init() {}
 
-    /// Watches a Tailscale tunnel that was just started, showing the login
-    /// page if it asks for one. Ends when it is running, stops, or the user
+    /// Watches a Tailscale engine (VPN or in-app) that was just started,
+    /// showing the login page if it asks for one. Ends when it is running, stops, or the user
     /// dismisses the page.
     func watch() {
         guard watchTask == nil else { return }
@@ -42,10 +42,10 @@ final class TailnetLoginCoordinator {
         }
     }
 
-    /// Asks the running tunnel for a fresh login, then watches for it.
+    /// Asks the running engine for a fresh login, then watches for it.
     func signIn() async -> String? {
         presentedAuthURL = nil
-        if let error = await VPNManager.shared.tailnetLogin() { return error }
+        if let error = await TailnetController.login() { return error }
         watch()
         return nil
     }
@@ -64,15 +64,14 @@ final class TailnetLoginCoordinator {
     }
 
     private func run(_ current: Int) async {
-        let vpn = VPNManager.shared
         let deadline = ContinuousClock.now + Self.startTimeout
         var sawTunnel = false
         while !Task.isCancelled {
             // An open login page keeps the watch alive; otherwise it is bounded.
             if presentedAuthURL == nil, ContinuousClock.now > deadline { return }
-            if vpn.isVPNActive(for: VPNTailnetProfile.id) && vpn.isTunnelUp {
+            if TailnetController.isActive {
                 sawTunnel = true
-                let status = await vpn.tailnetStatus()
+                let status = await TailnetController.status()
                 // cancel() may have run during the request; never present after it.
                 guard !Task.isCancelled, generation == current else { return }
                 if let status {

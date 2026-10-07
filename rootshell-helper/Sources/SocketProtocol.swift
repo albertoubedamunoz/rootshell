@@ -68,6 +68,8 @@ struct CreateShellRequest: Codable {
     /// compatibility with older app builds.
     let paneToken: String?
     var recoveryAttachment: LocalMultiplexerAttachment? = nil
+    /// Extra variables for the new shell, such as in-app Tailscale's ALL_PROXY.
+    var extraEnvironment: [String: String]? = nil
 }
 
 struct CreateShellResponse: Codable {

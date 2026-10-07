@@ -103,6 +103,14 @@ struct DualStackResolver {
             }
         }
 
+        #if !CHINA_BUILD
+        // MagicDNS names resolve in-app when Tailscale runs inside rootshell.
+        if let ip = await TailnetDialer.route(host) {
+            let v6 = ip.contains(":")
+            return ResolvedAddresses(ipv4Address: v6 ? nil : ip, ipv6Address: v6 ? ip : nil, hostname: host, port: port)
+        }
+        #endif
+
         logger.info("Resolving hostname '\(host)' to both IPv4 and IPv6")
 
         // Resolve both families in parallel

@@ -32,6 +32,9 @@
 //    - TrzszGoCallbackBridges.swift
 //    - TrzszGoForwardCallbackBridge.swift
 //
+//  The in-app Tailscale engine has no transport refs; its Swift→Go calls
+//  live in Features/VPN/Tailnet/InApp/TailnetGo.swift instead.
+//
 //  Callers hold opaque `Sendable` ref structs (`TSSHTransportRef`,
 //  `TSSHSessionRef`, `TSSHForwarderRef`); the underlying `Iosbridge*` objects
 //  never escape the gate.
@@ -235,6 +238,13 @@ actor TSSHCallGate {
     // MARK: - Transport lifecycle
 
     func connect(_ params: TSSHTransportParams, via proxyRef: TSSHTransportRef? = nil) async throws -> TSSHTransportRef {
+        #if !CHINA_BUILD
+        // A resumed session skips the resolvers that start in-app Tailscale on
+        // demand; bring it up before Go picks the UDP path.
+        if proxyRef == nil {
+            _ = await TailnetDialer.route(params.host)
+        }
+        #endif
         guard let config = IosbridgeNewTransportConfig() else {
             throw TSSHCallGateError.configCreationFailed
         }

@@ -201,9 +201,17 @@ extension MainView {
         let network = NetworkReachabilityMonitor.shared
         let supportsHighPerformance = network.isConnected
             && (network.connectionType == .wifi || network.connectionType == .wired)
+        #if !CHINA_BUILD
+        // In-app Tailscale carries the media itself, so the mesh-VPN caveat is moot.
+        let routing = TailnetRouting.shared
+        let meshCaveat = config.usesMeshVPNHostname
+            && !(routing.state.enabled && routing.looksLikeTailnet(config.host))
+        #else
+        let meshCaveat = config.usesMeshVPNHostname
+        #endif
 
         if config.quality == .adaptive,
-           !supportsHighPerformance || config.usesMeshVPNHostname {
+           !supportsHighPerformance || meshCaveat {
             alerts.handleVNCHighPerformanceTransportWarning(
                 MainAlertController.PendingVNCHighPerformanceConnection(
                     config: config,

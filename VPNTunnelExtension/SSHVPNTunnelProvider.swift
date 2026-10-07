@@ -260,6 +260,19 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         debugLog.logMarker("VPN CONNECT START: transport=\(transport) host=\(host)")
 
         if config.transportType == .tailscale {
+            #if os(macOS)
+            if let tailnetResolved {
+                if let state = tailnetResolved.importState {
+                    TailnetFileStateStore.replaceAll(state)
+                }
+                if tailnetResolved.exportOnly == true {
+                    // Up only so the app can read the node state; no Tailscale, no routes.
+                    debugLog.logMarker("TAILSCALE export-only start")
+                    try await setTunnelNetworkSettings(NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1"))
+                    return
+                }
+            }
+            #endif
             let (settings, egress) = try Self.tailnetInputs(resolved: tailnetResolved)
             try await startTailnetTunnel(config: config, settings: settings, egress: egress, options: options)
             return
@@ -558,6 +571,15 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         if message.hasPrefix(VPNAgentBrokerMessage.submitPrefix) {
             let body = messageData.dropFirst(VPNAgentBrokerMessage.submitPrefix.utf8.count)
             completionHandler?(VPNAgentSignBroker.shared.handleSubmit(Data(body)))
+            return
+        }
+        #endif
+
+        #if os(macOS)
+        // Node state for the in-app engine; works without Tailscale running.
+        if message == "tailscale.exportState" {
+            let state = TailnetFileStateStore.exportAll().mapValues { $0.base64EncodedString() }
+            completionHandler?(try? JSONSerialization.data(withJSONObject: ["state": state]))
             return
         }
         #endif

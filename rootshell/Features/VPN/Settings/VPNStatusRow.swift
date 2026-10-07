@@ -11,11 +11,14 @@ import NetworkExtension
 struct VPNStatusRow: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     @State private var vpnManager = VPNManager.shared
+    #if !CHINA_BUILD
+    @State private var engine = TailnetInAppEngine.shared
+    #endif
 
     var body: some View {
         HStack(spacing: 12) {
             #if !CHINA_BUILD
-            if isTailnet {
+            if isTailnet || showsInAppTailnet {
                 tailscaleIcon
             } else {
                 statusDot
@@ -25,10 +28,10 @@ struct VPNStatusRow: View {
             #endif
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(vpnManager.status.displayString)
+                Text(title)
                     .font(.headline)
-                if let name = vpnManager.activeProfileName, vpnManager.status.isActive {
-                    Text(name)
+                if let subtitle {
+                    Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -36,7 +39,7 @@ struct VPNStatusRow: View {
 
             Spacer()
 
-            if vpnManager.status == .connecting || vpnManager.status == .reasserting {
+            if isBusy {
                 Image(systemName: "arrow.trianglehead.2.clockwise")
                     .symbolEffect(.rotate, isActive: true)
                     .foregroundStyle(.orange)
@@ -44,15 +47,59 @@ struct VPNStatusRow: View {
         }
     }
 
+    private var title: String {
+        #if !CHINA_BUILD
+        if showsInAppTailnet { return inAppTitle }
+        #endif
+        return vpnManager.status.displayString
+    }
+
+    private var subtitle: String? {
+        #if !CHINA_BUILD
+        if showsInAppTailnet {
+            return String(localized: "Tailscale inside rootshell, no VPN", comment: "VPN status subtitle when Tailscale runs in-app")
+        }
+        #endif
+        guard vpnManager.status.isActive else { return nil }
+        return vpnManager.activeProfileName
+    }
+
+    private var isBusy: Bool {
+        #if !CHINA_BUILD
+        if showsInAppTailnet { return engine.isStarted && engine.status?.isRunning != true && engine.status?.needsLogin != true }
+        #endif
+        return vpnManager.status == .connecting || vpnManager.status == .reasserting
+    }
+
     private var statusDot: some View {
         Circle()
-            .fill(statusColor)
+            .fill(dotColor)
             .frame(width: 12, height: 12)
     }
 
     #if !CHINA_BUILD
     private var isTailnet: Bool {
         vpnManager.status.isActive && vpnManager.activeProfileID == VPNTailnetProfile.id
+    }
+
+    /// No VPN is up, but Tailscale runs inside rootshell; show that instead of
+    /// a bare "Disconnected".
+    private var showsInAppTailnet: Bool {
+        guard !vpnManager.status.isActive else { return false }
+        let mode = TailnetModeSettings.load()
+        return mode.effectiveMode == .rootshellOnly && (mode.inAppEnabled || engine.isStarted)
+    }
+
+    private var inAppTitle: String {
+        guard engine.isStarted else {
+            return String(localized: "Tailscale on, starts when needed", comment: "VPN status: in-app Tailscale waiting for first use")
+        }
+        switch engine.status?.state {
+        case "Running": return String(localized: "Tailscale connected", comment: "VPN status: in-app Tailscale running")
+        case "NeedsLogin": return String(localized: "Tailscale needs sign-in", comment: "VPN status: in-app Tailscale needs login")
+        case "NeedsMachineAuth": return String(localized: "Tailscale waiting for approval", comment: "VPN status: in-app Tailscale awaiting admin")
+        default: return String(localized: "Tailscale connecting…", comment: "VPN status: in-app Tailscale starting")
+        }
     }
 
     /// Matches the quick connect card tile, with the status dot as a badge.
@@ -72,6 +119,17 @@ struct VPNStatusRow: View {
             .accessibilityHidden(true)
     }
     #endif
+
+    private var dotColor: Color {
+        #if !CHINA_BUILD
+        if showsInAppTailnet {
+            guard engine.isStarted else { return .gray }
+            if engine.status?.isRunning == true { return .green }
+            return .orange
+        }
+        #endif
+        return statusColor
+    }
 
     private var statusColor: Color {
         switch vpnManager.status {

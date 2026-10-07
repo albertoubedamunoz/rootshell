@@ -374,6 +374,17 @@ struct ConnectionInfoSheet: View {
 
     // MARK: - Connection Details
 
+    #if !CHINA_BUILD
+    /// Set when in-app Tailscale carried this connection.
+    private static func tailnetRoute(_ info: SSHConnectionInfo) -> String? {
+        let routing = TailnetRouting.shared
+        guard routing.wasRouted(info.host) || info.resolvedIP.map(routing.wasRouted) == true else { return nil }
+        return routing.state.exitNode && !routing.looksLikeTailnet(info.host)
+            ? String(localized: "Tailscale exit node (rootshell only)", comment: "Connection info: routed through an in-app Tailscale exit node")
+            : String(localized: "Tailscale (rootshell only)", comment: "Connection info: routed through in-app Tailscale")
+    }
+    #endif
+
     @ViewBuilder
     private func connectionSection(_ info: SSHConnectionInfo) -> some View {
         Section("Connection") {
@@ -388,6 +399,11 @@ struct ConnectionInfoSheet: View {
                 let jumpPort = info.jumpPort.map { ":\($0)" } ?? ""
                 infoRow("Jump Host", value: "\(jumpHost)\(jumpPort)")
             }
+            #if !CHINA_BUILD
+            if info.jumpHost == nil, let route = Self.tailnetRoute(info) {
+                infoRow("Route", value: route)
+            }
+            #endif
         }
     }
 

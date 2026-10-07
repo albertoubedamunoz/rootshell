@@ -325,6 +325,7 @@ class SocketCommandServer {
             envConfig.versionWithBuild = createRequest.appVersionWithBuild
             envConfig.termType = createRequest.termType
             envConfig.paneToken = createRequest.paneToken
+            envConfig.extraEnvironment = createRequest.extraEnvironment ?? [:]
 
             let envBuilder = EnvironmentBuilder()
             let environment = envBuilder.build(with: envConfig)
