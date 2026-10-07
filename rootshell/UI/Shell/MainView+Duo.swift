@@ -33,7 +33,7 @@ extension MainView {
                                     terminal: tab.focusedTerminal,
                                     number: (tabsModel.navigationTabs.firstIndex(where: { $0.id == tab.id }) ?? 0) + 1,
                                     onClose: {
-                                        if let position = tabsModel.index(of: tab.id) { closeTab(at: position) }
+                                        if let position = tabsModel.index(of: tab.id) { requestUserCloseTab(at: position) }
                                     },
                                     onManage: { showingTabSwitcher = true }
                                 )

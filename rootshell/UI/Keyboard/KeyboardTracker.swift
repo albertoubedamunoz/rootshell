@@ -1415,11 +1415,20 @@ class KeyboardTracker {
     }
 
     @MainActor
+    private static var activeKeyWindow: UIWindow? {
+        UIApplication.shared.connectedScenes.lazy
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }?.keyWindow
+    }
+
+    @MainActor
     private func visibleKeyboardHeight(for keyboardFrame: CGRect) -> CGFloat {
         #if os(visionOS)
         return keyboardFrame.height
         #else
-        guard let window = inputOwnerWindow else { return 0 }
+        // No owner yet (a SwiftUI field on a cold start): measure against the
+        // active key window rather than reporting the keyboard hidden.
+        guard let window = inputOwnerWindow ?? Self.activeKeyWindow else { return 0 }
         let localFrame = window.convert(keyboardFrame, from: window.screen.coordinateSpace)
         return TerminalKeyboardGeometry.overlapHeight(
             keyboard: localFrame, container: window.bounds, requireFullWidth: false)

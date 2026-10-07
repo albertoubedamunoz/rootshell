@@ -84,6 +84,15 @@ class QuickConnectTextField: UITextField, KeyboardButtonDelegate {
         keyboardAnimationTask?.cancel()
     }
 
+    /// KeyboardTracker measures keyboard frames against the input owner's
+    /// window. Terminals register it from their input-view getters; this
+    /// field never goes through those, so claim it before UIKit posts the
+    /// show notifications.
+    override func becomeFirstResponder() -> Bool {
+        KeyboardTracker.shared.setInputOwnerWindow(window)
+        return super.becomeFirstResponder()
+    }
+
     override func didMoveToWindow() {
         super.didMoveToWindow()
 
