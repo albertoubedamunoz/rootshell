@@ -3,6 +3,39 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-163 - October 8, 2026
+
+### Tailscale Without Replacing Your VPN
+
+- **rootshell Only:** Choose rootshell Only in Settings -> VPN -> Tailscale to reach your tailnet from inside rootshell while keeping another VPN connected. SSH, SFTP, Mosh, tssh, and Screen Sharing connections can use it. Other apps are unaffected.
+- **Automatic Connection and Local Shell:** Connect Automatically starts Tailscale when you first connect to a tailnet device. Use in Local Shell enables tailnet access for `curl` and `git` on iOS; `ping` also reaches tailnet devices. On Mac, it sets a proxy for new local shells, so tools that honor `ALL_PROXY`, such as `curl`, can use it.
+- **Exit Nodes and Routing:** Choose an optional Exit Node to send rootshell's connections through that device, with an Allow Local Network Access option. MagicDNS names and advertised subnet routes are supported.
+- **Whole Device Mode:** Whole Device (VPN) remains available for tailnet access from other apps, SSH traffic routing, and HTTP capture. In rootshell Only mode, iOS local-shell `mtr`, `traceroute`, and `nc` do not reach the tailnet.
+- **Connection Recovery:** rootshell Only stays usable when switching from Whole Device mode, moving between Wi-Fi and cellular, and returning from the background. On iOS, returning to the app refreshes Tailscale's sockets so peers can use direct connections again without disconnecting open sessions.
+- **Traffic Statistics:** View uptime, traffic totals, and the live traffic graph in VPN settings while rootshell Only is connected. The Live Activity shows its traffic when no VPN is running.
+
+### File Manager: Browse as Root
+
+- **Browse as Root (sudo):** Choose Browse as Root (sudo) in a remote file pane's menu to browse and manage files as root over SSH or tssh. The server needs sudo permission and an installed `sftp-server`; servers requiring a terminal for sudo are unsupported.
+- **Authentication and Exit:** Passwordless sudo works directly. Password and PAM prompts, including one-time codes, appear in a sheet. Exit sudo returns to your login account in the same folder.
+- **Copies Between Accounts:** Moves, replacements, and merges between root and another account on the same server are blocked because paths may refer to the same files. Copy instead; for name conflicts, choose Keep Both.
+
+### iPhone Duo Layouts
+
+- **Front Display Layouts:** Added adaptive layouts for iPhone Duo on iOS 27.1. Choose Side Rail, Below Camera, or Behind Camera in the Duo Front Display section of tab settings. Side Rail puts new-tab, numbered-tab, and settings controls beside the terminal; Below Camera keeps top tabs beneath the camera; Behind Camera extends the terminal behind it, with optional top tabs.
+- **Laptop Pose:** The terminal stays above the fold and the keyboard stays below it. The system keyboard toolbar sits with the keys, and the custom keyboard uses taller rows to fill the keyboard area.
+- **Display and Control Fixes:** Camera-aware headers and controls, keyboard onboarding, and connection category layouts fit the Duo displays. Terminal sizing updates correctly when the keyboard is dismissed. The side-rail close button respects Confirm Before Closing Tab.
+
+### Session, Keyboard, and Language Fixes
+
+- **Saved Session Restoration:** Fixed saved tabs and layouts being erased when you force-quit rootshell on iOS while it still has background time. Your saved session remains available for restoration on the next launch.
+- **Keyboard Visibility:** Fixed keyboard visibility tracking for Quick Connect and VNC, including Quick Connect's toolbar with a hardware keyboard attached.
+- **Shell Language:** Fixed `git` and other shell tools using a secondary preferred language when English is first. Local and remote shells no longer set `LANGUAGE`; the Mac helper also chooses an installed locale matching the language's script.
+
+### HTTP Capture
+
+- **Reset Decrypted Hosts:** Decrypted Hosts now has Reset to Defaults, with confirmation, to replace your custom host rules with the default Apple exclusions.
+
 ## 1.0.14-162 - October 5, 2026
 
 ### Tailscale Quick Controls
