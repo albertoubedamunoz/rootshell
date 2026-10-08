@@ -43,16 +43,23 @@ nonisolated struct SudoStderrParser {
     }
 
     static let readyMarker = "session opened for local user"
+    /// stderr comes from the server, so retained state is bounded.
+    static let maxLineLength = 4096
+    static let maxLines = 32
+
+    struct Overflow: Error {}
 
     private var buffer = Data()
     private var tailReported = false
     private(set) var transcript: [String] = []
     private(set) var infoSinceAnswer: [String] = []
 
-    mutating func feed(_ data: Data) -> [Event] {
+    /// Throws `Overflow` for any line over `maxLineLength` bytes, terminated or not.
+    mutating func feed(_ data: Data) throws -> [Event] {
         buffer.append(data)
         var events: [Event] = []
         while let newline = buffer.firstIndex(of: UInt8(ascii: "\n")) {
+            guard newline - buffer.startIndex <= Self.maxLineLength else { throw Overflow() }
             let line = Self.text(buffer[buffer.startIndex..<newline])
             buffer = Data(buffer[buffer.index(after: newline)...])
             // A reported prompt that later gets a newline was already handled.
@@ -64,11 +71,12 @@ nonisolated struct SudoStderrParser {
             } else if line.hasPrefix("Sorry, try again") {
                 events.append(.retry)
             } else {
-                transcript.append(line)
-                infoSinceAnswer.append(line)
+                Self.append(line, to: &transcript)
+                Self.append(line, to: &infoSinceAnswer)
                 events.append(.info(line))
             }
         }
+        guard buffer.count <= Self.maxLineLength else { throw Overflow() }
         if !tailReported, let prompt = markerPrompt() {
             tailReported = true
             events.append(prompt)
@@ -116,6 +124,11 @@ nonisolated struct SudoStderrParser {
         else { return nil }
         let account = String(tail[range.upperBound..<end])
         return .passwordPrompt(account: account.isEmpty ? nil : account)
+    }
+
+    private static func append(_ line: String, to lines: inout [String]) {
+        if lines.count >= maxLines { lines.removeFirst(lines.count - maxLines + 1) }
+        lines.append(line)
     }
 
     private static func text(_ bytes: Data) -> String {
@@ -253,7 +266,15 @@ nonisolated enum SudoSFTP {
         for await input in inputs {
             let events: [SudoStderrParser.Event]
             switch input {
-            case .data(let data): events = parser.feed(data)
+            case .data(let data):
+                do {
+                    events = try parser.feed(data)
+                } catch {
+                    throw FileManagerConnectionError.sudoFailed(
+                        host: host,
+                        message: String(localized: "sudo printed a line that's too long.", comment: "File manager sudo error")
+                    )
+                }
             case .settled: events = parser.idle().map { [$0] } ?? []
             case .timedOut:
                 throw FileManagerConnectionError.sudoFailed(
