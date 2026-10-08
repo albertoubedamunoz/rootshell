@@ -241,6 +241,8 @@ struct TerminalTouchKeyboardPreview: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> TerminalTouchKeyboardView {
         let view = TerminalTouchKeyboardView()
+        view.isEmbeddedPreview = true
+        view.useContainerSizing()
         view.styleOverride = style
         view.host = context.coordinator
         view.setFloating(floating)
@@ -251,7 +253,14 @@ struct TerminalTouchKeyboardPreview: UIViewRepresentable {
         view.onPageChanged = { [weak coordinator = context.coordinator] page in
             coordinator?.parent.onPageChanged?(page)
         }
+        // A docked preview may already have its final height at creation, so
+        // onHeightChanged alone never replaces the caller's placeholder height.
+        DispatchQueue.main.async { [weak view] in view?.onHeightChanged?() }
         return view
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: TerminalTouchKeyboardView, context: Context) -> CGSize? {
+        guard let width = proposal.width else { return nil }
+        return CGSize(width: width, height: uiView.intrinsicContentSize.height)
     }
     func updateUIView(_ view: TerminalTouchKeyboardView, context: Context) {
         let coordinator = context.coordinator

@@ -37,13 +37,13 @@ extension MainView {
         config.gestureEnabled = { TabExposeSettings.gestureEnabled() }
         config.canBeginReveal = { !isAnySheetPresented && appTabSwipeState == nil }
         // Nothing above the terminal: let the pull start in its top strip.
-        config.fallbackBandHeight = { tabBarHidden ? 28 : 0 }
+        config.fallbackBandHeight = { showsHorizontalTabHeader ? 0 : 28 }
         // The top bar spans the full window even when a pinned vertical tab
         // sidebar shifts this terminal-hosted overlay to the right.
-        config.topBarActivationSpansWindowWidth = { !tabBarHidden }
+        config.topBarActivationSpansWindowWidth = { showsHorizontalTabHeader }
         #if !targetEnvironment(macCatalyst)
         // Touch: one finger from the tab bar strip itself.
-        config.oneFingerBandHeight = { tabBarHidden ? 0 : TabMetrics.tabBarHeight }
+        config.oneFingerBandHeight = { showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0 }
         #endif
         return config
     }
@@ -67,7 +67,7 @@ extension MainView {
         appearance.showsCaptions = TabExposeSettings.showsCaptions()
         let palette = TmuxTabBadgePalette(theme: theme)
         let textColor = theme.tabText
-        let compact = UIDevice.current.userInterfaceIdiom == .phone
+        let compact = workspaceSizeClass != .regular
         let attentionDots = SettingsStore.shared.get(Settings.CodingAgents.attentionBadges)
         appearance.captionProvider = { tab, index in
             AnyView(

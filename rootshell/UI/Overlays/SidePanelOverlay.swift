@@ -168,8 +168,8 @@ class SidePanelOverlayViewController: UIViewController {
 
     var onClose: (() -> Void)?
 
-    private var isPhone: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
+    private var usesCompactLayout: Bool {
+        view.traitCollection.horizontalSizeClass != .regular
     }
 
     override func viewDidLoad() {
@@ -365,7 +365,7 @@ class SidePanelOverlayViewController: UIViewController {
     /// Fully-hidden transform for the current edge. Phone bottom-sheet adopters
     /// drop the panel off the bottom; everyone else slides it past its edge.
     var hiddenTransform: CGAffineTransform {
-        if allowPhoneBottom && isPhone {
+        if allowPhoneBottom && usesCompactLayout {
             return CGAffineTransform(translationX: 0, y: view.bounds.height + 40)
         }
         switch edge {

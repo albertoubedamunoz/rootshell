@@ -166,6 +166,17 @@ extension Ghostty {
             }
         }
 
+        /// The Duo front side-rail layout gives the grid a full-height column.
+        /// Reset by the split host when folding or switching rendering modes.
+        var reservesBottomSafeArea = true {
+            didSet {
+                guard reservesBottomSafeArea != oldValue else { return }
+                #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                refreshBottomInset()
+                #endif
+            }
+        }
+
         /// App-level presentations, such as settings and sheets, occlude
         /// selection handle overlays before UIKit has attached a modal VC.
         var selectionUIExternallyOccluded: Bool = false
@@ -1822,19 +1833,20 @@ extension Ghostty {
             
             // FIX: Set content scale to match screen for Retina rendering
             // By default UIView has contentScaleFactor = 1.0, but we need 2.0+ for Retina
-#if os(visionOS)
-            // visionOS doesn't have UIScreen.main, use display scale from trait collection
             self.contentScaleFactor = traitCollection.displayScale
-#else
-            self.contentScaleFactor = UIScreen.main.scale
-#endif
+            registerForTraitChanges([UITraitDisplayScale.self]) { (view: TerminalView, _) in
+                view.contentScaleFactor = view.traitCollection.displayScale
+                view.setNeedsLayout()
+            }
             
             // Log display properties
             Ghostty.logger.info("Display properties:")
             Ghostty.logger.info("   contentScaleFactor: \(self.contentScaleFactor) (set to match screen)")
 #if !os(visionOS)
-            Ghostty.logger.info("   Screen scale: \(UIScreen.main.scale)")
-            Ghostty.logger.info("   Screen nativeScale: \(UIScreen.main.nativeScale)")
+            Ghostty.logger.info("   Display scale: \(self.traitCollection.displayScale)")
+            if let screen = self.window?.screen {
+                Ghostty.logger.info("   Screen nativeScale: \(screen.nativeScale)")
+            }
 #endif
             
             // Add tap gesture to show keyboard
@@ -2737,6 +2749,7 @@ extension Ghostty {
         /// effect owns the strip (ocean/solar waves), or on platforms without a
         /// strip (macOS, home-button devices).
         func currentBottomInsetPixels() -> Double {
+            guard reservesBottomSafeArea else { return 0 }
             if terminalEffectsEnabled,
                EffectManager.shared.terminalBottomInsetFraction > 0 { return 0 }
             #if !targetEnvironment(macCatalyst) && !os(visionOS)
@@ -4865,7 +4878,16 @@ extension Ghostty.TerminalView: TerminalKeyboardAccessoryHost {
     }
 
     func keyboardDidFinishAnimationLayout() {
-        sizeDidChange(bounds.size)
+        // Give SwiftUI's final keyboard padding a turn to reach UIKit before
+        // flushing the resize skipped during the animation. Reconcile both
+        // inset and size, in the same order as a normal layout pass.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.window != nil,
+                  !KeyboardTracker.shared.isKeyboardAnimating,
+                  !self.surfaceController.sizeUpdatesSuppressed else { return }
+            self.setNeedsLayout()
+            self.layoutIfNeeded()
+        }
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         // Reconcile the stable input-mode reservation after any keyboard state
         // changes delivered during the animation.

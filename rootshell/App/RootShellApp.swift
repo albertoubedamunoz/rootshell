@@ -90,7 +90,7 @@ struct RootShellApp: App {
 
     var body: some Scene {
         WindowGroup(id: "main-terminal") {
-            MainView()
+            DuoSceneHost { MainView() }
                 .overlay { MCPApprovalOverlay() }
                 .environmentObject(ghosttyApp)
                 .preferredColorScheme(appearanceManager.colorScheme)
@@ -114,6 +114,11 @@ struct RootShellApp: App {
                     // so restored sessions can reach hosts behind it.
                     #if !CHINA_BUILD && (!targetEnvironment(macCatalyst) || STANDALONE)
                     Task { await VPNManager.shared.recoverLastVPNIfNeeded() }
+                    #endif
+
+                    // Tailscale inside rootshell (no VPN), when it was left on.
+                    #if !CHINA_BUILD
+                    TailnetInAppEngine.shared.appDidLaunch()
                     #endif
 
                     // Register notification categories (deferred from App.init —

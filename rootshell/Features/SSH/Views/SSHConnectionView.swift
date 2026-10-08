@@ -1432,6 +1432,9 @@ struct SSHConnectionView: View {
             }
         }
         .modifier(GlassEffectContainerModifier())
+        // Scroll views can draw into the adjacent safe area. Keep category
+        // chips inside the viewport, clear of Duo's status and toolbar column.
+        .clipped()
         .background(sheetThemeColors?.background ?? Color(.systemGroupedBackground))
     }
 

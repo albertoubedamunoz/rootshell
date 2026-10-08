@@ -95,6 +95,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// the incoming responder's input views, which can happen before it calls
     /// resignFirstResponder on the outgoing one.
     func activateTouchKeyboardState() {
+        KeyboardTracker.shared.setInputOwnerWindow(host?.keyboardHostView.window)
         guard let terminal = host as? Ghostty.TerminalView, let delegate = touchKeyboardDelegate,
               let window = terminal.window else { return }
         guard touchKeyboardEnabled else {
@@ -134,6 +135,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// incoming terminal can take it over without a blank frame.
     func releaseTouchKeyboardState() {
         boundTouchKeyboardState = nil
+        // Focus can move between panes without the keyboard hiding.
+        reclaimFoldToolbar()
         guard let scope = ownedTouchKeyboardScope else { return }
         scope.keyboard.cancelInteraction(preservingModifiers: true)
         scope.toolbarInput.isActive = false
@@ -345,6 +348,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
             overlay.isHostActive = { [weak scope] in scope?.owner?.touchKeyboardIsActive == true }
             overlay.onDock = { [weak scope] in scope?.owner?.setTouchKeyboardPlacement(.docked) }
             overlay.frame = window.bounds
+            overlay.inputRegion = scope.inputRegion
             floatingKeyboardOverlay = overlay
             window.addSubview(overlay)
             // The retained keyboard can still have its old docked frame.
@@ -475,7 +479,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
               let input = touchKeyboardInputView else { return nil }
         let height = input.intrinsicContentSize.height
         guard height > 0 else { return nil }
-        let frame = window.convert(window.bounds, to: nil)
+        let frame = window.convert(window.bounds, to: window.screen.coordinateSpace)
         return CGRect(x: frame.minX, y: frame.maxY - height,
                       width: frame.width, height: height)
     }
@@ -514,6 +518,12 @@ final class TerminalKeyboardAccessoryController: NSObject {
     var keyboardAccessory: KeyboardAccessoryView?
     #if os(visionOS)
     weak var externalToolbar: KeyboardToolbarView?
+    #endif
+    #if !os(visionOS) && !targetEnvironment(macCatalyst)
+    /// The accessory's toolbar row currently rests below the Duo's fold.
+    private var foldToolbarMounted = false
+    private lazy var foldToolbarHost = UIView()
+    private var foldToolbarUpdateScheduled = false
     #endif
 
     var shouldShowKeyboardToolbar = false
@@ -617,6 +627,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     private var presentedToolbarView: UIView? {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         if usesTouchKeyboardToolbar { return touchKeyboardToolbarInputView }
+        if foldToolbarMounted { return foldToolbarHost }
         #endif
         return keyboardAccessory
     }
@@ -627,15 +638,14 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #if os(visionOS) || targetEnvironment(macCatalyst)
         return nil
         #else
-        guard UIDevice.current.userInterfaceIdiom == .phone,
-              let host, host.keyboardIsFirstResponder,
+        guard let host, host.keyboardIsFirstResponder,
               let window = host.keyboardHostView.window,
               let accessory = presentedToolbarView,
               let accessoryWindow = accessory.window,
               accessoryWindow.screen === window.screen,
               !accessoryWindow.isHidden, !accessory.isHidden,
               accessory.alpha > 0, !accessory.bounds.isEmpty else { return nil }
-        return accessoryWindow.convert(accessory.convert(accessory.bounds, to: accessoryWindow), to: nil)
+        return accessory.convert(accessory.bounds, to: accessoryWindow.screen.coordinateSpace)
         #endif
     }
 
@@ -669,12 +679,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         #else
         let keyboardFrame = EffectManager.shared.keyboardFrame
         guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return nil }
-        let hostFrame: CGRect
-        if let window = host?.keyboardHostView.window {
-            hostFrame = window.convert(window.bounds, to: nil)
-        } else {
-            hostFrame = UIScreen.main.bounds
-        }
+        guard let window = host?.keyboardHostView.window else { return nil }
+        let hostFrame = window.convert(window.bounds, to: window.screen.coordinateSpace)
         let intersection = hostFrame.intersection(keyboardFrame)
         guard !intersection.isNull, !intersection.isEmpty else { return nil }
         return keyboardFrame
@@ -822,13 +828,16 @@ final class TerminalKeyboardAccessoryController: NSObject {
     }
 
     var inputAccessoryView: UIView? {
-        guard let host else { return nil }
+        if host?.keyboardIsFirstResponder == true {
+            KeyboardTracker.shared.setInputOwnerWindow(host?.keyboardHostView.window)
+        }
+        guard host != nil else { return nil }
         applyBottomSafeAreaStrip()
-        let isVisible = shouldShowKeyboardToolbar
-            && !host.keyboardAIAgentOverlayActive
-            && !keyboardToolbarCollapsed
-            && !(toolbarOnlyMode && toolbarOnlyHidesToolbar)
+        let isVisible = accessoryIsVisible
         updateBottomEdgeHomeGestureProtection(accessoryIsVisible: isVisible)
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        scheduleFoldToolbarUpdate()
+        #endif
         if usesFullTouchKeyboard { return nil }
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         if usesCompactTouchKeyboard {
@@ -842,7 +851,19 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // accessory-over-empty-input arrangement to avoid inheriting the
         // floating keyboard's oversized frame.
         guard !toolbarOnlyMode || !toolbarOnlyUsesPrimaryInputView else { return nil }
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        if isVisible && foldToolbarFrame != nil { return nil }
+        reclaimFoldToolbar()
+        #endif
         return isVisible ? keyboardAccessory : nil
+    }
+
+    private var accessoryIsVisible: Bool {
+        guard let host else { return false }
+        return shouldShowKeyboardToolbar
+            && !host.keyboardAIAgentOverlayActive
+            && !keyboardToolbarCollapsed
+            && !(toolbarOnlyMode && toolbarOnlyHidesToolbar)
     }
 
     /// In toolbar-only mode the toolbar is the primary input view, not an
@@ -853,6 +874,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// 26.5) and only grows the accessory upward, so no reservation can move
     /// the row past that strip.
     var inputView: UIView? {
+        if host?.keyboardIsFirstResponder == true {
+            KeyboardTracker.shared.setInputOwnerWindow(host?.keyboardHostView.window)
+        }
         // UIKit does not specify whether it asks for inputView or
         // inputAccessoryView first. Publish the destination-mode intrinsic
         // height from both paths so toolbar-only entry is correct in one pass.
@@ -889,8 +913,85 @@ final class TerminalKeyboardAccessoryController: NSObject {
             // owns the screen) — keep suppressing the system keyboard.
             return emptyInputView
         }
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        reclaimFoldToolbar()
+        #endif
         return accessory
     }
+
+    #if !os(visionOS) && !targetEnvironment(macCatalyst)
+    /// UIKit lifts every input accessory above the Duo's fold, away from the
+    /// system keys. Rest the toolbar just below the fold instead, on the keys,
+    /// in the host window. nil where UIKit's placement stays in charge.
+    private var foldToolbarFrame: CGRect? {
+        let tracker = KeyboardTracker.shared
+        guard let host, host.keyboardIsFirstResponder, !usesTouchKeyboard, !toolbarOnlyMode,
+              tracker.isSoftwareKeyboardVisible, !tracker.isHardwareKeyboard,
+              let accessory = keyboardAccessory,
+              let window = host.keyboardHostView.window,
+              let fold = TerminalTouchKeyboardWindowState.forWindow(window).foldRegion,
+              // A predictive bar would occupy the space below the fold.
+              (host.keyboardHostView as? UITextInputTraits)?.autocorrectionType == .no
+        else { return nil }
+        let row = KeyboardSizes.current(traitCollection: host.keyboardHostView.traitCollection).toolbar.height
+        // Drawer rows stack above the main row and may reach over the fold.
+        let height = max(row, accessory.intrinsicContentSize.height)
+        return CGRect(x: window.bounds.minX, y: fold.maxY + 2 + row - height,
+                      width: window.bounds.width, height: height)
+    }
+
+    /// UIKit releases a withdrawn accessory during the input-view reload, so
+    /// mounting waits until that reload has returned.
+    private func scheduleFoldToolbarUpdate() {
+        guard !foldToolbarUpdateScheduled else { return }
+        foldToolbarUpdateScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.foldToolbarUpdateScheduled = false
+            self.updateFoldToolbar()
+        }
+    }
+
+    private func updateFoldToolbar() {
+        guard accessoryIsVisible, let frame = foldToolbarFrame,
+              let accessory = keyboardAccessory,
+              let window = host?.keyboardHostView.window else {
+            reclaimFoldToolbar()
+            return
+        }
+        let container = foldToolbarHost
+        if container.superview !== window {
+            container.removeFromSuperview()
+            window.addSubview(container)
+        }
+        if !foldToolbarMounted {
+            let toolbar = accessory.lendToolbar()
+            container.addSubview(toolbar)
+            NSLayoutConstraint.activate([
+                toolbar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                toolbar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                toolbar.topAnchor.constraint(equalTo: container.topAnchor),
+                toolbar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            ])
+            foldToolbarMounted = true
+            // UIKit still shows the emptied accessory; let it re-query.
+            if accessory.window != nil { host?.keyboardReloadInputViews() }
+        }
+        window.bringSubviewToFront(container)
+        guard container.frame != frame else { return }
+        container.frame = frame
+        EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+    }
+
+    /// Return the row before UIKit's slot shows the accessory again.
+    private func reclaimFoldToolbar() {
+        guard foldToolbarMounted else { return }
+        foldToolbarMounted = false
+        keyboardAccessory?.reclaimToolbar()
+        foldToolbarHost.removeFromSuperview()
+        EffectManager.shared.notifyKeyboardToolbarLayoutChanged()
+    }
+    #endif
 
     /// Empty primary input view used when a host wants the accessory docked
     /// without presenting the system software keyboard. This does not mutate
@@ -1023,6 +1124,23 @@ final class TerminalKeyboardAccessoryController: NSObject {
         }
         cancellables.insert(AnyCancellable { NotificationCenter.default.removeObserver(hwToolbarObserver) })
 
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        let foldObserver = NotificationCenter.default.addObserver(
+            forName: .terminalFoldRegionDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            MainActor.assumeIsolated {
+                guard let self, let host = self.host, host.keyboardIsFirstResponder,
+                      notification.object as? UIWindow === host.keyboardHostView.window else { return }
+                // Move the toolbar between UIKit's accessory slot and the fold.
+                host.keyboardReloadInputViews()
+                self.scheduleFoldToolbarUpdate()
+            }
+        }
+        cancellables.insert(AnyCancellable { NotificationCenter.default.removeObserver(foldObserver) })
+        #endif
+
         let homeIndicatorObserver = NotificationCenter.default.addObserver(
             forName: .terminalBottomInsetInvalidated,
             object: nil,
@@ -1077,6 +1195,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
                 #endif
                 previousVisibility = visible
                 self.scheduleKeyboardToolbarUpdate(reason: "softwareVisibility")
+                #if !os(visionOS) && !targetEnvironment(macCatalyst)
+                self.scheduleFoldToolbarUpdate()
+                #endif
             }
         }
 
@@ -1197,8 +1318,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // Snapshot before changing the input set. Once the software keyboard
         // starts hiding, its placement frame is no longer reliable enough to
         // tell whether UIKit is tearing down a detached keyboard.
-        let hasDetachedKeyboardPlacement = UIDevice.current.userInterfaceIdiom == .pad
-            && (!touchKeyboardIsSelected || touchSystemFloating)
+        let hasDetachedKeyboardPlacement = (!touchKeyboardIsSelected || touchSystemFloating)
             && visibleReportedKeyboardFrame != nil
             && !EffectManager.shared.isKeyboardDocked
             && !hardwareAccessoryOwnsKeyboardRegion
@@ -1474,7 +1594,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     private func updateBottomEdgeHomeGestureProtection(accessoryIsVisible: Bool? = nil) {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
-        let idiom = UIDevice.current.userInterfaceIdiom
+        let idiom = host?.keyboardHostView.traitCollection.userInterfaceIdiom
         let isVisible = accessoryIsVisible ?? (
             shouldShowKeyboardToolbar
                 && host?.keyboardAIAgentOverlayActive != true

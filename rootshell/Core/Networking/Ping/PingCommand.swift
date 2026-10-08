@@ -97,6 +97,12 @@ final class PingCommand {
     // MARK: - Main Run Loop
 
     private func run() async {
+        #if !CHINA_BUILD
+        if let ip = await TailnetDialer.route(config.target) {
+            await runTailnet(ip: ip)
+            return
+        }
+        #endif
         // Resolve hostname. Ownership of the returned addrinfo pointer is
         // transferred to self.savedAddrInfo; cleanup() frees it. This lets
         // recreateSocket() rebind to the originally-resolved IP without
@@ -1299,6 +1305,56 @@ final class PingCommand {
             return String(format: "%.3f", ms)
         }
     }
+
+    #if !CHINA_BUILD
+    /// Ping over in-app Tailscale with Tailscale's own (disco) ping, which
+    /// says whether the path is direct or relayed. ICMP socket options can't apply.
+    private func runTailnet(ip: String) async {
+        let c = config
+        if c.ttl != nil || c.dontFragment || c.sourceAddress != nil || c.boundInterface != nil
+            || c.trafficClass != nil || c.recordRoute || c.pattern != nil || c.packetSize != 56 || c.sweepMax != nil {
+            didFail = true
+            output("ping: -D, -R, -S, -b, -k, -m, -p, -s and sweeps aren't available for hosts reached through Tailscale in rootshell\r\n")
+            onComplete?()
+            return
+        }
+        resolvedIP = ip
+        resolvedHostname = c.target
+        output("PING \(c.target) (\(ip)) over Tailscale\r\n")
+
+        let startTime = CFAbsoluteTimeGetCurrent()
+        var seq = 0
+        while !Task.isCancelled {
+            if let count = c.count, stats.transmitted >= count { break }
+            if let timeout = c.timeout, CFAbsoluteTimeGetCurrent() - startTime >= timeout { break }
+            let cycleStart = CFAbsoluteTimeGetCurrent()
+            stats.transmitted += 1
+            let result = await TailnetGo.ping(host: ip, timeout: .milliseconds(Int(c.waitTime * 1000)))
+            if Task.isCancelled { break }
+            if let latency = result.latencyMs, result.error?.isEmpty ?? true {
+                stats.received += 1
+                stats.addRTT(latency)
+                if !c.quiet && !c.quieter {
+                    let via = result.endpoint.map { "direct \($0)" } ?? "via DERP(\(result.derp ?? "?"))"
+                    let name = result.nodeName.map { "\($0) (\(ip))" } ?? ip
+                    output("\(timestampPrefix())pong from \(name): seq=\(seq) time=\(formatRTT(latency)) ms \(via)\r\n")
+                }
+                if c.exitOnFirstReply { break }
+            } else if c.verbose || !(c.quiet || c.quieter) {
+                output("Request timeout for seq \(seq)\(result.error.map { ": \($0)" } ?? "")\r\n")
+            }
+            seq += 1
+            let sleepEnd = cycleStart + c.interval
+            while !Task.isCancelled && CFAbsoluteTimeGetCurrent() < sleepEnd {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+        }
+        if !Task.isCancelled {
+            printSummary()
+            onComplete?()
+        }
+    }
+    #endif
 
     private func printSummary() {
         output("\r\n--- \(resolvedHostname) ping statistics ---\r\n")

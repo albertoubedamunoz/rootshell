@@ -201,6 +201,9 @@
 		47CD00005100000000000000 /* SessionActivityWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47LA00022F360000AABB0002 /* SessionActivityWidgetExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47CD00005200000000000000 /* CoreWLANPlugin.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47CWP0032F560000DDEE0003 /* CoreWLANPlugin.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		47CWP0012F560000DDEE0001 /* CoreWLANPlugin.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47CWP0032F560000DDEE0003 /* CoreWLANPlugin.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		47D001270000000000000001 /* rootshell/UI/Shell/DuoFrontDisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D001270000000000000011 /* rootshell/UI/Shell/DuoFrontDisplayMode.swift */; };
+		47D001270000000000000002 /* rootshell/UI/Shell/DuoWorkspaceLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D001270000000000000012 /* rootshell/UI/Shell/DuoWorkspaceLayout.swift */; };
+		47D001270000000000000003 /* rootshell/UI/Keyboard/TerminalKeyboardGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D001270000000000000013 /* rootshell/UI/Keyboard/TerminalKeyboardGeometry.swift */; };
 		47D8B28B2ECAC24B00CA99EC /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 47D8B28A2ECAC24B00CA99EC /* libc++.tbd */; };
 		47D8B2A12ECB90D100CA99EC /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47D8B2A02ECB90D100CA99EC /* Metal.framework */; };
 		47ED19994CFF9EF35029B687 /* TrzszSSH in Frameworks */ = {isa = PBXBuildFile; productRef = 47TSSH0112FC00000AABB0001 /* TrzszSSH */; };
@@ -654,6 +657,9 @@
 		47C100032F990000BBCC0003 /* China.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = China.xcconfig; sourceTree = "<group>"; };
 		47CD00000200000000000000 /* rootshell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshell.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47CWP0032F560000DDEE0003 /* CoreWLANPlugin.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CoreWLANPlugin.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		47D001270000000000000011 /* rootshell/UI/Shell/DuoFrontDisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Shell/DuoFrontDisplayMode.swift; sourceTree = SOURCE_ROOT; };
+		47D001270000000000000012 /* rootshell/UI/Shell/DuoWorkspaceLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Shell/DuoWorkspaceLayout.swift; sourceTree = SOURCE_ROOT; };
+		47D001270000000000000013 /* rootshell/UI/Keyboard/TerminalKeyboardGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalKeyboardGeometry.swift; sourceTree = SOURCE_ROOT; };
 		47D8B2422ECAAE7F00CA99EC /* rootshell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rootshell.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47D8B28A2ECAC24B00CA99EC /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		47D8B2A02ECB90D100CA99EC /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -1248,6 +1254,9 @@
 		47E4DFFB303B992000224D87 /* Recovered References */ = {
 			isa = PBXGroup;
 			children = (
+				47D001270000000000000013 /* rootshell/UI/Keyboard/TerminalKeyboardGeometry.swift */,
+				47D001270000000000000012 /* rootshell/UI/Shell/DuoWorkspaceLayout.swift */,
+				47D001270000000000000011 /* rootshell/UI/Shell/DuoFrontDisplayMode.swift */,
 				47ABC10D2FF50000AABB000D /* rootshell-helper/Sources/PTYManagerImpl.m */,
 				47ABC10E2FF50000AABB000E /* rootshell-helper/Sources/ProcessSpawner.m */,
 				47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */,
@@ -2264,6 +2273,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				47D001270000000000000003 /* rootshell/UI/Keyboard/TerminalKeyboardGeometry.swift in Sources */,
+				47D001270000000000000002 /* rootshell/UI/Shell/DuoWorkspaceLayout.swift in Sources */,
+				47D001270000000000000001 /* rootshell/UI/Shell/DuoFrontDisplayMode.swift in Sources */,
 				47AF04750000000000000A02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */,
 				47AF04750000000000000A01 /* rootshell/Features/Tmux/TmuxLayoutNode.swift in Sources */,
 				47AF04890000000000000A01 /* rootshell/Features/Tmux/TmuxDividerResize.swift in Sources */,
@@ -6870,7 +6882,7 @@
 			repositoryURL = "https://github.com/kitknox/rootshell-vnc.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.1.5;
+				version = 0.1.6;
 			};
 		};
 		477408912ED51B9F0035CE92 /* XCRemoteSwiftPackageReference "Yams-rootshell" */ = {
@@ -7014,7 +7026,7 @@
 			repositoryURL = "https://github.com/kitknox/trzsz-ssh-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.8;
+				version = 0.2.11;
 			};
 		};
 		47XZPKG02FF00000AABB0000 /* XCRemoteSwiftPackageReference "xz_ios-rootshell" */ = {

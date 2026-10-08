@@ -12,6 +12,7 @@ import GameController
 import os
 
 struct TerminalSplitTreeView: UIViewRepresentable {
+    @Environment(\.duoLayout) private var duoLayout
     let tree: SplitTree<SplitPaneView>
     let onResize: (SplitTree<SplitPaneView>.Node, Double) -> Void
     var onMove: ((SplitPaneView, SplitPaneView, PaneDropZone) -> Void)?
@@ -40,6 +41,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.allowsPaneRearrangement = allowsPaneRearrangement
         uiView.isActiveTab = isActive
         uiView.terminalEffectsEnabled = terminalEffectsEnabled
+        uiView.reservesTerminalBottomSafeArea = !duoLayout.extendsTerminalToVerticalEdges
         uiView.routesFocusedProgressToIntegratedEdge = routesFocusedProgressToIntegratedEdge
         uiView.update(tree: tree, focusedPane: focusedPane)
     }
@@ -338,6 +340,12 @@ final class SplitTreeHostingView: UIView {
             updateTerminalEffectsEligibility()
         }
     }
+    var reservesTerminalBottomSafeArea = true {
+        didSet {
+            guard reservesTerminalBottomSafeArea != oldValue else { return }
+            updateTerminalEffectsEligibility()
+        }
+    }
     var routesFocusedProgressToIntegratedEdge: Bool = false {
         didSet {
             guard routesFocusedProgressToIntegratedEdge != oldValue else { return }
@@ -475,6 +483,7 @@ final class SplitTreeHostingView: UIView {
         guard let tree else { return }
         for terminal in tree.terminalLeaves {
             terminal.terminalEffectsEnabled = terminalEffectsEnabled
+            terminal.reservesBottomSafeArea = reservesTerminalBottomSafeArea
         }
     }
 

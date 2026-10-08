@@ -26,7 +26,8 @@ struct VPNQuickConnectCard: View {
     static func lastTarget() -> Target? {
         guard let id = VPNManager.shared.lastVPNProfileID else { return nil }
         if id == VPNTailnetProfile.id {
-            return tailscaleAvailable ? .tailscale : nil
+            // In rootshell Only mode Tailscale isn't a VPN to reconnect.
+            return tailscaleAvailable && TailnetModeSettings.load().effectiveMode == .wholeDevice ? .tailscale : nil
         }
         return ConnectionProfileManager.shared.profiles
             .first { $0.id == id && $0.isVPNCapable }

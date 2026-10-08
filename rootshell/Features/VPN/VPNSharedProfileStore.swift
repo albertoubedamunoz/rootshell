@@ -8,6 +8,7 @@
 
 import Foundation
 import os.log
+import Security
 
 nonisolated enum VPNSharedTransportType: String, Codable, Sendable, Hashable {
     case ssh
@@ -165,7 +166,8 @@ nonisolated enum VPNSharedProfileStore {
     static func startableProfiles(includingSignedOutTailnet: Bool = false) -> [VPNSharedProfileSnapshot] {
         var profiles = readAll()
         #if !CHINA_BUILD && os(iOS) && !targetEnvironment(macCatalyst)
-        if VPNTailnetProfile.isSignedIn
+        if TailnetModeSettings.load().effectiveMode == .wholeDevice,
+           VPNTailnetProfile.isSignedIn
             || (includingSignedOutTailnet && VPNTailnetProfile.appliedSettings() != nil) {
             profiles.insert(VPNTailnetProfile.snapshot(), at: 0)
         }
@@ -270,6 +272,78 @@ nonisolated struct VPNTailnetSettings: Codable, Sendable, Hashable {
         sendAllViaSSH = try c.decodeIfPresent(Bool.self, forKey: .sendAllViaSSH) ?? false
         rules = try c.decodeIfPresent([VPNRoutingRule].self, forKey: .rules) ?? []
         dnsServers = try c.decodeIfPresent([String].self, forKey: .dnsServers) ?? []
+    }
+}
+
+/// How Tailscale connects: as the device VPN, or inside rootshell only.
+nonisolated enum TailnetMode: String, Codable, Sendable, Hashable {
+    case wholeDevice
+    case rootshellOnly
+}
+
+/// The Tailscale mode and the in-app engine's settings. Kept apart from
+/// `VPNTailnetSettings` so edits here never mark the VPN as needing a restart.
+nonisolated struct TailnetModeSettings: Codable, Sendable, Hashable {
+    var mode: TailnetMode = TailnetPlatform.supportsWholeDevice ? .wholeDevice : .rootshellOnly
+    /// The user turned rootshell Only on (Connect) and hasn't turned it off.
+    var inAppEnabled = false
+    var connectOnDemand = true
+    var useInLocalShell = true
+    var exitNodeID: String?
+    var exitNodeAllowLAN = false
+
+    /// The mode in force: platforms without the VPN always run in-app.
+    var effectiveMode: TailnetMode { TailnetPlatform.supportsWholeDevice ? mode : .rootshellOnly }
+
+    init() {}
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = TailnetModeSettings()
+        mode = try c.decodeIfPresent(TailnetMode.self, forKey: .mode) ?? defaults.mode
+        inAppEnabled = try c.decodeIfPresent(Bool.self, forKey: .inAppEnabled) ?? false
+        connectOnDemand = try c.decodeIfPresent(Bool.self, forKey: .connectOnDemand) ?? true
+        useInLocalShell = try c.decodeIfPresent(Bool.self, forKey: .useInLocalShell) ?? true
+        exitNodeID = try c.decodeIfPresent(String.self, forKey: .exitNodeID)
+        exitNodeAllowLAN = try c.decodeIfPresent(Bool.self, forKey: .exitNodeAllowLAN) ?? false
+    }
+
+    static let fileName = "vpn_tailnet_mode.json"
+
+    private static var fileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: VPNSharedProfileStore.appGroupID)?
+            .appendingPathComponent(fileName)
+    }
+
+    static func load() -> TailnetModeSettings {
+        guard let fileURL, let data = try? Data(contentsOf: fileURL),
+              let settings = try? JSONDecoder().decode(TailnetModeSettings.self, from: data) else {
+            return TailnetModeSettings()
+        }
+        return settings
+    }
+
+    static func store(_ settings: TailnetModeSettings) {
+        guard let fileURL else { return }
+        try? JSONEncoder().encode(settings).write(to: fileURL, options: .atomic)
+    }
+}
+
+nonisolated enum TailnetPlatform {
+    /// Whole Device (VPN) mode exists on iOS and the Standalone Mac build;
+    /// App Store Catalyst and visionOS only run Tailscale inside rootshell.
+    static var supportsWholeDevice: Bool {
+        #if os(visionOS)
+        false
+        #elseif targetEnvironment(macCatalyst)
+        #if STANDALONE
+        true
+        #else
+        false
+        #endif
+        #else
+        true
+        #endif
     }
 }
 
@@ -493,5 +567,71 @@ nonisolated enum VPNDirectProfile {
             return snapshot
         }
         return snapshot(dnsServers: [])
+    }
+}
+
+/// Tailscale node state in the shared keychain, one item per state key. The
+/// iOS extension and the in-app engine share it, so both modes are one device.
+/// This-device-only: node keys must not travel in backups.
+nonisolated enum TailnetKeychainState {
+    private static func baseQuery(_ key: String?) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: VPNTailnetProfile.keychainService,
+            kSecAttrAccessGroup as String: AppIdentifiers.keychainAccessGroup,
+        ]
+        if let key { query[kSecAttrAccount as String] = key }
+        return query
+    }
+
+    /// Empty data for a missing key.
+    static func read(_ key: String) throws -> Data {
+        var query = baseQuery(key)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound { return Data() }
+        guard status == errSecSuccess else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+        return (result as? Data) ?? Data()
+    }
+
+    static func write(_ key: String, _ data: Data) throws {
+        let query = baseQuery(key)
+        let update: [String: Any] = [kSecValueData as String: data]
+        var status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        if status == errSecItemNotFound {
+            var add = query
+            add[kSecValueData as String] = data
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            status = SecItemAdd(add as CFDictionary, nil)
+        }
+        guard status == errSecSuccess else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+    }
+
+    /// Every stored key and value, for handing the node to the Mac system extension.
+    static func readAll() -> [String: Data] {
+        var query = baseQuery(nil)
+        query[kSecReturnAttributes as String] = true
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitAll
+        var result: AnyObject?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let items = result as? [[String: Any]] else { return [:] }
+        var state: [String: Data] = [:]
+        for item in items {
+            if let key = item[kSecAttrAccount as String] as? String, let data = item[kSecValueData as String] as? Data {
+                state[key] = data
+            }
+        }
+        return state
+    }
+
+    static func deleteAll() {
+        SecItemDelete(baseQuery(nil) as CFDictionary)
     }
 }

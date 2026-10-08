@@ -52,7 +52,7 @@ final class ImmersiveChromeManager {
     /// thread is safe and doesn't tear data.
     private nonisolated static let activeFlag = OSAllocatedUnfairLock<Bool>(initialState: false)
 
-    /// Transient immersion holds (VNC full-screen takeover). Counted so
+    /// Transient immersion holds (VNC takeover, Duo Behind Camera). Counted so
     /// overlapping holders compose; independent of the persistent toggle.
     private nonisolated static let transientHolds = OSAllocatedUnfairLock<Int>(initialState: 0)
 

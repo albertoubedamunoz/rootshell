@@ -433,17 +433,12 @@ final class EffectManager {
         }
     }
 
-    #if !os(visionOS) && !targetEnvironment(macCatalyst)
-    /// Tolerance for detecting if keyboard is docked (accounts for safe area)
-    private static let dockTolerance: CGFloat = 50
-    #endif
-
     private func isMeaningfulKeyboardFrame(_ keyboardFrame: CGRect) -> Bool {
         guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return false }
         #if os(visionOS)
         return keyboardFrame.height > Self.softwareKeyboardHeightThreshold
         #else
-        let screenBounds = activeWindowFrame() ?? UIScreen.main.bounds
+        guard let screenBounds = activeWindowFrame() else { return false }
         let intersection = screenBounds.intersection(keyboardFrame)
         if intersection.isNull || intersection.isEmpty {
             return false
@@ -455,21 +450,8 @@ final class EffectManager {
     #if !os(visionOS) && !targetEnvironment(macCatalyst)
     /// Check if keyboard frame represents a docked keyboard (bottom edge at screen bottom)
     private func isKeyboardFrameDocked(_ keyboardFrame: CGRect) -> Bool {
-        let windowFrame = activeWindowFrame() ?? UIScreen.main.bounds
-        let screenHeight = windowFrame.height
-
-        let keyboardBottom = keyboardFrame.origin.y + keyboardFrame.height
-
-        // Keyboard is docked if its bottom edge is at or near the screen bottom
-        // and it has meaningful height (not just the suggestion bar)
-        let touchesBottom = abs(keyboardBottom - screenHeight) < Self.dockTolerance
-        let hasMeaningfulHeight = keyboardFrame.height > 100
-        // A docked keyboard spans the window. Narrow bottom HUDs — the
-        // minimized-keyboard pill a pencil tap summons, the floating
-        // mini keyboard — must never register as docked coverage.
-        let spansWindowWidth = keyboardFrame.width >= windowFrame.width - Self.dockTolerance
-
-        return touchesBottom && hasMeaningfulHeight && spansWindowWidth
+        guard let windowFrame = activeWindowFrame() else { return false }
+        return TerminalKeyboardGeometry.isDocked(keyboard: keyboardFrame, container: windowFrame)
     }
     #endif
 
@@ -531,7 +513,7 @@ final class EffectManager {
         #if os(visionOS)
         let screenBounds = keyboardFrame
         #else
-        let screenBounds = activeWindowFrame() ?? UIScreen.main.bounds
+        guard let screenBounds = activeWindowFrame() else { return 0 }
         #endif
 
         // Calculate how much of the keyboard is visible on screen
@@ -549,18 +531,8 @@ final class EffectManager {
         #if os(visionOS)
         return nil
         #else
-        let scenes = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-        let foregroundScene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        guard let windowScene = foregroundScene else {
-            return nil
-        }
-
-        if let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }) {
-            return keyWindow.frame
-        }
-
-        return windowScene.windows.first?.frame
+        guard let window = KeyboardTracker.shared.inputOwnerWindow else { return nil }
+        return window.convert(window.bounds, to: window.screen.coordinateSpace)
         #endif
     }
 

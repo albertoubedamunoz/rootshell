@@ -234,11 +234,18 @@ final class MacVPNController {
     /// Starts the Tailscale tunnel. The sysext can't read the app group, so the
     /// settings and the SSH egress host (with resolved secrets) travel in the
     /// start request. `restart` reconnects a running one so new settings apply.
-    func startTailnet(restart: Bool) async throws {
+    /// `exportOnly` brings the sysext up without Tailscale so the app can read
+    /// the node state.
+    func startTailnet(restart: Bool, exportOnly: Bool = false) async throws {
         let settings = VPNTailnetProfile.settings()
         var tailnet = VPNResolvedTailnet(settings: settings)
+        if exportOnly {
+            tailnet.exportOnly = true
+        } else {
+            tailnet.importState = TailnetStateHandoff.stateForVPN()
+        }
         var usesAgentSigning = false
-        if settings.sshEgressProfileID != nil {
+        if !exportOnly, settings.sshEgressProfileID != nil {
             guard let stored = VPNTailnetProfile.egressSnapshot(settings) else {
                 throw MacVPNError.profileNotFound
             }
@@ -276,8 +283,15 @@ final class MacVPNController {
         if !response.success {
             throw VPNHostConnectionError.requestFailed(response.error ?? "start failed")
         }
+        guard !exportOnly else { return }
+        TailnetStateHandoff.vpnDidStart()
         // The root sysext can't write the app group; record what it started with.
         VPNTailnetProfile.storeApplied(settings)
+    }
+
+    /// The host and sysext can move Tailscale node state to and from the app.
+    func supportsTailnetStateHandoff() async -> Bool {
+        await hostInfo()?.supportsTailnetStateHandoff == true
     }
 #endif
 

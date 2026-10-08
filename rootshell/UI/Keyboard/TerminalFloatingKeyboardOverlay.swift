@@ -1,6 +1,11 @@
 #if !os(visionOS) && !targetEnvironment(macCatalyst)
 import UIKit
 
+extension Notification.Name {
+    /// Posted with the window whose Duo fold appeared, moved, or went away.
+    static let terminalFoldRegionDidChange = Notification.Name("terminalFoldRegionDidChange")
+}
+
 /// Keyboard events forwarded to whichever controller currently owns the
 /// window's keyboard. Owners change on every focus handoff; the closures
 /// installed on the keyboard never do.
@@ -29,6 +34,11 @@ final class TerminalTouchKeyboardWindowState {
     /// The state whose choices the live keyboard currently shows.
     private(set) var displayedState: TerminalFloatingKeyboardState?
     var overlay: TerminalFloatingKeyboardOverlay?
+    /// Optional tabletop input region, expressed in this app window's coordinates.
+    private(set) var inputRegion: CGRect?
+    /// The Duo's fold in this window's coordinates, even when tabletop mode
+    /// reserves no region.
+    private(set) var foldRegion: CGRect?
 
     private(set) lazy var keyboard: TerminalTouchKeyboardView = makeKeyboard()
     private(set) lazy var input: TerminalTouchKeyboardInputView = makeInput()
@@ -51,6 +61,20 @@ final class TerminalTouchKeyboardWindowState {
         let state = TerminalTouchKeyboardWindowState(window: window)
         windows.setObject(state, forKey: window)
         return state
+    }
+
+    func setInputRegion(_ region: CGRect?, fold: CGRect?) {
+        if foldRegion != fold {
+            let changesActivity = (foldRegion == nil) != (fold == nil)
+            foldRegion = fold
+            // Never create the keyboard just to clear a flag it would default to.
+            if changesActivity { keyboard.fillsHostHeight = fold != nil }
+            NotificationCenter.default.post(name: .terminalFoldRegionDidChange, object: window)
+        }
+        guard inputRegion != region else { return }
+        inputRegion = region
+        overlay?.inputRegion = region
+        input.setNeedsLayout()
     }
 
     func state(tabID: UUID?, perTab: Bool) -> TerminalFloatingKeyboardState {
@@ -103,6 +127,7 @@ final class TerminalTouchKeyboardWindowState {
 
     private func makeKeyboard() -> TerminalTouchKeyboardView {
         let keyboard = TerminalTouchKeyboardView()
+        keyboard.fillsHostHeight = foldRegion != nil
         keyboard.setBackgroundEffectSurface(nil)
         keyboard.onModifiersChanged = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.modifiersChanged($0)) }
         keyboard.onDismiss = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.dismiss) }
@@ -119,7 +144,10 @@ final class TerminalTouchKeyboardWindowState {
 
     private func makeInput() -> TerminalTouchKeyboardInputView {
         let input = TerminalTouchKeyboardInputView(keyboard: keyboard)
-        input.hostSize = { [weak self] in self?.window?.bounds.size ?? .zero }
+        input.hostSize = { [weak self] in
+            guard let self, let window = self.window else { return .zero }
+            return TerminalKeyboardGeometry.inputRegion(self.inputRegion, in: window.bounds).size
+        }
         input.onHeightChanged = { [weak self] in
             self?.toolbarInput.updateHeight()
             self?.owner?.handleTouchKeyboardEvent(.heightChanged)
@@ -166,6 +194,9 @@ final class TerminalFloatingKeyboardOverlay: UIView {
     private var dragOrigin: CGRect?
     var onDock: (() -> Void)?
     var isHostActive: (() -> Bool)?
+    var inputRegion: CGRect? {
+        didSet { if oldValue != inputRegion { dragOrigin = nil; setNeedsLayout() } }
+    }
 
     init(keyboard: TerminalTouchKeyboardView, state: TerminalFloatingKeyboardState) {
         self.keyboard = keyboard
@@ -187,7 +218,11 @@ final class TerminalFloatingKeyboardOverlay: UIView {
         setNeedsLayout()
     }
 
-    private var available: CGRect { bounds.inset(by: safeAreaInsets).insetBy(dx: 12, dy: 12) }
+    private var available: CGRect {
+        let region = inputRegion.map { convert($0, from: window) }
+        return TerminalKeyboardGeometry.inputRegion(region, in: bounds.inset(by: safeAreaInsets))
+            .insetBy(dx: 12, dy: 12)
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()

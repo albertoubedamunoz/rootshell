@@ -19,6 +19,14 @@ nonisolated struct TailnetStatus: Decodable, Sendable, Equatable {
         var os: String?
         var ips: [String]?
         var online: Bool
+        /// Stable node ID, used to pick an exit node.
+        var nodeID: String?
+        var exitNodeOption: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case name, dnsName, os, ips, online, exitNodeOption
+            case nodeID = "id"
+        }
 
         var id: String { dnsName ?? name }
         var displayName: String {
@@ -41,9 +49,14 @@ nonisolated struct TailnetStatus: Decodable, Sendable, Equatable {
     var peers: [Peer]?
     var peersTotal: Int?
     var egress: Egress?
+    var exitNodeID: String?
+    var exitNodeOnline: Bool?
+    /// Bumps on every node-state write (keys, profile).
+    var stateVersion: Int?
 
     enum CodingKeys: String, CodingKey {
         case state, authURL, error, tailnet, magicDNSSuffix, peers, peersTotal, egress
+        case exitNodeID, exitNodeOnline, stateVersion
         case selfNode = "self"
     }
 
@@ -77,16 +90,11 @@ extension VPNManager {
     }
 }
 
-/// The node's Tailscale keys, stored by the VPN extension.
+/// The node's Tailscale keys, shared by the VPN extension and the in-app engine.
 enum TailnetKeychain {
     /// Forgets this device's tailnet identity while the VPN is off.
     static func deleteAll() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: VPNTailnetProfile.keychainService,
-            kSecAttrAccessGroup as String: AppIdentifiers.keychainAccessGroup,
-        ]
-        SecItemDelete(query as CFDictionary)
+        TailnetKeychainState.deleteAll()
         VPNTailnetProfile.storeLoginState(VPNTailnetLoginState())
     }
 }

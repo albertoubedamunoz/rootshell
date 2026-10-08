@@ -129,6 +129,13 @@ enum TrzszSpawnHelper {
             } else if config.sshConfig.jumpHost?.tsshRelay != nil {
                 throw TrzszError.connectionFailed("The requested jump relay has no SSH bootstrap connection.")
             }
+            #if !CHINA_BUILD
+            // Keep tsshd's packets inside the tailnet's 1280-byte MTU when
+            // in-app Tailscale carries the UDP path.
+            if targetConfig.mtu == 0, relayTransport == nil, TailnetRouting.shared.wasRouted(resolvedHost) {
+                targetConfig.mtu = 1200
+            }
+            #endif
             let serverInfo = try await execute(command: targetConfig.serverCommand(), sshClient: sshClient)
             try Task.checkCancellation()
         return SpawnResult(

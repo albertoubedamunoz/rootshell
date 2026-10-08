@@ -217,6 +217,20 @@ enum QuickSettingsCatalog {
             toggle(Settings.Sidebar.largeControls),
             integer(Settings.Sidebar.rowLines, 1...3),
         ]
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        if #available(iOS 27.1, *) {
+            entries += [
+                choices(Settings.Tabs.duoFrontDisplayMode, label: { $0.displayName })
+                    .annotated(String(localized: "Applies to Duo's front display when closed.")),
+                toggle(Settings.Tabs.duoBehindCameraShowsTabs)
+                    .requiring {
+                        SettingsStore.shared.get(Settings.Tabs.duoFrontDisplayMode) == .behindCamera
+                            ? nil : String(localized: "Choose Behind Camera first.")
+                    }
+                    .annotated(String(localized: "Text behind the camera will be hidden.")),
+            ]
+        }
+        #endif
         entries += [
             choices(Settings.Power.maxRefreshRate, label: { $0.displayName }, set: { PowerManager.shared.maxRefreshRate = $0 }),
             choices(Settings.Power.batteryRefreshRate, label: { $0.displayName }, set: { PowerManager.shared.batteryRefreshRate = $0 })

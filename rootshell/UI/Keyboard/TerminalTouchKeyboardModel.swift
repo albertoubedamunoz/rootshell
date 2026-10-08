@@ -714,6 +714,15 @@ nonisolated enum TerminalTouchKeyboardModel {
         }
     }
 
+    /// UIKit can fix a docked keyboard's height (iPhone Duo's laptop pose).
+    /// Rows grow to fill it up to a comfortable size; the remainder goes above
+    /// the toolbar so the keys stay on the bottom edge.
+    static func fixedHeightLayout(height: Double, chrome: Double, rowCount: Int) -> (rowHeight: Double, top: Double) {
+        guard rowCount > 0 else { return (0, max(0, height - chrome)) }
+        let rowHeight = min(80, max(30, (height - chrome) / Double(rowCount)))
+        return (rowHeight, max(0, height - chrome - rowHeight * Double(rowCount)))
+    }
+
     enum Placement: Equatable { case docked, floating }
 
     static func placementAfterPinch(_ scale: CGFloat, from placement: Placement) -> Placement {

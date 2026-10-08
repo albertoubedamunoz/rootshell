@@ -1,6 +1,7 @@
 #if !targetEnvironment(macCatalyst)
 
 import Foundation
+import os
 import OSLog
 
 /// Shared one-time libgit2 initialization.
@@ -14,6 +15,12 @@ enum GitInitializer {
         if sshResult != 0 {
             logger.warning("Failed to register SSH transport: \(sshResult)")
         }
+        #if !CHINA_BUILD
+        let streamResult = git_tailnet_stream_register()
+        if streamResult != 0 {
+            logger.warning("Failed to register Tailscale stream: \(streamResult)")
+        }
+        #endif
     }()
 }
 
@@ -154,6 +161,35 @@ final class GitCommand {
         output("^C\r\n")
         onComplete?()
     }
+}
+
+// MARK: - Tailscale stream (called from GitTailnetStream.c)
+
+/// A connected socket over in-app Tailscale for host:port: -1 when the host
+/// isn't on the tailnet (libgit2 then connects normally), -2 when the tailnet
+/// dial failed. Runs on libgit2's worker thread, so it may block.
+@_cdecl("git_tailnet_swift_dial")
+nonisolated func gitTailnetSwiftDial(_ host: UnsafePointer<CChar>?, _ port: Int32) -> Int32 {
+    #if !CHINA_BUILD
+    guard let host, TailnetRouting.shared.state.enabled else { return -1 }
+    let name = String(cString: host)
+    let result = OSAllocatedUnfairLock<Int32>(initialState: -1)
+    let semaphore = DispatchSemaphore(value: 0)
+    Task.detached {
+        defer { semaphore.signal() }
+        guard let ip = await TailnetDialer.route(name) else { return }
+        do {
+            let fd = try await TailnetGo.dialTCP(host: ip, port: Int(port), timeout: .seconds(30))
+            result.withLock { $0 = fd }
+        } catch {
+            result.withLock { $0 = -2 }
+        }
+    }
+    semaphore.wait()
+    return result.withLock { $0 }
+    #else
+    return -1
+    #endif
 }
 
 #endif

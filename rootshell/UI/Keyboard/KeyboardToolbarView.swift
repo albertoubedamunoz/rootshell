@@ -347,7 +347,7 @@ class KeyboardToolbarView: UIView {
 
     // MARK: - Initialization
 
-    init(sizes: KeyboardSizes = .current()) {
+    init(sizes: KeyboardSizes) {
         self.sizes = sizes
 
         super.init(frame: .zero)
@@ -382,7 +382,13 @@ class KeyboardToolbarView: UIView {
         isPhoneLandscape ? 6 : 2
     }
 
+    /// Embedded previews are already inset by their SwiftUI container.
+    var isEmbeddedPreview = false {
+        didSet { updateInsetsForCurrentTraits() }
+    }
+
     private func currentChromeHorizontalInsets() -> (left: CGFloat, right: CGFloat) {
+        if isEmbeddedPreview { return (0, 0) }
         guard isPhoneLandscape else { return (0, 0) }
 
         let localLeft = safeAreaInsets.left

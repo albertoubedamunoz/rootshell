@@ -235,11 +235,9 @@ final class TerminalTouchKeyboardInputView: UIInputView {
                 self.onNativePlacementChanged?(floating ? .floating : .docked)
             }
         }
-        // A native keyboard window may be only as tall as its current card.
-        // Feeding that height back into row sizing shrinks the keys on each
-        // layout. Use the display's height, independent of the current card.
-        let availableHeight = keyboard.usesSystemPlacement
-            ? (window?.windowScene?.screen.bounds.height ?? size.height) : size.height
+        // Use the owning app's input region, never the keyboard window's
+        // current card height (which would feed back into row sizing).
+        let availableHeight = size.height
         keyboard.floatingAvailableHeight = max(230, availableHeight - 48)
         keyboard.setFloating(floating)
         updateHeight()

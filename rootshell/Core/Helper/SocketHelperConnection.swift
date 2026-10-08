@@ -12,6 +12,14 @@ import Foundation
 /// Communicates over a Unix domain socket in the App Group container.
 @available(macCatalyst 14.0, *)
 class SocketHelperConnection {
+    /// In-app Tailscale's loopback proxy for curl and friends, when turned on.
+    private nonisolated static var extraShellEnvironment: [String: String]? {
+        #if !CHINA_BUILD
+        TailnetRouting.shared.state.shellProxyEnvironment
+        #else
+        nil
+        #endif
+    }
 
     private static let inspectionQueue = DispatchQueue(label: "com.rootshell.helper.inspection", qos: .utility)
     private static let ioQueue = DispatchQueue(label: "com.rootshell.helper.socket", qos: .userInitiated)
@@ -42,7 +50,8 @@ class SocketHelperConnection {
             appVersionWithBuild: TerminalIdentity.version,
             termType: TerminalTypeSettings.local,
             paneToken: paneToken,
-            recoveryAttachment: recoveryAttachment
+            recoveryAttachment: recoveryAttachment,
+            extraEnvironment: Self.extraShellEnvironment
         )
         let payload = try JSONEncoder().encode(request)
 

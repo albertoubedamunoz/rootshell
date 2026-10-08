@@ -249,7 +249,10 @@ struct TransparencySettingsView: View {
 // MARK: - Window Settings
 
 struct WindowSettingsView: View {
+    @Environment(\.duoLayout) private var duoLayout
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Setting(Settings.Tabs.topTabStyle) private var topTabStyle
+    @Setting(Settings.Tabs.duoFrontDisplayMode) private var duoFrontDisplayMode
     @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
     @Setting(Settings.Tabs.hoverPreviews) private var tabHoverPreviewsEnabled
     @Setting(Settings.Tabs.hoverPreviewActivation) private var tabHoverPreviewActivation
@@ -419,7 +422,7 @@ struct WindowSettingsView: View {
                 #if !os(visionOS)
                 Toggle(isOn: $tabSidebarTranslucent) {
                     HStack(spacing: 6) {
-                        Text(UIDevice.current.userInterfaceIdiom == .phone
+                        Text(horizontalSizeClass != .regular
                             ? String(localized: "Translucent Tab Switcher")
                             : String(localized: "Translucent Tab Sidebar"))
                         SettingPinTag(Settings.Sidebar.translucent.erased)
@@ -428,9 +431,9 @@ struct WindowSettingsView: View {
                 .themedRow()
                 .settingContextMenu(Settings.Sidebar.translucent)
 
-                // Pinned/non-pinned only exists on iPad/Catalyst; on phone the
-                // switcher always dismisses on select, so the toggle is a no-op.
-                if UIDevice.current.userInterfaceIdiom != .phone {
+                // Compact layouts dismiss the switcher on selection; regular
+                // layouts can keep a sidebar open beside the terminal.
+                if horizontalSizeClass == .regular {
                     SettingDescribedToggle(
                         Settings.Sidebar.autoHideOnSelect,
                         title: "Auto-Hide Sidebar After Selection",
@@ -444,7 +447,7 @@ struct WindowSettingsView: View {
                 // titles wrap instead of truncating.
                 Stepper(value: $tabSidebarRowLines, in: 1...3) {
                     HStack {
-                        Text(UIDevice.current.userInterfaceIdiom == .phone
+                        Text(horizontalSizeClass != .regular
                             ? String(localized: "Tab Switcher Title Lines")
                             : String(localized: "Sidebar Title Lines"))
                             .settingRow(Settings.Sidebar.rowLines)
@@ -458,6 +461,38 @@ struct WindowSettingsView: View {
             } header: {
                 Text("Tab Bar")
             }
+
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            if #available(iOS 27.1, *), duoLayout.hasHinge {
+                Section {
+                    Picker(selection: $duoFrontDisplayMode) {
+                        ForEach(DuoFrontDisplayMode.allCases, id: \.rawValue) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    } label: {
+                        Text("Layout")
+                            .settingRow(Settings.Tabs.duoFrontDisplayMode)
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(SettingFileLock.isReadOnly(Settings.Tabs.duoFrontDisplayMode.name))
+                    .themedRow()
+
+                    if duoFrontDisplayMode == .behindCamera {
+                        SettingDescribedToggle(
+                            Settings.Tabs.duoBehindCameraShowsTabs,
+                            title: "Show Top Tabs",
+                            description: "Text behind the camera will be hidden."
+                        )
+                        .themedRow()
+                    }
+                } header: {
+                    Text("Duo Front Display")
+                } footer: {
+                    Text("Choose the terminal layout when Duo is closed. Side Rail moves tabs beside the terminal. Below Camera keeps top tabs and uses the full width beneath the camera. Behind Camera lets the terminal extend beneath the camera.")
+                        .font(.caption)
+                }
+            }
+            #endif
 
             #if targetEnvironment(macCatalyst)
             Section {

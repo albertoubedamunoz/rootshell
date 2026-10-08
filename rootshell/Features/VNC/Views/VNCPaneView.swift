@@ -342,13 +342,22 @@ final class VNCPaneView: SplitPaneView, ObservableObject {
         fatalError("init(coder:) is not supported for this view")
     }
 
+    /// KeyboardTracker measures keyboard frames against the input owner's
+    /// window. The package responder bypasses the controller getters that
+    /// register it for terminals, so claim it before capture raises the
+    /// keyboard.
+    func captureKeyboard() {
+        KeyboardTracker.shared.setInputOwnerWindow(window)
+        keyboardCapture.capture()
+    }
+
     // MARK: - Lifecycle
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
         guard window != nil, !isClosed else { return }
         if isLogicallyFocused, !overlayOwnsKeyboard {
-            keyboardCapture.capture()
+            captureKeyboard()
         } else {
             keyboardCapture.release()
         }
@@ -807,7 +816,7 @@ final class VNCPaneView: SplitPaneView, ObservableObject {
         clipboardSynchronizer.setHostFocused(focused)
         if focused {
             if !overlayOwnsKeyboard {
-                keyboardCapture.capture()
+                captureKeyboard()
             }
             // A restored background pane may already be connected by the
             // time its tab is selected. Retry the still-pending enter request
@@ -868,7 +877,7 @@ final class VNCPaneView: SplitPaneView, ObservableObject {
             }
             return
         }
-        keyboardCapture.capture()
+        captureKeyboard()
         requestFullScreenIfNeeded()
         if keyboardCapture.isCaptured || attempt >= 24 {
             if keyboardCapture.isCaptured, overlayLatchedSoftwareKeyboardRequested {

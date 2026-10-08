@@ -62,6 +62,10 @@ enum NetworkAddressUtils {
             return isCGNATAddress(hostname) ? hostname : nil
         }
 
+        #if !CHINA_BUILD
+        if let ip = await tailnetIPv4(hostname) { return ip }
+        #endif
+
         // Resolve with timeout
         return await withTimeoutResolution(hostname: hostname) { ipString in
             isCGNATAddress(ipString)
@@ -85,11 +89,24 @@ enum NetworkAddressUtils {
             return isRoutableIPv4(hostname) ? hostname : nil
         }
 
+        #if !CHINA_BUILD
+        if let ip = await tailnetIPv4(hostname) { return ip }
+        #endif
+
         // Resolve with timeout
         return await withTimeoutResolution(hostname: hostname) { ipString in
             isRoutableIPv4(ipString)
         }
     }
+
+    #if !CHINA_BUILD
+    /// The in-app Tailscale address for a tailnet name (MagicDNS isn't in the OS
+    /// resolver without the VPN).
+    private static func tailnetIPv4(_ hostname: String) async -> String? {
+        guard let ip = await TailnetDialer.route(hostname), !ip.contains(":") else { return nil }
+        return ip
+    }
+    #endif
 
     // MARK: - Private Implementation
 

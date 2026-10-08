@@ -36,8 +36,12 @@ class QuickConnectTextField: UITextField, KeyboardButtonDelegate {
 
     private func setupAccessoryView() {
         // Use the new keyboard toolbar
-        keyboardAccessory = KeyboardAccessoryView()
+        keyboardAccessory = KeyboardAccessoryView(sizes: .current(traitCollection: traitCollection))
         keyboardAccessory?.delegate = self
+        registerForTraitChanges([UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]) {
+            (field: QuickConnectTextField, _: UITraitCollection) in
+            field.keyboardAccessory?.updateForTraitCollection(field.traitCollection)
+        }
 
         // Listen for modifier changes from toolbar
         keyboardAccessory?.onModifiersChanged = { [weak self] modifiers in
@@ -78,6 +82,15 @@ class QuickConnectTextField: UITextField, KeyboardButtonDelegate {
         keyboardStateTask?.cancel()
         keyboardVisibilityTask?.cancel()
         keyboardAnimationTask?.cancel()
+    }
+
+    /// KeyboardTracker measures keyboard frames against the input owner's
+    /// window. Terminals register it from their input-view getters; this
+    /// field never goes through those, so claim it before UIKit posts the
+    /// show notifications.
+    override func becomeFirstResponder() -> Bool {
+        KeyboardTracker.shared.setInputOwnerWindow(window)
+        return super.becomeFirstResponder()
     }
 
     override func didMoveToWindow() {

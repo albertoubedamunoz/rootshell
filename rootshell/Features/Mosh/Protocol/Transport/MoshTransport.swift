@@ -87,6 +87,21 @@ final class MoshTransport {
     /// Network connection
     private var connection: NWConnection?
 
+    #if !CHINA_BUILD
+    /// Set at connect when the host is reached through in-app Tailscale.
+    private var useTailnet = false
+    private var tailnetSocket: TailnetDatagramSocket?
+    /// Bumps per dial so a late result from an older attempt is dropped.
+    private var tailnetGeneration = 0
+    #endif
+
+    private var hasPath: Bool {
+        #if !CHINA_BUILD
+        if tailnetSocket != nil { return true }
+        #endif
+        return connection != nil
+    }
+
     /// Crypto session
     private var crypto: MoshCryptoSession?
 
@@ -143,7 +158,7 @@ final class MoshTransport {
 
     /// Whether we should attempt to send (includes roaming/connecting)
     var canSend: Bool {
-        guard connection != nil else { return false }
+        guard hasPath else { return false }
         switch state {
         case .failed, .disconnected:
             return false
@@ -214,6 +229,9 @@ final class MoshTransport {
         }
         lastReceiveTime = ProtocolTiming.monotonicNowMs()
 
+        #if !CHINA_BUILD
+        useTailnet = await TailnetDialer.route(host) != nil
+        #endif
         beginConnection()
 
         // Wait for connection with timeout
@@ -268,6 +286,10 @@ final class MoshTransport {
         // Cancel connection after setting allowReconnect
         connection?.cancel()
         connection = nil
+        #if !CHINA_BUILD
+        tailnetSocket?.close()
+        tailnetSocket = nil
+        #endif
 
         setState(.disconnected)
     }
@@ -287,7 +309,7 @@ final class MoshTransport {
             throw MoshError.sessionNotStarted
         }
 
-        guard let conn = connection, canSend else {
+        guard canSend else {
             throw MoshError.sendFailed(reason: "Not connected")
         }
 
@@ -314,8 +336,14 @@ final class MoshTransport {
             // Encrypt
             let encrypted = try crypto.encrypt(plaintext)
 
+            #if !CHINA_BUILD
+            if let tailnetSocket {
+                tailnetSocket.send(encrypted)
+                continue
+            }
+            #endif
             // Send via connection
-            conn.send(content: encrypted, completion: .contentProcessed { [weak self] error in
+            connection?.send(content: encrypted, completion: .contentProcessed { [weak self] error in
                 if let error = error {
                     Task { @MainActor [weak self] in
                         guard let self = self else { return }
@@ -424,6 +452,14 @@ final class MoshTransport {
             existing.cancel()
             connection = nil
         }
+        #if !CHINA_BUILD
+        tailnetSocket?.close()
+        tailnetSocket = nil
+        if useTailnet {
+            beginTailnetConnection()
+            return
+        }
+        #endif
         // Create endpoint
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(host),
@@ -495,6 +531,46 @@ final class MoshTransport {
         // Start connection
         conn.start(queue: networkQueue)
     }
+
+    #if !CHINA_BUILD
+    /// Opens the UDP flow over in-app Tailscale; there is no path or bind
+    /// state to watch, and the tailnet handles roaming itself.
+    private func beginTailnetConnection() {
+        setState(.connecting)
+        tailnetGeneration += 1
+        let generation = tailnetGeneration
+        let host = host
+        let port = port
+        Task { @MainActor [weak self] in
+            do {
+                let socket = try await TailnetDatagramSocket.open(host: host, port: port)
+                guard let self, self.allowReconnect, self.tailnetGeneration == generation else {
+                    socket.close()
+                    return
+                }
+                self.tailnetSocket = socket
+                socket.startReceiving { [weak self] data in
+                    let receiveTimestamp = MoshTimestamp.now
+                    let receivedAtMs = ProtocolTiming.monotonicNowMs()
+                    Task { @MainActor [weak self] in
+                        guard let self, self.tailnetSocket === socket else { return }
+                        self.handleReceivedData(data, receiveTimestamp: receiveTimestamp, receivedAtMs: receivedAtMs)
+                    }
+                }
+                Self.logger.info("UDP over Tailscale ready to \(host):\(port)")
+                self.reconnectAttempts = 0
+                self.reconnectTask?.cancel()
+                self.reconnectTask = nil
+                self.setState(.connected)
+            } catch {
+                guard let self, self.tailnetGeneration == generation else { return }
+                Self.logger.error("UDP over Tailscale failed: \(error.localizedDescription, privacy: .public)")
+                self.setState(.failed(reason: error.localizedDescription))
+                self.scheduleReconnect(reason: error.localizedDescription)
+            }
+        }
+    }
+    #endif
 
     /// Maximum reconnect attempts before giving up
     private static let maxReconnectAttempts = 30
@@ -745,5 +821,8 @@ final class MoshTransport {
         reconnectTask?.cancel()
         bindRetryTask?.cancel()
         connection?.cancel()
+        #if !CHINA_BUILD
+        tailnetSocket?.close()
+        #endif
     }
 }

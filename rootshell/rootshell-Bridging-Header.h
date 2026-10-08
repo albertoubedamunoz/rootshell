@@ -29,6 +29,7 @@
 #include <libgit2/git2.h>
 #include <libgit2/git2/sys/errors.h>
 #include "Features/Git/GitSSHTransportBridge.h"
+#include "Features/Git/GitTailnetStream.h"
 #endif
 
 // CoreWLAN plugin protocol for Mac Catalyst WiFi info

@@ -24,12 +24,15 @@ private final class TaskIDBox: @unchecked Sendable {
 /// again when background processing finalizes.
 @MainActor
 enum BackgroundStatePersistence {
-    static func save(label: String) {
+    /// `clearsWhenClosed` is false for finalize: by then a scene disconnect
+    /// (force-quit, reclaim) may have unregistered the windows, so empty is teardown.
+    static func save(label: String, clearsWhenClosed: Bool) {
         let start = CFAbsoluteTimeGetCurrent()
         let windowState = WindowStateManager.shared.gatherState()
         // An empty result after a populated one this launch means the user
         // closed everything; before that, restoration may not have run yet.
-        if windowState == nil
+        if clearsWhenClosed
+            && windowState == nil
             && WindowStateManager.isSessionPersistenceEnabled
             && WindowStateManager.shared.hasObservedNonEmptyStateThisLaunch {
             WindowStateManager.shared.clearSavedState()
@@ -281,7 +284,7 @@ final class BackgroundExecutionCoordinator {
             ("reason", reason),
             ("remaining", UIApplication.shared.backgroundTimeRemaining),
         ])
-        BackgroundStatePersistence.save(label: "BG.finalize")
+        BackgroundStatePersistence.save(label: "BG.finalize", clearsWhenClosed: false)
         // Serial queue: this marker runs after the save queued above.
         BackgroundPersistenceQueue.queue.async {
             DispatchQueue.main.async {

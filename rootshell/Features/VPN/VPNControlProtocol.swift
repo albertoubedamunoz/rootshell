@@ -123,6 +123,8 @@ nonisolated struct VPNHostInfoResponse: Codable, Sendable {
     var supportsHTTPCapture: Bool? = nil
     /// Host and sysext can run the Tailscale tunnel.
     var supportsTailscale: Bool? = nil
+    /// Sysext can export and import Tailscale node state (one device across modes).
+    var supportsTailnetStateHandoff: Bool? = nil
     let version: String
     let bundlePath: String
 }

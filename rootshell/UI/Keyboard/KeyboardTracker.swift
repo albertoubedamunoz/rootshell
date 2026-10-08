@@ -43,6 +43,18 @@ class KeyboardTracker {
     @MainActor
     private(set) var keyboardFrame: CGRect = .zero
 
+    /// Keyboard notifications are process-wide. Capture the actual input
+    /// owner's window when its controller is queried rather than choosing an
+    /// arbitrary connected scene. Keep it through hide/overlay transitions.
+    @MainActor @ObservationIgnored
+    private(set) weak var inputOwnerWindow: UIWindow?
+
+    @MainActor
+    func setInputOwnerWindow(_ window: UIWindow?) {
+        guard let window else { return }
+        inputOwnerWindow = window
+    }
+
     /// True while UIKit has any input view on screen, including a toolbar-only
     /// or accessory-only layout below the software-keyboard threshold. Those
     /// layouts hide and re-show through the same keyboard notifications and
@@ -439,6 +451,8 @@ class KeyboardTracker {
 
     @MainActor
     @objc private func sceneWillDeactivateForKeyboard(_ notification: Notification) {
+        guard let scene = notification.object as? UIWindowScene,
+              scene === inputOwnerWindow?.windowScene else { return }
         shortcutRecoveryModifierKeys.removeAll()
         stopTrackedKeyRepeat()
         beginAppTransitionKeyboardPreservationIfNeeded(autoClearIfAppStaysActive: true)
@@ -466,6 +480,8 @@ class KeyboardTracker {
 
     @MainActor
     @objc private func sceneDidActivateForKeyboard(_ notification: Notification) {
+        guard let scene = notification.object as? UIWindowScene,
+              scene === inputOwnerWindow?.windowScene else { return }
         scheduleAppTransitionKeyboardPreservationClear()
     }
 
@@ -1006,7 +1022,8 @@ class KeyboardTracker {
         terminalView.handleModifierKeyChange(keyCode: keyCode, pressed: pressed)
     }
 
-    /// The first-responder terminal in the key window, if any.
+    /// Hardware input is process-wide. Search for its first responder across
+    /// scenes; this is routing a physical event, not measuring UI geometry.
     @MainActor
     private func focusedTerminalView() -> Ghostty.TerminalView? {
         guard let keyWindow = UIApplication.shared.connectedScenes
@@ -1389,10 +1406,7 @@ class KeyboardTracker {
             return true
         }
 
-        let scenes = UIApplication.shared.connectedScenes
-        let hasForegroundActiveScene = scenes.contains { $0.activationState == .foregroundActive }
-        let hasForegroundInactiveScene = scenes.contains { $0.activationState == .foregroundInactive }
-        return hasForegroundInactiveScene && !hasForegroundActiveScene
+        return inputOwnerWindow?.windowScene?.activationState == .foregroundInactive
     }
 
     @MainActor
@@ -1401,16 +1415,23 @@ class KeyboardTracker {
     }
 
     @MainActor
+    private static var activeKeyWindow: UIWindow? {
+        UIApplication.shared.connectedScenes.lazy
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }?.keyWindow
+    }
+
+    @MainActor
     private func visibleKeyboardHeight(for keyboardFrame: CGRect) -> CGFloat {
         #if os(visionOS)
         return keyboardFrame.height
         #else
-        let screenBounds = UIScreen.main.bounds
-        let intersection = screenBounds.intersection(keyboardFrame)
-        if intersection.isNull || intersection.isEmpty {
-            return 0
-        }
-        return intersection.height
+        // No owner yet (a SwiftUI field on a cold start): measure against the
+        // active key window rather than reporting the keyboard hidden.
+        guard let window = inputOwnerWindow ?? Self.activeKeyWindow else { return 0 }
+        let localFrame = window.convert(keyboardFrame, from: window.screen.coordinateSpace)
+        return TerminalKeyboardGeometry.overlapHeight(
+            keyboard: localFrame, container: window.bounds, requireFullWidth: false)
         #endif
     }
 }
