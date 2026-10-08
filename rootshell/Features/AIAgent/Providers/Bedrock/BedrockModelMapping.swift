@@ -24,9 +24,7 @@ enum BedrockModelMapping {
     /// doesn't have a profile in that geo we fall back to `global`, which is
     /// available for every Anthropic model on Bedrock today.
     private struct ModelDefinition {
-        /// Foundation model ID exactly as registered in Bedrock — note that
-        /// Haiku 4.5 includes a date stamp and `-v1:0` suffix, while the
-        /// Opus/Sonnet 4.x entries don't. These match what
+        /// Foundation model ID exactly as registered in Bedrock. These match what
         /// `aws bedrock list-foundation-models --by-provider anthropic` returns.
         let foundationID: String
         let geographies: Set<String>
@@ -45,9 +43,9 @@ enum BedrockModelMapping {
             foundationID: "anthropic.claude-sonnet-5-5",
             geographies: ["us", "eu", "au", "global"]
         ),
-        "bedrock-claude-haiku-4-5": ModelDefinition(
-            foundationID: "anthropic.claude-haiku-4-5-20251001-v1:0",
-            geographies: ["us", "eu", "au", "jp", "global"]
+        "bedrock-claude-haiku-5-5": ModelDefinition(
+            foundationID: "anthropic.claude-haiku-5-5",
+            geographies: ["global"]
         )
     ]
 
@@ -70,7 +68,7 @@ enum BedrockModelMapping {
         case "bedrock-claude-fable-5-1": return "claude-fable-5-1"
         case "bedrock-claude-opus-5-5":  return "claude-opus-5-5"
         case "bedrock-claude-sonnet-5-5": return "claude-sonnet-5-5"
-        case "bedrock-claude-haiku-4-5": return "claude-haiku-4-5-20251001"
+        case "bedrock-claude-haiku-5-5": return "claude-haiku-5-5"
         default: return nil
         }
     }

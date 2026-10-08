@@ -258,10 +258,10 @@ extension AIProviderModel {
             contextWindowTokens: 1_000_000
         ),
 
-        // Budget tier - Claude Haiku 4.5 with thinking
+        // Budget tier - Claude Haiku 5.5 with adaptive thinking
         .init(
-            id: "claude-haiku-4-5-20251001",
-            displayName: "Claude Haiku 4.5",
+            id: "claude-haiku-5-5",
+            displayName: "Claude Haiku 5.5",
             description: "Fastest, lowest cost",
             tier: .budget,
             supportsTools: true,
@@ -269,7 +269,7 @@ extension AIProviderModel {
             supportsThinking: true,
             source: .anthropic,
             maxCompletionTokens: nil,
-            contextWindowTokens: 200_000
+            contextWindowTokens: 1_000_000
         ),
     ]
 
@@ -334,8 +334,8 @@ extension AIProviderModel {
             contextWindowTokens: 1_000_000
         ),
         .init(
-            id: "bedrock-claude-haiku-4-5",
-            displayName: "Claude Haiku 4.5 (Bedrock)",
+            id: "bedrock-claude-haiku-5-5",
+            displayName: "Claude Haiku 5.5 (Bedrock)",
             description: "Fastest, lowest cost",
             tier: .budget,
             supportsTools: true,
@@ -343,7 +343,7 @@ extension AIProviderModel {
             supportsThinking: true,
             source: .bedrock,
             maxCompletionTokens: nil,
-            contextWindowTokens: 200_000
+            contextWindowTokens: 1_000_000
         )
     ]
 
