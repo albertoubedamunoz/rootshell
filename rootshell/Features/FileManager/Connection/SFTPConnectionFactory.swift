@@ -19,6 +19,9 @@ enum FileManagerConnectionError: LocalizedError {
     case notRemote
     case cancelled
     case sftpServerMissing(host: String)
+    case sudoUnavailable
+    case sudoFailed(host: String, message: String)
+    case sudoRequiresTTY(host: String)
 
     var errorDescription: String? {
         switch self {
@@ -32,6 +35,12 @@ enum FileManagerConnectionError: LocalizedError {
             String(localized: "Connection cancelled.", comment: "File manager connection error")
         case .sftpServerMissing(let host):
             String(localized: "\(host) has no sftp-server installed.", comment: "File manager connection error; the argument is a host name")
+        case .sudoUnavailable:
+            String(localized: "This connection can't run sudo.", comment: "File manager connection error")
+        case .sudoFailed(let host, let message):
+            String(localized: "sudo on \(host) failed: \(message)", comment: "File manager connection error; the arguments are a host name and the reason")
+        case .sudoRequiresTTY(let host):
+            String(localized: "sudo on \(host) requires a terminal (requiretty), so it can't be used for file transfer.", comment: "File manager connection error; the argument is a host name")
         }
     }
 }
@@ -41,7 +50,8 @@ enum SFTPConnectionFactory {
 
     static func open(_ endpoint: FileEndpoint, prompts: FileManagerPrompts) async throws -> SFTPConnection {
         switch endpoint {
-        case .local, .storage:
+        case .local, .storage, .sudo:
+            // Sudo connections layer on their base connection in the pool.
             throw FileManagerConnectionError.notRemote
         case .profile(let id):
             return try await openProfile(id, prompts: prompts)
@@ -160,6 +170,7 @@ enum SFTPConnectionFactory {
                 browseClient: sftp,
                 label: label,
                 openChannel: { try await client.openSFTP() },
+                openExec: citadelExecOpener(client),
                 teardown: teardown
             )
         } catch {
@@ -189,6 +200,7 @@ enum SFTPConnectionFactory {
                 browseClient: try await openChannel(),
                 label: label,
                 openChannel: openChannel,
+                openExec: tsshExecOpener { try await transport.openExecChannel($0) },
                 teardown: { await MainActor.run { transport.disconnect() } }
             )
         } catch {
@@ -203,15 +215,46 @@ enum SFTPConnectionFactory {
         open: @Sendable (String) async throws -> AsyncBytePipe
     ) async throws -> SFTPClient {
         let pipe = try await open(SFTPServerLauncher.command())
+        do {
+            return try await sftpClient(over: pipe, host: host)
+        } catch {
+            if error is CancellationError { throw error }
+            // The launcher exits before any version reply when no binary exists.
+            throw FileManagerConnectionError.sftpServerMissing(host: host)
+        }
+    }
+
+    /// Speaks SFTP over a pipe already connected to a running sftp-server.
+    nonisolated static func sftpClient(over pipe: AsyncBytePipe, host: String) async throws -> SFTPClient {
         let channel = try await BytePipeChannelBridge.makeChannel(for: pipe)
         do {
             return try await withTimeout(seconds: 20) { try await SFTPClient.connect(rawChannel: channel) }
         } catch {
             try? await channel.close()
-            if error is CancellationError { throw error }
-            // The launcher exits before any version reply when no binary exists.
-            logger.error("SFTP over exec failed on \(host, privacy: .public): \(String(describing: error), privacy: .public)")
-            throw FileManagerConnectionError.sftpServerMissing(host: host)
+            if !(error is CancellationError) {
+                logger.error("SFTP over exec failed on \(host, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
+            throw error
+        }
+    }
+
+    private nonisolated static func citadelExecOpener(_ client: SSHClient) -> @Sendable (String) async throws -> RemoteExecChannel {
+        { command in
+            let (pipe, stderr) = try await CitadelExecBytePipe.openWithStderr(client: client, command: command)
+            return RemoteExecChannel(pipe: pipe, stderr: stderr)
+        }
+    }
+
+    private nonisolated static func tsshExecOpener(
+        _ open: @escaping @Sendable (String) async throws -> AsyncBytePipe
+    ) -> @Sendable (String) async throws -> RemoteExecChannel {
+        { command in
+            let pipe = try await open(command)
+            guard let exec = pipe as? TrzszExecPipe else {
+                await pipe.close()
+                throw FileManagerConnectionError.sudoUnavailable
+            }
+            return RemoteExecChannel(pipe: exec, stderr: exec.stderrStream())
         }
     }
 
@@ -223,7 +266,24 @@ enum SFTPConnectionFactory {
         let label = source.displayName
         let host = source.fallbackConfig.underlyingSSHConfig?.host ?? label
         guard let openChannel = paneChannelOpener(for: terminal, host: host) else { return nil }
-        return SFTPConnection(browseClient: try await openChannel(), label: label, openChannel: openChannel, teardown: {})
+        return SFTPConnection(
+            browseClient: try await openChannel(),
+            label: label,
+            openChannel: openChannel,
+            openExec: paneExecOpener(for: terminal),
+            teardown: {}
+        )
+    }
+
+    /// Exec channels on the same connection `paneChannelOpener` lends.
+    private static func paneExecOpener(for terminal: Ghostty.TerminalView) -> (@Sendable (String) async throws -> RemoteExecChannel)? {
+        if let citadel = terminal.session as? CitadelSSHSession, let client = citadel.client {
+            return citadelExecOpener(client)
+        }
+        if let trzsz = TmuxController.gatewayTrzszSession(for: terminal.session) {
+            return tsshExecOpener { try await trzsz.openExecChannel($0) }
+        }
+        return nil
     }
 
     /// Opens SFTP channels on a pane's live Citadel client or tssh transport,

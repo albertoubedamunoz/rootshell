@@ -114,6 +114,21 @@ final class FileManagerModel {
     }
 
 
+    /// Switches `pane` between its host as the login user and as root, keeping
+    /// the folder. Leaving drops the root session unless something still uses it.
+    func setSudo(_ enabled: Bool, on pane: FilePaneModel) {
+        let base = pane.endpoint.withoutSudo
+        let sudo = FileEndpoint.sudo(base)
+        guard enabled ? pane.endpoint.canUseSudo : pane.endpoint.isSudo else { return }
+        let directory = pane.path.isEmpty ? nil : pane.path
+        pane.connect(to: enabled ? sudo : base, path: directory)
+        // Transfers don't retain pool connections, so check them separately.
+        guard !enabled,
+              !FileTransferCenter.shared.activeJobs.contains(where: { $0.source == sudo || $0.destination == sudo })
+        else { return }
+        FileConnectionPool.shared.disconnectIfUnretained(sudo)
+    }
+
     // MARK: - Commands
 
     func perform(_ command: FileManagerCommand) {
@@ -319,9 +334,9 @@ final class FileManagerModel {
 
     private func refreshPanes(affectedBy job: TransferJob) {
         for pane in [left, right] where !pane.path.isEmpty {
-            let touchesSource = pane.endpoint.sharesFileSystem(with: job.source)
+            let touchesSource = pane.endpoint.mayShareFiles(with: job.source)
                 && job.sourcePaths.contains { FileTransferLogic.parent(of: $0) == pane.path || $0 == pane.path }
-            let touchesDestination = job.destination.map(pane.endpoint.sharesFileSystem) == true
+            let touchesDestination = job.destination.map(pane.endpoint.mayShareFiles) == true
                 && job.destinationDirectory == pane.path
             if touchesSource || touchesDestination { pane.refresh() }
         }

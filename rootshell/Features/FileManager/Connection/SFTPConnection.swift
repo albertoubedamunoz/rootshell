@@ -16,6 +16,9 @@ actor SFTPConnection: FileConnection {
     /// Channel for listings and small metadata calls.
     nonisolated let browseClient: SFTPClient
     nonisolated let label: String
+    /// Runs a command on the same connection, stderr split out; nil when
+    /// the connection can't run commands.
+    nonisolated let openExec: (@Sendable (String) async throws -> RemoteExecChannel)?
 
     private let openChannel: @Sendable () async throws -> SFTPClient
     private let teardown: @Sendable () async -> Void
@@ -26,10 +29,12 @@ actor SFTPConnection: FileConnection {
         browseClient: SFTPClient,
         label: String,
         openChannel: @escaping @Sendable () async throws -> SFTPClient,
+        openExec: (@Sendable (String) async throws -> RemoteExecChannel)? = nil,
         teardown: @escaping @Sendable () async -> Void
     ) {
         self.browseClient = browseClient
         self.label = label
+        self.openExec = openExec
         self.openChannel = openChannel
         self.teardown = teardown
     }
