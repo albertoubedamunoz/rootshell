@@ -397,7 +397,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     }
 
     private var isCompact: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone || bounds.width < 500
+        traitCollection.horizontalSizeClass != .regular || bounds.width < 500
     }
 
     private var pageWidth: CGFloat { max(heroRect.width, 1) }

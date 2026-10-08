@@ -190,6 +190,10 @@ struct SidebarMetrics: Equatable {
 // MARK: - Vertical Tab Sidebar
 
 struct VerticalTabSidebar: View {
+    #if !os(visionOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+    @State private var panelHeight: CGFloat = 0
     let tabsModel: TabsModel
     let windowId: String
     @Binding var collapsedGateways: Set<UUID>
@@ -283,7 +287,7 @@ struct VerticalTabSidebar: View {
 
     /// Duplicates the top bar's actions only when it is hidden or obscured (iPhone).
     private var showsHeaderActionButtons: Bool {
-        tabBarHidden || UIDevice.current.userInterfaceIdiom == .phone
+        tabBarHidden || usesCompactLayout
     }
 
     /// Rendering only; detection has its own toggle. (id=agent-attention)
@@ -481,6 +485,7 @@ struct VerticalTabSidebar: View {
                 )
             }
             .padding(.bottom, dockedBottomClearance)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { panelHeight = $0 }
             // Projects resolve asynchronously, so sync on value change, not events.
             .onChange(of: projectGroupingActive, initial: true) { _, active in
                 tabsModel.projectScopedInboxEnabled = active
@@ -613,11 +618,11 @@ struct VerticalTabSidebar: View {
 
     // MARK: Header
 
-    private var isPhone: Bool {
+    private var usesCompactLayout: Bool {
         #if os(visionOS)
         return false
         #else
-        return UIDevice.current.userInterfaceIdiom == .phone
+        return horizontalSizeClass != .regular
         #endif
     }
 
@@ -641,12 +646,7 @@ struct VerticalTabSidebar: View {
 
     /// Commits past a third of the screen or on a flick, like a native sheet.
     private func commitOrCancelDismissDrag(_ value: DragGesture.Value) {
-        // No UIScreen.main on visionOS, which never has the dismiss drag anyway.
-        #if os(visionOS)
-        let dismissDistance: CGFloat = 120
-        #else
-        let dismissDistance = max(120, UIScreen.main.bounds.height * 0.3)
-        #endif
+        let dismissDistance = max(120, panelHeight * 0.3)
         if value.translation.height > dismissDistance || value.velocity.height > 1000 {
             onDismiss()
         } else {
@@ -664,7 +664,7 @@ struct VerticalTabSidebar: View {
 
     private var header: some View {
         VStack(spacing: 0) {
-            if isPhone && !isDocked {
+            if usesCompactLayout && !isDocked {
                 // Button-free, so a 0pt threshold tracks instantly like a sheet grabber.
                 Capsule()
                     .fill(Color.primary.opacity(0.25))

@@ -49,7 +49,7 @@ struct KeyboardToolbarRepresentable: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> KeyboardToolbarView {
-        let toolbar = KeyboardToolbarView(sizes: .current())
+        let toolbar = KeyboardToolbarView(sizes: .iPad)
         let coordinator = context.coordinator
         toolbar.delegate = coordinator
 

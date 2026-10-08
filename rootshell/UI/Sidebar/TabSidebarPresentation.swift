@@ -237,16 +237,13 @@ private final class TabSidebarOverlayViewController: SidePanelOverlayViewControl
         // hidden state. Layer this panel's interactive gestures on top.
         super.viewDidLoad()
 
-        // Swipe the open panel back toward the left edge to dismiss it (iPad
-        // floating only — the phone keeps the bottom swipe-down). Mirrors the
-        // edge-swipe-to-open: both interpolate the same panel transform.
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            let closePan = UIPanGestureRecognizer(target: self, action: #selector(handleClosePan(_:)))
-            closePan.delegate = self
-            closePan.maximumNumberOfTouches = 1
-            hostingController.view.addGestureRecognizer(closePan)
-            self.closePanGesture = closePan
-        }
+        // Keep the recognizer installed through resizes; its delegate gates
+        // side dismissal on the current width class.
+        let closePan = UIPanGestureRecognizer(target: self, action: #selector(handleClosePan(_:)))
+        closePan.delegate = self
+        closePan.maximumNumberOfTouches = 1
+        hostingController.view.addGestureRecognizer(closePan)
+        self.closePanGesture = closePan
 
         // Header swipe-down: translate the WHOLE panel (chrome + content)
         // at the UIKit layer, like the present/dismiss animations do.
@@ -462,7 +459,8 @@ private final class TabSidebarOverlayViewController: SidePanelOverlayViewControl
               let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         // Claim only a clearly horizontal, leftward (closing) drag so the tab
         // list's vertical scroll, taps, and drag-to-reorder stay untouched.
-        guard currentPresented, !interactiveOpenActive else { return false }
+        guard currentPresented, !interactiveOpenActive,
+              view.traitCollection.horizontalSizeClass == .regular else { return false }
         let translation = pan.translation(in: view)
         let velocity = pan.velocity(in: view)
         let horizontalIntent = abs(translation.x) > abs(translation.y)
@@ -485,6 +483,7 @@ private final class TabSidebarOverlayViewController: SidePanelOverlayViewControl
 // MARK: - Panel View
 
 private struct TabSidebarPanelView<SidebarContent: View>: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let themeColors: SheetThemeColors?
     let accentColor: Color?
     let colorScheme: ColorScheme?
@@ -522,15 +521,15 @@ private struct TabSidebarPanelView<SidebarContent: View>: View {
         themeColors?.background ?? Color(uiColor: .systemBackground)
     }
 
-    private var isPhone: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
+    private var usesCompactLayout: Bool {
+        horizontalSizeClass != .regular
     }
 
     /// Phone: full-screen panel rising from the bottom — round the top
     /// corners like a bottom sheet. Larger screens: a left sidebar with
     /// the trailing edge rounded (the settings panel's mirror image).
     private var panelShape: UnevenRoundedRectangle {
-        if isPhone {
+        if usesCompactLayout {
             return UnevenRoundedRectangle(
                 topLeadingRadius: sidebarCornerRadius,
                 bottomLeadingRadius: 0,
@@ -565,9 +564,9 @@ private struct TabSidebarPanelView<SidebarContent: View>: View {
                 .padding(.top, sidebarVerticalContentPadding)
                 .padding(
                     .bottom,
-                    isPhone ? sidebarPhoneBottomContentPadding : sidebarVerticalContentPadding
+                    usesCompactLayout ? sidebarPhoneBottomContentPadding : sidebarVerticalContentPadding
                 )
-                .ignoresSafeArea(.container, edges: isPhone ? .bottom : [])
+                .ignoresSafeArea(.container, edges: usesCompactLayout ? .bottom : [])
 
             Button("") {
                 onClose()
@@ -583,15 +582,15 @@ private struct TabSidebarPanelView<SidebarContent: View>: View {
         // usage-provider row). Phone has square bottom corners and its padded
         // content clears the rounded top corners, so only side panels need the
         // outer content clip.
-        .modifier(TabSidebarPanelClip(shape: panelShape, isEnabled: !isPhone))
+        .modifier(TabSidebarPanelClip(shape: panelShape, isEnabled: !usesCompactLayout))
         // Keep the fill behind the content so it can bleed under the home
         // indicator independently of the side-panel content clip above.
         .background {
             panelBackground
-                .ignoresSafeArea(.container, edges: isPhone ? .bottom : [])
+                .ignoresSafeArea(.container, edges: usesCompactLayout ? .bottom : [])
         }
         .optionalColorSchemeEnvironment(colorScheme)
-        .shadow(color: .black.opacity(0.3), radius: 20, x: isPhone ? 0 : 5, y: isPhone ? -5 : 0)
+        .shadow(color: .black.opacity(0.3), radius: 20, x: usesCompactLayout ? 0 : 5, y: usesCompactLayout ? -5 : 0)
         .tint(accentColor)
         .ignoresSafeArea(.keyboard)
         .ignoresSafeArea(.container, edges: hiddenTitlebarTopEdges)

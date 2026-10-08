@@ -238,7 +238,7 @@ extension VNCKeyboardAccessoryCoordinator: TerminalKeyboardAccessoryHost {
         guard let pane else { return false }
         manuallyDismissed = false
         if pane.isLogicallyFocused {
-            keyboardCapture.capture()
+            pane.captureKeyboard()
         }
         return keyboardCapture.isCaptured
     }

@@ -1,0 +1,161 @@
+import SwiftUI
+import GhosttyKit
+
+extension MainView {
+    var effectiveDuoLayout: DuoLayoutContext {
+        var context = duoLayout
+        context.tabletopDisabled = duoTabletopDisabled
+        return context
+    }
+
+    var showsHorizontalTabHeader: Bool {
+        duoLayout.showsHorizontalTabs(globallyHidden: tabBarHidden)
+    }
+
+    var showsDuoSideRail: Bool { duoLayout.usesSideRail && !tabBarHidden && !showKeyboardChooser }
+
+    @ViewBuilder
+    func applyDuoChrome<Content: View>(_ content: Content) -> some View {
+        #if !targetEnvironment(macCatalyst) && !os(visionOS)
+        if #available(iOS 27.1, *) {
+            content
+                .toolbarVisibility(showsDuoSideRail ? .visible : .hidden, for: .navigationBar)
+                .toolbar {
+                    if showsDuoSideRail {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Open Connections", systemImage: "plus", action: addNewTab)
+                                .labelStyle(.iconOnly)
+                        }
+                        .visibilityPriority(.high)
+                        ToolbarItem(placement: .topBarTrailing) {
+                            if let tab = tabsModel.selectedTab {
+                                DuoTabButton(
+                                    terminal: tab.focusedTerminal,
+                                    number: (tabsModel.navigationTabs.firstIndex(where: { $0.id == tab.id }) ?? 0) + 1,
+                                    onClose: {
+                                        if let position = tabsModel.index(of: tab.id) { requestUserCloseTab(at: position) }
+                                    },
+                                    onManage: { showingTabSwitcher = true }
+                                )
+                            } else {
+                                Button("Tabs", systemImage: "square.on.square") {
+                                    showingTabSwitcher = true
+                                }
+                                .labelStyle(.iconOnly)
+                                .disabled(true)
+                            }
+                        }
+                        .axisBehavior(.verticalPreferred)
+                        .visibilityPriority(.high)
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Settings", systemImage: "gearshape") { requestSettingsPresentation() }
+                                .labelStyle(.iconOnly)
+                        }
+                        .visibilityPriority(.high)
+                    }
+                    if duoTabletopAvailable && showsDuoSideRail {
+                        ToolbarOverflowMenu {
+                            Toggle("Tabletop Mode", isOn: Binding(
+                                get: { !duoTabletopDisabled },
+                                set: { duoTabletopDisabled = !$0 }
+                            ))
+                        }
+                    }
+                }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+}
+
+private struct DuoTabButton: View {
+    let terminal: Ghostty.TerminalView?
+    let number: Int
+    let onClose: () -> Void
+    let onManage: () -> Void
+
+    var body: some View {
+        Button(action: onManage) {
+            // Never supply a tab title to the native toolbar: it can choose
+            // a Label's text even when the requested style is icon-only.
+            Text(number.formatted())
+                .font(.system(.body, design: .monospaced, weight: .bold))
+                .frame(minWidth: 28, minHeight: 28)
+                .background(Color.accentColor.opacity(0.22), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(alignment: .bottom) {
+                    if let terminal {
+                        DuoTabProgress(terminal: terminal)
+                    }
+                }
+        }
+        .accessibilityLabel("Tab \(number)")
+        .accessibilityHint("Show all tabs")
+        .contextMenu {
+            Button("Close Tab", systemImage: "xmark", action: onClose)
+            Button("Manage Tabs", systemImage: "square.on.square", action: onManage)
+        }
+    }
+}
+
+private struct DuoTabProgress: View {
+    @ObservedObject var terminal: Ghostty.TerminalView
+
+    var body: some View {
+        if let report = terminal.progressReport, report.state != .remove {
+            if let progress = report.progress {
+                ProgressView(value: Double(progress), total: 100)
+                    .frame(width: 26)
+                    .accessibilityLabel("Task progress")
+            } else {
+                Circle().fill(Color.accentColor).frame(width: 5, height: 5)
+                    .accessibilityLabel("Task running")
+            }
+        }
+    }
+}
+
+/// Publishes only the requested input region into the owning window. UIKit
+/// lays out this probe with the workspace, so global/screen origins never enter
+/// the custom keyboard's lower-region constraints.
+struct DuoInputRegionReporter: UIViewRepresentable {
+    let region: CGRect?
+    /// UIKit places every keyboard below the fold whether or not tabletop mode
+    /// reserves a region for it.
+    let fold: CGRect?
+
+    func makeUIView(context: Context) -> RegionView { RegionView() }
+    func updateUIView(_ view: RegionView, context: Context) {
+        view.region = region
+        view.fold = fold
+        view.setNeedsLayout()
+    }
+    static func dismantleUIView(_ view: RegionView, coordinator: ()) { view.clear() }
+
+    final class RegionView: UIView {
+        var region: CGRect?
+        var fold: CGRect?
+        private weak var previousWindow: UIWindow?
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            #if !targetEnvironment(macCatalyst) && !os(visionOS)
+            if previousWindow !== window { clear() }
+            previousWindow = window
+            if let window {
+                TerminalTouchKeyboardWindowState.forWindow(window).setInputRegion(
+                    region.map { convert($0, to: window) }, fold: fold.map { convert($0, to: window) })
+            }
+            #endif
+        }
+        func clear() {
+            #if !targetEnvironment(macCatalyst) && !os(visionOS)
+            if let previousWindow {
+                TerminalTouchKeyboardWindowState.forWindow(previousWindow).setInputRegion(nil, fold: nil)
+            }
+            #endif
+            previousWindow = nil
+        }
+    }
+}

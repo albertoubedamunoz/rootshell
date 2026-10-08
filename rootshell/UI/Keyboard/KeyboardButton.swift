@@ -187,7 +187,7 @@ class KeyboardButton: UIControl {
 
     // MARK: - Initialization
 
-    init(key: String, sizes: KeyboardSizes = .current()) {
+    init(key: String, sizes: KeyboardSizes) {
         self.key = key
         self.sizes = sizes
         super.init(frame: .zero)

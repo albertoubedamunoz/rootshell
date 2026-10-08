@@ -44,6 +44,10 @@ struct MainView: View {
     
     // MARK: - Properties
     
+    @Environment(\.duoLayout) var duoLayout
+    @Environment(\.horizontalSizeClass) var workspaceSizeClass
+    @State var duoTabletopDisabled = false
+    @State var duoTabletopAvailable = false
     @EnvironmentObject var ghosttyApp: Ghostty.App
     @Environment(\.openWindow) var openWindow
     @Environment(\.dismissWindow) var dismissWindow
@@ -372,7 +376,7 @@ struct MainView: View {
         #if os(visionOS)
         return false
         #else
-        return UIDevice.current.userInterfaceIdiom != .phone
+        return workspaceSizeClass == .regular
         #endif
     }
 
@@ -440,7 +444,10 @@ struct MainView: View {
         // grow on structural events (tab add/remove, manual selection, sheet
         // visibility, theme picker, keyboard frame).
         LifecycleDebugLogger.shared.bumpBodyEvaluation()
-        let content = GeometryReader { geometry in
+        let content = DuoWorkspaceGeometry(
+            context: effectiveDuoLayout,
+            headerHeight: showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0
+        ) { geometry, workspace in
             #if !os(visionOS)
             let _ = effectManager.keyboardStateVersion
             let defersBottomSystemGesture = !isAnySheetPresented
@@ -463,99 +470,33 @@ struct MainView: View {
                     // Top toolbar spacer when tab bar is hidden (Catalyst only)
                     catalystTabBarSpacer(geometry: geometry)
 
-                    if !tabBarHidden {
-                        HStack(spacing: 0) {
-                            tabBarLeadingSpacer(geometry: geometry, theme: resolvedTheme)
-
-                            // Tab bar - switches between display modes
-                            //
-                            // The previous design carried a `tabBarVersion`
-                            // counter that was bumped from drop completions
-                            // and notification observers, with `.id(tabBarVersion)`
-                            // forcing a structural rebuild of the entire tab
-                            // bar subtree on every increment. With per-tab
-                            // observation via `TabModel`, the tab bar
-                            // re-evaluates only on the property reads it
-                            // actually performs, so no manual refresh signal
-                            // is needed.
-                            tabBarTrack(in: geometry, theme: resolvedTheme)
-                                .layoutPriority(0)
-                                // Toggling grouped mode changes `navigationTabs`,
-                                // which can flip the tab-bar display mode (e.g.
-                                // equalWidth→singleTab when two tabs live in
-                                // different groups). Animating that structural
-                                // swap makes the selected tab's glass capsule
-                                // morph for ~1s, during which the roam "R" badge
-                                // composites against the unsettled glass and looks
-                                // washed out. Snap the layout for grouped-mode
-                                // toggles so the badge is correct immediately;
-                                // ordinary tab add/remove + resize still animate
-                                // (this innermost transaction only fires when
-                                // `isGroupedModeEnabled` itself changes).
-                                .transaction(value: tabsModel.isGroupedModeEnabled) { $0.animation = nil }
-                                .animation(.easeInOut(duration: 0.25), value: terminals.count)
-#if targetEnvironment(macCatalyst)
-                                .blockWindowDrag(when: usesTitlebarTabs)
-#endif
-
-                            if usesCompactTabSpacing {
-                                tabBarAddButton(theme: resolvedTheme)
-                                integratedTabBarDragRegion()
-                                    .layoutPriority(-1)
-                                tabBarSettingsButton(theme: resolvedTheme)
-                            } else {
-                                TabStyleContextMenuRegion(
-                                    selectedStyleRawValue: topTabStyleRawValueBinding
-                                )
-                                .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
-                                .layoutPriority(-1)
-                                tabBarActionButtons(theme: resolvedTheme)
-                            }
+                    if showsHorizontalTabHeader {
+                        GeometryReader { headerGeometry in
+                            horizontalTabHeader(geometry: headerGeometry, resolvedTheme: resolvedTheme)
                         }
                         .frame(height: TabMetrics.tabBarHeight)
-                        .frame(maxWidth: .infinity)
+                        .padding(workspace.headerInsets)
                         .background {
-                            ZStack {
+                            if duoLayout.placesHeaderBesideTopRegions
+                                && topTabStyle.usesStripLayout {
+                                // The controls avoid the camera column, but
+                                // the strip meets the full-width terminal.
                                 tabBarChromeBackground(resolvedTheme)
-
-                                // Background layer on purpose: the active tab
-                                // occludes the run beneath it, so the line
-                                // reads as rising around that tab.
-                                if topTabStyle.usesStripLayout {
-                                    IntegratedTabEdgeRuleView(
-                                        palette: resolvedTheme.integratedEdgePalette
-                                    )
-                                }
-                            }
-                            // Visual chrome must not own an interaction behind
-                            // every foreground tab, button, and empty-space menu.
-                            .allowsHitTesting(false)
-                        }
-                        .overlayPreferenceValue(IntegratedActiveTabBoundsPreferenceKey.self) { bounds in
-                            integratedOSCProgressEdge(activeTabBounds: bounds)
-                        }
-                        .modifier(ContainerCornerModifier())
-#if targetEnvironment(macCatalyst)
-                        .catalystCursorRegion()
-#endif
-                        .onPreferenceChange(TabFramePreferenceKey.self) { frames in
-                            // Tab frame preferences are only used by Catalyst
-                            // titlebar dragging. Guard and defer the write so
-                            // selection animations don't feed layout-pass
-                            // preferences back into MainView every frame.
-                            DispatchQueue.main.async {
-                                if tabFrames != frames {
-                                    tabFrames = frames
-                                }
+                                    .overlay {
+                                        IntegratedTabEdgeRuleView(palette: resolvedTheme.integratedEdgePalette)
+                                    }
+                                    .allowsHitTesting(false)
                             }
                         }
                     }
                     
-                    // Terminal view (detach banner overlays empty state too —
-                    // tmux -CC prune removes every tab in one go).
-                    Group {
+                    Color.clear.frame(height: workspace.cameraClearance)
+                    // This reader measures the terminal region after chrome and
+                    // hinge reservations, keeping keyboard overlap scene-local.
+                    GeometryReader { terminalGeometry in
+                        // The detach banner also covers the empty state after tmux prunes its tabs.
                         if ghosttyApp.readiness == .ready, !terminals.isEmpty {
-                            terminalAndSidebarContent(geometry: geometry)
+                            terminalAndSidebarContent(geometry: terminalGeometry)
                         } else if ghosttyApp.readiness == .ready, terminals.isEmpty, !windowClosingAfterTabTransfer {
                             // Empty state - shown when all tabs are closed
                             EmptyStateResponder(
@@ -577,6 +518,13 @@ struct MainView: View {
                             muxDetachBannerOverlay
                         }
                     }
+                    .padding(workspace.terminalInsets)
+                    Color.clear.frame(height: workspace.lowerReservation)
+                }
+                .background(DuoInputRegionReporter(region: workspace.inputRegion, fold: workspace.fold))
+                .onChange(of: workspace.tabletopAvailable, initial: true) { _, available in
+                    duoTabletopAvailable = available
+                    if !available { duoTabletopDisabled = false }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
                 .background(WindowSceneReporter(onUpdate: { scene, safeAreaInsets, isKeyWindow in
@@ -670,7 +618,7 @@ struct MainView: View {
                 // Pass the TabModel (class reference, structural under Observation),
                 // not the title — keeps the title read inside the overlay's body
                 // so per-tab title mutations don't invalidate MainView.body.
-                if tabIndicator.isShowing && tabBarHidden && terminals.indices.contains(selectedTabIndex) {
+                if tabIndicator.isShowing && !showsHorizontalTabHeader && !showsDuoSideRail && terminals.indices.contains(selectedTabIndex) {
                     // Position/count/shortcut reflect navigable tabs; hidden
                     // tmux windows are skipped, and grouped mode scopes this
                     // to the active group.
@@ -712,7 +660,7 @@ struct MainView: View {
         // activation so foregrounding does not bounce the terminal.
         .ignoresSafeArea(.keyboard)
 
-        let sceneContent = applySceneModifiers(content)
+        let sceneContent = applySceneModifiers(applyDuoChrome(content))
         // Resolve sheet styling once for this body evaluation. Without this,
         // each .themedSheet / sheet-aware modifier inside `applySheetModifiers`
         // independently re-reads sheet theme + accent + color-scheme — 8+

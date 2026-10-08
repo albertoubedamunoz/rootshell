@@ -10,6 +10,8 @@ import SwiftUI
 
 struct KeyboardToolbarSettingsView: View {
     @Environment(\.sheetThemeColors) private var sheetThemeColors
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     #if os(visionOS)
     @Environment(\.dismiss) private var dismiss
     #endif
@@ -28,7 +30,13 @@ struct KeyboardToolbarSettingsView: View {
     /// Computed from the settings list width (matching the previous
     /// implementation) so the "X / Y" capacity badge reads the same as before.
     private var capacity: Int {
-        manager.mainRowCapacity(availableWidth: availableWidth)
+        #if os(visionOS)
+        let sizes = KeyboardSizes.iPad
+        #else
+        let sizes: KeyboardSizes = horizontalSizeClass == .regular ? .iPad
+            : (verticalSizeClass == .compact ? .iPhoneLandscape : .iPhonePortrait)
+        #endif
+        return manager.mainRowCapacity(availableWidth: availableWidth, sizes: sizes)
     }
 
     var body: some View {

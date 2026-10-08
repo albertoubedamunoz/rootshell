@@ -79,42 +79,15 @@ struct KeyboardSizes {
 
     // MARK: - Device Detection
 
-    static func current(traitCollection: UITraitCollection? = nil) -> KeyboardSizes {
-        let idiom = traitCollection?.userInterfaceIdiom ?? UIDevice.current.userInterfaceIdiom
-
+    static func current(traitCollection: UITraitCollection) -> KeyboardSizes {
         #if os(visionOS)
         // visionOS doesn't have device orientation, use iPad sizes
         return .iPad
         #else
-        switch idiom {
-        case .pad:
+        if traitCollection.horizontalSizeClass == .regular {
             return .iPad
-        case .phone:
-            return isPhoneLandscape(traitCollection: traitCollection) ? .iPhoneLandscape : .iPhonePortrait
-        default:
-            return .iPhonePortrait
         }
+        return traitCollection.verticalSizeClass == .compact ? .iPhoneLandscape : .iPhonePortrait
         #endif
     }
-
-    #if !os(visionOS)
-    private static func isPhoneLandscape(traitCollection: UITraitCollection?) -> Bool {
-        if let traitCollection {
-            if traitCollection.verticalSizeClass == .compact {
-                return true
-            }
-            if traitCollection.verticalSizeClass == .regular {
-                return false
-            }
-        }
-
-        let orientation = UIDevice.current.orientation
-        if orientation.isValidInterfaceOrientation {
-            return orientation.isLandscape
-        }
-
-        let screenBounds = UIScreen.main.bounds
-        return screenBounds.width > screenBounds.height
-    }
-    #endif
 }

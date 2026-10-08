@@ -814,33 +814,39 @@ extension MainView {
         terminalEffectsEnabled: Bool
     ) -> (padding: CGFloat, gridAlignsToToolbar: Bool) {
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
-        let isDocked = touchKeyboardFrame != nil || effectManager.isKeyboardDocked
-        let keyboardHeight = touchKeyboardFrame?.height ?? keyboardHeight
+        let window = terminals.indices.contains(selectedTabIndex)
+            ? terminals[selectedTabIndex].focusedPane?.window : nil
+        // SwiftUI's global space belongs to this window; notification and
+        // accessory frames belong to its screen. Convert on every layout so
+        // moved/resized windows and the upper tabletop region stay accurate.
+        func localFrame(_ frame: CGRect) -> CGRect {
+            guard let window else { return .zero }
+            return window.convert(frame, from: window.screen.coordinateSpace)
+        }
         let containerFrame = geometry.frame(in: .global)
-        let isPhone = UIDevice.current.userInterfaceIdiom == .phone
-        let keyboardFrame = touchKeyboardFrame ?? (isPhone && accessoryFrame != nil
-            ? TerminalKeyboardGeometry.includingAccessory(
-                keyboard: reportedKeyboardFrame, accessory: accessoryFrame, container: containerFrame)
-            : reportedKeyboardFrame)
-        let visibleKeyboardFrameHeight: CGFloat = {
-            guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return 0 }
-            let bounds = isPhone ? containerFrame : UIScreen.main.bounds
-            // Narrow bottom HUDs (the pencil's minimized-keyboard pill, the
-            // floating mini keyboard) are not keyboard coverage.
-            guard keyboardFrame.width >= bounds.width - 50 else { return 0 }
-            let intersection = bounds.intersection(keyboardFrame)
-            guard !intersection.isNull, !intersection.isEmpty else { return 0 }
-            return intersection.height
-        }()
+        let accessoryFrame = accessoryFrame.map(localFrame)
+        let touchKeyboardFrame = touchKeyboardFrame.map(localFrame)
+        // Use the notification's destination throughout the transition. The
+        // live guide still describes an intermediate placement when UIKit
+        // clears its animation flag; switching to it can shrink the grid again
+        // after the shell has already redrawn for the dismissed keyboard.
+        let systemKeyboardFrame = localFrame(reportedKeyboardFrame)
+        let keyboardFrame = touchKeyboardFrame ?? TerminalKeyboardGeometry.includingAccessory(
+            keyboard: systemKeyboardFrame, accessory: accessoryFrame, container: containerFrame)
+        let isDocked = touchKeyboardFrame != nil || window.map {
+            TerminalKeyboardGeometry.isDocked(keyboard: keyboardFrame, container: $0.bounds)
+        } == true
+        let keyboardHeight = TerminalKeyboardGeometry.overlapHeight(
+            keyboard: keyboardFrame, container: containerFrame)
+        let visibleKeyboardFrameHeight = keyboardHeight
+        let isPhone = window?.traitCollection.horizontalSizeClass != .regular
         // Every "is a system keyboard docked" signal below is a height
         // threshold over the whole keyboard region — and that region is the
         // input accessory itself when no keyboard is up. A tall accessory then
         // reads as a keyboard: two stacked drawer rows alone reach 132pt, past
         // the 120pt line and EffectManager's 100pt dock test. Discount the
-        // region the accessory accounts for first, testing the largest
-        // coverage signal: `visibleKeyboardFrameHeight` is gated on a
-        // near-screen-wide frame, so an iPad Split View window reports 0 while
-        // `keyboardHeight` still carries a real docked keyboard.
+        // region the accessory accounts for first. Coverage is always clamped
+        // to this terminal container, including in resized windows.
         let keyboardRegionHeight = max(
             visibleKeyboardFrameHeight,
             max(keyboardHeight, keyboardFrame.isNull || keyboardFrame.isEmpty ? 0 : keyboardFrame.height)
@@ -855,11 +861,16 @@ extension MainView {
             keyboardHeight > 0 ||
             visibleKeyboardFrameHeight >= 120
         )
-        let dockedKeyboardCoverage = isPhone
-            ? visibleKeyboardFrameHeight
-            : max(keyboardHeight, visibleKeyboardFrameHeight, keyboardFrame.height)
+        let dockedKeyboardCoverage = visibleKeyboardFrameHeight
         let hasDockedKeyboard = isDocked && hasSoftwareKeyboard && dockedKeyboardCoverage > 0
-        let reservesBottomToolbar = reservedBottomToolbarHeight > 0
+        // A toolbar in the lower tabletop input region must not consume a
+        // second toolbar-height strip from the upper terminal workspace.
+        let toolbarIntersectsContainer = accessoryFrame.map {
+            TerminalKeyboardGeometry.overlapHeight(keyboard: $0, container: containerFrame) > 0
+        } ?? window.map {
+            containerFrame.maxY >= $0.bounds.maxY - $0.safeAreaInsets.bottom - 2
+        } ?? false
+        let reservesBottomToolbar = reservedBottomToolbarHeight > 0 && toolbarIntersectsContainer
 
         // Calculate the raw keyboard coverage (for ocean calculation)
         let rawKeyboardCoverage: CGFloat
@@ -887,17 +898,7 @@ extension MainView {
         // Calculate adjusted offset for terminal positioning (reduced to avoid excess gap)
         let keyboardOffset: CGFloat
         if hasDockedKeyboard {
-            if isPhone {
-                // The keyboard frame is in screen coordinates while the
-                // terminal container can move when fullscreen hides/shows the
-                // status bar. On iPhone, use the exact overlap with the
-                // current container so the terminal ends at the keyboard top.
-                keyboardOffset = dockedKeyboardCoverage + preservedKeyboardSafeAreaCompensation
-            } else {
-                // Docked software keyboard: subtract visual padding already provided by toolbar
-                let bottomClearance: CGFloat = max(20, windowSafeAreaInsets.bottom)
-                keyboardOffset = max(0, dockedKeyboardCoverage - bottomClearance) + preservedKeyboardSafeAreaCompensation
-            }
+            keyboardOffset = dockedKeyboardCoverage + preservedKeyboardSafeAreaCompensation
         } else if reservesBottomToolbar {
             if isPhone {
                 // The terminal container already ends at the top of the
@@ -1071,7 +1072,9 @@ extension MainView {
             #if !os(visionOS) && !targetEnvironment(macCatalyst)
             GeometryReader { expanded in
                 terminalTabsStack(
-                    geometry: geometry,
+                    // Coverage is measured before the safe-area escape;
+                    // terminalBottomPadding adds the expansion exactly once.
+                    geometry: inner,
                     width: width,
                     containerHeight: expanded.size.height,
                     keyboardFrame: keyboardFrame,
@@ -1079,7 +1082,7 @@ extension MainView {
                     containerBottomSafeAreaExpansion: max(0, expanded.size.height - inner.size.height)
                 )
             }
-            .ignoresSafeArea(.container, edges: .bottom)
+            .ignoresSafeArea(.container, edges: duoTabletopAvailable && !duoTabletopDisabled ? [] : .bottom)
             // Keep in sync with the per-tab `.transaction` in terminalTabsStack.
             // The escape used to sit under that modifier, which is what kept the
             // strip-driven resize off any ambient sheet animation.
@@ -1182,7 +1185,7 @@ extension MainView {
                         focusedPane: tab.focusedPane,
                         terminalEffectsEnabled: terminalEffectsEnabled,
                         routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
-                            && !tabBarHidden
+                            && showsHorizontalTabHeader
                     )
                     // NOTE: the tmux control-mode client size is NOT driven from here.
                     // A tmux pane is a real ghostty surface, so its grid is recomputed
@@ -1309,6 +1312,7 @@ extension MainView {
             tmuxReconnectingSwipeFallback
             effectOverlay(leadingExtension: effectLeadingExtension)
             terminalOverlays()
+                .modifier(DuoControlClearance())
             if tabTransferDropOverlayVisible {
                 Color.clear
                     .contentShape(Rectangle())
@@ -1335,11 +1339,14 @@ extension MainView {
             // already-mounted background effect temporarily rises above it while
             // active so its animation remains continuous through the transition.
             tabExposeHost(geometry: geometry, width: width)
+                .modifier(DuoControlClearance())
         }
         .frame(width: width)
         // Disable SwiftUI's automatic keyboard avoidance - we handle it manually via terminalBottomPadding
-        // which correctly distinguishes docked vs undocked keyboards
-        .ignoresSafeArea(.keyboard)
+        // which correctly distinguishes docked vs undocked keyboards.
+        // A tabletop keyboard frame starts at the terminal's bottom edge, so
+        // ignoring it would expand the terminal across the reserved pane.
+        .ignoresSafeArea(.keyboard, edges: duoTabletopAvailable && !duoTabletopDisabled ? [] : .all)
     }
 
     /// Default width of the docked (pinned) tab sidebar column, and the target
@@ -1568,29 +1575,16 @@ extension MainView {
         // collapse, and drawer-height changes re-evaluate this (same
         // mechanism terminalTabsView uses for the terminal's own padding).
         let _ = effectManager.keyboardStateVersion
-        let touchKeyboardFrame = terminals.indices.contains(selectedTabIndex)
-            ? terminals[selectedTabIndex].focusedPane?.dockedTouchKeyboardFrameInScreen : nil
-        let keyboardFrame = touchKeyboardFrame ?? effectManager.keyboardFrame
-        let keyboardHeight = touchKeyboardFrame?.height ?? effectManager.keyboardHeight
-        let hasSoftwareKeyboard =
-            KeyboardTracker.shared.isSoftwareKeyboardVisible ||
-            keyboardHeight > 0
-        if (touchKeyboardFrame != nil || effectManager.isKeyboardDocked) && hasSoftwareKeyboard {
-            let visibleKeyboardFrameHeight: CGFloat = {
-                guard !keyboardFrame.isNull, !keyboardFrame.isEmpty else { return 0 }
-                // Same narrow-HUD exclusion as terminalBottomPadding.
-                guard keyboardFrame.width >= UIScreen.main.bounds.width - 50 else { return 0 }
-                let intersection = UIScreen.main.bounds.intersection(keyboardFrame)
-                guard !intersection.isNull, !intersection.isEmpty else { return 0 }
-                return intersection.height
-            }()
-            let coverage = max(
-                keyboardHeight,
-                visibleKeyboardFrameHeight,
-                keyboardFrame.height
-            )
+        guard terminals.indices.contains(selectedTabIndex),
+              let pane = terminals[selectedTabIndex].focusedPane,
+              let window = pane.window else { return 0 }
+        let touchKeyboardFrame = pane.dockedTouchKeyboardFrameInScreen
+        let keyboardFrame = window.convert(touchKeyboardFrame ?? effectManager.keyboardFrame,
+                                           from: window.screen.coordinateSpace)
+        if (touchKeyboardFrame != nil || TerminalKeyboardGeometry.isDocked(keyboard: keyboardFrame, container: window.bounds)) {
+            let coverage = TerminalKeyboardGeometry.overlapHeight(keyboard: keyboardFrame, container: window.bounds)
             guard coverage > 0 else { return 0 }
-            return max(0, coverage - max(20, windowSafeAreaInsets.bottom))
+            return max(0, coverage - windowSafeAreaInsets.bottom)
         }
         // Not gated on the keyboard: the reservation itself requires the
         // pane to hold first responder, so it is 0 whenever no toolbar is

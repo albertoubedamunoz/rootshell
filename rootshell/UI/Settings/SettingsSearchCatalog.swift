@@ -108,6 +108,12 @@ private enum SearchBuild {
         if #available(iOS 26.0, macOS 26.0, *) { return true }
         return false
     }
+    static var supportsDuoLayout: Bool {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        if #available(iOS 27.1, *) { return true }
+        #endif
+        return false
+    }
 }
 
 extension SettingsSearchDestination {
@@ -607,6 +613,12 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["tab bar", "hide tabs", "tabs"]),
             row("window-tab-style", String(localized: "Tab Style"), in: .window,
                 keywords: ["tab appearance", "compact"]),
+            row("window-duo-front-display", String(localized: "Duo Front Display"), in: .window,
+                keywords: ["duo", "front display", "camera", "side rail", "below camera", "behind camera", "full width"],
+                available: SearchBuild.supportsDuoLayout),
+            row("window-duo-top-tabs", String(localized: "Show Top Tabs Behind Camera"), in: .window,
+                keywords: ["duo", "front display", "camera", "top tabs", "hide tabs"],
+                available: SearchBuild.supportsDuoLayout),
             row("window-tab-shortcuts", String(localized: "Show Tab Shortcuts"), in: .window,
                 keywords: ["tab numbers", "cmd number"]),
             row("window-group-menu", String(localized: "Show Group Menu"), in: .window,

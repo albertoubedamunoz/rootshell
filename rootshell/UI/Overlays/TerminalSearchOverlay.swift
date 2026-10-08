@@ -22,18 +22,22 @@ struct TerminalSearchOverlay: View {
     // Debouncing for search input
     @State private var searchDebounceTask: Task<Void, Never>? = nil
 
-    private var isPhone: Bool {
+    #if !os(visionOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    private var usesCompactLayout: Bool {
         #if os(visionOS)
         return false
         #else
-        return UIDevice.current.userInterfaceIdiom == .phone
+        return horizontalSizeClass != .regular
         #endif
     }
 
-    private var innerPadding: CGFloat { isPhone ? 8 : 10 }
-    private var hStackSpacing: CGFloat { isPhone ? 6 : 8 }
-    private var textFieldWidth: CGFloat { isPhone ? 140 : 180 }
-    private var resultCounterPadding: CGFloat { isPhone ? 45 : 55 }
+    private var innerPadding: CGFloat { usesCompactLayout ? 8 : 10 }
+    private var hStackSpacing: CGFloat { usesCompactLayout ? 6 : 8 }
+    private var textFieldWidth: CGFloat { usesCompactLayout ? 140 : 180 }
+    private var resultCounterPadding: CGFloat { usesCompactLayout ? 45 : 55 }
 
     var body: some View {
         HStack(spacing: hStackSpacing) {
