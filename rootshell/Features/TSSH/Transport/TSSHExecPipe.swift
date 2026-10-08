@@ -44,6 +44,24 @@ nonisolated final class TrzszExecPipe: AsyncBytePipe, @unchecked Sendable {
         )) != nil {}
     }
 
+    /// Stderr as a stream (newest chunks kept) that ends at EOF or close.
+    /// Reading continues while the stream lives, so the command never stalls.
+    func stderrStream() -> AsyncStream<Data> {
+        let (stream, sink) = AsyncStream<Data>.makeStream(bufferingPolicy: .bufferingNewest(64))
+        let reader = Task { [transportRef, channelRef] in
+            while !Task.isCancelled, let data = try? await TSSHCallGate.shared.execReadStderr(
+                on: transportRef,
+                channelRef: channelRef,
+                maxBytes: 16 * 1024
+            ) {
+                sink.yield(data)
+            }
+            sink.finish()
+        }
+        sink.onTermination = { _ in reader.cancel() }
+        return stream
+    }
+
     func write(_ data: Data) async throws {
         var remaining = data
         while !remaining.isEmpty {

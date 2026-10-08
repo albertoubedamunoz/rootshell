@@ -3,7 +3,8 @@
 //  rootshell
 //
 //  Interactive auth for file manager connections: host keys (HostKeyPrompt),
-//  keyboard-interactive challenges, unresolved synced keys and passwords.
+//  keyboard-interactive challenges, unresolved synced keys, passwords and
+//  sudo prompts.
 //  One request is shown at a time; cancelling the caller rejects it.
 //
 
@@ -16,12 +17,14 @@ final class FileManagerPrompts {
         case keyboardInteractive(KeyboardInteractiveChallenge, label: String)
         case keyResolution(SSHConfig, keys: [UnresolvedKeyInfo], profileID: UUID)
         case password(label: String)
+        case sudo(SudoPrompt)
 
         var id: String {
             switch self {
             case .keyboardInteractive(_, let label): "ki-\(label)"
             case .keyResolution(_, _, let profileID): "keys-\(profileID)"
             case .password(let label): "password-\(label)"
+            case .sudo(let prompt): "sudo-\(prompt.id)"
             }
         }
     }
@@ -50,6 +53,12 @@ final class FileManagerPrompts {
     func password(label: String) async -> String? {
         guard case .password(let password) = await ask(.password(label: label)) else { return nil }
         return password
+    }
+
+    /// One sudo or PAM prompt; nil when the user cancels.
+    func sudo(_ prompt: SudoPrompt) async -> String? {
+        guard case .password(let answer) = await ask(.sudo(prompt)) else { return nil }
+        return answer
     }
 
     func respond(_ answer: Answer) {

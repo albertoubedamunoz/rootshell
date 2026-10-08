@@ -175,6 +175,8 @@ extension MainView {
             opened = openProfile(id, at: directory)
         case .storage:
             opened = false
+        case .sudo(let base):
+            return openTerminal(at: directory, on: base)
         }
         if opened { closeFileManager() }
         return opened

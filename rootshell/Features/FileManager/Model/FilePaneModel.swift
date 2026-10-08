@@ -171,8 +171,10 @@ final class FilePaneModel: Identifiable {
         status = FileConnectionPool.shared.isConnected(endpoint) ? .loading : .connecting
         loadTask = Task { [weak self] in
             guard let self else { return }
+            var connected = false
             do {
                 let fs = try await self.fileSystem()
+                connected = true
                 var target = requested ?? ""
                 if resolvingHome, target.isEmpty { target = try await fs.homeDirectory() }
                 self.status = .loading
@@ -188,8 +190,9 @@ final class FilePaneModel: Identifiable {
             } catch {
                 guard self.endpoint == endpoint, !Task.isCancelled else { return }
                 Self.logger.error("Listing failed: \(error.localizedDescription, privacy: .public)")
-                if resolvingHome, let requested, !requested.isEmpty {
+                if connected, resolvingHome, let requested, !requested.isEmpty {
                     // A remembered folder that no longer exists: fall back to home.
+                    // Not after a failed connect, which would prompt all over again.
                     self.load(nil, resolvingHome: true)
                     return
                 }

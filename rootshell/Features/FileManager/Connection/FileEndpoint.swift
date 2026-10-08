@@ -4,6 +4,7 @@
 //
 //  Where a file manager pane points: this device, a saved SSH profile, the
 //  connection a terminal pane already holds, or a cloud storage provider.
+//  Any SSH endpoint can be wrapped in `.sudo` to browse it as root.
 //
 
 import UIKit
@@ -13,6 +14,8 @@ enum FileEndpoint: Hashable {
     case profile(UUID)
     case pane(PaneSource)
     case storage(UUID)
+    /// `base` reached through sftp-server run under sudo.
+    indirect case sudo(FileEndpoint)
 
     /// A terminal pane whose live connection can be borrowed. When the pane is
     /// gone, `fallbackProfileID` or `fallbackConfig` opens a dedicated connection.
@@ -42,6 +45,7 @@ enum FileEndpoint: Hashable {
     var isLocal: Bool {
         switch self {
         case .local: true
+        case .sudo(let base): base.isLocal
         case .pane(let source): source.fallbackConfig.underlyingSSHConfig == nil
         case .profile, .storage: false
         }
@@ -53,7 +57,22 @@ enum FileEndpoint: Hashable {
         case .local, .storage: nil
         case .profile(let id): ConnectionProfileManager.shared.profile(for: id)?.sshConfig
         case .pane(let source): source.fallbackConfig.underlyingSSHConfig
+        case .sudo(let base): base.sshConfig
         }
+    }
+
+    var isSudo: Bool {
+        if case .sudo = self { return true }
+        return false
+    }
+
+    /// Only SSH endpoints can run sftp-server under sudo.
+    var canUseSudo: Bool { !isSudo && !isLocal && sshConfig != nil }
+
+    /// This endpoint as the login user.
+    var withoutSudo: FileEndpoint {
+        if case .sudo(let base) = self { return base.withoutSudo }
+        return self
     }
 
     var storageProvider: StorageProvider? {
@@ -69,15 +88,27 @@ enum FileEndpoint: Hashable {
 
     /// True when both endpoints reach the same files: this device, the same
     /// server account through any route (a borrowed pane and its profile, say),
-    /// or the same bucket namespace. Destructive steps must use this, never `==`.
+    /// or the same bucket namespace. Proven, so rename shortcuts and same-path
+    /// skips may rely on it; overwrite guards use `mayShareFiles`. Never `==`.
+    /// Sudo runs inside its base session, so it has the base's path namespace.
     func sharesFileSystem(with other: FileEndpoint) -> Bool {
         if self == other { return true }
+        if isSudo || other.isSudo { return withoutSudo.sharesFileSystem(with: other.withoutSudo) }
         if isLocal || other.isLocal { return isLocal && other.isLocal }
         if let provider = storageProvider, let otherProvider = other.storageProvider {
             return provider.reachesSameNamespace(as: otherProvider)
         }
         guard let config = sshConfig, let otherConfig = other.sshConfig else { return false }
         return config.reachesSameAccount(as: otherConfig)
+    }
+
+    /// True when the two might reach the same files, even at different paths
+    /// (root beside another account on its server, which may be chrooted).
+    /// Guards against overwriting or deleting a source must use this.
+    func mayShareFiles(with other: FileEndpoint) -> Bool {
+        if sharesFileSystem(with: other) { return true }
+        guard isSudo || other.isSudo, let config = sshConfig, let otherConfig = other.sshConfig else { return false }
+        return config.reachesSameServer(as: otherConfig)
     }
 
     var displayName: String {
@@ -92,6 +123,8 @@ enum FileEndpoint: Hashable {
         case .storage:
             return storageProvider?.displayName
                 ?? String(localized: "Missing Storage Provider", comment: "File manager: endpoint whose storage provider was deleted")
+        case .sudo(let base):
+            return String(localized: "\(base.displayName) (sudo)", comment: "File manager: endpoint browsed as root; the argument is the server name")
         }
     }
 
@@ -106,6 +139,8 @@ enum FileEndpoint: Hashable {
         switch self {
         case .storage:
             return Self.storageSymbol
+        case .sudo:
+            return "lock.shield"
         case .local, .pane, .profile:
             guard isLocal else { return "server.rack" }
             #if targetEnvironment(macCatalyst)
@@ -132,12 +167,15 @@ enum FileEndpoint: Hashable {
         case .local, .storage: nil
         case .profile(let id): id
         case .pane(let source): source.fallbackProfileID
+        case .sudo(let base): base.profileID
         }
     }
 
-    /// Persistable form: panes are remembered by the profile they came from.
+    /// Persistable form: panes are remembered by the profile they came from,
+    /// sudo panes as their base so a relaunch never reopens as root.
     var persistentKey: String? {
         switch self {
+        case .sudo(let base): base.persistentKey
         case .local: "local"
         case .profile(let id): "profile:\(id.uuidString)"
         case .pane(let source): source.fallbackProfileID.map { "profile:\($0.uuidString)" }

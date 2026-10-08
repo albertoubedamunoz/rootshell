@@ -57,7 +57,10 @@ final class FileConnectionPool {
         if let task = pending[endpoint] {
             return try await task.value
         }
-        let task = Task<any FileConnection, Error> { try await Self.open(endpoint, prompts: prompts) }
+        let task = Task<any FileConnection, Error> {
+            if case .sudo(let base) = endpoint { return try await self.openSudo(on: base, prompts: prompts) }
+            return try await Self.open(endpoint, prompts: prompts)
+        }
         pending[endpoint] = task
         defer { pending[endpoint] = nil }
         let connection = try await task.value
@@ -74,6 +77,26 @@ final class FileConnectionPool {
             return try S3Connection(provider: provider)
         }
         return try await SFTPConnectionFactory.open(endpoint, prompts: prompts)
+    }
+
+    /// Sudo runs on the base connection's transport and keeps it retained.
+    private func openSudo(on base: FileEndpoint, prompts: FileManagerPrompts) async throws -> any FileConnection {
+        guard let connection = try await connection(for: base, prompts: prompts) as? SFTPConnection else {
+            throw FileManagerConnectionError.sudoUnavailable
+        }
+        retain(base)
+        do {
+            return try await SudoSFTP.open(
+                base: connection,
+                host: base.sshConfig?.host ?? base.displayName,
+                label: FileEndpoint.sudo(base).displayName,
+                prompts: prompts,
+                release: { await MainActor.run { FileConnectionPool.shared.release(base) } }
+            )
+        } catch {
+            release(base)
+            throw error
+        }
     }
 
     /// Whether a live connection exists, without opening one.
@@ -97,13 +120,22 @@ final class FileConnectionPool {
         }
     }
 
-    /// Drops the connection now, e.g. after the user disconnects or edits its settings.
+    /// Drops the connection now, e.g. after the user disconnects or edits its
+    /// settings. Its sudo connection goes with it.
     func disconnect(_ endpoint: FileEndpoint) {
+        if !endpoint.isSudo { disconnect(.sudo(endpoint)) }
         pending.removeValue(forKey: endpoint)?.cancel()
         idleClosers.removeValue(forKey: endpoint)?.cancel()
         if let connection = connections.removeValue(forKey: endpoint) {
             Task { await connection.close() }
         }
+    }
+
+    /// Disconnects now when no pane in any window retains `endpoint`;
+    /// otherwise the idle closer handles it once the last pane lets go.
+    func disconnectIfUnretained(_ endpoint: FileEndpoint) {
+        guard retainCounts[endpoint] == nil else { return }
+        disconnect(endpoint)
     }
 
     private func scheduleIdleCloseIfUnused(_ endpoint: FileEndpoint) {

@@ -22,8 +22,13 @@ extension SSHConfig {
     /// or `/etc/hosts` entry with a wholly different name and no cached IP) can't be
     /// proven equal statically and are treated as different.
     func reachesSameAccount(as other: SSHConfig) -> Bool {
-        guard username == other.username,
-              port == other.port,
+        username == other.username && reachesSameServer(as: other)
+    }
+
+    /// The same machine under any login user. Root (sudo) sees the real
+    /// filesystem, so any account there may name the same files.
+    func reachesSameServer(as other: SSHConfig) -> Bool {
+        guard port == other.port,
               Self.sameJumpLocation(jumpHost, other.jumpHost) else { return false }
         return !hostCandidates.isDisjoint(with: other.hostCandidates)
     }

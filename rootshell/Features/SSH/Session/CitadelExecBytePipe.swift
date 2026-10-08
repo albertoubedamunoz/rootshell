@@ -30,17 +30,29 @@ actor CitadelExecBytePipe: AsyncBytePipe {
     private var pendingReader: CheckedContinuation<Data?, Never>?
     private var closed = false
     private var pumpTask: Task<Void, Never>?
+    private nonisolated let stderrSink: AsyncStream<Data>.Continuation?
     private(set) var exitStatus: Int?
 
     static func open(client: SSHClient, command: String) async throws -> CitadelExecBytePipe {
         let (channel, output) = try await client.executeCommandBidirectional(command)
-        let pipe = CitadelExecBytePipe(channel: channel)
+        let pipe = CitadelExecBytePipe(channel: channel, stderrSink: nil)
         await pipe.startPump(output)
         return pipe
     }
 
-    private init(channel: Channel) {
+    /// Like `open`, but stderr arrives on the returned stream (newest chunks
+    /// kept) instead of being dropped. The stream ends with the channel.
+    static func openWithStderr(client: SSHClient, command: String) async throws -> (CitadelExecBytePipe, AsyncStream<Data>) {
+        let (channel, output) = try await client.executeCommandBidirectional(command)
+        let (stderr, sink) = AsyncStream<Data>.makeStream(bufferingPolicy: .bufferingNewest(64))
+        let pipe = CitadelExecBytePipe(channel: channel, stderrSink: sink)
+        await pipe.startPump(output)
+        return (pipe, stderr)
+    }
+
+    private init(channel: Channel, stderrSink: AsyncStream<Data>.Continuation?) {
         self.channel = channel
+        self.stderrSink = stderrSink
     }
 
     private func startPump(_ output: AsyncThrowingStream<ExecCommandOutput, Error>) {
@@ -52,9 +64,9 @@ actor CitadelExecBytePipe: AsyncBytePipe {
                     case .stdout(let buffer):
                         let data = Data(buffer.readableBytesView)
                         if await !self.enqueue(data) { return }
-                    case .stderr:
-                        // Diagnostics only; the control protocol never uses stderr.
-                        break
+                    case .stderr(let buffer):
+                        // Diagnostics only unless a caller asked for stderr.
+                        self.stderrSink?.yield(Data(buffer.readableBytesView))
                     case .exitStatus(let status):
                         await self.noteExit(status)
                     }
@@ -92,6 +104,7 @@ actor CitadelExecBytePipe: AsyncBytePipe {
     private func finish() {
         guard !closed else { return }
         closed = true
+        stderrSink?.finish()
         channel.close(promise: nil)
         if let reader = pendingReader {
             pendingReader = nil
