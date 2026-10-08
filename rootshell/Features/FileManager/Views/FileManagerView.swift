@@ -398,9 +398,19 @@ struct FileManagerMoreMenuItems: View {
             Label(String(localized: "Sort By", comment: "File manager sort menu"), systemImage: "arrow.up.arrow.down")
         }
         Divider()
+        if pane.endpoint.canUseSudo {
+            Button { activate(); manager.setSudo(true, on: pane) } label: {
+                Label(String(localized: "Browse as Root (sudo)", comment: "File manager: reopen the pane's server through sudo"), systemImage: "lock.shield")
+            }
+        } else if pane.endpoint.isSudo {
+            Button { activate(); manager.setSudo(false, on: pane) } label: {
+                Label(String(localized: "Exit sudo", comment: "File manager: go back to browsing as the login user"), systemImage: "lock.open")
+            }
+        }
         if !pane.endpoint.isLocal {
             Button {
-                FileConnectionPool.shared.disconnect(pane.endpoint)
+                // The login connection; its sudo connection closes with it.
+                FileConnectionPool.shared.disconnect(pane.endpoint.withoutSudo)
                 pane.connect(to: .local)
             } label: {
                 Label(String(localized: "Disconnect", comment: "File manager: close the pane's connection"), systemImage: "bolt.horizontal.circle")

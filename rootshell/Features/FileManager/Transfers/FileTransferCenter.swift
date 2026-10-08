@@ -247,11 +247,15 @@ fileprivate struct TransferPathClaim {
         Self.overlaps(writes, other.writes + other.reads) || Self.overlaps(other.writes, writes + reads)
     }
 
+    /// Paths only compare within a proven namespace; across an unproven one
+    /// (root beside another account) any write conflicts, whatever the spelling.
     private static func overlaps(_ writes: [Root], _ touched: [Root]) -> Bool {
         writes.contains { write in
             touched.contains { other in
-                write.endpoint.sharesFileSystem(with: other.endpoint)
-                    && FileTransferLogic.pathsOverlap(write.path, other.path)
+                if write.endpoint.sharesFileSystem(with: other.endpoint) {
+                    return FileTransferLogic.pathsOverlap(write.path, other.path)
+                }
+                return write.endpoint.mayShareFiles(with: other.endpoint)
             }
         }
     }
@@ -371,7 +375,19 @@ private struct TransferExecutor {
         directory: String, realDirectory: String, sources: [String: RealSource]
     ) async throws {
         // Identity, not enum equality: a borrowed pane and its profile are one filesystem.
+        // Proven sameness permits the rename and skip shortcuts; possible overlap
+        // (root beside another account) is enough to trigger the guards.
         let sameFileSystem = job.destination.map(job.source.sharesFileSystem) == true
+        let mayOverlap = job.destination.map(job.source.mayShareFiles) == true
+        // Paths can't be compared across unproven namespaces (root beside a
+        // chrooted account), so nothing may delete or overwrite: copies only.
+        let unverifiedOverlap = mayOverlap && !sameFileSystem
+        if unverifiedOverlap, job.operation == .move {
+            for path in job.sourcePaths {
+                job.recordError(path: path, message: String(localized: "Can't move between root and another account on the same server. Copy instead.", comment: "File transfer error"))
+            }
+            return
+        }
         var namesOnDisk: Set<String>?
         var names = TransferNamePlanner(incomingNames: job.sourcePaths.map(FileTransferLogic.lastComponent))
         var roots: [Root] = []
@@ -384,10 +400,10 @@ private struct TransferExecutor {
             let realTarget = FileTransferLogic.join(realDirectory, name)
             let realSourcePaths = [real.location, real.followed]
             // The destination is the item itself, or what a selected link points at.
-            let targetIsSource = sameFileSystem && realSourcePaths.contains(realTarget)
+            let targetIsSource = mayOverlap && realSourcePaths.contains(realTarget)
 
-            if sameFileSystem {
-                if job.operation == .move, real.location == realTarget { continue }
+            if sameFileSystem, job.operation == .move, real.location == realTarget { continue }
+            if mayOverlap {
                 if realSourcePaths.contains(where: { FileTransferLogic.isSameOrDescendant(realDirectory, of: $0) }),
                    (try? await sourceFS.info(path))?.isDirectory == true {
                     job.recordError(path: path, message: String(localized: "A folder can't be copied into itself.", comment: "File transfer error"))
@@ -411,8 +427,12 @@ private struct TransferExecutor {
                 case .keepBoth:
                     target = try await keepBothTarget(name, in: directory, fs: destinationFS, onDisk: &namesOnDisk, names: &names)
                 case .replace, .merge:
+                    if unverifiedOverlap {
+                        job.recordError(path: path, message: String(localized: "“\(name)” may be the same item under another path, so it can't be replaced. Choose Keep Both.", comment: "File transfer error; argument is a file name"))
+                        continue
+                    }
                     // Clearing a destination that is, or contains, the source would delete the source.
-                    if sameFileSystem, realSourcePaths.contains(where: { FileTransferLogic.isSameOrDescendant($0, of: realTarget) }) {
+                    if mayOverlap, realSourcePaths.contains(where: { FileTransferLogic.isSameOrDescendant($0, of: realTarget) }) {
                         job.recordError(path: path, message: String(localized: "“\(name)” can't replace a folder that contains it.", comment: "File transfer error; argument is a file name"))
                         continue
                     }
@@ -456,7 +476,7 @@ private struct TransferExecutor {
         }
         // A root reading where another writes (say, a selected link into the destination)
         // must not see that folder cleared or half-written, so those run one root at a time.
-        let entangled = sameFileSystem && pending.indices.contains { reader in
+        let entangled = mayOverlap && pending.indices.contains { reader in
             pending.indices.contains { writer in
                 reader != writer && pending[reader].realSources.contains {
                     FileTransferLogic.pathsOverlap($0, pending[writer].realDestination)

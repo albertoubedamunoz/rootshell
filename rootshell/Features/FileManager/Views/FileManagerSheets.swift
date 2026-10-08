@@ -479,6 +479,57 @@ struct FileManagerPromptSheet: View {
             }
             .presentationDetents([.height(200)])
             .onAppear { passwordFocused = true }
+        case .sudo(let prompt):
+            sudoPrompt(prompt)
+                .id(prompt.id)
         }
+    }
+
+    private func sudoPrompt(_ prompt: SudoPrompt) -> some View {
+        let fieldTitle = prompt.promptText
+            ?? prompt.account.map { String(localized: "Password for \($0)", comment: "sudo prompt field; the argument is a user name") }
+            ?? String(localized: "Password", comment: "Password field")
+        return NavigationStack {
+            Form {
+                if !prompt.info.isEmpty {
+                    Section {
+                        Text(prompt.info.suffix(8).joined(separator: "\n"))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .themedRow()
+                    }
+                }
+                Section {
+                    SecureField(fieldTitle, text: $password)
+                        .textContentType(.password)
+                        .focused($passwordFocused)
+                        .onSubmit { if !password.isEmpty { prompts.respond(.password(password)) } }
+                        .themedRow()
+                } header: {
+                    if prompt.promptText != nil { Text(fieldTitle) }
+                } footer: {
+                    if prompt.isRetry {
+                        Text(String(localized: "Incorrect, try again.", comment: "sudo prompt: the previous answer was rejected"))
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .themedList()
+            .navigationTitle(String(localized: "sudo on \(prompt.host)", comment: "sudo prompt title; the argument is a host name"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "Cancel", comment: "Cancel button")) { prompts.respond(.cancelled) }
+                        .keyboardShortcut(.cancelAction)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "Authenticate", comment: "sudo prompt: send the answer")) { prompts.respond(.password(password)) }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(password.isEmpty)
+                }
+            }
+        }
+        .presentationDetents(prompt.info.isEmpty && prompt.promptText == nil ? [.height(220)] : [.medium])
+        .onAppear { passwordFocused = true }
     }
 }
