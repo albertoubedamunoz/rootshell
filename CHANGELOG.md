@@ -3,6 +3,21 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-164 - October 8, 2026
+
+### Display Fix
+
+- **Mac Display Switching:** Fixed a regression introduced in build 163 by changes for iPhone Duo support: terminal text could become too small or too large when moving a Mac window between Retina and non-Retina displays. Text now keeps the correct size when switching displays.
+
+### AI Agent
+
+- **Haiku 5.5:** Replaced Claude Haiku 4.5 with Haiku 5.5 for Anthropic and Amazon Bedrock, with a 1 million-token context window and adaptive thinking. Saved Haiku 4.5 selections automatically switch to Haiku 5.5 on launch.
+
+### Stability
+
+- **Mosh Traffic Limits:** Limited queued incoming Mosh traffic when using rootshell Only Tailscale to prevent excessive memory use if a server sends packets faster than the app can process them.
+- **Browse as Root Startup:** Limited server output retained while starting Browse as Root (sudo) in the file manager. Excessively long output lines now stop the connection attempt with an error instead of continuing to accumulate in memory.
+
 ## 1.0.14-163 - October 8, 2026
 
 ### Tailscale Without Replacing Your VPN
