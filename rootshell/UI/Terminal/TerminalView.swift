@@ -3715,6 +3715,11 @@ extension Ghostty {
                     if sublayer.frame != self.bounds {
                         sublayer.frame = self.bounds
                     }
+                    // The core sets the renderer layer's contentsScale only at
+                    // surface creation; it must follow display-scale changes.
+                    if sublayer.contentsScale != contentScaleFactor {
+                        sublayer.contentsScale = contentScaleFactor
+                    }
                 }
             }
 

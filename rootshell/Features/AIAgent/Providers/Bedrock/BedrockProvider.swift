@@ -274,14 +274,14 @@ final class BedrockProvider: AIProvider {
             supportsTemperature: !supportsThinking
         )
 
-        // Pick thinking flavor by family. Fable 5.x, Opus 5.x, Opus 4.x, Sonnet 4.6, and
-        // Sonnet 5.x use `thinking.type: "adaptive"` (Fable, Opus 5.x, Opus 4.8, and Sonnet 5.x
-        // *require* it; sending `enabled` with `budget_tokens` returns a 400). Older thinking
+        // Pick thinking flavor by family. Fable 5.x, Opus 5.x, Opus 4.x, Sonnet 4.6, Sonnet 5.x,
+        // and Haiku 5.x use `thinking.type: "adaptive"` (Fable, Opus 5.x, Opus 4.8, Sonnet 5.x, and
+        // Haiku 5.x *require* it; sending `enabled` with `budget_tokens` returns a 400). Older thinking
         // models accept the classic `enabled`+budget shape paired with the
         // `interleaved-thinking-2025-05-14` beta. Bedrock doesn't document
         // `display: "summarized"`, but takes `"updates"` as a beta, which returns the
         // progress notes models that write them leave between tool calls.
-        let adaptivePrefixes = ["claude-fable-5", "claude-opus-5", "claude-opus-4-", "claude-sonnet-4-6", "claude-sonnet-5"]
+        let adaptivePrefixes = ["claude-fable-5", "claude-opus-5", "claude-opus-4-", "claude-sonnet-4-6", "claude-sonnet-5", "claude-haiku-5"]
         let usesAdaptiveThinking = adaptivePrefixes.contains { familyID.hasPrefix($0) }
         let updatesPrefixes = ["claude-fable-5", "claude-opus-5-5", "claude-sonnet-5-5"]
         let thinkingConfig: AnthropicThinkingConfig?
