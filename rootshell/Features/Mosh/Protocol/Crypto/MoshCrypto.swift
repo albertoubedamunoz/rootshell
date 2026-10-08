@@ -171,9 +171,12 @@ enum MoshTimestamp {
 
     /// Returns current time as a 16-bit timestamp (ms mod 65536)
     nonisolated static var now: UInt16 {
-        // Use monotonic time.
+        at(ms: ProtocolTiming.monotonicNowMs())
+    }
+
+    /// 16-bit timestamp for a `ProtocolTiming.monotonicNowMs()` reading.
+    nonisolated static func at(ms: UInt64) -> UInt16 {
         // Avoid 0xFFFF which is reserved as "no timestamp" sentinel.
-        let ms = ProtocolTiming.monotonicNowMs()
         var ts = UInt16(ms & 0xFFFF)
         if ts == UInt16.max {
             ts &+= 1

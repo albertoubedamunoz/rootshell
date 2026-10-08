@@ -549,12 +549,17 @@ final class MoshTransport {
                     return
                 }
                 self.tailnetSocket = socket
-                socket.startReceiving { [weak self] data in
-                    let receiveTimestamp = MoshTimestamp.now
-                    let receivedAtMs = ProtocolTiming.monotonicNowMs()
+                // At most one drain is pending; the socket bounds the backlog.
+                socket.startReceiving { [weak self] in
                     Task { @MainActor [weak self] in
-                        guard let self, self.tailnetSocket === socket else { return }
-                        self.handleReceivedData(data, receiveTimestamp: receiveTimestamp, receivedAtMs: receivedAtMs)
+                        for datagram in socket.takeReceived() {
+                            guard let self, self.tailnetSocket === socket else { return }
+                            self.handleReceivedData(
+                                datagram.data,
+                                receiveTimestamp: MoshTimestamp.at(ms: datagram.receivedAtMs),
+                                receivedAtMs: datagram.receivedAtMs
+                            )
+                        }
                     }
                 }
                 Self.logger.info("UDP over Tailscale ready to \(host):\(port)")

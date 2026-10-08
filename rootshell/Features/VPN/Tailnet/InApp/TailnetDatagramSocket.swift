@@ -32,16 +32,36 @@ nonisolated final class TailnetDatagramSocket: @unchecked Sendable {
         setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, socklen_t(MemoryLayout<Int32>.size))
     }
 
-    /// Delivers each datagram on a private queue until closed.
-    func startReceiving(_ handler: @escaping @Sendable (Data) -> Void) {
+    struct Datagram: Sendable {
+        let data: Data
+        /// Uptime milliseconds at arrival.
+        let receivedAtMs: UInt64
+    }
+
+    /// A full inbox pauses reads, so the backlog waits in the socket buffer
+    /// and Go drops once that fills, like a congested UDP path. Sized so
+    /// ordinary traffic never pauses: paused packets get late arrival times.
+    private static let inboxPacketLimit = 4096
+    private static let inboxByteLimit = 4 << 20
+    private var inbox: [Datagram] = []
+    private var inboxBytes = 0
+    private var paused = false
+
+    /// Calls `onReadable` on a private queue when datagrams arrive in an empty
+    /// inbox; drain it with `takeReceived()`.
+    func startReceiving(_ onReadable: @escaping @Sendable () -> Void) {
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
         let fd = fd
-        source.setEventHandler {
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
             var buffer = [UInt8](repeating: 0, count: 65_536)
             while true {
                 let n = recv(fd, &buffer, buffer.count, 0)
                 guard n > 0 else { break }
-                handler(Data(buffer[0..<n]))
+                let receivedAtMs = DispatchTime.now().uptimeNanoseconds / 1_000_000
+                let result = self.enqueue(Datagram(data: Data(buffer[0..<n]), receivedAtMs: receivedAtMs))
+                if result.notify { onReadable() }
+                if result.paused { break }
             }
         }
         source.setCancelHandler { Darwin.close(fd) }
@@ -49,6 +69,34 @@ nonisolated final class TailnetDatagramSocket: @unchecked Sendable {
         self.source = source
         lock.unlock()
         source.resume()
+    }
+
+    /// Removes and returns everything received since the last call.
+    func takeReceived() -> [Datagram] {
+        lock.lock()
+        defer { lock.unlock() }
+        let received = inbox
+        inbox.removeAll()
+        inboxBytes = 0
+        if paused {
+            paused = false
+            source?.resume()
+        }
+        return received
+    }
+
+    /// `notify` when the inbox went from empty to non-empty.
+    private func enqueue(_ datagram: Datagram) -> (notify: Bool, paused: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !closed else { return (false, true) }
+        inbox.append(datagram)
+        inboxBytes += datagram.data.count
+        if inbox.count >= Self.inboxPacketLimit || inboxBytes >= Self.inboxByteLimit {
+            paused = true
+            source?.suspend()
+        }
+        return (inbox.count == 1, paused)
     }
 
     /// False when the datagram was dropped or the socket is closed.
@@ -65,8 +113,15 @@ nonisolated final class TailnetDatagramSocket: @unchecked Sendable {
         defer { lock.unlock() }
         guard !closed else { return }
         closed = true
+        inbox.removeAll()
+        inboxBytes = 0
         if let source {
             source.cancel()
+            // A suspended source never runs its cancel handler, and releasing one traps.
+            if paused {
+                paused = false
+                source.resume()
+            }
         } else {
             Darwin.close(fd)
         }
