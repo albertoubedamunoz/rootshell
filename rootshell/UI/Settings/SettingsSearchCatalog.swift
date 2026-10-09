@@ -146,7 +146,7 @@ extension SettingsSearchDestination {
                  keywords: ["palette", "harmonious", "256", "generate", "colors"])
         case .backgroundEffect:
             Meta(section: .appearance, title: String(localized: "Background Effect"), systemImage: "sparkles",
-                 keywords: ["effects", "wallpaper", "visuals", "aurora", "solar graph", "fireflies", "butterflies",
+                 keywords: ["effects", "wallpaper", "visuals", "aurora", "gradient", "theme gradient", "solar graph", "fireflies", "butterflies",
                             "jellyfish", "photo", "video", "ken burns", "theme tint", "intensity", "speed"])
         case .customShaders:
             Meta(section: .appearance, title: String(localized: "Custom Shaders"), systemImage: "cpu",
@@ -647,6 +647,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["horizontal", "vertical", "padding", "margins", "inset"]),
             row("window-split-border", String(localized: "Split Focus Border"), in: .window,
                 keywords: ["split panes", "border", "border color", "focus"]),
+            row("window-rounded-panes", String(localized: "Rounded Panes"), in: .window,
+                keywords: ["rounded", "corners", "cards", "gap", "split panes", "sidebar"]),
             row("window-full-screen", String(localized: "Full Screen"), in: .window,
                 keywords: ["status bar", "immersive"], available: isTouch),
             row("window-always-on", String(localized: "Always On Display"), in: .window,

@@ -70,9 +70,12 @@ final class PaneFullScreenController {
         #endif
 
         // Reparent the live pane into the container at its captured frame,
-        // clearing any split focus border, then grow it to the full window.
+        // clearing any split focus border and Rounded Panes card clip, then
+        // grow it to the full window. Exit re-applies both through layout.
         pane.layer.borderWidth = 0
         pane.layer.borderColor = UIColor.clear.cgColor
+        pane.layer.cornerRadius = 0
+        pane.clipsToBounds = false
         pane.autoresizingMask = []
         container.insertSubview(pane, at: 0)
         pane.frame = container.convert(startFrame, from: window)

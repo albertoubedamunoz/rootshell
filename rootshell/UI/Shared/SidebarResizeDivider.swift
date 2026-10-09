@@ -43,12 +43,15 @@ struct SidebarResizeDivider: View {
     /// Snap + double-tap-reset target. `nil` disables both.
     let defaultWidth: CGFloat?
     var snapThreshold: CGFloat = 22
+    /// Rounded Panes: the divider fills the card gap and shows its line
+    /// only on hover or drag.
+    var cardGap: CGFloat?
     let backgroundColor: Color
     /// Persist the chosen width. Called on drag end and on reset.
     let onCommit: (CGFloat) -> Void
 
     private let visibleWidth: CGFloat = 1
-    private let hitAreaWidth: CGFloat = 16
+    private var hitAreaWidth: CGFloat { cardGap ?? 16 }
 
     @State private var dragStartWidth: CGFloat = 0
     @State private var isInSnapZone = false
@@ -183,7 +186,7 @@ struct SidebarResizeDivider: View {
         } else if isHovering {
             return Color(uiColor: .separator).opacity(0.8)
         } else {
-            return Color(uiColor: .separator).opacity(0.5)
+            return cardGap == nil ? Color(uiColor: .separator).opacity(0.5) : .clear
         }
     }
 }

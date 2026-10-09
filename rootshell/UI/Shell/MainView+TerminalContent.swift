@@ -733,13 +733,17 @@ extension MainView {
                         width: geometry.size.width + leadingExtension,
                         height: geometry.size.height
                     )
+                    // Rounded Panes: paint only the cards, never the gaps or
+                    // the square corners around them
+                    .paneCardEffectClip(roundedPanes, sidebarWidth: leadingExtension)
                     .offset(x: -leadingExtension)
                     // Use different blend mode for light vs dark themes
                     .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
             }
             .allowsHitTesting(false)
-            // Extend into bottom safe area for ocean effect
-            .ignoresSafeArea(edges: .bottom)
+            // Extend into bottom safe area for ocean effect; cards end at the
+            // column
+            .ignoresSafeArea(edges: roundedPanes ? [] : .bottom)
             // Tab Exposé is normally the topmost terminal-content layer.
             // While it is active, keep this *same* effect view above the
             // mirrored terminal pixels so animations and video continue
@@ -916,9 +920,11 @@ extension MainView {
                 // bottom safe-area strip. Reserve only the toolbar height that
                 // extends above that strip, or toolbar-only mode leaves the
                 // Home-indicator clearance as a visible gap above the row.
+                // Rounded cards end one card gap above the screen edge instead.
+                let stripClearance = paneCardsEnterHomeIndicatorStrip ? PaneCardStyle.gap : windowSafeAreaInsets.bottom
                 keyboardOffset = max(
                     0,
-                    reservedBottomToolbarHeight - windowSafeAreaInsets.bottom
+                    reservedBottomToolbarHeight - stripClearance
                 ) + preservedKeyboardSafeAreaCompensation
             }
         } else {
@@ -1082,7 +1088,7 @@ extension MainView {
                     containerBottomSafeAreaExpansion: max(0, expanded.size.height - inner.size.height)
                 )
             }
-            .ignoresSafeArea(.container, edges: duoTabletopAvailable && !duoTabletopDisabled ? [] : .bottom)
+            .ignoresSafeArea(.container, edges: (duoTabletopAvailable && !duoTabletopDisabled) || roundedPanes ? [] : .bottom)
             // Keep in sync with the per-tab `.transaction` in terminalTabsStack.
             // The escape used to sit under that modifier, which is what kept the
             // strip-driven resize off any ambient sheet animation.
@@ -1386,15 +1392,38 @@ extension MainView {
         #endif
     }
 
+    var paneCardsEnterHomeIndicatorStrip: Bool {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        return roundedPanes && !isPhone
+        #else
+        return false
+        #endif
+    }
+
     /// The complete terminal and AI sidebar content.
     @ViewBuilder
-    func terminalAndSidebarContent(geometry: GeometryProxy) -> some View {
+    func terminalAndSidebarContent(geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
         let currentTabId = terminals.indices.contains(selectedTabIndex) ? terminals[selectedTabIndex].id : UUID()
         // Docked (pinned) tab sidebar: a left column that shrinks the terminal.
         // Available on both China and non-China builds.
         let docked = tabSidebarIsDocked
         let dockedWidth = dockedTabSidebarWidth(windowWidth: geometry.size.width)
         let dockedSidebarTheme: ResolvedSheetTheme? = docked ? resolvedSheetTheme() : nil
+        // Rounded panes inset the whole row; columns divide what remains.
+        let cardGap: CGFloat = roundedPanes ? PaneCardStyle.gap : 0
+        // Floating tabs leave slack under them in the header row, which already
+        // separates the cards; strip tabs fill the row and keep the gap.
+        let cardTopGap: CGFloat = showsHorizontalTabHeader && !topTabStyle.usesStripLayout ? 0 : cardGap
+        // Mac terminals draw their own translucent background, so the backdrop
+        // is painted only around the cards (here and between splits).
+        #if targetEnvironment(macCatalyst)
+        let cardBackdrop: Color? = roundedPanes
+            ? tabBarChromeBackground(theme).opacity(transparencyManager.backgroundOpacity)
+            : nil
+        #else
+        let cardBackdrop: Color? = nil
+        #endif
+        let rowWidth = geometry.size.width - cardGap * 2
         #if !CHINA_BUILD
         let shouldShowSidebar = shouldShowAISidebar(currentTabId: currentTabId)
         let sidebarWidth = shouldShowSidebar ? aiAgentSidebarWidth : 0
@@ -1403,17 +1432,17 @@ extension MainView {
         #endif
         // The file manager column never squeezes the terminal below 320pt.
         let fileManagerWidth = fileManagerShowsSidebar
-            ? min(fileManagerSidebarWidth, max(FileManagerSidebarView.minWidth, geometry.size.width - dockedWidth - sidebarWidth - 320))
+            ? min(fileManagerSidebarWidth, max(FileManagerSidebarView.minWidth, rowWidth - dockedWidth - sidebarWidth - 320))
             : 0
         // HTTP capture shares the file manager's slot; at most one is docked.
         #if !CHINA_BUILD
         let httpCaptureWidth = httpCaptureShowsSidebar
-            ? min(httpCaptureSidebarWidth, max(HTTPCaptureSidebarView.minWidth, geometry.size.width - dockedWidth - sidebarWidth - 320))
+            ? min(httpCaptureSidebarWidth, max(HTTPCaptureSidebarView.minWidth, rowWidth - dockedWidth - sidebarWidth - 320))
             : 0
         #else
         let httpCaptureWidth: CGFloat = 0
         #endif
-        let terminalWidth = geometry.size.width - sidebarWidth - dockedWidth - fileManagerWidth - httpCaptureWidth
+        let terminalWidth = rowWidth - sidebarWidth - dockedWidth - fileManagerWidth - httpCaptureWidth
 
         HStack(spacing: 0) {
             if let dockedSidebarTheme {
@@ -1461,11 +1490,34 @@ extension MainView {
                                 .accessibilityHidden(true)
                         }
                     }
-                    .frame(width: dockedWidth)
-                    .clipped()
-                    .ignoresSafeArea(.container, edges: .bottom)
+                    .frame(width: dockedWidth - cardGap)
+                    .clipShape(PaneCardStyle.shape(rounded: roundedPanes))
+                    .ignoresSafeArea(.container, edges: roundedPanes ? [] : .bottom)
             }
         }
+        // iPad cards run into the home-indicator strip (the surface inset keeps
+        // the grid above it). iPhone display corners would clip them there, so
+        // its cards stop at the strip, which already separates the bottom edge.
+        .padding(EdgeInsets(top: cardTopGap, leading: cardGap,
+                            bottom: paneCardsEnterHomeIndicatorStrip || windowSafeAreaInsets.bottom < cardGap ? cardGap : 0,
+                            trailing: cardGap))
+        .background {
+            if let cardBackdrop {
+                GeometryReader { proxy in
+                    let height = max(0, proxy.size.height - cardTopGap - cardGap)
+                    PaneCardBackdropShape(holes: [
+                        .init(rect: CGRect(x: cardGap, y: cardTopGap, width: max(0, dockedWidth - cardGap), height: height),
+                              cornerRadius: PaneCardStyle.cornerRadius),
+                        .init(rect: CGRect(x: cardGap + dockedWidth, y: cardTopGap, width: terminalWidth, height: height),
+                              cornerRadius: 0),
+                    ])
+                    .fill(cardBackdrop, style: FillStyle(eoFill: true))
+                }
+                .allowsHitTesting(false)
+            }
+        }
+        .environment(\.paneCardBackdrop, cardBackdrop)
+        .ignoresSafeArea(.container, edges: paneCardsEnterHomeIndicatorStrip ? .bottom : [])
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: docked)
         // Animate width changes when the docked column toggles/snaps, but never
         // during the live drag (the gesture drives width directly). Outside the
@@ -1501,6 +1553,7 @@ extension MainView {
                 dockedBottomClearance: dockedSidebarBottomClearance()
             )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .paneCardClip(roundedPanes)
 
             // Resize divider on the column's trailing edge (drag right widens).
             // Its 1pt line replaces the old static trailing separator and lives
@@ -1513,6 +1566,7 @@ extension MainView {
                 minWidth: TabSidebarLayout.dockedMinWidth(largeControls: tabSidebarLargeControls),
                 maxWidth: geometry.size.width * 0.5,
                 defaultWidth: TabSidebarLayout.defaultWidth,
+                cardGap: roundedPanes ? PaneCardStyle.gap : nil,
                 // The parent supplies the fill below the effect. Keeping the
                 // divider hit area clear leaves that canvas visible across its
                 // 16pt interaction strip.

@@ -392,7 +392,8 @@ extension MainView {
     }
 
     func tabBarChromeBackground(_ theme: ResolvedTabBarTheme) -> Color {
-        topTabStyle == .integrated
+        // Rounded panes sit on the strip color so cards stand out from it.
+        topTabStyle == .integrated || roundedPanes
             ? theme.integratedStripBackground
             : theme.tabBarBackground
     }

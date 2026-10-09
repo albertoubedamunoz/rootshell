@@ -3,6 +3,48 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-165 - October 9, 2026
+
+### Program Status Protocol (OSC 7501)
+
+- **Live Program Status:** Added Program Status Protocol (PSP) support so programs can report what they are doing directly. Supported AI agents and ordinary terminal programs, including built-in iOS local-shell commands, appear in the sidebar and agent inbox with working, idle, waiting for input, completed, or failed states. Programs can also supply progress for the terminal's progress indicator. Direct reports take priority over screen detection and herdr's inferred status while the program holds the pane.
+- **Agent Entries and Tab Logos:** PSP reports for Pi and Claude Code use their existing inbox entries, names, and logos. Top tabs show the detected agent or PSP program's logo alongside its status badge. Logos follow Show Attention Badges and replace the H/T pane marker in herdr/tmux tabs; gateway stars remain visible.
+- **Vim and Helix:** Integrated PSP into the Vim and Helix commands bundled with the iOS local shell. They appear in the sidebar and agent inbox with their own logos and report failed saves or a quit blocked by unsaved changes.
+- **Notifications and Completion:** Waiting notifications can include the program's reported prompt, and failure notifications can include its error message. Unfinished status clears when the shell reports program completion; completed and failed results remain available in the inbox.
+
+### Rounded Panes
+
+- **Optional Pane Style:** Added Rounded Panes in Settings -> Window -> Split Panes and Quick Settings. Best on larger screens such as Mac and iPad, it draws terminal panes, splits, and docked sidebars as separate rounded cards with gaps between them. Background effects stay inside the cards, and spacing below floating top tabs is tighter.
+- **Integrated Tabs:** Integrated tabs use Pills while Rounded Panes is enabled. Your saved Integrated style returns when you turn Rounded Panes off.
+
+### Theme Gradient
+
+- **Theme-Colored Background:** Added Theme Gradient in Settings -> Background Effect: a soft gradient using your terminal theme's colors. Adjust intensity and speed, or turn off Drift for a still background. Motion pauses in the background and respects Reduce Motion.
+
+### herdr Control Mode Performance and Agent Tracking
+
+- **Faster Tab Switching:** An already attached herdr pane shows its cached screen immediately when its size matches the server's layout, without waiting for another server confirmation. Tab-selection requests also skip the resize-settling delay.
+- **Claude Code Background Agents:** Background-agent counts are now read in herdr panes, including wrapped status lines. Counts use the latest transcript entry and advancing agent timers to avoid showing stale counts from old output or frozen hidden tabs.
+
+### libghostty Upgrade
+
+- **Kitty Clipboard Protocol:** Added OSC 5522 support so programs can request specific clipboard formats or list available formats. Reads can serve text, URLs, and other available formats; writes retain supported text formats.
+- **Terminal Memory:** Metal device setup is now shared across terminal panes. Smaller initial memory allocations and improved scrollback-page reuse reduce terminal memory overhead.
+- **Keyboard Encoding:** Improved encoding for extended function keys, numeric keypad keys, modified Escape and Backspace, and non-ASCII Alt combinations.
+- **Kitty Images:** Updated decoding of compressed Kitty images.
+
+### Tailscale
+
+- **Engine Update:** Updated the built-in Tailscale engines to 1.104.1 for Whole Device and rootshell Only modes.
+
+### Security
+
+- **HTTP/2 CPU-Exhaustion Fix:** Fixed CVE-2026-78669, a possible CPU-exhaustion issue when HTTP Capture is decrypting HTTP/2 traffic. With Decrypt HTTP/2 enabled, a malicious peer in an intercepted connection could cause excessive CPU use through repeated flow-control settings.
+
+### Mac Keyboard Focus
+
+- **Visor Focus:** Fixed the standalone Mac visor losing keyboard focus after it was hidden and clicked back into view.
+
 ## 1.0.14-164 - October 8, 2026
 
 ### Display Fix

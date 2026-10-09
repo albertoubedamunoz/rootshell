@@ -29,6 +29,17 @@ final class PaddingManager {
 
     private static let allowedRange: ClosedRange<Int> = 0...32
 
+    /// Ghostty insets the grid by padding × 96/72 points (see
+    /// MainView.terminalTopGridAlignmentPadding).
+    private static let pointsPerPaddingUnit: CGFloat = 96.0 / 72.0
+
+    /// Padding (4pt inset) that keeps the first cell inside a Rounded Panes
+    /// card corner; applied only when the user's padding would not.
+    static let roundedPanesMinimum = 3
+
+    /// Mirrors Settings.Window.roundedPanes for the effective-padding floor.
+    private(set) var roundedPanes: Bool
+
     /// True while `reload(keys:)` re-assigns properties from the store.
     @ObservationIgnored private var isReloading = false
 
@@ -68,9 +79,27 @@ final class PaddingManager {
         self.paddingXOverride = store.get(Settings.Terminal.paddingXOverride)
         self.paddingYOverride = store.get(Settings.Terminal.paddingYOverride)
         self.extendUnderHomeIndicator = store.get(Settings.Window.extendUnderHomeIndicator)
+        self.roundedPanes = store.get(Settings.Window.roundedPanes)
 
         SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
             self?.reload(keys: keys)
+        }
+        // Any origin: a local toggle never reaches the refresh hub.
+        _ = NotificationCenter.default.addObserver(forName: .settingsDidChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.syncRoundedPanes() }
+        }
+    }
+
+    private func syncRoundedPanes() {
+        let rounded = SettingsStore.shared.get(Settings.Window.roundedPanes)
+        guard rounded != roundedPanes else { return }
+        let before = (effectivePaddingX, effectivePaddingY)
+        roundedPanes = rounded
+        guard before != (effectivePaddingX, effectivePaddingY) else { return }
+        // Regenerating the config file carries the new window-padding-x/y.
+        if let app = Ghostty.App.shared,
+           app.config.setFontSize(Int(FontManager.shared.currentFontSize)) {
+            app.pushGlobalConfigToApp()
         }
     }
 
@@ -115,11 +144,24 @@ final class PaddingManager {
 #endif
     }
 
-    /// Effective horizontal padding, honoring the user override if set.
-    var effectivePaddingX: Int { paddingXOverride ?? defaultPaddingX }
+    /// The user's chosen padding (override or platform default).
+    var userPaddingX: Int { paddingXOverride ?? defaultPaddingX }
+    var userPaddingY: Int { paddingYOverride ?? defaultPaddingY }
 
-    /// Effective vertical padding, honoring the user override if set.
-    var effectivePaddingY: Int { paddingYOverride ?? defaultPaddingY }
+    /// Padding Ghostty and the multiplexer size math use: the user's choice,
+    /// raised to the Rounded Panes floor when cards clip the corners.
+    var effectivePaddingX: Int { roundedPanesRaisesPadding ? max(userPaddingX, Self.roundedPanesMinimum) : userPaddingX }
+    var effectivePaddingY: Int { roundedPanesRaisesPadding ? max(userPaddingY, Self.roundedPanesMinimum) : userPaddingY }
+
+    /// True when the first cell's corner would fall outside the card's curve.
+    /// The 1pt radius margin covers the continuous corner shape.
+    var roundedPanesRaisesPadding: Bool {
+        guard roundedPanes else { return false }
+        let radius = PaneCardStyle.cornerRadius + 1
+        let dx = max(0, radius - CGFloat(userPaddingX) * Self.pointsPerPaddingUnit)
+        let dy = max(0, radius - CGFloat(userPaddingY) * Self.pointsPerPaddingUnit)
+        return dx * dx + dy * dy > radius * radius
+    }
 
     /// True when the user has set an override on either axis.
     var isCustom: Bool { paddingXOverride != nil || paddingYOverride != nil }
