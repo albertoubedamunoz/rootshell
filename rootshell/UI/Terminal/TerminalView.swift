@@ -3087,30 +3087,8 @@ extension Ghostty {
             return surfaceController.pauseRendererForBackground(timeoutNanoseconds: timeoutNanoseconds)
         }
 
-        /// Synchronously pause this surface's renderer before iOS suspends
-        /// the app. Called from the main thread at the very top of the
-        /// background scene-transition path. Returns true if the renderer
-        /// was confirmed paused within the timeout.
-        ///
-        /// On the C side this:
-        ///   1. Stops the per-surface CADisplayLink on the main thread
-        ///      (ghostty_surface_set_occlusion → renderer.setVisible →
-        ///      IOSDisplayLink.stop, which now hops to main if not already
-        ///      there).
-        ///   2. Pushes a `drain_to_idle` ack the renderer thread signals
-        ///      after processing the pause, confirming no further drawFrame
-        ///      will run.
-        ///
-        /// This closes the race where iOS could suspend us with a Metal
-        /// commit still in flight or a CADisplayLink still attached to the
-        /// main run loop in an inconsistent state — the documented cause
-        /// of the "one frame per touch" wedge users hit on scene resume.
-        @discardableResult
-        func drainRendererToIdleSync(timeoutNanoseconds: UInt64 = 200_000_000) -> Bool {
-            isTabVisible = false
-            return surfaceController.drainRendererToIdleSync(timeoutNanoseconds: timeoutNanoseconds)
-        }
-
+        /// Pauses the renderer off the main thread so the scene update never
+        /// blocks on the renderer thread's drain ack.
         func requestRendererDrainToIdleAsync(timeoutNanoseconds: UInt64 = 200_000_000) {
             isTabVisible = false
             let terminalID = uuid.uuidString

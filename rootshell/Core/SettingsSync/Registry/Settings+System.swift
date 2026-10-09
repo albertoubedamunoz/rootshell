@@ -45,9 +45,6 @@ nonisolated extension Settings {
         static let lifecycleDebugLogging = SettingKey(
             "lifecycleDebugLoggingEnabled", default: false, group: .system, policy: .deviceOnly,
             title: String(localized: "Lifecycle Debug Logging", comment: "Setting title"))
-        static let lifecycleSyncRendererDrain = SettingKey(
-            "lifecycleSyncRendererDrainEnabled", default: false, group: .system, policy: .deviceOnly,
-            title: String(localized: "Synchronous Renderer Drain", comment: "Setting title"))
         static let lifecycleVerboseWiFiPollLogging = SettingKey(
             "lifecycleVerboseWiFiPollLoggingEnabled", default: false, group: .system, policy: .deviceOnly,
             title: String(localized: "Verbose WiFi Poll Logging", comment: "Setting title"))
@@ -101,7 +98,7 @@ nonisolated extension Settings {
             cloudKitSyncEnabled.erased, cloudKitSyncHistory.erased, cloudKitSyncKnownHosts.erased,
             cloudKitSyncProfiles.erased, cloudKitSyncAppSettings.erased, cloudKitDeviceID.erased,
             cloudKitMigratedToCustomZone.erased, cloudKitZoneChangeToken.erased, cloudKitLastSyncDate,
-            resumeDebugLogging.erased, screenshotMode.erased, lifecycleDebugLogging.erased, lifecycleSyncRendererDrain.erased,
+            resumeDebugLogging.erased, screenshotMode.erased, lifecycleDebugLogging.erased,
             lifecycleVerboseWiFiPollLogging.erased, sshDebugLogging.erased, vncDebugLogging.erased,
             tmuxDebugLogging.erased, herdrForceFallback.erased, agentDetectionCapture.erased,
             ghosttyBookmarkNames, applePressAndHold.erased,

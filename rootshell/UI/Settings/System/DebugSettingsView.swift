@@ -12,7 +12,6 @@ struct DebugSettingsView: View {
     @Setting(Settings.System.screenshotMode) private var screenshotMode
     @AppStorage(ResumeDebugLogger.enabledKey) private var resumeDebugLogging: Bool = false
     @AppStorage(LifecycleDebugLogger.enabledKey) private var lifecycleDebugLogging: Bool = false
-    @AppStorage(LifecycleDebugLogger.syncRendererDrainEnabledKey) private var syncRendererDrain: Bool = false
     @AppStorage(SSHDebugLogger.enabledKey) private var sshDebugLogging: Bool = false
     @AppStorage(VNCDebugLogger.enabledKey) private var vncDebugLogging: Bool = false
     @AppStorage(TmuxDebugLogger.enabledKey) private var tmuxDebugLogging: Bool = false
@@ -143,13 +142,10 @@ struct DebugSettingsView: View {
             Section {
                 Toggle("Lifecycle Debug Logging", isOn: $lifecycleDebugLogging)
                     .themedRow()
-
-                Toggle("Synchronous Renderer Drain", isOn: $syncRendererDrain)
-                    .themedRow()
             } header: {
                 Text("App Lifecycle")
             } footer: {
-                Text("Logs every checkpoint on the background → foreground path with timestamps and deltas. The renderer drain toggle restores the old scene-update behavior for A/B testing and is off by default.")
+                Text("Logs every checkpoint on the background → foreground path with timestamps and deltas.")
             }
 
             Section {
