@@ -3,8 +3,9 @@
 //  rootshell
 //
 //  The detected agent's product logo, drawn at the trailing edge of the
-//  sidebar card's context line. Card line 1 already names the agent in
-//  text, so the mark is decorative and stays out of accessibility.
+//  sidebar card's context line and in the top tab's badge area. Card line 1
+//  already names the agent in text, so the mark is decorative and stays out
+//  of accessibility.
 //
 
 import SwiftUI
@@ -44,6 +45,11 @@ struct AgentBrandMark: View {
         "vim": "VimLogo",
     ]
 
+    /// Nil for ids with no mark, so callers can tell whether one will draw.
+    static func assetName(for agentID: String?) -> String? {
+        agentID.flatMap { assetNames[$0] }
+    }
+
     /// Bypasses the agent-id lookup for callers that already know which
     /// asset they want. The usage footer needs this: its rows are keyed by
     /// provider brand rather than by a detected agent, and oh-my-pi reports
@@ -63,7 +69,7 @@ struct AgentBrandMark: View {
     }
 
     var body: some View {
-        if let asset = explicitAsset ?? agentID.flatMap({ Self.assetNames[$0] }) {
+        if let asset = explicitAsset ?? Self.assetName(for: agentID) {
             Image(asset)
                 // Brand fills, not a tint: Claude, Helix and Vim use the same
                 // colours in both appearances, the rest ship light/dark variants.

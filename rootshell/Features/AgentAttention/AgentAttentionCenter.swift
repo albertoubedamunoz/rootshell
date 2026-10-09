@@ -2486,6 +2486,10 @@ final class AgentAttentionCenter {
                     tab.agentRow = bestRow
                     changed = true
                 }
+                if tab.agentID != bestRow?.agentID {
+                    tab.agentID = bestRow?.agentID
+                    changed = true
+                }
             }
         }
         return changed

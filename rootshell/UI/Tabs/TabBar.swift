@@ -34,6 +34,7 @@ import UIKit
 enum TabBarSizingPolicy {
     struct Item: Equatable {
         let hasTmuxBadge: Bool
+        let hasAgentLogo: Bool
         let hasAttentionBadge: Bool
         let hasThemeOverride: Bool
         let shortcut: String?
@@ -216,6 +217,9 @@ enum TabBarSizingPolicy {
         if item.hasTmuxBadge {
             widths.append(18)
         }
+        if item.hasAgentLogo {
+            widths.append(14)
+        }
         if item.hasAttentionBadge {
             widths.append(8)
         }
@@ -353,6 +357,11 @@ struct TabBar: View {
     /// Gates the attention dot on tabs. (id=agent-attention)
     @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
 
+    /// Logo for the tab's highest-priority agent, under the same gate as the dot.
+    private func agentLogoAsset(for tab: TabModel) -> String? {
+        attentionBadgesEnabled ? AgentBrandMark.assetName(for: tab.agentID) : nil
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -443,8 +452,11 @@ struct TabBar: View {
         gatewayOwnerIDs: [UUID]
     ) -> TabBarSizingPolicy.Item {
         let navigationIndex = tabsModel.navigationIndex(of: tab.id) ?? index
+        let tmuxBadge = TmuxTabBadgeResolver.badge(for: tab, gatewayOwnerIDs: gatewayOwnerIDs)
+        let hasAgentLogo = agentLogoAsset(for: tab) != nil
         return TabBarSizingPolicy.Item(
-            hasTmuxBadge: TmuxTabBadgeResolver.badge(for: tab, gatewayOwnerIDs: gatewayOwnerIDs) != nil,
+            hasTmuxBadge: tmuxBadge != nil && !(hasAgentLogo && tmuxBadge?.yieldsToAgentLogo == true),
+            hasAgentLogo: hasAgentLogo,
             hasAttentionBadge: attentionBadgesEnabled && tab.attentionBadge != nil,
             hasThemeOverride: tabHasThemeOverride(tab.id),
             shortcut: keyboardShortcut(navigationIndex)
@@ -480,6 +492,7 @@ struct TabBar: View {
             // `==` compares it — a rollup change must re-render even when
             // every other parent-side input is unchanged. (id=agent-attention)
             attentionBadge: attentionBadgesEnabled ? tab.attentionBadge : nil,
+            agentLogoAsset: agentLogoAsset(for: tab),
             isSelected: index == selectedTabIndex,
             isOnly: isOnly,
             theme: theme,
@@ -1245,6 +1258,8 @@ struct TabBarItem: View, Equatable {
     /// is nothing to show). Stored and compared in `==` — a stale value
     /// here means a stale dot. (id=agent-attention)
     let attentionBadge: AgentAttentionStatus?
+    /// Agent / PSP logo; replaces an H/T badge. Compared in `==` like `attentionBadge`.
+    let agentLogoAsset: String?
     let isSelected: Bool
     let isOnly: Bool
     let theme: ResolvedTabBarTheme
@@ -1279,6 +1294,7 @@ struct TabBarItem: View, Equatable {
             && lhs.tmuxBadge == rhs.tmuxBadge
             && lhs.tmuxBadgeColor == rhs.tmuxBadgeColor
             && lhs.attentionBadge == rhs.attentionBadge
+            && lhs.agentLogoAsset == rhs.agentLogoAsset
             && lhs.isSelected == rhs.isSelected
             && lhs.isOnly == rhs.isOnly
             && lhs.isWiggling == rhs.isWiggling
@@ -1325,6 +1341,7 @@ struct TabBarItem: View, Equatable {
             tmuxBadgePalette: TmuxTabBadgePalette(theme: theme),
             controlledElsewhere: tab.herdrIsControlledElsewhere,
             attentionBadge: attentionBadge,
+            agentLogoAsset: agentLogoAsset,
             style: style,
             tabWidth: tabWidth,
             usesTitlebarTabs: usesTitlebarTabs
