@@ -879,7 +879,7 @@ struct VerticalTabSidebar: View {
     // MARK: Row List
 
     private func rowList(_ rows: [SidebarRow], gatewayOwnerIDs: [UUID]) -> some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        let list = ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: metrics.rowSpacing) {
                 ForEach(rows) { row in
                     rowView(row: row, rows: rows, gatewayOwnerIDs: gatewayOwnerIDs)
@@ -896,6 +896,11 @@ struct VerticalTabSidebar: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
+        }
+        // A floating keyboard gives the docked column a bottom safe area, and
+        // the scroll view extends into it, drawing rows over the usage footer.
+        return Group {
+            if isDocked { list.clipped() } else { list }
         }
         // Catches drops between rows.
         .onDrop(of: [TabTransferCoordinator.dragUTType, .text], delegate: SidebarContainerDropDelegate(

@@ -96,6 +96,8 @@ struct TransferQueueView: View {
                 .padding(6)
             }
             .frame(maxHeight: 220)
+            // Same floating-keyboard safe area as the file list: stay above the hint bar.
+            .clipped()
             .onChange(of: manager.queueCursor) { _, id in if let id { proxy.scrollTo(id) } }
         }
     }
