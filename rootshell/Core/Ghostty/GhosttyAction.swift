@@ -125,5 +125,11 @@ extension Ghostty.Action {
             title = c.title.map { String(cString: $0) } ?? ""
             msg = c.msg.map { String(cString: $0) } ?? ""
         }
+
+        /// One line for ProgramStatusDebugLogger.
+        var logDescription: String {
+            "id=\"\(id)\" state=\(state) kind=\(kind) progress=\(progress.map(String.init) ?? "nil")"
+                + " app=\"\(app)\" title=\"\(title)\" msg=\"\(msg)\""
+        }
     }
 }

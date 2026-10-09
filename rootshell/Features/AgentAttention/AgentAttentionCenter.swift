@@ -1398,10 +1398,17 @@ final class AgentAttentionCenter {
         app: String?,
         message: String?
     ) {
+        let log = ProgramStatusDebugLogger.shared
         guard let status else {
             pendingProgramStatus[terminal.uuid] = nil
             guard programStatusPanes.remove(terminal.uuid) != nil,
-                  let monitor = monitors[terminal.uuid] else { return }
+                  let monitor = monitors[terminal.uuid] else {
+                if log.isEnabled { log.event("INBOX", "pane=\(terminal.uuid) no status, pane not held") }
+                return
+            }
+            if log.isEnabled {
+                log.event("INBOX", "pane=\(terminal.uuid) no status, releasing (herdr=\(latestHerdrReports[terminal.uuid] != nil))")
+            }
             if let herdr = latestHerdrReports[terminal.uuid] {
                 let hadMessage = monitor.promptSummary != nil || monitor.failureSummary != nil
                 monitor.notePromptSummary(nil)
@@ -1423,8 +1430,14 @@ final class AgentAttentionCenter {
                 comment: "Agent inbox name for a program that reports its status (OSC 7501) without naming itself"),
             message: message.flatMap { $0.isEmpty ? nil : $0 })
         guard let monitor = monitors[terminal.uuid] else {
+            if log.isEnabled {
+                log.event("INBOX", "pane=\(terminal.uuid) status=\(status) agent=\(report.agentID) pending (no monitor)")
+            }
             pendingProgramStatus[terminal.uuid] = report
             return
+        }
+        if log.isEnabled {
+            log.event("INBOX", "pane=\(terminal.uuid) status=\(status) agent=\(report.agentID) applied")
         }
         applyProgramReport(report, to: monitor)
     }

@@ -34,6 +34,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ForegroundWedgeWatchdog.shared.noteMainActorServiced("AppDelegate.launch")
         LifecycleDebugLogger.shared.logMarker("APP LAUNCH")
         TmuxDebugLogger.shared.marker("APP LAUNCH")
+        ProgramStatusDebugLogger.shared.logMarker("APP LAUNCH")
         LifecycleDebugLogger.shared.checkpoint("APP.launch", ms: nil, [
             ("protectedData", UIApplication.shared.isProtectedDataAvailable),
             ("backgroundLaunch", UIApplication.shared.applicationState == .background),

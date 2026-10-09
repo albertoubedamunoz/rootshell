@@ -2844,6 +2844,10 @@ extension Ghostty {
                       let payload = action.action.program_status else { return true }
                 let surfaceId = Int(bitPattern: target.target.surface)
                 let report = Ghostty.Action.ProgramStatus(c: payload.pointee)
+                if ProgramStatusDebugLogger.shared.isEnabled {
+                    ProgramStatusDebugLogger.shared.event(
+                        "CALLBACK", "surface=\(surfaceId) \(report.logDescription)")
+                }
                 Task { @MainActor in
                     appInstance.surfaceDelegates[surfaceId]?.delegate?.handleProgramStatus(report)
                 }

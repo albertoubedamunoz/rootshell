@@ -4974,6 +4974,10 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         // is credited to the agent still holding it.
         let hadProgramStatus = !programStatusRecords.records.isEmpty
         programStatusRecords.dropUnfinished()
+        if hadProgramStatus, ProgramStatusDebugLogger.shared.isEnabled {
+            ProgramStatusDebugLogger.shared.event(
+                "RECORDS", "pane=\(uuid) command finished, dropped unfinished -> \(programStatusRecords.logDescription)")
+        }
         if !programStatusRecords.records.isEmpty { syncProgramStatus() }
         // OSC 133 shell integration: exit code + wall time for the agent
         // inbox (failed/done rows, agent-exit identity clearing).
@@ -5447,6 +5451,10 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
 
     func handleProgramStatus(_ report: Ghostty.Action.ProgramStatus) {
         programStatusRecords.apply(report)
+        if ProgramStatusDebugLogger.shared.isEnabled {
+            ProgramStatusDebugLogger.shared.event(
+                "RECORDS", "pane=\(uuid) applied id=\"\(report.id)\" -> \(programStatusRecords.logDescription)")
+        }
         syncProgramStatus()
     }
 
@@ -5454,6 +5462,10 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     /// indicator and the agent inbox.
     private func syncProgramStatus() {
         let summary = programStatusRecords.summary
+        if ProgramStatusDebugLogger.shared.isEnabled {
+            ProgramStatusDebugLogger.shared.event(
+                "RECORDS", "pane=\(uuid) summary: \(summary?.logDescription ?? "nil")")
+        }
 
         if let summary, summary.state == .working, let progress = summary.progress {
             programStatusOwnsProgress = true

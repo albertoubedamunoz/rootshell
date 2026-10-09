@@ -90,4 +90,20 @@ extension ProgramStatusRecords.Record {
         case .idle, .clear: return .idle
         }
     }
+
+    /// One line for ProgramStatusDebugLogger.
+    var logDescription: String {
+        "state=\(state) kind=\(kind) progress=\(progress.map(String.init) ?? "nil")"
+            + " app=\"\(app)\" msg=\"\(msg)\" updated=\(updated)"
+    }
+}
+
+extension ProgramStatusRecords {
+    /// Every record, sorted by id, for ProgramStatusDebugLogger.
+    var logDescription: String {
+        guard !records.isEmpty else { return "(none)" }
+        return records.sorted { $0.key < $1.key }
+            .map { "\"\($0.key)\": \($0.value.logDescription)" }
+            .joined(separator: "; ")
+    }
 }
