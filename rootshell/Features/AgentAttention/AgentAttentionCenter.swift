@@ -129,6 +129,18 @@ final class AgentAttentionCenter {
         let displayName: String?
     }
     @ObservationIgnored private var pendingHerdrReports: [UUID: PendingHerdrReport] = [:]
+
+    /// OSC 7501 program status that arrived before its pane had a monitor,
+    /// and the panes whose state a program currently reports.
+    /// (id=program-status-authority)
+    private struct PendingProgramStatus {
+        let status: AgentAttentionStatus
+        let agentID: String
+        let displayName: String
+        let question: String?
+    }
+    @ObservationIgnored private var pendingProgramStatus: [UUID: PendingProgramStatus] = [:]
+    @ObservationIgnored private var programStatusPanes: Set<UUID> = []
     @ObservationIgnored private var pendingHerdrProjectPaths: [UUID: String] = [:]
 
     /// Gateways with a pane-directory query outstanding. One query answers for
@@ -1351,6 +1363,60 @@ final class AgentAttentionCenter {
         }
     }
 
+    /// OSC 7501 program status for a pane, reduced by the pane to its most
+    /// urgent record (nil once it has none). While a program has records it
+    /// reports like herdr does; afterwards screen and title detection resume.
+    /// A blocked report's message is the notification's question.
+    /// (id=program-status-authority)
+    func applyProgramStatus(
+        terminal: Ghostty.TerminalView,
+        status: AgentAttentionStatus?,
+        app: String?,
+        question: String?
+    ) {
+        guard let status else {
+            pendingProgramStatus[terminal.uuid] = nil
+            guard programStatusPanes.remove(terminal.uuid) != nil,
+                  let monitor = monitors[terminal.uuid] else { return }
+            let now = Date()
+            if monitor.releaseExternalReport(now: now) { publish(now: now) }
+            return
+        }
+        let name = app.flatMap { $0.isEmpty ? nil : $0 }
+        let report = PendingProgramStatus(
+            status: status,
+            agentID: name ?? "program-status",
+            displayName: name ?? String(
+                localized: "Program",
+                comment: "Agent inbox name for a program that reports its status (OSC 7501) without naming itself"),
+            question: question.flatMap { $0.isEmpty ? nil : $0 })
+        guard let monitor = monitors[terminal.uuid] else {
+            pendingProgramStatus[terminal.uuid] = report
+            return
+        }
+        applyProgramReport(report, to: monitor)
+    }
+
+    private func applyProgramReport(_ report: PendingProgramStatus, to monitor: AgentPaneMonitor) {
+        programStatusPanes.insert(monitor.paneUUID)
+        let now = Date()
+        // Set the question first so a blocked notification can carry it.
+        let question = report.status == .blocked && AgentAttentionSettings.notificationPromptEnabled
+            ? report.question : nil
+        let questionChanged = monitor.promptSummary != question
+        monitor.notePromptSummary(question)
+        let changed = monitor.applyExternalReport(
+            status: report.status,
+            agentID: report.agentID,
+            displayName: report.displayName,
+            now: now,
+            seq: nextSeq
+        )
+        if changed || questionChanged {
+            publish(now: now)
+        }
+    }
+
     /// Applies reports and directories that arrived before a monitor did.
     private func drainPendingHerdrState(for monitor: AgentPaneMonitor) {
         if let path = pendingHerdrProjectPaths.removeValue(forKey: monitor.paneUUID),
@@ -1359,6 +1425,9 @@ final class AgentAttentionCenter {
         }
         if let report = pendingHerdrReports.removeValue(forKey: monitor.paneUUID) {
             applyHerdrReport(report, to: monitor)
+        }
+        if let report = pendingProgramStatus.removeValue(forKey: monitor.paneUUID) {
+            applyProgramReport(report, to: monitor)
         }
     }
 
@@ -1752,6 +1821,8 @@ final class AgentAttentionCenter {
             }
         }
         pendingHerdrReports = pendingHerdrReports.filter { live.contains($0.key) || monitors[$0.key] == nil }
+        pendingProgramStatus = pendingProgramStatus.filter { live.contains($0.key) || monitors[$0.key] == nil }
+        programStatusPanes = programStatusPanes.filter { live.contains($0) || monitors[$0] == nil }
         pendingHerdrProjectPaths = pendingHerdrProjectPaths.filter { live.contains($0.key) || monitors[$0.key] == nil }
         for uuid in monitors.keys where !live.contains(uuid) {
             topologyChanged = true
