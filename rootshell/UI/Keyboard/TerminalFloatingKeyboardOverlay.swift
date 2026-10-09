@@ -41,8 +41,23 @@ final class TerminalTouchKeyboardWindowState {
     private(set) var foldRegion: CGRect?
 
     private(set) lazy var keyboard: TerminalTouchKeyboardView = makeKeyboard()
-    private(set) lazy var input: TerminalTouchKeyboardInputView = makeInput()
-    private(set) lazy var toolbarInput = TerminalTouchKeyboardToolbarInputView(keyboard: keyboard)
+    private var storedInput: TerminalTouchKeyboardInputView?
+    private var storedToolbarInput: TerminalTouchKeyboardToolbarInputView?
+    /// iPadOS 27's UIInputView.init queries the first responder's input views,
+    /// which read these back. Not `lazy`: a nested read would build another.
+    private(set) var isBuildingInputView = false
+    var input: TerminalTouchKeyboardInputView {
+        if let storedInput { return storedInput }
+        let created = buildingInputView(makeInput)
+        storedInput = created
+        return created
+    }
+    var toolbarInput: TerminalTouchKeyboardToolbarInputView {
+        if let storedToolbarInput { return storedToolbarInput }
+        let created = buildingInputView { TerminalTouchKeyboardToolbarInputView(keyboard: keyboard) }
+        storedToolbarInput = created
+        return created
+    }
     private var storedController: TerminalTouchKeyboardInputController?
     /// Not `lazy`: UIKit can query input views re-entrantly while the controller
     /// is built, and a lazy store would release that nested instance mid-access.
@@ -74,7 +89,7 @@ final class TerminalTouchKeyboardWindowState {
         guard inputRegion != region else { return }
         inputRegion = region
         overlay?.inputRegion = region
-        input.setNeedsLayout()
+        storedInput?.setNeedsLayout()
     }
 
     func state(tabID: UUID?, perTab: Bool) -> TerminalFloatingKeyboardState {
@@ -140,6 +155,13 @@ final class TerminalTouchKeyboardWindowState {
         keyboard.onToolbarAction = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.toolbarAction($0)) }
         keyboard.onPlacementRequested = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.placementRequested($0)) }
         return keyboard
+    }
+
+    private func buildingInputView<View: UIInputView>(_ make: () -> View) -> View {
+        let wasBuilding = isBuildingInputView
+        isBuildingInputView = true
+        defer { isBuildingInputView = wasBuilding }
+        return make()
     }
 
     private func makeInput() -> TerminalTouchKeyboardInputView {
