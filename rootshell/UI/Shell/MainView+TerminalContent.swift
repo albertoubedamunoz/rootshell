@@ -1411,6 +1411,9 @@ extension MainView {
         let dockedSidebarTheme: ResolvedSheetTheme? = docked ? resolvedSheetTheme() : nil
         // Rounded panes inset the whole row; columns divide what remains.
         let cardGap: CGFloat = roundedPanes ? PaneCardStyle.gap : 0
+        // Floating tabs leave slack under them in the header row, which already
+        // separates the cards; strip tabs fill the row and keep the gap.
+        let cardTopGap: CGFloat = showsHorizontalTabHeader && !topTabStyle.usesStripLayout ? 0 : cardGap
         // Mac terminals draw their own translucent background, so the backdrop
         // is painted only around the cards (here and between splits).
         #if targetEnvironment(macCatalyst)
@@ -1495,17 +1498,17 @@ extension MainView {
         // iPad cards run into the home-indicator strip (the surface inset keeps
         // the grid above it). iPhone display corners would clip them there, so
         // its cards stop at the strip, which already separates the bottom edge.
-        .padding(EdgeInsets(top: cardGap, leading: cardGap,
+        .padding(EdgeInsets(top: cardTopGap, leading: cardGap,
                             bottom: paneCardsEnterHomeIndicatorStrip || windowSafeAreaInsets.bottom < cardGap ? cardGap : 0,
                             trailing: cardGap))
         .background {
             if let cardBackdrop {
                 GeometryReader { proxy in
-                    let height = max(0, proxy.size.height - cardGap * 2)
+                    let height = max(0, proxy.size.height - cardTopGap - cardGap)
                     PaneCardBackdropShape(holes: [
-                        .init(rect: CGRect(x: cardGap, y: cardGap, width: max(0, dockedWidth - cardGap), height: height),
+                        .init(rect: CGRect(x: cardGap, y: cardTopGap, width: max(0, dockedWidth - cardGap), height: height),
                               cornerRadius: PaneCardStyle.cornerRadius),
-                        .init(rect: CGRect(x: cardGap + dockedWidth, y: cardGap, width: terminalWidth, height: height),
+                        .init(rect: CGRect(x: cardGap + dockedWidth, y: cardTopGap, width: terminalWidth, height: height),
                               cornerRadius: 0),
                     ])
                     .fill(cardBackdrop, style: FillStyle(eoFill: true))
