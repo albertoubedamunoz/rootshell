@@ -1088,7 +1088,9 @@ extension MainView {
                     containerBottomSafeAreaExpansion: max(0, expanded.size.height - inner.size.height)
                 )
             }
-            .ignoresSafeArea(.container, edges: (duoTabletopAvailable && !duoTabletopDisabled) || roundedPanes ? [] : .bottom)
+            // A floating keyboard still reports a keyboard region the size of
+            // the strip, which would otherwise cancel the escape.
+            .ignoresSafeArea([.container, .keyboard], edges: (duoTabletopAvailable && !duoTabletopDisabled) || roundedPanes ? [] : .bottom)
             // Keep in sync with the per-tab `.transaction` in terminalTabsStack.
             // The escape used to sit under that modifier, which is what kept the
             // strip-driven resize off any ambient sheet animation.
@@ -1517,7 +1519,9 @@ extension MainView {
             }
         }
         .environment(\.paneCardBackdrop, cardBackdrop)
-        .ignoresSafeArea(.container, edges: paneCardsEnterHomeIndicatorStrip ? .bottom : [])
+        // Keyboard too: a floating keyboard reports a strip-sized keyboard
+        // region that would lift the cards out of the strip.
+        .ignoresSafeArea([.container, .keyboard], edges: paneCardsEnterHomeIndicatorStrip ? .bottom : [])
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: docked)
         // Animate width changes when the docked column toggles/snaps, but never
         // during the live drag (the gesture drives width directly). Outside the
