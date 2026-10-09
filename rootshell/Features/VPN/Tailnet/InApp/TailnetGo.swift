@@ -16,6 +16,8 @@ nonisolated enum TailnetGo {
     struct GoError: LocalizedError {
         let message: String
         var errorDescription: String? { message }
+        /// A socket reset never finished; the engine needs a restart.
+        var isResetStuck: Bool { message == IosbridgeTailnetResetStuck }
     }
 
     struct ProxyInfo: Decodable, Sendable, Equatable {
@@ -59,6 +61,11 @@ nonisolated enum TailnetGo {
     }
 
     static var isSupported: Bool { IosbridgeTailnetSupported() }
+
+    /// Where the engine logs; nil discards. Cheap.
+    static func setLogger(_ logger: TailnetGoLogger?) {
+        IosbridgeTailnetSetLogger(logger)
+    }
 
     /// Up and signed in; cheap (no network).
     static var isRunning: Bool { IosbridgeTailnetRunning() }
@@ -188,6 +195,14 @@ nonisolated final class TailnetGoStateStore: NSObject, IosbridgeTailnetStateStor
 
     func writeState(_ key: String?, value: Data?) throws {
         try TailnetKeychainState.write(key ?? "", value ?? Data())
+    }
+}
+
+/// Engine log lines, written to the VPN connection debug log.
+nonisolated final class TailnetGoLogger: NSObject, IosbridgeTailnetLoggerProtocol, @unchecked Sendable {
+    func onTailnetLog(_ line: String?) {
+        guard let line else { return }
+        VPNConnectionDebugLogger.shared.log("tailscale", line)
     }
 }
 

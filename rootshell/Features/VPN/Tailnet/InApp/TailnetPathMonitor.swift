@@ -75,6 +75,7 @@ nonisolated final class TailnetPathMonitor: @unchecked Sendable {
             : ""
         guard force || name != published else { return }
         published = name
+        TailnetInAppEngine.debugLog("default interface \(name.isEmpty ? "none" : name)\(force ? " (refresh)" : "")")
         TailnetGo.defaultInterfaceChanged(name)
     }
 }

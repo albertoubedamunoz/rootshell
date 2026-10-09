@@ -401,8 +401,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/trzsz-ssh-rootshell.git",
       "state" : {
-        "revision" : "ae3dc216e7c75bca235a45ea12b4908949e3ae4d",
-        "version" : "0.2.14"
+        "revision" : "dbc841841feacbce8abf88e14c5bb3c3de295f1d",
+        "version" : "0.2.15"
       }
     },
     {
