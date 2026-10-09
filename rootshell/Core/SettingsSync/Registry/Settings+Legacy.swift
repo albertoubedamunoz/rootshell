@@ -22,6 +22,7 @@ nonisolated extension Settings {
             "customKeyboardSelectedLayoutID",
             "hasSeenConnectionTypeMenuHint",
             "keyboardPreferredMode",
+            "lifecycleSyncRendererDrainEnabled",
             "live_activity_location_accuracy", "live_activity_terminal_preview",
             "location_diary_always_on",
             "mcp_auth_token",

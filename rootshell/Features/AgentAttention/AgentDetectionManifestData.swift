@@ -292,6 +292,9 @@ nonisolated enum AgentDetectionManifestData {
           "id": "claude",
           "displayName": "Claude Code",
           "identity": {
+            "programStatusApps": [
+              "claude-code"
+            ],
             "titlePatterns": [
               "^\\u{2733} "
             ],
@@ -1847,6 +1850,10 @@ nonisolated enum AgentDetectionManifestData {
           ]
         },
         {
+          "id": "helix",
+          "displayName": "Helix"
+        },
+        {
           "id": "omp",
           "displayName": "oh-my-pi",
           "identity": {
@@ -2373,6 +2380,10 @@ nonisolated enum AgentDetectionManifestData {
               ]
             }
           ]
+        },
+        {
+          "id": "vim",
+          "displayName": "Vim"
         }
       ]
     }

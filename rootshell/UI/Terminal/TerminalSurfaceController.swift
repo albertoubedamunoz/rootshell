@@ -813,14 +813,6 @@ final class TerminalSurfaceController: NSObject {
         return ghostty_surface_drain_renderer_to_idle(surface, timeoutNanoseconds)
     }
 
-    @discardableResult
-    func drainRendererToIdleSync(timeoutNanoseconds: UInt64 = 200_000_000) -> Bool {
-        host.surfaceIsTabVisible = false
-        suspendFirstFramePolling()
-        guard let surface else { return true }
-        return ghostty_surface_drain_renderer_to_idle(surface, timeoutNanoseconds)
-    }
-
     func requestRendererDrainToIdleAsync(
         terminalID: String,
         connection: String,
@@ -926,7 +918,7 @@ extension Ghostty.TerminalView: TerminalSurfaceHost {
     var surfaceFirstFrameGeometryIsReady: Bool {
         guard surfaceRequiresHerdrFirstFrameGeometry, let binding = herdrPaneBinding else { return true }
         return HerdrController.controller(forGateway: binding.gatewayUUID)?
-            .paneGeometryIsReady(binding.terminalId) == true
+            .paneCanRevealCachedFrame(binding.terminalId) == true
     }
     var surfaceTmuxPaneContainerLaidOut: Bool { tmuxPaneContainerLaidOut }
     var surfaceTmuxPaneRetired: Bool { tmuxPaneRetired }

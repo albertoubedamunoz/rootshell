@@ -61,6 +61,40 @@ extension UIPasteboard {
         hasStrings || hasURLs
     }
 
+    /// The representation of `mime` for a Ghostty clipboard read, or nil if the
+    /// pasteboard can't serve it. `text/plain` uses the opinionated string so
+    /// pastes keep their URL and file-path handling.
+    func ghosttyData(forMime mime: String) -> Data? {
+        switch mime {
+        case "text/plain":
+            guard let text = getOpinionatedStringContents() else { return nil }
+            return Data(text.utf8)
+        case "text/uri-list":
+            guard let urls, !urls.isEmpty else { return nil }
+            return Data(urls.map { $0.absoluteString + "\r\n" }.joined().utf8)
+        default:
+            guard let type = UTType(mimeType: mime) else { return nil }
+            return data(forPasteboardType: type.identifier)
+        }
+    }
+
+    /// The MIME types available on the pasteboard, from declared types only so
+    /// listing never reads contents.
+    func ghosttyAvailableMimes() -> [String] {
+        var result: [String] = []
+        var seen = Set<String>()
+        func add(_ mime: String) {
+            if seen.insert(mime).inserted { result.append(mime) }
+        }
+        if hasStrings || hasURLs { add("text/plain") }
+        if hasURLs { add("text/uri-list") }
+        for type in types {
+            guard let mime = UTType(type)?.preferredMIMEType else { continue }
+            add(mime == "text/plain;charset=utf-8" ? "text/plain" : mime)
+        }
+        return result
+    }
+
     /// UTIs we treat as plain text, in preference order. UTF-8 first, then UTF-16 variants,
     /// then the generic `public.plain-text` parent type for legacy sources.
     private static let plainTextPasteboardTypes: [String] = [

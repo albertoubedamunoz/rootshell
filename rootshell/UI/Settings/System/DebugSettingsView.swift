@@ -12,10 +12,10 @@ struct DebugSettingsView: View {
     @Setting(Settings.System.screenshotMode) private var screenshotMode
     @AppStorage(ResumeDebugLogger.enabledKey) private var resumeDebugLogging: Bool = false
     @AppStorage(LifecycleDebugLogger.enabledKey) private var lifecycleDebugLogging: Bool = false
-    @AppStorage(LifecycleDebugLogger.syncRendererDrainEnabledKey) private var syncRendererDrain: Bool = false
     @AppStorage(SSHDebugLogger.enabledKey) private var sshDebugLogging: Bool = false
     @AppStorage(VNCDebugLogger.enabledKey) private var vncDebugLogging: Bool = false
     @AppStorage(TmuxDebugLogger.enabledKey) private var tmuxDebugLogging: Bool = false
+    @AppStorage(ProgramStatusDebugLogger.enabledKey) private var programStatusDebugLogging: Bool = false
     @Setting(Settings.System.herdrForceFallback) private var herdrForceFallback
     @Setting(Settings.Keyboard.touchChooserPresented) private var keyboardChooserPresented
     @AppStorage(AgentDetectionCapture.enabledKey) private var agentCaptureEnabled: Bool = false
@@ -30,6 +30,7 @@ struct DebugSettingsView: View {
     @State private var sshLogFileSize: String = "—"
     @State private var vncLogFileSize: String = "—"
     @State private var tmuxLogFileSize: String = "—"
+    @State private var programStatusLogFileSize: String = "—"
     @State private var vpnLogFileSize: String = "—"
     @State private var agentCaptureFileSize: String = "—"
 
@@ -102,6 +103,42 @@ struct DebugSettingsView: View {
                 Text("Records every screen the coding-agent detector reads to .ghostty/agent-detection-captures.jsonl: the exact rows, terminal size, alternate-screen state and OSC title, with whichever agent and rule matched. This is what misdetections should be diagnosed from: a screenshot or a copy-paste loses the row boundaries the rules match on. Frames that differ only by a spinner or a ticking counter are skipped. At 2 MB the file rotates to agent-detection-captures.1.jsonl and recording continues, so the newest frames are always the ones kept.")
             }
 
+            // MARK: - Program Status Debug
+
+            Section {
+                Toggle("Program Status Debug Logging", isOn: $programStatusDebugLogging)
+                    .themedRow()
+            } header: {
+                Text("Program Status")
+            } footer: {
+                Text("Logs every OSC 7501 program status report libghostty delivers, with its id, state, kind, progress, app, title and message, followed by the pane's records after applying it and what reached the agent inbox.")
+            }
+
+            Section {
+                HStack {
+                    Text("Log File Size")
+                    Spacer()
+                    Text(programStatusLogFileSize)
+                        .foregroundColor(.secondary)
+                }
+                .themedRow()
+
+                Button("Export Log File") {
+                    exportProgramStatusLogFile()
+                }
+                .themedRow()
+
+                Button("Clear Log File", role: .destructive) {
+                    clearProgramStatusLogFile()
+                    refreshProgramStatusLogFileSize()
+                }
+                .themedRow()
+            } header: {
+                Text("Program Status Log File")
+            } footer: {
+                Text("Log is stored at Documents/.ghostty/program_status_debug.log")
+            }
+
             // MARK: - Session Resume Debug
 
             Section {
@@ -143,13 +180,10 @@ struct DebugSettingsView: View {
             Section {
                 Toggle("Lifecycle Debug Logging", isOn: $lifecycleDebugLogging)
                     .themedRow()
-
-                Toggle("Synchronous Renderer Drain", isOn: $syncRendererDrain)
-                    .themedRow()
             } header: {
                 Text("App Lifecycle")
             } footer: {
-                Text("Logs every checkpoint on the background → foreground path with timestamps and deltas. The renderer drain toggle restores the old scene-update behavior for A/B testing and is off by default.")
+                Text("Logs every checkpoint on the background → foreground path with timestamps and deltas.")
             }
 
             Section {
@@ -368,6 +402,7 @@ struct DebugSettingsView: View {
             refreshSSHLogFileSize()
             refreshVNCLogFileSize()
             refreshTmuxLogFileSize()
+            refreshProgramStatusLogFileSize()
             #if !CHINA_BUILD
             refreshVPNLogFileSize()
             #endif
@@ -381,6 +416,16 @@ struct DebugSettingsView: View {
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(200))
                     refreshVNCLogFileSize()
+                }
+            }
+        }
+        .onChange(of: programStatusDebugLogging) { _, isOn in
+            // Write a marker so the file exists before the next report arrives.
+            if isOn {
+                ProgramStatusDebugLogger.shared.logMarker("DEBUG LOGGING ENABLED (runtime toggle)")
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(200))
+                    refreshProgramStatusLogFileSize()
                 }
             }
         }
@@ -568,6 +613,36 @@ struct DebugSettingsView: View {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let logURL = documentsURL.appendingPathComponent(".ghostty/tmux_debug.log")
         let rotatedURL = documentsURL.appendingPathComponent(".ghostty/tmux_debug.1.log")
+        try? FileManager.default.removeItem(at: logURL)
+        try? FileManager.default.removeItem(at: rotatedURL)
+    }
+
+    // MARK: - Program Status Log Helpers
+
+    private func refreshProgramStatusLogFileSize() {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logURL = documentsURL.appendingPathComponent(".ghostty/program_status_debug.log")
+
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: logURL.path),
+           let size = attrs[.size] as? UInt64 {
+            programStatusLogFileSize = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+        } else {
+            programStatusLogFileSize = "No log file"
+        }
+    }
+
+    private func exportProgramStatusLogFile() {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logURL = documentsURL.appendingPathComponent(".ghostty/program_status_debug.log")
+
+        guard FileManager.default.fileExists(atPath: logURL.path) else { return }
+        presentShareSheet(for: logURL)
+    }
+
+    private func clearProgramStatusLogFile() {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logURL = documentsURL.appendingPathComponent(".ghostty/program_status_debug.log")
+        let rotatedURL = documentsURL.appendingPathComponent(".ghostty/program_status_debug.1.log")
         try? FileManager.default.removeItem(at: logURL)
         try? FileManager.default.removeItem(at: rotatedURL)
     }

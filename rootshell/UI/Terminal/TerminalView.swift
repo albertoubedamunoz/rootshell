@@ -350,6 +350,13 @@ extension Ghostty {
         /// `replayCachedSessionStateOnForeground()`.
         var backgroundProgressReport: Ghostty.Action.ProgressReport?
 
+        /// OSC 7501 program status records for this pane.
+        var programStatusRecords = ProgramStatusRecords()
+
+        /// True while the progress indicator shows OSC 7501 progress, so only
+        /// that progress is removed when the program's work ends.
+        var programStatusOwnsProgress = false
+
         /// Progress report state (for OSC 9;4 progress indicators)
         @Published var progressReport: Ghostty.Action.ProgressReport? = nil {
             didSet {
@@ -3080,30 +3087,8 @@ extension Ghostty {
             return surfaceController.pauseRendererForBackground(timeoutNanoseconds: timeoutNanoseconds)
         }
 
-        /// Synchronously pause this surface's renderer before iOS suspends
-        /// the app. Called from the main thread at the very top of the
-        /// background scene-transition path. Returns true if the renderer
-        /// was confirmed paused within the timeout.
-        ///
-        /// On the C side this:
-        ///   1. Stops the per-surface CADisplayLink on the main thread
-        ///      (ghostty_surface_set_occlusion → renderer.setVisible →
-        ///      IOSDisplayLink.stop, which now hops to main if not already
-        ///      there).
-        ///   2. Pushes a `drain_to_idle` ack the renderer thread signals
-        ///      after processing the pause, confirming no further drawFrame
-        ///      will run.
-        ///
-        /// This closes the race where iOS could suspend us with a Metal
-        /// commit still in flight or a CADisplayLink still attached to the
-        /// main run loop in an inconsistent state — the documented cause
-        /// of the "one frame per touch" wedge users hit on scene resume.
-        @discardableResult
-        func drainRendererToIdleSync(timeoutNanoseconds: UInt64 = 200_000_000) -> Bool {
-            isTabVisible = false
-            return surfaceController.drainRendererToIdleSync(timeoutNanoseconds: timeoutNanoseconds)
-        }
-
+        /// Pauses the renderer off the main thread so the scene update never
+        /// blocks on the renderer thread's drain ack.
         func requestRendererDrainToIdleAsync(timeoutNanoseconds: UInt64 = 200_000_000) {
             isTabVisible = false
             let terminalID = uuid.uuidString
@@ -4984,10 +4969,21 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             LocalMultiplexerTracker.shared.refresh()
         }
         #endif
+        // A program that exited (or a new prompt) keeps only finished OSC 7501
+        // results. Emptying them releases the pane only after the exit below
+        // is credited to the agent still holding it.
+        let hadProgramStatus = !programStatusRecords.records.isEmpty
+        programStatusRecords.dropUnfinished()
+        if hadProgramStatus, ProgramStatusDebugLogger.shared.isEnabled {
+            ProgramStatusDebugLogger.shared.event(
+                "RECORDS", "pane=\(uuid) command finished, dropped unfinished -> \(programStatusRecords.logDescription)")
+        }
+        if !programStatusRecords.records.isEmpty { syncProgramStatus() }
         // OSC 133 shell integration: exit code + wall time for the agent
         // inbox (failed/done rows, agent-exit identity clearing).
         AgentAttentionCenter.shared.commandFinished(
             paneUUID: uuid, exitCode: exitCode, duration: duration)
+        if hadProgramStatus, programStatusRecords.records.isEmpty { syncProgramStatus() }
     }
 
     func handlePwdChange(_ reported: String) {
@@ -5437,6 +5433,12 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func handleProgressReport(_ report: Ghostty.Action.ProgressReport) {
+        // OSC 9;4 replaces whatever OSC 7501 progress was showing.
+        programStatusOwnsProgress = false
+        applyProgressReport(report)
+    }
+
+    private func applyProgressReport(_ report: Ghostty.Action.ProgressReport) {
         if Ghostty.isAppBackgroundedAtomic {
             backgroundProgressReport = report
             return
@@ -5445,6 +5447,39 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         // The TerminalScrollView observer will automatically update the UI
         self.progressReport = report
         Ghostty.logger.debug("Progress report updated: state=\(report.state), progress=\(report.progress?.description ?? "nil")")
+    }
+
+    func handleProgramStatus(_ report: Ghostty.Action.ProgramStatus) {
+        programStatusRecords.apply(report)
+        if ProgramStatusDebugLogger.shared.isEnabled {
+            ProgramStatusDebugLogger.shared.event(
+                "RECORDS", "pane=\(uuid) applied id=\"\(report.id)\" -> \(programStatusRecords.logDescription)")
+        }
+        syncProgramStatus()
+    }
+
+    /// Pushes the pane's most urgent OSC 7501 record to the progress
+    /// indicator and the agent inbox.
+    private func syncProgramStatus() {
+        let summary = programStatusRecords.summary
+        if ProgramStatusDebugLogger.shared.isEnabled {
+            ProgramStatusDebugLogger.shared.event(
+                "RECORDS", "pane=\(uuid) summary: \(summary?.logDescription ?? "nil")")
+        }
+
+        if let summary, summary.state == .working, let progress = summary.progress {
+            programStatusOwnsProgress = true
+            applyProgressReport(.init(state: .set, progress: progress))
+        } else if programStatusOwnsProgress {
+            programStatusOwnsProgress = false
+            applyProgressReport(.init(state: .remove, progress: nil))
+        }
+
+        AgentAttentionCenter.shared.applyProgramStatus(
+            terminal: self,
+            status: summary?.attentionStatus,
+            app: summary?.app,
+            message: summary?.msg)
     }
 
     // MARK: - Search Delegate

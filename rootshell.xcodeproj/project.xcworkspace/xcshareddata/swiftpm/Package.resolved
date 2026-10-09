@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/ghosttykit-rootshell.git",
       "state" : {
-        "revision" : "6927840156004b0a8bc1683dad39811a08372fe8",
-        "version" : "0.2.16"
+        "revision" : "88c55187e23ebb847538c67e74ac251db4994df7",
+        "version" : "0.2.17"
       }
     },
     {
@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/helix-rootshell.git",
       "state" : {
-        "revision" : "ca30042a403ba2c922d4228d68e856fcdddc473c",
-        "version" : "0.1.7"
+        "revision" : "581415db2e63b09ee61bc5981f704683e0443651",
+        "version" : "0.1.8"
       }
     },
     {
@@ -410,8 +410,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/vim-rootshell.git",
       "state" : {
-        "revision" : "413e174222cb100840561e264446ffd050738205",
-        "version" : "0.1.0"
+        "revision" : "49d5deb3274c9609486244d27526a7efeda3fe79",
+        "version" : "0.1.1"
       }
     },
     {

@@ -150,7 +150,7 @@ extension HerdrController {
 
     /// Do not replay a snapshot at the placeholder grid or the TUI geometry
     /// from session.snapshot. The raw layout and its native surface must agree.
-    func paneGeometryIsReady(_ terminalId: String) -> Bool {
+    func paneGeometryIsReady(_ terminalId: String, requireConfirmed: Bool = true) -> Bool {
         guard let view = paneViews[terminalId], let binding = view.herdrPaneBinding,
               let target = view.herdrTargetGrid, let size = view.surfaceSize,
               let parsed = paneSessions[terminalId]?.parserGrid else { return false }
@@ -163,11 +163,21 @@ extension HerdrController {
             return surfaceMatches && layout.panes.contains { $0.pane_id == view.herdrPaneBinding?.paneId
                 && $0.terminalCols == target.cols && $0.terminalRows == target.rows }
         }
-        guard geometry.isConfirmed,
+        guard geometry.isConfirmed || !requireConfirmed,
               let measured = tabGeometry(from: view), geometry.desired == measured,
               layout.area.width == measured.cols, layout.area.height == measured.rows,
               measured.panes.allSatisfy({ id, size in layout.panes.contains { $0.pane_id == id && $0.terminal_size == size } }) else { return false }
         return surfaceMatches
+    }
+
+    /// A live pane already at the server's layout can show its cached screen
+    /// while a re-selection claim is still in flight, as a tmux pane does.
+    func paneCanRevealCachedFrame(_ terminalId: String) -> Bool {
+        if paneGeometryIsReady(terminalId) { return true }
+        return attachIds[terminalId] != nil
+            && !panesNeedingSnapshot.contains(terminalId)
+            && !layoutReleases.values.contains { $0.expected[terminalId] != nil }
+            && paneGeometryIsReady(terminalId, requireConfirmed: false)
     }
 
     private func updateRouterGrid(terminalId: String) {
@@ -516,10 +526,11 @@ extension HerdrController {
                 // changes wait for the size to hold still for one tick, but
                 // a live drag still sends every 200 ms so the pane never lags
                 // far behind the window; each round trip resizes the server
-                // model under every pane's lock.
+                // model under every pane's lock. A selection's claim skips
+                // the settle: it rarely changes the size.
                 let desired = self.tabGeometryStates[tabId]?.desired
                 var overdue = false
-                if self.tabGeometryStates[tabId]?.hasRequested == true {
+                if self.tabGeometryStates[tabId]?.hasRequested == true, self.claimGeneration(for: tabId) == nil {
                     do { try await Task.sleep(for: .milliseconds(100)) }
                     catch { return }
                     if self.tabGeometryStates[tabId]?.desired != desired {

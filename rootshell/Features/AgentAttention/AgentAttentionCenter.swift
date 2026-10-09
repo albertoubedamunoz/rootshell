@@ -129,6 +129,21 @@ final class AgentAttentionCenter {
         let displayName: String?
     }
     @ObservationIgnored private var pendingHerdrReports: [UUID: PendingHerdrReport] = [:]
+    /// herdr's newest report per pane, reapplied when an OSC 7501 program
+    /// hands the pane back. (id=program-status-authority)
+    @ObservationIgnored private var latestHerdrReports: [UUID: PendingHerdrReport] = [:]
+
+    /// OSC 7501 program status that arrived before its pane had a monitor,
+    /// and the panes whose state a program currently reports.
+    /// (id=program-status-authority)
+    private struct PendingProgramStatus {
+        let status: AgentAttentionStatus
+        let agentID: String
+        let displayName: String
+        let message: String?
+    }
+    @ObservationIgnored private var pendingProgramStatus: [UUID: PendingProgramStatus] = [:]
+    @ObservationIgnored private var programStatusPanes: Set<UUID> = []
     @ObservationIgnored private var pendingHerdrProjectPaths: [UUID: String] = [:]
 
     /// Gateways with a pane-directory query outstanding. One query answers for
@@ -1334,12 +1349,30 @@ final class AgentAttentionCenter {
         applyHerdrReport(report, to: monitor)
     }
 
-    private func applyHerdrReport(_ report: PendingHerdrReport, to monitor: AgentPaneMonitor) {
+    @discardableResult
+    private func applyHerdrReport(_ report: PendingHerdrReport, to monitor: AgentPaneMonitor) -> Bool {
+        latestHerdrReports[monitor.paneUUID] = report
+        // herdr finds agents from the screen too, so it can't name one the
+        // pane has heard from over OSC 7501, nor drop its unread result.
+        // (id=program-status-authority)
+        let suppressed = report.agentID.map { monitor.programStatusAgentIDs.contains($0) } == true
+        let report = suppressed
+            ? PendingHerdrReport(status: .unknown, agentID: nil, displayName: nil)
+            : report
         let now = Date()
+        // An OSC 7501 program outranks herdr while it has records.
+        guard !programStatusPanes.contains(monitor.paneUUID) else {
+            if refreshProject(for: monitor, now: now) {
+                publish(now: now)
+                return true
+            }
+            return false
+        }
         let changed = monitor.applyExternalReport(
             status: report.status,
             agentID: report.agentID,
             displayName: report.displayName,
+            keepCompletion: suppressed,
             now: now,
             seq: nextSeq
         )
@@ -1347,6 +1380,87 @@ final class AgentAttentionCenter {
         // for panes never visited/rendered and after an early probe failure.
         let projectChanged = refreshProject(for: monitor, now: now)
         if changed || projectChanged {
+            publish(now: now)
+            return true
+        }
+        return false
+    }
+
+    /// OSC 7501 program status for a pane, reduced by the pane to its most
+    /// urgent record (nil once it has none). While a program has records it
+    /// outranks herdr and screen and title detection; afterwards herdr's
+    /// latest report, or detection, resumes. A blocked or error report's
+    /// message is the notification's question or failure reason.
+    /// (id=program-status-authority)
+    func applyProgramStatus(
+        terminal: Ghostty.TerminalView,
+        status: AgentAttentionStatus?,
+        app: String?,
+        message: String?
+    ) {
+        let log = ProgramStatusDebugLogger.shared
+        guard let status else {
+            pendingProgramStatus[terminal.uuid] = nil
+            guard programStatusPanes.remove(terminal.uuid) != nil,
+                  let monitor = monitors[terminal.uuid] else {
+                if log.isEnabled { log.event("INBOX", "pane=\(terminal.uuid) no status, pane not held") }
+                return
+            }
+            if log.isEnabled {
+                log.event("INBOX", "pane=\(terminal.uuid) no status, releasing (herdr=\(latestHerdrReports[terminal.uuid] != nil))")
+            }
+            if let herdr = latestHerdrReports[terminal.uuid] {
+                let hadMessage = monitor.promptSummary != nil || monitor.failureSummary != nil
+                monitor.notePromptSummary(nil)
+                monitor.noteFailureSummary(nil)
+                if !applyHerdrReport(herdr, to: monitor), hadMessage { publish(now: Date()) }
+                return
+            }
+            let now = Date()
+            if monitor.releaseExternalReport(now: now) { publish(now: now) }
+            return
+        }
+        let name = app.flatMap { $0.isEmpty ? nil : $0 }
+        let known = name.flatMap { AgentDetectionManifest.bundled.agent(forProgramStatusApp: $0) }
+        let report = PendingProgramStatus(
+            status: status,
+            agentID: known?.id ?? name ?? "program-status",
+            displayName: name ?? String(
+                localized: "Program",
+                comment: "Agent inbox name for a program that reports its status (OSC 7501) without naming itself"),
+            message: message.flatMap { $0.isEmpty ? nil : $0 })
+        guard let monitor = monitors[terminal.uuid] else {
+            if log.isEnabled {
+                log.event("INBOX", "pane=\(terminal.uuid) status=\(status) agent=\(report.agentID) pending (no monitor)")
+            }
+            pendingProgramStatus[terminal.uuid] = report
+            return
+        }
+        if log.isEnabled {
+            log.event("INBOX", "pane=\(terminal.uuid) status=\(status) agent=\(report.agentID) applied")
+        }
+        applyProgramReport(report, to: monitor)
+    }
+
+    private func applyProgramReport(_ report: PendingProgramStatus, to monitor: AgentPaneMonitor) {
+        programStatusPanes.insert(monitor.paneUUID)
+        monitor.programStatusAgentIDs.insert(report.agentID)
+        let now = Date()
+        // Set the message first so a blocked or failed notification can carry it.
+        let question = report.status == .blocked && AgentAttentionSettings.notificationPromptEnabled
+            ? report.message : nil
+        let failure = report.status == .failed ? report.message : nil
+        let messageChanged = monitor.promptSummary != question || monitor.failureSummary != failure
+        monitor.notePromptSummary(question)
+        monitor.noteFailureSummary(failure)
+        let changed = monitor.applyExternalReport(
+            status: report.status,
+            agentID: report.agentID,
+            displayName: report.displayName,
+            now: now,
+            seq: nextSeq
+        )
+        if changed || messageChanged {
             publish(now: now)
         }
     }
@@ -1359,6 +1473,9 @@ final class AgentAttentionCenter {
         }
         if let report = pendingHerdrReports.removeValue(forKey: monitor.paneUUID) {
             applyHerdrReport(report, to: monitor)
+        }
+        if let report = pendingProgramStatus.removeValue(forKey: monitor.paneUUID) {
+            applyProgramReport(report, to: monitor)
         }
     }
 
@@ -1379,7 +1496,7 @@ final class AgentAttentionCenter {
         let manifest = AgentDetectionManifest.bundled
         let now = Date()
         if monitor.agent == nil {
-            if let found = manifest.identifyAgent(fromTitle: title) {
+            if let found = manifest.identifyAgent(fromTitle: title, excluding: monitor.programStatusAgentIDs) {
                 monitor.adoptAgent(found, source: .title, now: now)
                 resetProjectForNewAgent(monitor)
                 requestProjectIfNeeded(for: monitor)
@@ -1752,6 +1869,9 @@ final class AgentAttentionCenter {
             }
         }
         pendingHerdrReports = pendingHerdrReports.filter { live.contains($0.key) || monitors[$0.key] == nil }
+        latestHerdrReports = latestHerdrReports.filter { live.contains($0.key) || monitors[$0.key] == nil }
+        pendingProgramStatus = pendingProgramStatus.filter { live.contains($0.key) || monitors[$0.key] == nil }
+        programStatusPanes = programStatusPanes.filter { live.contains($0) || monitors[$0] == nil }
         pendingHerdrProjectPaths = pendingHerdrProjectPaths.filter { live.contains($0.key) || monitors[$0.key] == nil }
         for uuid in monitors.keys where !live.contains(uuid) {
             topologyChanged = true
@@ -1871,7 +1991,7 @@ final class AgentAttentionCenter {
 
         if monitor.agent == nil {
             if AgentAttentionSettings.detectionEnabled, !monitor.externalAuthority,
-               let found = manifest.identifyAgent(from: input) {
+               let found = manifest.identifyAgent(from: input, excluding: monitor.programStatusAgentIDs) {
                 monitor.adoptAgent(found, source: .screen, now: now)
                 resetProjectForNewAgent(monitor)
                 requestProjectIfNeeded(for: monitor)
@@ -1901,7 +2021,8 @@ final class AgentAttentionCenter {
                 return true
             }
         } else if let held = monitor.agent,
-                  let taking = manifest.supersedingAgent(held, in: input) {
+                  let taking = manifest.supersedingAgent(
+                      held, in: input, excluding: monitor.programStatusAgentIDs) {
             // Another agent is plainly on screen and this one is not. Hand
             // the pane over now rather than waiting out a no-signal streak
             // the held agent's own rules keep resetting.
