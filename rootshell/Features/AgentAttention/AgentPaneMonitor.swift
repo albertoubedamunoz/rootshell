@@ -53,7 +53,16 @@ final class AgentPaneMonitor {
     /// Agents that reported through OSC 7501 in this pane. Screen and title
     /// detection never adopt them here, so an exiting agent's last frame
     /// can't bring it back. (id=program-status-authority)
-    var programStatusAgentIDs: Set<String> = []
+    private(set) var programStatusAgentIDs: Set<String> = []
+    private static let maxUnknownProgramStatusAgentIDs = 64
+
+    /// Bundled agents always join; other names come from terminal output,
+    /// so only a few are kept. (id=program-status-authority)
+    func noteProgramStatusAgent(_ id: String) {
+        guard AgentDetectionManifest.bundled.agent(withID: id) != nil
+            || programStatusAgentIDs.count < Self.maxUnknownProgramStatusAgentIDs else { return }
+        programStatusAgentIDs.insert(id)
+    }
 
     /// This pane is showing a multiplexer the app does not drive, so its
     /// screen is ONE window of several and the visible window can change

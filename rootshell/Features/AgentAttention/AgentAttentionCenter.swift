@@ -1444,7 +1444,7 @@ final class AgentAttentionCenter {
 
     private func applyProgramReport(_ report: PendingProgramStatus, to monitor: AgentPaneMonitor) {
         programStatusPanes.insert(monitor.paneUUID)
-        monitor.programStatusAgentIDs.insert(report.agentID)
+        monitor.noteProgramStatusAgent(report.agentID)
         let now = Date()
         // Set the message first so a blocked or failed notification can carry it.
         let question = report.status == .blocked && AgentAttentionSettings.notificationPromptEnabled
