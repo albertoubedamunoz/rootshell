@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/helix-rootshell.git",
       "state" : {
-        "revision" : "ca30042a403ba2c922d4228d68e856fcdddc473c",
-        "version" : "0.1.7"
+        "revision" : "581415db2e63b09ee61bc5981f704683e0443651",
+        "version" : "0.1.8"
       }
     },
     {

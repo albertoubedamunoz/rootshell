@@ -37,6 +37,7 @@ struct AgentBrandMark: View {
         "codex": "CodexLogo",
         "copilot": "CopilotLogo",
         "cursor": "CursorAgentLogo",
+        "helix": "HelixLogo",
         "omp": "OhMyPiLogo",
         "opencode": "OpenCodeLogo",
         "pi": "PiLogo",
@@ -63,8 +64,8 @@ struct AgentBrandMark: View {
     var body: some View {
         if let asset = explicitAsset ?? agentID.flatMap({ Self.assetNames[$0] }) {
             Image(asset)
-                // Brand fills, not a tint: Claude's salmon is fixed in
-                // both appearances, the rest ship light/dark variants.
+                // Brand fills, not a tint: Claude and Helix use the same
+                // colours in both appearances, the rest ship light/dark variants.
                 .renderingMode(.original)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

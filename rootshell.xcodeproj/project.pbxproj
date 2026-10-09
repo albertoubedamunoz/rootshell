@@ -6954,7 +6954,7 @@
 			repositoryURL = "https://github.com/kitknox/helix-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.1.7;
+				version = 0.1.8;
 			};
 		};
 		47IOS0002FA00000AABB0000 /* XCRemoteSwiftPackageReference "ios_system-rootshell" */ = {
