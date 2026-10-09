@@ -129,6 +129,9 @@ final class AgentAttentionCenter {
         let displayName: String?
     }
     @ObservationIgnored private var pendingHerdrReports: [UUID: PendingHerdrReport] = [:]
+    /// herdr's newest report per pane, reapplied when an OSC 7501 program
+    /// hands the pane back. (id=program-status-authority)
+    @ObservationIgnored private var latestHerdrReports: [UUID: PendingHerdrReport] = [:]
 
     /// OSC 7501 program status that arrived before its pane had a monitor,
     /// and the panes whose state a program currently reports.
@@ -1346,8 +1349,18 @@ final class AgentAttentionCenter {
         applyHerdrReport(report, to: monitor)
     }
 
-    private func applyHerdrReport(_ report: PendingHerdrReport, to monitor: AgentPaneMonitor) {
+    @discardableResult
+    private func applyHerdrReport(_ report: PendingHerdrReport, to monitor: AgentPaneMonitor) -> Bool {
+        latestHerdrReports[monitor.paneUUID] = report
         let now = Date()
+        // An OSC 7501 program outranks herdr while it has records.
+        guard !programStatusPanes.contains(monitor.paneUUID) else {
+            if refreshProject(for: monitor, now: now) {
+                publish(now: now)
+                return true
+            }
+            return false
+        }
         let changed = monitor.applyExternalReport(
             status: report.status,
             agentID: report.agentID,
@@ -1360,14 +1373,16 @@ final class AgentAttentionCenter {
         let projectChanged = refreshProject(for: monitor, now: now)
         if changed || projectChanged {
             publish(now: now)
+            return true
         }
+        return false
     }
 
     /// OSC 7501 program status for a pane, reduced by the pane to its most
     /// urgent record (nil once it has none). While a program has records it
-    /// reports like herdr does; afterwards screen and title detection resume.
-    /// A blocked report's message is the notification's question.
-    /// (id=program-status-authority)
+    /// outranks herdr and screen and title detection; afterwards herdr's
+    /// latest report, or detection, resumes. A blocked report's message is
+    /// the notification's question. (id=program-status-authority)
     func applyProgramStatus(
         terminal: Ghostty.TerminalView,
         status: AgentAttentionStatus?,
@@ -1378,6 +1393,12 @@ final class AgentAttentionCenter {
             pendingProgramStatus[terminal.uuid] = nil
             guard programStatusPanes.remove(terminal.uuid) != nil,
                   let monitor = monitors[terminal.uuid] else { return }
+            if let herdr = latestHerdrReports[terminal.uuid] {
+                let hadQuestion = monitor.promptSummary != nil
+                monitor.notePromptSummary(nil)
+                if !applyHerdrReport(herdr, to: monitor), hadQuestion { publish(now: Date()) }
+                return
+            }
             let now = Date()
             if monitor.releaseExternalReport(now: now) { publish(now: now) }
             return
@@ -1821,6 +1842,7 @@ final class AgentAttentionCenter {
             }
         }
         pendingHerdrReports = pendingHerdrReports.filter { live.contains($0.key) || monitors[$0.key] == nil }
+        latestHerdrReports = latestHerdrReports.filter { live.contains($0.key) || monitors[$0.key] == nil }
         pendingProgramStatus = pendingProgramStatus.filter { live.contains($0.key) || monitors[$0.key] == nil }
         programStatusPanes = programStatusPanes.filter { live.contains($0) || monitors[$0] == nil }
         pendingHerdrProjectPaths = pendingHerdrProjectPaths.filter { live.contains($0.key) || monitors[$0.key] == nil }

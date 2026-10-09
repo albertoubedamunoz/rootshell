@@ -5483,8 +5483,6 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             applyProgressReport(.init(state: .remove, progress: nil))
         }
 
-        // herdr already reports this pane's agent and state.
-        guard !isHerdrPane else { return }
         AgentAttentionCenter.shared.applyProgramStatus(
             terminal: self,
             status: summary?.attentionStatus,
