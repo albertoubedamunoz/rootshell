@@ -458,7 +458,7 @@ private class TransparentWindowView: UIView {
             tabsInTitlebar: store.get(Settings.Window.tabsInTitlebar),
             tabBarHidden: store.get(Settings.Tabs.barHidden),
             hideTitleBar: store.get(Settings.Window.hideTitleBar),
-            topTabStyle: store.get(Settings.Tabs.topTabStyle)
+            topTabStyle: store.get(Settings.Tabs.topTabStyle).effective(roundedPanes: store.get(Settings.Window.roundedPanes))
         )
     }
 
@@ -1365,7 +1365,7 @@ private class TransparentWindowView: UIView {
         // Configure window dragging behavior
         let tabsInTitlebar = store.get(Settings.Window.tabsInTitlebar)
         let tabBarHidden = store.get(Settings.Tabs.barHidden)
-        let topTabStyle = store.get(Settings.Tabs.topTabStyle)
+        let topTabStyle = store.get(Settings.Tabs.topTabStyle).effective(roundedPanes: store.get(Settings.Window.roundedPanes))
         configureTitlebarSeparator(
             for: window,
             hidden: topTabStyle.usesStripLayout && tabsInTitlebar && !tabBarHidden

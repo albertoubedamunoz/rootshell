@@ -21,6 +21,7 @@ struct AIAgentSidebarView: View {
     let totalWidth: CGFloat  // Total available width from parent for max calculation
 
     var themeManager = ThemeManager.shared
+    @Setting(Settings.Window.roundedPanes) private var roundedPanes
 
     private let minWidth: CGFloat = 280
     private let maxWidthFraction: CGFloat = 0.65
@@ -39,7 +40,8 @@ struct AIAgentSidebarView: View {
                 minWidth: minWidth,
                 maxWidth: maxWidth,
                 defaultWidth: 400,
-                backgroundColor: dividerBackgroundColor,
+                cardGap: roundedPanes ? PaneCardStyle.gap : nil,
+                backgroundColor: roundedPanes ? .clear : dividerBackgroundColor,
                 onCommit: { AICredentialsManager.shared.aiAgentSidebarWidth = $0 }
             )
 
@@ -52,15 +54,8 @@ struct AIAgentSidebarView: View {
             )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(uiColor: .systemBackground))
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 12,
-                        bottomLeadingRadius: 12,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: 0
-                    )
-                )
-                .shadow(color: .black.opacity(0.15), radius: 8, x: -2, y: 0)
+                .clipShape(PaneCardStyle.trailingColumnShape(rounded: roundedPanes))
+                .shadow(color: .black.opacity(roundedPanes ? 0 : 0.15), radius: 8, x: -2, y: 0)
         }
         // Bleed the opaque column fill into the bottom safe area (home-indicator
         // strip) without moving the chat content, mirroring the docked tab
@@ -71,7 +66,7 @@ struct AIAgentSidebarView: View {
         // HStack's last sibling this column already draws above the terminal
         // content, so the opaque fill hides the overflow. No-op on Catalyst
         // (no bottom safe area).
-        .background(dividerBackgroundColor.ignoresSafeArea(.container, edges: .bottom))
+        .background((roundedPanes ? .clear : dividerBackgroundColor).ignoresSafeArea(.container, edges: .bottom))
     }
 
     private var dividerBackgroundColor: Color {

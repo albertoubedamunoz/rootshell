@@ -7,12 +7,14 @@
 
 import SwiftUI
 import UIKit
+import Observation
 import GhosttyKit
 import GameController
 import os
 
 struct TerminalSplitTreeView: UIViewRepresentable {
     @Environment(\.duoLayout) private var duoLayout
+    @Environment(\.paneCardBackdrop) private var paneCardBackdrop
     let tree: SplitTree<SplitPaneView>
     let onResize: (SplitTree<SplitPaneView>.Node, Double) -> Void
     var onMove: ((SplitPaneView, SplitPaneView, PaneDropZone) -> Void)?
@@ -34,8 +36,9 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: SplitTreeHostingView, context: Context) {
-        uiView.dividerColor = UIColor.separator
+        uiView.dividerColor = PaneCardStyle.isEnabled ? .clear : UIColor.separator
         uiView.highlightColor = uiView.tintColor ?? UIColor.systemBlue
+        uiView.cardBackdropColor = paneCardBackdrop.map { UIColor($0) }
         uiView.onResize = onResize
         uiView.onMove = onMove
         uiView.allowsPaneRearrangement = allowsPaneRearrangement
@@ -69,6 +72,16 @@ final class SplitTreeHostingView: UIView {
         }
     }
 
+    /// Rounded Panes backdrop (Catalyst), painted only around the pane cards so
+    /// it never stacks beneath a translucent terminal.
+    var cardBackdropColor: UIColor? {
+        didSet {
+            guard oldValue != cardBackdropColor else { return }
+            setNeedsLayout()
+        }
+    }
+    private var cardBackdropView: CardBackdropView?
+
     var minSplitSize: CGFloat = 100
     var onResize: ((SplitTree<SplitPaneView>.Node, Double) -> Void)?
     var onMove: ((SplitPaneView, SplitPaneView, PaneDropZone) -> Void)?
@@ -78,6 +91,8 @@ final class SplitTreeHostingView: UIView {
     private var paneZoomPickerPanes: [Ghostty.TerminalView] = []
     private var paneSwapSourceViewID: UUID?
     private var sceneDeactivationObserver: NSObjectProtocol?
+    private var roundedPanesObserver: NSObjectProtocol?
+    private var roundsPanes = PaneCardStyle.isEnabled
     private var paneZoomPresentationGeneration = 0
 
     private var windowCanPresentPaneZoomPicker: Bool {
@@ -354,7 +369,8 @@ final class SplitTreeHostingView: UIView {
     }
     /// Visible divider thickness in points. Static so the tmux reconcile
     /// (TmuxController) can use the same value when deriving split ratios.
-    static let dividerVisibleThickness: CGFloat = 2
+    /// Rounded panes widen it to the card gap.
+    static var dividerVisibleThickness: CGFloat { PaneCardStyle.isEnabled ? PaneCardStyle.gap : 2 }
     private let dividerTouchThickness: CGFloat = 24
     private var tree: SplitTree<SplitPaneView>?
     private var focusedPane: SplitPaneView?
@@ -409,6 +425,21 @@ final class SplitTreeHostingView: UIView {
             }
         }
 
+        roundedPanesObserver = NotificationCenter.default.addObserver(
+            forName: .settingsDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                guard self.roundsPanes != PaneCardStyle.isEnabled else { return }
+                self.roundsPanes.toggle()
+                self.dividerColor = self.roundsPanes ? .clear : .separator
+                self.updateFocusAppearance()
+                self.forceLayoutUpdate()
+            }
+        }
+
+        armCardThemeObservation()
+
         // Listen for layout invalidation notifications (tab bar toggle, titlebar tabs, AI sidebar)
         layoutInvalidationObserver = NotificationCenter.default.addObserver(
             forName: .terminalLayoutInvalidation,
@@ -448,6 +479,9 @@ final class SplitTreeHostingView: UIView {
 
     deinit {
         if let observer = sceneDeactivationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = roundedPanesObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = layoutInvalidationObserver {
@@ -572,6 +606,7 @@ final class SplitTreeHostingView: UIView {
                isRoot: rootNode == tree.root, projection: projection, usedTerminals: &usedTerminals)
         cleanupTerminalViews(keeping: usedTerminals)
         hideUnusedDividers(from: dividerReuseIndex)
+        updateCardBackdrop()
         hasCompletedHerdrLayout = true
         // Push from full `bounds` (inside this call), unaffected by `layoutRect`,
         // so tmux reclaims our full size when the foreign client detaches.
@@ -1535,8 +1570,10 @@ final class SplitTreeHostingView: UIView {
         if pane.isDetachedForFullScreen {
             container.layer.borderWidth = 0
             container.layer.borderColor = UIColor.clear.cgColor
+            applyCardShape(to: container, rounded: false)
             return
         }
+        applyCardShape(to: container, rounded: roundsPanes)
 
         let style = SettingsStore.shared.value(Settings.Window.splitFocusBorderStyle)
 
@@ -1547,6 +1584,69 @@ final class SplitTreeHostingView: UIView {
             container.layer.borderWidth = 0
             container.layer.borderColor = UIColor.clear.cgColor
         }
+    }
+
+    private func applyCardShape(to container: UIView, rounded: Bool) {
+        container.layer.cornerRadius = rounded ? PaneCardStyle.cornerRadius : 0
+        container.layer.cornerCurve = .continuous
+        #if targetEnvironment(macCatalyst)
+        // TerminalScrollView always clips on Catalyst.
+        container.clipsToBounds = rounded || container is Ghostty.TerminalScrollView
+        #else
+        container.clipsToBounds = rounded
+        // A rubber-band pull moves the surface down inside the card; fill the
+        // uncovered strip with the terminal background so the card keeps its shape.
+        if let scrollView = container as? Ghostty.TerminalScrollView {
+            scrollView.backgroundColor = rounded ? cardSurfaceColor(for: scrollView.terminalView) : .clear
+        }
+        #endif
+    }
+
+    /// Card fills follow the pane's theme, including tab and window overrides.
+    private func armCardThemeObservation() {
+        withObservationTracking {
+            _ = ThemeManager.shared.currentTheme
+            _ = ThemeOverrideManager.shared.windowOverrides
+            _ = ThemeOverrideManager.shared.tabOverrides
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if self.roundsPanes { self.updateFocusAppearance() }
+                self.armCardThemeObservation()
+            }
+        }
+    }
+
+    private func cardSurfaceColor(for terminal: Ghostty.TerminalView) -> UIColor {
+        let (themeName, _) = ThemeOverrideManager.shared.resolveTheme(
+            tabId: terminal.containingTabID, windowId: terminal.windowId)
+        let hex = ThemeManager.shared.themeInfo(for: themeName)?.colors.background
+            ?? ThemeManager.shared.currentThemeInfo?.colors.background
+        return hex.flatMap { UIColor(hex: $0) } ?? .clear
+    }
+
+    private func updateCardBackdrop() {
+        guard roundsPanes, let color = cardBackdropColor else {
+            cardBackdropView?.isHidden = true
+            return
+        }
+        let backdrop: CardBackdropView
+        if let existing = cardBackdropView {
+            backdrop = existing
+        } else {
+            backdrop = CardBackdropView()
+            cardBackdropView = backdrop
+            addSubview(backdrop)
+        }
+        backdrop.isHidden = false
+        backdrop.frame = bounds
+        sendSubviewToBack(backdrop)
+        let path = UIBezierPath(rect: backdrop.bounds)
+        for container in attachedContainers.values where container.superview === self {
+            path.append(UIBezierPath(roundedRect: container.frame, cornerRadius: PaneCardStyle.cornerRadius))
+        }
+        backdrop.shapeLayer.path = path.cgPath
+        backdrop.shapeLayer.fillColor = color.cgColor
     }
 
     private func resolvedBorderColor() -> UIColor {
@@ -1573,6 +1673,22 @@ final class SplitTreeHostingView: UIView {
             let showBorder = borderEligibility[identifier] ?? false
             applyFocusAppearance(to: view, showBorder: showBorder)
         }
+    }
+}
+
+/// Even-odd fill of the hosting bounds minus the pane cards.
+private final class CardBackdropView: UIView {
+    override class var layerClass: AnyClass { CAShapeLayer.self }
+    var shapeLayer: CAShapeLayer { layer as! CAShapeLayer }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        shapeLayer.fillRule = .evenOdd
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 
