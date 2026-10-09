@@ -1850,6 +1850,10 @@ nonisolated enum AgentDetectionManifestData {
           ]
         },
         {
+          "id": "helix",
+          "displayName": "Helix"
+        },
+        {
           "id": "omp",
           "displayName": "oh-my-pi",
           "identity": {
