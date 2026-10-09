@@ -201,6 +201,7 @@ enum QuickSettingsCatalog {
             entry(Settings.Window.splitFocusBorderCustomColor, .color).requiring {
                 SettingsStore.shared.get(Settings.Window.splitFocusBorderColor) == .custom ? nil : String(localized: "Choose Custom Split Border Color first.")
             },
+            toggle(Settings.Window.roundedPanes),
             toggle(Settings.Window.confirmBeforeClosingPane),
             toggle(Settings.Window.confirmBeforeClosingTab),
         ]
@@ -208,7 +209,10 @@ enum QuickSettingsCatalog {
             choices(Settings.Tabs.newTabAction, label: { $0.displayName }),
             toggle(Settings.Tabs.barHidden, inverted: true),
             toggle(Settings.Tabs.barAnimationsDisabled),
-            choices(Settings.Tabs.topTabStyle, label: { $0.displayName }),
+            entry(Settings.Tabs.topTabStyle, .choices {
+                TopTabStyle.available(roundedPanes: SettingsStore.shared.get(Settings.Window.roundedPanes))
+                    .enumerated().map { .init(id: String($0.offset), title: $0.element.displayName, value: $0.element.codableValue) }
+            }),
             toggle(Settings.Tabs.compactPillSpacing),
             toggle(Settings.Tabs.showScopeMenu),
             toggle(Settings.Tabs.showShortcutIndicators),

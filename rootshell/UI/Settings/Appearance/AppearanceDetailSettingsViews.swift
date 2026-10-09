@@ -252,6 +252,7 @@ struct WindowSettingsView: View {
     @Environment(\.duoLayout) private var duoLayout
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Setting(Settings.Tabs.topTabStyle) private var topTabStyle
+    @Setting(Settings.Window.roundedPanes) private var roundedPanes
     @Setting(Settings.Tabs.duoFrontDisplayMode) private var duoFrontDisplayMode
     @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
     @Setting(Settings.Tabs.hoverPreviews) private var tabHoverPreviewsEnabled
@@ -316,7 +317,7 @@ struct WindowSettingsView: View {
         Binding(
             get: {
                 TopTabLayout.resolve(
-                    style: topTabStyle,
+                    style: topTabStyle.effective(roundedPanes: roundedPanes),
                     compactPills: compactPillTabSpacing
                 )
             },
@@ -349,7 +350,7 @@ struct WindowSettingsView: View {
                     .themedRow()
 
                 Picker(selection: topTabLayout) {
-                    ForEach(TopTabLayout.allCases) { layout in
+                    ForEach(TopTabLayout.available(roundedPanes: roundedPanes)) { layout in
                         Text(layout.displayName).tag(layout)
                     }
                 } label: {
@@ -515,14 +516,14 @@ struct WindowSettingsView: View {
 
             Section {
                 Stepper(value: Binding(
-                    get: { paddingManager.effectivePaddingX },
+                    get: { paddingManager.userPaddingX },
                     set: { paddingManager.setPaddingX($0) }
                 ), in: 0...32) {
                     HStack {
                         Text("Horizontal")
                             .settingRow(Settings.Terminal.paddingXOverride)
                         Spacer()
-                        Text("\(paddingManager.effectivePaddingX) pt")
+                        Text("\(paddingManager.userPaddingX) pt")
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -530,14 +531,14 @@ struct WindowSettingsView: View {
                 .themedRow()
 
                 Stepper(value: Binding(
-                    get: { paddingManager.effectivePaddingY },
+                    get: { paddingManager.userPaddingY },
                     set: { paddingManager.setPaddingY($0) }
                 ), in: 0...32) {
                     HStack {
                         Text("Vertical")
                             .settingRow(Settings.Terminal.paddingYOverride)
                         Spacer()
-                        Text("\(paddingManager.effectivePaddingY) pt")
+                        Text("\(paddingManager.userPaddingY) pt")
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -554,13 +555,24 @@ struct WindowSettingsView: View {
             } header: {
                 SettingGroupHeader("Window Padding", group: .terminal)
             } footer: {
-                Text(paddingManager.isCustom
-                     ? "Custom padding active. Reset to restore the platform default."
-                     : "Using platform default. Adjust the inset between terminal text and the window edges.")
-                    .font(.caption)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(paddingManager.isCustom
+                         ? "Custom padding active. Reset to restore the platform default."
+                         : "Using platform default. Adjust the inset between terminal text and the window edges.")
+                    if paddingManager.roundedPanesRaisesPadding {
+                        Text("Rounded Panes uses at least \(PaddingManager.roundedPanesMinimum) pt so text clears the rounded corners.")
+                    }
+                }
+                .font(.caption)
             }
 
             Section {
+                SettingDescribedToggle(
+                    Settings.Window.roundedPanes,
+                    title: "Rounded Panes",
+                    description: "Draws terminal panes, splits, and docked sidebars as rounded cards with gaps between them.")
+                .themedRow()
+
                 Picker(selection: $splitFocusBorderStyle) {
                     ForEach(SplitFocusBorderStyle.allCases, id: \.rawValue) { style in
                         Text(style.displayName).tag(style)
@@ -598,7 +610,7 @@ struct WindowSettingsView: View {
             } header: {
                 SettingGroupHeader("Split Panes", group: .window)
             } footer: {
-                Text("Controls how the focused pane stands out in split terminal layouts. Close confirmations are in Terminal › Tabs.")
+                Text("Controls how panes are drawn and how the focused pane stands out in split terminal layouts. Close confirmations are in Terminal › Tabs.")
                     .font(.caption)
             }
 

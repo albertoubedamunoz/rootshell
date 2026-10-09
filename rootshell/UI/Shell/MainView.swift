@@ -207,15 +207,20 @@ struct MainView: View {
     @Setting(Settings.Tabs.barHidden) var tabBarHidden
     @Setting(Settings.Tabs.showShortcutIndicators) var showTabShortcutIndicators
     @Setting(Settings.Tabs.barAnimationsDisabled) var tabBarAnimationsDisabled
-    @Setting(Settings.Tabs.topTabStyle) var topTabStyle
+    @Setting(Settings.Tabs.topTabStyle) var storedTopTabStyle
     @Setting(Settings.Tabs.compactPillSpacing) var compactPillTabSpacing
     @Setting(Settings.Tabs.showScopeMenu) var showTabScopeMenu
+
+    /// The rendered style; Rounded Panes shows Integrated as Pills.
+    var topTabStyle: TopTabStyle {
+        storedTopTabStyle.effective(roundedPanes: roundedPanes)
+    }
 
     /// Raw-value bridge for the shared tab components that still take `Binding<String>`.
     var topTabStyleRawValueBinding: Binding<String> {
         Binding(
             get: { topTabStyle.rawValue },
-            set: { topTabStyle = TopTabStyle.resolve($0) }
+            set: { storedTopTabStyle = TopTabStyle.resolve($0) }
         )
     }
     var usesCompactTabSpacing: Bool {
@@ -347,6 +352,8 @@ struct MainView: View {
     /// the terminal (instead of a floating overlay over it). Routes
     /// `showingTabSwitcher` to docked vs floating — see `tabSidebarIsDocked`.
     @Setting(Settings.Sidebar.pinned) var tabSidebarPinned
+    /// Draws panes and docked columns as rounded cards; see PaneCardStyle.
+    @Setting(Settings.Window.roundedPanes) var roundedPanes
 
     /// When the floating (non-pinned) sidebar is open, auto-close it after the
     /// user selects a tab. Off by default (sidebar stays open until dismissed).
@@ -496,7 +503,7 @@ struct MainView: View {
                     GeometryReader { terminalGeometry in
                         // The detach banner also covers the empty state after tmux prunes its tabs.
                         if ghosttyApp.readiness == .ready, !terminals.isEmpty {
-                            terminalAndSidebarContent(geometry: terminalGeometry)
+                            terminalAndSidebarContent(geometry: terminalGeometry, theme: resolvedTheme)
                         } else if ghosttyApp.readiness == .ready, terminals.isEmpty, !windowClosingAfterTabTransfer {
                             // Empty state - shown when all tabs are closed
                             EmptyStateResponder(

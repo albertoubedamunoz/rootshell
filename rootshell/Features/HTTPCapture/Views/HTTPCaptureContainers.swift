@@ -23,6 +23,8 @@ struct HTTPCaptureSidebarView: View {
     static let defaultWidth: CGFloat = 480
     private let maxWidthFraction: CGFloat = 0.7
 
+    @Setting(Settings.Window.roundedPanes) private var roundedPanes
+
     private var background: Color {
         theme.themeColors?.background ?? Color(uiColor: .systemBackground)
     }
@@ -36,16 +38,17 @@ struct HTTPCaptureSidebarView: View {
                 minWidth: Self.minWidth,
                 maxWidth: max(Self.minWidth, totalWidth * maxWidthFraction),
                 defaultWidth: Self.defaultWidth,
-                backgroundColor: background,
+                cardGap: roundedPanes ? PaneCardStyle.gap : nil,
+                backgroundColor: roundedPanes ? .clear : background,
                 onCommit: { SettingsStore.shared.set(Settings.HTTPCapture.sidebarWidth, Double($0)) }
             )
             HTTPCaptureView(model: model, style: .sidebar, onClose: onClose, onSwitchPresentation: onSwitchPresentation)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(background)
-                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 12, bottomLeadingRadius: 12))
-                .shadow(color: .black.opacity(0.15), radius: 8, x: -2, y: 0)
+                .clipShape(PaneCardStyle.trailingColumnShape(rounded: roundedPanes))
+                .shadow(color: .black.opacity(roundedPanes ? 0 : 0.15), radius: 8, x: -2, y: 0)
         }
-        .background(background.ignoresSafeArea(.container, edges: .bottom))
+        .background((roundedPanes ? .clear : background).ignoresSafeArea(.container, edges: .bottom))
         .fileManagerTheme(theme)
     }
 }

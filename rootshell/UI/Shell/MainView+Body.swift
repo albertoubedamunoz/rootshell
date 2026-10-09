@@ -56,19 +56,21 @@ extension MainView {
         VStack(spacing: 0) {
             chromeBackground
                 .frame(height: (hideWindowTitleBar && tabBarHidden) ? 0 : max(44, geometry.safeAreaInsets.top))
+            // Rounded Panes paints its backdrop around the cards in
+            // terminalAndSidebarContent, never beneath translucent terminals.
             Spacer()
         }
         .ignoresSafeArea()
         #else
         ZStack {
-            theme.tabBarBackground
+            roundedPanes ? chromeBackground : theme.tabBarBackground
             VStack(spacing: 0) {
                 chromeBackground
                     .frame(height: windowSafeAreaInsets.top + (showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0))
                 Spacer()
                 if !visibleContentAllowsTerminalEffects
                     || effectManager.terminalBottomInsetFraction == 0 {
-                    theme.tabBarBackground
+                    (roundedPanes ? chromeBackground : theme.tabBarBackground)
                         .frame(height: windowSafeAreaInsets.bottom)
                 }
             }

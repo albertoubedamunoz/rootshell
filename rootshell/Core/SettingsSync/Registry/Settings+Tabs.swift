@@ -181,6 +181,10 @@ nonisolated extension Settings {
             "splitFocusBorderCustomColor", default: "007AFF", group: .window,
             configKey: "split-focus-border-custom-color",
             title: String(localized: "Split Border Custom Color", comment: "Setting title"))
+        static let roundedPanes = SettingKey(
+            "roundedPanes", default: false, group: .window, policy: .localByDefault,
+            configKey: "rounded-panes",
+            title: String(localized: "Rounded Panes", comment: "Setting title"))
         static let confirmBeforeClosingPane = SettingKey(
             "confirmBeforeClosingPane", default: false, group: .window,
             configKey: "confirm-before-closing-pane",
@@ -218,6 +222,7 @@ nonisolated extension Settings {
             hideTitleBar.erased, tabsInTitlebar.erased, fullScreenMode.erased,
             fullScreenLaunchNoticeDismissed.erased, extendUnderHomeIndicator.erased,
             splitFocusBorderStyle.erased, splitFocusBorderColor.erased, splitFocusBorderCustomColor.erased,
+            roundedPanes.erased,
             confirmBeforeClosingPane.erased, confirmBeforeClosingTab.erased,
             lastWidth.erased, lastHeight.erased, lastOriginX.erased, lastOriginY.erased, lastHasOrigin.erased,
             titlebarLeadingInset.erased, quickSettingsHUDWidth.erased, quickSettingsHUDHeight.erased,

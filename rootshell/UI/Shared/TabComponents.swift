@@ -1201,14 +1201,19 @@ final class TabStyleContextMenuCoordinator: NSObject, UIContextMenuInteractionDe
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
             guard let self else { return nil }
             let selectedLayout = self.selectedLayout
-            let actions = [
+            let roundedPanes = SettingsStore.shared.get(Settings.Window.roundedPanes)
+            var actions = [
                 self.action(for: .pills, systemImage: "capsule", selectedLayout: selectedLayout),
                 self.action(for: .compactPills, systemImage: "capsule.fill", selectedLayout: selectedLayout),
-                self.action(
+            ]
+            if !roundedPanes {
+                actions.append(self.action(
                     for: .integrated,
                     systemImage: "rectangle.topthird.inset.filled",
                     selectedLayout: selectedLayout
-                ),
+                ))
+            }
+            actions += [
                 self.action(for: .ledger, systemImage: "underline", selectedLayout: selectedLayout),
                 self.action(for: .trough, systemImage: "rectangle.split.3x1", selectedLayout: selectedLayout),
             ]
