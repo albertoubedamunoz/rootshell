@@ -77,3 +77,40 @@ struct PaneCardBackdropShape: Shape {
         return path
     }
 }
+
+/// The window-wide effect's docked sidebar card (when the effect spans it;
+/// `sidebarWidth` includes its trailing gap) and terminal card.
+struct PaneCardEffectShape: Shape {
+    var sidebarWidth: CGFloat
+
+    var animatableData: CGFloat {
+        get { sidebarWidth }
+        set { sidebarWidth = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let corner = CGSize(width: PaneCardStyle.cornerRadius, height: PaneCardStyle.cornerRadius)
+        var path = Path()
+        let sidebarCard = CGRect(x: 0, y: 0, width: sidebarWidth - PaneCardStyle.gap, height: rect.height)
+        if sidebarCard.width > 0 {
+            path.addRoundedRect(in: sidebarCard, cornerSize: corner, style: .continuous)
+        }
+        let terminalCard = CGRect(x: sidebarWidth, y: 0, width: rect.width - sidebarWidth, height: rect.height)
+        if terminalCard.width > 0 {
+            path.addRoundedRect(in: terminalCard, cornerSize: corner, style: .continuous)
+        }
+        return path
+    }
+}
+
+extension View {
+    /// Clips the effect layer to its cards only while Rounded Panes is on.
+    @ViewBuilder
+    func paneCardEffectClip(_ isEnabled: Bool, sidebarWidth: CGFloat) -> some View {
+        if isEnabled {
+            clipShape(PaneCardEffectShape(sidebarWidth: sidebarWidth))
+        } else {
+            self
+        }
+    }
+}

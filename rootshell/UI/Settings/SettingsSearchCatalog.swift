@@ -146,7 +146,7 @@ extension SettingsSearchDestination {
                  keywords: ["palette", "harmonious", "256", "generate", "colors"])
         case .backgroundEffect:
             Meta(section: .appearance, title: String(localized: "Background Effect"), systemImage: "sparkles",
-                 keywords: ["effects", "wallpaper", "visuals", "aurora", "solar graph", "fireflies", "butterflies",
+                 keywords: ["effects", "wallpaper", "visuals", "aurora", "gradient", "theme gradient", "solar graph", "fireflies", "butterflies",
                             "jellyfish", "photo", "video", "ken burns", "theme tint", "intensity", "speed"])
         case .customShaders:
             Meta(section: .appearance, title: String(localized: "Custom Shaders"), systemImage: "cpu",

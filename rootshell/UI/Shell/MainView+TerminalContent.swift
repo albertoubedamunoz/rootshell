@@ -733,13 +733,17 @@ extension MainView {
                         width: geometry.size.width + leadingExtension,
                         height: geometry.size.height
                     )
+                    // Rounded Panes: paint only the cards, never the gaps or
+                    // the square corners around them
+                    .paneCardEffectClip(roundedPanes, sidebarWidth: leadingExtension)
                     .offset(x: -leadingExtension)
                     // Use different blend mode for light vs dark themes
                     .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
             }
             .allowsHitTesting(false)
-            // Extend into bottom safe area for ocean effect
-            .ignoresSafeArea(edges: .bottom)
+            // Extend into bottom safe area for ocean effect; cards end at the
+            // column
+            .ignoresSafeArea(edges: roundedPanes ? [] : .bottom)
             // Tab Exposé is normally the topmost terminal-content layer.
             // While it is active, keep this *same* effect view above the
             // mirrored terminal pixels so animations and video continue

@@ -568,6 +568,7 @@ final class EffectManager {
     private func registerBuiltInEffects() {
         registerEffect(AquariumEffect())
         registerEffect(AuroraEffect())
+        registerEffect(ThemeGradientEffect())
         registerEffect(SolarGraphEffect())
         registerEffect(FirefliesEffect())
         registerEffect(ButterfliesEffect())

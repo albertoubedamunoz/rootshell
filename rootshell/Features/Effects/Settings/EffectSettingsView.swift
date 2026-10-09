@@ -50,7 +50,7 @@ struct EffectSettingsView: View {
     @State private var showcaseEffect: AnyTerminalEffect?
 
     // Built-in effect IDs (non-video)
-    private let builtInEffectIds = ["aquarium", "aurora", "solarGraph", "fireflies", "butterflies", "jellyfish", "photoBackground"]
+    private let builtInEffectIds = ["aquarium", "aurora", "themeGradient", "solarGraph", "fireflies", "butterflies", "jellyfish", "photoBackground"]
 
     /// Built-in effects only (not video backgrounds)
     private var builtInEffects: [AnyTerminalEffect] {
@@ -639,6 +639,11 @@ struct EffectSettingsView: View {
                     AuroraSettingsSection(effect: auroraEffect)
                 }
 
+                if activeEffect.id == "themeGradient",
+                   let gradientEffect = activeEffect.asEffect(ThemeGradientEffect.self) {
+                    ThemeGradientSettingsSection(effect: gradientEffect)
+                }
+
                 // Live Preview
                 Section("Preview") {
                     ZStack {
@@ -658,7 +663,8 @@ struct EffectSettingsView: View {
                             // preview also uses a fast-spawning view
                             JellyfishView(effect: jellyfishEffect, previewMode: true)
                                 .blendMode(jellyfishEffect.isLightBackground ? .multiply : .plusLighter)
-                        } else if activeEffect.id == "aurora" || activeEffect.id == "aquarium" {
+                        } else if activeEffect.id == "aurora" || activeEffect.id == "aquarium"
+                                    || activeEffect.id == "themeGradient" {
                             // These shaders' light-theme output is white-based
                             // and needs the same blend mode MainView applies.
                             activeEffect.createEffectView()
@@ -1690,6 +1696,29 @@ private struct AuroraSettingsSection: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Ray Shimmer")
                     Text("Fast flicker of individual rays. Turn off for calm, slow drift only")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .themedRow()
+        }
+    }
+}
+
+// MARK: - Theme Gradient Settings Section
+
+private struct ThemeGradientSettingsSection: View {
+    @ObservedObject var effect: ThemeGradientEffect
+
+    var body: some View {
+        Section("Motion") {
+            Toggle(isOn: Binding(
+                get: { effect.drift },
+                set: { effect.drift = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Drift")
+                    Text("Colors follow the terminal theme palette. Turn off for a still gradient that uses no GPU after drawing")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
