@@ -55,10 +55,16 @@ final class TerminalKeyboardAccessoryController: NSObject {
         guard let scope = touchKeyboardWindowState, scope.owner === self else { return nil }
         return scope
     }
+    /// nil while the scope builds an input view: UIKit's nested input-view
+    /// queries must not build a second one.
+    private var touchKeyboardInputScope: TerminalTouchKeyboardWindowState? {
+        guard let scope = ownedTouchKeyboardScope, !scope.isBuildingInputView else { return nil }
+        return scope
+    }
     var touchKeyboard: TerminalTouchKeyboardView? { ownedTouchKeyboardScope?.keyboard }
-    private var touchKeyboardInputView: TerminalTouchKeyboardInputView? { ownedTouchKeyboardScope?.input }
-    private var touchKeyboardToolbarInputView: TerminalTouchKeyboardToolbarInputView? { ownedTouchKeyboardScope?.toolbarInput }
-    private var touchKeyboardController: UIInputViewController? { ownedTouchKeyboardScope?.controller }
+    private var touchKeyboardInputView: TerminalTouchKeyboardInputView? { touchKeyboardInputScope?.input }
+    private var touchKeyboardToolbarInputView: TerminalTouchKeyboardToolbarInputView? { touchKeyboardInputScope?.toolbarInput }
+    private var touchKeyboardController: UIInputViewController? { touchKeyboardInputScope?.controller }
     private var floatingKeyboardOverlay: TerminalFloatingKeyboardOverlay? {
         get { ownedTouchKeyboardScope?.overlay }
         set { ownedTouchKeyboardScope?.overlay = newValue }
@@ -265,7 +271,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     }
 
     private func updateTouchKeyboardInputSuppression() {
-        guard let scope = ownedTouchKeyboardScope else { return }
+        guard let scope = touchKeyboardInputScope else { return }
         let toolbar = usesCompactTouchKeyboard
         if toolbar && !scope.keyboard.isToolbarOnly {
             currentTouchKeyboardState.nativeFloatingPosition = scope.input.floatingPosition
