@@ -1352,6 +1352,13 @@ final class AgentAttentionCenter {
     @discardableResult
     private func applyHerdrReport(_ report: PendingHerdrReport, to monitor: AgentPaneMonitor) -> Bool {
         latestHerdrReports[monitor.paneUUID] = report
+        // herdr finds agents from the screen too, so it can't name one the
+        // pane has heard from over OSC 7501, nor drop its unread result.
+        // (id=program-status-authority)
+        let suppressed = report.agentID.map { monitor.programStatusAgentIDs.contains($0) } == true
+        let report = suppressed
+            ? PendingHerdrReport(status: .unknown, agentID: nil, displayName: nil)
+            : report
         let now = Date()
         // An OSC 7501 program outranks herdr while it has records.
         guard !programStatusPanes.contains(monitor.paneUUID) else {
@@ -1365,6 +1372,7 @@ final class AgentAttentionCenter {
             status: report.status,
             agentID: report.agentID,
             displayName: report.displayName,
+            keepCompletion: suppressed,
             now: now,
             seq: nextSeq
         )
@@ -1423,6 +1431,7 @@ final class AgentAttentionCenter {
 
     private func applyProgramReport(_ report: PendingProgramStatus, to monitor: AgentPaneMonitor) {
         programStatusPanes.insert(monitor.paneUUID)
+        monitor.programStatusAgentIDs.insert(report.agentID)
         let now = Date()
         // Set the message first so a blocked or failed notification can carry it.
         let question = report.status == .blocked && AgentAttentionSettings.notificationPromptEnabled
@@ -1474,7 +1483,7 @@ final class AgentAttentionCenter {
         let manifest = AgentDetectionManifest.bundled
         let now = Date()
         if monitor.agent == nil {
-            if let found = manifest.identifyAgent(fromTitle: title) {
+            if let found = manifest.identifyAgent(fromTitle: title, excluding: monitor.programStatusAgentIDs) {
                 monitor.adoptAgent(found, source: .title, now: now)
                 resetProjectForNewAgent(monitor)
                 requestProjectIfNeeded(for: monitor)
@@ -1969,7 +1978,7 @@ final class AgentAttentionCenter {
 
         if monitor.agent == nil {
             if AgentAttentionSettings.detectionEnabled, !monitor.externalAuthority,
-               let found = manifest.identifyAgent(from: input) {
+               let found = manifest.identifyAgent(from: input, excluding: monitor.programStatusAgentIDs) {
                 monitor.adoptAgent(found, source: .screen, now: now)
                 resetProjectForNewAgent(monitor)
                 requestProjectIfNeeded(for: monitor)
@@ -1999,7 +2008,8 @@ final class AgentAttentionCenter {
                 return true
             }
         } else if let held = monitor.agent,
-                  let taking = manifest.supersedingAgent(held, in: input) {
+                  let taking = manifest.supersedingAgent(
+                      held, in: input, excluding: monitor.programStatusAgentIDs) {
             // Another agent is plainly on screen and this one is not. Hand
             // the pane over now rather than waiting out a no-signal streak
             // the held agent's own rules keep resetting.

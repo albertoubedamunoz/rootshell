@@ -178,10 +178,11 @@ nonisolated struct AgentDetectionManifest {
     // MARK: - Identity
 
     /// Cheap identity from the OSC title alone (no screen read). Used on
-    /// every title change.
-    func identifyAgent(fromTitle title: String) -> Agent? {
+    /// every title change. `excluding` names agents a pane has heard from
+    /// over OSC 7501, which only that protocol may identify.
+    func identifyAgent(fromTitle title: String, excluding: Set<String> = []) -> Agent? {
         guard !title.isEmpty else { return nil }
-        for agent in agents where !agent.titlePatterns.isEmpty {
+        for agent in agents where !agent.titlePatterns.isEmpty && !excluding.contains(agent.id) {
             for pattern in agent.titlePatterns {
                 if ((try? pattern.firstMatch(in: title)) ?? nil) != nil { return agent }
             }
@@ -205,13 +206,13 @@ nonisolated struct AgentDetectionManifest {
     /// Strong matches are also ranked ahead of weak ones so a visible
     /// agent's real chrome always beats another agent's name appearing in
     /// its output — alphabetical order must never decide that.
-    func identifyAgent(from input: AgentDetectionInput) -> Agent? {
-        if let byTitle = identifyAgent(fromTitle: input.oscTitle) { return byTitle }
+    func identifyAgent(from input: AgentDetectionInput, excluding: Set<String> = []) -> Agent? {
+        if let byTitle = identifyAgent(fromTitle: input.oscTitle, excluding: excluding) { return byTitle }
         guard !input.screen.isEmpty else { return nil }
         var cache = RegionCache(input: input)
         var weakMatch: Agent?
         var best: (agent: Agent, matches: Int)?
-        for agent in agents where !agent.screenSignatures.isEmpty {
+        for agent in agents where !agent.screenSignatures.isEmpty && !excluding.contains(agent.id) {
             var strongMatches = 0
             for signature in agent.screenSignatures {
                 let downgraded = signature.weak || signature.requiresAltScreen
@@ -271,8 +272,10 @@ nonisolated struct AgentDetectionManifest {
     /// MULTIPLEXER, so every alt-gated signature would qualify and any pane
     /// whose output mentioned a product name would change hands. Taking a
     /// pane has to cost more than keeping one.
-    func supersedingAgent(_ held: Agent, in input: AgentDetectionInput) -> Agent? {
-        let byTitle = identifyAgent(fromTitle: input.oscTitle)
+    func supersedingAgent(
+        _ held: Agent, in input: AgentDetectionInput, excluding: Set<String> = []
+    ) -> Agent? {
+        let byTitle = identifyAgent(fromTitle: input.oscTitle, excluding: excluding)
         if byTitle?.id == held.id { return nil }
         guard !input.screen.isEmpty else { return nil }
         var cache = RegionCache(input: input)
@@ -281,7 +284,7 @@ nonisolated struct AgentDetectionManifest {
         // Weight of evidence here too, for the same reason: the agent that
         // matches on the most independent chrome is the one on screen.
         var best: (agent: Agent, matches: Int)?
-        for candidate in agents where candidate.id != held.id {
+        for candidate in agents where candidate.id != held.id && !excluding.contains(candidate.id) {
             let matches = strongSignatureMatches(candidate, &cache)
             if matches > 0, matches > (best?.matches ?? 0) {
                 best = (candidate, matches)

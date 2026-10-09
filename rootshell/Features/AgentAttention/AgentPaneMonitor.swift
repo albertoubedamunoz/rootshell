@@ -50,6 +50,11 @@ final class AgentPaneMonitor {
     private(set) var externalAuthority = false
     private var externalStatus: AgentAttentionStatus?
 
+    /// Agents that reported through OSC 7501 in this pane. Screen and title
+    /// detection never adopt them here, so an exiting agent's last frame
+    /// can't bring it back. (id=program-status-authority)
+    var programStatusAgentIDs: Set<String> = []
+
     /// This pane is showing a multiplexer the app does not drive, so its
     /// screen is ONE window of several and the visible window can change
     /// without the agent doing anything.
@@ -769,12 +774,14 @@ final class AgentPaneMonitor {
 
     /// Applies a herdr agent report. An empty report is authoritative too;
     /// stale screen content must not recreate an agent herdr removed.
+    /// `keepCompletion` leaves an unread result the agent already reported.
     /// (id=herdr-agent-authority)
     @discardableResult
     func applyExternalReport(
         status: AgentAttentionStatus,
         agentID: String?,
         displayName: String?,
+        keepCompletion: Bool = false,
         now: Date,
         seq: () -> UInt64
     ) -> Bool {
@@ -784,9 +791,11 @@ final class AgentPaneMonitor {
             externalStatus = status
             pendingDoneSince = nil
             if agent != nil {
-                doneUnseen = false
-                failedUnseen = false
-                eventState.clearCompletion()
+                if !keepCompletion {
+                    doneUnseen = false
+                    failedUnseen = false
+                    eventState.clearCompletion()
+                }
                 clearAgent()
                 return true
             }
@@ -847,8 +856,8 @@ final class AgentPaneMonitor {
     }
 
     /// Ends an OSC 7501 program's authority once it has no records left, so
-    /// screen and title detection resume. A completion it reported stays
-    /// unseen. (id=program-status-authority)
+    /// screen and title detection resume for other agents. A completion it
+    /// reported stays unseen. (id=program-status-authority)
     @discardableResult
     func releaseExternalReport(now: Date) -> Bool {
         guard externalAuthority else { return false }
@@ -857,7 +866,7 @@ final class AgentPaneMonitor {
         pendingDoneSince = nil
         promptSummary = nil
         failureSummary = nil
-        if agent != nil, identitySource == .external {
+        if let agent, identitySource == .external || programStatusAgentIDs.contains(agent.id) {
             clearAgent()
         } else {
             refreshScreenEvent(now: now)

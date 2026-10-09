@@ -4991,15 +4991,17 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             LocalMultiplexerTracker.shared.refresh()
         }
         #endif
-        // A program that exited (or a new prompt) keeps only finished OSC 7501 results.
-        if !programStatusRecords.records.isEmpty {
-            programStatusRecords.dropUnfinished()
-            syncProgramStatus()
-        }
+        // A program that exited (or a new prompt) keeps only finished OSC 7501
+        // results. Emptying them releases the pane only after the exit below
+        // is credited to the agent still holding it.
+        let hadProgramStatus = !programStatusRecords.records.isEmpty
+        programStatusRecords.dropUnfinished()
+        if !programStatusRecords.records.isEmpty { syncProgramStatus() }
         // OSC 133 shell integration: exit code + wall time for the agent
         // inbox (failed/done rows, agent-exit identity clearing).
         AgentAttentionCenter.shared.commandFinished(
             paneUUID: uuid, exitCode: exitCode, duration: duration)
+        if hadProgramStatus, programStatusRecords.records.isEmpty { syncProgramStatus() }
     }
 
     func handlePwdChange(_ reported: String) {
