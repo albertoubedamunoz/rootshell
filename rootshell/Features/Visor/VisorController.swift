@@ -324,6 +324,10 @@ final class VisorController: NSObject, ObservableObject {
 
     private func makeAppKitContentFirstResponder(for window: NSObject) {
         guard let contentView = window.value(forKey: "contentView") as? NSObject else { return }
+        // Catalyst only refocuses the scene when its input view newly becomes
+        // first responder. A hide while the app was active unfocuses it but
+        // leaves the input view first responder, so resign first (#593).
+        _ = makeFirstResponder(nil, for: window)
         for candidate in appKitFirstResponderCandidates(from: contentView) {
             if makeFirstResponder(candidate, for: window) {
                 return
@@ -331,7 +335,7 @@ final class VisorController: NSObject, ObservableObject {
         }
     }
 
-    private func makeFirstResponder(_ responder: NSObject, for window: NSObject) -> Bool {
+    private func makeFirstResponder(_ responder: NSObject?, for window: NSObject) -> Bool {
         let selector = NSSelectorFromString("makeFirstResponder:")
         guard window.responds(to: selector), let method = window.method(for: selector) else { return false }
         typealias MakeFirstResponderFn = @convention(c) (AnyObject, Selector, AnyObject?) -> Bool
