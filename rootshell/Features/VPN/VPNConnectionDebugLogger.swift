@@ -1,17 +1,20 @@
 //
 //  VPNConnectionDebugLogger.swift
-//  VPNTunnelExtension
+//  rootshell
 //
-//  Detailed text log for VPN connection setup diagnostics.
+//  Detailed text log for VPN connection setup diagnostics, written by the VPN
+//  extension and by the app for rootshell Only (in-app Tailscale).
 //  Writes timestamped, human-readable phase logs to the app group container.
 //  Off by default — enabled via hidden debug settings toggle.
 //
-//  Modeled on ResumeDebugLogger but adapted for the extension process:
+//  Modeled on ResumeDebugLogger but shared across processes:
 //  - Log file in app group container (not Documents)
 //  - Enabled flag in shared UserDefaults
 //  - NSLock-based thread safety (no DispatchQueue)
 //  - beginPhase/endPhase helpers with automatic duration tracking
 //
+
+#if !CHINA_BUILD
 
 import Foundation
 
@@ -25,7 +28,7 @@ nonisolated final class VPNConnectionDebugLogger: @unchecked Sendable {
     private static let appGroupID = AppIdentifiers.defaultAppGroupID
     private static let logFilename = "vpn_connection_debug.log"
     private static let rotatedLogFilename = "vpn_connection_debug.1.log"
-    private static let maxFileSize: UInt64 = 512 * 1024  // 512KB before rotation
+    private static let maxFileSize: UInt64 = 2 * 1024 * 1024  // 2MB before rotation; Tailscale is chatty
 
     private let lock = NSLock()
     private let dateFormatter: DateFormatter
@@ -178,23 +181,21 @@ nonisolated final class VPNConnectionDebugLogger: @unchecked Sendable {
     // MARK: - Private
 
     /// Append text to log file and sync to disk. Must be called with `lock` held.
+    /// The app and the VPN extension both write here; O_APPEND keeps one
+    /// process's line from overwriting the other's.
     private func appendAndSyncLocked(_ text: String) {
         guard let data = text.data(using: .utf8) else { return }
 
         rotateIfNeededLocked()
 
         guard let fileURL = Self.logFileURL() else { return }
-
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            if let handle = try? FileHandle(forWritingTo: fileURL) {
-                _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: data)
-                try? handle.synchronize()
-                try? handle.close()
-            }
-        } else {
-            try? data.write(to: fileURL, options: .atomic)
+        let fd = open(fileURL.path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0o644)
+        guard fd >= 0 else { return }
+        defer { close(fd) }
+        data.withUnsafeBytes { buffer in
+            _ = write(fd, buffer.baseAddress, buffer.count)
         }
+        fsync(fd)
     }
 
     /// Rotate log file if it exceeds max size. Must be called with `lock` held.
@@ -206,9 +207,10 @@ nonisolated final class VPNConnectionDebugLogger: @unchecked Sendable {
             return
         }
 
+        // rename replaces the old rotated file atomically; if the other
+        // process just rotated, it fails harmlessly instead of losing a file.
         if let rotatedURL = Self.rotatedLogFileURL() {
-            try? FileManager.default.removeItem(at: rotatedURL)
-            try? FileManager.default.moveItem(at: fileURL, to: rotatedURL)
+            _ = rename(fileURL.path, rotatedURL.path)
         }
     }
 
@@ -220,3 +222,5 @@ nonisolated final class VPNConnectionDebugLogger: @unchecked Sendable {
         return ticks * UInt64(info.numer) / UInt64(info.denom) / 1_000_000
     }
 }
+
+#endif

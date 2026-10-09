@@ -345,7 +345,7 @@ struct DebugSettingsView: View {
             } header: {
                 Text("VPN Connection")
             } footer: {
-                Text("Logs detailed VPN connection timeline (DNS, SSH, tsshd, netstack) with phase durations. Takes effect on next VPN connection start.")
+                Text("Logs detailed VPN connection timeline (DNS, SSH, tsshd, netstack) with phase durations, plus rootshell Only Tailscale. Takes effect on next VPN connection or rootshell Only start.")
             }
 
             Section {
