@@ -77,5 +77,53 @@ extension Ghostty.Action {
             self.state = State(c.state)
             self.progress = c.progress >= 0 ? UInt8(c.progress) : nil
         }
+
+        init(state: State, progress: UInt8?) {
+            self.state = state
+            self.progress = progress
+        }
+    }
+
+    /// An OSC 7501 program status report, copied out of the C payload,
+    /// which is only valid during the action callback.
+    struct ProgramStatus {
+        enum State {
+            case idle, working, done, blocked, error, clear
+        }
+
+        enum Kind {
+            case none, permission, question, auth
+        }
+
+        let state: State
+        let kind: Kind
+        let progress: UInt8?
+        /// Empty for the root record.
+        let id: String
+        let app: String
+        let title: String
+        let msg: String
+
+        init(c: ghostty_action_program_status_s) {
+            switch c.state {
+            case GHOSTTY_PROGRAM_STATUS_IDLE: state = .idle
+            case GHOSTTY_PROGRAM_STATUS_WORKING: state = .working
+            case GHOSTTY_PROGRAM_STATUS_DONE: state = .done
+            case GHOSTTY_PROGRAM_STATUS_BLOCKED: state = .blocked
+            case GHOSTTY_PROGRAM_STATUS_ERROR: state = .error
+            default: state = .clear
+            }
+            switch c.kind {
+            case GHOSTTY_PROGRAM_STATUS_KIND_PERMISSION: kind = .permission
+            case GHOSTTY_PROGRAM_STATUS_KIND_QUESTION: kind = .question
+            case GHOSTTY_PROGRAM_STATUS_KIND_AUTH: kind = .auth
+            default: kind = .none
+            }
+            progress = c.progress >= 0 ? UInt8(c.progress) : nil
+            id = c.id.map { String(cString: $0) } ?? ""
+            app = c.app.map { String(cString: $0) } ?? ""
+            title = c.title.map { String(cString: $0) } ?? ""
+            msg = c.msg.map { String(cString: $0) } ?? ""
+        }
     }
 }

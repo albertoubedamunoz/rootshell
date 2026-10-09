@@ -350,6 +350,13 @@ extension Ghostty {
         /// `replayCachedSessionStateOnForeground()`.
         var backgroundProgressReport: Ghostty.Action.ProgressReport?
 
+        /// OSC 7501 program status records for this pane.
+        var programStatusRecords = ProgramStatusRecords()
+
+        /// True while the progress indicator shows OSC 7501 progress, so only
+        /// that progress is removed when the program's work ends.
+        var programStatusOwnsProgress = false
+
         /// Progress report state (for OSC 9;4 progress indicators)
         @Published var progressReport: Ghostty.Action.ProgressReport? = nil {
             didSet {
@@ -4984,6 +4991,11 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             LocalMultiplexerTracker.shared.refresh()
         }
         #endif
+        // A program that exited (or a new prompt) leaves no live OSC 7501 work.
+        if !programStatusRecords.records.isEmpty {
+            programStatusRecords.dropLive()
+            syncProgramStatus()
+        }
         // OSC 133 shell integration: exit code + wall time for the agent
         // inbox (failed/done rows, agent-exit identity clearing).
         AgentAttentionCenter.shared.commandFinished(
@@ -5437,6 +5449,12 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func handleProgressReport(_ report: Ghostty.Action.ProgressReport) {
+        // OSC 9;4 replaces whatever OSC 7501 progress was showing.
+        programStatusOwnsProgress = false
+        applyProgressReport(report)
+    }
+
+    private func applyProgressReport(_ report: Ghostty.Action.ProgressReport) {
         if Ghostty.isAppBackgroundedAtomic {
             backgroundProgressReport = report
             return
@@ -5445,6 +5463,31 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         // The TerminalScrollView observer will automatically update the UI
         self.progressReport = report
         Ghostty.logger.debug("Progress report updated: state=\(report.state), progress=\(report.progress?.description ?? "nil")")
+    }
+
+    func handleProgramStatus(_ report: Ghostty.Action.ProgramStatus) {
+        programStatusRecords.apply(report)
+        syncProgramStatus()
+    }
+
+    /// Pushes the pane's most urgent OSC 7501 record to the progress
+    /// indicator and the agent inbox.
+    private func syncProgramStatus() {
+        let summary = programStatusRecords.summary
+
+        if let summary, summary.state == .working, let progress = summary.progress {
+            programStatusOwnsProgress = true
+            applyProgressReport(.init(state: .set, progress: progress))
+        } else if programStatusOwnsProgress {
+            programStatusOwnsProgress = false
+            applyProgressReport(.init(state: .remove, progress: nil))
+        }
+
+        AgentAttentionCenter.shared.applyProgramStatus(
+            terminal: self,
+            status: summary?.attentionStatus,
+            app: summary?.app,
+            question: summary?.state == .blocked ? summary?.msg : nil)
     }
 
     // MARK: - Search Delegate

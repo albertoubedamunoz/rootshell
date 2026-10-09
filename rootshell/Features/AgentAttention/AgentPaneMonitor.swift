@@ -838,6 +838,24 @@ final class AgentPaneMonitor {
         return changed || previousEvent != displayEvent(now: now)
     }
 
+    /// Ends an OSC 7501 program's authority once it has no records left, so
+    /// screen and title detection resume. A completion it reported stays
+    /// unseen. (id=program-status-authority)
+    @discardableResult
+    func releaseExternalReport(now: Date) -> Bool {
+        guard externalAuthority else { return false }
+        externalAuthority = false
+        externalStatus = nil
+        pendingDoneSince = nil
+        promptSummary = nil
+        if agent != nil, identitySource == .external {
+            clearAgent()
+        } else {
+            refreshScreenEvent(now: now)
+        }
+        return true
+    }
+
     func clearAgent() {
         if let agent {
             finishedAgentID = agent.id

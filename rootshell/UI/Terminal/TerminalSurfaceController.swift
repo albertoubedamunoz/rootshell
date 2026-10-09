@@ -926,7 +926,7 @@ extension Ghostty.TerminalView: TerminalSurfaceHost {
     var surfaceFirstFrameGeometryIsReady: Bool {
         guard surfaceRequiresHerdrFirstFrameGeometry, let binding = herdrPaneBinding else { return true }
         return HerdrController.controller(forGateway: binding.gatewayUUID)?
-            .paneGeometryIsReady(binding.terminalId) == true
+            .paneCanRevealCachedFrame(binding.terminalId) == true
     }
     var surfaceTmuxPaneContainerLaidOut: Bool { tmuxPaneContainerLaidOut }
     var surfaceTmuxPaneRetired: Bool { tmuxPaneRetired }
