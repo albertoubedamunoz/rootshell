@@ -41,6 +41,7 @@ struct AgentBrandMark: View {
         "omp": "OhMyPiLogo",
         "opencode": "OpenCodeLogo",
         "pi": "PiLogo",
+        "vim": "VimLogo",
     ]
 
     /// Bypasses the agent-id lookup for callers that already know which
@@ -64,7 +65,7 @@ struct AgentBrandMark: View {
     var body: some View {
         if let asset = explicitAsset ?? agentID.flatMap({ Self.assetNames[$0] }) {
             Image(asset)
-                // Brand fills, not a tint: Claude and Helix use the same
+                // Brand fills, not a tint: Claude, Helix and Vim use the same
                 // colours in both appearances, the rest ship light/dark variants.
                 .renderingMode(.original)
                 .resizable()

@@ -2380,6 +2380,10 @@ nonisolated enum AgentDetectionManifestData {
               ]
             }
           ]
+        },
+        {
+          "id": "vim",
+          "displayName": "Vim"
         }
       ]
     }
