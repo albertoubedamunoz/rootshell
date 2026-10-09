@@ -476,7 +476,7 @@ nonisolated enum AgentDetectionManifestData {
               "region": "osc_title",
               "visibleWorking": true,
               "regex": [
-                "^[\\u{2800}-\\u{28FF}] "
+                "^[\\u{2800}-\\u{28FF}◐◓◑◒] "
               ]
             },
             {
@@ -923,7 +923,7 @@ nonisolated enum AgentDetectionManifestData {
               "id": "background_agents_working_local",
               "state": "working",
               "priority": 962,
-              "region": "bottom_non_empty_lines(20)",
+              "region": "last_block_above_prompt_box",
               "visibleWorking": true,
               "lineRegex": [
                 "(?i)^\\s*[·✢✳✶✻✽]\\s+waiting for \\d"

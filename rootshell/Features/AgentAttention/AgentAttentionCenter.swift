@@ -1806,10 +1806,12 @@ final class AgentAttentionCenter {
     /// mutex for long stretches, and a parked main thread is what turned
     /// into the 0x8BADF00D watchdog kills on build 131.
     private func scan(_ monitor: AgentPaneMonitor, now: Date) -> Bool {
-        if monitor.externalAuthority, monitor.agent != nil {
+        // herdr owns identity and state, but not claude's background-agent
+        // list: the screen read below only feeds the fleet.
+        let herdrOwned = monitor.externalAuthority && monitor.agent != nil
+        if herdrOwned {
             monitor.lastScanAt = now
             refreshProject(for: monitor, now: now)
-            return true
         }
         guard let terminal = monitor.terminal, let surface = terminal.surface,
               let size = terminal.surfaceSize
@@ -1827,7 +1829,13 @@ final class AgentAttentionCenter {
             surface: surface,
             busy: &readBusy
         )
-        if readBusy { return false }
+        // A contended read costs a herdr pane one fleet sample, not a retry.
+        if readBusy { return herdrOwned }
+        if herdrOwned {
+            let input = AgentDetectionInput(lines: (text ?? "").components(separatedBy: "\n"))
+            noteFleet(monitor, input: input, now: now)
+            return true
+        }
 
         // Fresh alt-screen state at read time; weak-signature presence
         // hinges on it.
@@ -2014,9 +2022,7 @@ final class AgentAttentionCenter {
         // Background agents: claude keeps its idle-looking input box on
         // screen while its fleet runs, so the only live evidence is the
         // fleet rows' own timers advancing between scans.
-        let fleetRows = AgentFleetRows.rows(in: lines)
-        let waitingCount = AgentFleetRows.waitingCount(in: lines)
-        monitor.noteFleet(rows: fleetRows, waitingCount: waitingCount, now: now)
+        noteFleet(monitor, input: input, now: now)
 
         // Agents print their own task timer ("(2m 49s · …") — sync our
         // elapsed clock to it so the card matches the TUI.
@@ -2149,6 +2155,16 @@ final class AgentAttentionCenter {
     private func fleetElapsed(_ monitor: AgentPaneMonitor) -> TimeInterval? {
         guard monitor.isFleetWorking() else { return nil }
         return monitor.fleetMaxElapsed
+    }
+
+    private func noteFleet(
+        _ monitor: AgentPaneMonitor, input: AgentDetectionInput, now: Date
+    ) {
+        monitor.noteFleet(
+            // Border-stripped: a pane frame's closing edge breaks the row anchor.
+            rows: AgentFleetRows.rows(in: input.lines),
+            waitingCount: AgentFleetRows.waitingCount(in: input),
+            now: now)
     }
 
     // MARK: - Seen + publish

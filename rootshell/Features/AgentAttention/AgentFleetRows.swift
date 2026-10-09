@@ -173,14 +173,13 @@ nonisolated enum AgentFleetRows {
 
     /// The count claude states itself, when the status line is on screen.
     /// Authoritative: it survives even when the list is scrolled or
-    /// truncated out of the snapshot.
-    static func waitingCount(in lines: [String]) -> Int? {
-        for line in lines.reversed() {
-            if let match = line.firstMatch(of: waitingLine) {
-                return Int(match.output.1)
-            }
-        }
-        return nil
+    /// truncated out of the snapshot. Current claude leaves each "Waiting
+    /// for N" in the transcript, so only the transcript's last entry counts,
+    /// unwrapped so a narrow pane's line breaks can't split the phrase.
+    static func waitingCount(in input: AgentDetectionInput) -> Int? {
+        let block = AgentDetectionRegions.extract("last_block_above_prompt_box", from: input)
+        let flat = block.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return flat.firstMatch(of: waitingLine).flatMap { Int($0.output.1) }
     }
 
     /// Strip the selector/status glyphs, then keep the name column only —

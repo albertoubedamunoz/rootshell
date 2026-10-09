@@ -210,7 +210,8 @@ nonisolated enum AgentDetectionRegions {
              "whole_recent_without_current_prompt_marker",
              "current_prompt_block_marker", "after_current_prompt_block_marker",
              "prompt_box_body", "above_prompt_box",
-             "last_non_empty_above_prompt_box", "after_last_horizontal_rule":
+             "last_non_empty_above_prompt_box", "last_block_above_prompt_box",
+             "after_last_horizontal_rule":
             return true
         default:
             return count(of: trimmed, name: "bottom_lines") != nil
@@ -234,7 +235,8 @@ nonisolated enum AgentDetectionRegions {
         switch trimmed {
         case "after_last_prompt_marker", "current_prompt_block_marker",
              "after_current_prompt_block_marker", "prompt_box_body",
-             "last_non_empty_above_prompt_box", "after_last_horizontal_rule":
+             "last_non_empty_above_prompt_box", "last_block_above_prompt_box",
+             "after_last_horizontal_rule":
             return true
         case "whole_recent", "osc_title", "osc_progress",
              "before_current_prompt_marker", "above_prompt_box",
@@ -265,6 +267,8 @@ nonisolated enum AgentDetectionRegions {
         case "above_prompt_box": return joined(abovePromptBoxLines(input.lines))
         case "last_non_empty_above_prompt_box":
             return lastNonEmptyLine(abovePromptBoxLines(input.lines))
+        case "last_block_above_prompt_box":
+            return lastBlock(abovePromptBoxLines(input.lines))
         case "after_last_horizontal_rule": return afterLastHorizontalRule(input.lines)
         default:
             if let n = count(of: trimmed, name: "bottom_lines") {
@@ -416,6 +420,18 @@ nonisolated enum AgentDetectionRegions {
     private static func abovePromptBoxLines(_ lines: [String]) -> [String] {
         guard let top = promptBoxTopBorderIndex(lines) else { return lines }
         return Array(lines[..<top])
+    }
+
+    /// The transcript's last entry: from the last row at the shallowest
+    /// indent down (a peeled pane border leaves its padding on every row).
+    /// Wrapped and hanging rows are indented deeper, so a status line keeps
+    /// its continuation however narrow the pane is.
+    private static func lastBlock(_ lines: [String]) -> String {
+        func indent(_ line: String) -> Int { line.prefix(while: \.isWhitespace).count }
+        guard let margin = lines.filter({ !isBlank($0) }).map(indent).min(),
+              let start = lines.lastIndex(where: { !isBlank($0) && indent($0) == margin })
+        else { return "" }
+        return joined(Array(lines[start...]))
     }
 
     private static func afterLastHorizontalRule(_ lines: [String]) -> String {
