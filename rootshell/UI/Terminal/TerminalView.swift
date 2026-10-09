@@ -4991,9 +4991,9 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             LocalMultiplexerTracker.shared.refresh()
         }
         #endif
-        // A program that exited (or a new prompt) leaves no live OSC 7501 work.
+        // A program that exited (or a new prompt) keeps only finished OSC 7501 results.
         if !programStatusRecords.records.isEmpty {
-            programStatusRecords.dropLive()
+            programStatusRecords.dropUnfinished()
             syncProgramStatus()
         }
         // OSC 133 shell integration: exit code + wall time for the agent
@@ -5487,7 +5487,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             terminal: self,
             status: summary?.attentionStatus,
             app: summary?.app,
-            question: summary?.state == .blocked ? summary?.msg : nil)
+            message: summary?.msg)
     }
 
     // MARK: - Search Delegate

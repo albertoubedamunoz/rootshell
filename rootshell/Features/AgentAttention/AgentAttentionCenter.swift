@@ -140,7 +140,7 @@ final class AgentAttentionCenter {
         let status: AgentAttentionStatus
         let agentID: String
         let displayName: String
-        let question: String?
+        let message: String?
     }
     @ObservationIgnored private var pendingProgramStatus: [UUID: PendingProgramStatus] = [:]
     @ObservationIgnored private var programStatusPanes: Set<UUID> = []
@@ -1381,22 +1381,24 @@ final class AgentAttentionCenter {
     /// OSC 7501 program status for a pane, reduced by the pane to its most
     /// urgent record (nil once it has none). While a program has records it
     /// outranks herdr and screen and title detection; afterwards herdr's
-    /// latest report, or detection, resumes. A blocked report's message is
-    /// the notification's question. (id=program-status-authority)
+    /// latest report, or detection, resumes. A blocked or error report's
+    /// message is the notification's question or failure reason.
+    /// (id=program-status-authority)
     func applyProgramStatus(
         terminal: Ghostty.TerminalView,
         status: AgentAttentionStatus?,
         app: String?,
-        question: String?
+        message: String?
     ) {
         guard let status else {
             pendingProgramStatus[terminal.uuid] = nil
             guard programStatusPanes.remove(terminal.uuid) != nil,
                   let monitor = monitors[terminal.uuid] else { return }
             if let herdr = latestHerdrReports[terminal.uuid] {
-                let hadQuestion = monitor.promptSummary != nil
+                let hadMessage = monitor.promptSummary != nil || monitor.failureSummary != nil
                 monitor.notePromptSummary(nil)
-                if !applyHerdrReport(herdr, to: monitor), hadQuestion { publish(now: Date()) }
+                monitor.noteFailureSummary(nil)
+                if !applyHerdrReport(herdr, to: monitor), hadMessage { publish(now: Date()) }
                 return
             }
             let now = Date()
@@ -1404,13 +1406,14 @@ final class AgentAttentionCenter {
             return
         }
         let name = app.flatMap { $0.isEmpty ? nil : $0 }
+        let known = name.flatMap { AgentDetectionManifest.bundled.agent(forProgramStatusApp: $0) }
         let report = PendingProgramStatus(
             status: status,
-            agentID: name ?? "program-status",
+            agentID: known?.id ?? name ?? "program-status",
             displayName: name ?? String(
                 localized: "Program",
                 comment: "Agent inbox name for a program that reports its status (OSC 7501) without naming itself"),
-            question: question.flatMap { $0.isEmpty ? nil : $0 })
+            message: message.flatMap { $0.isEmpty ? nil : $0 })
         guard let monitor = monitors[terminal.uuid] else {
             pendingProgramStatus[terminal.uuid] = report
             return
@@ -1421,11 +1424,13 @@ final class AgentAttentionCenter {
     private func applyProgramReport(_ report: PendingProgramStatus, to monitor: AgentPaneMonitor) {
         programStatusPanes.insert(monitor.paneUUID)
         let now = Date()
-        // Set the question first so a blocked notification can carry it.
+        // Set the message first so a blocked or failed notification can carry it.
         let question = report.status == .blocked && AgentAttentionSettings.notificationPromptEnabled
-            ? report.question : nil
-        let questionChanged = monitor.promptSummary != question
+            ? report.message : nil
+        let failure = report.status == .failed ? report.message : nil
+        let messageChanged = monitor.promptSummary != question || monitor.failureSummary != failure
         monitor.notePromptSummary(question)
+        monitor.noteFailureSummary(failure)
         let changed = monitor.applyExternalReport(
             status: report.status,
             agentID: report.agentID,
@@ -1433,7 +1438,7 @@ final class AgentAttentionCenter {
             now: now,
             seq: nextSeq
         )
-        if changed || questionChanged {
+        if changed || messageChanged {
             publish(now: now)
         }
     }

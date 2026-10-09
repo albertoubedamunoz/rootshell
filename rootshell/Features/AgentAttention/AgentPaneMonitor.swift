@@ -208,6 +208,10 @@ final class AgentPaneMonitor {
     /// never quote a dialog the agent has already moved past.
     private(set) var promptSummary: String?
 
+    /// Why an OSC 7501 program says it failed, for the failed notification's
+    /// body. Only set while its error record speaks for the pane.
+    private(set) var failureSummary: String?
+
     /// Identity of the agent whose run just ended, retained so the
     /// completion (card, counts, notification) still names it after
     /// `clearAgent`. Cleared when the result is seen or a new agent is
@@ -719,6 +723,10 @@ final class AgentPaneMonitor {
         promptSummary = summary
     }
 
+    func noteFailureSummary(_ summary: String?) {
+        failureSummary = summary
+    }
+
     /// Adopt (or switch) identity. Returns true when identity changed.
     @discardableResult
     func adoptAgent(_ newAgent: AgentDetectionManifest.Agent, source: IdentitySource, now: Date) -> Bool {
@@ -848,6 +856,7 @@ final class AgentPaneMonitor {
         externalStatus = nil
         pendingDoneSince = nil
         promptSummary = nil
+        failureSummary = nil
         if agent != nil, identitySource == .external {
             clearAgent()
         } else {

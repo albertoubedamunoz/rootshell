@@ -42,6 +42,7 @@ nonisolated struct AgentNotificationContent: Equatable, Sendable {
         var exitCode: Int?
         var backgroundAgentCount: Int = 0
         var promptSummary: String?
+        var failureSummary: String?
 
         init(
             status: AgentAttentionStatus,
@@ -57,7 +58,8 @@ nonisolated struct AgentNotificationContent: Equatable, Sendable {
             lastDuration: TimeInterval? = nil,
             exitCode: Int? = nil,
             backgroundAgentCount: Int = 0,
-            promptSummary: String? = nil
+            promptSummary: String? = nil,
+            failureSummary: String? = nil
         ) {
             self.status = status
             self.category = category
@@ -73,6 +75,7 @@ nonisolated struct AgentNotificationContent: Equatable, Sendable {
             self.exitCode = exitCode
             self.backgroundAgentCount = backgroundAgentCount
             self.promptSummary = promptSummary
+            self.failureSummary = failureSummary
         }
     }
 
@@ -145,6 +148,9 @@ nonisolated struct AgentNotificationContent: Equatable, Sendable {
         var candidates: [String?] = []
         if context.status == .blocked {
             candidates.append(context.promptSummary)
+        }
+        if context.status == .failed {
+            candidates.append(context.failureSummary)
         }
         if context.status == .done || context.status == .failed {
             candidates.append(durationLine(context))

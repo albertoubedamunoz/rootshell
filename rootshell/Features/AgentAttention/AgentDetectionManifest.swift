@@ -152,6 +152,8 @@ nonisolated struct AgentDetectionManifest {
         var progressRegion: String?
         /// Exact command basenames (local-shell identity hint).
         var commands: Set<String>
+        /// OSC 7501 `app` names that aren't the agent's id.
+        var programStatusApps: Set<String> = []
         /// Identity-grade OSC title patterns, distinctive per agent.
         var titlePatterns: [Regex<AnyRegexOutput>]
         /// Identity-grade screen signatures; any applicable matching
@@ -333,6 +335,11 @@ nonisolated struct AgentDetectionManifest {
 
     func agent(withID id: String) -> Agent? {
         agents.first(where: { $0.id == id })
+    }
+
+    /// The agent an OSC 7501 report names: by id, then by its other app names.
+    func agent(forProgramStatusApp app: String) -> Agent? {
+        agent(withID: app) ?? agents.first(where: { $0.programStatusApps.contains(app) })
     }
 
     // MARK: - Classification
@@ -743,6 +750,7 @@ nonisolated struct AgentDetectionManifest {
                 progressPattern: progressPattern,
                 progressRegion: progressRegion,
                 commands: Set(entry.identity?.commands ?? []),
+                programStatusApps: Set(entry.identity?.programStatusApps ?? []),
                 titlePatterns: titlePatterns,
                 screenSignatures: signatures,
                 rules: rules
@@ -828,6 +836,7 @@ nonisolated struct AgentDetectionManifest {
         var titlePatterns: [String]?
         var screenSignatures: [SignatureFile]?
         var commands: [String]?
+        var programStatusApps: [String]?
     }
 
     private struct SignatureFile: Codable {

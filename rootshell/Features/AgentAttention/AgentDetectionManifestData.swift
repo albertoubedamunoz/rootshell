@@ -292,6 +292,9 @@ nonisolated enum AgentDetectionManifestData {
           "id": "claude",
           "displayName": "Claude Code",
           "identity": {
+            "programStatusApps": [
+              "claude-code"
+            ],
             "titlePatterns": [
               "^\\u{2733} "
             ],

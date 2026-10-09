@@ -54,10 +54,11 @@ struct ProgramStatusRecords {
         }
     }
 
-    /// A new prompt or the program exiting ends working and blocked records.
+    /// A new prompt or the program exiting ends working, blocked and idle
+    /// records, so a program killed before its `clear` doesn't keep the pane.
     /// Finished results stay until the program replaces or clears them.
-    mutating func dropLive() {
-        records = records.filter { $0.value.state != .working && $0.value.state != .blocked }
+    mutating func dropUnfinished() {
+        records = records.filter { $0.value.state == .done || $0.value.state == .error }
     }
 
     /// The record that speaks for the pane: the most urgent, then the newest.
