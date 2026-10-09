@@ -420,7 +420,7 @@ enum AgentAttentionNotificationRouter {
             finishedAt: monitor.finishedAt,
             lastDuration: monitor.lastDuration,
             exitCode: monitor.exitCode,
-            backgroundAgentCount: monitor.fleetAgentCount,
+            backgroundAgentCount: monitor.displayedFleetAgentCount(),
             promptSummary: monitor.promptSummary
         )
     }

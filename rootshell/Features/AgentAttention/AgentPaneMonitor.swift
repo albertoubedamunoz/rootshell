@@ -384,6 +384,13 @@ final class AgentPaneMonitor {
         return now < until
     }
 
+    /// The count to show. herdr panes get no liveness edges to clear it, and
+    /// a hidden herdr tab holds a frozen frame, so there it lasts only while
+    /// the rows' own timers are advancing.
+    func displayedFleetAgentCount(now: Date = Date()) -> Int {
+        externalAuthority && !isFleetWorking(now: now) ? 0 : fleetAgentCount
+    }
+
     /// Identity changed: the previous agent's fleet is not this one's.
     private func resetFleet() {
         lastFleetRows = [:]
@@ -663,7 +670,7 @@ final class AgentPaneMonitor {
             exitCode: exitCode,
             lastDuration: lastDuration,
             unread: doneUnseen || failedUnseen,
-            backgroundAgentCount: status == .working ? fleetAgentCount : 0,
+            backgroundAgentCount: status == .working ? displayedFleetAgentCount(now: now) : 0,
             project: project,
             stateChangeSeq: stateChangeSeq
         )
