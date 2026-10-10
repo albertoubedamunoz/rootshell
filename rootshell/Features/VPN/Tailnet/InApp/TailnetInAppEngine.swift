@@ -35,16 +35,28 @@ final class TailnetInAppEngine {
     #endif
     #if !targetEnvironment(macCatalyst)
     private var backgroundedAt: ContinuousClock.Instant?
+    private var resetTask: Task<Void, Never>?
     #endif
+    /// Bumped by every stop(), so a pending recovery can tell it was overruled.
+    private var stopCount = 0
 
     var isRunning: Bool { status?.isRunning == true }
+
+    /// Writes to the VPN connection debug log when it's turned on.
+    nonisolated static func debugLog(_ message: String) {
+        VPNConnectionDebugLogger.shared.log("rootshell-only", message)
+    }
 
     private init() {
         #if !targetEnvironment(macCatalyst)
         NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
         ) { _ in
-            MainActor.assumeIsolated { TailnetInAppEngine.shared.backgroundedAt = .now }
+            MainActor.assumeIsolated {
+                let engine = TailnetInAppEngine.shared
+                engine.backgroundedAt = .now
+                if engine.isStarted { Self.debugLog("entered background") }
+            }
         }
         #endif
         NotificationCenter.default.addObserver(
@@ -60,21 +72,69 @@ final class TailnetInAppEngine {
         backgroundedAt = nil
         #endif
         guard isStarted else { return }
+        #if targetEnvironment(macCatalyst)
         // A suspended app misses network changes; let Tailscale re-check.
         TailnetPathMonitor.shared.refresh()
-        #if !targetEnvironment(macCatalyst)
+        #else
+        Self.debugLog("entered foreground after \(away.map { String(describing: $0) } ?? "unknown")")
         // iOS reclaims a suspended app's UDP sockets, which strands every
         // peer on DERP. Catalyst keeps running in the background.
-        guard let away, away >= .seconds(5) else { return }
-        Task {
-            do {
-                try await TailnetGo.resetSockets()
-            } catch {
-                Self.logger.error("Tailscale socket reset failed: \(error.localizedDescription, privacy: .public)")
-            }
+        guard let away, away >= .seconds(5) else {
+            TailnetPathMonitor.shared.refresh()
+            return
+        }
+        guard resetTask == nil else {
+            Self.debugLog("socket reset already running")
+            return
+        }
+        resetTask = Task {
+            await resetSockets()
+            // After the reset, so the network check's rebind doesn't race it.
+            TailnetPathMonitor.shared.refresh()
+            resetTask = nil
         }
         #endif
     }
+
+    #if !targetEnvironment(macCatalyst)
+    private func resetSockets() async {
+        let started = ContinuousClock.now
+        let stops = stopCount
+        Self.debugLog("socket reset started")
+        do {
+            try await TailnetGo.resetSockets()
+            Self.debugLog("socket reset finished in \(ContinuousClock.now - started)")
+        } catch let error as TailnetGo.GoError where error.isResetStuck {
+            // The engine is wedged; a fresh one replaces the force quit this
+            // used to take. Sessions re-dial through it.
+            // A Disconnect, mode switch or Whole Device VPN start while this
+            // waited also called stop(); recovering would undo it.
+            guard stopCount == stops else {
+                Self.debugLog("socket reset stuck; engine already stopped elsewhere")
+                return
+            }
+            Self.logger.error("Tailscale socket reset stuck; restarting the engine")
+            Self.debugLog("socket reset stuck; restarting the engine")
+            await stop()
+            let mode = TailnetModeSettings.load()
+            guard stopCount == stops + 1, mode.effectiveMode == .rootshellOnly, mode.inAppEnabled else {
+                Self.debugLog("engine stopped elsewhere; not restarting")
+                return
+            }
+            do {
+                try await start()
+            } catch is CancellationError {
+                Self.debugLog("restart overruled by a stop")
+            } catch {
+                lastError = error.localizedDescription
+                Self.debugLog("restart failed: \(error.localizedDescription)")
+            }
+        } catch {
+            Self.logger.error("Tailscale socket reset failed: \(error.localizedDescription, privacy: .public)")
+            Self.debugLog("socket reset failed: \(error.localizedDescription)")
+        }
+    }
+    #endif
 
     // MARK: - Lifecycle
 
@@ -97,7 +157,11 @@ final class TailnetInAppEngine {
         mode.inAppEnabled = true
         TailnetModeSettings.store(mode)
         syncRouting()
-        try await start()
+        do {
+            try await start()
+        } catch is CancellationError {
+            return // Turned off again before it finished starting.
+        }
         await updateShellProxy()
         TailnetLoginCoordinator.shared.watch()
     }
@@ -114,13 +178,18 @@ final class TailnetInAppEngine {
     func start() async throws {
         if isStarted { return }
         if let startTask { return try await startTask.value }
-        let task = Task { try await performStart() }
+        // Captured before the task runs, so a stop() before it begins counts.
+        let stops = stopCount
+        let task = Task { try await performStart(since: stops) }
         startTask = task
         defer { startTask = nil }
         try await task.value
     }
 
-    private func performStart() async throws {
+    /// stop() returns early while this is still starting; it bumps stopCount
+    /// past `stops`, and this start then undoes itself.
+    private func performStart(since stops: Int) async throws {
+        guard stopCount == stops else { throw CancellationError() }
         guard TailnetGo.isSupported else {
             throw TailnetGo.GoError(message: String(localized: "Tailscale isn't available in this build.", comment: "In-app Tailscale unsupported error"))
         }
@@ -128,6 +197,7 @@ final class TailnetInAppEngine {
         if TailnetPlatform.supportsWholeDevice {
             await VPNManager.shared.stopTailnetVPNAndWait()
         }
+        guard stopCount == stops else { throw CancellationError() }
 
         let settings = VPNTailnetProfile.settings()
         let mode = TailnetModeSettings.load()
@@ -145,13 +215,27 @@ final class TailnetInAppEngine {
             Task { @MainActor in TailnetInAppEngine.shared.apply(status) }
         }
         Self.logger.info("Starting in-app Tailscale")
+        TailnetGo.setLogger(VPNConnectionDebugLogger.shared.isEnabled ? TailnetGoLogger() : nil)
+        Self.debugLog("starting")
         await TailnetPathMonitor.shared.start()
+        guard stopCount == stops else {
+            TailnetPathMonitor.shared.stop()
+            throw CancellationError()
+        }
         do {
             try await TailnetGo.start(configJSON: json, store: TailnetGoStateStore(), callback: callback)
         } catch {
             TailnetPathMonitor.shared.stop()
+            Self.debugLog("start failed: \(error.localizedDescription)")
             throw error
         }
+        guard stopCount == stops else {
+            await TailnetGo.stop()
+            TailnetPathMonitor.shared.stop()
+            Self.debugLog("stopped while starting")
+            throw CancellationError()
+        }
+        Self.debugLog("started")
         isStarted = true
         lastError = nil
         TailnetStateHandoff.engineDidStart()
@@ -159,10 +243,14 @@ final class TailnetInAppEngine {
     }
 
     func stop() async {
+        stopCount += 1
         startTask?.cancel()
         guard isStarted else { return }
         Self.logger.info("Stopping in-app Tailscale")
+        let started = ContinuousClock.now
+        Self.debugLog("stopping")
         await TailnetGo.stop()
+        Self.debugLog("stopped in \(ContinuousClock.now - started)")
         isStarted = false
         TailnetPathMonitor.shared.stop()
         status = nil
@@ -181,9 +269,12 @@ final class TailnetInAppEngine {
         if TailnetGo.isRunning { return true }
         do {
             try await start()
+        } catch is CancellationError {
+            return false
         } catch {
             lastError = error.localizedDescription
             Self.logger.error("In-app Tailscale failed to start: \(error.localizedDescription, privacy: .public)")
+            Self.debugLog("ensureRunning start failed: \(error.localizedDescription)")
             return false
         }
         let deadline = ContinuousClock.now + timeout
@@ -199,6 +290,7 @@ final class TailnetInAppEngine {
         let running = TailnetGo.isRunning
         if !running {
             Self.logger.error("In-app Tailscale not running after \(String(describing: timeout), privacy: .public) (state \(self.status?.state ?? "none", privacy: .public))")
+            Self.debugLog("not running after \(timeout) (state \(status?.state ?? "none"))")
         }
         return running
     }
@@ -209,6 +301,8 @@ final class TailnetInAppEngine {
         do {
             try await start()
             try await TailnetGo.login()
+            return nil
+        } catch is CancellationError {
             return nil
         } catch {
             return error.localizedDescription
@@ -258,6 +352,9 @@ final class TailnetInAppEngine {
 
     private func apply(_ newStatus: TailnetStatus?) {
         guard isStarted else { return }
+        if newStatus?.state != status?.state {
+            Self.debugLog("state \(newStatus?.state ?? "none")")
+        }
         status = newStatus
         updateTrafficSampling()
         guard let newStatus else { return }

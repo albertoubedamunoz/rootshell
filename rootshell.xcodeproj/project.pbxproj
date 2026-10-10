@@ -757,6 +757,7 @@
 				Features/SSH/HostTrust/SSHHostPatternMatcher.swift,
 				Features/TSSH/Config/TsshdServerCommand.swift,
 				Features/TSSH/Config/TSSHRelaySettings.swift,
+				Features/VPN/VPNConnectionDebugLogger.swift,
 				Features/VPN/VPNError.swift,
 				Features/VPN/VPNEvent.swift,
 				Features/VPN/VPNSharedProfileStore.swift,
@@ -789,6 +790,7 @@
 				Features/TSSH/Config/TsshdServerCommand.swift,
 				Features/TSSH/Config/TSSHRelaySettings.swift,
 				Features/VPN/VPNAgentBrokerProtocol.swift,
+				Features/VPN/VPNConnectionDebugLogger.swift,
 				Features/VPN/VPNError.swift,
 				Features/VPN/VPNEvent.swift,
 				Features/VPN/VPNSharedProfileStore.swift,
@@ -808,7 +810,6 @@
 				TunnelSettingsShape.swift,
 				VPNAgentNIOSSHKeys.swift,
 				VPNAgentSignBroker.swift,
-				VPNConnectionDebugLogger.swift,
 				VPNKeyParser.swift,
 				VPNSOCKS5Proxy.swift,
 				VPNSSHConnector.swift,
@@ -6866,7 +6867,7 @@
 			repositoryURL = "https://github.com/kitknox/Citadel-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.12.9;
+				version = 0.12.11;
 			};
 		};
 		4747A1092F2ADF800080DE63 /* XCRemoteSwiftPackageReference "yubikit-swift-rootshell" */ = {
@@ -7026,7 +7027,7 @@
 			repositoryURL = "https://github.com/kitknox/trzsz-ssh-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.14;
+				version = 0.2.15;
 			};
 		};
 		47XZPKG02FF00000AABB0000 /* XCRemoteSwiftPackageReference "xz_ios-rootshell" */ = {

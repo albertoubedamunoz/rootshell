@@ -187,6 +187,9 @@ struct AIAgentChatView: View {
             #endif
                 .coordinateSpace(name: "chatScroll")
                 .defaultScrollAnchor(.bottom)
+                // A floating keyboard leaves a bottom safe area here; the scroll
+                // view would extend into it and draw messages under the composer.
+                .clipShape(BottomEdgeClip())
                 // Detect user drag to immediately stop auto-scroll
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 5)
@@ -1044,6 +1047,15 @@ struct ThinkingDisclosureView: View {
                 Label("Copy Reasoning", systemImage: "doc.on.doc")
             }
         }
+    }
+}
+
+/// Clips only the bottom edge, so content still scrolls under the navigation bar.
+private struct BottomEdgeClip: Shape {
+    func path(in rect: CGRect) -> Path {
+        let overflow: CGFloat = 10_000
+        return Path(CGRect(x: rect.minX - overflow, y: rect.minY - overflow,
+                           width: rect.width + overflow * 2, height: rect.height + overflow))
     }
 }
 #endif

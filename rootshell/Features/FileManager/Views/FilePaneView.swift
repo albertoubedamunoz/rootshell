@@ -278,6 +278,9 @@ struct FilePaneView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
             }
+            // A floating keyboard leaves a bottom safe area here; the scroll view
+            // would extend into it and draw rows over the queue and hint bar.
+            .clipped()
             #if !os(visionOS)
             // With a hardware keyboard the field must keep focus while the list scrolls.
             .scrollDismissesKeyboard(hasHardwareKeyboard ? .never : .immediately)
