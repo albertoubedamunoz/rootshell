@@ -55,7 +55,7 @@ final class ThemeGradientEffect: TerminalEffect, ObservableObject {
     // MARK: - TerminalEffect Implementation
 
     func createEffectView() -> AnyView {
-        AnyView(ThemeGradientView(effect: self))
+        isBackdrop ? AnyView(ThemeGradientBackdropView(effect: self)) : AnyView(ThemeGradientView(effect: self))
     }
 
     func resetToDefaults() {
@@ -232,7 +232,7 @@ struct ThemeGradientPalette: Equatable {
 
 /// Advances speed-scaled phase, drifts the gradients, and crossfades palette
 /// changes. A reference type so the timeline body never mutates view state.
-private final class ThemeGradientClock {
+final class ThemeGradientClock {
     private(set) var phase: Double = 0
     private var lastDate: Date?
     private var target: ThemeGradientPalette?
@@ -241,6 +241,8 @@ private final class ThemeGradientClock {
     private var transitionStart: Date?
 
     private static let crossfade: TimeInterval = 0.8
+
+    var isCrossfading: Bool { from != nil }
 
     /// Uv drift amplitude and periods (seconds at speed 1) per gradient, in
     /// shader order. Incommensurate periods keep the motion from visibly looping.

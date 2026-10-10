@@ -29,8 +29,8 @@ final class PaddingManager {
 
     private static let allowedRange: ClosedRange<Int> = 0...32
 
-    /// Ghostty insets the grid by padding × 96/72 points (see
-    /// MainView.terminalTopGridAlignmentPadding).
+    /// Ghostty insets the grid by padding × 96/72 points (font.face.default_dpi
+    /// is 96 on iOS).
     private static let pointsPerPaddingUnit: CGFloat = 96.0 / 72.0
 
     /// Padding (4pt inset) that keeps the first cell inside a Rounded Panes

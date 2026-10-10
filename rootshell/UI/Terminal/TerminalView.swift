@@ -5111,9 +5111,6 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         Ghostty.logger.info("Cell size changed: \(width)x\(height)")
         if metricsChanged {
             self.cellSize = CGSize(width: width, height: height)
-            // The grid's whole-row remainder (terminalTopGridAlignmentPadding)
-            // depends on the cell height, which SwiftUI does not otherwise observe.
-            EffectManager.shared.notifyGridMetricsChanged()
         }
         guard !isTmuxDetachInProgress else { return }
 

@@ -66,7 +66,7 @@ struct DuoWorkspaceLayout: Equatable {
     static func resolve(
         bounds: CGRect, safeFrame: CGRect, occlusions: [CGRect], divisions: [CGRect],
         context: DuoLayoutContext, headerHeight: CGFloat, rightToLeft: Bool = false,
-        occlusionContentFrames: [CGRect]? = nil
+        occlusionContentFrames: [CGRect]? = nil, headerTopLimit: CGFloat? = nil
     ) -> Self {
         guard bounds.width > 0, bounds.height > 0 else { return Self() }
         let left = max(0, safeFrame.minX - bounds.minX)
@@ -79,7 +79,9 @@ struct DuoWorkspaceLayout: Equatable {
         var result = Self()
         result.headerInsets = sideInsets
         let underlapsCamera = context.usesFullWidth && context.frontMode == .behindCamera
-        result.headerInsets.top = headerHeight > 0 && !underlapsCamera ? top : 0
+        // A top limit lets the header rise above the safe area, never below it.
+        let headerTop = headerTopLimit.map { min(top, max(0, $0 - bounds.minY)) } ?? top
+        result.headerInsets.top = headerHeight > 0 && !underlapsCamera ? headerTop : 0
 
         let sharesTopBand = context.placesHeaderBesideTopRegions && headerHeight > 0
         if context.usesFullWidth || sharesTopBand {

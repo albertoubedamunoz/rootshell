@@ -4,7 +4,8 @@
 //
 //  Theme-colored gradient: a primary base under four soft radial gradients
 //  composited back to front, then darkened toward the bottom. Gradient
-//  centers drift slightly on the CPU.
+//  centers drift slightly on the CPU. The window backdrop draws the same
+//  shading through its own low-rate Metal view.
 //
 
 #include <metal_stdlib>
@@ -27,9 +28,8 @@ static float4 themeGradientOver(float4 dst, float4 src) {
     return src + dst * (1.0 - src.a);
 }
 
-[[ stitchable ]] half4 themeGradient(
+static half4 themeGradientShade(
     float2 position,
-    half4 color,
     float2 size,
     float4 offsetsA,
     float4 offsetsB,
@@ -98,4 +98,56 @@ static float4 themeGradientOver(float4 dst, float4 src) {
     }
     // Multiply: white is identity
     return half4(half3(mix(float3(1.0), rgb, saturate(intensity * 1.5)) + dither), 1.0h);
+}
+
+[[ stitchable ]] half4 themeGradient(
+    float2 position,
+    half4 color,
+    float2 size,
+    float4 offsetsA,
+    float4 offsetsB,
+    half4 cPrimary,
+    half4 cAccent,
+    half4 cMid,
+    float intensity,
+    float backdrop,
+    float lightMode
+) {
+    return themeGradientShade(position, size, offsetsA, offsetsB, cPrimary, cAccent, cMid,
+                              intensity, backdrop, lightMode);
+}
+
+// MARK: - Window backdrop (ThemeGradientBackdropView)
+
+/// Matches ThemeGradientBackdropUniforms in ThemeGradientBackdropView.swift
+struct ThemeGradientBackdropUniforms {
+    float2 size;        // points
+    float pixelScale;   // drawable pixels per point
+    float lightMode;
+    float4 offsetsA;
+    float4 offsetsB;
+    float4 primary;
+    float4 accent;
+    float4 mid;
+};
+
+struct ThemeGradientBackdropVarying {
+    float4 position [[position]];
+};
+
+vertex ThemeGradientBackdropVarying themeGradientBackdropVertex(uint vid [[vertex_id]]) {
+    // One triangle covering the viewport
+    float2 p = float2((vid << 1) & 2, vid & 2);
+    ThemeGradientBackdropVarying out;
+    out.position = float4(p * 2.0 - 1.0, 0.0, 1.0);
+    return out;
+}
+
+fragment half4 themeGradientBackdropFragment(
+    ThemeGradientBackdropVarying in [[stage_in]],
+    constant ThemeGradientBackdropUniforms &u [[buffer(0)]]
+) {
+    return themeGradientShade(in.position.xy / u.pixelScale, u.size, u.offsetsA, u.offsetsB,
+                              half4(u.primary), half4(u.accent), half4(u.mid),
+                              1.0, 1.0, u.lightMode);
 }

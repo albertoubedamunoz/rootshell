@@ -20,7 +20,7 @@ import UIKit
 // MARK: - Window Scene Reporter
 
 struct WindowSceneReporter: UIViewRepresentable {
-    let onUpdate: (UIWindowScene?, UIEdgeInsets, Bool) -> Void
+    let onUpdate: (UIWindowScene?, UIEdgeInsets, Bool, CGFloat) -> Void
     /// Catalyst: reports this window's current system frame on every layout pass
     /// (covers resize + initial appearance), so the frame is tracked continuously
     /// rather than only at save time.
@@ -44,9 +44,10 @@ final class WindowSceneReportingView: UIView {
         let sceneSessionID: String?
         let safeAreaInsets: UIEdgeInsets
         let isKey: Bool
+        let statusBarBottom: CGFloat
     }
 
-    var onUpdate: ((UIWindowScene?, UIEdgeInsets, Bool) -> Void)?
+    var onUpdate: ((UIWindowScene?, UIEdgeInsets, Bool, CGFloat) -> Void)?
     var onFrameUpdate: ((CGRect) -> Void)?
     private var windowObserverTokens: [NSObjectProtocol] = []
     private var cachedKeyState: Bool?
@@ -130,10 +131,16 @@ final class WindowSceneReportingView: UIView {
         let sceneSessionID = scene?.session.persistentIdentifier
         let isKey = currentWindowIsKey()
         let insets = window?.safeAreaInsets ?? .zero
+        #if targetEnvironment(macCatalyst) || os(visionOS)
+        let statusBarBottom: CGFloat = 0
+        #else
+        let statusBarBottom = scene?.statusBarManager?.statusBarFrame.maxY ?? 0
+        #endif
         let snapshot = SceneSnapshot(
             sceneSessionID: sceneSessionID,
             safeAreaInsets: insets,
-            isKey: isKey
+            isKey: isKey,
+            statusBarBottom: statusBarBottom
         )
 
         guard snapshot != lastSceneSnapshot else { return }
@@ -154,7 +161,7 @@ final class WindowSceneReportingView: UIView {
             }
         }
 
-        onUpdate?(scene, insets, isKey)
+        onUpdate?(scene, insets, isKey, statusBarBottom)
     }
 
     private func registerWindowObservers() {
