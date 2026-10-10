@@ -48,13 +48,20 @@ extension MainView {
         let scopeWidth = integratedScopeMenuWidth > 0 ? integratedScopeMenuWidth + integratedScopeMenuLeadingInset : 0
         let leadingWidth = max(scopeWidth, integratedCardLeadingInset(windowWidth: geometry.size.width))
         let preferred = CGFloat(tabCount) * Self.integratedMaximumTabWidth + leadingWidth
-        let capacity = max(
+        var capacity = max(
             0,
             geometry.size.width
                 - tabBarLeadingPadding
                 - Self.actionButtonsWidth
                 - integratedMinimumDragWidth
         )
+        if integratedTabsJoinCards {
+            // End the track at the terminal card so trailing columns (AI agent,
+            // file manager) scroll the selected tab back over the card it joins.
+            let columns = terminalRowColumns(width: geometry.size.width)
+            let cardMaxX = PaneCardStyle.gap + columns.docked + columns.terminal
+            capacity = min(capacity, max(0, cardMaxX - PaneCardStyle.cornerRadius - tabBarLeadingPadding))
+        }
         return min(preferred, capacity)
     }
 

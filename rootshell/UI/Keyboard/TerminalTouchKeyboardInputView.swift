@@ -530,10 +530,8 @@ private final class TerminalTouchKeyboardFloatingPanel {
         }
         // Geometry-only work: do not rebuild the mask or keyboard effect on
         // every frame. Normal input layout continues to own their sizing.
-        // Once UIKit has rejected our placement it re-asserts it on every
-        // layout pass; re-applying per frame only fights that. Drags still
-        // move the card explicitly through the transform path.
-        guard !placementRejected else { return }
+        // After a rejection this only adjusts the transform, so it follows
+        // UIKit's re-placements (e.g. on a focus handoff) without a fight.
         if let desiredOrigin { position(at: desiredOrigin) }
     }
 
@@ -571,16 +569,11 @@ private final class TerminalTouchKeyboardFloatingPanel {
                 // UIKit re-asserted its own placement after our write, and it
                 // keeps doing so after every later write. Writing center again
                 // only makes the card fight and freeze: leave center to UIKit
-                // and let drags move the card by transform instead. The saved
-                // anchor is dropped; after a re-host UIKit decides where the
-                // card sits.
+                // and hold the saved anchor by transform instead. A focus
+                // handoff re-places the host, so dropping it loses the drag.
                 self.lastAppliedCenter = nil
                 placementRejected = true
                 originalTransform = panel.transform
-                if dragOrigin == nil {
-                    desiredOrigin = nil
-                    return
-                }
             }
         }
         let space = window.screen.coordinateSpace
