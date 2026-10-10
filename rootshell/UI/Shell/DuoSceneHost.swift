@@ -73,6 +73,8 @@ private struct DuoSceneContext<Content: View>: View {
 struct DuoWorkspaceGeometry<Content: View>: View {
     let context: DuoLayoutContext
     let headerHeight: CGFloat
+    /// Window-space y the header may rise to above the safe area, if any.
+    var headerTopLimit: CGFloat? = nil
     @ViewBuilder var content: (GeometryProxy, DuoWorkspaceLayout) -> Content
     @Environment(\.layoutDirection) private var layoutDirection
 
@@ -81,8 +83,14 @@ struct DuoWorkspaceGeometry<Content: View>: View {
             GeometryReader { expanded in
                 content(expanded, layout(safe: safe, expanded: expanded))
             }
-            .ignoresSafeArea(.container, edges: context.workspaceIgnoredEdges(headerHeight: headerHeight))
+            .ignoresSafeArea(.container, edges: ignoredEdges)
         }
+    }
+
+    private var ignoredEdges: Edge.Set {
+        var edges = context.workspaceIgnoredEdges(headerHeight: headerHeight)
+        if headerTopLimit != nil, headerHeight > 0 { edges.insert(.top) }
+        return edges
     }
 
     private func layout(safe: GeometryProxy, expanded: GeometryProxy) -> DuoWorkspaceLayout {
@@ -111,7 +119,8 @@ struct DuoWorkspaceGeometry<Content: View>: View {
             bounds: CGRect(origin: .zero, size: expanded.size), safeFrame: safeFrame,
             occlusions: occlusions, divisions: divisions, context: context,
             headerHeight: headerHeight, rightToLeft: layoutDirection == .rightToLeft,
-            occlusionContentFrames: occlusionContentFrames
+            occlusionContentFrames: occlusionContentFrames,
+            headerTopLimit: headerTopLimit.map { $0 - frame.minY }
         )
     }
 }

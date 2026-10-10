@@ -383,6 +383,21 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
         }
     }
 
+    func testHeaderTopLimitRaisesHeaderOnlyAboveTheSafeArea() {
+        let island = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let islandSafe = CGRect(x: 0, y: 62, width: 402, height: 778)
+        func headerTop(limit: CGFloat?, headerHeight: CGFloat = 44) -> CGFloat {
+            DuoWorkspaceLayout.resolve(
+                bounds: island, safeFrame: islandSafe, occlusions: [], divisions: [],
+                context: DuoLayoutContext(), headerHeight: headerHeight, headerTopLimit: limit
+            ).headerInsets.top
+        }
+        XCTAssertEqual(headerTop(limit: nil), 62)
+        XCTAssertEqual(headerTop(limit: 54), 54)
+        XCTAssertEqual(headerTop(limit: 70), 62)
+        XCTAssertEqual(headerTop(limit: 54, headerHeight: 0), 0)
+    }
+
     func testZeroSizeDuringDisplayHandoffProducesNoReservations() {
         XCTAssertEqual(DuoWorkspaceLayout.resolve(
             bounds: .zero, safeFrame: .zero, occlusions: [camera], divisions: [],

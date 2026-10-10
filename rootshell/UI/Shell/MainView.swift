@@ -271,6 +271,8 @@ struct MainView: View {
     @State var sessionDiscoveryVersion: Int = 0
     @State var windowSceneSessionID: String?
     @State var windowSafeAreaInsets: EdgeInsets = EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
+    // Window-space bottom of the system status bar; 0 while it is hidden.
+    @State var statusBarBottom: CGFloat = 0
 #if targetEnvironment(macCatalyst)
     // Per-window geometry restore is stashed in onAppear and applied exactly once
     // the windowId→scene link is published by WindowSceneReporter — an event,
@@ -448,7 +450,8 @@ struct MainView: View {
         LifecycleDebugLogger.shared.bumpBodyEvaluation()
         let content = DuoWorkspaceGeometry(
             context: effectiveDuoLayout,
-            headerHeight: showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0
+            headerHeight: showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0,
+            headerTopLimit: tabHeaderTopLimit
         ) { geometry, workspace in
             #if !os(visionOS)
             let _ = effectManager.keyboardStateVersion
@@ -532,7 +535,7 @@ struct MainView: View {
                     if !available { duoTabletopDisabled = false }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
-                .background(WindowSceneReporter(onUpdate: { scene, safeAreaInsets, isKeyWindow in
+                .background(WindowSceneReporter(onUpdate: { scene, safeAreaInsets, isKeyWindow, newStatusBarBottom in
                     let newID = scene?.session.persistentIdentifier
                     let newInsets = EdgeInsets(
                         top: safeAreaInsets.top,
@@ -564,6 +567,9 @@ struct MainView: View {
                             windowSafeAreaInsets.bottom != newInsets.bottom ||
                             windowSafeAreaInsets.trailing != newInsets.trailing {
                             windowSafeAreaInsets = newInsets
+                        }
+                        if statusBarBottom != newStatusBarBottom {
+                            statusBarBottom = newStatusBarBottom
                         }
                         if windowIsKeyWindow != isKeyWindow {
                             windowIsKeyWindow = isKeyWindow

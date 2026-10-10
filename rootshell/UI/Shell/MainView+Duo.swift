@@ -12,6 +12,24 @@ extension MainView {
         duoLayout.showsHorizontalTabs(globallyHidden: tabBarHidden)
     }
 
+    /// Dynamic Island iPhones end the top safe area several points below the
+    /// status bar; the tab header rises to the status bar instead. Duo keeps
+    /// its own camera-aware header placement.
+    var tabHeaderTopLimit: CGFloat? {
+        #if !targetEnvironment(macCatalyst) && !os(visionOS)
+        guard showsHorizontalTabHeader, !duoLayout.hasHinge,
+              UIDevice.current.userInterfaceIdiom == .phone,
+              statusBarBottom > 0, statusBarBottom < windowSafeAreaInsets.top
+        else { return nil }
+        return statusBarBottom
+        #else
+        return nil
+        #endif
+    }
+
+    /// Window-space top of the tab header band.
+    var chromeTopInset: CGFloat { tabHeaderTopLimit ?? windowSafeAreaInsets.top }
+
     var showsDuoSideRail: Bool { duoLayout.usesSideRail && !tabBarHidden && !showKeyboardChooser }
 
     @ViewBuilder

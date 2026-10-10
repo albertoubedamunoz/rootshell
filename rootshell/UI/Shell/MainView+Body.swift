@@ -69,7 +69,7 @@ extension MainView {
             roundedPanes ? chromeBackground : theme.tabBarBackground
             VStack(spacing: 0) {
                 chromeBackground
-                    .frame(height: windowSafeAreaInsets.top + (showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0))
+                    .frame(height: chromeTopInset + (showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0))
                 Spacer()
                 if !visibleContentAllowsTerminalEffects
                     || effectManager.terminalBottomInsetFraction == 0 {
@@ -90,7 +90,7 @@ extension MainView {
             #if targetEnvironment(macCatalyst)
             let topInset = max(44, geometry.safeAreaInsets.top)
             #else
-            let topInset = windowSafeAreaInsets.top
+            let topInset = chromeTopInset
             #endif
             let band = topInset + (showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0)
             let fade: CGFloat = 120
