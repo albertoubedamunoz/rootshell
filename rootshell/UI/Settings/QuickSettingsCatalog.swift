@@ -374,6 +374,8 @@ enum QuickSettingsCatalog {
         #else
         entries += [
             toggle(Settings.Multiplexer.localSessionDiscovery),
+            toggle(Settings.Transparency.backdropTransparency, set: { TransparencyManager.shared.backdropTransparencyEnabled = $0 })
+                .requiring { EffectManager.shared.isBackdropEnabled ? nil : String(localized: "Turn on the Theme Gradient backdrop first.") },
         ]
         if TransparencyManager.useSandboxBlur {
             entries.append(toggle(Settings.Transparency.blurEnabled, set: { TransparencyManager.shared.blurEnabled = $0 })

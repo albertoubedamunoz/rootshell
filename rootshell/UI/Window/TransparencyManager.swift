@@ -61,13 +61,14 @@ final class TransparencyManager {
     private static let ownedKeys: Set<String> = [
         Settings.Transparency.backgroundOpacity.name, Settings.Transparency.backgroundBlurRadius.name,
         Settings.Transparency.blurEnabled.name, Settings.Transparency.blurStyle.name,
-        Settings.Transparency.pinnedSidebarTransparency.name,
+        Settings.Transparency.pinnedSidebarTransparency.name, Settings.Transparency.backdropTransparency.name,
     ]
     private static let defaultBackgroundOpacity: Double = 0.92
     private static let defaultBackgroundBlurRadius: Double = 30.0
     private static let defaultBlurEnabled: Bool = true
     private static let defaultBlurStyle: BlurStyle = .standard
     private static let defaultPinnedSidebarTransparencyEnabled: Bool = false
+    private static let defaultBackdropTransparencyEnabled: Bool = true
 
     /// Current background opacity (0.0 = fully transparent, 1.0 = opaque)
     var backgroundOpacity: Double {
@@ -132,6 +133,24 @@ final class TransparencyManager {
         }
     }
 
+    /// Mac only: whether the Theme Gradient backdrop takes the window opacity
+    /// too, showing the desktop through it instead of only through the terminal.
+    var backdropTransparencyEnabled: Bool {
+        didSet {
+            guard backdropTransparencyEnabled != oldValue, !isReloading else { return }
+            SettingsStore.shared.set(Settings.Transparency.backdropTransparency, backdropTransparencyEnabled)
+        }
+    }
+
+    /// Opacity the Theme Gradient backdrop draws at.
+    var effectiveBackdropOpacity: Double {
+        #if targetEnvironment(macCatalyst)
+        return backdropTransparencyEnabled ? backgroundOpacity : 1.0
+        #else
+        return 1.0
+        #endif
+    }
+
     /// Set while `reload(keys:)` re-assigns properties so didSet skips the store write.
     @ObservationIgnored private var isReloading = false
 
@@ -151,6 +170,7 @@ final class TransparencyManager {
         self.blurEnabled = SettingsStore.shared.get(Settings.Transparency.blurEnabled)
         self.blurStyle = SettingsStore.shared.get(Settings.Transparency.blurStyle)
         self.pinnedSidebarTransparencyEnabled = SettingsStore.shared.get(Settings.Transparency.pinnedSidebarTransparency)
+        self.backdropTransparencyEnabled = SettingsStore.shared.get(Settings.Transparency.backdropTransparency)
         SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
             self?.reload(keys: keys)
         }
@@ -181,6 +201,9 @@ final class TransparencyManager {
         if keys.contains(Settings.Transparency.pinnedSidebarTransparency.name) {
             pinnedSidebarTransparencyEnabled = SettingsStore.shared.get(Settings.Transparency.pinnedSidebarTransparency)
         }
+        if keys.contains(Settings.Transparency.backdropTransparency.name) {
+            backdropTransparencyEnabled = SettingsStore.shared.get(Settings.Transparency.backdropTransparency)
+        }
     }
 
     private func saveBackgroundOpacity() {
@@ -205,6 +228,7 @@ final class TransparencyManager {
         blurEnabled = Self.defaultBlurEnabled
         blurStyle = Self.defaultBlurStyle
         pinnedSidebarTransparencyEnabled = Self.defaultPinnedSidebarTransparencyEnabled
+        backdropTransparencyEnabled = Self.defaultBackdropTransparencyEnabled
     }
 
     /// Toggle transparency on/off (Mac Catalyst only)

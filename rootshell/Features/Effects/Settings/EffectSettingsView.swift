@@ -191,6 +191,16 @@ struct EffectSettingsView: View {
                 )
                 .themedRow()
                 if effectManager.isBackdropEnabled {
+                    #if targetEnvironment(macCatalyst)
+                    SettingDescribedToggle(
+                        Settings.Transparency.backdropTransparency,
+                        isOn: Binding(get: { transparencyManager.backdropTransparencyEnabled },
+                                      set: { transparencyManager.backdropTransparencyEnabled = $0 }),
+                        title: "Transparent Backdrop",
+                        description: "Apply the window opacity to the gradient too, so the desktop shows through it. When off, transparency only reveals the gradient behind the terminal."
+                    )
+                    .themedRow()
+                    #endif
                     NavigationLink {
                         EffectSettingsView(configurationEffect: effectManager.backdropEffect)
                     } label: {

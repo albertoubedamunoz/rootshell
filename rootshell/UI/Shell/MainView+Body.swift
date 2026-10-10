@@ -55,7 +55,9 @@ extension MainView {
         let chromeBackground = tabBarChromeBackground(theme)
         #if targetEnvironment(macCatalyst)
         VStack(spacing: 0) {
-            chromeBackground
+            // A transparent backdrop would show this band through it.
+            (effectManager.isBackdropEnabled && transparencyManager.effectiveBackdropOpacity < 1
+                ? Color.clear : chromeBackground)
                 .frame(height: (hideWindowTitleBar && tabBarHidden) ? 0 : max(44, geometry.safeAreaInsets.top))
             // Rounded Panes paints its backdrop around the cards in
             // terminalAndSidebarContent, never beneath translucent terminals.
@@ -117,6 +119,7 @@ extension MainView {
                 }
                 #endif
             }
+            .opacity(transparencyManager.effectiveBackdropOpacity)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             .ignoresSafeArea()

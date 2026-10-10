@@ -183,10 +183,14 @@ nonisolated extension Settings {
             "pinnedSidebarTransparencyEnabled", default: false, group: .transparency, policy: .localByDefault,
             configKey: "pinned-sidebar-transparency-enabled",
             title: String(localized: "Transparent Pinned Sidebar", comment: "Setting title"))
+        static let backdropTransparency = SettingKey(
+            "backdropTransparencyEnabled", default: true, group: .transparency, policy: .localByDefault,
+            configKey: "backdrop-transparency-enabled",
+            title: String(localized: "Transparent Backdrop", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             backgroundOpacity.erased, backgroundBlurRadius.erased, blurEnabled.erased, blurStyle.erased,
-            pinnedSidebarTransparency.erased,
+            pinnedSidebarTransparency.erased, backdropTransparency.erased,
         ]
     }
 

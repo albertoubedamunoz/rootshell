@@ -705,6 +705,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["layout", "sidebar", "effect", "sidebar only", "include pinned sidebar"], available: isTouch && !onPhone || isCatalyst),
             row("effect-keyboard", String(localized: "Custom Keyboard Background"), in: .backgroundEffect, icon: "keyboard",
                 keywords: ["custom keyboard", "toolbar", "effect", "background", "aquarium", "keyboard only"], available: isTouch),
+            row("effect-backdrop-transparency", String(localized: "Transparent Backdrop"), in: .backgroundEffect,
+                keywords: ["backdrop", "theme gradient", "transparent", "desktop", "see-through"], available: isCatalyst),
             row("effect-photo", String(localized: "Photo Background"), in: .backgroundEffect, icon: "photo",
                 keywords: ["photo", "image", "wallpaper", "ken burns", "filter", "tint"]),
             row("effect-video", String(localized: "Video Background"), in: .backgroundEffect, icon: "film",
