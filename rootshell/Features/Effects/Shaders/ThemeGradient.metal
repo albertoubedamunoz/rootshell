@@ -41,8 +41,9 @@ static float themeGradientBlob(float2 p, float2 center, float aspect, float radi
     // Domain warp so blobs morph instead of sliding as rigid discs
     p += 0.07 * float2(sin(p.y * 2.3 + t * 0.31), sin(p.x * 1.9 - t * 0.27));
 
-    // Radii grow gently with aspect: wide windows keep distinct blobs
-    float span = sqrt(max(aspect, 1.0));
+    // Radii in sqrt(width * height) units so each blob covers the same share
+    // of the window at any aspect; tall phones otherwise wash out entirely
+    float span = sqrt(aspect);
     float3 col = float3(cDeep.rgb);
     float coverage = 0.35;
 
