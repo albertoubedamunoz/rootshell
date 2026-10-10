@@ -30,8 +30,11 @@ nonisolated enum HerdrReplyFilter {
                 // when snapshot replay enables mode 1004. They are not user
                 // input: forwarding them as input would reclaim geometry.
                 let focusReport = end == index + 2 && [0x49, 0x4f].contains(bytes[end])
+                // Kitty keyboard flags (CSI ? flags u); without `?` it is a key event.
+                let keyboardFlags = bytes[end] == 0x75 && bytes[index + 2] == 0x3f
                 // DA (c), DSR/CPR (n, R), window reports (t), DECRPM (y).
-                guard focusReport || [0x63, 0x6e, 0x52, 0x74, 0x79].contains(bytes[end]) else { return false }
+                guard focusReport || keyboardFlags
+                        || [0x63, 0x6e, 0x52, 0x74, 0x79].contains(bytes[end]) else { return false }
                 index = end + 1
             case 0x5d: // OSC: BEL or ST terminated
                 guard let end = stringEnd(bytes, from: index + 2, allowBell: true) else { return false }
