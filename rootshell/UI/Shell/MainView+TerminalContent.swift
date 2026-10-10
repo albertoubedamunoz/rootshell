@@ -1524,7 +1524,9 @@ extension MainView {
                     }
                     .frame(width: dockedWidth - cardGap)
                     .clipShape(PaneCardStyle.shape(rounded: roundedPanes))
-                    .ignoresSafeArea(.container, edges: roundedPanes ? [] : .bottom)
+                    // Keyboard too: a floating keyboard's strip-sized region
+                    // would stop the fill short of the bottom edge.
+                    .ignoresSafeArea([.container, .keyboard], edges: roundedPanes ? [] : .bottom)
             }
         }
         // iPad cards run into the home-indicator strip (the surface inset keeps
@@ -1643,8 +1645,8 @@ extension MainView {
     ///   width, so the column's lower rows and footer are covered and
     ///   unreachable unless the content compresses. Clearance is the
     ///   keyboard's coverage (its frame already includes the accessory
-    ///   toolbar), minus the bottom safe-area inset the column's content
-    ///   already sits above.
+    ///   toolbar), minus the bottom inset the column's content already sits
+    ///   above (the safe area, or the card gap with rounded panes).
     /// - Otherwise, the keyboard toolbar docked at the bottom edge (hardware
     ///   keyboard, toolbar-only mode, or a floating software keyboard):
     ///   clearance is the focused pane's toolbar reservation.
@@ -1668,7 +1670,9 @@ extension MainView {
         if (touchKeyboardFrame != nil || TerminalKeyboardGeometry.isDocked(keyboard: keyboardFrame, container: window.bounds)) {
             let coverage = TerminalKeyboardGeometry.overlapHeight(keyboard: keyboardFrame, container: window.bounds)
             guard coverage > 0 else { return 0 }
-            return max(0, coverage - windowSafeAreaInsets.bottom)
+            // Rounded cards end one card gap above the screen edge, not at the strip.
+            let stripClearance = paneCardsEnterHomeIndicatorStrip ? PaneCardStyle.gap : windowSafeAreaInsets.bottom
+            return max(0, coverage - stripClearance)
         }
         // Not gated on the keyboard: the reservation itself requires the
         // pane to hold first responder, so it is 0 whenever no toolbar is
