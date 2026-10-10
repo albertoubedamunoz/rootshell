@@ -90,12 +90,6 @@ final class EffectManager {
     /// Version counter that increments on keyboard state changes to force SwiftUI re-render
     private(set) var keyboardStateVersion: Int = 0
 
-    /// Version counter that increments when a surface's cell size changes, so
-    /// SwiftUI re-evaluates layout that depends on grid metrics (the terminal's
-    /// top grid-alignment padding). Deliberately separate from
-    /// `keyboardStateVersion`: grid changes do not change keyboard geometry.
-    private(set) var gridMetricsVersion: Int = 0
-
     /// Whether the effect has been toggled off (for toggle_background_effect action)
     private(set) var isEffectDisabled: Bool = false
 
@@ -240,10 +234,6 @@ final class EffectManager {
         keyboardStateVersion += 1
         keyboardStateDidChange.send()
         keyboardEnvironmentDidChange.send()
-    }
-
-    func notifyGridMetricsChanged() {
-        gridMetricsVersion += 1
     }
 
     func clearPreservedKeyboardLayout() {
