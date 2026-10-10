@@ -1618,14 +1618,14 @@ final class SplitTreeHostingView: UIView {
         container.clipsToBounds = rounded || container is Ghostty.TerminalScrollView
         #else
         container.clipsToBounds = rounded
-        // A rubber-band pull moves the surface down inside the card; fill the
-        // uncovered strip with the terminal background so the card keeps its shape.
-        // A translucent terminal fills just that strip, at its own opacity, so
-        // the fill never stacks beneath it.
+        // A rubber-band pull moves the surface inside the pane; fill the
+        // uncovered strip with the terminal background, square panes included,
+        // so the backdrop never shows through. A translucent terminal fills just
+        // that strip, at its own opacity, so the fill never stacks beneath it.
         if let scrollView = container as? Ghostty.TerminalScrollView {
             let opacity = TransparencyManager.shared.effectiveBackgroundOpacity
             let surface = cardSurfaceColor(for: scrollView.terminalView)
-            scrollView.backgroundColor = rounded && opacity >= 1 ? surface : .clear
+            scrollView.backgroundColor = opacity >= 1 ? surface : .clear
             scrollView.overscrollFillColor = opacity < 1 ? surface.withAlphaComponent(opacity) : nil
         }
         #endif
