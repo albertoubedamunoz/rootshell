@@ -60,16 +60,20 @@ extension Ghostty {
     private var wasRubberBandingDuringScroll: Bool = false
 
     #if !targetEnvironment(macCatalyst)
-    /// Fills only the strip a rubber-band pull uncovers, so a translucent
-    /// terminal keeps its surface without stacking a fill beneath itself.
+    /// Fills the strip a rubber-band pull uncovers, so a translucent terminal
+    /// keeps its surface without stacking a fill beneath itself.
     var overscrollFillColor: UIColor? {
         didSet {
-            overscrollFillView.backgroundColor = overscrollFillColor
-            if overscrollFillColor == nil { overscrollFillView.isHidden = true }
+            for fill in overscrollFills {
+                fill.backgroundColor = overscrollFillColor
+                fill.isHidden = overscrollFillColor == nil
+            }
         }
     }
 
-    private let overscrollFillView = UIView()
+    /// Pinned above and below the terminal so they move with it in the same
+    /// layout pass; the scroll view clips them to the uncovered strip.
+    private let overscrollFills = [UIView(), UIView()]
     #endif
 
     /// True while TerminalScrollView is applying terminal/core-driven offset changes.
@@ -519,11 +523,6 @@ extension Ghostty {
         #endif
         updateRubberBandScrollBehavior()
 
-        #if !targetEnvironment(macCatalyst)
-        overscrollFillView.isUserInteractionEnabled = false
-        overscrollFillView.isHidden = true
-        addSubview(overscrollFillView)
-        #endif
         addSubview(scrollView)
 
         NSLayoutConstraint.activate([
@@ -657,6 +656,23 @@ extension Ghostty {
 
             // Height matches scroll view frame (visible area)
             terminalView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
+        ])
+
+        let (topFill, bottomFill) = (overscrollFills[0], overscrollFills[1])
+        for fill in overscrollFills {
+            fill.translatesAutoresizingMaskIntoConstraints = false
+            fill.isUserInteractionEnabled = false
+            fill.isHidden = overscrollFillColor == nil
+            documentView.addSubview(fill)
+            NSLayoutConstraint.activate([
+                fill.leadingAnchor.constraint(equalTo: terminalView.leadingAnchor),
+                fill.trailingAnchor.constraint(equalTo: terminalView.trailingAnchor),
+                fill.heightAnchor.constraint(equalTo: terminalView.heightAnchor)
+            ])
+        }
+        NSLayoutConstraint.activate([
+            topFill.bottomAnchor.constraint(equalTo: terminalView.topAnchor),
+            bottomFill.topAnchor.constraint(equalTo: terminalView.bottomAnchor)
         ])
         #endif
 
@@ -2252,27 +2268,13 @@ extension Ghostty {
         updateTerminalBottomInsetSuppression(rubberBanding: rubberBanding)
         if shouldUseRubberBandScrollback {
             terminalTopConstraint?.constant = clampedOffsetY
-            updateOverscrollFill(translationY: clampedOffsetY - scrollView.contentOffset.y)
         } else {
             terminalTopConstraint?.constant = scrollView.contentOffset.y
-            updateOverscrollFill(translationY: 0)
         }
         #endif
     }
 
     #if !targetEnvironment(macCatalyst)
-    /// Positive translation uncovers the top of the card, negative the bottom.
-    private func updateOverscrollFill(translationY: CGFloat) {
-        guard overscrollFillColor != nil, abs(translationY) > 0.5 else {
-            overscrollFillView.isHidden = true
-            return
-        }
-        overscrollFillView.isHidden = false
-        overscrollFillView.frame = translationY > 0
-            ? CGRect(x: 0, y: 0, width: bounds.width, height: translationY)
-            : CGRect(x: 0, y: bounds.height + translationY, width: bounds.width, height: -translationY)
-    }
-
     private func updateTerminalBottomInsetSuppression(rubberBanding: Bool) {
         let suppress = shouldUseRubberBandScrollback && rubberBanding
         guard terminalView.suppressBottomInsetUpdatesForScrollRubberBand != suppress else { return }
