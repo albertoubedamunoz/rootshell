@@ -824,6 +824,7 @@ private struct IntegratedTabBackground: View {
     let edgePalette: IntegratedTabEdgePalette
     let namespace: Namespace.ID?
     let reduceMotion: Bool
+    @Environment(\.integratedTabJoinsCard) private var joinsCard
 
     var body: some View {
         ZStack {
@@ -849,9 +850,11 @@ private struct IntegratedTabBackground: View {
 
             // Between fill and outline: clears the strip's rule out of the
             // outline's shoulder band.
-            IntegratedTabEdgeOccluder(color: selectedColor)
+            if !joinsCard {
+                IntegratedTabEdgeOccluder(color: selectedColor)
 
-            IntegratedTabOutlineView(palette: edgePalette)
+                IntegratedTabOutlineView(palette: edgePalette)
+            }
         }
 
         if let namespace {
@@ -1201,19 +1204,14 @@ final class TabStyleContextMenuCoordinator: NSObject, UIContextMenuInteractionDe
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
             guard let self else { return nil }
             let selectedLayout = self.selectedLayout
-            let roundedPanes = SettingsStore.shared.get(Settings.Window.roundedPanes)
-            var actions = [
+            let actions = [
                 self.action(for: .pills, systemImage: "capsule", selectedLayout: selectedLayout),
                 self.action(for: .compactPills, systemImage: "capsule.fill", selectedLayout: selectedLayout),
-            ]
-            if !roundedPanes {
-                actions.append(self.action(
+                self.action(
                     for: .integrated,
                     systemImage: "rectangle.topthird.inset.filled",
                     selectedLayout: selectedLayout
-                ))
-            }
-            actions += [
+                ),
                 self.action(for: .ledger, systemImage: "underline", selectedLayout: selectedLayout),
                 self.action(for: .trough, systemImage: "rectangle.split.3x1", selectedLayout: selectedLayout),
             ]

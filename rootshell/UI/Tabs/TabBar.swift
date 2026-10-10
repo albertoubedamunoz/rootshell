@@ -302,6 +302,10 @@ struct TabBar: View {
     let tabNamespace: Namespace.ID
     let canAcceptWindowTransferDrop: Bool
     let suppressSelectionAnimation: Bool
+    /// Rounded Panes: where the tabs start, past the pinned sidebar card. The
+    /// scope menu may sit over the sidebar and counts toward it.
+    var tabsLeadingInset: CGFloat = 0
+    var scopeMenuLeadingInset: CGFloat = 0
 
     // MARK: - State propagated up
 
@@ -427,7 +431,7 @@ struct TabBar: View {
             return sizingItem(for: tab, index: index, gatewayOwnerIDs: gatewayOwnerIDs)
         }
         return TabBarSizingPolicy.decision(
-            availableWidth: max(0, availableWidth - activeScopeMenuWidth),
+            availableWidth: max(0, availableWidth - scopeMenuLead - activeScopeMenuWidth - cardGutterWidth),
             items: items,
             style: style,
             usesCompactSpacing: usesCompactSpacing
@@ -832,8 +836,9 @@ struct TabBar: View {
                 }
 
                 HStack(spacing: usesCompactSpacing ? 0 : 4) {
-                    activeScopeMenu
+                    leadingScopeMenu
                     compactScopeMenuSpacer
+                    cardLeadingGutter
                     troughWell(segmentCount: 1, segmentWidth: resolvedWidth) {
                         tabItem(
                             for: tab,
@@ -917,8 +922,9 @@ struct TabBar: View {
         // compare the resolved badge.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabs)
         HStack(spacing: usesCompactSpacing ? 0 : 4) {
-            activeScopeMenu
+            leadingScopeMenu
             compactScopeMenuSpacer
+            cardLeadingGutter
             troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
                 ForEach(navigationTabs) { tab in
                     let index = tabsModel.index(of: tab.id) ?? 0
@@ -999,53 +1005,63 @@ struct TabBar: View {
         // Gateway ordering for tmux badge colors — computed once per render; see
         // equalWidthView.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabs)
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: usesCompactSpacing ? 0 : 8) {
-                activeScopeMenu
-                compactScopeMenuSpacer
-                troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
-                    ForEach(navigationTabs) { tab in
-                        let index = tabsModel.index(of: tab.id) ?? 0
-                        let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
-                        let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                        tabItem(
-                            for: tab,
-                            index: index,
-                            isOnly: false,
-                            gatewayOwnerIDs: gatewayOwnerIDs,
-                            tabWidth: tabWidth
-                        )
-                            .equatable()
-                            .frame(width: tabWidth)
-                            .contentShape(Rectangle())
-                            .id(tab.id)
-                            .modifier(dragModifier(for: tab, index: index))
-                            .contextMenu {
-                                tabContextMenu(
-                                    for: tab,
-                                    index: index,
-                                    moveLeftTarget: moveLeftTarget,
-                                    moveRightTarget: moveRightTarget,
-                                    includeThemeOverrideClear: true
-                                )
-                            }
+        HStack(spacing: 0) {
+            // Pinned outside the scroll so scrolled tabs never slide over the
+            // sidebar card.
+            if pinsLeadingRun {
+                leadingScopeMenu
+                cardLeadingGutter
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: usesCompactSpacing ? 0 : 8) {
+                    if !pinsLeadingRun {
+                        activeScopeMenu
+                        compactScopeMenuSpacer
+                    }
+                    troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
+                        ForEach(navigationTabs) { tab in
+                            let index = tabsModel.index(of: tab.id) ?? 0
+                            let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
+                            let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
+                            tabItem(
+                                for: tab,
+                                index: index,
+                                isOnly: false,
+                                gatewayOwnerIDs: gatewayOwnerIDs,
+                                tabWidth: tabWidth
+                            )
+                                .equatable()
+                                .frame(width: tabWidth)
+                                .contentShape(Rectangle())
+                                .id(tab.id)
+                                .modifier(dragModifier(for: tab, index: index))
+                                .contextMenu {
+                                    tabContextMenu(
+                                        for: tab,
+                                        index: index,
+                                        moveLeftTarget: moveLeftTarget,
+                                        moveRightTarget: moveRightTarget,
+                                        includeThemeOverrideClear: true
+                                    )
+                                }
+                        }
                     }
                 }
+                .padding(.leading, usesCompactSpacing ? 0 : 8)
+                .padding(.trailing, usesCompactSpacing ? Self.compactOvershootHeadroom : 8)
+                .contentShape(Rectangle())
+                .modifier(GlassEffectContainerModifier())
+                // Scoped animation for the selection slide. See equalWidthView.
+                .animation(
+                    tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
+                        ? nil
+                        : .spring(response: 0.3, dampingFraction: 0.7),
+                    value: tabsModel.selectedTabID
+                )
             }
-            .padding(.leading, usesCompactSpacing ? 0 : 8)
-            .padding(.trailing, usesCompactSpacing ? Self.compactOvershootHeadroom : 8)
-            .contentShape(Rectangle())
-            .modifier(GlassEffectContainerModifier())
-            // Scoped animation for the selection slide. See equalWidthView.
-            .animation(
-                tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
-                    ? nil
-                    : .spring(response: 0.3, dampingFraction: 0.7),
-                value: tabsModel.selectedTabID
-            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .modifier(ScrollEdgeEffectHiddenModifier())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .modifier(ScrollEdgeEffectHiddenModifier())
     }
 
     /// Compact pills and the trough well intentionally abut, but the scope
@@ -1057,6 +1073,49 @@ struct TabBar: View {
            !style.usesStripLayout,
            activeScopeMenuWidth > 0 {
             Color.clear.frame(width: 4)
+        }
+    }
+
+    private var pinsLeadingRun: Bool { tabsLeadingInset > 0 }
+
+    /// Lines the scope menu up with the pinned sidebar card's leading edge.
+    private var scopeMenuLead: CGFloat {
+        activeScopeMenuWidth > 0 ? scopeMenuLeadingInset : 0
+    }
+
+    private var cardGutterWidth: CGFloat {
+        max(0, tabsLeadingInset - scopeMenuLead - activeScopeMenuWidth)
+    }
+
+    @ViewBuilder
+    private var leadingScopeMenu: some View {
+        cardInsetRegion(width: scopeMenuLead)
+        activeScopeMenu
+    }
+
+    /// Empty run between the scope menu and the first tab.
+    private var cardLeadingGutter: some View {
+        cardInsetRegion(width: cardGutterWidth)
+    }
+
+    /// Card-alignment space; acts like the strip's other empty space.
+    @ViewBuilder
+    private func cardInsetRegion(width: CGFloat) -> some View {
+        if width > 0 {
+            #if targetEnvironment(macCatalyst)
+            if usesTitlebarTabs {
+                CatalystWindowDragRegion(tabStyleSelection: $selectedStyleRawValue)
+                    .frame(width: width, height: TabMetrics.tabBarHeight)
+                    .catalystCursorRegion(.openHand, priority: .titlebar)
+                    .accessibilityHidden(true)
+            } else {
+                TabStyleContextMenuRegion(selectedStyleRawValue: $selectedStyleRawValue)
+                    .frame(width: width, height: TabMetrics.tabBarHeight)
+            }
+            #else
+            TabStyleContextMenuRegion(selectedStyleRawValue: $selectedStyleRawValue)
+                .frame(width: width, height: TabMetrics.tabBarHeight)
+            #endif
         }
     }
 

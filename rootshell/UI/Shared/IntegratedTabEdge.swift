@@ -155,16 +155,19 @@ struct IntegratedTabGeometry {
     static func progressEdgePath(
         in rowRect: CGRect,
         activeTabRect: CGRect,
-        bottomInset: CGFloat
+        bottomInset: CGFloat,
+        span: ClosedRange<CGFloat>? = nil
     ) -> Path {
         let geometry = IntegratedTabGeometry(in: activeTabRect)
+        // Rounded Panes: run only along the terminal card's straight top edge.
+        let span = span ?? rowRect.minX...rowRect.maxX
         let baseline = rowRect.maxY - bottomInset
         let tabBottom = geometry.tabRect.maxY - bottomInset
         var path = Path()
-        path.move(to: CGPoint(x: rowRect.minX, y: baseline))
+        path.move(to: CGPoint(x: span.lowerBound, y: baseline))
         path.addLine(to: CGPoint(x: geometry.tabRect.minX, y: tabBottom))
         geometry.appendOutline(to: &path, bottomInset: bottomInset)
-        path.addLine(to: CGPoint(x: rowRect.maxX, y: baseline))
+        path.addLine(to: CGPoint(x: span.upperBound, y: baseline))
         return path
     }
 
@@ -293,6 +296,7 @@ struct IntegratedOSCProgressEdgeHost: View {
     @ObservedObject var terminalView: Ghostty.TerminalView
     let activeTabRect: CGRect
     let rowSize: CGSize
+    var span: ClosedRange<CGFloat>?
     let selectedTabID: UUID
     let animateSelectionChanges: Bool
 
@@ -318,7 +322,8 @@ struct IntegratedOSCProgressEdgeHost: View {
             let path = IntegratedTabGeometry.progressEdgePath(
                 in: CGRect(origin: .zero, size: rowSize),
                 activeTabRect: activeTabRect,
-                bottomInset: lineWidth / 2
+                bottomInset: lineWidth / 2,
+                span: span
             )
             IntegratedOSCProgressLayerView(
                 path: path.cgPath,
@@ -475,5 +480,20 @@ private final class IntegratedOSCProgressLayerUIView: UIView {
     fileprivate func stopAnimation() {
         progressLayer.removeAnimation(forKey: "osc-progress-bounce")
         isBouncing = false
+    }
+}
+
+// MARK: - Rounded Panes
+
+private struct IntegratedTabJoinsCardKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// Rounded Panes: the selected tab merges into a keyline-free card, so it
+    /// drops its outline.
+    var integratedTabJoinsCard: Bool {
+        get { self[IntegratedTabJoinsCardKey.self] }
+        set { self[IntegratedTabJoinsCardKey.self] = newValue }
     }
 }

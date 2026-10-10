@@ -29,6 +29,7 @@ extension MainView {
                     terminalView: focusedTerminal,
                     activeTabRect: proxy[activeTabBounds],
                     rowSize: proxy.size,
+                    span: integratedProgressSpan(rowWidth: proxy.size.width),
                     selectedTabID: selectedTabID,
                     animateSelectionChanges: !tabBarAnimationsDisabled
                         && !tabIndicator.suppressNextSelectionAnimation

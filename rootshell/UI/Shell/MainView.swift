@@ -207,20 +207,15 @@ struct MainView: View {
     @Setting(Settings.Tabs.barHidden) var tabBarHidden
     @Setting(Settings.Tabs.showShortcutIndicators) var showTabShortcutIndicators
     @Setting(Settings.Tabs.barAnimationsDisabled) var tabBarAnimationsDisabled
-    @Setting(Settings.Tabs.topTabStyle) var storedTopTabStyle
+    @Setting(Settings.Tabs.topTabStyle) var topTabStyle
     @Setting(Settings.Tabs.compactPillSpacing) var compactPillTabSpacing
     @Setting(Settings.Tabs.showScopeMenu) var showTabScopeMenu
-
-    /// The rendered style; Rounded Panes shows Integrated as Pills.
-    var topTabStyle: TopTabStyle {
-        storedTopTabStyle.effective(roundedPanes: roundedPanes)
-    }
 
     /// Raw-value bridge for the shared tab components that still take `Binding<String>`.
     var topTabStyleRawValueBinding: Binding<String> {
         Binding(
             get: { topTabStyle.rawValue },
-            set: { storedTopTabStyle = TopTabStyle.resolve($0) }
+            set: { topTabStyle = TopTabStyle.resolve($0) }
         )
     }
     var usesCompactTabSpacing: Bool {
@@ -491,7 +486,9 @@ struct MainView: View {
                                 // the strip meets the full-width terminal.
                                 (effectManager.isBackdropEnabled ? Color.clear : tabBarChromeBackground(resolvedTheme))
                                     .overlay {
-                                        IntegratedTabEdgeRuleView(palette: resolvedTheme.integratedEdgePalette)
+                                        if !integratedTabsJoinCards {
+                                            IntegratedTabEdgeRuleView(palette: resolvedTheme.integratedEdgePalette)
+                                        }
                                     }
                                     .allowsHitTesting(false)
                             }

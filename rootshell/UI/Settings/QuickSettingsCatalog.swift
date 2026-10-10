@@ -212,10 +212,7 @@ enum QuickSettingsCatalog {
             choices(Settings.Tabs.newTabAction, label: { $0.displayName }),
             toggle(Settings.Tabs.barHidden, inverted: true),
             toggle(Settings.Tabs.barAnimationsDisabled),
-            entry(Settings.Tabs.topTabStyle, .choices {
-                TopTabStyle.available(roundedPanes: SettingsStore.shared.get(Settings.Window.roundedPanes))
-                    .enumerated().map { .init(id: String($0.offset), title: $0.element.displayName, value: $0.element.codableValue) }
-            }),
+            choices(Settings.Tabs.topTabStyle, label: { $0.displayName }),
             toggle(Settings.Tabs.compactPillSpacing),
             toggle(Settings.Tabs.showScopeMenu),
             toggle(Settings.Tabs.showShortcutIndicators),

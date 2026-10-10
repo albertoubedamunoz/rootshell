@@ -104,6 +104,17 @@ struct PaneCardEffectShape: Shape {
 }
 
 extension View {
+    /// Theme fills behind the terminal: full bleed normally, the terminal
+    /// card under Rounded Panes so they never square off its corners.
+    @ViewBuilder
+    func cardFillExtent(_ rounded: Bool) -> some View {
+        if rounded {
+            clipShape(PaneCardStyle.shape(rounded: true))
+        } else {
+            ignoresSafeArea()
+        }
+    }
+
     /// Clips the effect layer to its cards only while Rounded Panes is on.
     @ViewBuilder
     func paneCardEffectClip(_ isEnabled: Bool, sidebarWidth: CGFloat) -> some View {

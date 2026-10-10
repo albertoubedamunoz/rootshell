@@ -256,7 +256,6 @@ struct WindowSettingsView: View {
     @Environment(\.duoLayout) private var duoLayout
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Setting(Settings.Tabs.topTabStyle) private var topTabStyle
-    @Setting(Settings.Window.roundedPanes) private var roundedPanes
     @Setting(Settings.Tabs.duoFrontDisplayMode) private var duoFrontDisplayMode
     @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
     @Setting(Settings.Tabs.hoverPreviews) private var tabHoverPreviewsEnabled
@@ -321,7 +320,7 @@ struct WindowSettingsView: View {
         Binding(
             get: {
                 TopTabLayout.resolve(
-                    style: topTabStyle.effective(roundedPanes: roundedPanes),
+                    style: topTabStyle,
                     compactPills: compactPillTabSpacing
                 )
             },
@@ -354,7 +353,7 @@ struct WindowSettingsView: View {
                     .themedRow()
 
                 Picker(selection: topTabLayout) {
-                    ForEach(TopTabLayout.available(roundedPanes: roundedPanes)) { layout in
+                    ForEach(TopTabLayout.allCases) { layout in
                         Text(layout.displayName).tag(layout)
                     }
                 } label: {
