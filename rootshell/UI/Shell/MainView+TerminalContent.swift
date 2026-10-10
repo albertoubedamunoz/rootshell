@@ -763,7 +763,7 @@ extension MainView {
            let themeColors = effectiveThemeColors,
            let bgColor = Color(hex: themeColors.background) {
             bgColor
-                .opacity(transparencyManager.backgroundOpacity)
+                .opacity(transparencyManager.effectiveBackgroundOpacity)
                 .ignoresSafeArea()
         }
     }
@@ -785,7 +785,7 @@ extension MainView {
            let themeColors = effectiveThemeColors,
            let bgColor = Color(hex: themeColors.background) {
             bgColor
-                .opacity(transparencyManager.backgroundOpacity)
+                .opacity(transparencyManager.effectiveBackgroundOpacity)
                 .ignoresSafeArea()
                 // Closing a tab clears the displayed tab inside its animation;
                 // a fade-in would dip the window's opacity.
@@ -1417,9 +1417,10 @@ extension MainView {
         // separates the cards; strip tabs fill the row and keep the gap.
         let cardTopGap: CGFloat = showsHorizontalTabHeader && !topTabStyle.usesStripLayout ? 0 : cardGap
         // Mac terminals draw their own translucent background, so the backdrop
-        // is painted only around the cards (here and between splits).
+        // is painted only around the cards (here and between splits), unless
+        // the window backdrop shows there instead.
         #if targetEnvironment(macCatalyst)
-        let cardBackdrop: Color? = roundedPanes
+        let cardBackdrop: Color? = roundedPanes && !effectManager.isBackdropEnabled
             ? tabBarChromeBackground(theme).opacity(transparencyManager.backgroundOpacity)
             : nil
         #else
@@ -1598,15 +1599,11 @@ extension MainView {
     /// over the fill while tab rows and controls remain crisp above it.
     private func dockedTabSidebarBackground(theme: ResolvedSheetTheme) -> Color {
         let background = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
-        #if targetEnvironment(macCatalyst)
         return background.opacity(
             transparencyManager.pinnedSidebarTransparencyEnabled
-                ? transparencyManager.backgroundOpacity
+                ? transparencyManager.effectiveBackgroundOpacity
                 : 1.0
         )
-        #else
-        return background
-        #endif
     }
 
     /// Bottom clearance for the docked tab sidebar's content so it stays

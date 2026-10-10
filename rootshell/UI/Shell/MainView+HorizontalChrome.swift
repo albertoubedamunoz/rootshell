@@ -54,7 +54,10 @@ extension MainView {
         .frame(maxWidth: .infinity)
         .background {
             ZStack {
-                tabBarChromeBackground(resolvedTheme)
+                // The window fill beneath the backdrop already has this color.
+                if !effectManager.isBackdropEnabled {
+                    tabBarChromeBackground(resolvedTheme)
+                }
 
                 // Background layer on purpose: the active tab
                 // occludes the run beneath it, so the line

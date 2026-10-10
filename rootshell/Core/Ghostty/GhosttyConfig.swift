@@ -250,7 +250,8 @@ extension Ghostty {
                 blur: transparencyManager.usesGlass ? 0 : Int(transparencyManager.backgroundBlurRadius)
             )
 #else
-            return (opacity: 1.0, blur: 0)
+            // Glass is a SwiftUI layer over the backdrop; there is no radius blur.
+            return (opacity: TransparencyManager.shared.effectiveBackgroundOpacity, blur: 0)
 #endif
         }
 

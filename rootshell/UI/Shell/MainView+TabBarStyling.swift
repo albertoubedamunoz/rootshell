@@ -48,6 +48,8 @@ struct ResolvedTabBarTheme: Equatable {
     let overrideTabText: Color?
     let overrideTabSecondaryText: Color?
     let overrideSheetAccent: Color?
+    /// Tabs sit on the Theme Gradient backdrop rather than flat chrome.
+    var onBackdrop = false
 
     static let fallback = ResolvedTabBarTheme(
         themeColors: nil,
@@ -105,7 +107,8 @@ struct ResolvedTabBarTheme: Equatable {
     /// chromatic backgrounds instead of washing them toward gray.
     var integratedEdgePalette: IntegratedTabEdgePalette {
         IntegratedTabEdgePalette(
-            surfaceColor: terminalSurfaceBackground ?? baseColor,
+            // The backdrop surface is translucent; derive the edge from the opaque swatch
+            surfaceColor: onBackdrop ? baseColor : (terminalSurfaceBackground ?? baseColor),
             isLightTheme: isLight
         )
     }
@@ -152,6 +155,8 @@ struct ResolvedTabBarTheme: Equatable {
     var tabSecondaryText: Color {
         if let override = overrideTabSecondaryText { return override }
         guard baseColor != nil else { return .secondary }
+        // The gradient is busier and brighter than chrome, so inactive titles need more contrast
+        if onBackdrop { return isLight ? Color(white: 0.2) : Color(white: 0.85) }
         return isLight ? Color(white: 0.4) : Color(white: 0.6)
     }
 
@@ -281,17 +286,24 @@ extension MainView {
             )
         }
         #if targetEnvironment(macCatalyst)
-        let terminalSurfaceIsTransparent = transparencyManager.backgroundOpacity < 0.999
-        let terminalSurfaceBackground = baseColor.blendedWithWhite(
+        var terminalSurfaceIsTransparent = transparencyManager.backgroundOpacity < 0.999
+        var terminalSurfaceBackground = baseColor.blendedWithWhite(
             1 - CGFloat(transparencyManager.backgroundOpacity)
         )
         #else
         // The iOS/visionOS terminal is composited over the same theme-colored
         // root fill, so opacity does not change its visible base color.
-        let terminalSurfaceIsTransparent = false
-        let terminalSurfaceBackground = baseColor
+        var terminalSurfaceIsTransparent = false
+        var terminalSurfaceBackground = baseColor
         #endif
-        return ResolvedTabBarTheme(
+        if effectManager.isBackdropEnabled {
+            // The terminal draws its background at this opacity over the backdrop;
+            // the active tab does the same so the gradient shows through both alike.
+            let opacity = transparencyManager.effectiveBackgroundOpacity
+            terminalSurfaceIsTransparent = opacity < 0.999
+            terminalSurfaceBackground = baseColor.opacity(opacity)
+        }
+        var resolved = ResolvedTabBarTheme(
             themeColors: themeColors,
             baseColor: baseColor,
             terminalSurfaceBackground: terminalSurfaceBackground,
@@ -306,6 +318,8 @@ extension MainView {
             overrideTabSecondaryText: overrides.tabSecondaryText.flatMap { Color(hex: $0) },
             overrideSheetAccent: overrides.sheetAccent.flatMap { Color(hex: $0) }
         )
+        resolved.onBackdrop = effectManager.isBackdropEnabled
+        return resolved
     }
 
     /// Per-theme overrides for the currently effective theme (or `.empty` if

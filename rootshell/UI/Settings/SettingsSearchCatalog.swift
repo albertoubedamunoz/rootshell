@@ -146,7 +146,7 @@ extension SettingsSearchDestination {
                  keywords: ["palette", "harmonious", "256", "generate", "colors"])
         case .backgroundEffect:
             Meta(section: .appearance, title: String(localized: "Background Effect"), systemImage: "sparkles",
-                 keywords: ["effects", "wallpaper", "visuals", "aurora", "gradient", "theme gradient", "solar graph", "fireflies", "butterflies",
+                 keywords: ["effects", "wallpaper", "visuals", "aurora", "gradient", "theme gradient", "backdrop", "solar graph", "fireflies", "butterflies",
                             "jellyfish", "photo", "video", "ken burns", "theme tint", "intensity", "speed"])
         case .customShaders:
             Meta(section: .appearance, title: String(localized: "Custom Shaders"), systemImage: "cpu",
@@ -371,8 +371,6 @@ extension SettingsSearchDestination {
         switch self {
         case .appIcon:
             return AppIconManager.isSupported
-        case .transparency:
-            return SearchBuild.isCatalyst
         case .touchKeyboard:
             return !SearchBuild.isCatalyst && !SearchBuild.isVisionOS
         case .dictation, .dictationModels, .dictationVocabulary:
@@ -600,7 +598,7 @@ struct SettingsSearchEntry: Identifiable, Hashable {
             row("im-no-fun", String(localized: "I'm no fun"), in: .appearanceMode, icon: "face.smiling",
                 keywords: ["jokes", "quips", "ascii", "animations", "failure", "humor"]),
 
-            // MARK: Transparency (Catalyst)
+            // MARK: Transparency
             row("transparency-opacity", String(localized: "Opacity"), in: .transparency,
                 keywords: ["window opacity", "transparent", "see-through"]),
             row("transparency-blur", String(localized: "Background Blur"), in: .transparency,
@@ -1120,11 +1118,7 @@ func settingsSearchDestinationView(for destination: SettingsSearchDestination) -
     case .customShaders:
         ShaderSettingsView()
     case .transparency:
-        #if targetEnvironment(macCatalyst)
         TransparencySettingsView()
-        #else
-        EmptyView()
-        #endif
     case .window:
         WindowSettingsView()
     case .battery:

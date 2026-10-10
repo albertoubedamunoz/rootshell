@@ -2,91 +2,100 @@
 //  ThemeGradient.metal
 //  rootshell
 //
-//  Theme-colored gradient: a deep base wash with four soft radial blobs
-//  layered back to front, morphed by a slow domain warp and modulated by a
-//  soft wave field. Blob centers move on the CPU; per pixel it is seven
-//  sines, four distances, and a dither.
+//  Theme-colored gradient: a primary base under four soft radial gradients
+//  composited back to front, then darkened toward the bottom. Gradient
+//  centers drift slightly on the CPU.
 //
 
 #include <metal_stdlib>
 #include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
 
-/// Soft falloff from 1 at the center to 0 at `radius` (height units)
-static float themeGradientBlob(float2 p, float2 center, float aspect, float radius) {
-    float d = distance(p, float2(center.x * aspect, center.y));
-    float w = 1.0 - smoothstep(0.0, radius, d);
-    return w * w;
+static float4 themeGradientStop(half4 c, float alpha) {
+    return float4(float3(c.rgb) * alpha, alpha);
+}
+
+/// Premultiplied ramp: c0 at 0, c1 at l1, c2 at l2, clear at 1
+static float4 themeGradientRamp(float t, float4 c0, float l1, float4 c1, float l2, float4 c2) {
+    t = saturate(t);
+    if (t < l1) return mix(c0, c1, t / l1);
+    if (t < l2) return mix(c1, c2, (t - l1) / (l2 - l1));
+    return mix(c2, float4(0.0), (t - l2) / (1.0 - l2));
+}
+
+static float4 themeGradientOver(float4 dst, float4 src) {
+    return src + dst * (1.0 - src.a);
 }
 
 [[ stitchable ]] half4 themeGradient(
     float2 position,
     half4 color,
     float2 size,
-    float time,
-    float4 centersA,
-    float4 centersB,
-    half4 cDeep,
+    float4 offsetsA,
+    float4 offsetsB,
     half4 cPrimary,
     half4 cAccent,
     half4 cMid,
     float intensity,
+    float backdrop,
     float lightMode
 ) {
     float2 uv = position / size;
-    float aspect = size.x / max(size.y, 1.0);
-    float2 p = float2(uv.x * aspect, uv.y);
-    float t = time;
+    // Width-based radii use the short side so landscape keeps the portrait look
+    float s = min(size.x, size.y);
+    float h = size.y;
 
-    // Domain warp so blobs morph instead of sliding as rigid discs
-    p += 0.07 * float2(sin(p.y * 2.3 + t * 0.31), sin(p.x * 1.9 - t * 0.27));
+    float4 col = float4(float3(cPrimary.rgb), 1.0);
 
-    // Radii in sqrt(width * height) units so each blob covers the same share
-    // of the window at any aspect; tall phones otherwise wash out entirely
-    float span = sqrt(aspect);
-    float3 col = float3(cDeep.rgb);
-    float coverage = 0.35;
+    // Top-left: large and soft
+    float2 c = (float2(0.10, 0.10) + offsetsA.xy) * size;
+    float t = distance(position, c) / (0.9 * s);
+    col = themeGradientOver(col, themeGradientRamp(t,
+        themeGradientStop(cAccent, 0.6), 0.3, themeGradientStop(cAccent, 0.3),
+        0.7, themeGradientStop(cMid, 0.15)));
 
-    float a = 0.60 * themeGradientBlob(p, centersA.xy, aspect, 0.85 * span);
-    col = mix(col, float3(cAccent.rgb), a);
-    coverage += a * (1.0 - coverage);
+    // Bottom: below the edge, diffuse, starting at 0.2h
+    c = (float2(0.70, 1.10) + offsetsA.zw) * size;
+    t = (distance(position, c) - 0.2 * h) / (0.6 * h);
+    col = themeGradientOver(col, themeGradientRamp(t,
+        themeGradientStop(cPrimary, 0.4), 0.3, themeGradientStop(cPrimary, 0.2),
+        0.6, themeGradientStop(cMid, 0.1)));
 
-    a = 0.45 * themeGradientBlob(p, centersA.zw, aspect, 0.75 * span);
-    col = mix(col, float3(cPrimary.rgb), a);
-    coverage += a * (1.0 - coverage);
+    // Mid-right: softens the bottom corner
+    c = (float2(1.00, 0.60) + offsetsB.xy) * size;
+    t = distance(position, c) / (0.5 * s);
+    col = themeGradientOver(col, themeGradientRamp(t,
+        themeGradientStop(cMid, 0.2), 0.5, themeGradientStop(cAccent, 0.1),
+        0.75, themeGradientStop(cAccent, 0.05)));
 
-    a = 0.30 * themeGradientBlob(p, centersB.xy, aspect, 0.55 * span);
-    col = mix(col, float3(cMid.rgb), a);
-    coverage += a * (1.0 - coverage);
+    // Center: smaller and focused
+    c = (float2(0.35, 0.45) + offsetsB.zw) * size;
+    t = distance(position, c) / (0.35 * s);
+    col = themeGradientOver(col, themeGradientRamp(t,
+        themeGradientStop(cAccent, 0.25), 0.4, themeGradientStop(cMid, 0.15),
+        0.7, themeGradientStop(cMid, 0.075)));
 
-    a = 0.25 * themeGradientBlob(p, centersB.zw, aspect, 0.40 * span);
-    col = mix(col, float3(cAccent.rgb), a);
-    coverage += a * (1.0 - coverage);
-
-    // Wave field: drifting bands of light and color across the blobs
-    float w1 = sin(uv.x * 2.0 + t * 0.30 + sin(uv.y * 1.5 + t * 0.24) * 1.5);
-    float w2 = sin(uv.x * 1.5 - t * 0.24 + cos(uv.y * 2.0 - t * 0.21) * 1.2);
-    float curtain = sin(uv.y * 3.0 + t * 0.36 + w1 * 0.5);
-    float flow = (w1 * 0.4 + w2 * 0.35 + curtain * 0.25) * 0.5 + 0.5;
-    coverage *= 0.55 + flow * 0.9;
-    col = mix(col, float3(cMid.rgb), (1.0 - flow) * 0.35);
-
-    // Calmer toward the bottom, where the prompt usually sits
-    coverage *= mix(1.0, 0.55, smoothstep(0.35, 1.0, uv.y));
+    // Depth: darker toward the bottom
+    float shade = uv.y < 0.3 ? mix(0.0, 0.1, uv.y / 0.3)
+        : uv.y < 0.7 ? mix(0.1, 0.3, (uv.y - 0.3) / 0.4)
+        : mix(0.3, 0.5, (uv.y - 0.7) / 0.3);
+    float3 rgb = col.rgb * (1.0 - shade);
 
     // Interleaved gradient noise: breaks up 8-bit banding in slow gradients
     float dither = (fract(52.9829189 * fract(dot(position, float2(0.06711056, 0.00583715)))) - 0.5) / 255.0;
 
-    float gain = intensity * 1.2;
-    if (lightMode < 0.5) {
-        // Additive (plusLighter): soft-clipped glow over black
-        float3 rgb = 1.0 - exp(-col * coverage * gain * 1.4);
-        rgb = max(rgb + dither, 0.0);
-        return half4(half3(rgb), half(min(1.0, coverage * gain)));
-    } else {
-        // Multiply: white is identity; darkening capped for text contrast
-        float darkening = min(0.45, coverage * gain);
-        float3 rgb = mix(float3(1.0), col, darkening) + dither;
-        return half4(half3(rgb), 1.0h);
+    if (lightMode > 0.5) {
+        // Light themes: a pale wash of the same surface
+        rgb = 1.0 - (1.0 - rgb) * 0.45;
     }
+    if (backdrop > 0.5) {
+        return half4(half3(rgb + dither), 1.0h);
+    }
+    if (lightMode < 0.5) {
+        // Additive (plusLighter) tint over the terminal
+        float a = saturate(intensity);
+        return half4(half3(max(rgb * a + dither, 0.0)), half(a));
+    }
+    // Multiply: white is identity
+    return half4(half3(mix(float3(1.0), rgb, saturate(intensity * 1.5)) + dither), 1.0h);
 }

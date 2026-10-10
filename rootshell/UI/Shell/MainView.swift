@@ -472,6 +472,7 @@ struct MainView: View {
             ZStack {
                 // Full-bleed backgrounds
                 fullBleedBackground(geometry: geometry, theme: resolvedTheme)
+                windowBackdrop(geometry: geometry, theme: resolvedTheme)
 
                 VStack(spacing: 0) {
                     // Top toolbar spacer when tab bar is hidden (Catalyst only)
@@ -488,7 +489,7 @@ struct MainView: View {
                                 && topTabStyle.usesStripLayout {
                                 // The controls avoid the camera column, but
                                 // the strip meets the full-width terminal.
-                                tabBarChromeBackground(resolvedTheme)
+                                (effectManager.isBackdropEnabled ? Color.clear : tabBarChromeBackground(resolvedTheme))
                                     .overlay {
                                         IntegratedTabEdgeRuleView(palette: resolvedTheme.integratedEdgePalette)
                                     }
