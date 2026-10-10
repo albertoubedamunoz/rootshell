@@ -165,7 +165,6 @@ struct SettingsAppearanceSection: View {
                 .themedRow()
                 .settingGroupContextMenu(.shaders)
 
-                #if targetEnvironment(macCatalyst)
                 NavigationLink(value: SettingsSearchDestination.transparency) {
                     HStack(spacing: 12) {
                         SettingsIcon(systemName: "slider.horizontal.below.rectangle")
@@ -179,7 +178,6 @@ struct SettingsAppearanceSection: View {
                 }
                 .themedRow()
                 .settingGroupContextMenu(.transparency)
-                #endif
 
                 NavigationLink(value: SettingsSearchDestination.window) {
                     HStack(spacing: 12) {

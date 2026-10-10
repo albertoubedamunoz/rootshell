@@ -897,7 +897,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
         // the empty input view that suppresses the system software keyboard.
         if hidesTouchKeyboardForHardware {
             let usesSystemHardwareInput = host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad
-                && !toolbarOnlyMode && host?.keyboardAIAgentOverlayActive != true
+                && !toolbarOnlyMode
             return usesSystemHardwareInput ? nil : emptyInputView
         }
         if usesFullTouchKeyboard {

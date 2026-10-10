@@ -54,7 +54,24 @@ final class EffectManager {
         id == BackgroundEffectSelection.followTerminalID ? activeEffect : effect(withId: id)
     }
 
+    /// Full-window gradient behind all content, configured apart from the
+    /// Theme Gradient area effect.
+    @ObservationIgnored let backdropEffect = AnyTerminalEffect(ThemeGradientEffect(isBackdrop: true))
+
+    var isBackdropEnabled = false {
+        didSet {
+            guard isBackdropEnabled != oldValue else { return }
+            if !isReloading { SettingsStore.shared.set(Settings.Shaders.themeGradientBackdrop, isBackdropEnabled) }
+            #if !targetEnvironment(macCatalyst)
+            // Off the Mac, terminal opacity applies only over the backdrop. Not
+            // during init: the config writer reads it back through `shared`.
+            if isLoaded { TransparencyManager.shared.transparencyDidChange.send() }
+            #endif
+        }
+    }
+
     @ObservationIgnored private var isReloading = false
+    @ObservationIgnored private var isLoaded = false
 
     /// Theme colors for effects (updated from ThemeManager)
     private(set) var themeColors: EffectThemeColors = .defaults
@@ -138,6 +155,7 @@ final class EffectManager {
 
         // Register built-in effects first
         registerBuiltInEffects()
+        setUpBackdrop()
 
         // Setup video download completion handler
         setupVideoDownloadHandler()
@@ -173,7 +191,19 @@ final class EffectManager {
 
         SettingsRefreshHub.shared.register(keys: [
             Settings.Shaders.activeEffectId.name, Settings.Shaders.effectConfigurations.name,
+            Settings.Shaders.themeGradientBackdrop.name,
         ]) { [weak self] keys in self?.reload(keys: keys) }
+        isLoaded = true
+    }
+
+    private func setUpBackdrop() {
+        restoreConfiguration(for: backdropEffect)
+        backdropEffect.themeColors = themeColors
+        effectConfigCancellables[backdropEffect.id] = backdropEffect.configurationDidChange
+            .sink { [weak self] in
+                guard let self else { return }
+                self.saveEffectConfiguration(self.backdropEffect)
+            }
     }
 
     private func reload(keys: Set<String>) {
@@ -190,8 +220,14 @@ final class EffectManager {
            sidebarEffect.id != activeEffect?.id, sidebarEffect.id != keyboardEffect?.id {
             restoreConfiguration(for: sidebarEffect)
         }
+        if keys.contains(Settings.Shaders.effectConfigurations.name) {
+            restoreConfiguration(for: backdropEffect)
+        }
         if keys.contains(Settings.Shaders.activeEffectId.name) {
             activeEffect = SettingsStore.shared.get(Settings.Shaders.activeEffectId).flatMap { effect(withId: $0) }
+        }
+        if keys.contains(Settings.Shaders.themeGradientBackdrop.name) {
+            isBackdropEnabled = SettingsStore.shared.get(Settings.Shaders.themeGradientBackdrop)
         }
     }
 
@@ -308,6 +344,9 @@ final class EffectManager {
     }
 
     private func loadSettings() {
+        isReloading = true
+        isBackdropEnabled = SettingsStore.shared.get(Settings.Shaders.themeGradientBackdrop)
+        isReloading = false
         // Load active effect
         if let activeId = SettingsStore.shared.get(Settings.Shaders.activeEffectId) {
             activeEffect = effect(withId: activeId)
@@ -557,6 +596,7 @@ final class EffectManager {
         for effect in availableEffects {
             effect.themeColors = themeColors
         }
+        backdropEffect.themeColors = themeColors
 
         if activeEffect != nil {
             effectDidChange.send()

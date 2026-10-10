@@ -1238,12 +1238,10 @@ extension Ghostty {
 
         /// Set up subscription to transparency changes
         private func setupTransparencySubscription() {
-            #if targetEnvironment(macCatalyst)
             transparencySubscription = TransparencyManager.shared.transparencyDidChange
                 .sink { [weak self] in
                     self?.applyCurrentTransparency()
                 }
-            #endif
         }
 
         /// Set up listener for shader config changes
@@ -1549,7 +1547,6 @@ extension Ghostty {
         /// Apply the current transparency settings from TransparencyManager
         func applyCurrentTransparency() {
             guard !SettingsStore.shared.isApplyingBatch else { return }
-            #if targetEnvironment(macCatalyst)
             guard let app = self.app else {
                 logger.warning("Cannot apply transparency: app is nil")
                 return
@@ -1584,7 +1581,6 @@ extension Ghostty {
             } else {
                 logger.error("Failed to apply transparency")
             }
-            #endif
         }
 
         /// Apply background blur to all NSWindows (Mac Catalyst only)

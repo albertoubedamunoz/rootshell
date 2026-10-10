@@ -181,6 +181,37 @@ struct EffectSettingsView: View {
                 SettingGroupHeader("Layout", group: .shaders)
             }
 
+            Section {
+                SettingDescribedToggle(
+                    Settings.Shaders.themeGradientBackdrop,
+                    isOn: Binding(get: { effectManager.isBackdropEnabled },
+                                  set: { effectManager.isBackdropEnabled = $0 }),
+                    title: "Theme Gradient",
+                    description: "Fills the whole window behind tabs and panes with a soft glow in the theme's colors. It shows around Rounded Panes and through transparent terminals, beneath the effects above."
+                )
+                .themedRow()
+                if effectManager.isBackdropEnabled {
+                    #if targetEnvironment(macCatalyst)
+                    SettingDescribedToggle(
+                        Settings.Transparency.backdropTransparency,
+                        isOn: Binding(get: { transparencyManager.backdropTransparencyEnabled },
+                                      set: { transparencyManager.backdropTransparencyEnabled = $0 }),
+                        title: "Transparent Backdrop",
+                        description: "Apply the window opacity to the gradient too, so the desktop shows through it. When off, transparency only reveals the gradient behind the terminal."
+                    )
+                    .themedRow()
+                    #endif
+                    NavigationLink {
+                        EffectSettingsView(configurationEffect: effectManager.backdropEffect)
+                    } label: {
+                        Text("Configure Backdrop")
+                    }
+                    .themedRow()
+                }
+            } header: {
+                SettingGroupHeader("Backdrop", group: .shaders)
+            }
+
             // My Videos Section (user-imported local videos)
             if isVideoBackgroundMode {
             Section {
@@ -317,26 +348,28 @@ struct EffectSettingsView: View {
             // Keyboard and sidebar controls do not activate the terminal effect.
             if let activeEffect = effectBeingConfigured {
                 Section("Settings") {
-                    // Intensity slider
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Intensity")
-                            Spacer()
-                            Text(localIntensity, format: .wholePercent)
-                                .foregroundColor(.secondary)
-                                .monospacedDigit()
-                                .frame(width: 50, alignment: .trailing)
-                        }
-                        Slider(value: $localIntensity, in: 0.05...0.6) { editing in
-                            isDraggingIntensity = editing
-                            if !editing {
-                                // Commit value when drag ends
-                                activeEffect.intensity = localIntensity
+                    // Intensity slider; the backdrop is always opaque
+                    if activeEffect.asEffect(ThemeGradientEffect.self)?.isBackdrop != true {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Intensity")
+                                Spacer()
+                                Text(localIntensity, format: .wholePercent)
+                                    .foregroundColor(.secondary)
+                                    .monospacedDigit()
+                                    .frame(width: 50, alignment: .trailing)
+                            }
+                            Slider(value: $localIntensity, in: 0.05...0.6) { editing in
+                                isDraggingIntensity = editing
+                                if !editing {
+                                    // Commit value when drag ends
+                                    activeEffect.intensity = localIntensity
+                                }
                             }
                         }
+                        .padding(.vertical, 4)
+                        .themedRow()
                     }
-                    .padding(.vertical, 4)
-                    .themedRow()
 
                     // Speed slider (for non-SolarGraph effects)
                     if activeEffect.id != "solarGraph" {
@@ -376,7 +409,7 @@ struct EffectSettingsView: View {
                 // SolarGraph-specific settings
                 if activeEffect.id == "solarGraph", let solarEffect = activeEffect.asEffect(SolarGraphEffect.self) {
                     // Transparency warning
-                    if transparencyManager.backgroundOpacity < 1.0 {
+                    if transparencyManager.effectiveBackgroundOpacity < 1.0 {
                         Section {
                             HStack(alignment: .top, spacing: 12) {
                                 Image(systemName: "exclamationmark.triangle.fill")

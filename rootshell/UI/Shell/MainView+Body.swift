@@ -29,6 +29,7 @@ extension MainView {
                     terminalView: focusedTerminal,
                     activeTabRect: proxy[activeTabBounds],
                     rowSize: proxy.size,
+                    span: integratedProgressSpan(rowWidth: proxy.size.width),
                     selectedTabID: selectedTabID,
                     animateSelectionChanges: !tabBarAnimationsDisabled
                         && !tabIndicator.suppressNextSelectionAnimation
@@ -54,7 +55,9 @@ extension MainView {
         let chromeBackground = tabBarChromeBackground(theme)
         #if targetEnvironment(macCatalyst)
         VStack(spacing: 0) {
-            chromeBackground
+            // A transparent backdrop would show this band through it.
+            (effectManager.isBackdropEnabled && transparencyManager.effectiveBackdropOpacity < 1
+                ? Color.clear : chromeBackground)
                 .frame(height: (hideWindowTitleBar && tabBarHidden) ? 0 : max(44, geometry.safeAreaInsets.top))
             // Rounded Panes paints its backdrop around the cards in
             // terminalAndSidebarContent, never beneath translucent terminals.
@@ -77,6 +80,50 @@ extension MainView {
         }
         .ignoresSafeArea()
         #endif
+    }
+
+    /// Theme Gradient backdrop: covers the whole window, safe areas included,
+    /// beneath the chrome and cards, which show it through their opacity.
+    @ViewBuilder
+    func windowBackdrop(geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
+        if effectManager.isBackdropEnabled {
+            #if targetEnvironment(macCatalyst)
+            let topInset = max(44, geometry.safeAreaInsets.top)
+            #else
+            let topInset = windowSafeAreaInsets.top
+            #endif
+            let band = topInset + (showsHorizontalTabHeader ? TabMetrics.tabBarHeight : 0)
+            let fade: CGFloat = 120
+            let chrome = tabBarChromeBackground(theme)
+            // Holds over the status bar and tabs, then eases out (smoothstep) so no edge shows
+            let scrim: [Gradient.Stop] = [(0.0, 0.7), (0.0, 0.7), (0.25, 0.59), (0.5, 0.35), (0.75, 0.11), (1.0, 0.0)]
+                .enumerated().map { index, stop in
+                    let location = index == 0 ? 0 : (band + fade * stop.0) / (band + fade)
+                    return Gradient.Stop(color: chrome.opacity(stop.1), location: location)
+                }
+            ZStack {
+                effectManager.backdropEffect.createEffectView()
+                // Keeps tab text legible over the brightest part of the gradient
+                VStack(spacing: 0) {
+                    LinearGradient(stops: scrim, startPoint: .top, endPoint: .bottom)
+                        .frame(height: band + fade)
+                    Spacer(minLength: 0)
+                }
+                #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                // The Mac's glass is a window behind this one, over the desktop.
+                if #available(iOS 26.0, *), transparencyManager.usesGlass,
+                   transparencyManager.effectiveBackgroundOpacity < 1 {
+                    Color.clear
+                        .glassEffect(transparencyManager.effectiveBlurStyle == .glassClear ? Glass.clear : Glass.regular,
+                                     in: Rectangle())
+                }
+                #endif
+            }
+            .opacity(transparencyManager.effectiveBackdropOpacity)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .ignoresSafeArea()
+        }
     }
 
     // MARK: - Loading/Error States
@@ -228,7 +275,7 @@ extension MainView {
         // This fill sits above the row's background, so without the inset it
         // clips the integrated edge across the traffic-light clearance. Outer
         // frame is unchanged, leaving drag-region geometry alone.
-        tabBarChromeBackground(theme)
+        (effectManager.isBackdropEnabled ? Color.clear : tabBarChromeBackground(theme))
             .padding(.bottom, topTabStyle.usesStripLayout ? IntegratedTabEdgeMetrics.reservedThickness : 0)
             .frame(width: tabBarLeadingPadding, height: 44)
             .overlay {

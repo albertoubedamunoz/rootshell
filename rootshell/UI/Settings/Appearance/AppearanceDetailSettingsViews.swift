@@ -186,7 +186,8 @@ struct TransparencySettingsView: View {
                 }
 
                 // Glass styles blur on their own; radius/toggle only apply to Standard.
-                if transparencyManager.usesGlass {
+                // Off the Mac, Standard is plain opacity over the backdrop.
+                if transparencyManager.usesGlass || !SettingsPlatform.isCatalyst {
                     EmptyView()
                 } else if TransparencyManager.useSandboxBlur {
                     // Sandbox mode: simple toggle (NSVisualEffectView doesn't support custom radius)
@@ -221,7 +222,10 @@ struct TransparencySettingsView: View {
             } header: {
                 SettingGroupHeader("Window Transparency", group: .transparency)
             } footer: {
-                if transparencyManager.usesGlass {
+                if !SettingsPlatform.isCatalyst {
+                    Text("Lets the Theme Gradient backdrop show through the terminal. Applies while the backdrop is on in Background Effect.")
+                        .font(.caption)
+                } else if transparencyManager.usesGlass {
                     Text("Controls window transparency. Liquid Glass renders the desktop behind the window through a glass material tinted with the theme background.")
                         .font(.caption)
                 } else if TransparencyManager.useSandboxBlur {
@@ -252,7 +256,6 @@ struct WindowSettingsView: View {
     @Environment(\.duoLayout) private var duoLayout
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Setting(Settings.Tabs.topTabStyle) private var topTabStyle
-    @Setting(Settings.Window.roundedPanes) private var roundedPanes
     @Setting(Settings.Tabs.duoFrontDisplayMode) private var duoFrontDisplayMode
     @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
     @Setting(Settings.Tabs.hoverPreviews) private var tabHoverPreviewsEnabled
@@ -317,7 +320,7 @@ struct WindowSettingsView: View {
         Binding(
             get: {
                 TopTabLayout.resolve(
-                    style: topTabStyle.effective(roundedPanes: roundedPanes),
+                    style: topTabStyle,
                     compactPills: compactPillTabSpacing
                 )
             },
@@ -350,7 +353,7 @@ struct WindowSettingsView: View {
                     .themedRow()
 
                 Picker(selection: topTabLayout) {
-                    ForEach(TopTabLayout.available(roundedPanes: roundedPanes)) { layout in
+                    ForEach(TopTabLayout.allCases) { layout in
                         Text(layout.displayName).tag(layout)
                     }
                 } label: {

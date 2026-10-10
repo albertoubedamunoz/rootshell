@@ -302,6 +302,10 @@ struct TabBar: View {
     let tabNamespace: Namespace.ID
     let canAcceptWindowTransferDrop: Bool
     let suppressSelectionAnimation: Bool
+    /// Rounded Panes: where the tabs start, past the pinned sidebar card. The
+    /// scope menu may sit over the sidebar and counts toward it.
+    var tabsLeadingInset: CGFloat = 0
+    var scopeMenuLeadingInset: CGFloat = 0
 
     // MARK: - State propagated up
 
@@ -341,6 +345,10 @@ struct TabBar: View {
     let tmuxController: (TabModel) -> TmuxController?
 
     // MARK: - User preferences
+
+    /// The selection slide. Scrolls that follow a selection share it so the
+    /// active tab and the strip move as one.
+    static let selectionAnimation = Animation.spring(response: 0.3, dampingFraction: 0.7)
 
     @Setting(Settings.Tabs.barAnimationsDisabled) private var tabBarAnimationsDisabled
     @Setting(Settings.Tabs.showScopeMenu) private var showTabScopeMenu
@@ -427,7 +435,7 @@ struct TabBar: View {
             return sizingItem(for: tab, index: index, gatewayOwnerIDs: gatewayOwnerIDs)
         }
         return TabBarSizingPolicy.decision(
-            availableWidth: max(0, availableWidth - activeScopeMenuWidth),
+            availableWidth: max(0, availableWidth - scopeMenuLead - activeScopeMenuWidth - cardGutterWidth),
             items: items,
             style: style,
             usesCompactSpacing: usesCompactSpacing
@@ -832,8 +840,9 @@ struct TabBar: View {
                 }
 
                 HStack(spacing: usesCompactSpacing ? 0 : 4) {
-                    activeScopeMenu
+                    leadingScopeMenu
                     compactScopeMenuSpacer
+                    cardLeadingGutter
                     troughWell(segmentCount: 1, segmentWidth: resolvedWidth) {
                         tabItem(
                             for: tab,
@@ -917,8 +926,9 @@ struct TabBar: View {
         // compare the resolved badge.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabs)
         HStack(spacing: usesCompactSpacing ? 0 : 4) {
-            activeScopeMenu
+            leadingScopeMenu
             compactScopeMenuSpacer
+            cardLeadingGutter
             troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
                 ForEach(navigationTabs) { tab in
                     let index = tabsModel.index(of: tab.id) ?? 0
@@ -960,7 +970,7 @@ struct TabBar: View {
         .animation(
             tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
                 ? nil
-                : .spring(response: 0.3, dampingFraction: 0.7),
+                : Self.selectionAnimation,
             value: tabsModel.selectedTabID
         )
     }
@@ -983,6 +993,7 @@ struct TabBar: View {
                     selectedTabIndex: selectedTabIndex,
                     renderedTabIDs: renderedTabIDs,
                     tabWidth: tabWidth,
+                    viewportWidth: availableWidth,
                     tabsModel: tabsModel
                 ))
         }
@@ -999,53 +1010,65 @@ struct TabBar: View {
         // Gateway ordering for tmux badge colors — computed once per render; see
         // equalWidthView.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabs)
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: usesCompactSpacing ? 0 : 8) {
-                activeScopeMenu
-                compactScopeMenuSpacer
-                troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
-                    ForEach(navigationTabs) { tab in
-                        let index = tabsModel.index(of: tab.id) ?? 0
-                        let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
-                        let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                        tabItem(
-                            for: tab,
-                            index: index,
-                            isOnly: false,
-                            gatewayOwnerIDs: gatewayOwnerIDs,
-                            tabWidth: tabWidth
-                        )
-                            .equatable()
-                            .frame(width: tabWidth)
-                            .contentShape(Rectangle())
-                            .id(tab.id)
-                            .modifier(dragModifier(for: tab, index: index))
-                            .contextMenu {
-                                tabContextMenu(
-                                    for: tab,
-                                    index: index,
-                                    moveLeftTarget: moveLeftTarget,
-                                    moveRightTarget: moveRightTarget,
-                                    includeThemeOverrideClear: true
-                                )
-                            }
+        let pinsLead = pinsLeadingRun(tabWidth: tabWidth)
+        HStack(spacing: 0) {
+            // Pinned outside the scroll so scrolled tabs never slide over the
+            // sidebar card.
+            if pinsLead {
+                leadingScopeMenu
+                cardLeadingGutter
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: usesCompactSpacing ? 0 : 8) {
+                    if !pinsLead {
+                        leadingScopeMenu
+                        compactScopeMenuSpacer
+                        cardLeadingGutter
+                    }
+                    troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
+                        ForEach(navigationTabs) { tab in
+                            let index = tabsModel.index(of: tab.id) ?? 0
+                            let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
+                            let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
+                            tabItem(
+                                for: tab,
+                                index: index,
+                                isOnly: false,
+                                gatewayOwnerIDs: gatewayOwnerIDs,
+                                tabWidth: tabWidth
+                            )
+                                .equatable()
+                                .frame(width: tabWidth)
+                                .contentShape(Rectangle())
+                                .id(tab.id)
+                                .modifier(dragModifier(for: tab, index: index))
+                                .contextMenu {
+                                    tabContextMenu(
+                                        for: tab,
+                                        index: index,
+                                        moveLeftTarget: moveLeftTarget,
+                                        moveRightTarget: moveRightTarget,
+                                        includeThemeOverrideClear: true
+                                    )
+                                }
+                        }
                     }
                 }
+                .padding(.leading, usesCompactSpacing ? 0 : 8)
+                .padding(.trailing, usesCompactSpacing ? Self.compactOvershootHeadroom : 8)
+                .contentShape(Rectangle())
+                .modifier(GlassEffectContainerModifier())
+                // Scoped animation for the selection slide. See equalWidthView.
+                .animation(
+                    tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
+                        ? nil
+                        : Self.selectionAnimation,
+                    value: tabsModel.selectedTabID
+                )
             }
-            .padding(.leading, usesCompactSpacing ? 0 : 8)
-            .padding(.trailing, usesCompactSpacing ? Self.compactOvershootHeadroom : 8)
-            .contentShape(Rectangle())
-            .modifier(GlassEffectContainerModifier())
-            // Scoped animation for the selection slide. See equalWidthView.
-            .animation(
-                tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
-                    ? nil
-                    : .spring(response: 0.3, dampingFraction: 0.7),
-                value: tabsModel.selectedTabID
-            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .modifier(ScrollEdgeEffectHiddenModifier())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .modifier(ScrollEdgeEffectHiddenModifier())
     }
 
     /// Compact pills and the trough well intentionally abut, but the scope
@@ -1057,6 +1080,54 @@ struct TabBar: View {
            !style.usesStripLayout,
            activeScopeMenuWidth > 0 {
             Color.clear.frame(width: 4)
+        }
+    }
+
+    /// Pins the card-aligned scope menu only while a full tab still fits beside
+    /// it; narrower bars (iPhone) scroll it with the tabs.
+    private func pinsLeadingRun(tabWidth: CGFloat) -> Bool {
+        let leadingRun = scopeMenuLead + activeScopeMenuWidth + cardGutterWidth
+        return tabsLeadingInset > 0 && availableWidth - leadingRun >= tabWidth
+    }
+
+    /// Lines the scope menu up with the pinned sidebar card's leading edge.
+    private var scopeMenuLead: CGFloat {
+        activeScopeMenuWidth > 0 ? scopeMenuLeadingInset : 0
+    }
+
+    private var cardGutterWidth: CGFloat {
+        max(0, tabsLeadingInset - scopeMenuLead - activeScopeMenuWidth)
+    }
+
+    @ViewBuilder
+    private var leadingScopeMenu: some View {
+        cardInsetRegion(width: scopeMenuLead)
+        activeScopeMenu
+    }
+
+    /// Empty run between the scope menu and the first tab.
+    private var cardLeadingGutter: some View {
+        cardInsetRegion(width: cardGutterWidth)
+    }
+
+    /// Card-alignment space; acts like the strip's other empty space.
+    @ViewBuilder
+    private func cardInsetRegion(width: CGFloat) -> some View {
+        if width > 0 {
+            #if targetEnvironment(macCatalyst)
+            if usesTitlebarTabs {
+                CatalystWindowDragRegion(tabStyleSelection: $selectedStyleRawValue)
+                    .frame(width: width, height: TabMetrics.tabBarHeight)
+                    .catalystCursorRegion(.openHand, priority: .titlebar)
+                    .accessibilityHidden(true)
+            } else {
+                TabStyleContextMenuRegion(selectedStyleRawValue: $selectedStyleRawValue)
+                    .frame(width: width, height: TabMetrics.tabBarHeight)
+            }
+            #else
+            TabStyleContextMenuRegion(selectedStyleRawValue: $selectedStyleRawValue)
+                .frame(width: width, height: TabMetrics.tabBarHeight)
+            #endif
         }
     }
 
@@ -1121,6 +1192,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
     let selectedTabIndex: Int
     let renderedTabIDs: [UUID]
     let tabWidth: CGFloat
+    let viewportWidth: CGFloat
     /// Held as a reference (not snapshotted at construction) so the retry
     /// loop in `assertScrollToPendingTabID` reads live `pendingScrollToTabID`
     /// and `selectedTabID` values on each iteration. Snapshotting them broke
@@ -1129,6 +1201,11 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
     /// captured `selectedTabID` was stale.
     let tabsModel: TabsModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Setting(Settings.Tabs.barAnimationsDisabled) private var tabBarAnimationsDisabled
+
+    private var scrollAnimation: Animation? {
+        tabBarAnimationsDisabled || reduceMotion ? nil : TabBar.selectionAnimation
+    }
 
     func body(content: Content) -> some View {
         content
@@ -1142,7 +1219,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
             .onChange(of: selectedTabIndex) { _, newValue in
                 guard tabs.indices.contains(newValue),
                       renderedTabIDs.contains(tabs[newValue].id) else { return }
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+                withAnimation(scrollAnimation) {
                     proxy.scrollTo(tabs[newValue].id, anchor: .center)
                 }
             }
@@ -1155,6 +1232,11 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
             .onChange(of: tabWidth) { _, _ in
                 recenterIfPossible(animated: false)
             }
+            // A sidebar opening narrows the viewport without changing tab
+            // widths; bring the selected tab back only if it left the view.
+            .onChange(of: viewportWidth) { _, _ in
+                revealSelectedTab()
+            }
             // Explicit scroll-target signal. Tab-creation code sets
             // `tabsModel.pendingScrollToTabID = newTab.id` so newly added
             // tabs are reliably scrolled into view even when they're
@@ -1165,6 +1247,16 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
             .task(id: tabsModel.pendingScrollToTabID) {
                 await assertScrollToPendingTabID()
             }
+    }
+
+    private func revealSelectedTab() {
+        let fallbackID = tabs.indices.contains(selectedTabIndex) ? tabs[selectedTabIndex].id : nil
+        guard let targetID = tabsModel.selectedTabID ?? fallbackID, renderedTabIDs.contains(targetID) else { return }
+        DispatchQueue.main.async {
+            withAnimation(scrollAnimation) {
+                proxy.scrollTo(targetID)
+            }
+        }
     }
 
     private func recenterIfPossible(animated: Bool = true) {
@@ -1181,7 +1273,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
                 return
             }
 
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+            withAnimation(scrollAnimation) {
                 proxy.scrollTo(targetID, anchor: .center)
             }
         }
@@ -1212,7 +1304,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
                 return
             }
             if attempt == 5 {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+                withAnimation(scrollAnimation) {
                     proxy.scrollTo(targetID, anchor: .center)
                 }
             } else {
