@@ -32,7 +32,10 @@ extension MainView {
                 // (this innermost transaction only fires when
                 // `isGroupedModeEnabled` itself changes).
                 .transaction(value: tabsModel.isGroupedModeEnabled) { $0.animation = nil }
-                .animation(.easeInOut(duration: 0.25), value: terminals.count)
+                .animation(
+                    tabBarAnimationsDisabled || UIAccessibility.isReduceMotionEnabled ? nil : .easeInOut(duration: 0.25),
+                    value: terminals.count
+                )
 #if targetEnvironment(macCatalyst)
                 .blockWindowDrag(when: usesTitlebarTabs)
 #endif

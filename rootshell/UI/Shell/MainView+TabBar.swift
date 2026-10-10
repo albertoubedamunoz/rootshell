@@ -215,7 +215,7 @@ extension MainView {
                 if tabBarAnimationsDisabled || UIAccessibility.isReduceMotionEnabled {
                     selectedTabIndex = index
                 } else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    withAnimation(TabBar.selectionAnimation) {
                         selectedTabIndex = index
                     }
                 }

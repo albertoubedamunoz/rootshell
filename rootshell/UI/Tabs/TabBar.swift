@@ -346,6 +346,10 @@ struct TabBar: View {
 
     // MARK: - User preferences
 
+    /// The selection slide. Scrolls that follow a selection share it so the
+    /// active tab and the strip move as one.
+    static let selectionAnimation = Animation.spring(response: 0.3, dampingFraction: 0.7)
+
     @Setting(Settings.Tabs.barAnimationsDisabled) private var tabBarAnimationsDisabled
     @Setting(Settings.Tabs.showScopeMenu) private var showTabScopeMenu
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -966,7 +970,7 @@ struct TabBar: View {
         .animation(
             tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
                 ? nil
-                : .spring(response: 0.3, dampingFraction: 0.7),
+                : Self.selectionAnimation,
             value: tabsModel.selectedTabID
         )
     }
@@ -989,6 +993,7 @@ struct TabBar: View {
                     selectedTabIndex: selectedTabIndex,
                     renderedTabIDs: renderedTabIDs,
                     tabWidth: tabWidth,
+                    viewportWidth: availableWidth,
                     tabsModel: tabsModel
                 ))
         }
@@ -1057,7 +1062,7 @@ struct TabBar: View {
                 .animation(
                     tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
                         ? nil
-                        : .spring(response: 0.3, dampingFraction: 0.7),
+                        : Self.selectionAnimation,
                     value: tabsModel.selectedTabID
                 )
             }
@@ -1187,6 +1192,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
     let selectedTabIndex: Int
     let renderedTabIDs: [UUID]
     let tabWidth: CGFloat
+    let viewportWidth: CGFloat
     /// Held as a reference (not snapshotted at construction) so the retry
     /// loop in `assertScrollToPendingTabID` reads live `pendingScrollToTabID`
     /// and `selectedTabID` values on each iteration. Snapshotting them broke
@@ -1195,6 +1201,11 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
     /// captured `selectedTabID` was stale.
     let tabsModel: TabsModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Setting(Settings.Tabs.barAnimationsDisabled) private var tabBarAnimationsDisabled
+
+    private var scrollAnimation: Animation? {
+        tabBarAnimationsDisabled || reduceMotion ? nil : TabBar.selectionAnimation
+    }
 
     func body(content: Content) -> some View {
         content
@@ -1208,7 +1219,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
             .onChange(of: selectedTabIndex) { _, newValue in
                 guard tabs.indices.contains(newValue),
                       renderedTabIDs.contains(tabs[newValue].id) else { return }
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+                withAnimation(scrollAnimation) {
                     proxy.scrollTo(tabs[newValue].id, anchor: .center)
                 }
             }
@@ -1221,6 +1232,11 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
             .onChange(of: tabWidth) { _, _ in
                 recenterIfPossible(animated: false)
             }
+            // A sidebar opening narrows the viewport without changing tab
+            // widths; bring the selected tab back only if it left the view.
+            .onChange(of: viewportWidth) { _, _ in
+                revealSelectedTab()
+            }
             // Explicit scroll-target signal. Tab-creation code sets
             // `tabsModel.pendingScrollToTabID = newTab.id` so newly added
             // tabs are reliably scrolled into view even when they're
@@ -1231,6 +1247,16 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
             .task(id: tabsModel.pendingScrollToTabID) {
                 await assertScrollToPendingTabID()
             }
+    }
+
+    private func revealSelectedTab() {
+        let fallbackID = tabs.indices.contains(selectedTabIndex) ? tabs[selectedTabIndex].id : nil
+        guard let targetID = tabsModel.selectedTabID ?? fallbackID, renderedTabIDs.contains(targetID) else { return }
+        DispatchQueue.main.async {
+            withAnimation(scrollAnimation) {
+                proxy.scrollTo(targetID)
+            }
+        }
     }
 
     private func recenterIfPossible(animated: Bool = true) {
@@ -1247,7 +1273,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
                 return
             }
 
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+            withAnimation(scrollAnimation) {
                 proxy.scrollTo(targetID, anchor: .center)
             }
         }
@@ -1278,7 +1304,7 @@ private struct ScrollingTabBarHandlersModifier: ViewModifier {
                 return
             }
             if attempt == 5 {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+                withAnimation(scrollAnimation) {
                     proxy.scrollTo(targetID, anchor: .center)
                 }
             } else {
