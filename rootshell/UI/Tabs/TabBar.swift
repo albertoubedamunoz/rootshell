@@ -1005,18 +1005,20 @@ struct TabBar: View {
         // Gateway ordering for tmux badge colors — computed once per render; see
         // equalWidthView.
         let gatewayOwnerIDs = TmuxTabBadgeResolver.activeGatewayOwnerIDs(in: tabs)
+        let pinsLead = pinsLeadingRun(tabWidth: tabWidth)
         HStack(spacing: 0) {
             // Pinned outside the scroll so scrolled tabs never slide over the
             // sidebar card.
-            if pinsLeadingRun {
+            if pinsLead {
                 leadingScopeMenu
                 cardLeadingGutter
             }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: usesCompactSpacing ? 0 : 8) {
-                    if !pinsLeadingRun {
-                        activeScopeMenu
+                    if !pinsLead {
+                        leadingScopeMenu
                         compactScopeMenuSpacer
+                        cardLeadingGutter
                     }
                     troughWell(segmentCount: navigationTabs.count, segmentWidth: tabWidth) {
                         ForEach(navigationTabs) { tab in
@@ -1076,7 +1078,12 @@ struct TabBar: View {
         }
     }
 
-    private var pinsLeadingRun: Bool { tabsLeadingInset > 0 }
+    /// Pins the card-aligned scope menu only while a full tab still fits beside
+    /// it; narrower bars (iPhone) scroll it with the tabs.
+    private func pinsLeadingRun(tabWidth: CGFloat) -> Bool {
+        let leadingRun = scopeMenuLead + activeScopeMenuWidth + cardGutterWidth
+        return tabsLeadingInset > 0 && availableWidth - leadingRun >= tabWidth
+    }
 
     /// Lines the scope menu up with the pinned sidebar card's leading edge.
     private var scopeMenuLead: CGFloat {
