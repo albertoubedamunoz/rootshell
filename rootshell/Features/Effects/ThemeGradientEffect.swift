@@ -3,7 +3,7 @@
 //  rootshell
 //
 //  Soft drifting gradient built from the terminal theme palette, rendered
-//  by the ThemeGradient.metal shader: a deep base with four radial blobs.
+//  by the ThemeGradient.metal shader: a primary base under four radial gradients.
 //
 
 import SwiftUI
@@ -13,10 +13,18 @@ import Combine
 final class ThemeGradientEffect: TerminalEffect, ObservableObject {
     // MARK: - TerminalEffect Protocol
 
-    let id = "themeGradient"
+    let id: String
     let displayName = String(localized: "Theme Gradient", comment: "Background effect name: gradient from theme colors")
     let previewIcon = "paintpalette"
     let effectDescription = String(localized: "Soft drifting glow in the terminal theme's colors", comment: "Background effect description for theme gradient")
+
+    /// Opaque window backdrop instead of a tint blended over the terminal.
+    let isBackdrop: Bool
+
+    init(isBackdrop: Bool = false) {
+        self.isBackdrop = isBackdrop
+        id = isBackdrop ? "themeGradientBackdrop" : "themeGradient"
+    }
 
     var intensity: Double = 0.35 {
         didSet { objectWillChange.send(); configurationDidChange.send() }
@@ -79,16 +87,15 @@ final class ThemeGradientEffect: TerminalEffect, ObservableObject {
 
 // MARK: - Palette
 
-/// Shader colors derived once per theme: a deep base, the primary, an
-/// accent with a distinct hue, and a mid tone between them.
+/// Shader colors derived once per theme: the primary, an accent with a
+/// distinct hue, and a mid tone between them.
 struct ThemeGradientPalette: Equatable {
-    var deep: SIMD3<Double>
     var primary: SIMD3<Double>
     var accent: SIMD3<Double>
     var mid: SIMD3<Double>
     var isLight: Bool
 
-    var colors: [SIMD3<Double>] { [deep, primary, accent, mid] }
+    var colors: [SIMD3<Double>] { [primary, accent, mid] }
 
     private struct HSB {
         var h: Double
@@ -119,14 +126,12 @@ struct ThemeGradientPalette: Equatable {
         }
 
         guard !candidates.isEmpty else {
-            // Monochrome theme: a faint wash of the foreground
-            let wash = foreground + (background - foreground) * 0.4
-            let faint = foreground + (background - foreground) * 0.6
+            // Monochrome theme: a dim wash of the foreground with a lighter glow
+            let wash = foreground + (background - foreground) * 0.7
+            let faint = foreground + (background - foreground) * 0.45
             self.primary = wash
             self.accent = faint
             self.mid = (wash + faint) / 2
-            self.deep = wash + (background - wash) * 0.35
-            tune()
             return
         }
 
@@ -147,8 +152,10 @@ struct ThemeGradientPalette: Equatable {
         } else if primary.b > 0.5 {
             primary.b *= 0.85
         }
+        // Theme colors run brighter than artwork; keep dark themes rich, not pastel
+        if !isLight { primary.b = min(primary.b, 0.5) }
 
-        let accent: HSB
+        var accent: HSB
         if let match = candidates.dropFirst().first(where: { Self.hueDistance($0.hsb.h, primary.h) > 0.15 }) {
             accent = match.hsb
         } else {
@@ -157,6 +164,7 @@ struct ThemeGradientPalette: Equatable {
                          s: min(1, primary.s * 1.2),
                          b: min(max(b, 0.4), 0.8))
         }
+        if !isLight { accent.b = min(accent.b, 0.7) }
 
         // Circular mean so red/magenta pairs don't average to green
         let angleP = primary.h * 2 * .pi
@@ -165,27 +173,9 @@ struct ThemeGradientPalette: Equatable {
         if midHue < 0 { midHue += 1 }
         let mid = HSB(h: midHue, s: max(primary.s, accent.s) * 0.8, b: (primary.b + accent.b) / 2)
 
-        let primaryRGB = Self.rgb(primary)
-        self.primary = primaryRGB
+        self.primary = Self.rgb(primary)
         self.accent = Self.rgb(accent)
         self.mid = Self.rgb(mid)
-        self.deep = primaryRGB + (background - primaryRGB) * 0.35
-        tune()
-    }
-
-    /// Additive blending swallows dark colors and multiply swallows light
-    /// ones, so pin brightness to a band that reads under each.
-    private mutating func tune() {
-        let isLight = isLight
-        func tuned(_ c: SIMD3<Double>) -> SIMD3<Double> {
-            var hsb = Self.hsb(c)
-            hsb.b = isLight ? min(hsb.b, 0.75) : max(hsb.b, 0.55)
-            return Self.rgb(hsb)
-        }
-        deep = tuned(deep)
-        primary = tuned(primary)
-        accent = tuned(accent)
-        mid = tuned(mid)
     }
 
     // MARK: Color math
@@ -240,7 +230,7 @@ struct ThemeGradientPalette: Equatable {
 
 // MARK: - Clock
 
-/// Advances speed-scaled phase, places the blobs, and crossfades palette
+/// Advances speed-scaled phase, drifts the gradients, and crossfades palette
 /// changes. A reference type so the timeline body never mutates view state.
 private final class ThemeGradientClock {
     private(set) var phase: Double = 0
@@ -252,16 +242,16 @@ private final class ThemeGradientClock {
 
     private static let crossfade: TimeInterval = 0.8
 
-    /// Uv anchor, drift amplitude, and periods (seconds at speed 1) per blob.
-    /// Incommensurate periods keep the motion from visibly looping.
-    private static let blobs: [(anchor: SIMD2<Double>, amplitude: SIMD2<Double>, period: SIMD2<Double>)] = [
-        (SIMD2(0.18, 0.15), SIMD2(0.24, 0.16), SIMD2(19, 27)),
-        (SIMD2(0.65, 0.95), SIMD2(0.30, 0.12), SIMD2(23, 31)),
-        (SIMD2(0.88, 0.55), SIMD2(0.14, 0.26), SIMD2(29, 17)),
-        (SIMD2(0.42, 0.45), SIMD2(0.28, 0.22), SIMD2(21, 37)),
+    /// Uv drift amplitude and periods (seconds at speed 1) per gradient, in
+    /// shader order. Incommensurate periods keep the motion from visibly looping.
+    private static let drifts: [(amplitude: SIMD2<Double>, period: SIMD2<Double>)] = [
+        (SIMD2(0.08, 0.06), SIMD2(19, 27)),
+        (SIMD2(0.10, 0.04), SIMD2(23, 31)),
+        (SIMD2(0.05, 0.08), SIMD2(29, 17)),
+        (SIMD2(0.09, 0.07), SIMD2(21, 37)),
     ]
 
-    func centers(at date: Date, speed: Double, running: Bool) -> [SIMD2<Double>] {
+    func offsets(at date: Date, speed: Double, running: Bool) -> [SIMD2<Double>] {
         if running {
             if let last = lastDate {
                 phase += min(max(date.timeIntervalSince(last), 0), 0.5) * speed
@@ -270,10 +260,10 @@ private final class ThemeGradientClock {
         } else {
             lastDate = nil
         }
-        return Self.blobs.enumerated().map { index, blob in
+        return Self.drifts.enumerated().map { index, drift in
             let offset = Double(index) * 1.7
-            let angle = SIMD2(2 * .pi * phase, 2 * .pi * phase) / blob.period + SIMD2(offset, offset * 2.3)
-            return blob.anchor + blob.amplitude * SIMD2(sin(angle.x), sin(angle.y))
+            let angle = SIMD2(2 * .pi * phase, 2 * .pi * phase) / drift.period + SIMD2(offset, offset * 2.3)
+            return drift.amplitude * SIMD2(sin(angle.x), sin(angle.y))
         }
     }
 
@@ -314,7 +304,7 @@ struct ThemeGradientView: View {
             TimelineView(.animation(minimumInterval: (1.0 / 30.0) * PowerManager.shared.effectIntervalScale,
                                     paused: !isRunning)) { timeline in
                 let palette = effect.palette
-                let centers = clock.centers(at: timeline.date, speed: effect.speed, running: isRunning)
+                let offsets = clock.offsets(at: timeline.date, speed: effect.speed, running: isRunning)
                 let colors = clock.colors(for: palette, at: timeline.date, animated: isRunning)
 
                 Rectangle()
@@ -322,14 +312,13 @@ struct ThemeGradientView: View {
                     .colorEffect(
                         ShaderLibrary.themeGradient(
                             .float2(geometry.size),
-                            .float(Float(clock.phase)),
-                            .float4(Float(centers[0].x), Float(centers[0].y), Float(centers[1].x), Float(centers[1].y)),
-                            .float4(Float(centers[2].x), Float(centers[2].y), Float(centers[3].x), Float(centers[3].y)),
+                            .float4(Float(offsets[0].x), Float(offsets[0].y), Float(offsets[1].x), Float(offsets[1].y)),
+                            .float4(Float(offsets[2].x), Float(offsets[2].y), Float(offsets[3].x), Float(offsets[3].y)),
                             .color(Self.color(colors[0])),
                             .color(Self.color(colors[1])),
                             .color(Self.color(colors[2])),
-                            .color(Self.color(colors[3])),
                             .float(Float(effect.intensity)),
+                            .float(effect.isBackdrop ? 1 : 0),
                             .float(palette.isLight ? 1 : 0)
                         )
                     )

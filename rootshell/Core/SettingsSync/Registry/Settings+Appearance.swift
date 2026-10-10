@@ -244,12 +244,16 @@ nonisolated extension Settings {
             "sidebarEffectId", default: BackgroundEffectSelection.followTerminalID,
             group: .shaders, policy: .localByDefault, configKey: "sidebar-effect-id",
             title: String(localized: "Sidebar Effect", comment: "Setting title"))
+        static let themeGradientBackdrop = SettingKey(
+            "themeGradientBackdrop", default: false, group: .shaders,
+            configKey: "theme-gradient-backdrop",
+            title: String(localized: "Theme Gradient Backdrop", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             animationMode.erased, activeEffectId.erased, effectConfigurations.erased, customShadersList.erased,
             enabledCustomShaders.erased, pendingVideoActivation.erased, solarCachedLocation.erased,
             videoPausedDownloads, effectIncludesPinnedSidebar.erased, keyboardBackgroundEffect.erased,
-            keyboardEffectId.erased, sidebarEffectId.erased,
+            keyboardEffectId.erased, sidebarEffectId.erased, themeGradientBackdrop.erased,
         ]
     }
 }

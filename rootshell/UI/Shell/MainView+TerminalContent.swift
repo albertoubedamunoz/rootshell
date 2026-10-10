@@ -763,8 +763,8 @@ extension MainView {
            let themeColors = effectiveThemeColors,
            let bgColor = Color(hex: themeColors.background) {
             bgColor
-                .opacity(transparencyManager.backgroundOpacity)
-                .ignoresSafeArea()
+                .opacity(transparencyManager.effectiveBackgroundOpacity)
+                .cardFillExtent(roundedPanes)
         }
     }
 
@@ -785,8 +785,8 @@ extension MainView {
            let themeColors = effectiveThemeColors,
            let bgColor = Color(hex: themeColors.background) {
             bgColor
-                .opacity(transparencyManager.backgroundOpacity)
-                .ignoresSafeArea()
+                .opacity(transparencyManager.effectiveBackgroundOpacity)
+                .cardFillExtent(roundedPanes)
                 // Closing a tab clears the displayed tab inside its animation;
                 // a fade-in would dip the window's opacity.
                 .transition(.identity)
@@ -1402,33 +1402,23 @@ extension MainView {
         #endif
     }
 
-    /// The complete terminal and AI sidebar content.
-    @ViewBuilder
-    func terminalAndSidebarContent(geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
-        let currentTabId = terminals.indices.contains(selectedTabIndex) ? terminals[selectedTabIndex].id : UUID()
-        // Docked (pinned) tab sidebar: a left column that shrinks the terminal.
-        // Available on both China and non-China builds.
-        let docked = tabSidebarIsDocked
-        let dockedWidth = dockedTabSidebarWidth(windowWidth: geometry.size.width)
-        let dockedSidebarTheme: ResolvedSheetTheme? = docked ? resolvedSheetTheme() : nil
-        // Rounded panes inset the whole row; columns divide what remains.
+    struct TerminalRowColumns {
+        let docked: CGFloat
+        let aiSidebar: CGFloat
+        let fileManager: CGFloat
+        let httpCapture: CGFloat
+        let terminal: CGFloat
+    }
+
+    /// Column widths for a content row `width` wide, after Rounded Panes' outer
+    /// gaps. Shared with the header so it can find the terminal card.
+    func terminalRowColumns(width: CGFloat) -> TerminalRowColumns {
         let cardGap: CGFloat = roundedPanes ? PaneCardStyle.gap : 0
-        // Floating tabs leave slack under them in the header row, which already
-        // separates the cards; strip tabs fill the row and keep the gap.
-        let cardTopGap: CGFloat = showsHorizontalTabHeader && !topTabStyle.usesStripLayout ? 0 : cardGap
-        // Mac terminals draw their own translucent background, so the backdrop
-        // is painted only around the cards (here and between splits).
-        #if targetEnvironment(macCatalyst)
-        let cardBackdrop: Color? = roundedPanes
-            ? tabBarChromeBackground(theme).opacity(transparencyManager.backgroundOpacity)
-            : nil
-        #else
-        let cardBackdrop: Color? = nil
-        #endif
-        let rowWidth = geometry.size.width - cardGap * 2
+        let rowWidth = width - cardGap * 2
+        let dockedWidth = dockedTabSidebarWidth(windowWidth: width)
         #if !CHINA_BUILD
-        let shouldShowSidebar = shouldShowAISidebar(currentTabId: currentTabId)
-        let sidebarWidth = shouldShowSidebar ? aiAgentSidebarWidth : 0
+        let currentTabId = terminals.indices.contains(selectedTabIndex) ? terminals[selectedTabIndex].id : UUID()
+        let sidebarWidth = shouldShowAISidebar(currentTabId: currentTabId) ? aiAgentSidebarWidth : 0
         #else
         let sidebarWidth: CGFloat = 0
         #endif
@@ -1444,7 +1434,47 @@ extension MainView {
         #else
         let httpCaptureWidth: CGFloat = 0
         #endif
-        let terminalWidth = rowWidth - sidebarWidth - dockedWidth - fileManagerWidth - httpCaptureWidth
+        return TerminalRowColumns(
+            docked: dockedWidth,
+            aiSidebar: sidebarWidth,
+            fileManager: fileManagerWidth,
+            httpCapture: httpCaptureWidth,
+            terminal: rowWidth - sidebarWidth - dockedWidth - fileManagerWidth - httpCaptureWidth)
+    }
+
+    /// The complete terminal and AI sidebar content.
+    @ViewBuilder
+    func terminalAndSidebarContent(geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
+        let currentTabId = terminals.indices.contains(selectedTabIndex) ? terminals[selectedTabIndex].id : UUID()
+        // Docked (pinned) tab sidebar: a left column that shrinks the terminal.
+        // Available on both China and non-China builds.
+        let docked = tabSidebarIsDocked
+        let dockedWidth = dockedTabSidebarWidth(windowWidth: geometry.size.width)
+        let dockedSidebarTheme: ResolvedSheetTheme? = docked ? resolvedSheetTheme() : nil
+        // Rounded panes inset the whole row; columns divide what remains.
+        let cardGap: CGFloat = roundedPanes ? PaneCardStyle.gap : 0
+        // Floating tabs leave slack under them in the header row, which already
+        // separates the cards, and Integrated tabs join the card below. Ledger
+        // fills the row and keeps the gap.
+        let cardTopGap: CGFloat = showsHorizontalTabHeader && topTabStyle != .ledger ? 0 : cardGap
+        // Mac terminals draw their own translucent background, so the backdrop
+        // is painted only around the cards (here and between splits), unless
+        // the window backdrop shows there instead.
+        #if targetEnvironment(macCatalyst)
+        let cardBackdrop: Color? = roundedPanes && !effectManager.isBackdropEnabled
+            ? tabBarChromeBackground(theme).opacity(transparencyManager.backgroundOpacity)
+            : nil
+        #else
+        let cardBackdrop: Color? = nil
+        #endif
+        let columns = terminalRowColumns(width: geometry.size.width)
+        #if !CHINA_BUILD
+        let shouldShowSidebar = shouldShowAISidebar(currentTabId: currentTabId)
+        #endif
+        let sidebarWidth = columns.aiSidebar
+        let fileManagerWidth = columns.fileManager
+        let httpCaptureWidth = columns.httpCapture
+        let terminalWidth = columns.terminal
 
         HStack(spacing: 0) {
             if let dockedSidebarTheme {
@@ -1598,15 +1628,11 @@ extension MainView {
     /// over the fill while tab rows and controls remain crisp above it.
     private func dockedTabSidebarBackground(theme: ResolvedSheetTheme) -> Color {
         let background = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
-        #if targetEnvironment(macCatalyst)
         return background.opacity(
             transparencyManager.pinnedSidebarTransparencyEnabled
-                ? transparencyManager.backgroundOpacity
+                ? transparencyManager.effectiveBackgroundOpacity
                 : 1.0
         )
-        #else
-        return background
-        #endif
     }
 
     /// Bottom clearance for the docked tab sidebar's content so it stays

@@ -44,8 +44,10 @@ extension MainView {
         let tabCount = tabsModel.navigationTabs.count
         guard tabCount > 0 else { return 0 }
 
-        let scopeWidth = integratedScopeMenuWidth
-        let preferred = CGFloat(tabCount) * Self.integratedMaximumTabWidth + scopeWidth
+        // The scope menu may sit inside the card inset, over the pinned sidebar.
+        let scopeWidth = integratedScopeMenuWidth > 0 ? integratedScopeMenuWidth + integratedScopeMenuLeadingInset : 0
+        let leadingWidth = max(scopeWidth, integratedCardLeadingInset(windowWidth: geometry.size.width))
+        let preferred = CGFloat(tabCount) * Self.integratedMaximumTabWidth + leadingWidth
         let capacity = max(
             0,
             geometry.size.width
@@ -54,6 +56,37 @@ extension MainView {
                 - integratedMinimumDragWidth
         )
         return min(preferred, capacity)
+    }
+
+    /// Rounded Panes splits the surface into cards, so the selected Integrated
+    /// tab must join the one below it rather than bridge a gap.
+    var integratedTabsJoinCards: Bool {
+        roundedPanes && topTabStyle == .integrated
+    }
+
+    /// Extra lead that starts Integrated tabs inside the terminal's first card,
+    /// past the pinned sidebar card and the card's corner.
+    func integratedCardLeadingInset(windowWidth: CGFloat) -> CGFloat {
+        guard integratedTabsJoinCards else { return 0 }
+        let cardMinX = PaneCardStyle.gap + dockedTabSidebarWidth(windowWidth: windowWidth)
+        return max(0, cardMinX + PaneCardStyle.cornerRadius - tabBarLeadingPadding)
+    }
+
+    /// Rounded Panes: OSC progress runs along the terminal card's straight
+    /// top edge, in header coordinates.
+    func integratedProgressSpan(rowWidth: CGFloat) -> ClosedRange<CGFloat>? {
+        guard integratedTabsJoinCards else { return nil }
+        let columns = terminalRowColumns(width: rowWidth)
+        let cardMinX = PaneCardStyle.gap + columns.docked
+        let minX = cardMinX + PaneCardStyle.cornerRadius
+        let maxX = cardMinX + columns.terminal - PaneCardStyle.cornerRadius
+        return minX < maxX ? minX...maxX : nil
+    }
+
+    /// Starts the scope menu at the cards' leading edge, in line with the
+    /// pinned sidebar card.
+    var integratedScopeMenuLeadingInset: CGFloat {
+        integratedTabsJoinCards ? max(0, PaneCardStyle.gap - tabBarLeadingPadding) : 0
     }
 
     private var integratedScopeMenuWidth: CGFloat {
@@ -119,9 +152,12 @@ extension MainView {
     func tabBarTrack(in geometry: GeometryProxy, theme: ResolvedTabBarTheme) -> some View {
         if usesCompactTabSpacing {
             let preferredWidth = integratedTabTrackWidth(in: geometry)
+            let tabsLeadingInset = integratedCardLeadingInset(windowWidth: geometry.size.width)
             GeometryReader { trackGeometry in
                 tabBarContent(
                     availableWidth: trackGeometry.size.width,
+                    tabsLeadingInset: tabsLeadingInset,
+                    scopeMenuLeadingInset: integratedScopeMenuLeadingInset,
                     theme: theme
                 )
             }
@@ -138,6 +174,8 @@ extension MainView {
     @ViewBuilder
     private func tabBarContent(
         availableWidth: CGFloat,
+        tabsLeadingInset: CGFloat = 0,
+        scopeMenuLeadingInset: CGFloat = 0,
         theme: ResolvedTabBarTheme
     ) -> some View {
         TabBar(
@@ -159,6 +197,8 @@ extension MainView {
             tabNamespace: tabNamespace,
             canAcceptWindowTransferDrop: tabTransferDropOverlayVisible,
             suppressSelectionAnimation: tabIndicator.suppressNextSelectionAnimation,
+            tabsLeadingInset: tabsLeadingInset,
+            scopeMenuLeadingInset: scopeMenuLeadingInset,
             wigglingTabIds: $wigglingTabIds,
             tabFrames: $tabFrames,
             onCloseTab: { index in requestUserCloseTab(at: index) },

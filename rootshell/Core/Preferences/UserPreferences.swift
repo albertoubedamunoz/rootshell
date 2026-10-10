@@ -40,17 +40,6 @@ enum TopTabStyle: String, CaseIterable, Identifiable {
     static func resolve(_ rawValue: String) -> TopTabStyle {
         TopTabStyle(rawValue: rawValue) ?? .pills
     }
-
-    /// Integrated tabs join the terminal surface, which Rounded Panes splits
-    /// into separate cards, so it renders as Pills there. The stored choice is
-    /// kept and returns when Rounded Panes is off.
-    func effective(roundedPanes: Bool) -> TopTabStyle {
-        roundedPanes && self == .integrated ? .pills : self
-    }
-
-    static func available(roundedPanes: Bool) -> [TopTabStyle] {
-        allCases.filter { !roundedPanes || $0 != .integrated }
-    }
 }
 
 /// User-facing combinations of top-tab appearance and spacing. Persistence
@@ -85,10 +74,6 @@ enum TopTabLayout: String, CaseIterable, Identifiable {
     }
 
     var usesCompactPillSpacing: Bool { self == .compactPills }
-
-    static func available(roundedPanes: Bool) -> [TopTabLayout] {
-        allCases.filter { !roundedPanes || $0 != .integrated }
-    }
 
     static func resolve(style: TopTabStyle, compactPills: Bool) -> TopTabLayout {
         switch style {

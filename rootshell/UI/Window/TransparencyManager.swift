@@ -48,10 +48,14 @@ final class TransparencyManager {
         }
     }
 
-    /// Liquid Glass needs macOS 26; Catalyst's version tracks macOS 26 exactly.
+    /// Liquid Glass needs macOS or iOS 26; Catalyst's version tracks macOS 26 exactly.
     static var isGlassAvailable: Bool {
-        if #available(macCatalyst 26.0, *) { return true }
+        #if os(visionOS)
         return false
+        #else
+        if #available(iOS 26.0, macCatalyst 26.0, *) { return true }
+        return false
+        #endif
     }
 
     private static let ownedKeys: Set<String> = [
@@ -108,6 +112,16 @@ final class TransparencyManager {
     }
 
     var usesGlass: Bool { effectiveBlurStyle != .standard }
+
+    /// Opacity the terminal draws at. Off the Mac only the Theme Gradient
+    /// backdrop can show through, so opacity applies just while it is on.
+    var effectiveBackgroundOpacity: Double {
+        #if targetEnvironment(macCatalyst)
+        return backgroundOpacity
+        #else
+        return EffectManager.shared.isBackdropEnabled ? backgroundOpacity : 1.0
+        #endif
+    }
 
     /// Whether the pinned vertical tab sidebar uses the window's background
     /// opacity instead of its normal opaque fill.

@@ -2,7 +2,8 @@ import SwiftUI
 
 extension MainView {
     func horizontalTabHeader(geometry: GeometryProxy, resolvedTheme: ResolvedTabBarTheme) -> some View {
-        HStack(spacing: 0) {
+        let cardInset = integratedCardLeadingInset(windowWidth: geometry.size.width)
+        return HStack(spacing: 0) {
             tabBarLeadingSpacer(geometry: geometry, theme: resolvedTheme)
 
             // Tab bar - switches between display modes
@@ -52,14 +53,20 @@ extension MainView {
         }
         .frame(height: TabMetrics.tabBarHeight)
         .frame(maxWidth: .infinity)
+        // Track the docked column's spring; a live drag drives it directly.
+        .animation(tabSidebarIsDragging ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: cardInset)
         .background {
             ZStack {
-                tabBarChromeBackground(resolvedTheme)
+                // The window fill beneath the backdrop already has this color.
+                if !effectManager.isBackdropEnabled {
+                    tabBarChromeBackground(resolvedTheme)
+                }
 
                 // Background layer on purpose: the active tab
                 // occludes the run beneath it, so the line
                 // reads as rising around that tab.
-                if topTabStyle.usesStripLayout {
+                // Rounded Integrated tabs join cards that carry no keyline.
+                if topTabStyle.usesStripLayout, !integratedTabsJoinCards {
                     IntegratedTabEdgeRuleView(
                         palette: resolvedTheme.integratedEdgePalette
                     )
@@ -72,6 +79,7 @@ extension MainView {
         .overlayPreferenceValue(IntegratedActiveTabBoundsPreferenceKey.self) { bounds in
             integratedOSCProgressEdge(activeTabBounds: bounds)
         }
+        .environment(\.integratedTabJoinsCard, integratedTabsJoinCards)
         .modifier(ContainerCornerModifier())
 #if targetEnvironment(macCatalyst)
         .catalystCursorRegion()

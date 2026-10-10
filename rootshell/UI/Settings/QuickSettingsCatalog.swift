@@ -186,6 +186,9 @@ enum QuickSettingsCatalog {
             entry(Settings.Selection.backgroundHex, .color, set: { SelectionManager.shared.customBackgroundHex = $0 })
                 .requiring { SelectionManager.shared.selectionMode == .custom ? nil : String(localized: "Choose Custom Selection Style first.") },
             choices(Settings.Shaders.animationMode, label: { $0.displayName }, set: { ShaderManager.shared.animationMode = $0 }),
+            toggle(Settings.Shaders.themeGradientBackdrop, set: { EffectManager.shared.isBackdropEnabled = $0 }),
+            number(Settings.Transparency.backgroundOpacity, 0...1, step: 0.01, set: { TransparencyManager.shared.backgroundOpacity = $0 }),
+            toggle(Settings.Transparency.pinnedSidebarTransparency, set: { TransparencyManager.shared.pinnedSidebarTransparencyEnabled = $0 }),
             toggle(Settings.Selection.copyOnSelect, set: {
                 SettingsStore.shared.set(Settings.Selection.copyOnSelect, $0)
                 // Local writes do not dispatch SettingsRefreshHub. Push the
@@ -209,10 +212,7 @@ enum QuickSettingsCatalog {
             choices(Settings.Tabs.newTabAction, label: { $0.displayName }),
             toggle(Settings.Tabs.barHidden, inverted: true),
             toggle(Settings.Tabs.barAnimationsDisabled),
-            entry(Settings.Tabs.topTabStyle, .choices {
-                TopTabStyle.available(roundedPanes: SettingsStore.shared.get(Settings.Window.roundedPanes))
-                    .enumerated().map { .init(id: String($0.offset), title: $0.element.displayName, value: $0.element.codableValue) }
-            }),
+            choices(Settings.Tabs.topTabStyle, label: { $0.displayName }),
             toggle(Settings.Tabs.compactPillSpacing),
             toggle(Settings.Tabs.showScopeMenu),
             toggle(Settings.Tabs.showShortcutIndicators),
@@ -374,12 +374,7 @@ enum QuickSettingsCatalog {
         #else
         entries += [
             toggle(Settings.Multiplexer.localSessionDiscovery),
-            number(Settings.Transparency.backgroundOpacity, 0...1, step: 0.01, set: { TransparencyManager.shared.backgroundOpacity = $0 }),
-            toggle(Settings.Transparency.pinnedSidebarTransparency, set: { TransparencyManager.shared.pinnedSidebarTransparencyEnabled = $0 }),
         ]
-        if TransparencyManager.isGlassAvailable {
-            entries.append(choices(Settings.Transparency.blurStyle, label: { $0.title }, set: { TransparencyManager.shared.blurStyle = $0 }))
-        }
         if TransparencyManager.useSandboxBlur {
             entries.append(toggle(Settings.Transparency.blurEnabled, set: { TransparencyManager.shared.blurEnabled = $0 })
                 .requiring { TransparencyManager.shared.usesGlass ? String(localized: "Choose Standard Blur Style first.") : nil })
@@ -388,6 +383,9 @@ enum QuickSettingsCatalog {
                 .requiring { TransparencyManager.shared.usesGlass ? String(localized: "Choose Standard Blur Style first.") : nil })
         }
         #endif
+        if TransparencyManager.isGlassAvailable {
+            entries.append(choices(Settings.Transparency.blurStyle, label: { $0.title }, set: { TransparencyManager.shared.blurStyle = $0 }))
+        }
         if UIDevice.current.userInterfaceIdiom != .phone {
             entries += [
                 toggle(Settings.Tabs.hoverPreviews),

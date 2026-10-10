@@ -207,20 +207,15 @@ struct MainView: View {
     @Setting(Settings.Tabs.barHidden) var tabBarHidden
     @Setting(Settings.Tabs.showShortcutIndicators) var showTabShortcutIndicators
     @Setting(Settings.Tabs.barAnimationsDisabled) var tabBarAnimationsDisabled
-    @Setting(Settings.Tabs.topTabStyle) var storedTopTabStyle
+    @Setting(Settings.Tabs.topTabStyle) var topTabStyle
     @Setting(Settings.Tabs.compactPillSpacing) var compactPillTabSpacing
     @Setting(Settings.Tabs.showScopeMenu) var showTabScopeMenu
-
-    /// The rendered style; Rounded Panes shows Integrated as Pills.
-    var topTabStyle: TopTabStyle {
-        storedTopTabStyle.effective(roundedPanes: roundedPanes)
-    }
 
     /// Raw-value bridge for the shared tab components that still take `Binding<String>`.
     var topTabStyleRawValueBinding: Binding<String> {
         Binding(
             get: { topTabStyle.rawValue },
-            set: { storedTopTabStyle = TopTabStyle.resolve($0) }
+            set: { topTabStyle = TopTabStyle.resolve($0) }
         )
     }
     var usesCompactTabSpacing: Bool {
@@ -472,6 +467,7 @@ struct MainView: View {
             ZStack {
                 // Full-bleed backgrounds
                 fullBleedBackground(geometry: geometry, theme: resolvedTheme)
+                windowBackdrop(geometry: geometry, theme: resolvedTheme)
 
                 VStack(spacing: 0) {
                     // Top toolbar spacer when tab bar is hidden (Catalyst only)
@@ -488,9 +484,11 @@ struct MainView: View {
                                 && topTabStyle.usesStripLayout {
                                 // The controls avoid the camera column, but
                                 // the strip meets the full-width terminal.
-                                tabBarChromeBackground(resolvedTheme)
+                                (effectManager.isBackdropEnabled ? Color.clear : tabBarChromeBackground(resolvedTheme))
                                     .overlay {
-                                        IntegratedTabEdgeRuleView(palette: resolvedTheme.integratedEdgePalette)
+                                        if !integratedTabsJoinCards {
+                                            IntegratedTabEdgeRuleView(palette: resolvedTheme.integratedEdgePalette)
+                                        }
                                     }
                                     .allowsHitTesting(false)
                             }
