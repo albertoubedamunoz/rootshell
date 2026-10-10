@@ -272,7 +272,7 @@ extension MainView {
         // This fill sits above the row's background, so without the inset it
         // clips the integrated edge across the traffic-light clearance. Outer
         // frame is unchanged, leaving drag-region geometry alone.
-        tabBarChromeBackground(theme)
+        (effectManager.isBackdropEnabled ? Color.clear : tabBarChromeBackground(theme))
             .padding(.bottom, topTabStyle.usesStripLayout ? IntegratedTabEdgeMetrics.reservedThickness : 0)
             .frame(width: tabBarLeadingPadding, height: 44)
             .overlay {
