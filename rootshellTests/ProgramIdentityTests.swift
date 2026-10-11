@@ -64,6 +64,7 @@ final class ProgramIdentityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "top", source: .tmux)).mark, .symbol("gauge.with.dots.needle.67percent"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "htop", source: .tmux)).mark, .asset("HtopLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "/Users/me/.cargo/bin/cargo", source: .localProcess)).mark, .asset("CargoLogo"))
+        XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "/opt/homebrew/bin/gtail", source: .localProcess)).mark, .asset("TailLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "nvim", source: .tmux)).mark, .asset("NeovimLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "python3.12", source: .tmux)).mark, .asset("PythonLogo"))
         XCTAssertTrue(try XCTUnwrap(ForegroundProgram(rawName: "htop", source: .tmux)).showsRunningCard)
