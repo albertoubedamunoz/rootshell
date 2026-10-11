@@ -68,7 +68,7 @@ extension MainView {
                 // Background layer on purpose: the active tab
                 // occludes the run beneath it, so the line
                 // reads as rising around that tab.
-                // Rounded Integrated tabs join cards that carry no keyline.
+                // Rounded Integrated tabs join cards, whose rims open under the tab.
                 if topTabStyle.usesStripLayout, !integratedTabsJoinCards {
                     IntegratedTabEdgeRuleView(
                         palette: resolvedTheme.integratedEdgePalette
@@ -81,6 +81,7 @@ extension MainView {
         }
         .overlayPreferenceValue(IntegratedActiveTabBoundsPreferenceKey.self) { bounds in
             integratedOSCProgressEdge(activeTabBounds: bounds)
+            integratedTabJoinReader(activeTabBounds: bounds)
         }
         .environment(\.integratedTabJoinsCard, integratedTabsJoinCards)
         .modifier(ContainerCornerModifier())

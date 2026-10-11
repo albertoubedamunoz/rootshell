@@ -1110,7 +1110,9 @@ extension MainView {
                         focusedPane: tab.focusedPane,
                         terminalEffectsEnabled: terminalEffectsEnabled,
                         routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
-                            && showsHorizontalTabHeader
+                            && showsHorizontalTabHeader,
+                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
+                        paneCardGlassFrames: paneCardGlassFrames
                     )
                     // NOTE: the tmux control-mode client size is NOT driven from here.
                     // A tmux pane is a real ghostty surface, so its grid is recomputed
@@ -1427,6 +1429,7 @@ extension MainView {
         // the terminal; independently selected effects draw inside this column.
         .background(alignment: .leading) {
             if let dockedSidebarTheme {
+                let dockedSidebarSurface = dockedSidebarTheme.themeColors?.background ?? Color(uiColor: .systemBackground)
                 dockedTabSidebarBackground(theme: dockedSidebarTheme)
                     .overlay {
                         if backgroundSidebarEffectID != BackgroundEffectSelection.followTerminalID,
@@ -1440,6 +1443,10 @@ extension MainView {
                     }
                     .frame(width: dockedWidth - cardGap)
                     .clipShape(PaneCardStyle.shape(rounded: roundedPanes))
+                    .paneCardDepth(roundedPanes, shape: PaneCardStyle.shape(rounded: true),
+                                   palette: IntegratedTabEdgePalette(cardSurface: dockedSidebarSurface),
+                                   glassTint: transparencyManager.pinnedSidebarTransparencyEnabled
+                                       ? dockedSidebarSurface.opacity(transparencyManager.backgroundOpacity) : nil)
                     // Keyboard too: a floating keyboard's strip-sized region
                     // would stop the fill short of the bottom edge.
                     .ignoresSafeArea([.container, .keyboard], edges: roundedPanes ? [] : .bottom)
@@ -1467,6 +1474,7 @@ extension MainView {
             }
         }
         .environment(\.paneCardBackdrop, cardBackdrop)
+        .environment(\.paneCardRimPalette, theme.integratedEdgePalette)
         // Keyboard too: a floating keyboard reports a strip-sized keyboard
         // region that would lift the cards out of the strip.
         .ignoresSafeArea([.container, .keyboard], edges: paneCardsEnterHomeIndicatorStrip ? .bottom : [])

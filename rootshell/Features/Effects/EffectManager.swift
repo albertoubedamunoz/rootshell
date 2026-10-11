@@ -67,6 +67,7 @@ final class EffectManager {
             // during init: the config writer reads it back through `shared`.
             if isLoaded { TransparencyManager.shared.transparencyDidChange.send() }
             #endif
+            if isLoaded { TransparencyManager.shared.refreshPaneGlass() }
         }
     }
 

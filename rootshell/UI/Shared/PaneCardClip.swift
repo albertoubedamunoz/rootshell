@@ -56,6 +56,19 @@ extension EnvironmentValues {
     }
 }
 
+private struct PaneCardRimPaletteKey: EnvironmentKey {
+    static let defaultValue: IntegratedTabEdgePalette? = nil
+}
+
+extension EnvironmentValues {
+    /// Rounded Panes rim colors for the split view's cards: the integrated tab
+    /// edge palette, so a joined tab's outline continues the rim exactly.
+    var paneCardRimPalette: IntegratedTabEdgePalette? {
+        get { self[PaneCardRimPaletteKey.self] }
+        set { self[PaneCardRimPaletteKey.self] = newValue }
+    }
+}
+
 /// A rect with card-shaped holes, filled even-odd, so a translucent backdrop
 /// never stacks beneath translucent cards.
 struct PaneCardBackdropShape: Shape {
@@ -123,5 +136,167 @@ extension View {
         } else {
             self
         }
+    }
+}
+
+// MARK: - Depth
+
+extension IntegratedTabEdgePalette {
+    /// A card's rim derives from its own surface, as the integrated tab edge does.
+    init(cardSurface: Color) {
+        self.init(surfaceColor: cardSurface, isLightTheme: cardSurface.isLight)
+    }
+}
+
+/// Rounded Panes depth for a SwiftUI card: Liquid Glass when given a tint
+/// (the card's own fill must then be clear), else a top-lit hairline rim.
+private struct PaneCardDepth<CardShape: InsettableShape>: ViewModifier {
+    let isEnabled: Bool
+    let shape: CardShape
+    let palette: IntegratedTabEdgePalette
+    let glassTint: Color?
+
+    @Environment(\.displayScale) private var displayScale
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    func body(content: Content) -> some View {
+        if isEnabled, let glassTint, TransparencyManager.shared.paneGlassActive {
+            content.background { glass(glassTint) }
+        } else if isEnabled {
+            content.overlay { rim }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private func glass(_ tint: Color) -> some View {
+        #if !os(visionOS)
+        if #available(iOS 26.0, *) {
+            Color.clear
+                .glassEffect(.regular.tint(tint), in: shape)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        #endif
+    }
+
+    private var rim: some View {
+        let keyline = palette.keyline(increasedContrast: colorSchemeContrast == .increased)
+        return shape
+            .strokeBorder(
+                LinearGradient(
+                    colors: [keyline, keyline.opacity(PaneCardStyle.rimBottomFraction)],
+                    startPoint: .top, endPoint: .bottom),
+                lineWidth: IntegratedTabEdgeMetrics.lineWidth(for: displayScale))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+extension View {
+    func paneCardDepth(_ isEnabled: Bool, shape: some InsettableShape, palette: IntegratedTabEdgePalette,
+                       glassTint: Color? = nil) -> some View {
+        modifier(PaneCardDepth(isEnabled: isEnabled, shape: shape, palette: palette, glassTint: glassTint))
+    }
+}
+
+// MARK: - Glass
+
+/// The visible tab's card frames in window coordinates, published by its split
+/// view for the glass layer.
+@Observable
+final class PaneCardGlassFrames {
+    private(set) var cards: [CGRect] = []
+
+    func update(_ newCards: [CGRect]) {
+        guard newCards != cards else { return }
+        cards = newCards
+    }
+}
+
+/// Liquid Glass card fills beneath the window content. A joined Integrated
+/// tab and its card are one glass shape, so a single edge runs around both.
+struct PaneCardGlassLayer: View {
+    let frames: PaneCardGlassFrames
+    let join: IntegratedTabJoin
+    let joinsTab: Bool
+    let tint: Color
+
+    var body: some View {
+        #if !os(visionOS)
+        if #available(iOS 26.0, *) {
+            GeometryReader { proxy in
+                let origin = proxy.frame(in: .global).origin
+                let tab = joinsTab ? join.span?.rect.offsetBy(dx: -origin.x, dy: -origin.y) : nil
+                let cards = frames.cards.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) }
+                // One container renders the cards together; zero spacing keeps
+                // them from merging across the gaps.
+                GlassEffectContainer(spacing: 0) {
+                    ZStack(alignment: .topLeading) {
+                        ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
+                            glass(PaneCardGlassShape(card: card, tab: tab))
+                        }
+                        // Over a non-glass pane the tab still needs its own glass.
+                        if let tab, !cards.contains(where: { PaneCardGlassShape.joins(tab: tab, card: $0) }) {
+                            glass(PaneCardGlassShape(card: nil, tab: tab))
+                        }
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                }
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+        #endif
+    }
+
+    /// Sized to the shape, never the window: glass works over its whole frame.
+    @available(iOS 26.0, *)
+    private func glass(_ shape: PaneCardGlassShape) -> some View {
+        let bounds = shape.bounds
+        return Color.clear
+            .frame(width: bounds.width, height: bounds.height)
+            .glassEffect(.regular.tint(tint), in: shape.offset(by: bounds.origin))
+            .padding(.leading, max(0, bounds.minX))
+            .padding(.top, max(0, bounds.minY))
+    }
+}
+
+/// A card unioned with the joined tab's silhouette when the tab sits on its
+/// top edge. Rects are in layer coordinates; `offset(by:)` moves the path into
+/// a view whose origin is `bounds.origin`.
+struct PaneCardGlassShape: Shape {
+    /// nil draws the tab alone.
+    let card: CGRect?
+    let tab: CGRect?
+    var origin: CGPoint = .zero
+
+    static func joins(tab: CGRect, card: CGRect) -> Bool {
+        abs(tab.maxY - card.minY) < 2 && tab.minX < card.maxX && tab.maxX > card.minX
+    }
+
+    var bounds: CGRect { layerPath.boundingRect }
+
+    func offset(by point: CGPoint) -> PaneCardGlassShape {
+        PaneCardGlassShape(card: card, tab: tab, origin: point)
+    }
+
+    func path(in rect: CGRect) -> Path {
+        layerPath.offsetBy(dx: -origin.x, dy: -origin.y)
+    }
+
+    private var layerPath: Path {
+        guard let card else {
+            return tab.map { IntegratedTabGeometry(in: $0).silhouettePath } ?? Path()
+        }
+        let corner = CGSize(width: PaneCardStyle.cornerRadius, height: PaneCardStyle.cornerRadius)
+        let cardPath = Path(roundedRect: card, cornerSize: corner, style: .continuous)
+        guard let tab, Self.joins(tab: tab, card: card) else { return cardPath }
+        // Reach a point into the card so the union leaves no seam.
+        let silhouette = IntegratedTabGeometry(in: CGRect(
+            x: tab.minX, y: tab.minY, width: tab.width, height: card.minY - tab.minY + 1)).silhouettePath
+        return cardPath.union(silhouette)
     }
 }

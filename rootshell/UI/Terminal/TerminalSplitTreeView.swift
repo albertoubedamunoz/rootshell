@@ -15,6 +15,8 @@ import os
 struct TerminalSplitTreeView: UIViewRepresentable {
     @Environment(\.duoLayout) private var duoLayout
     @Environment(\.paneCardBackdrop) private var paneCardBackdrop
+    @Environment(\.paneCardRimPalette) private var paneCardRimPalette
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     let tree: SplitTree<SplitPaneView>
     let onResize: (SplitTree<SplitPaneView>.Node, Double) -> Void
     var onMove: ((SplitPaneView, SplitPaneView, PaneDropZone) -> Void)?
@@ -30,6 +32,9 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     /// True when the visible focused terminal presents OSC 9;4 progress on the
     /// integrated tab edge instead of as a duplicate straight pane-local bar.
     var routesFocusedProgressToIntegratedEdge: Bool = false
+    /// Set while Integrated tabs join the cards; the top rim opens under the tab.
+    var integratedTabJoin: IntegratedTabJoin?
+    var paneCardGlassFrames: PaneCardGlassFrames?
 
     func makeUIView(context: Context) -> SplitTreeHostingView {
         SplitTreeHostingView()
@@ -39,6 +44,10 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.dividerColor = PaneCardStyle.isEnabled ? .clear : UIColor.separator
         uiView.highlightColor = uiView.tintColor ?? UIColor.systemBlue
         uiView.cardBackdropColor = paneCardBackdrop.map { UIColor($0) }
+        uiView.cardRimPalette = paneCardRimPalette ?? .fallback
+        uiView.cardRimIncreasedContrast = colorSchemeContrast == .increased
+        uiView.integratedTabJoin = integratedTabJoin
+        uiView.paneCardGlassFrames = paneCardGlassFrames
         uiView.onResize = onResize
         uiView.onMove = onMove
         uiView.allowsPaneRearrangement = allowsPaneRearrangement
@@ -51,6 +60,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
 
     static func dismantleUIView(_ uiView: SplitTreeHostingView, coordinator: ()) {
         uiView.detachAllPanes()
+        uiView.integratedTabJoin = nil
     }
 }
 
@@ -81,6 +91,32 @@ final class SplitTreeHostingView: UIView {
         }
     }
     private var cardBackdropView: CardBackdropView?
+
+    /// Rounded Panes rim colors, from the tab's terminal surface.
+    var cardRimPalette: IntegratedTabEdgePalette = .fallback {
+        didSet {
+            guard oldValue != cardRimPalette else { return }
+            updateCardDepth()
+        }
+    }
+    var cardRimIncreasedContrast = false {
+        didSet {
+            guard oldValue != cardRimIncreasedContrast else { return }
+            updateCardDepth()
+        }
+    }
+    var integratedTabJoin: IntegratedTabJoin? {
+        didSet {
+            guard oldValue !== integratedTabJoin else { return }
+            oldValue?.removeObserver(self)
+            integratedTabJoin?.addObserver(self)
+            updateCardDepth()
+        }
+    }
+    private var cardRimView: CardRimView?
+    private var cardRimJoinedTabID: UUID?
+    /// Receives this tab's card frames while it is the visible one.
+    var paneCardGlassFrames: PaneCardGlassFrames?
 
     var minSplitSize: CGFloat = 100
     var onResize: ((SplitTree<SplitPaneView>.Node, Double) -> Void)?
@@ -631,6 +667,7 @@ final class SplitTreeHostingView: UIView {
         cleanupTerminalViews(keeping: usedTerminals)
         hideUnusedDividers(from: dividerReuseIndex)
         updateCardBackdrop()
+        updateCardDepth()
         hasCompletedHerdrLayout = true
         // Push from full `bounds` (inside this call), unaffected by `layoutRect`,
         // so tmux reclaims our full size when the foreign client detaches.
@@ -1713,6 +1750,86 @@ final class SplitTreeHostingView: UIView {
             let showBorder = borderEligibility[identifier] ?? false
             applyFocusAppearance(to: view, showBorder: showBorder)
         }
+        // Rims step aside for the focus border.
+        updateCardDepth()
+    }
+
+    // MARK: - Card Depth
+
+    func integratedTabJoinDidChange() {
+        updateCardDepth(followsJoinedTab: true)
+    }
+
+    /// Attached cards, whether each draws a rim (a focus border already
+    /// outlines its card), and whether it is a terminal.
+    private func cardDepthCards() -> [(container: UIView, showsRim: Bool, isTerminal: Bool)] {
+        guard let tree else { return [] }
+        let borderStyle = SettingsStore.shared.value(Settings.Window.splitFocusBorderStyle)
+        var cards: [(container: UIView, showsRim: Bool, isTerminal: Bool)] = []
+        for pane in tree where !pane.isDetachedForFullScreen {
+            let identifier = ObjectIdentifier(pane)
+            guard let container = attachedContainers[identifier],
+                  container.superview === self, !container.isHidden else { continue }
+            let bordered = pane === focusedPane && borderStyle != .none
+                && (borderEligibility[identifier] ?? false)
+            cards.append((container, !bordered, pane.asTerminal != nil))
+        }
+        return cards
+    }
+
+    private func updateCardDepth(followsJoinedTab: Bool = false) {
+        let glass = TransparencyManager.shared.paneGlassActive
+        let allCards = roundsPanes ? cardDepthCards() : []
+        // Glass only behind terminals: opaque panes (screen sharing) would hide
+        // it while their frame rate keeps re-rendering it.
+        if isActiveTab, let paneCardGlassFrames {
+            paneCardGlassFrames.update(glass && window != nil
+                ? allCards.filter(\.isTerminal).map { convert($0.container.frame, to: nil) } : [])
+        }
+        // Glass draws its own edge.
+        let cards = glass ? allCards.filter { !$0.isTerminal } : allCards
+        guard !cards.isEmpty else {
+            cardRimView?.isHidden = true
+            return
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+
+        let rim: CardRimView
+        if let existing = cardRimView {
+            rim = existing
+        } else {
+            rim = CardRimView()
+            cardRimView = rim
+        }
+        rim.isHidden = false
+        rim.frame = bounds
+        let containers = Set(attachedContainers.values.map { ObjectIdentifier($0) })
+        if let topCard = subviews.last(where: { containers.contains(ObjectIdentifier($0)) }) {
+            insertSubview(rim, aboveSubview: topCard)
+        } else if rim.superview !== self {
+            addSubview(rim)
+        }
+
+        let span = integratedTabJoin?.span
+        let opening: ClosedRange<CGFloat>? = span.flatMap { span in
+            guard window != nil else { return nil }
+            let rect = convert(span.rect, from: nil)
+            return rect.minX...rect.maxX
+        }
+        let slides = followsJoinedTab && span?.animatesSelection == true
+            && cardRimJoinedTabID != nil && span?.tabID != cardRimJoinedTabID
+        cardRimJoinedTabID = span?.tabID
+        let keyline = UIColor(cardRimPalette.keyline(increasedContrast: cardRimIncreasedContrast))
+            .resolvedColor(with: traitCollection)
+        rim.update(
+            cards: cards.filter(\.showsRim).map(\.container.frame),
+            color: keyline,
+            lineWidth: 1 / max(1, traitCollection.displayScale),
+            opening: opening,
+            openingEdgeY: bounds.minY,
+            animated: slides)
     }
 }
 
@@ -1729,6 +1846,95 @@ private final class CardBackdropView: UIView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+}
+
+/// Top-lit hairline rims over the pane cards. A joined Integrated tab opens
+/// the straight top edge beneath it; its own outline carries the rim on.
+private final class CardRimView: UIView {
+    private final class Rim {
+        let host = CALayer()
+        let gradient = CAGradientLayer()
+        let stroke = CAShapeLayer()
+        /// Even-odd: the card minus the tab's opening.
+        let opening = CAShapeLayer()
+
+        init() {
+            stroke.fillColor = nil
+            stroke.strokeColor = UIColor.black.cgColor
+            gradient.mask = stroke
+            host.addSublayer(gradient)
+            opening.fillRule = .evenOdd
+            host.mask = opening
+        }
+    }
+
+    private var rims: [Rim] = []
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(cards: [CGRect], color: UIColor, lineWidth: CGFloat,
+                opening: ClosedRange<CGFloat>?, openingEdgeY: CGFloat, animated: Bool) {
+        while rims.count < cards.count {
+            let rim = Rim()
+            layer.addSublayer(rim.host)
+            rims.append(rim)
+        }
+        let topColor = color.cgColor
+        let bottomColor = color.withAlphaComponent(color.cgColor.alpha * PaneCardStyle.rimBottomFraction).cgColor
+        let radius = PaneCardStyle.cornerRadius
+        for (index, rim) in rims.enumerated() {
+            guard index < cards.count else {
+                rim.host.isHidden = true
+                continue
+            }
+            let card = cards[index]
+            let bounds = CGRect(origin: .zero, size: card.size)
+            rim.host.isHidden = false
+            rim.host.frame = card
+            rim.gradient.frame = bounds
+            rim.gradient.colors = [topColor, bottomColor]
+            rim.stroke.frame = bounds
+            rim.stroke.lineWidth = lineWidth
+            let inset = lineWidth / 2
+            rim.stroke.path = UIBezierPath(
+                roundedRect: bounds.insetBy(dx: inset, dy: inset),
+                cornerRadius: radius - inset).cgPath
+
+            // Only the straight top edge of a top-row card opens. Off-card,
+            // the opening collapses toward the tab so a slide reads as travel.
+            var openingX = radius, openingWidth: CGFloat = 0
+            if let opening, abs(card.minY - openingEdgeY) < 0.5 {
+                let lower = max(opening.lowerBound - card.minX, radius)
+                let upper = min(opening.upperBound - card.minX, card.width - radius)
+                if upper > lower {
+                    openingX = lower
+                    openingWidth = upper - lower
+                } else if opening.lowerBound - card.minX >= card.width - radius {
+                    openingX = card.width - radius
+                }
+            }
+            let path = UIBezierPath(rect: bounds)
+            path.append(UIBezierPath(rect: CGRect(x: openingX, y: 0, width: openingWidth, height: lineWidth * 2)))
+            let newPath = path.cgPath
+            if animated, let from = rim.opening.presentation()?.path ?? rim.opening.path {
+                let animation = CABasicAnimation(keyPath: "path")
+                animation.fromValue = from
+                animation.toValue = newPath
+                animation.duration = 0.3
+                animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                rim.opening.add(animation, forKey: "integrated-tab-opening")
+            }
+            rim.opening.frame = bounds
+            rim.opening.path = newPath
+        }
     }
 }
 
