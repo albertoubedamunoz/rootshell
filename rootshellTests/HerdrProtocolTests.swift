@@ -815,11 +815,15 @@ final class HerdrProtocolTests: XCTestCase {
         XCTAssertTrue(reply("\u{1b}P1+r524742=38\u{1b}\\"))       // XTGETTCAP
         XCTAssertTrue(reply("\u{1b}_Gi=1;OK\u{1b}\\"))            // kitty graphics
         XCTAssertTrue(reply("\u{1b}[0n\u{1b}[24;80R"))            // two reports in one chunk
+        XCTAssertTrue(reply("\u{1b}[?0u"))                        // kitty keyboard flags
+        // A TUI's startup probe batch: CPR, OSC 10/11, keyboard flags, DA.
+        XCTAssertTrue(reply("\u{1b}[19;1R\u{1b}]10;rgb:0000/0000/0000\u{1b}\\\u{1b}]11;rgb:ffff/ffff/ffff\u{1b}\\\u{1b}[?0u\u{1b}[?62;22;52c"))
     }
 
     func testUserInputIsNotAutomatic() {
         XCTAssertFalse(reply("ls -la\r"))
         XCTAssertFalse(reply("\u{1b}[A"))                         // arrow key
+        XCTAssertFalse(reply("\u{1b}[97;5u"))                     // kitty ctrl-a
         XCTAssertFalse(reply("\u{1b}[<0;10;5M"))                  // SGR mouse press
         XCTAssertFalse(reply("\u{1b}[200~pasted\u{1b}[201~"))     // bracketed paste
         XCTAssertFalse(reply("\u{1b}[24;80Rx"))                   // report followed by text
