@@ -200,23 +200,16 @@ protocol IntegratedTabJoinObserver: AnyObject {
 }
 
 /// The selected tab's frame in window coordinates while Integrated tabs join
-/// Rounded Panes cards. Card rims (split views, the exposé) open their top
-/// edge there. `MainView` never reads it, so tab-strip scrolling never
-/// invalidates it.
+/// Rounded Panes cards, updated every frame of its selection slide. Card rims
+/// (split views, the exposé, full-size panels) open their top edge there.
+/// `MainView` never reads it, so tab-strip scrolling never invalidates it.
 final class IntegratedTabJoin {
-    struct Span: Equatable {
-        let rect: CGRect
-        let tabID: UUID
-        /// Slide with the tab's selection animation.
-        let animatesSelection: Bool
-    }
-
-    private(set) var span: Span?
+    private(set) var rect: CGRect?
     private let observers = NSHashTable<AnyObject>.weakObjects()
 
-    func update(_ newSpan: Span?) {
-        guard span != newSpan else { return }
-        span = newSpan
+    func update(_ newRect: CGRect?) {
+        guard rect != newRect else { return }
+        rect = newRect
         for case let observer as IntegratedTabJoinObserver in observers.allObjects {
             observer.integratedTabJoinDidChange()
         }
@@ -533,5 +526,23 @@ extension EnvironmentValues {
     var integratedTabJoinsCard: Bool {
         get { self[IntegratedTabJoinsCardKey.self] }
         set { self[IntegratedTabJoinsCardKey.self] = newValue }
+    }
+}
+
+/// Publishes the joined tab's frame from inside SwiftUI's animation, so card
+/// rims open under the tab on every frame of its selection slide, interrupted
+/// springs included.
+struct IntegratedTabJoinPublisher: View, Animatable {
+    var rect: CGRect
+    let join: IntegratedTabJoin
+
+    nonisolated var animatableData: CGRect.AnimatableData {
+        get { rect.animatableData }
+        set { rect.animatableData = newValue }
+    }
+
+    var body: some View {
+        let _ = join.update(rect)
+        Color.clear
     }
 }

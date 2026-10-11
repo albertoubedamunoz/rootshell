@@ -1111,7 +1111,8 @@ extension MainView {
                         terminalEffectsEnabled: terminalEffectsEnabled,
                         routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
                             && showsHorizontalTabHeader,
-                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil
+                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
+                        tracksSwipe: appTabSwipeState.map { $0.sourceTabID == tab.id || $0.targetTabID == tab.id } ?? false
                     )
                     // NOTE: the tmux control-mode client size is NOT driven from here.
                     // A tmux pane is a real ghostty surface, so its grid is recomputed

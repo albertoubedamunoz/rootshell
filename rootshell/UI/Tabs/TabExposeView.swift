@@ -69,7 +69,6 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     private let hero = TabPreviewMirrorView()
     /// Stands in for the concealed or covered split host's rim.
     private let rim = CardRimView()
-    private var rimJoinedTabID: UUID?
     /// Set while Integrated tabs join the cards; the rim opens under the tab.
     var integratedTabJoin: IntegratedTabJoin? {
         didSet {
@@ -430,7 +429,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     }
 
     /// The card's rim, matching the split host's, which the backdrop covers.
-    private func updateRim(followsJoinedTab: Bool = false) {
+    private func updateRim() {
         guard controller.isActive, let rimPalette = appearance.rimPalette, !heroRect.isEmpty else {
             rim.isHidden = true
             return
@@ -440,23 +439,18 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         defer { CATransaction.commit() }
         rim.isHidden = false
         rim.frame = bounds
-        let span = integratedTabJoin?.span
-        let opening: ClosedRange<CGFloat>? = span.flatMap { span in
+        let opening: ClosedRange<CGFloat>? = integratedTabJoin?.rect.flatMap { tabRect in
             guard window != nil else { return nil }
-            let rect = convert(span.rect, from: nil)
+            let rect = convert(tabRect, from: nil)
             return rect.minX...rect.maxX
         }
-        let slides = followsJoinedTab && span?.animatesSelection == true
-            && rimJoinedTabID != nil && span?.tabID != rimJoinedTabID
-        rimJoinedTabID = span?.tabID
         rim.update(
             cards: [heroRect],
             color: UIColor(rimPalette.keyline(increasedContrast: traitCollection.accessibilityContrast == .high))
                 .resolvedColor(with: traitCollection),
             lineWidth: 1 / max(1, traitCollection.displayScale),
             opening: opening,
-            openingEdgeY: heroRect.minY,
-            animated: slides)
+            openingEdgeY: heroRect.minY)
     }
 
     private var isCompact: Bool {
@@ -1472,7 +1466,7 @@ final class TabExposeCellView: UIView {
 
 extension TabExposeView: IntegratedTabJoinObserver {
     func integratedTabJoinDidChange() {
-        updateRim(followsJoinedTab: true)
+        updateRim()
     }
 }
 

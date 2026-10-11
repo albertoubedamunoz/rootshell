@@ -220,7 +220,6 @@ final class JoinedCardRimView: UIView, IntegratedTabJoinObserver {
     }
 
     private let rim = CardRimView()
-    private var joinedTabID: UUID?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -244,30 +243,25 @@ final class JoinedCardRimView: UIView, IntegratedTabJoinObserver {
     }
 
     func integratedTabJoinDidChange() {
-        updateRim(followsJoinedTab: true)
+        updateRim()
     }
 
-    func updateRim(followsJoinedTab: Bool = false) {
+    func updateRim() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
         rim.frame = bounds
-        let span = integratedTabJoin?.span
-        let opening: ClosedRange<CGFloat>? = span.flatMap { span in
+        let opening: ClosedRange<CGFloat>? = integratedTabJoin?.rect.flatMap { tabRect in
             guard window != nil else { return nil }
-            let rect = convert(span.rect, from: nil)
+            let rect = convert(tabRect, from: nil)
             return rect.minX...rect.maxX
         }
-        let slides = followsJoinedTab && span?.animatesSelection == true
-            && joinedTabID != nil && span?.tabID != joinedTabID
-        joinedTabID = span?.tabID
         rim.update(
             cards: bounds.isEmpty ? [] : [bounds],
             color: UIColor(palette.keyline(increasedContrast: increasedContrast))
                 .resolvedColor(with: traitCollection),
             lineWidth: 1 / max(1, traitCollection.displayScale),
             opening: opening,
-            openingEdgeY: bounds.minY,
-            animated: slides)
+            openingEdgeY: bounds.minY)
     }
 }
