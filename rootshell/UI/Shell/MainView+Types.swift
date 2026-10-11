@@ -38,13 +38,6 @@ extension MainView {
         let isKeyChanged: Bool
     }
 
-    /// Backs `appTabSwipeState` so the pane glass, in its own hosting
-    /// controller, sees each change in the same animation as the tabs.
-    @Observable
-    final class AppTabSwipeStore {
-        var state: AppTabSwipeState?
-    }
-
     struct AppTabSwipeState: Equatable {
         let sourceTabID: UUID
         let targetTabID: UUID

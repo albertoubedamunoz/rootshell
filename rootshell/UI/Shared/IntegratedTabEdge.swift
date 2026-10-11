@@ -195,11 +195,14 @@ struct IntegratedActiveTabBoundsPreferenceKey: PreferenceKey {
 
 // MARK: - Joined card rim
 
+protocol IntegratedTabJoinObserver: AnyObject {
+    func integratedTabJoinDidChange()
+}
+
 /// The selected tab's frame in window coordinates while Integrated tabs join
-/// Rounded Panes cards. Split views open their top rim there and the glass
-/// layer merges the tab into its card. `MainView` never reads it, so tab-strip
-/// scrolling never invalidates it.
-@Observable
+/// Rounded Panes cards. Card rims (split views, the exposé) open their top
+/// edge there. `MainView` never reads it, so tab-strip scrolling never
+/// invalidates it.
 final class IntegratedTabJoin {
     struct Span: Equatable {
         let rect: CGRect
@@ -209,21 +212,21 @@ final class IntegratedTabJoin {
     }
 
     private(set) var span: Span?
-    @ObservationIgnored private let observers = NSHashTable<SplitTreeHostingView>.weakObjects()
+    private let observers = NSHashTable<AnyObject>.weakObjects()
 
     func update(_ newSpan: Span?) {
         guard span != newSpan else { return }
         span = newSpan
-        for observer in observers.allObjects {
+        for case let observer as IntegratedTabJoinObserver in observers.allObjects {
             observer.integratedTabJoinDidChange()
         }
     }
 
-    func addObserver(_ observer: SplitTreeHostingView) {
+    func addObserver(_ observer: IntegratedTabJoinObserver) {
         observers.add(observer)
     }
 
-    func removeObserver(_ observer: SplitTreeHostingView) {
+    func removeObserver(_ observer: IntegratedTabJoinObserver) {
         observers.remove(observer)
     }
 }

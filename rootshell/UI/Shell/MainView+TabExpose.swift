@@ -19,6 +19,7 @@ extension MainView {
             controller: tabExpose,
             configuration: tabExposeConfiguration(),
             appearance: tabExposeAppearance(),
+            integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
             width: width
         )
         // Above ordinary siblings in the content ZStack (SwiftUI-drawn fills
@@ -56,12 +57,11 @@ extension MainView {
         } else {
             appearance.backgroundColor = UIColor(theme.tabBarBackground)
         }
-        // The backdrop is the terminal surface: translucent over the window or
-        // the Theme Gradient, clear over the glass card. Cells keep a tint.
-        appearance.surfaceOpacity = transparencyManager.effectiveBackgroundOpacity
-        appearance.backgroundOpacity = transparencyManager.paneGlassActive
-            ? transparencyManager.backgroundOpacity : transparencyManager.effectiveBackgroundOpacity
+        // The backdrop stands in for the terminal's card: its fill, opacity,
+        // corners and rim.
+        appearance.backgroundOpacity = transparencyManager.effectiveBackgroundOpacity
         appearance.cornerRadius = roundedPanes ? PaneCardStyle.cornerRadius : 0
+        appearance.rimPalette = roundedPanes ? theme.integratedEdgePalette : nil
         appearance.textColor = UIColor(theme.tabText)
         if let accent = sheetAccentColor {
             appearance.accentColor = UIColor(accent)
@@ -278,13 +278,15 @@ private struct TabExposeSafeAreaHost: View {
     let controller: TabExposeController
     let configuration: TabExposeView.Configuration
     let appearance: TabExposeView.Appearance
+    let integratedTabJoin: IntegratedTabJoin?
     let width: CGFloat
 
     var body: some View {
         TabExposeHost(
             controller: controller,
             configuration: configuration,
-            appearance: appearance
+            appearance: appearance,
+            integratedTabJoin: integratedTabJoin
         )
         .frame(width: width)
         #if !os(visionOS) && !targetEnvironment(macCatalyst)

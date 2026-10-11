@@ -1111,9 +1111,7 @@ extension MainView {
                         terminalEffectsEnabled: terminalEffectsEnabled,
                         routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
                             && showsHorizontalTabHeader,
-                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
-                        paneCardGlassFrames: paneCardGlassFrames,
-                        paneCardGlassTabID: tab.id
+                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil
                     )
                     // NOTE: the tmux control-mode client size is NOT driven from here.
                     // A tmux pane is a real ghostty surface, so its grid is recomputed
@@ -1154,10 +1152,6 @@ extension MainView {
                     // on the current selected/source tab until release commits.
                     .opacity(visualMetrics.opacity)
                     .offset(x: visualMetrics.offsetX)
-                    // Measured outside the offset: the glass layer slides it itself.
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
-                        paneCardGlassFrames.updateHostFrame(frame, for: tab.id)
-                    }
                     .zIndex(visualMetrics.zIndex)
                     .allowsHitTesting(index == selectedTabIndex && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
                     .padding(.bottom, bottomPadding)
@@ -1436,9 +1430,7 @@ extension MainView {
                     .frame(width: dockedWidth - cardGap)
                     .clipShape(PaneCardStyle.shape(rounded: roundedPanes))
                     .paneCardDepth(roundedPanes, shape: PaneCardStyle.shape(rounded: true),
-                                   palette: IntegratedTabEdgePalette(cardSurface: dockedSidebarSurface),
-                                   glassTint: transparencyManager.pinnedSidebarTransparencyEnabled
-                                       ? dockedSidebarSurface.opacity(transparencyManager.backgroundOpacity) : nil)
+                                   palette: IntegratedTabEdgePalette(cardSurface: dockedSidebarSurface))
                     // Keyboard too: a floating keyboard's strip-sized region
                     // would stop the fill short of the bottom edge.
                     .ignoresSafeArea([.container, .keyboard], edges: roundedPanes ? [] : .bottom)

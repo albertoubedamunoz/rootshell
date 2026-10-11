@@ -851,14 +851,11 @@ private struct IntegratedTabBackground: View {
             // Between fill and outline: clears the strip's rule out of the
             // outline's shoulder band. Joined cards have no rule; their rim
             // opens under the tab and this outline carries it up around it.
-            // Glass Panes draws the tab and its card as one glass shape.
             if !joinsCard {
                 IntegratedTabEdgeOccluder(color: selectedColor)
             }
 
-            if !joinsCard || !TransparencyManager.shared.paneGlassActive {
-                IntegratedTabOutlineView(palette: edgePalette)
-            }
+            IntegratedTabOutlineView(palette: edgePalette)
         }
 
         if let namespace {

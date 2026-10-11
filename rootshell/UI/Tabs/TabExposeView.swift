@@ -41,13 +41,12 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
 
     struct Appearance {
         var backgroundColor: UIColor = .black
-        /// Preview cell fill opacity; 1 = opaque.
+        /// The terminal surface's opacity, for the backdrop and cells; 1 = opaque.
         var backgroundOpacity: CGFloat = 1
-        /// Opacity of the terminal surface the backdrop stands in for; 0 under
-        /// Glass Panes, whose card the window draws.
-        var surfaceOpacity: CGFloat = 1
         /// Rounded Panes: the backdrop and hero take the terminal card's corners.
         var cornerRadius: CGFloat = 0
+        /// Rounded Panes: the card's top-lit rim; nil draws none.
+        var rimPalette: IntegratedTabEdgePalette?
         var accentColor: UIColor = .systemBlue
         var textColor: UIColor = .white
         var showsCaptions: Bool = true
@@ -68,6 +67,18 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     /// translucent background isn't stacked on a second fill.
     private let backdropMask = CAShapeLayer()
     private let hero = TabPreviewMirrorView()
+    /// Stands in for the concealed or covered split host's rim.
+    private let rim = CardRimView()
+    private var rimJoinedTabID: UUID?
+    /// Set while Integrated tabs join the cards; the rim opens under the tab.
+    var integratedTabJoin: IntegratedTabJoin? {
+        didSet {
+            guard oldValue !== integratedTabJoin else { return }
+            oldValue?.removeObserver(self)
+            integratedTabJoin?.addObserver(self)
+            updateRim()
+        }
+    }
     /// The live terminal hosts hidden behind the hero while translucent, so
     /// the backdrop sees the desktop rather than the terminal: the hero's,
     /// and the displayed tab's until a selection's display handoff.
@@ -135,6 +146,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         hero.isUserInteractionEnabled = false
         hero.accessibilityElementsHidden = true
         addSubview(hero)
+        rim.accessibilityElementsHidden = true
+        addSubview(rim)
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         tap.cancelsTouchesInView = false
@@ -269,6 +282,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
             accessibilityViewIsModal = false
             hero.releaseContents()
             syncTerminalConcealment()
+            updateRim()
             resetPage()
             zoomPinchActive = false
             hideZoomHUD(animated: false)
@@ -375,7 +389,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
 
     private func applyAppearance() {
         guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
-        backdrop.backgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.surfaceOpacity)
+        backdrop.backgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.backgroundOpacity)
         // Mirrored pixels already carry the terminal's translucent background.
         hero.backgroundColor = isTranslucent ? .clear : appearance.backgroundColor
         for view in [backdrop, hero] {
@@ -386,6 +400,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         pageControl.currentPageIndicatorTintColor = appearance.textColor.withAlphaComponent(0.9)
         pageControl.pageIndicatorTintColor = appearance.textColor.withAlphaComponent(0.3)
         syncTerminalConcealment()
+        updateRim()
         lastAppliedProgress = -1
         applyProgress()
         primary.applyAppearance(appearance)
@@ -394,7 +409,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
 
     // MARK: - Layout
 
-    private var isTranslucent: Bool { appearance.surfaceOpacity < 1 }
+    private var isTranslucent: Bool { appearance.backgroundOpacity < 1 }
 
     /// The hero mirror is pixel-for-pixel the terminal, so hiding the real
     /// host under it is invisible; restores when inactive or opaque.
@@ -412,6 +427,36 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
             host.alpha = 0
             concealedHosts.add(host)
         }
+    }
+
+    /// The card's rim, matching the split host's, which the backdrop covers.
+    private func updateRim(followsJoinedTab: Bool = false) {
+        guard controller.isActive, let rimPalette = appearance.rimPalette, !heroRect.isEmpty else {
+            rim.isHidden = true
+            return
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        rim.isHidden = false
+        rim.frame = bounds
+        let span = integratedTabJoin?.span
+        let opening: ClosedRange<CGFloat>? = span.flatMap { span in
+            guard window != nil else { return nil }
+            let rect = convert(span.rect, from: nil)
+            return rect.minX...rect.maxX
+        }
+        let slides = followsJoinedTab && span?.animatesSelection == true
+            && rimJoinedTabID != nil && span?.tabID != rimJoinedTabID
+        rimJoinedTabID = span?.tabID
+        rim.update(
+            cards: [heroRect],
+            color: UIColor(rimPalette.keyline(increasedContrast: traitCollection.accessibilityContrast == .high))
+                .resolvedColor(with: traitCollection),
+            lineWidth: 1 / max(1, traitCollection.displayScale),
+            opening: opening,
+            openingEdgeY: heroRect.minY,
+            animated: slides)
     }
 
     private var isCompact: Bool {
@@ -486,6 +531,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         // though preview geometry was otherwise right.
         // Rounded Panes cards stop at the terminal host, so the fill does too.
         backdrop.frame = appearance.cornerRadius > 0 ? heroRect : bounds
+        updateRim()
         hero.transform = .identity
         hero.frame = heroRect
         if let hud = zoomHUDHost?.view {
@@ -1424,22 +1470,31 @@ final class TabExposeCellView: UIView {
     }
 }
 
+extension TabExposeView: IntegratedTabJoinObserver {
+    func integratedTabJoinDidChange() {
+        updateRim(followsJoinedTab: true)
+    }
+}
+
 // MARK: - SwiftUI host
 
 struct TabExposeHost: UIViewRepresentable {
     let controller: TabExposeController
     let configuration: TabExposeView.Configuration
     let appearance: TabExposeView.Appearance
+    let integratedTabJoin: IntegratedTabJoin?
 
     func makeUIView(context: Context) -> TabExposeView {
         let view = TabExposeView(controller: controller)
         view.configuration = configuration
         view.appearance = appearance
+        view.integratedTabJoin = integratedTabJoin
         return view
     }
 
     func updateUIView(_ uiView: TabExposeView, context: Context) {
         uiView.configuration = configuration
         uiView.appearance = appearance
+        uiView.integratedTabJoin = integratedTabJoin
     }
 }
