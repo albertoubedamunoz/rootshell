@@ -13,6 +13,9 @@ final class ProgramIdentityTests: XCTestCase {
     func testNormalizerCollapsesInterpreterVersions() {
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "python3.12"), "python")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "python3"), "python")
+        XCTAssertEqual(ProgramNameNormalizer.normalize(
+            name: "/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python"),
+            "python")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "ruby3.3"), "ruby")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "emacs-31.1"), "emacs")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "/usr/bin/gcc-14"), "gcc")

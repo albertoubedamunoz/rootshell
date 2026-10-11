@@ -84,6 +84,8 @@ nonisolated enum ProgramNameNormalizer {
     }
 
     private static func collapseVersion(_ name: String) -> String {
+        // macOS framework builds re-exec `python3` as `Python.app/Contents/MacOS/Python`.
+        if name == "Python" { return "python" }
         // Versioned binaries the unversioned name links to: `emacs-31.1`, `gcc-14`.
         if let dash = name.lastIndex(of: "-"), dash != name.startIndex {
             let version = name[name.index(after: dash)...]
