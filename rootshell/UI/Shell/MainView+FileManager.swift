@@ -220,7 +220,8 @@ extension MainView {
                 canFocus: showFileManager,
                 theme: resolvedSheetTheme(),
                 onClose: { closeFileManager() },
-                onSwitchPresentation: { switchFileManagerPresentation($0) }
+                onSwitchPresentation: { switchFileManagerPresentation($0) },
+                integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // A fresh host per presentation; the HUD host sets up dragging and resizing once.

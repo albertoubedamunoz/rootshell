@@ -1208,6 +1208,16 @@ extension MainView {
         #endif
     }
 
+    /// A translucent full-size file manager or HTTP capture would show the
+    /// terminal through it. Exposé hides the panels and mirrors the terminal.
+    var fullPanelHidesTerminal: Bool {
+        guard transparencyManager.fullPanelIsTranslucent, !tabExpose.isActive else { return false }
+        #if !CHINA_BUILD
+        if httpCaptureShowsOverlay && httpCapturePresentation == .full { return true }
+        #endif
+        return fileManagerShowsOverlay && fileManagerPresentation == .full
+    }
+
     /// The main terminal content ZStack (terminals + effects + overlays).
     @ViewBuilder
     func terminalContentZStack(
@@ -1215,10 +1225,14 @@ extension MainView {
         width: CGFloat,
         effectLeadingExtension: CGFloat
     ) -> some View {
+        let terminalOpacity: Double = fullPanelHidesTerminal ? 0 : 1
         ZStack {
             terminalBackgroundFill
+                .opacity(terminalOpacity)
             tabRevealBackdropFill
+                .opacity(terminalOpacity)
             terminalTabsView(geometry: geometry, width: width)
+                .opacity(terminalOpacity)
             tmuxReconnectingSwipeFallback
             effectOverlay(leadingExtension: effectLeadingExtension)
             terminalOverlays()

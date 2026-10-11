@@ -181,7 +181,8 @@ extension MainView {
                 fills: httpCapturePresentation == .full,
                 theme: resolvedSheetTheme(),
                 onClose: { closeHTTPCapture() },
-                onSwitchPresentation: { switchHTTPCapturePresentation($0) }
+                onSwitchPresentation: { switchHTTPCapturePresentation($0) },
+                integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // A fresh host per presentation; the HUD host sets up dragging and resizing once.

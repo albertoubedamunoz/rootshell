@@ -133,6 +133,12 @@ final class TransparencyManager {
         }
     }
 
+    /// Full-size panels follow the pinned sidebar's opacity; the terminal
+    /// under a translucent one is hidden so it never shows through.
+    var fullPanelIsTranslucent: Bool {
+        pinnedSidebarTransparencyEnabled && effectiveBackgroundOpacity < 1
+    }
+
     /// Mac only: whether the Theme Gradient backdrop takes the window opacity
     /// too, showing the desktop through it instead of only through the terminal.
     var backdropTransparencyEnabled: Bool {

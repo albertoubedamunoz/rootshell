@@ -183,3 +183,91 @@ extension View {
         modifier(PaneCardDepth(isEnabled: isEnabled, shape: shape, palette: palette))
     }
 }
+
+/// A SwiftUI card's rim drawn by `CardRimView`, so it opens under a joined
+/// Integrated tab as the split view's does. Covers the whole card.
+struct JoinedCardRim: UIViewRepresentable {
+    let palette: IntegratedTabEdgePalette
+    let integratedTabJoin: IntegratedTabJoin?
+
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    func makeUIView(context: Context) -> JoinedCardRimView {
+        JoinedCardRimView()
+    }
+
+    func updateUIView(_ uiView: JoinedCardRimView, context: Context) {
+        uiView.palette = palette
+        uiView.increasedContrast = colorSchemeContrast == .increased
+        uiView.integratedTabJoin = integratedTabJoin
+        uiView.updateRim()
+    }
+
+    static func dismantleUIView(_ uiView: JoinedCardRimView, coordinator: ()) {
+        uiView.integratedTabJoin = nil
+    }
+}
+
+final class JoinedCardRimView: UIView, IntegratedTabJoinObserver {
+    var palette: IntegratedTabEdgePalette = .fallback
+    var increasedContrast = false
+    var integratedTabJoin: IntegratedTabJoin? {
+        didSet {
+            guard oldValue !== integratedTabJoin else { return }
+            oldValue?.removeObserver(self)
+            integratedTabJoin?.addObserver(self)
+        }
+    }
+
+    private let rim = CardRimView()
+    private var joinedTabID: UUID?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        addSubview(rim)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        updateRim()
+    }
+
+    // The opening is converted from window coordinates.
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        updateRim()
+    }
+
+    func integratedTabJoinDidChange() {
+        updateRim(followsJoinedTab: true)
+    }
+
+    func updateRim(followsJoinedTab: Bool = false) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        rim.frame = bounds
+        let span = integratedTabJoin?.span
+        let opening: ClosedRange<CGFloat>? = span.flatMap { span in
+            guard window != nil else { return nil }
+            let rect = convert(span.rect, from: nil)
+            return rect.minX...rect.maxX
+        }
+        let slides = followsJoinedTab && span?.animatesSelection == true
+            && joinedTabID != nil && span?.tabID != joinedTabID
+        joinedTabID = span?.tabID
+        rim.update(
+            cards: bounds.isEmpty ? [] : [bounds],
+            color: UIColor(palette.keyline(increasedContrast: increasedContrast))
+                .resolvedColor(with: traitCollection),
+            lineWidth: 1 / max(1, traitCollection.displayScale),
+            opening: opening,
+            openingEdgeY: bounds.minY,
+            animated: slides)
+    }
+}
