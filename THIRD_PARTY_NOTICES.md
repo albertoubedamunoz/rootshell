@@ -149,7 +149,7 @@ license does not apply to them; each keeps its own license.
 | [Homebrew logo](https://github.com/Homebrew/brew.sh) | Homebrew contributors | BSD 2-Clause |
 | [Deno logo](https://deno.com/brand) | Deno Land Inc. | MIT |
 
-The fish, htop and Emacs marks are original rootshell artwork.
+The fish, htop, Emacs and Cargo marks are original rootshell artwork.
 
 ## Sound Effects
 
