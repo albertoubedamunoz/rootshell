@@ -50,6 +50,14 @@ struct ResolvedTabBarTheme: Equatable {
     let overrideSheetAccent: Color?
     /// Tabs sit on the Theme Gradient backdrop rather than flat chrome.
     var onBackdrop = false
+    /// What is visible behind the terminal and the tab strip.
+    var surface: EffectiveSurface?
+
+    /// Tab fills derive from the color actually behind them: the scrim over
+    /// the gradient on the backdrop, otherwise the theme background.
+    var tabBase: Color? {
+        onBackdrop ? surface?.chrome ?? baseColor : baseColor
+    }
 
     static let fallback = ResolvedTabBarTheme(
         themeColors: nil,
@@ -115,20 +123,20 @@ struct ResolvedTabBarTheme: Equatable {
 
     var selectedBackground: Color {
         if let override = overrideSelectedBackground { return override }
-        guard let baseColor else { return Color(uiColor: .secondarySystemBackground) }
+        guard let tabBase else { return Color(uiColor: .secondarySystemBackground) }
         if isLight {
-            return baseColor.blendedWithBlack(0.20)
+            return tabBase.blendedWithBlack(0.20)
         }
-        return baseColor.lightenedPreservingHue(adaptivePrimaryBlend)
+        return tabBase.lightenedPreservingHue(adaptivePrimaryBlend)
     }
 
     var unselectedBackground: Color {
         if let override = overrideUnselectedBackground { return override }
-        guard let baseColor else { return Color(uiColor: .tertiarySystemBackground) }
+        guard let tabBase else { return Color(uiColor: .tertiarySystemBackground) }
         if isLight {
-            return baseColor.blendedWithBlack(0.08)
+            return tabBase.blendedWithBlack(0.08)
         }
-        return baseColor.lightenedPreservingHue(adaptiveSecondaryBlend)
+        return tabBase.lightenedPreservingHue(adaptiveSecondaryBlend)
     }
 
     /// Hovering an inactive tab needs to remain visible even when the theme's
@@ -139,8 +147,9 @@ struct ResolvedTabBarTheme: Equatable {
     /// override remains authoritative.
     func inactiveHoverBackground(for style: TopTabStyle) -> Color {
         if let override = overrideUnselectedBackground { return override }
-        guard baseColor != nil else { return unselectedBackground }
-        let surface = style == .integrated ? integratedStripBackground : tabBarBackground
+        guard let tabBase else { return unselectedBackground }
+        // The strip is clear on the backdrop
+        let surface = onBackdrop ? tabBase : style == .integrated ? integratedStripBackground : tabBarBackground
         return isLight
             ? surface.blendedWithBlack(0.16)
             : surface.blendedWithWhite(0.16)
@@ -180,6 +189,9 @@ struct ResolvedSheetTheme {
     let themeColors: SheetThemeColors?
     let accentColor: Color?
     let colorScheme: ColorScheme?
+    /// Fill that shows the sheet background once drawn at the terminal's
+    /// opacity over the backdrop.
+    var translucentBackground: Color?
 
     static let none = ResolvedSheetTheme(themeColors: nil, accentColor: nil, colorScheme: nil)
 }
@@ -187,74 +199,6 @@ struct ResolvedSheetTheme {
 // MARK: - Tab Bar Styling
 
 extension MainView {
-
-    /// Background color for selected tab - needs to stand out from the tab bar
-    var selectedTabBackgroundColor: Color {
-        if let override = effectiveThemeUIOverrides.selectedTabBackground.flatMap({ Color(hex: $0) }) {
-            return override
-        }
-        if let themeColors = effectiveThemeColors,
-           let baseColor = Color(hex: themeColors.background) {
-            if baseColor.isLight {
-                return baseColor.blendedWithBlack(0.20)
-            } else {
-                return baseColor.lightenedPreservingHue(baseColor.adaptivePrimaryBlend)
-            }
-        }
-        return Color(uiColor: .secondarySystemBackground)
-    }
-
-    /// Background color for the tab bar itself
-    var tabBarBackgroundColor: Color {
-        if let override = effectiveThemeUIOverrides.tabBarBackground.flatMap({ Color(hex: $0) }) {
-            return override
-        }
-        if let themeColors = effectiveThemeColors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor
-        }
-        return Color(uiColor: .systemBackground)
-    }
-
-    /// Primary text color for tabs - adapts to theme background
-    var tabTextColor: Color {
-        if let override = effectiveThemeUIOverrides.tabText.flatMap({ Color(hex: $0) }) {
-            return override
-        }
-        if let themeColors = effectiveThemeColors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor.isLight ? Color(white: 0.1) : Color(white: 0.95)
-        }
-        return .primary
-    }
-
-    /// Secondary text color for tabs - adapts to theme background
-    var tabSecondaryTextColor: Color {
-        if let override = effectiveThemeUIOverrides.tabSecondaryText.flatMap({ Color(hex: $0) }) {
-            return override
-        }
-        if let themeColors = effectiveThemeColors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor.isLight ? Color(white: 0.4) : Color(white: 0.6)
-        }
-        return .secondary
-    }
-
-    /// Background color for unselected tabs - subtle but visible
-    var unselectedTabBackgroundColor: Color {
-        if let override = effectiveThemeUIOverrides.unselectedTabBackground.flatMap({ Color(hex: $0) }) {
-            return override
-        }
-        if let themeColors = effectiveThemeColors,
-           let baseColor = Color(hex: themeColors.background) {
-            if baseColor.isLight {
-                return baseColor.blendedWithBlack(0.08)
-            } else {
-                return baseColor.lightenedPreservingHue(baseColor.adaptiveSecondaryBlend)
-            }
-        }
-        return Color(uiColor: .tertiarySystemBackground)
-    }
 
     /// Compute all derived tab bar styling values once for the current body
     /// evaluation. Replaces the previous pattern of calling 5+ independent
@@ -296,7 +240,9 @@ extension MainView {
         var terminalSurfaceIsTransparent = false
         var terminalSurfaceBackground = baseColor
         #endif
-        if effectManager.isBackdropEnabled {
+        let surface = EffectiveSurface.resolve(background: baseColor)
+        let tabBase = surface.onBackdrop ? surface.chrome : baseColor
+        if surface.onBackdrop {
             // The terminal draws its background at this opacity over the backdrop;
             // the active tab does the same so the gradient shows through both alike.
             let opacity = transparencyManager.effectiveBackgroundOpacity
@@ -308,9 +254,9 @@ extension MainView {
             baseColor: baseColor,
             terminalSurfaceBackground: terminalSurfaceBackground,
             terminalSurfaceIsTransparent: terminalSurfaceIsTransparent,
-            isLight: baseColor.isLight,
-            adaptivePrimaryBlend: baseColor.adaptivePrimaryBlend,
-            adaptiveSecondaryBlend: baseColor.adaptiveSecondaryBlend,
+            isLight: tabBase.isLight,
+            adaptivePrimaryBlend: tabBase.adaptivePrimaryBlend,
+            adaptiveSecondaryBlend: tabBase.adaptiveSecondaryBlend,
             overrideTabBarBackground: overrides.tabBarBackground.flatMap { Color(hex: $0) },
             overrideSelectedBackground: overrides.selectedTabBackground.flatMap { Color(hex: $0) },
             overrideUnselectedBackground: overrides.unselectedTabBackground.flatMap { Color(hex: $0) },
@@ -318,16 +264,9 @@ extension MainView {
             overrideTabSecondaryText: overrides.tabSecondaryText.flatMap { Color(hex: $0) },
             overrideSheetAccent: overrides.sheetAccent.flatMap { Color(hex: $0) }
         )
-        resolved.onBackdrop = effectManager.isBackdropEnabled
+        resolved.onBackdrop = surface.onBackdrop
+        resolved.surface = surface
         return resolved
-    }
-
-    /// Per-theme overrides for the currently effective theme (or `.empty` if
-    /// no theme name is resolved). Used by the legacy individual color
-    /// computed properties so a single override change reflects in every
-    /// styling code path.
-    private var effectiveThemeUIOverrides: ThemeUIOverrides {
-        effectiveThemeName.map { themeUIOverridesManager.overrides(for: $0) } ?? .empty
     }
 
     /// Get the effective theme colors for the currently selected tab
@@ -365,15 +304,6 @@ extension MainView {
             windowId: windowId
         )
         return themeName
-    }
-
-    /// Whether the current theme is light (for glassmorphism fallback styling)
-    var isLightTheme: Bool {
-        if let themeColors = effectiveThemeColors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor.isLight
-        }
-        return false
     }
 
     /// Whether the device is an iPhone (for AI Agent presentation mode)

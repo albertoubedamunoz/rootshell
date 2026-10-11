@@ -1537,12 +1537,9 @@ extension MainView {
     /// canvas. Kept separate from `dockedTabSidebar` so the effect can composite
     /// over the fill while tab rows and controls remain crisp above it.
     private func dockedTabSidebarBackground(theme: ResolvedSheetTheme) -> Color {
-        let background = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
-        return background.opacity(
-            transparencyManager.pinnedSidebarTransparencyEnabled
-                ? transparencyManager.effectiveBackgroundOpacity
-                : 1.0
-        )
+        let opaque = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
+        guard transparencyManager.pinnedSidebarTransparencyEnabled else { return opaque }
+        return (theme.translucentBackground ?? opaque).opacity(transparencyManager.effectiveBackgroundOpacity)
     }
 
     /// Bottom clearance for the docked tab sidebar's content so it stays

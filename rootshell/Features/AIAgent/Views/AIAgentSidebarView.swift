@@ -71,10 +71,11 @@ struct AIAgentSidebarView: View {
         .background((roundedPanes ? .clear : dividerBackgroundColor).ignoresSafeArea(.container, edges: .bottom))
     }
 
+    /// Opaque, so it takes the color the translucent terminal beside it shows.
     private var dividerBackgroundColor: Color {
-        if let themeColors = themeManager.currentThemeInfo?.colors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor
+        if let themeColors = themeManager.resolvedColors(tabId: tabID, windowId: nil),
+           let surface = EffectiveSurface.resolve(backgroundHex: themeColors.background) {
+            return surface.terminal
         }
         return Color(uiColor: .systemBackground)
     }

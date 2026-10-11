@@ -15,9 +15,11 @@ enum HerdrTheme {
         let background = overrides.sheetBackground.flatMap { Color(hex: $0) } ?? derived.sheetBackground
         let row = overrides.sheetRowBackground.flatMap { Color(hex: $0) } ?? derived.sheetRowBackground
         let accent = overrides.sheetAccent.flatMap { Color(hex: $0) } ?? derived.sheetAccent
+        let surface = EffectiveSurface.resolve(backgroundHex: colors.background)
         return ResolvedSheetTheme(
             themeColors: SheetThemeColors(background: background, rowBackground: row.opacity(0.92), accentColor: accent),
-            accentColor: accent, colorScheme: derived.isLight ? .light : .dark)
+            accentColor: accent, colorScheme: derived.isLight ? .light : .dark,
+            translucentBackground: surface?.translucentFill(showing: background))
     }
 }
 

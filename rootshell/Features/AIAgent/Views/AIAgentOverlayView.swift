@@ -169,7 +169,7 @@ struct AIAgentOverlayView: View {
                                 // The standalone effort capsule shares the principal slot.
                                 availableWidth: availableWidth - (showsStandaloneEffortCapsule ? 70 : 0),
                                 useWindowThemeColors: useWindowThemeColors,
-                                themeBackgroundHex: themeManager.currentThemeInfo?.colors.background,
+                                themeBackgroundHex: themeColors?.background,
                                 // On narrow layouts the effort switcher lives inside
                                 // this menu instead of its own capsule.
                                 effortContext: chatGPTEffortContext,
@@ -188,7 +188,7 @@ struct AIAgentOverlayView: View {
                                     defaultEffort: effortContext.defaultEffort,
                                     selectedEffort: selectedEffort,
                                     useWindowThemeColors: useWindowThemeColors,
-                                    themeBackgroundHex: themeManager.currentThemeInfo?.colors.background,
+                                    themeBackgroundHex: themeColors?.background,
                                     onChange: handleEffortChange
                                 )
                                 .equatable()
@@ -605,10 +605,15 @@ struct AIAgentOverlayView: View {
 
     // MARK: - Theme-Adaptive Colors
 
+    /// This tab's theme after overrides.
+    private var themeColors: ThemeManager.ThemeInfo.ThemeColors? {
+        themeManager.resolvedColors(tabId: tabID, windowId: nil)
+    }
+
     /// Background color for toolbar controls (adapts to terminal theme)
     private var toolbarControlBackground: Color {
         guard useWindowThemeColors,
-              let themeColors = themeManager.currentThemeInfo?.colors,
+              let themeColors,
               let baseColor = Color(hex: themeColors.background) else {
             return Color(uiColor: .tertiarySystemFill)
         }

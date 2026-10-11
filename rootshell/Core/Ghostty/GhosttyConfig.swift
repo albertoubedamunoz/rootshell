@@ -255,6 +255,13 @@ extension Ghostty {
 #endif
         }
 
+        /// Over the Theme Gradient backdrop, OSC 11 reports the composited color.
+        static func backdropConfigLines(themeName: String) -> [String] {
+            EffectiveSurface.ghosttyConfigLines(
+                backgroundHex: ThemeManager.shared.themeInfo(for: themeName)?.colors.background
+            )
+        }
+
         /// Write a config file with the specified theme, font size, and/or font family
         private func writeConfigFile(themeName: String? = nil, fontSize: Int? = nil, fontFamily: String? = nil) -> Bool {
             guard let configDir = Self.configDirectory else {
@@ -361,6 +368,7 @@ extension Ghostty {
             let transparency = Self.effectiveTransparencySettings()
             configLines.append("background-opacity = \(transparency.opacity)")
             configLines.append("background-blur = \(transparency.blur)")
+            configLines.append(contentsOf: Self.backdropConfigLines(themeName: themeName ?? ThemeManager.shared.currentTheme))
 
             // Window padding for text inset from edges (background still renders to edges).
             // Padding balance stays off so the terminal grid remains pinned during
@@ -526,6 +534,7 @@ extension Ghostty {
             let transparency = Self.effectiveTransparencySettings()
             configLines.append("background-opacity = \(transparency.opacity)")
             configLines.append("background-blur = \(transparency.blur)")
+            configLines.append(contentsOf: backdropConfigLines(themeName: themeName))
 
             // Window padding for text inset from edges (background still renders to edges).
             // Keep this in sync with app config generation above.
