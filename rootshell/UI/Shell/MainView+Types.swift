@@ -57,9 +57,11 @@ extension MainView {
         /// swipe (its Ended notification was lost) and must be force-cleared,
         /// or every tab except its source renders at opacity 0 forever.
         var lastEventAt: TimeInterval = 0
+        /// Space between the sliding tabs: the Rounded Panes card gap, else 0.
+        var gap: CGFloat = 0
 
         var clampedTranslationX: CGFloat {
-            let limit = max(width, 1)
+            let limit = max(width, 1) + gap
             switch direction {
             case .left:
                 return min(0, max(-limit, translationX))
@@ -69,20 +71,20 @@ extension MainView {
         }
 
         var targetEntryOffset: CGFloat {
-            direction == .left ? width : -width
+            direction == .left ? width + gap : -(width + gap)
         }
 
         /// How far a sliding tab is moved at `width`; nil for other tabs.
         func offsetX(for tabID: UUID, width: CGFloat) -> CGFloat? {
-            let effectiveWidth = max(max(width, self.width), 1)
+            let travel = max(max(width, self.width), 1) + gap
             let translation: CGFloat = switch direction {
             case .left:
-                min(0, max(-effectiveWidth, translationX))
+                min(0, max(-travel, translationX))
             case .right:
-                max(0, min(effectiveWidth, translationX))
+                max(0, min(travel, translationX))
             }
             if tabID == sourceTabID { return translation }
-            if tabID == targetTabID { return translation + (direction == .left ? effectiveWidth : -effectiveWidth) }
+            if tabID == targetTabID { return translation + (direction == .left ? travel : -travel) }
             return nil
         }
 

@@ -318,7 +318,8 @@ extension MainView {
             reservedBottomToolbarHeight: reservedBottomToolbarHeight,
             translationX: 0,
             width: max(width, 1),
-            lastEventAt: CACurrentMediaTime()
+            lastEventAt: CACurrentMediaTime(),
+            gap: roundedPanes ? PaneCardStyle.gap : 0
         )
         LifecycleDebugLogger.shared.checkpoint("FG.appTabSwipe.begin", ms: nil, [
             ("source", String(sourceID.uuidString.prefix(8))),
@@ -346,7 +347,8 @@ extension MainView {
 
     private func commitAppTabSwipe(_ state: AppTabSwipeState) {
         var settling = state
-        settling.translationX = state.direction == .left ? -max(state.width, 1) : max(state.width, 1)
+        let travel = max(state.width, 1) + state.gap
+        settling.translationX = state.direction == .left ? -travel : travel
         settling.isSettling = true
 
         let animationsDisabled = SettingsStore.shared.value(Settings.Tabs.barAnimationsDisabled)
