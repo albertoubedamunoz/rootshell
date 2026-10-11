@@ -1112,7 +1112,8 @@ extension MainView {
                         routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
                             && showsHorizontalTabHeader,
                         integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
-                        paneCardGlassFrames: paneCardGlassFrames
+                        paneCardGlassFrames: paneCardGlassFrames,
+                        paneCardGlassTabID: tab.id
                     )
                     // NOTE: the tmux control-mode client size is NOT driven from here.
                     // A tmux pane is a real ghostty surface, so its grid is recomputed
@@ -1153,6 +1154,10 @@ extension MainView {
                     // on the current selected/source tab until release commits.
                     .opacity(visualMetrics.opacity)
                     .offset(x: visualMetrics.offsetX)
+                    // Measured outside the offset: the glass layer slides it itself.
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                        paneCardGlassFrames.updateHostFrame(frame, for: tab.id)
+                    }
                     .zIndex(visualMetrics.zIndex)
                     .allowsHitTesting(index == selectedTabIndex && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
                     .padding(.bottom, bottomPadding)
@@ -1179,23 +1184,8 @@ extension MainView {
         guard let state = appTabSwipeState else {
             return (tabID == tabsModel.displayedTabID ? 1 : 0, 0, tabID == tabsModel.displayedTabID ? 1 : 0)
         }
-
-        let effectiveWidth = max(max(width, state.width), 1)
-        let translation: CGFloat = switch state.direction {
-        case .left:
-            min(0, max(-effectiveWidth, state.translationX))
-        case .right:
-            max(0, min(effectiveWidth, state.translationX))
-        }
-        let targetEntryOffset = state.direction == .left ? effectiveWidth : -effectiveWidth
-
-        if tabID == state.sourceTabID {
-            return (1, translation, 2)
-        }
-        if tabID == state.targetTabID {
-            return (1, translation + targetEntryOffset, 1)
-        }
-        return (0, 0, 0)
+        guard let offsetX = state.offsetX(for: tabID, width: width) else { return (0, 0, 0) }
+        return (1, offsetX, tabID == state.sourceTabID ? 2 : 1)
     }
 
     /// A pane may be a leaf of exactly one tab's split tree. Two tabs sharing a

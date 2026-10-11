@@ -173,8 +173,7 @@ private struct PaneCardDepth<CardShape: InsettableShape>: ViewModifier {
     private func glass(_ tint: Color) -> some View {
         #if !os(visionOS)
         if #available(iOS 26.0, *) {
-            Color.clear
-                .glassEffect(.regular.tint(tint), in: shape)
+            PaneCardGlassHost(content: Color.clear.glassEffect(.regular.tint(tint), in: shape))
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
@@ -203,15 +202,31 @@ extension View {
 
 // MARK: - Glass
 
-/// The visible tab's card frames in window coordinates, published by its split
-/// view for the glass layer.
+/// Each tab's terminal card frames for the glass layer. Cards come from the
+/// split view in its own coordinates and the host frame from SwiftUI before
+/// the app-tab swipe offset, so neither goes stale mid-slide.
 @Observable
 final class PaneCardGlassFrames {
-    private(set) var cards: [CGRect] = []
+    struct Tab: Equatable {
+        var cards: [CGRect] = []
+        var hostFrame: CGRect?
+    }
 
-    func update(_ newCards: [CGRect]) {
-        guard newCards != cards else { return }
-        cards = newCards
+    private(set) var tabs: [UUID: Tab] = [:]
+
+    func updateCards(_ cards: [CGRect], for tabID: UUID) {
+        guard tabs[tabID, default: Tab()].cards != cards else { return }
+        tabs[tabID, default: Tab()].cards = cards
+    }
+
+    func updateHostFrame(_ frame: CGRect, for tabID: UUID) {
+        guard tabs[tabID]?.hostFrame != frame else { return }
+        tabs[tabID, default: Tab()].hostFrame = frame
+    }
+
+    func retain(_ tabIDs: Set<UUID>) {
+        guard tabs.keys.contains(where: { !tabIDs.contains($0) }) else { return }
+        tabs = tabs.filter { tabIDs.contains($0.key) }
     }
 }
 
@@ -219,9 +234,18 @@ final class PaneCardGlassFrames {
 /// tab and its card are one glass shape, so a single edge runs around both.
 struct PaneCardGlassLayer: View {
     let frames: PaneCardGlassFrames
+    let swipe: MainView.AppTabSwipeStore
+    let tabsModel: TabsModel
     let join: IntegratedTabJoin
     let joinsTab: Bool
     let tint: Color
+
+    /// A visible tab's viewport and cards in layer coordinates, before its slide.
+    private struct TabGroup: Identifiable {
+        let id: UUID
+        let host: CGRect
+        let cards: [CGRect]
+    }
 
     var body: some View {
         #if !os(visionOS)
@@ -229,25 +253,50 @@ struct PaneCardGlassLayer: View {
             GeometryReader { proxy in
                 let origin = proxy.frame(in: .global).origin
                 let tab = joinsTab ? join.span?.rect.offsetBy(dx: -origin.x, dy: -origin.y) : nil
-                let cards = frames.cards.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) }
-                // One container renders the cards together; zero spacing keeps
-                // them from merging across the gaps.
-                GlassEffectContainer(spacing: 0) {
-                    ZStack(alignment: .topLeading) {
-                        ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
-                            glass(PaneCardGlassShape(card: card, tab: tab))
+                let state = swipe.state
+                // Sliding glass clips to its tab's viewport, as the terminals do.
+                let isSliding = state != nil
+                let visibleTabIDs = state.map { [$0.sourceTabID, $0.targetTabID] }
+                    ?? [tabsModel.displayedTabID].compactMap { $0 }
+                let groups = visibleTabIDs.compactMap { id -> TabGroup? in
+                    guard let entry = frames.tabs[id], let hostFrame = entry.hostFrame else { return nil }
+                    let host = hostFrame.offsetBy(dx: -origin.x, dy: -origin.y)
+                    return TabGroup(id: id, host: host,
+                                    cards: entry.cards.map { $0.offsetBy(dx: host.minX, dy: host.minY) })
+                }
+                // The tab bar doesn't slide, so the tab joins only at rest.
+                let joinedTab = isSliding ? nil : tab
+                ZStack(alignment: .topLeading) {
+                    ForEach(groups) { group in
+                        // One container renders the cards together; zero spacing
+                        // keeps them from merging across the gaps.
+                        GlassEffectContainer(spacing: 0) {
+                            ZStack(alignment: .topLeading) {
+                                ForEach(Array(group.cards.enumerated()), id: \.offset) { _, card in
+                                    glass(PaneCardGlassShape(card: card, tab: joinedTab))
+                                }
+                            }
+                            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                         }
-                        // Over a non-glass pane the tab still needs its own glass.
-                        if let tab, !cards.contains(where: { PaneCardGlassShape.joins(tab: tab, card: $0) }) {
+                        .offset(x: state?.offsetX(for: group.id, width: group.host.width) ?? 0)
+                        .clipShape(PaneCardGlassClip(rect: isSliding ? group.host : nil))
+                    }
+                    // Over a non-glass pane the tab still needs its own glass.
+                    if let tab, !(joinedTab != nil && groups.contains(where: { group in
+                        group.cards.contains { PaneCardGlassShape.joins(tab: tab, card: $0) }
+                    })) {
+                        GlassEffectContainer(spacing: 0) {
                             glass(PaneCardGlassShape(card: nil, tab: tab))
+                                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                         }
                     }
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 }
             }
             .ignoresSafeArea()
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            // Track the finger exactly, as the sliding terminals do.
+            .transaction {
+                if swipe.state?.isSettling == false { $0.animation = nil }
+            }
         }
         #endif
     }
@@ -261,6 +310,34 @@ struct PaneCardGlassLayer: View {
             .glassEffect(.regular.tint(tint), in: shape.offset(by: bounds.origin))
             .padding(.leading, max(0, bounds.minX))
             .padding(.top, max(0, bounds.minY))
+    }
+}
+
+/// Hosts pane glass in a window that always reads as active: macOS otherwise
+/// renders glass in inactive windows far brighter.
+struct PaneCardGlassHost<Content: View>: UIViewControllerRepresentable {
+    let content: Content
+
+    func makeUIViewController(context: Context) -> UIHostingController<Content> {
+        let host = UIHostingController(rootView: content)
+        host.view.backgroundColor = .clear
+        host.view.isUserInteractionEnabled = false
+        host.safeAreaRegions = []
+        host.traitOverrides.activeAppearance = .active
+        return host
+    }
+
+    func updateUIViewController(_ host: UIHostingController<Content>, context: Context) {
+        host.rootView = content
+    }
+}
+
+/// Clips to `rect`, or to the whole frame when nil.
+private struct PaneCardGlassClip: Shape {
+    let rect: CGRect?
+
+    func path(in bounds: CGRect) -> Path {
+        Path(rect ?? bounds)
     }
 }
 

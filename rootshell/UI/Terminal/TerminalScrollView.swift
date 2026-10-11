@@ -98,6 +98,8 @@ extension Ghostty {
 
     /// Work item used to restore UIKit's native indicator after silent core sync.
     private var restoreNativeScrollIndicatorWorkItem: DispatchWorkItem?
+    /// Silent syncs leave the indicator alone until then, after an action-scroll reveal.
+    private var nativeScrollIndicatorRevealHoldUntil: TimeInterval = 0
 
     #if !targetEnvironment(macCatalyst)
     /// One-shot: the next scrollbar sync came from the iOS status-bar
@@ -684,10 +686,13 @@ extension Ghostty {
             forName: .ghosttyDidUpdateScrollbar,
             object: terminalView,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
             guard let self else { return }
+            // Read now: a later update may land before the task runs.
+            let revealsIndicator = notification.userInfo?[
+                ScrollbarUpdateKey.revealsIndicator] as? Bool ?? false
             Task { @MainActor in
-                self.handleScrollbarUpdate()
+                self.handleScrollbarUpdate(revealsIndicator: revealsIndicator)
             }
         }
         observers.append(scrollbarObserver)
@@ -844,6 +849,7 @@ extension Ghostty {
         let forwardsScroll = isCaptured || terminalView.usesHerdrFallbackScrolling
         let nativeScrollActive = !forwardsScroll || multiplexerActive
         scrollView.showsVerticalScrollIndicator = nativeScrollActive
+        terminalView.nativeScrollIndicatorActive = nativeScrollActive
         scrollView.isScrollEnabled = nativeScrollActive
         scrollView.panGestureRecognizer.isEnabled = !forwardsScroll
         updateRubberBandScrollBehavior()
@@ -1382,7 +1388,7 @@ extension Ghostty {
     // MARK: - Scrollbar Update Handling
 
     /// Handle scrollbar state updates from Ghostty core
-    private func handleScrollbarUpdate() {
+    private func handleScrollbarUpdate(revealsIndicator: Bool) {
         clearStaleLiveScrollStateIfNeeded()
 
         let applyUpdate = {
@@ -1407,6 +1413,16 @@ extension Ghostty {
         if isLiveScrolling || terminalView.multiplexerScrollActive || terminalView.isActivelySelecting {
             applyUpdate()
             holdSelectionScrollIndicatorVisible(force: false)
+        } else if revealsIndicator, terminalView.nativeScrollIndicatorActive {
+            // A keyboard or action scroll: show it, as the terminal's own
+            // indicator would without a native one. A silent sync may have
+            // it hidden pending restore; restore it now.
+            restoreNativeScrollIndicatorWorkItem?.cancel()
+            restoreNativeScrollIndicatorWorkItem = nil
+            scrollView.showsVerticalScrollIndicator = true
+            nativeScrollIndicatorRevealHoldUntil = Date().timeIntervalSinceReferenceDate + 1.5
+            applyUpdate()
+            forceNativeVerticalScrollIndicatorVisible()
         } else {
             performWithoutNativeScrollIndicatorFlash(applyUpdate)
         }
@@ -1514,7 +1530,8 @@ extension Ghostty {
 
     private func performWithoutNativeScrollIndicatorFlash(_ updates: () -> Void) {
         let wasShowingIndicator = scrollView.showsVerticalScrollIndicator
-        guard wasShowingIndicator else {
+        guard wasShowingIndicator,
+              Date().timeIntervalSinceReferenceDate >= nativeScrollIndicatorRevealHoldUntil else {
             updates()
             return
         }

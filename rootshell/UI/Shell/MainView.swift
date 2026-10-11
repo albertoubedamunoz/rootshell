@@ -237,7 +237,11 @@ struct MainView: View {
     // Tab indicator overlay (shown when switching tabs with tab bar hidden)
     // and its one-shot suppression flags (see TabIndicatorController).
     @State var tabIndicator = TabIndicatorController()
-    @State var appTabSwipeState: AppTabSwipeState?
+    @State var appTabSwipeStore = AppTabSwipeStore()
+    var appTabSwipeState: AppTabSwipeState? {
+        get { appTabSwipeStore.state }
+        nonmutating set { appTabSwipeStore.state = newValue }
+    }
 
     // Tab exposé (live previews of the current scope; see TabExposeController).
     @State var tabExpose = TabExposeController()
@@ -476,12 +480,17 @@ struct MainView: View {
                 fullBleedBackground(geometry: geometry, theme: resolvedTheme)
                 windowBackdrop(geometry: geometry, theme: resolvedTheme)
                 if transparencyManager.paneGlassActive {
-                    PaneCardGlassLayer(
+                    PaneCardGlassHost(content: PaneCardGlassLayer(
                         frames: paneCardGlassFrames,
+                        swipe: appTabSwipeStore,
+                        tabsModel: tabsModel,
                         join: integratedTabJoin,
                         joinsTab: integratedTabsJoinCards && showsHorizontalTabHeader,
                         tint: (resolvedTheme.baseColor ?? Color(uiColor: .systemBackground))
-                            .opacity(transparencyManager.backgroundOpacity))
+                            .opacity(transparencyManager.backgroundOpacity)))
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
 
                 VStack(spacing: 0) {

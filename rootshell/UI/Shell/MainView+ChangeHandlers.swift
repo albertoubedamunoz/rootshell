@@ -85,6 +85,7 @@ extension MainView {
                     windowClosingAfterTabTransfer = false
                 }
                 handleTerminalCountChange(oldCount: oldCount, newCount: newCount)
+                paneCardGlassFrames.retain(Set(terminals.map(\.id)))
             }
             // Splitting or closing a pane need not change the number of tabs.
             // Keep profile badges current for those topology changes as well.

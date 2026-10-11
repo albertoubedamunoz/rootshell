@@ -35,6 +35,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     /// Set while Integrated tabs join the cards; the top rim opens under the tab.
     var integratedTabJoin: IntegratedTabJoin?
     var paneCardGlassFrames: PaneCardGlassFrames?
+    var paneCardGlassTabID: UUID?
 
     func makeUIView(context: Context) -> SplitTreeHostingView {
         SplitTreeHostingView()
@@ -48,6 +49,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.cardRimIncreasedContrast = colorSchemeContrast == .increased
         uiView.integratedTabJoin = integratedTabJoin
         uiView.paneCardGlassFrames = paneCardGlassFrames
+        uiView.paneCardGlassTabID = paneCardGlassTabID
         uiView.onResize = onResize
         uiView.onMove = onMove
         uiView.allowsPaneRearrangement = allowsPaneRearrangement
@@ -115,8 +117,9 @@ final class SplitTreeHostingView: UIView {
     }
     private var cardRimView: CardRimView?
     private var cardRimJoinedTabID: UUID?
-    /// Receives this tab's card frames while it is the visible one.
+    /// Receives this tab's card frames, in this view's coordinates.
     var paneCardGlassFrames: PaneCardGlassFrames?
+    var paneCardGlassTabID: UUID?
 
     var minSplitSize: CGFloat = 100
     var onResize: ((SplitTree<SplitPaneView>.Node, Double) -> Void)?
@@ -1782,9 +1785,9 @@ final class SplitTreeHostingView: UIView {
         let allCards = roundsPanes ? cardDepthCards() : []
         // Glass only behind terminals: opaque panes (screen sharing) would hide
         // it while their frame rate keeps re-rendering it.
-        if isActiveTab, let paneCardGlassFrames {
-            paneCardGlassFrames.update(glass && window != nil
-                ? allCards.filter(\.isTerminal).map { convert($0.container.frame, to: nil) } : [])
+        if let paneCardGlassTabID, let paneCardGlassFrames {
+            paneCardGlassFrames.updateCards(
+                glass ? allCards.filter(\.isTerminal).map(\.container.frame) : [], for: paneCardGlassTabID)
         }
         // Glass draws its own edge.
         let cards = glass ? allCards.filter { !$0.isTerminal } : allCards
@@ -2196,4 +2199,10 @@ extension Notification.Name {
     static let showToolbarSettings = Notification.Name("com.rootshell.showToolbarSettings")
     static let forceASCIIKeyboardChanged = Notification.Name("com.rootshell.forceASCIIKeyboardChanged")
     static let ghosttySessionDiscoveryChanged = Notification.Name("com.rootshell.sessionDiscoveryChanged")
+}
+
+/// `ghosttyDidUpdateScrollbar` userInfo keys.
+nonisolated enum ScrollbarUpdateKey {
+    /// True when the update follows a user or action scroll.
+    static let revealsIndicator = "revealsIndicator"
 }
