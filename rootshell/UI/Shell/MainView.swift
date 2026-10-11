@@ -486,6 +486,7 @@ struct MainView: View {
                         tabsModel: tabsModel,
                         join: integratedTabJoin,
                         joinsTab: integratedTabsJoinCards && showsHorizontalTabHeader,
+                        mergesCards: tabExpose.mergesSurface,
                         tint: (resolvedTheme.baseColor ?? Color(uiColor: .systemBackground))
                             .opacity(transparencyManager.backgroundOpacity)))
                     .ignoresSafeArea()

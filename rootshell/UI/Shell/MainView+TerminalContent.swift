@@ -1229,6 +1229,8 @@ extension MainView {
             effectOverlay(leadingExtension: effectLeadingExtension)
             terminalOverlays()
                 .modifier(DuoControlClearance())
+                // A see-through exposé backdrop would show them.
+                .opacity(tabExpose.isActive ? 0 : 1)
             if tabTransferDropOverlayVisible {
                 Color.clear
                     .contentShape(Rectangle())

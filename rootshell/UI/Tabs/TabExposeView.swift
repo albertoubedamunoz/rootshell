@@ -41,8 +41,13 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
 
     struct Appearance {
         var backgroundColor: UIColor = .black
-        /// Window background opacity (macOS transparency); 1 = opaque.
+        /// Preview cell fill opacity; 1 = opaque.
         var backgroundOpacity: CGFloat = 1
+        /// Opacity of the terminal surface the backdrop stands in for; 0 under
+        /// Glass Panes, whose card the window draws.
+        var surfaceOpacity: CGFloat = 1
+        /// Rounded Panes: the backdrop and hero take the terminal card's corners.
+        var cornerRadius: CGFloat = 0
         var accentColor: UIColor = .systemBlue
         var textColor: UIColor = .white
         var showsCaptions: Bool = true
@@ -63,9 +68,10 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     /// translucent background isn't stacked on a second fill.
     private let backdropMask = CAShapeLayer()
     private let hero = TabPreviewMirrorView()
-    /// The live terminal host hidden behind the hero while translucent, so
-    /// the backdrop sees the desktop rather than the terminal.
-    private weak var concealedHost: UIView?
+    /// The live terminal hosts hidden behind the hero while translucent, so
+    /// the backdrop sees the desktop rather than the terminal: the hero's,
+    /// and the displayed tab's until a selection's display handoff.
+    private let concealedHosts = NSHashTable<UIView>.weakObjects()
     /// The active scope's page.
     private var primary = TabExposeTrayView()
     /// A neighbor scope's page while a swipe / ⌘⌥[ ] is in flight.
@@ -369,9 +375,14 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
 
     private func applyAppearance() {
         guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
-        backdrop.backgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.backgroundOpacity)
+        backdrop.backgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.surfaceOpacity)
         // Mirrored pixels already carry the terminal's translucent background.
         hero.backgroundColor = isTranslucent ? .clear : appearance.backgroundColor
+        for view in [backdrop, hero] {
+            view.layer.cornerRadius = appearance.cornerRadius
+            view.layer.cornerCurve = .continuous
+            view.layer.masksToBounds = true
+        }
         pageControl.currentPageIndicatorTintColor = appearance.textColor.withAlphaComponent(0.9)
         pageControl.pageIndicatorTintColor = appearance.textColor.withAlphaComponent(0.3)
         syncTerminalConcealment()
@@ -383,17 +394,24 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
 
     // MARK: - Layout
 
-    private var isTranslucent: Bool { appearance.backgroundOpacity < 1 }
+    private var isTranslucent: Bool { appearance.surfaceOpacity < 1 }
 
     /// The hero mirror is pixel-for-pixel the terminal, so hiding the real
     /// host under it is invisible; restores when inactive or opaque.
     private func syncTerminalConcealment() {
-        let target: UIView? = (controller.isActive && isTranslucent)
-            ? hero.tab?.splitTree.first?.enclosingSplitHost : nil
-        guard target !== concealedHost else { return }
-        concealedHost?.alpha = 1
-        concealedHost = target
-        target?.alpha = 0
+        var targets: [UIView] = []
+        if controller.isActive, isTranslucent {
+            let displayed = controller.tabsModel?.displayedTabID.flatMap { controller.tabsModel?.tab(withID: $0) }
+            targets = [hero.tab, displayed].compactMap { $0?.splitTree.first?.enclosingSplitHost }
+        }
+        for host in concealedHosts.allObjects where !targets.contains(host) {
+            host.alpha = 1
+            concealedHosts.remove(host)
+        }
+        for host in targets where !concealedHosts.contains(host) {
+            host.alpha = 0
+            concealedHosts.add(host)
+        }
     }
 
     private var isCompact: Bool {
@@ -466,7 +484,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         // using it for the fill (opaque, or at the window opacity on macOS)
         // could expose terminal pixels around the home-indicator strip even
         // though preview geometry was otherwise right.
-        backdrop.frame = bounds
+        // Rounded Panes cards stop at the terminal host, so the fill does too.
+        backdrop.frame = appearance.cornerRadius > 0 ? heroRect : bounds
         hero.transform = .identity
         hero.frame = heroRect
         if let hud = zoomHUDHost?.view {
@@ -514,7 +533,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         backdrop.isHidden = p <= 0
         if isTranslucent, !hero.isHidden {
             let path = UIBezierPath(rect: backdrop.bounds)
-            path.append(UIBezierPath(rect: heroRect.offsetBy(dx: 0, dy: clamped * H)))
+            let heroFrame = heroRect.offsetBy(dx: -backdrop.frame.minX, dy: clamped * H - backdrop.frame.minY)
+            path.append(UIBezierPath(roundedRect: heroFrame, cornerRadius: appearance.cornerRadius))
             backdropMask.frame = backdrop.bounds
             backdropMask.path = path.cgPath
             backdrop.layer.mask = backdropMask

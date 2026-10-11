@@ -238,6 +238,8 @@ struct PaneCardGlassLayer: View {
     let tabsModel: TabsModel
     let join: IntegratedTabJoin
     let joinsTab: Bool
+    /// The exposé: one card over the whole terminal area in place of the splits.
+    let mergesCards: Bool
     let tint: Color
 
     /// A visible tab's viewport and cards in layer coordinates, before its slide.
@@ -268,15 +270,13 @@ struct PaneCardGlassLayer: View {
                 let joinedTab = isSliding ? nil : tab
                 ZStack(alignment: .topLeading) {
                     ForEach(groups) { group in
-                        // One container renders the cards together; zero spacing
-                        // keeps them from merging across the gaps.
-                        GlassEffectContainer(spacing: 0) {
-                            ZStack(alignment: .topLeading) {
-                                ForEach(Array(group.cards.enumerated()), id: \.offset) { _, card in
-                                    glass(PaneCardGlassShape(card: card, tab: joinedTab))
-                                }
-                            }
-                            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                        ZStack(alignment: .topLeading) {
+                            cardGlass(group.cards, tab: joinedTab, size: proxy.size)
+                                .opacity(mergesCards ? 0 : 1)
+                                .animation(Self.splitSwap(mergesCards), value: mergesCards)
+                            cardGlass([group.host], tab: joinedTab, size: proxy.size)
+                                .opacity(mergesCards ? 1 : 0)
+                                .animation(Self.mergeFade, value: mergesCards)
                         }
                         .offset(x: state?.offsetX(for: group.id, width: group.host.width) ?? 0)
                         .clipShape(PaneCardGlassClip(rect: isSliding ? group.host : nil))
@@ -285,10 +285,15 @@ struct PaneCardGlassLayer: View {
                     if let tab, !(joinedTab != nil && groups.contains(where: { group in
                         group.cards.contains { PaneCardGlassShape.joins(tab: tab, card: $0) }
                     })) {
+                        // The merged card joins the tab itself (Screen Sharing tabs have no split glass).
+                        let mergedJoinsTab = joinedTab != nil
+                            && groups.contains { PaneCardGlassShape.joins(tab: tab, card: $0.host) }
                         GlassEffectContainer(spacing: 0) {
                             glass(PaneCardGlassShape(card: nil, tab: tab))
                                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                         }
+                        .opacity(mergesCards && mergedJoinsTab ? 0 : 1)
+                        .animation(Self.splitSwap(mergesCards), value: mergesCards)
                     }
                 }
             }
@@ -299,6 +304,28 @@ struct PaneCardGlassLayer: View {
             }
         }
         #endif
+    }
+
+    /// The merged card fades over the split glass, which hides only once it is
+    /// opaque and returns before it fades out, so the fill never dips to the backdrop.
+    private static let mergeFade = Animation.easeInOut(duration: 0.2)
+
+    private static func splitSwap(_ merging: Bool) -> Animation? {
+        merging ? .linear(duration: 0).delay(0.2) : nil
+    }
+
+    /// One container renders the cards together; zero spacing keeps them
+    /// from merging across the gaps.
+    @available(iOS 26.0, *)
+    private func cardGlass(_ cards: [CGRect], tab: CGRect?, size: CGSize) -> some View {
+        GlassEffectContainer(spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
+                    glass(PaneCardGlassShape(card: card, tab: tab))
+                }
+            }
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
+        }
     }
 
     /// Sized to the shape, never the window: glass works over its whole frame.
