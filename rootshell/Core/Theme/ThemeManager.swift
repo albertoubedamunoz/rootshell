@@ -248,6 +248,12 @@ final class ThemeManager {
         }
     }
 
+    /// Colors for the theme a tab or window shows after overrides.
+    func resolvedColors(tabId: UUID?, windowId: String?) -> ThemeInfo.ThemeColors? {
+        let (name, _) = ThemeOverrideManager.shared.resolveTheme(tabId: tabId, windowId: windowId)
+        return name == currentTheme ? currentThemeInfo?.colors : themeInfo(for: name)?.colors
+    }
+
     /// Get ThemeInfo for a specific theme name, parsing the single backing file
     /// on a miss. The theme name is the file name, so the path is derivable
     /// without enumerating the whole directory.

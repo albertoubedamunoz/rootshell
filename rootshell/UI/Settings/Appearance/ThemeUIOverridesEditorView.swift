@@ -21,7 +21,7 @@ struct ThemeUIOverridesEditorView: View {
     }
 
     private var derived: DerivedThemeUIColors? {
-        ThemeUIColorDerivation.derive(from: theme.colors)
+        ThemeUIColorDerivation.derive(from: theme.colors, effective: false)
     }
 
     var body: some View {

@@ -28,6 +28,7 @@ static float4 themeGradientOver(float4 dst, float4 src) {
     return src + dst * (1.0 - src.a);
 }
 
+// ThemeGradientPalette.backdropShade mirrors the backdrop path; keep in sync.
 static half4 themeGradientShade(
     float2 position,
     float2 size,

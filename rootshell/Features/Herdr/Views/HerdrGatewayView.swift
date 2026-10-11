@@ -39,7 +39,7 @@ struct HerdrGatewayView: View {
             // switches below must snap, not animate.
             .transaction { $0.animation = nil }
             // Matches the terminal fill so a backdrop or the desktop shows through.
-            .background((theme.themeColors?.background ?? Color(uiColor: .systemBackground))
+            .background((theme.translucentBackground ?? theme.themeColors?.background ?? Color(uiColor: .systemBackground))
                 .opacity(TransparencyManager.shared.effectiveBackgroundOpacity))
             .environment(\.sheetThemeColors, theme.themeColors)
             .tint(theme.accentColor)

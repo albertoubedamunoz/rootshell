@@ -178,6 +178,74 @@ struct ThemeGradientPalette: Equatable {
         self.mid = Self.rgb(mid)
     }
 
+    // MARK: Backdrop sample
+
+    /// Area-averaged backdrop shading, in sRGB like the backdrop drawable.
+    struct Sample: Equatable {
+        var average: SIMD3<Double>
+        /// The strip under the status bar and top tabs.
+        var topBand: SIMD3<Double>
+    }
+
+    private static var cachedSample: (palette: ThemeGradientPalette, sample: Sample)?
+
+    /// Undrifted backdrop averaged over a nominal 16:10 window.
+    var backdropSample: Sample {
+        if let cached = Self.cachedSample, cached.palette == self { return cached.sample }
+        let size = SIMD2<Double>(1280, 800)
+        let columns = 32, rows = 20, topRows = 2
+        var total = SIMD3<Double>.zero, top = SIMD3<Double>.zero
+        for row in 0..<rows {
+            for column in 0..<columns {
+                let x: Double = (Double(column) + 0.5) / Double(columns) * size.x
+                let y: Double = (Double(row) + 0.5) / Double(rows) * size.y
+                let position = SIMD2<Double>(x, y)
+                let rgb = backdropShade(at: position, size: size)
+                total += rgb
+                if row < topRows { top += rgb }
+            }
+        }
+        let sample = Sample(average: total / Double(columns * rows), topBand: top / Double(columns * topRows))
+        Self.cachedSample = (self, sample)
+        return sample
+    }
+
+    /// CPU copy of themeGradientShade's backdrop path in ThemeGradient.metal; keep in sync.
+    private func backdropShade(at position: SIMD2<Double>, size: SIMD2<Double>) -> SIMD3<Double> {
+        func stop(_ c: SIMD3<Double>, _ a: Double) -> SIMD4<Double> { SIMD4(c.x * a, c.y * a, c.z * a, a) }
+        func mix(_ a: SIMD4<Double>, _ b: SIMD4<Double>, _ t: Double) -> SIMD4<Double> { a + (b - a) * t }
+        func ramp(_ t: Double, _ c0: SIMD4<Double>, _ l1: Double, _ c1: SIMD4<Double>, _ l2: Double, _ c2: SIMD4<Double>) -> SIMD4<Double> {
+            let t = min(max(t, 0), 1)
+            if t < l1 { return mix(c0, c1, t / l1) }
+            if t < l2 { return mix(c1, c2, (t - l1) / (l2 - l1)) }
+            return mix(c2, .zero, (t - l2) / (1 - l2))
+        }
+        func over(_ dst: SIMD4<Double>, _ src: SIMD4<Double>) -> SIMD4<Double> { src + dst * (1 - src.w) }
+        func distance(to anchor: SIMD2<Double>) -> Double {
+            let d = position - anchor * size
+            return (d.x * d.x + d.y * d.y).squareRoot()
+        }
+
+        let s = min(size.x, size.y), h = size.y
+        var col = SIMD4(primary.x, primary.y, primary.z, 1)
+        col = over(col, ramp(distance(to: SIMD2(0.10, 0.10)) / (0.9 * s),
+                             stop(accent, 0.6), 0.3, stop(accent, 0.3), 0.7, stop(mid, 0.15)))
+        col = over(col, ramp((distance(to: SIMD2(0.70, 1.10)) - 0.2 * h) / (0.6 * h),
+                             stop(primary, 0.4), 0.3, stop(primary, 0.2), 0.6, stop(mid, 0.1)))
+        col = over(col, ramp(distance(to: SIMD2(1.00, 0.60)) / (0.5 * s),
+                             stop(mid, 0.2), 0.5, stop(accent, 0.1), 0.75, stop(accent, 0.05)))
+        col = over(col, ramp(distance(to: SIMD2(0.35, 0.45)) / (0.35 * s),
+                             stop(accent, 0.25), 0.4, stop(mid, 0.15), 0.7, stop(mid, 0.075)))
+
+        let y = position.y / size.y
+        let shade: Double = y < 0.3 ? 0.1 * (y / 0.3)
+            : y < 0.7 ? 0.1 + 0.2 * ((y - 0.3) / 0.4)
+            : 0.3 + 0.2 * ((y - 0.7) / 0.3)
+        var rgb = SIMD3(col.x, col.y, col.z) * (1 - shade)
+        if isLight { rgb = 1 - (1 - rgb) * 0.45 }
+        return rgb
+    }
+
     // MARK: Color math
 
     private static func hueDistance(_ a: Double, _ b: Double) -> Double {

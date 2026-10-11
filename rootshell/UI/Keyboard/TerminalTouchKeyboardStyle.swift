@@ -12,7 +12,8 @@ struct TerminalTouchKeyboardPalette: Equatable {
     let isLight: Bool
 
     init?(colors: ThemeManager.ThemeInfo.ThemeColors) {
-        guard let base = Color(hex: colors.background), let derived = ThemeUIColorDerivation.derive(from: colors) else { return nil }
+        guard let base = EffectiveSurface.resolve(backgroundHex: colors.background)?.terminal,
+              let derived = ThemeUIColorDerivation.derive(from: colors) else { return nil }
         let key = derived.sheetRowBackground
         let preferred = Color(hex: colors.foreground) ?? derived.tabText
         func rgb(_ color: Color) -> TerminalTouchKeyboardModel.RGB {
