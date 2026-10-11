@@ -205,9 +205,6 @@ enum QuickSettingsCatalog {
                 SettingsStore.shared.get(Settings.Window.splitFocusBorderColor) == .custom ? nil : String(localized: "Choose Custom Split Border Color first.")
             },
             toggle(Settings.Window.roundedPanes),
-            toggle(Settings.Window.paneGlass).requiring {
-                SettingsStore.shared.get(Settings.Window.roundedPanes) ? nil : String(localized: "Turn on Rounded Panes first.")
-            },
             toggle(Settings.Window.confirmBeforeClosingPane),
             toggle(Settings.Window.confirmBeforeClosingTab),
         ]
@@ -220,6 +217,7 @@ enum QuickSettingsCatalog {
             toggle(Settings.Tabs.showScopeMenu),
             toggle(Settings.Tabs.showShortcutIndicators),
             toggle(Settings.Tabs.exposeShowsCaptions),
+            toggle(Settings.Tabs.programIcons),
             toggle(Settings.Sidebar.autoHideOnSelect),
             toggle(Settings.Sidebar.largeControls),
             integer(Settings.Sidebar.rowLines, 1...3),

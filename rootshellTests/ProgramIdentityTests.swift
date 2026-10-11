@@ -13,6 +13,9 @@ final class ProgramIdentityTests: XCTestCase {
     func testNormalizerCollapsesInterpreterVersions() {
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "python3.12"), "python")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "python3"), "python")
+        XCTAssertEqual(ProgramNameNormalizer.normalize(
+            name: "/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python"),
+            "python")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "ruby3.3"), "ruby")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "emacs-31.1"), "emacs")
         XCTAssertEqual(ProgramNameNormalizer.normalize(name: "/usr/bin/gcc-14"), "gcc")
@@ -61,6 +64,7 @@ final class ProgramIdentityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "top", source: .tmux)).mark, .symbol("gauge.with.dots.needle.67percent"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "htop", source: .tmux)).mark, .asset("HtopLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "/Users/me/.cargo/bin/cargo", source: .localProcess)).mark, .asset("CargoLogo"))
+        XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "/opt/homebrew/bin/gtail", source: .localProcess)).mark, .asset("TailLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "nvim", source: .tmux)).mark, .asset("NeovimLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "python3.12", source: .tmux)).mark, .asset("PythonLogo"))
         XCTAssertTrue(try XCTUnwrap(ForegroundProgram(rawName: "htop", source: .tmux)).showsRunningCard)

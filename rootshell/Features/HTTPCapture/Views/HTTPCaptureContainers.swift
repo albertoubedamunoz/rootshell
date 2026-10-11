@@ -62,6 +62,11 @@ struct HTTPCaptureHUD: View {
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
     let onSwitchPresentation: (PanelPresentation) -> Void
+    /// Set while Integrated tabs join the terminal card this panel covers.
+    let integratedTabJoin: IntegratedTabJoin?
+
+    @Setting(Settings.Window.roundedPanes) private var roundedPanes
+    @Environment(\.paneCardBackdrop) private var paneCardBackdrop
 
     var body: some View {
         DraggableHUDContainer(
@@ -73,10 +78,12 @@ struct HTTPCaptureHUD: View {
         ) {
             HTTPCaptureView(model: model, style: fills ? .full : .overlay, onClose: onClose, onSwitchPresentation: onSwitchPresentation)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .panelHUDBackground(fills: fills, theme: theme)
+                .panelHUDBackground(fills: fills, theme: theme, rounded: roundedPanes, cardBackdrop: paneCardBackdrop,
+                                    integratedTabJoin: integratedTabJoin)
                 .fileManagerTheme(theme)
         }
-        .ignoresSafeArea(.container, edges: fills ? .bottom : [])
+        // Rounded cards already end in the home-indicator strip, a gap above the edge.
+        .ignoresSafeArea(.container, edges: fills && !roundedPanes ? .bottom : [])
     }
 }
 

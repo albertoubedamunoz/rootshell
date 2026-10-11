@@ -635,6 +635,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         ThemeOverrideManager.shared.overridesDidChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
             self?.updateAppearance(); self?.rebuildDrawer()
         }.store(in: &observations)
+        // The palette follows the backdrop showing through the terminal
+        TransparencyManager.shared.transparencyDidChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
+            self?.updateAppearance(); self?.rebuildDrawer()
+        }.store(in: &observations)
         EffectManager.shared.effectDidChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
             self?.updateBackgroundEffect()
         }.store(in: &observations)

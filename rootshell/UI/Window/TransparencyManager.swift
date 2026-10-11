@@ -114,23 +114,9 @@ final class TransparencyManager {
 
     var usesGlass: Bool { effectiveBlurStyle != .standard }
 
-    /// Rounded Panes' Liquid Glass is the card fill over the Theme Gradient
-    /// backdrop: terminals paint no background and `backgroundOpacity` tints
-    /// the glass instead.
-    private(set) var paneGlassActive = false
-    @ObservationIgnored private var paneGlassTask: Task<Void, Never>?
-
-    func refreshPaneGlass() {
-        let active = PaneCardStyle.usesGlass && EffectManager.shared.isBackdropEnabled
-        guard active != paneGlassActive else { return }
-        paneGlassActive = active
-        transparencyDidChange.send()
-    }
-
     /// Opacity the terminal draws at. Off the Mac only the Theme Gradient
     /// backdrop can show through, so opacity applies just while it is on.
     var effectiveBackgroundOpacity: Double {
-        if paneGlassActive { return 0 }
         #if targetEnvironment(macCatalyst)
         return backgroundOpacity
         #else
@@ -145,6 +131,12 @@ final class TransparencyManager {
             guard pinnedSidebarTransparencyEnabled != oldValue, !isReloading else { return }
             SettingsStore.shared.set(Settings.Transparency.pinnedSidebarTransparency, pinnedSidebarTransparencyEnabled)
         }
+    }
+
+    /// Full-size panels follow the pinned sidebar's opacity; the terminal
+    /// under a translucent one is hidden so it never shows through.
+    var fullPanelIsTranslucent: Bool {
+        pinnedSidebarTransparencyEnabled && effectiveBackgroundOpacity < 1
     }
 
     /// Mac only: whether the Theme Gradient backdrop takes the window opacity
@@ -187,15 +179,6 @@ final class TransparencyManager {
         self.backdropTransparencyEnabled = SettingsStore.shared.get(Settings.Transparency.backdropTransparency)
         SettingsRefreshHub.shared.register(keys: Self.ownedKeys) { [weak self] keys in
             self?.reload(keys: keys)
-        }
-        // Not inline: EffectManager reads this manager while it loads.
-        let glassKeys: Set<String> = [Settings.Window.roundedPanes.name, Settings.Window.paneGlass.name]
-        let changes = SettingsStore.shared.changes()
-        paneGlassTask = Task { @MainActor [weak self] in
-            self?.refreshPaneGlass()
-            for await change in changes where change.intersects(glassKeys) {
-                self?.refreshPaneGlass()
-            }
         }
     }
 

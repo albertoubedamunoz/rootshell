@@ -56,8 +56,8 @@ extension MainView {
 
     var sheetColorSchemeForSheets: ColorScheme? {
         guard themedUIEnabled, let themeColors = effectiveThemeColors else { return nil }
-        guard let base = Color(hex: themeColors.background) else { return nil }
-        return base.isLight ? .light : .dark
+        guard let surface = EffectiveSurface.resolve(backgroundHex: themeColors.background) else { return nil }
+        return surface.isLight ? .light : .dark
     }
 
     /// Resolve all three sheet-styling properties once per body evaluation.
@@ -78,10 +78,12 @@ extension MainView {
         let rowBase = overrides.sheetRowBackground.flatMap { Color(hex: $0) } ?? derived.sheetRowBackground
         let row = rowBase.opacity(0.92)
         let accent = overrides.sheetAccent.flatMap { Color(hex: $0) } ?? derived.sheetAccent
+        let surface = EffectiveSurface.resolve(backgroundHex: themeColors.background)
         return ResolvedSheetTheme(
             themeColors: SheetThemeColors(background: bg, rowBackground: row, accentColor: accent),
             accentColor: accent,
-            colorScheme: derived.isLight ? .light : .dark
+            colorScheme: derived.isLight ? .light : .dark,
+            translucentBackground: surface?.translucentFill(showing: bg)
         )
     }
 }

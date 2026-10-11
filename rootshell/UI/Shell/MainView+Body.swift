@@ -54,14 +54,11 @@ extension MainView {
                 && !UIAccessibility.isReduceMotionEnabled
             GeometryReader { proxy in
                 let origin = proxy.frame(in: .global).origin
-                let span = IntegratedTabJoin.Span(
+                IntegratedTabJoinPublisher(
                     rect: proxy[activeTabBounds].offsetBy(dx: origin.x, dy: origin.y),
-                    tabID: tabID,
-                    animatesSelection: animatesSelection)
-                Color.clear
-                    .onChange(of: span, initial: true) { _, span in
-                        integratedTabJoin.update(span)
-                    }
+                    join: integratedTabJoin)
+                    // The selected tab's own slide, so the rims stay with it.
+                    .animation(animatesSelection ? TabBar.selectionAnimation : nil, value: tabID)
                     .onDisappear { integratedTabJoin.update(nil) }
             }
             .allowsHitTesting(false)

@@ -34,8 +34,8 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     var routesFocusedProgressToIntegratedEdge: Bool = false
     /// Set while Integrated tabs join the cards; the top rim opens under the tab.
     var integratedTabJoin: IntegratedTabJoin?
-    var paneCardGlassFrames: PaneCardGlassFrames?
-    var paneCardGlassTabID: UUID?
+    /// An app-tab swipe is sliding this tab.
+    var tracksSwipe = false
 
     func makeUIView(context: Context) -> SplitTreeHostingView {
         SplitTreeHostingView()
@@ -48,8 +48,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.cardRimPalette = paneCardRimPalette ?? .fallback
         uiView.cardRimIncreasedContrast = colorSchemeContrast == .increased
         uiView.integratedTabJoin = integratedTabJoin
-        uiView.paneCardGlassFrames = paneCardGlassFrames
-        uiView.paneCardGlassTabID = paneCardGlassTabID
+        uiView.tracksSwipe = tracksSwipe && integratedTabJoin != nil
         uiView.onResize = onResize
         uiView.onMove = onMove
         uiView.allowsPaneRearrangement = allowsPaneRearrangement
@@ -63,12 +62,13 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     static func dismantleUIView(_ uiView: SplitTreeHostingView, coordinator: ()) {
         uiView.detachAllPanes()
         uiView.integratedTabJoin = nil
+        uiView.tracksSwipe = false
     }
 }
 
 // MARK: - Hosting View
 
-final class SplitTreeHostingView: UIView {
+final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
     var dividerColor: UIColor = .separator {
         didSet {
             // Assigned on every updateUIView; an unguarded relayout defeats update(tree:)'s guard.
@@ -116,10 +116,23 @@ final class SplitTreeHostingView: UIView {
         }
     }
     private var cardRimView: CardRimView?
-    private var cardRimJoinedTabID: UUID?
-    /// Receives this tab's card frames, in this view's coordinates.
-    var paneCardGlassFrames: PaneCardGlassFrames?
-    var paneCardGlassTabID: UUID?
+    /// Set while an app-tab swipe slides this tab. The joined tab stays put,
+    /// so the rim's opening follows the card's on-screen position each frame.
+    var tracksSwipe = false {
+        didSet {
+            guard oldValue != tracksSwipe else { return }
+            swipeDisplayLink?.invalidate()
+            swipeDisplayLink = nil
+            if tracksSwipe {
+                let link = CADisplayLink(target: self, selector: #selector(swipeFrame))
+                link.add(to: .main, forMode: .common)
+                swipeDisplayLink = link
+            } else {
+                updateCardDepth()
+            }
+        }
+    }
+    private var swipeDisplayLink: CADisplayLink?
 
     var minSplitSize: CGFloat = 100
     var onResize: ((SplitTree<SplitPaneView>.Node, Double) -> Void)?
@@ -1760,37 +1773,32 @@ final class SplitTreeHostingView: UIView {
     // MARK: - Card Depth
 
     func integratedTabJoinDidChange() {
-        updateCardDepth(followsJoinedTab: true)
+        updateCardDepth()
     }
 
-    /// Attached cards, whether each draws a rim (a focus border already
-    /// outlines its card), and whether it is a terminal.
-    private func cardDepthCards() -> [(container: UIView, showsRim: Bool, isTerminal: Bool)] {
+    @objc private func swipeFrame() {
+        updateCardDepth()
+    }
+
+    /// Attached cards and whether each draws a rim (a focus border already
+    /// outlines its card).
+    private func cardDepthCards() -> [(container: UIView, showsRim: Bool)] {
         guard let tree else { return [] }
         let borderStyle = SettingsStore.shared.value(Settings.Window.splitFocusBorderStyle)
-        var cards: [(container: UIView, showsRim: Bool, isTerminal: Bool)] = []
+        var cards: [(container: UIView, showsRim: Bool)] = []
         for pane in tree where !pane.isDetachedForFullScreen {
             let identifier = ObjectIdentifier(pane)
             guard let container = attachedContainers[identifier],
                   container.superview === self, !container.isHidden else { continue }
             let bordered = pane === focusedPane && borderStyle != .none
                 && (borderEligibility[identifier] ?? false)
-            cards.append((container, !bordered, pane.asTerminal != nil))
+            cards.append((container, !bordered))
         }
         return cards
     }
 
-    private func updateCardDepth(followsJoinedTab: Bool = false) {
-        let glass = TransparencyManager.shared.paneGlassActive
-        let allCards = roundsPanes ? cardDepthCards() : []
-        // Glass only behind terminals: opaque panes (screen sharing) would hide
-        // it while their frame rate keeps re-rendering it.
-        if let paneCardGlassTabID, let paneCardGlassFrames {
-            paneCardGlassFrames.updateCards(
-                glass ? allCards.filter(\.isTerminal).map(\.container.frame) : [], for: paneCardGlassTabID)
-        }
-        // Glass draws its own edge.
-        let cards = glass ? allCards.filter { !$0.isTerminal } : allCards
+    private func updateCardDepth() {
+        let cards = roundsPanes ? cardDepthCards() : []
         guard !cards.isEmpty else {
             cardRimView?.isHidden = true
             return
@@ -1815,15 +1823,14 @@ final class SplitTreeHostingView: UIView {
             addSubview(rim)
         }
 
-        let span = integratedTabJoin?.span
-        let opening: ClosedRange<CGFloat>? = span.flatMap { span in
-            guard window != nil else { return nil }
-            let rect = convert(span.rect, from: nil)
+        let opening: ClosedRange<CGFloat>? = integratedTabJoin?.rect.flatMap { tabRect in
+            guard let window else { return nil }
+            // A swipe animates the card, so map through what is on screen.
+            let rect = tracksSwipe
+                ? (layer.presentation() ?? layer).convert(tabRect, from: window.layer.presentation() ?? window.layer)
+                : convert(tabRect, from: nil)
             return rect.minX...rect.maxX
         }
-        let slides = followsJoinedTab && span?.animatesSelection == true
-            && cardRimJoinedTabID != nil && span?.tabID != cardRimJoinedTabID
-        cardRimJoinedTabID = span?.tabID
         let keyline = UIColor(cardRimPalette.keyline(increasedContrast: cardRimIncreasedContrast))
             .resolvedColor(with: traitCollection)
         rim.update(
@@ -1831,8 +1838,7 @@ final class SplitTreeHostingView: UIView {
             color: keyline,
             lineWidth: 1 / max(1, traitCollection.displayScale),
             opening: opening,
-            openingEdgeY: bounds.minY,
-            animated: slides)
+            openingEdgeY: bounds.minY)
     }
 }
 
@@ -1854,7 +1860,7 @@ private final class CardBackdropView: UIView {
 
 /// Top-lit hairline rims over the pane cards. A joined Integrated tab opens
 /// the straight top edge beneath it; its own outline carries the rim on.
-private final class CardRimView: UIView {
+final class CardRimView: UIView {
     private final class Rim {
         let host = CALayer()
         let gradient = CAGradientLayer()
@@ -1884,7 +1890,7 @@ private final class CardRimView: UIView {
     }
 
     func update(cards: [CGRect], color: UIColor, lineWidth: CGFloat,
-                opening: ClosedRange<CGFloat>?, openingEdgeY: CGFloat, animated: Bool) {
+                opening: ClosedRange<CGFloat>?, openingEdgeY: CGFloat) {
         while rims.count < cards.count {
             let rim = Rim()
             layer.addSublayer(rim.host)
@@ -1912,7 +1918,7 @@ private final class CardRimView: UIView {
                 cornerRadius: radius - inset).cgPath
 
             // Only the straight top edge of a top-row card opens. Off-card,
-            // the opening collapses toward the tab so a slide reads as travel.
+            // the opening collapses toward the tab.
             var openingX = radius, openingWidth: CGFloat = 0
             if let opening, abs(card.minY - openingEdgeY) < 0.5 {
                 let lower = max(opening.lowerBound - card.minX, radius)
@@ -1926,17 +1932,8 @@ private final class CardRimView: UIView {
             }
             let path = UIBezierPath(rect: bounds)
             path.append(UIBezierPath(rect: CGRect(x: openingX, y: 0, width: openingWidth, height: lineWidth * 2)))
-            let newPath = path.cgPath
-            if animated, let from = rim.opening.presentation()?.path ?? rim.opening.path {
-                let animation = CABasicAnimation(keyPath: "path")
-                animation.fromValue = from
-                animation.toValue = newPath
-                animation.duration = 0.3
-                animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                rim.opening.add(animation, forKey: "integrated-tab-opening")
-            }
             rim.opening.frame = bounds
-            rim.opening.path = newPath
+            rim.opening.path = path.cgPath
         }
     }
 }

@@ -27,9 +27,12 @@ struct DerivedThemeUIColors {
 }
 
 enum ThemeUIColorDerivation {
+    /// Derives from what is visible behind the terminal, the Theme Gradient
+    /// backdrop included. The override editor passes `effective: false`.
     @MainActor
-    static func derive(from themeColors: ThemeManager.ThemeInfo.ThemeColors) -> DerivedThemeUIColors? {
-        guard let base = Color(hex: themeColors.background) else { return nil }
+    static func derive(from themeColors: ThemeManager.ThemeInfo.ThemeColors, effective: Bool = true) -> DerivedThemeUIColors? {
+        guard let background = Color(hex: themeColors.background) else { return nil }
+        let base = effective ? EffectiveSurface.resolve(background: background).terminal : background
         let isLight = base.isLight
 
         let sheetBg = isLight

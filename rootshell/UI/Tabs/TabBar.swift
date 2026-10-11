@@ -364,13 +364,15 @@ struct TabBar: View {
 
     /// Gates the attention dot on tabs. (id=agent-attention)
     @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
+    @Setting(Settings.Tabs.programIcons) private var programIconsEnabled
 
     /// Logo for the focused pane: its agent, under the same gate as the dot,
-    /// else its shell or program, which always shows.
+    /// else its shell or program, under its own toggle.
     private func logoMark(for tab: TabModel) -> BrandMark? {
         if attentionBadgesEnabled, let asset = AgentBrandMark.assetName(for: tab.agentID) {
             return .asset(asset)
         }
+        guard programIconsEnabled else { return nil }
         return (tab.focusedPane ?? tab.splitTree.first)?.presentation.foregroundProgram?.mark
     }
 

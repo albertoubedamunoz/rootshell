@@ -195,35 +195,31 @@ struct IntegratedActiveTabBoundsPreferenceKey: PreferenceKey {
 
 // MARK: - Joined card rim
 
+protocol IntegratedTabJoinObserver: AnyObject {
+    func integratedTabJoinDidChange()
+}
+
 /// The selected tab's frame in window coordinates while Integrated tabs join
-/// Rounded Panes cards. Split views open their top rim there and the glass
-/// layer merges the tab into its card. `MainView` never reads it, so tab-strip
-/// scrolling never invalidates it.
-@Observable
+/// Rounded Panes cards, updated every frame of its selection slide. Card rims
+/// (split views, the exposé, full-size panels) open their top edge there.
+/// `MainView` never reads it, so tab-strip scrolling never invalidates it.
 final class IntegratedTabJoin {
-    struct Span: Equatable {
-        let rect: CGRect
-        let tabID: UUID
-        /// Slide with the tab's selection animation.
-        let animatesSelection: Bool
-    }
+    private(set) var rect: CGRect?
+    private let observers = NSHashTable<AnyObject>.weakObjects()
 
-    private(set) var span: Span?
-    @ObservationIgnored private let observers = NSHashTable<SplitTreeHostingView>.weakObjects()
-
-    func update(_ newSpan: Span?) {
-        guard span != newSpan else { return }
-        span = newSpan
-        for observer in observers.allObjects {
+    func update(_ newRect: CGRect?) {
+        guard rect != newRect else { return }
+        rect = newRect
+        for case let observer as IntegratedTabJoinObserver in observers.allObjects {
             observer.integratedTabJoinDidChange()
         }
     }
 
-    func addObserver(_ observer: SplitTreeHostingView) {
+    func addObserver(_ observer: IntegratedTabJoinObserver) {
         observers.add(observer)
     }
 
-    func removeObserver(_ observer: SplitTreeHostingView) {
+    func removeObserver(_ observer: IntegratedTabJoinObserver) {
         observers.remove(observer)
     }
 }
@@ -530,5 +526,23 @@ extension EnvironmentValues {
     var integratedTabJoinsCard: Bool {
         get { self[IntegratedTabJoinsCardKey.self] }
         set { self[IntegratedTabJoinsCardKey.self] = newValue }
+    }
+}
+
+/// Publishes the joined tab's frame from inside SwiftUI's animation, so card
+/// rims open under the tab on every frame of its selection slide, interrupted
+/// springs included.
+struct IntegratedTabJoinPublisher: View, Animatable {
+    var rect: CGRect
+    let join: IntegratedTabJoin
+
+    nonisolated var animatableData: CGRect.AnimatableData {
+        get { rect.animatableData }
+        set { rect.animatableData = newValue }
+    }
+
+    var body: some View {
+        let _ = join.update(rect)
+        Color.clear
     }
 }

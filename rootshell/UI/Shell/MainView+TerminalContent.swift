@@ -1112,8 +1112,7 @@ extension MainView {
                         routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
                             && showsHorizontalTabHeader,
                         integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
-                        paneCardGlassFrames: paneCardGlassFrames,
-                        paneCardGlassTabID: tab.id
+                        tracksSwipe: appTabSwipeState.map { $0.sourceTabID == tab.id || $0.targetTabID == tab.id } ?? false
                     )
                     // NOTE: the tmux control-mode client size is NOT driven from here.
                     // A tmux pane is a real ghostty surface, so its grid is recomputed
@@ -1154,10 +1153,6 @@ extension MainView {
                     // on the current selected/source tab until release commits.
                     .opacity(visualMetrics.opacity)
                     .offset(x: visualMetrics.offsetX)
-                    // Measured outside the offset: the glass layer slides it itself.
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
-                        paneCardGlassFrames.updateHostFrame(frame, for: tab.id)
-                    }
                     .zIndex(visualMetrics.zIndex)
                     .allowsHitTesting(index == selectedTabIndex && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
                     .padding(.bottom, bottomPadding)
@@ -1214,6 +1209,16 @@ extension MainView {
         #endif
     }
 
+    /// A translucent full-size file manager or HTTP capture would show the
+    /// terminal through it. Exposé hides the panels and mirrors the terminal.
+    var fullPanelHidesTerminal: Bool {
+        guard transparencyManager.fullPanelIsTranslucent, !tabExpose.isActive else { return false }
+        #if !CHINA_BUILD
+        if httpCaptureShowsOverlay && httpCapturePresentation == .full { return true }
+        #endif
+        return fileManagerShowsOverlay && fileManagerPresentation == .full
+    }
+
     /// The main terminal content ZStack (terminals + effects + overlays).
     @ViewBuilder
     func terminalContentZStack(
@@ -1221,10 +1226,14 @@ extension MainView {
         width: CGFloat,
         effectLeadingExtension: CGFloat
     ) -> some View {
+        let terminalOpacity: Double = fullPanelHidesTerminal ? 0 : 1
         ZStack {
             terminalBackgroundFill
+                .opacity(terminalOpacity)
             tabRevealBackdropFill
+                .opacity(terminalOpacity)
             terminalTabsView(geometry: geometry, width: width)
+                .opacity(terminalOpacity)
             tmuxReconnectingSwipeFallback
             effectOverlay(leadingExtension: effectLeadingExtension)
             terminalOverlays()
@@ -1436,9 +1445,7 @@ extension MainView {
                     .frame(width: dockedWidth - cardGap)
                     .clipShape(PaneCardStyle.shape(rounded: roundedPanes))
                     .paneCardDepth(roundedPanes, shape: PaneCardStyle.shape(rounded: true),
-                                   palette: IntegratedTabEdgePalette(cardSurface: dockedSidebarSurface),
-                                   glassTint: transparencyManager.pinnedSidebarTransparencyEnabled
-                                       ? dockedSidebarSurface.opacity(transparencyManager.backgroundOpacity) : nil)
+                                   palette: IntegratedTabEdgePalette(cardSurface: dockedSidebarSurface))
                     // Keyboard too: a floating keyboard's strip-sized region
                     // would stop the fill short of the bottom edge.
                     .ignoresSafeArea([.container, .keyboard], edges: roundedPanes ? [] : .bottom)
@@ -1545,12 +1552,9 @@ extension MainView {
     /// canvas. Kept separate from `dockedTabSidebar` so the effect can composite
     /// over the fill while tab rows and controls remain crisp above it.
     private func dockedTabSidebarBackground(theme: ResolvedSheetTheme) -> Color {
-        let background = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
-        return background.opacity(
-            transparencyManager.pinnedSidebarTransparencyEnabled
-                ? transparencyManager.effectiveBackgroundOpacity
-                : 1.0
-        )
+        let opaque = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
+        guard transparencyManager.pinnedSidebarTransparencyEnabled else { return opaque }
+        return (theme.translucentBackground ?? opaque).opacity(transparencyManager.effectiveBackgroundOpacity)
     }
 
     /// Bottom clearance for the docked tab sidebar's content so it stays

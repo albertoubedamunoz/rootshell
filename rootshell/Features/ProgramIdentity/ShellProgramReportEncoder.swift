@@ -3,8 +3,8 @@
 //  rootshell
 //
 //  The OSC 7501 records `ShellProgramReports` reads, for the built-in iOS
-//  shell to describe the command it runs. scripts/ssh-shell-integration-demo.sh
-//  sends the same records from a remote shell.
+//  shell to describe the command it runs. scripts/shell-integration-demo.sh
+//  (and .fish) sends the same records from any shell that sources it.
 //
 
 import Foundation

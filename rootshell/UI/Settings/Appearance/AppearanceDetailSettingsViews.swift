@@ -263,7 +263,6 @@ struct WindowSettingsView: View {
     @Setting(Settings.Tabs.hoverPreviewZoom) private var tabHoverPreviewZoom
     @Setting(Settings.Sidebar.translucent) private var tabSidebarTranslucent
     @Setting(Settings.Sidebar.rowLines) private var tabSidebarRowLines
-    @Setting(Settings.Window.roundedPanes) private var roundedPanes
     @Setting(Settings.Window.splitFocusBorderStyle) private var splitFocusBorderStyle
     @Setting(Settings.Window.splitFocusBorderColor) private var splitFocusBorderColor
     @Setting(Settings.Window.splitFocusBorderCustomColor) private var splitFocusBorderCustomHex
@@ -385,6 +384,13 @@ struct WindowSettingsView: View {
                     Settings.Tabs.exposeShowsCaptions,
                     title: "Tab Exposé Captions",
                     description: "Show tab titles and badges under each live preview in Tab Exposé."
+                )
+                .themedRow()
+
+                SettingDescribedToggle(
+                    Settings.Tabs.programIcons,
+                    title: "Show Program Icons",
+                    description: "Show the shell or running program's logo on tabs and sidebar rows, and a Running card for long-running programs."
                 )
                 .themedRow()
 
@@ -576,14 +582,6 @@ struct WindowSettingsView: View {
                     title: "Rounded Panes",
                     description: "Draws terminal panes, splits, and docked sidebars as rounded cards with gaps between them.")
                 .themedRow()
-
-                if roundedPanes, paneGlassAvailable {
-                    SettingDescribedToggle(
-                        Settings.Window.paneGlass,
-                        title: "Glass Panes",
-                        description: "Over the Theme Gradient backdrop, each card becomes Liquid Glass tinted by the terminal background and its opacity.")
-                    .themedRow()
-                }
 
                 Picker(selection: $splitFocusBorderStyle) {
                     ForEach(SplitFocusBorderStyle.allCases, id: \.rawValue) { style in
@@ -824,13 +822,4 @@ struct WindowSettingsView: View {
             app.pushGlobalConfigToApp()
         }
     }
-}
-
-private var paneGlassAvailable: Bool {
-    #if os(visionOS)
-    return false
-    #else
-    if #available(iOS 26.0, *) { return true }
-    return false
-    #endif
 }

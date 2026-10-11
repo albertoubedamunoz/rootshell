@@ -72,14 +72,37 @@ extension View {
             .optionalColorSchemeEnvironment(theme.colorScheme)
     }
 
-    /// A panel HUD's backdrop: glass when floating, the opaque themed fill
-    /// when it covers the terminal.
+    /// A panel HUD's backdrop: glass when floating, the themed fill in the
+    /// terminal card's shape when it covers the terminal.
     @ViewBuilder
-    func panelHUDBackground(fills: Bool, theme: ResolvedSheetTheme) -> some View {
+    func panelHUDBackground(fills: Bool, theme: ResolvedSheetTheme, rounded: Bool, cardBackdrop: Color?,
+                            integratedTabJoin: IntegratedTabJoin?) -> some View {
         if fills {
+            let surface = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
+            let transparency = TransparencyManager.shared
+            let fill = transparency.fullPanelIsTranslucent
+                ? (theme.translucentBackground ?? surface).opacity(transparency.effectiveBackgroundOpacity)
+                : surface
+            let card = PaneCardStyle.shape(rounded: rounded)
             // Content stays above the home indicator; the fill covers the terminal below it.
-            background((theme.themeColors?.background ?? Color(uiColor: .systemBackground))
-                .ignoresSafeArea(.container, edges: .bottom))
+            background {
+                card.fill(fill)
+                    .overlay {
+                        if rounded {
+                            JoinedCardRim(palette: IntegratedTabEdgePalette(cardSurface: surface),
+                                          integratedTabJoin: integratedTabJoin)
+                        }
+                    }
+                    .ignoresSafeArea(.container, edges: .bottom)
+            }
+            .mask { card.ignoresSafeArea(.container, edges: .bottom) }
+            // The hidden terminal paints the backdrop around its card otherwise.
+            .background {
+                if rounded, transparency.fullPanelIsTranslucent, let cardBackdrop {
+                    Rectangle().subtracting(card).fill(cardBackdrop)
+                        .ignoresSafeArea(.container, edges: .bottom)
+                }
+            }
         } else {
             clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .floatingHUDPanelBackground()
@@ -95,6 +118,11 @@ struct FileManagerHUD: View {
     let theme: ResolvedSheetTheme
     let onClose: () -> Void
     let onSwitchPresentation: (PanelPresentation) -> Void
+    /// Set while Integrated tabs join the terminal card this panel covers.
+    let integratedTabJoin: IntegratedTabJoin?
+
+    @Setting(Settings.Window.roundedPanes) private var roundedPanes
+    @Environment(\.paneCardBackdrop) private var paneCardBackdrop
 
     var body: some View {
         DraggableHUDContainer(
@@ -112,10 +140,12 @@ struct FileManagerHUD: View {
                 onSwitchPresentation: onSwitchPresentation
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .panelHUDBackground(fills: fills, theme: theme)
+            .panelHUDBackground(fills: fills, theme: theme, rounded: roundedPanes, cardBackdrop: paneCardBackdrop,
+                                integratedTabJoin: integratedTabJoin)
             .fileManagerTheme(theme)
         }
-        .ignoresSafeArea(.container, edges: fills ? .bottom : [])
+        // Rounded cards already end in the home-indicator strip, a gap above the edge.
+        .ignoresSafeArea(.container, edges: fills && !roundedPanes ? .bottom : [])
     }
 }
 

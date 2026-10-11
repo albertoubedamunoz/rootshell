@@ -62,12 +62,10 @@ final class EffectManager {
         didSet {
             guard isBackdropEnabled != oldValue else { return }
             if !isReloading { SettingsStore.shared.set(Settings.Shaders.themeGradientBackdrop, isBackdropEnabled) }
-            #if !targetEnvironment(macCatalyst)
-            // Off the Mac, terminal opacity applies only over the backdrop. Not
-            // during init: the config writer reads it back through `shared`.
+            // The config carries the backdrop OSC 11 color, and off the Mac
+            // terminal opacity too. Not during init: the config writer reads
+            // it back through `shared`.
             if isLoaded { TransparencyManager.shared.transparencyDidChange.send() }
-            #endif
-            if isLoaded { TransparencyManager.shared.refreshPaneGlass() }
         }
     }
 

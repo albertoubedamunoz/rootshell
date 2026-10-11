@@ -541,6 +541,7 @@ extension Ghostty {
                 return
             }
             self.app = app
+            if let cfg = config.config { ghostty_app_set_color_scheme(app, Self.colorScheme(for: cfg)) }
             LaunchSignposts.end("launch.ghostty.appNew", appSP)
             Ghostty.syncCorePresentationGate()
 
@@ -751,10 +752,18 @@ extension Ghostty {
             let herdrDeliveries = activeSurfaces.compactMap { surface in
                 prepareHerdrThemeDelivery(surface, config: overrideConfigs[Int(bitPattern: surface)] ?? globalConfig)
             }
+            let appScheme = Self.colorScheme(for: globalConfig)
+            let surfaceSchemes = activeSurfaces.filter { !isHerdrSurface($0) }.map { surface in
+                (surface, Self.colorScheme(for: overrideConfigs[Int(bitPattern: surface)] ?? globalConfig))
+            }
             nonisolated(unsafe) let appPtr = app
             nonisolated(unsafe) let cfg = globalConfig
             nonisolated(unsafe) let overrides = overrideSurfaces
+            nonisolated(unsafe) let schemes = surfaceSchemes
             Ghostty.TerminalView.ghosttyAPIQueue.async {
+                // A surface's scheme reaches its terminal on the next config update
+                ghostty_app_set_color_scheme(appPtr, appScheme)
+                for (surface, scheme) in schemes { ghostty_surface_set_color_scheme(surface, scheme) }
                 ghostty_app_update_config(appPtr, cfg)
                 for (surface, surfaceConfig) in overrides {
                     ghostty_surface_update_config(surface, surfaceConfig)
@@ -789,13 +798,33 @@ extension Ghostty {
             owned: Bool
         ) {
             let deliverHerdrTheme = prepareHerdrThemeDelivery(surface, config: surfaceConfig)
+            let scheme = isHerdrSurface(surface) ? nil : Self.colorScheme(for: surfaceConfig)
             nonisolated(unsafe) let surface = surface
             nonisolated(unsafe) let surfaceConfig = surfaceConfig
             Ghostty.TerminalView.ghosttyAPIQueue.async {
+                if let scheme { ghostty_surface_set_color_scheme(surface, scheme) }
                 ghostty_surface_update_config(surface, surfaceConfig)
                 deliverHerdrTheme?()
                 if owned { ghostty_config_free(surfaceConfig) }
             }
+        }
+
+        /// Herdr panes report the scheme herdr's server sends (prepareHerdrThemeDelivery).
+        private func isHerdrSurface(_ surface: ghostty_surface_t) -> Bool {
+            surfaceView(for: surface)?.herdrPaneBinding != nil
+        }
+
+        /// Dark or light from the background OSC 11 reports, so CSI ?996n and
+        /// mode 2031 agree with it. Ghostty's own default is light.
+        private static func colorScheme(for config: ghostty_config_t) -> ghostty_color_scheme_e {
+            var color = ghostty_config_color_s()
+            let reportKey = "osc-color-report-background", key = "background"
+            guard ghostty_config_get(config, &color, reportKey, UInt(reportKey.utf8.count))
+                    || ghostty_config_get(config, &color, key, UInt(key.utf8.count)) else {
+                return GHOSTTY_COLOR_SCHEME_DARK
+            }
+            let luminance = (0.2126 * Double(color.r) + 0.7152 * Double(color.g) + 0.0722 * Double(color.b)) / 255
+            return luminance > 0.5 ? GHOSTTY_COLOR_SCHEME_LIGHT : GHOSTTY_COLOR_SCHEME_DARK
         }
 
         /// Capture the finalized defaults before an owned config is freed.
@@ -993,7 +1022,8 @@ extension Ghostty {
                 .appendingPathComponent("host-tint-\(UUID().uuidString).conf")
             defer { try? FileManager.default.removeItem(at: file) }
             do {
-                try "background = \(hex)\n".write(to: file, atomically: true, encoding: .utf8)
+                let lines = ["background = \(hex)"] + EffectiveSurface.ghosttyConfigLines(backgroundHex: hex)
+                try (lines.joined(separator: "\n") + "\n").write(to: file, atomically: true, encoding: .utf8)
                 file.path.withCString { ghostty_config_load_file(result, $0) }
                 ghostty_config_finalize(result)
                 return result
@@ -1032,7 +1062,9 @@ extension Ghostty {
             defer { try? FileManager.default.removeItem(at: file) }
             do {
                 let opacity = UIAccessibility.isReduceTransparencyEnabled ? 1.0 : 0.72
-                try "background-opacity = \(opacity)\n".write(to: file, atomically: true, encoding: .utf8)
+                // The visor overlays app content rather than the backdrop
+                let lines = ["background-opacity = \(opacity)"] + EffectiveSurface.resetGhosttyConfigLines
+                try (lines.joined(separator: "\n") + "\n").write(to: file, atomically: true, encoding: .utf8)
                 file.path.withCString { ghostty_config_load_file(result, $0) }
                 ghostty_config_finalize(result)
                 return result

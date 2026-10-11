@@ -26,6 +26,7 @@ nonisolated extension Settings {
             "live_activity_location_accuracy", "live_activity_terminal_preview",
             "location_diary_always_on",
             "mcp_auth_token",
+            "paneGlass",
             "restoration.consecutiveSkips",
             "singleFingerAction",
             "terminalTouchKeyboardCompactHeight",

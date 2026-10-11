@@ -19,15 +19,4 @@ nonisolated enum PaneCardStyle {
     static var isEnabled: Bool {
         SettingsStore.shared.value(Settings.Window.roundedPanes)
     }
-
-    /// Liquid Glass card fills (iOS 26 / macOS 26). Active only over the Theme
-    /// Gradient backdrop; see `TransparencyManager.paneGlassActive`.
-    static var usesGlass: Bool {
-        #if os(visionOS)
-        return false
-        #else
-        guard #available(iOS 26.0, *) else { return false }
-        return isEnabled && SettingsStore.shared.value(Settings.Window.paneGlass)
-        #endif
-    }
 }

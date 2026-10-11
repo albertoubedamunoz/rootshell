@@ -25,6 +25,11 @@ extension Ghostty.TerminalView {
         scheduleForegroundProgramCard(for: resolved)
     }
 
+    /// The Show Program Icons setting changed: drop or restart the card.
+    func refreshForegroundProgramCard() {
+        scheduleForegroundProgramCard(for: presentation.foregroundProgram)
+    }
+
     private func scheduleForegroundProgramCard(for program: ForegroundProgram?) {
         foregroundProgramCardTask?.cancel()
         foregroundProgramCardTask = nil
@@ -32,7 +37,8 @@ extension Ghostty.TerminalView {
             presentation.foregroundProgramCardSince = nil
             AgentAttentionCenter.shared.foregroundProgramCardDidChange()
         }
-        guard let program, program.showsRunningCard else { return }
+        guard let program, program.showsRunningCard,
+              SettingsStore.shared.get(Settings.Tabs.programIcons) else { return }
         let since = Date()
         foregroundProgramCardTask = Task { @MainActor [weak self] in
             guard (try? await Task.sleep(for: Self.foregroundProgramCardDelay)) != nil,

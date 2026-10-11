@@ -258,60 +258,47 @@ struct AIAgentWindowContentView: View {
 
     // MARK: - Theme-Adaptive Tab Colors
 
+    /// The selected session's terminal theme, after its tab override, derived
+    /// like the main window's tabs. No backdrop draws here, so not effective.
+    private var tabTheme: (derived: DerivedThemeUIColors, overrides: ThemeUIOverrides)? {
+        let tabID = windowState.selectedSessionTabID
+        let (name, _) = ThemeOverrideManager.shared.resolveTheme(tabId: tabID, windowId: nil)
+        guard let colors = themeManager.resolvedColors(tabId: tabID, windowId: nil),
+              let derived = ThemeUIColorDerivation.derive(from: colors, effective: false) else { return nil }
+        return (derived, ThemeUIOverridesManager.shared.overrides(for: name))
+    }
+
+    private func color(_ override: String?, _ derived: Color) -> Color {
+        override.flatMap { Color(hex: $0) } ?? derived
+    }
+
     private var selectedTabBackgroundColor: Color {
-        if let themeColors = themeManager.currentThemeInfo?.colors,
-           let baseColor = Color(hex: themeColors.background) {
-            if baseColor.isLight {
-                return baseColor.blendedWithBlack(0.20)
-            } else {
-                return baseColor.blendedWithWhite(0.18)
-            }
-        }
-        return Color(uiColor: .secondarySystemBackground)
+        guard let tabTheme else { return Color(uiColor: .secondarySystemBackground) }
+        return color(tabTheme.overrides.selectedTabBackground, tabTheme.derived.selectedTabBackground)
     }
 
     private var unselectedTabBackgroundColor: Color {
-        if let themeColors = themeManager.currentThemeInfo?.colors,
-           let baseColor = Color(hex: themeColors.background) {
-            if baseColor.isLight {
-                return baseColor.blendedWithBlack(0.08)
-            } else {
-                return baseColor.blendedWithWhite(0.08)
-            }
-        }
-        return Color(uiColor: .tertiarySystemBackground)
+        guard let tabTheme else { return Color(uiColor: .tertiarySystemBackground) }
+        return color(tabTheme.overrides.unselectedTabBackground, tabTheme.derived.unselectedTabBackground)
     }
 
     private var tabTextColor: Color {
-        if let themeColors = themeManager.currentThemeInfo?.colors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor.isLight ? Color(white: 0.1) : Color(white: 0.95)
-        }
-        return .primary
+        guard let tabTheme else { return .primary }
+        return color(tabTheme.overrides.tabText, tabTheme.derived.tabText)
     }
 
     private var tabSecondaryTextColor: Color {
-        if let themeColors = themeManager.currentThemeInfo?.colors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor.isLight ? Color(white: 0.4) : Color(white: 0.6)
-        }
-        return .secondary
+        guard let tabTheme else { return .secondary }
+        return color(tabTheme.overrides.tabSecondaryText, tabTheme.derived.tabSecondaryText)
     }
 
     private var tabBarBackgroundColor: Color {
-        if let themeColors = themeManager.currentThemeInfo?.colors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor
-        }
-        return Color(uiColor: .systemBackground)
+        guard let tabTheme else { return Color(uiColor: .systemBackground) }
+        return color(tabTheme.overrides.tabBarBackground, tabTheme.derived.tabBarBackground)
     }
 
     private var isLightTheme: Bool {
-        if let themeColors = themeManager.currentThemeInfo?.colors,
-           let baseColor = Color(hex: themeColors.background) {
-            return baseColor.isLight
-        }
-        return false
+        tabTheme?.derived.isLight ?? false
     }
 
     // MARK: - Views

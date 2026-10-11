@@ -292,6 +292,7 @@ struct VerticalTabSidebar: View {
 
     /// Rendering only; detection has its own toggle. (id=agent-attention)
     @Setting(Settings.CodingAgents.attentionBadges) private var attentionBadgesEnabled
+    @Setting(Settings.Tabs.programIcons) private var programIconsEnabled
 
     /// "static", "priority", or "project". Visual-only; the tabs array never moves.
     @Setting(Settings.CodingAgents.inboxSort) private var agentSortRaw
@@ -1214,6 +1215,7 @@ struct VerticalTabSidebar: View {
                     tab: row.tab,
                     paneID: paneID,
                     attentionBadgesEnabled: attentionBadgesEnabled,
+                    programIconsEnabled: programIconsEnabled,
                     isSelected: isSelected && row.tab.focusedPane?.uuid == paneID,
                     isHighlighted: isHighlighted,
                     indentLevel: row.visualIndentLevel,
@@ -1233,6 +1235,7 @@ struct VerticalTabSidebar: View {
                     tab: row.tab,
                     tmuxBadge: TmuxTabBadgeResolver.badge(for: row.tab, gatewayOwnerIDs: gatewayOwnerIDs),
                     attentionBadgesEnabled: attentionBadgesEnabled,
+                    programIconsEnabled: programIconsEnabled,
                     isSelected: isSelected,
                     isHighlighted: isHighlighted,
                     indentLevel: row.visualIndentLevel,
@@ -1426,6 +1429,7 @@ struct VerticalTabSidebar: View {
                     tab: row.tab,
                     tmuxBadge: TmuxTabBadgeResolver.badge(for: row.tab, gatewayOwnerIDs: gatewayOwnerIDs),
                     attentionBadgesEnabled: attentionBadgesEnabled,
+                    programIconsEnabled: programIconsEnabled,
                     isSelected: isSelected,
                     isHighlighted: false,
                     indentLevel: row.visualIndentLevel,
@@ -2987,6 +2991,7 @@ private struct SidebarTabRowItem: View, Equatable {
     /// walk every split tree.
     let tmuxBadge: TmuxTabBadge?
     let attentionBadgesEnabled: Bool
+    let programIconsEnabled: Bool
     let isSelected: Bool
     let isHighlighted: Bool
     let indentLevel: Int
@@ -3004,6 +3009,7 @@ private struct SidebarTabRowItem: View, Equatable {
         lhs.tab === rhs.tab
             && lhs.tmuxBadge == rhs.tmuxBadge
             && lhs.attentionBadgesEnabled == rhs.attentionBadgesEnabled
+            && lhs.programIconsEnabled == rhs.programIconsEnabled
             && lhs.isSelected == rhs.isSelected
             && lhs.isHighlighted == rhs.isHighlighted
             && lhs.indentLevel == rhs.indentLevel
@@ -3025,7 +3031,8 @@ private struct SidebarTabRowItem: View, Equatable {
             tmuxBadgePalette: .currentTheme,
             agentRow: agentRow,
             // Same pane the top tab's logo follows.
-            programMark: (tab.focusedPane ?? tab.splitTree.first)?.presentation.foregroundProgram?.mark,
+            programMark: programIconsEnabled
+                ? (tab.focusedPane ?? tab.splitTree.first)?.presentation.foregroundProgram?.mark : nil,
             attentionBadge: attentionBadgesEnabled ? tab.attentionBadge : nil,
             // The agent's own pane's project, not the focused pane's. (id=agent-project)
             contextLine: agentRow?.project,
@@ -3049,6 +3056,7 @@ private struct SidebarPaneRowItem: View, Equatable {
     let tab: TabModel
     let paneID: UUID
     let attentionBadgesEnabled: Bool
+    let programIconsEnabled: Bool
     let isSelected: Bool
     let isHighlighted: Bool
     let indentLevel: Int
@@ -3059,6 +3067,7 @@ private struct SidebarPaneRowItem: View, Equatable {
         lhs.tab === rhs.tab
             && lhs.paneID == rhs.paneID
             && lhs.attentionBadgesEnabled == rhs.attentionBadgesEnabled
+            && lhs.programIconsEnabled == rhs.programIconsEnabled
             && lhs.isSelected == rhs.isSelected
             && lhs.isHighlighted == rhs.isHighlighted
             && lhs.indentLevel == rhs.indentLevel
@@ -3079,7 +3088,7 @@ private struct SidebarPaneRowItem: View, Equatable {
             SidebarTabRow(
                 title: title,
                 agentRow: agentRow,
-                programMark: presentation.foregroundProgram?.mark,
+                programMark: programIconsEnabled ? presentation.foregroundProgram?.mark : nil,
                 attentionBadge: attentionBadgesEnabled ? presentation.attentionStatus : nil,
                 contextLine: agentRow?.project,
                 isSelected: isSelected,
