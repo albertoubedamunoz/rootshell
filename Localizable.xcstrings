@@ -51417,7 +51417,7 @@
       }
     },
     "Add" : {
-      "comment" : "Add button",
+      "comment" : "Add button\nExternal SSH agents add discovered agent button\nLocal SSH agent audit action",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -71799,7 +71799,7 @@
       }
     },
     "Always" : {
-      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -82910,6 +82910,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "對固定的垂直分頁側邊欄套用相同的不透明度。"
+          }
+        }
+      }
+    },
+    "Apply the window opacity to the gradient too, so the desktop shows through it. When off, transparency only reveals the gradient behind the terminal." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يطبّق شفافية النافذة على التدرّج أيضًا، فيظهر سطح المكتب من خلاله. عند الإيقاف، لا تكشف الشفافية إلا التدرّج خلف الطرفية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica també l'opacitat de la finestra al degradat, perquè l'escriptori es vegi a través. Si està desactivat, la transparència només mostra el degradat darrere del terminal."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použije průhlednost okna i na přechod, takže přes něj prosvítá plocha. Když je vypnuto, průhlednost odhalí jen přechod za terminálem."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anvend også vinduets uigennemsigtighed på gradienten, så skrivebordet kan ses igennem. Når slået fra, viser gennemsigtigheden kun gradienten bag terminalen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wendet die Fensterdeckkraft auch auf den Verlauf an, sodass der Schreibtisch durchscheint. Wenn deaktiviert, macht die Transparenz nur den Verlauf hinter dem Terminal sichtbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica también la opacidad de la ventana al degradado para que se vea el escritorio a través. Si está desactivado, la transparencia solo deja ver el degradado detrás del terminal."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytä ikkunan läpinäkyvyyttä myös liukuväriin, jotta työpöytä näkyy sen läpi. Kun pois päältä, läpinäkyvyys paljastaa vain terminaalin takana olevan liukuvärin."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applique aussi l'opacité de la fenêtre au dégradé, pour laisser voir le bureau au travers. Désactivé, la transparence ne révèle que le dégradé derrière le terminal."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מחיל את שקיפות החלון גם על מעבר הצבעים, כך ששולחן העבודה נראה דרכו. כשהאפשרות כבויה, השקיפות חושפת רק את מעבר הצבעים שמאחורי המסוף."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az ablak átlátszatlanságát a színátmenetre is alkalmazza, így átlátszik rajta az asztal. Kikapcsolva az átlátszóság csak a terminál mögötti színátmenetet mutatja."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applica l'opacità della finestra anche alla sfumatura, così si vede la scrivania attraverso. Se disattivato, la trasparenza mostra solo la sfumatura dietro il terminale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グラデーションにもウィンドウの不透明度を適用し、デスクトップが透けて見えるようにします。オフの場合、透明部分にはターミナルの背後のグラデーションだけが表示されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "그라데이션에도 창 불투명도를 적용하여 데스크탑이 비쳐 보이게 합니다. 끄면 투명한 부분에 터미널 뒤의 그라데이션만 보입니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruk vinduets gjennomsiktighet på gradienten også, slik at skrivebordet synes gjennom. Når av, viser gjennomsiktigheten bare gradienten bak terminalen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past de vensterdekking ook toe op het verloop, zodat het bureaublad erdoorheen zichtbaar is. Als dit uit staat, toont transparantie alleen het verloop achter de terminal."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stosuje krycie okna także do gradientu, aby przez niego prześwitywało biurko. Gdy wyłączone, przezroczystość odsłania tylko gradient za terminalem."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica a opacidade da janela também ao gradiente, para que a mesa apareça através dele. Desativado, a transparência só revela o gradiente atrás do terminal."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica também a opacidade da janela ao gradiente, para que a secretária se veja através dele. Desativado, a transparência só revela o gradiente atrás do terminal."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplică opacitatea ferestrei și gradientului, ca desktopul să se vadă prin el. Când este dezactivat, transparența dezvăluie doar gradientul din spatele terminalului."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prosojnost okna uporabi tudi za preliv, da se skozenj vidi namizje. Ko je izklopljeno, prosojnost razkrije le preliv za terminalom."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tillämpa fönstrets opacitet även på gradienten så att skrivbordet syns igenom. När av visar genomskinligheten bara gradienten bakom terminalen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Застосовує непрозорість вікна й до градієнта, щоб крізь нього було видно робочий стіл. Якщо вимкнено, прозорість відкриває лише градієнт за терміналом."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Áp dụng độ mờ cửa sổ cho cả dải màu để có thể nhìn thấy màn hình nền xuyên qua. Khi tắt, độ trong suốt chỉ để lộ dải màu phía sau terminal."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将窗口不透明度也应用于渐变，让桌面透过渐变显示。关闭时，透明部分只显示终端后方的渐变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將視窗不透明度也套用到漸層，讓桌面透過漸層顯示。關閉時，透明部分只會顯示終端機後方的漸層。"
           }
         }
       }
@@ -102069,6 +102223,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "返回快速設定"
+          }
+        }
+      }
+    },
+    "Backdrop" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خلفية النافذة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fons de la finestra"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pozadí okna"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vinduesbaggrund"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fensterhintergrund"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fondo de la ventana"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ikkunan tausta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrière-plan de la fenêtre"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רקע החלון"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ablakháttér"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sfondo finestra"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ウィンドウ背景"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "창 배경"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vindusbakgrunn"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vensterachtergrond"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tło okna"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundo da Janela"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundo da janela"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundal fereastră"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ozadje okna"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fönsterbakgrund"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тло вікна"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nền cửa sổ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "窗口背景"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "視窗背景"
           }
         }
       }
@@ -148272,7 +148580,7 @@
       }
     },
     "Client" : {
-      "comment" : "HTTP capture field",
+      "comment" : "HTTP capture field\nLocal SSH agent client rule identity section",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -159542,6 +159850,160 @@
         }
       }
     },
+    "Colors follow the terminal theme palette. Turn off for a still gradient that uses no GPU after drawing" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تتبع الألوان لوحة ألوان سمة الطرفية. أوقفه للحصول على تدرّج ثابت لا يستخدم وحدة GPU بعد رسمه"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Els colors segueixen la paleta del tema del terminal. Desactiva-ho per a un degradat fix que no fa servir la GPU un cop dibuixat"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barvy se řídí paletou motivu terminálu. Vypněte pro statický přechod, který po vykreslení nevyužívá GPU"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farverne følger terminaltemaets palet. Slå fra for en stillestående gradient, der ikke bruger GPU efter tegning"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Farben folgen der Palette des Terminal-Themes. Deaktivieren für einen statischen Verlauf, der nach dem Zeichnen keine GPU nutzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los colores siguen la paleta del tema del terminal. Desactívalo para un degradado fijo que no usa la GPU después de dibujarse"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Värit seuraavat terminaaliteeman palettia. Poista käytöstä, niin saat paikallaan pysyvän liukuvärin, joka ei käytä GPU:ta piirtämisen jälkeen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les couleurs suivent la palette du thème du terminal. Désactivez pour un dégradé fixe qui n'utilise plus le GPU une fois dessiné"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצבעים עוקבים אחר לוח הצבעים של ערכת הנושא של המסוף. כבה לקבלת מעבר צבעים קבוע שאינו משתמש ב-GPU לאחר הציור"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A színek a terminál témájának palettáját követik. Kikapcsolva álló színátmenet jelenik meg, amely a kirajzolás után nem használ GPU-t"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I colori seguono la tavolozza del tema del terminale. Disattiva per una sfumatura fissa che non usa la GPU dopo il disegno"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色はターミナルのテーマパレットに従います。オフにすると、描画後にGPUを使わない静止したグラデーションになります"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "색상이 터미널 테마 팔레트를 따릅니다. 끄면 그린 후에 GPU를 사용하지 않는 정지된 그라데이션이 됩니다"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fargene følger terminaltemaets palett. Slå av for en stillestående gradient som ikke bruker GPU etter tegning"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kleuren volgen het palet van het terminalthema. Zet uit voor een stilstaand verloop dat na het tekenen geen GPU gebruikt"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kolory podążają za paletą motywu terminala. Wyłącz, aby uzyskać nieruchomy gradient, który po narysowaniu nie używa GPU"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As cores seguem a paleta do tema do terminal. Desative para um gradiente fixo que não usa GPU depois de desenhado"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As cores seguem a paleta do tema do terminal. Desative para um gradiente fixo que não usa a GPU depois de desenhado"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Culorile urmează paleta temei terminalului. Dezactivează pentru un gradient static care nu folosește GPU după desenare"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barve sledijo paleti teme terminala. Izklopite za mirujoč preliv, ki po izrisu ne uporablja GPU"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Färgerna följer terminaltemats palett. Stäng av för en stillastående gradient som inte använder GPU efter ritning"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кольори відповідають палітрі теми термінала. Вимкніть для нерухомого градієнта, який після малювання не використовує GPU"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Màu sắc theo bảng màu giao diện terminal. Tắt để có dải màu tĩnh không dùng GPU sau khi vẽ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "颜色跟随终端主题调色板。关闭后为静止渐变，绘制完成后不再占用 GPU"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顏色會依照終端機主題調色盤。關閉後為靜止漸層，繪製完成後不再使用 GPU"
+          }
+        }
+      }
+    },
     "Columns" : {
       "comment" : "Clipboard transform parameter",
       "localizations" : {
@@ -165719,6 +166181,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定描述檔"
+          }
+        }
+      }
+    },
+    "Configure Backdrop" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تهيئة خلفية النافذة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar el fons de la finestra"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nastavit pozadí okna"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurer vinduesbaggrund"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fensterhintergrund konfigurieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar el fondo de la ventana"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Määritä ikkunan tausta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurer l'arrière-plan de la fenêtre"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדרת רקע החלון"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ablakháttér beállítása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura sfondo finestra"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ウィンドウ背景を設定"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "창 배경 구성"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurer vindusbakgrunn"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vensterachtergrond configureren"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfiguruj tło okna"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar Fundo da Janela"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar fundo da janela"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurează fundalul ferestrei"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nastavi ozadje okna"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurera fönsterbakgrund"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Налаштувати тло вікна"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cấu hình nền cửa sổ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置窗口背景"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定視窗背景"
           }
         }
       }
@@ -181183,7 +181799,162 @@
         }
       }
     },
+    "Controls how panes are drawn and how the focused pane stands out in split terminal layouts. Close confirmations are in Terminal › Tabs." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتحكم في كيفية رسم الأجزاء وكيفية تمييز الجزء المحدد في تخطيطات الطرفية المقسمة. توجد تأكيدات الإغلاق في الطرفية › علامات التبويب."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla com es dibuixen els plafons i com destaca el plafó actiu en les disposicions de terminal dividides. Les confirmacions de tancament són a Terminal › Pestanyes."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Určuje, jak se panely vykreslují a jak se aktivní panel zvýrazní v rozdělených rozvrženích terminálu. Potvrzení zavření najdete v Terminál › Karty."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styrer, hvordan ruder tegnes, og hvordan den fokuserede rude fremhæves i opdelte terminallayout. Lukkebekræftelser findes under Terminal › Faner."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legt fest, wie Bereiche gezeichnet werden und wie der fokussierte Bereich in geteilten Terminal-Layouts hervorgehoben wird. Bestätigungen beim Schließen befinden sich unter Terminal › Tabs."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla cómo se dibujan los paneles y cómo se destaca el panel activo en las disposiciones de terminal divididas. Las confirmaciones de cierre están en Terminal › Pestañas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Määrittää, miten ruudut piirretään ja miten aktiivinen ruutu erottuu jaetuissa terminaaliasetteluissa. Sulkemisvahvistukset ovat kohdassa Terminaali › Välilehdet."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détermine comment les panneaux sont dessinés et comment le panneau actif se distingue dans les dispositions de terminal divisées. Les confirmations de fermeture se trouvent dans Terminal › Onglets."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קובע כיצד החלוניות מצוירות וכיצד החלונית הממוקדת בולטת בפריסות מסוף מפוצלות. אישורי סגירה נמצאים במסוף › לשוניות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meghatározza, hogyan rajzolódnak ki a panelek, és hogyan emelkedik ki a fókuszban lévő panel a felosztott terminálelrendezésekben. A bezárási megerősítések a Terminál › Lapok alatt találhatók."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlla come vengono disegnati i riquadri e come si distingue il riquadro attivo nei layout del terminale divisi. Le conferme di chiusura sono in Terminale › Schede."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分割ターミナルレイアウトでのペインの描画方法と、フォーカス中のペインを強調する方法を設定します。閉じる際の確認は「ターミナル › タブ」にあります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "분할 터미널 레이아웃에서 분할 영역을 그리는 방식과 포커스된 분할 영역을 강조하는 방식을 제어합니다. 닫기 확인은 터미널 › 탭에 있습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styrer hvordan ruter tegnes og hvordan den aktive ruten fremheves i delte terminaloppsett. Bekreftelser ved lukking finner du i Terminal › Faner."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bepaalt hoe deelvensters worden getekend en hoe het actieve deelvenster opvalt in gesplitste terminalindelingen. Bevestigingen voor sluiten staan in Terminal › Tabs."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Określa, jak rysowane są panele i jak wyróżnia się aktywny panel w podzielonych układach terminala. Potwierdzenia zamykania znajdziesz w Terminal › Karty."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla como os painéis são desenhados e como o painel em foco se destaca em layouts de terminal divididos. As confirmações de fechamento ficam em Terminal › Abas."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controla como os painéis são desenhados e como o painel em foco se destaca em disposições de terminal divididas. As confirmações de fecho estão em Terminal › Separadores."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlează cum sunt desenate panourile și cum iese în evidență panoul activ în aranjamentele cu terminal împărțit. Confirmările de închidere sunt în Terminal › File."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Določa, kako se izrišejo podokna in kako izstopa podokno v fokusu pri razdeljenih postavitvah terminala. Potrditve zapiranja so v Terminal › Zavihki."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Styr hur rutor ritas och hur den fokuserade rutan framhävs i delade terminallayouter. Stängningsbekräftelser finns under Terminal › Flikar."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Визначає, як малюються панелі та як виділяється активна панель у розділених макетах термінала. Підтвердження закриття знаходяться в розділі Термінал › Вкладки."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Điều chỉnh cách vẽ các ngăn và cách làm nổi bật ngăn đang chọn trong bố cục terminal chia ngăn. Xác nhận khi đóng nằm trong Terminal › Tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制分屏终端布局中窗格的绘制方式以及焦点窗格的突出显示方式。关闭确认位于“终端 › 标签页”中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制分割終端機佈局中窗格的繪製方式，以及目前窗格的醒目方式。關閉確認位於「終端機 › 分頁」。"
+          }
+        }
+      }
+    },
     "Controls how the focused pane stands out in split terminal layouts. Close confirmations are in Terminal › Tabs." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -183188,7 +183959,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nShare link: copied to clipboard",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button\nShare link: copied to clipboard",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -192932,6 +193703,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法移動窗格：%@"
+          }
+        }
+      }
+    },
+    "Couldn't move Tailscale from the VPN. Sign in again to use it inside rootshell." : {
+      "comment" : "Tailscale Mac mode switch failure",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر نقل Tailscale من VPN. سجّل الدخول مرة أخرى لاستخدامه داخل rootshell."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No s'ha pogut treure Tailscale de la VPN. Torna a iniciar la sessió per fer-lo servir dins de rootshell."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tailscale se nepodařilo přesunout z VPN. Přihlaste se znovu, abyste ho mohli používat v rootshell."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunne ikke flytte Tailscale fra VPN'en. Log ind igen for at bruge det i rootshell."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tailscale konnte nicht aus dem VPN verschoben werden. Melde dich erneut an, um es in rootshell zu verwenden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo sacar Tailscale de la VPN. Vuelve a iniciar sesión para usarlo dentro de rootshell."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tailscalea ei voitu siirtää pois VPN:stä. Kirjaudu uudelleen sisään käyttääksesi sitä rootshellissä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de retirer Tailscale du VPN. Reconnectez-vous pour l'utiliser dans rootshell."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא ניתן היה להעביר את Tailscale מה-VPN. התחבר שוב כדי להשתמש בו בתוך rootshell."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nem sikerült áthelyezni a Tailscale-t a VPN-ből. Jelentkezzen be újra, hogy a rootshellen belül használhassa."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile spostare Tailscale fuori dalla VPN. Accedi di nuovo per usarlo in rootshell."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TailscaleをVPNから移行できませんでした。rootshell内で使用するには、もう一度サインインしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tailscale을 VPN에서 옮기지 못했습니다. rootshell 안에서 사용하려면 다시 로그인하세요."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunne ikke flytte Tailscale fra VPN-en. Logg på igjen for å bruke det i rootshell."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan Tailscale niet uit de VPN halen. Log opnieuw in om het binnen rootshell te gebruiken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie udało się przenieść Tailscale z VPN. Zaloguj się ponownie, aby używać go w rootshell."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível tirar o Tailscale da VPN. Inicie sessão novamente para usá-lo dentro do rootshell."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível retirar o Tailscale da VPN. Inicie sessão novamente para o usar dentro do rootshell."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tailscale nu a putut fi mutat din VPN. Autentifică-te din nou pentru a-l folosi în rootshell."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tailscala ni bilo mogoče premakniti iz VPN. Znova se prijavite, da ga boste lahko uporabljali v rootshell."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det gick inte att flytta Tailscale från VPN:et. Logga in igen för att använda det i rootshell."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалося перенести Tailscale з VPN. Увійдіть знову, щоб використовувати його в rootshell."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể chuyển Tailscale ra khỏi VPN. Hãy đăng nhập lại để dùng trong rootshell."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法将 Tailscale 从 VPN 中移出。请重新登录以在 rootshell 内使用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法將 Tailscale 從 VPN 移出。請重新登入以在 rootshell 內使用。"
           }
         }
       }
@@ -226935,7 +227861,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -253845,6 +254771,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沿底部邊緣繪製"
+          }
+        }
+      }
+    },
+    "Draws terminal panes, splits, and docked sidebars as rounded cards with gaps between them." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يرسم أجزاء الطرفية والتقسيمات والأشرطة الجانبية المثبتة كبطاقات مستديرة الحواف مع فراغات بينها."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dibuixa els plafons del terminal, les divisions i els panells laterals acoblats com a targetes arrodonides amb espais entre elles."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vykresluje panely terminálu, rozdělení a ukotvené boční panely jako zaoblené dlaždice s mezerami mezi nimi."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tegner terminalruder, opdelinger og fastgjorte sidebjælker som afrundede kort med mellemrum imellem."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeichnet Terminalbereiche, Teilungen und angedockte Seitenleisten als abgerundete Karten mit Abständen dazwischen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dibuja los paneles del terminal, las divisiones y los paneles laterales acoplados como tarjetas redondeadas con espacios entre ellas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Piirtää terminaaliruudut, jaot ja kiinnitetyt sivupalkit pyöristettyinä kortteina, joiden välissä on rako."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dessine les panneaux du terminal, les divisions et les panneaux latéraux ancrés sous forme de cartes arrondies espacées."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מצייר חלוניות מסוף, פיצולים וסרגלי צד מעוגנים ככרטיסים מעוגלים עם רווחים ביניהם."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A terminálpaneleket, felosztásokat és rögzített oldalsávokat lekerekített kártyákként rajzolja meg, köztük térközzel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disegna i riquadri del terminale, le divisioni e le barre laterali agganciate come pannelli arrotondati con spazi tra loro."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ターミナルのペイン、分割、ドッキングしたサイドバーを、間隔を空けた角丸のカードとして描画します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "터미널 분할 영역, 분할, 고정된 사이드바를 간격을 둔 둥근 카드로 그립니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tegner terminalruter, delinger og forankrede sidefelt som avrundede kort med mellomrom mellom dem."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tekent terminaldeelvensters, splitsingen en gekoppelde zijbalken als afgeronde kaarten met ruimte ertussen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rysuje panele terminala, podziały i zadokowane panele boczne jako zaokrąglone kafelki z odstępami między nimi."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenha painéis do terminal, divisões e painéis laterais acoplados como cartões arredondados com espaços entre eles."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenha os painéis do terminal, as divisões e os painéis laterais acoplados como cartões arredondados com espaços entre eles."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desenează panourile terminalului, diviziunile și panourile laterale fixate ca niște carduri rotunjite cu spații între ele."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podokna terminala, razdelitve in zasidrane stranske panele izriše kot zaobljene kartice z razmiki med njimi."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritar terminalrutor, delningar och dockade sidofält som rundade kort med mellanrum mellan dem."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Малює панелі термінала, розділення та закріплені бічні панелі як заокруглені картки з проміжками між ними."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vẽ các ngăn terminal, vùng chia và thanh bên được neo thành các thẻ bo góc có khoảng cách giữa chúng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将终端窗格、分屏和停靠的侧边栏绘制为带间距的圆角卡片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將終端機窗格、分割和停駐的側邊欄繪製成有間距的圓角卡片。"
           }
         }
       }
@@ -290614,7 +291694,7 @@
       }
     },
     "Failed" : {
-      "comment" : "Tailscale SSH egress state",
+      "comment" : "Local SSH agent audit outcome\nTailscale SSH egress state",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -301130,6 +302210,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "填滿整個字元格"
+          }
+        }
+      }
+    },
+    "Fills the whole window behind tabs and panes with a soft glow in the theme's colors. It shows around Rounded Panes and through transparent terminals, beneath the effects above." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يملأ النافذة كلها خلف علامات التبويب والأجزاء بتوهّج ناعم بألوان السمة. يظهر حول الأجزاء المستديرة وعبر الطرفيات الشفافة، أسفل التأثيرات أعلاه."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omple tota la finestra darrere de les pestanyes i els plafons amb una lluentor suau amb els colors del tema. Es veu al voltant de Plafons arrodonits i a través dels terminals transparents, per sota dels efectes anteriors."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vyplní celé okno za kartami a panely jemnou září v barvách motivu. Je vidět kolem Zaoblených panelů a skrz průhledné terminály, pod efekty výše."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fylder hele vinduet bag faner og ruder med et blødt skær i temaets farver. Det ses omkring Afrundede ruder og gennem gennemsigtige terminaler, under effekterne ovenfor."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füllt das ganze Fenster hinter Tabs und Bereichen mit einem sanften Leuchten in den Farben des Themes. Es ist um „Abgerundete Bereiche“ herum und durch transparente Terminals sichtbar, unterhalb der Effekte oben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llena toda la ventana detrás de las pestañas y los paneles con un brillo suave en los colores del tema. Se ve alrededor de Paneles redondeados y a través de terminales transparentes, por debajo de los efectos anteriores."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Täyttää koko ikkunan välilehtien ja ruutujen takana pehmeällä hehkulla teeman väreissä. Se näkyy Pyöristettyjen ruutujen ympärillä ja läpinäkyvien terminaalien läpi, yllä olevien tehosteiden alla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplit toute la fenêtre derrière les onglets et les panneaux d'une lueur douce aux couleurs du thème. Elle apparaît autour des Panneaux arrondis et à travers les terminaux transparents, sous les effets ci-dessus."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ממלא את כל החלון מאחורי הלשוניות והחלוניות בזוהר רך בצבעי ערכת הנושא. הוא נראה סביב חלוניות מעוגלות ודרך מסופים שקופים, מתחת לאפקטים שלמעלה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az egész ablakot kitölti a lapok és panelek mögött a téma színeiben derengő lágy fénnyel. Látható a Lekerekített panelek körül és az átlátszó terminálokon át, a fenti effektusok alatt."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riempie l'intera finestra dietro schede e riquadri con un bagliore tenue nei colori del tema. Si vede attorno a Riquadri arrotondati e attraverso i terminali trasparenti, sotto gli effetti sopra."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タブとペインの背後のウィンドウ全体を、テーマの色の柔らかな光で満たします。角丸ペインの周囲や透明なターミナル越しに、上のエフェクトの下に表示されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭과 분할 영역 뒤의 창 전체를 테마 색상의 부드러운 빛으로 채웁니다. 둥근 분할 영역 주변과 투명한 터미널을 통해 위 효과 아래에 보입니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fyller hele vinduet bak faner og ruter med en myk glød i temaets farger. Den vises rundt Avrundede ruter og gjennom gjennomsiktige terminaler, under effektene ovenfor."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vult het hele venster achter tabs en deelvensters met een zachte gloed in de kleuren van het thema. Zichtbaar rond Afgeronde deelvensters en door transparante terminals, onder de effecten hierboven."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wypełnia całe okno za kartami i panelami miękką poświatą w kolorach motywu. Widać ją wokół Zaokrąglonych paneli i przez przezroczyste terminale, pod efektami powyżej."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preenche toda a janela atrás das abas e painéis com um brilho suave nas cores do tema. Ele aparece ao redor de Painéis Arredondados e através de terminais transparentes, abaixo dos efeitos acima."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preenche toda a janela atrás dos separadores e painéis com um brilho suave nas cores do tema. Aparece à volta dos Painéis arredondados e através de terminais transparentes, por baixo dos efeitos acima."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umple toată fereastra din spatele filelor și panourilor cu o strălucire discretă în culorile temei. Se vede în jurul Panourilor rotunjite și prin terminalele transparente, sub efectele de mai sus."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celotno okno za zavihki in podokni zapolni z mehkim sijem v barvah teme. Viden je okoli Zaobljenih podoken in skozi prosojne terminale, pod zgornjimi učinki."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fyller hela fönstret bakom flikar och rutor med ett mjukt sken i temats färger. Det syns runt Rundade rutor och genom genomskinliga terminaler, under effekterna ovan."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заповнює все вікно за вкладками й панелями м'яким сяйвом у кольорах теми. Його видно навколо Заокруглених панелей і крізь прозорі термінали, під ефектами вище."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lấp đầy toàn bộ cửa sổ phía sau tab và ngăn bằng ánh sáng dịu theo màu giao diện. Ánh sáng hiện quanh Ngăn bo góc và xuyên qua terminal trong suốt, bên dưới các hiệu ứng ở trên."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用主题颜色的柔和光晕填满标签页和窗格后方的整个窗口。它显示在圆角窗格周围，并透过透明终端显示，位于上方效果之下。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以主題顏色的柔和光暈填滿分頁與窗格後方的整個視窗。它會出現在圓角窗格周圍，並透過透明終端機顯示，位於上方效果之下。"
           }
         }
       }
@@ -354718,7 +355952,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -356884,7 +358118,7 @@
       }
     },
     "Import" : {
-      "comment" : "Import button",
+      "comment" : "External agent identity import button\nImport button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -406011,7 +407245,7 @@
       }
     },
     "Last Used" : {
-      "comment" : "VPN quick connect: caption above the last VPN's name",
+      "comment" : "Local SSH agent client rule last used label\nVPN quick connect: caption above the last VPN's name",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -411404,6 +412638,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "允許程式使用 iTerm2 的 OpenURL 序列（OSC 1337）在此裝置的瀏覽器中開啟網頁連結。若使用 Mosh 和 tmux -CC，請使用 rootshell-open-clipboard 輔助工具。"
+          }
+        }
+      }
+    },
+    "Lets the Theme Gradient backdrop show through the terminal. Applies while the backdrop is on in Background Effect." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتيح ظهور خلفية النافذة بتدرّج السمة عبر الطرفية. يسري ما دامت الخلفية مفعّلة في تأثير الخلفية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixa que el fons amb degradat del tema es vegi a través del terminal. S'aplica mentre el fons està activat a Efecte de fons."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nechá pozadí okna s přechodem motivu prosvítat terminálem. Platí, když je pozadí zapnuté v Efektu pozadí."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lader vinduesbaggrunden med temagradient skinne igennem terminalen. Gælder, mens baggrunden er slået til under Baggrundseffekt."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lässt den Fensterhintergrund mit Theme-Verlauf durch das Terminal scheinen. Gilt, solange der Fensterhintergrund unter Hintergrundeffekt aktiviert ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deja que el fondo de ventana con degradado del tema se vea a través del terminal. Se aplica mientras ese fondo esté activado en Efecto de fondo."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antaa teeman liukuväritaustan näkyä terminaalin läpi. Koskee tilannetta, jossa tausta on päällä kohdassa Taustaefekti."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laisse le dégradé du thème en arrière-plan transparaître à travers le terminal. S'applique lorsque cet arrière-plan est activé dans Effet d'arrière-plan."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מאפשר לרקע החלון עם מעבר הצבעים של ערכת הנושא להיראות דרך המסוף. חל כל עוד הרקע מופעל באפקט רקע."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A témaszínátmenetes ablakháttér átlátszik a terminálon. Akkor érvényes, ha a háttér be van kapcsolva a Háttéreffektusban."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lascia trasparire lo sfondo finestra con sfumatura del tema attraverso il terminale. Vale mentre lo sfondo è attivo in Effetto sfondo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーマグラデーションのウィンドウ背景をターミナル越しに表示します。「背景エフェクト」で背景がオンのときに適用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "테마 그라데이션 창 배경이 터미널을 통해 비쳐 보이게 합니다. 배경 효과에서 배경이 켜져 있을 때 적용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lar vindusbakgrunnen med temagradient skinne gjennom terminalen. Gjelder mens bakgrunnen er på i Bakgrunnseffekt."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laat de vensterachtergrond met themaverloop door de terminal heen schijnen. Geldt zolang de achtergrond aan staat in Achtergrondeffect."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pozwala tłu okna z gradientem motywu prześwitywać przez terminal. Działa, gdy tło jest włączone w Efekcie tła."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixa o Fundo com Gradiente do Tema aparecer através do terminal. Aplica-se enquanto o fundo estiver ativado em Efeito de Fundo."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixa o fundo com gradiente do tema ver-se através do terminal. Aplica-se enquanto o fundo estiver ativo em Efeito de fundo."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lasă fundalul ferestrei cu gradientul temei să se vadă prin terminal. Se aplică cât timp fundalul este activat în Efect de fundal."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omogoči, da ozadje okna s prelivom teme sije skozi terminal. Velja, ko je ozadje vklopljeno v Učinku ozadja."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Låter fönsterbakgrunden med temagradient synas genom terminalen. Gäller när bakgrunden är på i Bakgrundseffekt."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дає тлу вікна з градієнтом теми просвічувати крізь термінал. Діє, поки тло ввімкнено в Ефекті тла."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cho nền cửa sổ dải màu giao diện hiện xuyên qua terminal. Áp dụng khi nền đang bật trong Hiệu ứng nền."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "让主题渐变窗口背景透过终端显示。在“背景效果”中开启该背景时生效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讓主題漸層視窗背景透過終端機顯示。在「背景效果」中開啟該背景時套用。"
           }
         }
       }
@@ -422379,7 +423767,7 @@
       }
     },
     "Local SSH Agent" : {
-      "comment" : "Setting title",
+      "comment" : "Local SSH agent settings title\nSetting title\nSettings row: local SSH agent",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -425777,6 +427165,160 @@
         }
       }
     },
+    "Logo Artwork" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسومات الشعارات"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il·lustracions dels logotips"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafika log"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logografik"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logo-Grafiken"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ilustraciones de logotipos"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logojen grafiikka"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Illustrations des logos"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "גרפיקת לוגואים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logógrafikák"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafica dei loghi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ロゴのアートワーク"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로고 아트워크"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logografikk"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logo-afbeeldingen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafiki logo"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arte dos Logotipos"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arte dos logótipos"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafica siglelor"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafike logotipov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logotypgrafik"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Графіка логотипів"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hình ảnh logo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "徽标图稿"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標誌圖稿"
+          }
+        }
+      }
+    },
     "Logs detailed trzsz/mosh session resume diagnostics to a file that survives force-quit. Useful for debugging reconnection failures." : {
       "localizations" : {
         "ar" : {
@@ -425931,7 +427473,162 @@
         }
       }
     },
+    "Logs detailed VPN connection timeline (DNS, SSH, tsshd, netstack) with phase durations, plus rootshell Only Tailscale. Takes effect on next VPN connection or rootshell Only start." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُسجّل تفاصيل مراحل اتصال VPN (DNS، SSH، tsshd، netstack) مع مدة كل مرحلة، إضافةً إلى Tailscale في وضع rootshell فقط. يسري عند بدء اتصال VPN التالي أو تشغيل rootshell فقط."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra la cronologia detallada de la connexió VPN (DNS, SSH, tsshd, netstack) amb la durada de cada fase, a més de Tailscale en mode Només rootshell. S'aplica a la pròxima connexió VPN o en iniciar Només rootshell."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaznamenává podrobný průběh připojení VPN (DNS, SSH, tsshd, netstack) s dobou trvání jednotlivých fází a také Tailscale v režimu Pouze rootshell. Projeví se při příštím připojení VPN nebo spuštění režimu Pouze rootshell."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logger detaljeret tidslinje for VPN-forbindelsen (DNS, SSH, tsshd, netstack) med varighed for hver fase samt Tailscale i Kun rootshell. Træder i kraft ved næste VPN-forbindelse eller start af Kun rootshell."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protokolliert den detaillierten Ablauf der VPN-Verbindung (DNS, SSH, tsshd, netstack) mit Phasendauer, dazu Tailscale im Modus „Nur rootshell“. Wird beim nächsten VPN-Verbindungsaufbau oder Start von „Nur rootshell“ wirksam."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra la cronología detallada de la conexión VPN (DNS, SSH, tsshd, netstack) con la duración de cada fase, además de Tailscale en Solo rootshell. Se aplica en la próxima conexión VPN o al iniciar Solo rootshell."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kirjaa yksityiskohtaisen VPN-yhteyden aikajanan (DNS, SSH, tsshd, netstack) vaiheiden kestoineen sekä Vain rootshell -tilan Tailscalen. Tulee voimaan seuraavan VPN-yhteyden tai Vain rootshell -tilan käynnistyessä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistre la chronologie détaillée de la connexion VPN (DNS, SSH, tsshd, netstack) avec la durée de chaque phase, ainsi que Tailscale en mode rootshell uniquement. Prend effet à la prochaine connexion VPN ou au prochain démarrage de rootshell uniquement."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רושם ציר זמן מפורט של חיבור ה-VPN‏ (DNS,‏ SSH,‏ tsshd,‏ netstack) עם משך כל שלב, וגם את Tailscale במצב rootshell בלבד. ייכנס לתוקף בהתחברות ה-VPN הבאה או בהפעלה הבאה של rootshell בלבד."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Részletes VPN-kapcsolati idővonalat naplóz (DNS, SSH, tsshd, netstack) a fázisok időtartamával, valamint a Csak rootshell módú Tailscale-t. A következő VPN-kapcsolat vagy Csak rootshell indításakor lép érvénybe."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra la cronologia dettagliata della connessione VPN (DNS, SSH, tsshd, netstack) con la durata di ogni fase, più Tailscale in Solo rootshell. Ha effetto dalla prossima connessione VPN o dal prossimo avvio di Solo rootshell."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VPN接続の詳細なタイムライン（DNS、SSH、tsshd、netstack）を各フェーズの所要時間とともに記録し、rootshellのみモードのTailscaleも記録します。次回のVPN接続開始時またはrootshellのみの開始時に反映されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VPN 연결 타임라인(DNS, SSH, tsshd, netstack)을 각 단계별 소요 시간과 함께 상세히 기록하며, rootshell 전용 Tailscale도 기록합니다. 다음 VPN 연결 또는 rootshell 전용 시작 시 적용됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logger detaljert tidslinje for VPN-tilkobling (DNS, SSH, tsshd, netstack) med varighet per fase, pluss Tailscale i Kun rootshell. Trer i kraft ved neste VPN-tilkobling eller oppstart av Kun rootshell."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registreert een gedetailleerde tijdlijn van de VPN-verbinding (DNS, SSH, tsshd, netstack) met faseduur, plus Tailscale in Alleen rootshell. Wordt van kracht bij de volgende VPN-verbinding of start van Alleen rootshell."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejestruje szczegółowy przebieg połączenia VPN (DNS, SSH, tsshd, netstack) z czasem trwania poszczególnych faz, a także Tailscale w trybie Tylko rootshell. Zaczyna obowiązywać przy następnym połączeniu VPN lub uruchomieniu trybu Tylko rootshell."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra a linha do tempo detalhada da conexão VPN (DNS, SSH, tsshd, netstack) com a duração de cada fase, além do Tailscale no modo Apenas rootshell. Entra em vigor na próxima conexão VPN ou ao iniciar o Apenas rootshell."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regista a cronologia detalhada da ligação VPN (DNS, SSH, tsshd, netstack) com a duração de cada fase, além do Tailscale no modo Apenas rootshell. Entra em vigor na próxima ligação VPN ou ao iniciar o Apenas rootshell."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Înregistrează cronologia detaliată a conexiunii VPN (DNS, SSH, tsshd, netstack) cu durata fiecărei faze, plus Tailscale în modul Doar rootshell. Se aplică la următoarea conexiune VPN sau pornire a modului Doar rootshell."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beleži podroben časovni potek povezave VPN (DNS, SSH, tsshd, netstack) s trajanjem posameznih faz ter Tailscale v načinu Samo rootshell. Začne veljati ob naslednji povezavi VPN ali zagonu načina Samo rootshell."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loggar detaljerad VPN-anslutningstidslinje (DNS, SSH, tsshd, netstack) med faslängder, plus Tailscale i Endast rootshell. Börjar gälla vid nästa VPN-anslutning eller start av Endast rootshell."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Записує детальну хронологію VPN-з'єднання (DNS, SSH, tsshd, netstack) із тривалістю кожної фази, а також Tailscale у режимі Лише rootshell. Набуває чинності при наступному підключенні VPN або запуску режиму Лише rootshell."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghi lại tiến trình kết nối VPN chi tiết (DNS, SSH, tsshd, netstack) kèm thời lượng từng giai đoạn, cùng với Tailscale ở chế độ Chỉ rootshell. Có hiệu lực khi bắt đầu kết nối VPN tiếp theo hoặc khi khởi động Chỉ rootshell."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录详细的 VPN 连接时间线（DNS、SSH、tsshd、netstack）及各阶段耗时，并包括“仅 rootshell”模式的 Tailscale。在下次 VPN 连接或“仅 rootshell”启动时生效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記錄詳細的 VPN 連線時間軸（DNS、SSH、tsshd、netstack）及各階段耗時，並包含「僅 rootshell」模式的 Tailscale。於下次 VPN 連線或「僅 rootshell」啟動時生效。"
+          }
+        }
+      }
+    },
     "Logs detailed VPN connection timeline (DNS, SSH, tsshd, netstack) with phase durations. Takes effect on next VPN connection start." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -454501,7 +456198,7 @@
       }
     },
     "Name" : {
-      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nStorage metadata field name placeholder\nStorage provider field",
+      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nLocal SSH agent client rule identity name label\nStorage metadata field name placeholder\nStorage provider field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -483682,6 +485379,161 @@
         }
       }
     },
+    "No VPN. rootshell's SSH, SFTP, Mosh, TSSH and Screen Sharing connections reach your tailnet. Your other VPN stays on." : {
+      "comment" : "Tailscale mode: in-app description (Mac)",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بدون VPN. تصل اتصالات SSH وSFTP وMosh وTSSH ومشاركة الشاشة في rootshell إلى tailnet الخاصة بك. تبقى VPN الأخرى قيد التشغيل."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sense VPN. Les connexions SSH, SFTP, Mosh, TSSH i Compartir pantalla de rootshell arriben a la teva tailnet. L'altra VPN continua activa."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bez VPN. Připojení SSH, SFTP, Mosh, TSSH a Sdílení obrazovky v rootshell dosáhnou do vaší sítě tailnet. Vaše jiná VPN zůstane zapnutá."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingen VPN. rootshells SSH-, SFTP-, Mosh-, TSSH- og Skærmdelingsforbindelser kan nå dit tailnet. Din anden VPN forbliver slået til."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein VPN. SSH-, SFTP-, Mosh-, TSSH- und Bildschirmfreigabe-Verbindungen von rootshell erreichen dein tailnet. Dein anderes VPN bleibt aktiv."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin VPN. Las conexiones SSH, SFTP, Mosh, TSSH y Compartir pantalla de rootshell acceden a tu tailnet. Tu otra VPN sigue activa."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei VPN:ää. rootshellin SSH-, SFTP-, Mosh-, TSSH- ja Näytön jakaminen -yhteydet tavoittavat tailnetisi. Toinen VPN pysyy päällä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de VPN. Les connexions SSH, SFTP, Mosh, TSSH et Partage d’écran de rootshell accèdent à votre tailnet. Votre autre VPN reste actif."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ללא VPN. חיבורי SSH, SFTP, Mosh, TSSH ושיתוף מסך של rootshell מגיעים ל-tailnet שלך. ה-VPN האחר שלך נשאר פעיל."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nincs VPN. A rootshell SSH-, SFTP-, Mosh-, TSSH- és Képernyőmegosztás-kapcsolatai elérik a tailnet hálózatát. A másik VPN bekapcsolva marad."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna VPN. Le connessioni SSH, SFTP, Mosh, TSSH e Condivisione schermo di rootshell raggiungono la tua tailnet. L'altra VPN resta attiva."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VPNは使用しません。rootshellのSSH、SFTP、Mosh、TSSH、画面共有の接続からtailnetに接続できます。他のVPNはオンのままです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VPN을 사용하지 않습니다. rootshell의 SSH, SFTP, Mosh, TSSH, 화면 공유 연결이 tailnet에 접속합니다. 다른 VPN은 켜진 상태로 유지됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingen VPN. SSH-, SFTP-, Mosh-, TSSH- og Skjermdeling-tilkoblingene i rootshell når ditt tailnet. Den andre VPN-en din forblir på."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen VPN. De SSH-, SFTP-, Mosh-, TSSH- en Schermdelen-verbindingen van rootshell bereiken je tailnet. Je andere VPN blijft aan."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bez VPN. Połączenia SSH, SFTP, Mosh, TSSH i udostępniania ekranu w rootshell docierają do Twojej sieci tailnet. Twoja inna VPN pozostaje włączona."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem VPN. As conexões SSH, SFTP, Mosh, TSSH e Compartilhamento de Tela do rootshell acessam sua tailnet. Sua outra VPN continua ativa."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem VPN. As ligações SSH, SFTP, Mosh, TSSH e Partilha de Ecrã do rootshell acedem à sua tailnet. A sua outra VPN mantém-se ativa."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fără VPN. Conexiunile SSH, SFTP, Mosh, TSSH și Partajare ecran din rootshell ajung la tailnet-ul tău. Celălalt VPN rămâne activ."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brez VPN. Povezave SSH, SFTP, Mosh, TSSH in skupne rabe zaslona v rootshell dosežejo vaše omrežje tailnet. Vaš drugi VPN ostane vklopljen."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inget VPN. rootshells SSH-, SFTP-, Mosh-, TSSH- och Skärmdelningsanslutningar når ditt tailnet. Ditt andra VPN förblir på."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Без VPN. З'єднання SSH, SFTP, Mosh, TSSH і спільного доступу до екрана в rootshell мають доступ до вашої мережі tailnet. Інший VPN залишається ввімкненим."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không dùng VPN. Các kết nối SSH, SFTP, Mosh, TSSH và Chia sẻ màn hình của rootshell truy cập được tailnet của bạn. VPN khác của bạn vẫn bật."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无需 VPN。rootshell 的 SSH、SFTP、Mosh、TSSH 和屏幕共享连接均可访问你的 tailnet。你的其他 VPN 保持开启。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不需 VPN。rootshell 的 SSH、SFTP、Mosh、TSSH 和螢幕共享連線皆可連接你的 tailnet。你的其他 VPN 會保持開啟。"
+          }
+        }
+      }
+    },
     "No VPN. rootshell's SSH, SFTP, Mosh, TSSH, Screen Sharing, curl and git reach your tailnet. Your other VPN stays on." : {
       "comment" : "Tailscale mode: in-app description",
       "localizations" : {
@@ -485535,7 +487387,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nHTTP capture: no host decrypted\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nHTTP capture: no host decrypted\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -495433,7 +497285,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings VPN row: nothing running\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings VPN row: nothing running\nSettings status: disabled\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -496052,7 +497904,7 @@
       }
     },
     "On" : {
-      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nSettings status: enabled\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -512892,6 +514744,161 @@
         }
       }
     },
+    "Other Mac apps don't see the tailnet. In the local shell, only tools that use a proxy setting, like curl, can reach it." : {
+      "comment" : "Tailscale rootshell Only footer (Mac)",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا ترى تطبيقات Mac الأخرى tailnet. في الصدفة المحلية، لا تصل إليها إلا الأدوات التي تستخدم إعداد وكيل، مثل curl."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les altres apps del Mac no veuen la tailnet. Al shell local, només les eines que fan servir un ajust de proxy, com curl, hi poden arribar."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatní aplikace na Macu síť tailnet nevidí. V lokálním shellu se k ní dostanou jen nástroje, které používají nastavení proxy, například curl."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andre Mac-apps kan ikke se dit tailnet. I den lokale shell kan kun værktøjer, der bruger en proxyindstilling, som curl, nå det."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andere Mac-Apps sehen das tailnet nicht. In der lokalen Shell erreichen es nur Tools, die eine Proxy-Einstellung nutzen, wie curl."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las demás apps de Mac no ven la tailnet. En el shell local, solo las herramientas que usan un ajuste de proxy, como curl, pueden acceder a ella."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muut Mac-apit eivät näe tailnetiä. Paikallisessa komentotulkissa vain välityspalvelinasetusta käyttävät työkalut, kuten curl, tavoittavat sen."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les autres apps Mac ne voient pas le tailnet. Dans le shell local, seuls les outils qui utilisent un réglage de proxy, comme curl, peuvent y accéder."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אפליקציות Mac אחרות לא רואות את ה-tailnet. במעטפת המקומית, רק כלים שמשתמשים בהגדרת פרוקסי, כמו curl, יכולים להגיע אליו."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A többi Mac-alkalmazás nem látja a tailnet hálózatot. A helyi shellben csak a proxybeállítást használó eszközök, például a curl érhetik el."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le altre app del Mac non vedono la tailnet. Nella shell locale, solo gli strumenti che usano un'impostazione proxy, come curl, possono raggiungerla."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "他のMacアプリからtailnetは見えません。ローカルシェルでは、curlなどプロキシ設定を使用するツールだけが接続できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 Mac 앱에서는 tailnet이 보이지 않습니다. 로컬 셸에서는 curl처럼 프록시 설정을 사용하는 도구만 접속할 수 있습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andre Mac-apper ser ikke ditt tailnet. I det lokale skallet kan bare verktøy som bruker en proxyinnstilling, som curl, nå det."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andere Mac-apps zien het tailnet niet. In de lokale shell kunnen alleen tools die een proxyinstelling gebruiken, zoals curl, het bereiken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inne aplikacje na Macu nie widzą sieci tailnet. W lokalnej powłoce docierają do niej tylko narzędzia korzystające z ustawienia proxy, takie jak curl."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outros apps do Mac não veem a tailnet. No shell local, apenas ferramentas que usam uma configuração de proxy, como curl, podem acessá-la."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As outras apps do Mac não veem a tailnet. Na shell local, só as ferramentas que usam uma definição de proxy, como o curl, lhe conseguem aceder."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celelalte aplicații Mac nu văd tailnet-ul. În shell-ul local, doar instrumentele care folosesc o setare de proxy, precum curl, pot ajunge la el."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Druge aplikacije v Macu omrežja tailnet ne vidijo. V lokalni lupini ga dosežejo le orodja, ki uporabljajo nastavitev posredniškega strežnika, kot je curl."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andra Mac-appar ser inte ditt tailnet. I det lokala skalet kan bara verktyg som använder en proxyinställning, som curl, nå det."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Інші програми на Mac не бачать мережу tailnet. У локальній оболонці до неї мають доступ лише інструменти, що використовують налаштування проксі, як-от curl."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Các ứng dụng Mac khác không thấy tailnet. Trong shell cục bộ, chỉ những công cụ dùng cài đặt proxy, như curl, mới truy cập được."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他 Mac App 无法看到 tailnet。在本地 Shell 中，只有使用代理设置的工具（如 curl）可以访问它。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他 Mac App 看不到 tailnet。在本機 Shell 中，只有使用代理設定的工具（例如 curl）可以連接它。"
+          }
+        }
+      }
+    },
     "Other Pane" : {
       "comment" : "File manager shortcut",
       "localizations" : {
@@ -523402,7 +525409,7 @@
       }
     },
     "Path" : {
-      "comment" : "Storage addressing style: bucket in the URL path",
+      "comment" : "Local SSH agent client rule identity path label\nStorage addressing style: bucket in the URL path",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -578075,7 +580082,7 @@
       }
     },
     "Remove" : {
-      "comment" : "Storage metadata: remove field",
+      "comment" : "Local SSH agent audit action\nStorage metadata: remove field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -608672,6 +610679,315 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rosé Pine"
+          }
+        }
+      }
+    },
+    "Rounded Panes" : {
+      "comment" : "Setting title",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الأجزاء المستديرة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plafons arrodonits"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaoblené panely"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afrundede ruder"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abgerundete Bereiche"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paneles redondeados"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pyöristetyt ruudut"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panneaux arrondis"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חלוניות מעוגלות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lekerekített panelek"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riquadri arrotondati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "角丸ペイン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "둥근 분할 영역"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avrundede ruter"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afgeronde deelvensters"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaokrąglone panele"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Painéis Arredondados"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Painéis arredondados"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panouri rotunjite"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaobljena podokna"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rundade rutor"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заокруглені панелі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ngăn bo góc"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圆角窗格"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圓角窗格"
+          }
+        }
+      }
+    },
+    "Rounded Panes uses at least %lld pt so text clears the rounded corners." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تستخدم الأجزاء المستديرة %lld pt على الأقل كي لا تتداخل النصوص مع الزوايا المستديرة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plafons arrodonits fa servir com a mínim %lld pt perquè el text no quedi sota les cantonades arrodonides."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaoblené panely používají alespoň %lld pt, aby text nezasahoval do zaoblených rohů."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afrundede ruder bruger mindst %lld pt, så teksten går fri af de afrundede hjørner."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Abgerundete Bereiche“ verwendet mindestens %lld pt, damit Text nicht von den abgerundeten Ecken verdeckt wird."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paneles redondeados usa al menos %lld pt para que el texto no quede bajo las esquinas redondeadas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pyöristetyt ruudut käyttää vähintään %lld pt, jotta teksti ei jää pyöristettyjen kulmien alle."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panneaux arrondis utilise au moins %lld pt pour que le texte ne soit pas masqué par les coins arrondis."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חלוניות מעוגלות משתמש ב-%lld pt לפחות כדי שהטקסט לא יוסתר על ידי הפינות המעוגלות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Lekerekített panelek legalább %lld pt-ot használ, hogy a szöveg ne kerüljön a lekerekített sarkok alá."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riquadri arrotondati usa almeno %lld pt così il testo non finisce sotto gli angoli arrotondati."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "角丸ペインでは、テキストが角丸に隠れないよう最低%lld ptを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "둥근 분할 영역은 텍스트가 둥근 모서리에 가려지지 않도록 최소 %lld pt를 사용합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avrundede ruter bruker minst %lld pt slik at teksten går klar av de avrundede hjørnene."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afgeronde deelvensters gebruikt minimaal %lld pt zodat tekst vrij blijft van de afgeronde hoeken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaokrąglone panele używają co najmniej %lld pt, aby tekst nie wchodził pod zaokrąglone rogi."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Painéis Arredondados usa pelo menos %lld pt para que o texto não fique sob os cantos arredondados."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Painéis arredondados usa pelo menos %lld pt para que o texto não fique sob os cantos arredondados."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panouri rotunjite folosește cel puțin %lld pt, ca textul să nu intre sub colțurile rotunjite."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaobljena podokna uporabljajo vsaj %lld pt, da besedilo ne sega pod zaobljene vogale."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rundade rutor använder minst %lld pt så att texten går fri från de rundade hörnen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заокруглені панелі використовують щонайменше %lld pt, щоб текст не заходив під заокруглені кути."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ngăn bo góc dùng tối thiểu %lld pt để chữ không bị góc bo che."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圆角窗格至少使用 %lld pt，以免文字被圆角遮挡。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圓角窗格至少使用 %lld pt，以免文字被圓角遮住。"
           }
         }
       }
@@ -659962,6 +662278,161 @@
         }
       }
     },
+    "Show Program Icons" : {
+      "comment" : "Setting title",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار أيقونات البرامج"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar les icones dels programes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazit ikony programů"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis programikoner"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Programmsymbole anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar iconos de programas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä ohjelmien kuvakkeet"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les icônes des programmes"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצג סמלי תוכניות"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Programikonok megjelenítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra icone dei programmi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プログラムアイコンを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프로그램 아이콘 표시"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis programikoner"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Programmasymbolen tonen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuj ikony programów"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar Ícones dos Programas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar ícones dos programas"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează pictogramele programelor"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prikaži ikone programov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa programsymboler"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показувати значки програм"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện biểu tượng chương trình"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示程序图标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示程式圖示"
+          }
+        }
+      }
+    },
     "Show public IP and ISP on Lock Screen" : {
       "localizations" : {
         "ar" : {
@@ -661346,6 +663817,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "分頁分組時，在頂部標籤列中顯示使用中的群組或專案切換器。"
+          }
+        }
+      }
+    },
+    "Show the shell or running program's logo on tabs and sidebar rows, and a Running card for long-running programs." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُظهر شعار الصدفة أو البرنامج قيد التشغيل على علامات التبويب وصفوف الشريط الجانبي، وبطاقة «قيد التشغيل» للبرامج طويلة التشغيل."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra el logotip del shell o del programa en execució a les pestanyes i a les files del panell lateral, i una targeta En execució per als programes de llarga durada."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazí logo shellu nebo spuštěného programu na kartách a řádcích bočního panelu a dlaždici Běží u dlouho běžících programů."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis shellens eller det kørende programs logo på faner og sidebjælkerækker samt et Kører-kort for langvarige programmer."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt das Logo der Shell oder des laufenden Programms auf Tabs und Seitenleistenzeilen sowie eine „Wird ausgeführt“-Karte für lang laufende Programme."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra el logotipo del shell o del programa en ejecución en las pestañas y filas del panel lateral, y una tarjeta En ejecución para programas de larga duración."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä komentotulkin tai käynnissä olevan ohjelman logo välilehdissä ja sivupalkin riveillä sekä Käynnissä-kortti pitkään käynnissä oleville ohjelmille."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche le logo du shell ou du programme en cours sur les onglets et les lignes du panneau latéral, ainsi qu'une carte En cours d'exécution pour les programmes longs."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מציג את הלוגו של המעטפת או של התוכנית הפועלת בלשוניות ובשורות סרגל הצד, וכרטיס \"פועל\" לתוכניות שרצות זמן רב."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Megjeleníti a shell vagy a futó program logóját a lapokon és az oldalsáv soraiban, valamint egy Fut kártyát a hosszan futó programokhoz."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra il logo della shell o del programma in esecuzione su schede e righe della barra laterale, e un pannello In esecuzione per i programmi di lunga durata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "シェルまたは実行中のプログラムのロゴをタブとサイドバーの行に表示し、長時間実行されるプログラムには「実行中」カードを表示します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭과 사이드바 행에 셸 또는 실행 중인 프로그램의 로고를 표시하고, 오래 실행되는 프로그램에는 실행 중 카드를 표시합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis logoen til skallet eller det kjørende programmet på faner og sidefeltrader, og et Kjører-kort for langvarige programmer."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toont het logo van de shell of het actieve programma op tabs en zijbalkrijen, en een Actief-kaart voor langlopende programma's."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuje logo powłoki lub uruchomionego programu na kartach i wierszach panelu bocznego oraz kafelek Uruchomiony dla długo działających programów."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra o logotipo do shell ou do programa em execução nas abas e nas linhas do painel lateral, e um cartão Em Execução para programas de longa duração."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra o logótipo da shell ou do programa em execução nos separadores e nas linhas do painel lateral, e um cartão Em execução para programas de longa duração."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează sigla shell-ului sau a programului în execuție pe file și pe rândurile panoului lateral, plus un card În execuție pentru programele de lungă durată."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prikaže logotip lupine ali zagnanega programa na zavihkih in vrsticah stranskega panela ter kartico Se izvaja za dolgotrajne programe."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa skalets eller det körande programmets logotyp på flikar och sidofältsrader, och ett Körs-kort för långvariga program."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показує логотип оболонки або запущеної програми на вкладках і рядках бічної панелі, а також картку «Працює» для довготривалих програм."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện logo của shell hoặc chương trình đang chạy trên tab và các hàng thanh bên, cùng thẻ Đang Chạy cho các chương trình chạy lâu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在标签页和侧边栏行上显示 Shell 或正在运行程序的徽标，并为长时间运行的程序显示“运行中”卡片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在分頁和側邊欄列上顯示 Shell 或執行中程式的標誌，並為長時間執行的程式顯示「執行中」卡片。"
           }
         }
       }
@@ -678059,6 +680684,161 @@
         }
       }
     },
+    "Soft drifting glow in the terminal theme's colors" : {
+      "comment" : "Background effect description for theme gradient",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "توهّج ناعم منساب بألوان سمة الطرفية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lluentor suau i canviant amb els colors del tema del terminal"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jemná plynoucí záře v barvách motivu terminálu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blødt, drivende skær i terminaltemaets farver"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sanft wanderndes Leuchten in den Farben des Terminal-Themes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brillo suave y cambiante en los colores del tema del terminal"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pehmeä, ajelehtiva hehku terminaaliteeman väreissä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lueur douce et mouvante aux couleurs du thème du terminal"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "זוהר רך ונסחף בצבעי ערכת הנושא של המסוף"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lágyan sodródó fény a terminál témájának színeiben"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bagliore tenue e fluttuante nei colori del tema del terminale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ターミナルテーマの色でゆっくり漂う柔らかな光"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "터미널 테마 색상으로 부드럽게 흐르는 빛"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Myk, drivende glød i terminaltemaets farger"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zachte, zwevende gloed in de kleuren van het terminalthema"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Miękka, dryfująca poświata w kolorach motywu terminala"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brilho suave e flutuante nas cores do tema do terminal"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brilho suave e flutuante nas cores do tema do terminal"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strălucire discretă și plutitoare în culorile temei terminalului"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehak, polzeč sij v barvah teme terminala"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mjukt svävande sken i terminaltemats färger"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "М'яке плинне сяйво в кольорах теми термінала"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ánh sáng dịu trôi nhẹ theo màu giao diện terminal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以终端主题颜色缓缓飘动的柔和光晕"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以終端機主題顏色緩緩飄動的柔和光暈"
+          }
+        }
+      }
+    },
     "Soft Marimba" : {
       "comment" : "Notification sound: wooden mallet",
       "localizations" : {
@@ -686258,7 +689038,7 @@
       }
     },
     "SSH Agent" : {
-      "comment" : "Setting group title",
+      "comment" : "Agent key section header\nSetting group title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -757309,6 +760089,316 @@
         }
       }
     },
+    "Theme Gradient" : {
+      "comment" : "Background effect name: gradient from theme colors",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تدرّج السمة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Degradat del tema"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přechod motivu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temagradient"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme-Verlauf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Degradado del tema"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teeman liukuväri"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dégradé du thème"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מעבר צבעים של ערכת הנושא"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Témaszínátmenet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sfumatura del tema"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーマグラデーション"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "테마 그라데이션"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temagradient"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Themaverloop"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gradient motywu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gradiente do Tema"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gradiente do tema"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gradientul temei"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preliv teme"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temagradient"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Градієнт теми"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dải màu giao diện"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主题渐变"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主題漸層"
+          }
+        }
+      }
+    },
+    "Theme Gradient Backdrop" : {
+      "comment" : "Setting title",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خلفية النافذة بتدرّج السمة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fons amb degradat del tema"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pozadí okna s přechodem motivu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vinduesbaggrund med temagradient"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fensterhintergrund mit Theme-Verlauf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fondo de ventana con degradado del tema"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teeman liukuväri ikkunan taustana"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dégradé du thème en arrière-plan de fenêtre"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רקע חלון עם מעבר צבעים של ערכת הנושא"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Témaszínátmenetes ablakháttér"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sfondo finestra con sfumatura del tema"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーマグラデーションのウィンドウ背景"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "테마 그라데이션 창 배경"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vindusbakgrunn med temagradient"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vensterachtergrond met themaverloop"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tło okna z gradientem motywu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundo com Gradiente do Tema"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundo com gradiente do tema"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundal fereastră cu gradientul temei"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ozadje okna s prelivom teme"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fönsterbakgrund med temagradient"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тло вікна з градієнтом теми"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nền cửa sổ dải màu giao diện"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主题渐变窗口背景"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主題漸層視窗背景"
+          }
+        }
+      }
+    },
     "Theme Name" : {
       "localizations" : {
         "ar" : {
@@ -791917,6 +795007,161 @@
         }
       }
     },
+    "Transparent Backdrop" : {
+      "comment" : "Setting title",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خلفية نافذة شفافة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fons de la finestra transparent"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Průhledné pozadí okna"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gennemsigtig vinduesbaggrund"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transparenter Fensterhintergrund"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fondo de ventana transparente"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Läpinäkyvä ikkunan tausta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrière-plan de fenêtre transparent"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רקע חלון שקוף"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Átlátszó ablakháttér"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sfondo finestra trasparente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明なウィンドウ背景"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "투명한 창 배경"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gjennomsiktig vindusbakgrunn"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transparante vensterachtergrond"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przezroczyste tło okna"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundo da Janela Transparente"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundo da janela transparente"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundal fereastră transparent"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prosojno ozadje okna"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genomskinlig fönsterbakgrund"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прозоре тло вікна"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nền cửa sổ trong suốt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明窗口背景"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明視窗背景"
+          }
+        }
+      }
+    },
     "Transparent Pinned Sidebar" : {
       "comment" : "Setting title",
       "localizations" : {
@@ -799477,6 +802722,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在該處開啟「終端機鍵盤」即可切換，並在「外觀」中選擇樣式。"
+          }
+        }
+      }
+    },
+    "Turn on the Theme Gradient backdrop first." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فعّل خلفية النافذة بتدرّج السمة أولًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa primer el fons amb degradat del tema."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nejprve zapněte pozadí okna s přechodem motivu."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slå først vinduesbaggrunden med temagradient til."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiviere zuerst den Fensterhintergrund mit Theme-Verlauf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa primero el fondo de ventana con degradado del tema."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ota ensin käyttöön teeman liukuväri ikkunan taustana."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez d'abord le dégradé du thème en arrière-plan de fenêtre."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעל תחילה את רקע החלון עם מעבר הצבעים של ערכת הנושא."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Előbb kapcsolja be a témaszínátmenetes ablakhátteret."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva prima lo sfondo finestra con sfumatura del tema."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先にテーマグラデーションのウィンドウ背景をオンにしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "먼저 테마 그라데이션 창 배경을 켜세요."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slå på vindusbakgrunnen med temagradient først."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zet eerst de vensterachtergrond met themaverloop aan."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najpierw włącz tło okna z gradientem motywu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative primeiro o Fundo com Gradiente do Tema."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative primeiro o fundo com gradiente do tema."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activează mai întâi fundalul ferestrei cu gradientul temei."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najprej vklopite ozadje okna s prelivom teme."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slå först på fönsterbakgrunden med temagradient."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спершу ввімкніть тло вікна з градієнтом теми."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hãy bật nền cửa sổ dải màu giao diện trước."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先开启主题渐变窗口背景。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請先開啟主題漸層視窗背景。"
           }
         }
       }
@@ -820952,6 +824351,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "「在本機 Shell 中使用」可讓本機 Shell 中的 curl 和 git 連接你的 tailnet。"
+          }
+        }
+      }
+    },
+    "Use in Local Shell sets ALL_PROXY in new local shells, so tools that honor it, like curl, reach your tailnet." : {
+      "comment" : "Tailscale in-app footer: local shell (Mac)",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يضبط «الاستخدام في الصدفة المحلية» المتغير ALL_PROXY في الصدفات المحلية الجديدة، فتصل الأدوات التي تحترمه، مثل curl، إلى tailnet الخاصة بك."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Utilitza al shell local» defineix ALL_PROXY als nous shells locals, perquè les eines que el respecten, com curl, arribin a la teva tailnet."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Použít v lokálním shellu“ nastaví ALL_PROXY v nových lokálních shellech, takže nástroje, které ji respektují, například curl, dosáhnou do vaší sítě tailnet."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Brug i lokal shell” sætter ALL_PROXY i nye lokale shells, så værktøjer, der respekterer den, som curl, kan nå dit tailnet."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„In lokaler Shell verwenden“ setzt ALL_PROXY in neuen lokalen Shells, sodass Tools, die es unterstützen, wie curl, dein tailnet erreichen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Usar en el shell local» define ALL_PROXY en los nuevos shells locales, para que las herramientas compatibles, como curl, accedan a tu tailnet."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "”Käytä paikallisessa komentotulkissa” asettaa ALL_PROXY-muuttujan uusiin paikallisiin komentotulkkeihin, jotta sitä noudattavat työkalut, kuten curl, tavoittavat tailnetisi."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« Utiliser dans le shell local » définit ALL_PROXY dans les nouveaux shells locaux, pour que les outils qui le prennent en charge, comme curl, accèdent à votre tailnet."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"השתמש במעטפת המקומית\" מגדיר את ALL_PROXY במעטפות מקומיות חדשות, כך שכלים שמכבדים אותו, כמו curl, מגיעים ל-tailnet שלך."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A „Használat a helyi shellben” beállítja az ALL_PROXY változót az új helyi shellekben, így az ezt figyelembe vevő eszközök, például a curl, elérik a tailnet hálózatát."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Usa nella shell locale» imposta ALL_PROXY nelle nuove shell locali, così gli strumenti che lo supportano, come curl, raggiungono la tua tailnet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「ローカルシェルで使用」は新しいローカルシェルにALL_PROXYを設定し、curlなどそれに対応するツールがtailnetに接続できるようにします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "‘로컬 셸에서 사용’은 새 로컬 셸에 ALL_PROXY를 설정하여 curl처럼 이를 따르는 도구가 tailnet에 접속할 수 있게 합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Bruk i lokalt skall» setter ALL_PROXY i nye lokale skall, slik at verktøy som respekterer den, som curl, når ditt tailnet."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "‘Gebruik in lokale shell’ stelt ALL_PROXY in voor nieuwe lokale shells, zodat tools die het ondersteunen, zoals curl, je tailnet bereiken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Używaj w lokalnej powłoce” ustawia ALL_PROXY w nowych lokalnych powłokach, aby narzędzia, które ją respektują, takie jak curl, docierały do Twojej sieci tailnet."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Usar no Shell Local” define ALL_PROXY nos novos shells locais, para que ferramentas compatíveis, como curl, acessem sua tailnet."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Usar na Shell Local” define ALL_PROXY nas novas shells locais, para que as ferramentas compatíveis, como o curl, acedam à sua tailnet."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Folosește în shell-ul local” setează ALL_PROXY în shell-urile locale noi, ca instrumentele care îl respectă, precum curl, să ajungă la tailnet-ul tău."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "»Uporabi v lokalni lupini« nastavi ALL_PROXY v novih lokalnih lupinah, tako da orodja, ki ga upoštevajo, kot je curl, dosežejo vaše omrežje tailnet."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "”Använd i lokalt skal” sätter ALL_PROXY i nya lokala skal, så att verktyg som respekterar den, som curl, når ditt tailnet."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Використовувати в локальній оболонці» задає ALL_PROXY у нових локальних оболонках, тож інструменти, які його враховують, як-от curl, мають доступ до вашої мережі tailnet."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Dùng trong Shell cục bộ” đặt ALL_PROXY trong các shell cục bộ mới, để các công cụ tuân theo nó, như curl, truy cập được tailnet của bạn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“在本地 Shell 中使用”会在新的本地 Shell 中设置 ALL_PROXY，让支持它的工具（如 curl）访问你的 tailnet。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「在本機 Shell 中使用」會在新的本機 Shell 中設定 ALL_PROXY，讓支援它的工具（例如 curl）連接你的 tailnet。"
           }
         }
       }
@@ -848466,7 +852020,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
