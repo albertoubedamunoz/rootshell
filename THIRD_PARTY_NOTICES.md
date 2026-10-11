@@ -127,6 +127,30 @@ Soto Core's NOTICE file states:
 | [Swift NIO SSH](https://github.com/apple/swift-nio-ssh) | Copyright (c) Apple Inc. and the SwiftNIO SSH project authors | Apache 2.0 |
 | [Swift Crypto](https://github.com/apple/swift-crypto) | Copyright (c) Apple Inc. and the Swift Crypto project authors | Apache 2.0 |
 
+## Logo artwork
+
+Shell and program logos shown in tabs and the sidebar. The rootshell MIT
+license does not apply to them; each keeps its own license.
+
+| Artwork | Copyright or acknowledgement | License |
+| --- | --- | --- |
+| [Bash logo](https://github.com/odb/official-bash-logo) | Copyright (c) 2016 Free Software Foundation | Free Art License 1.3 |
+| [Zsh logo](https://github.com/Zsh-art/logo) | Justin Dorfman and Zsh-art contributors; official monochrome logomark, strokes converted to outlines | CC BY-SA 4.0 |
+| [Nushell logo](https://github.com/nushell/nushell) | The Nushell project developers, via [Simple Icons](https://simpleicons.org) | MIT |
+| [Elvish logo](https://github.com/elves/elvish) | The Elvish authors; λ outlined from [Vollkorn](https://github.com/google/fonts/tree/main/ofl/vollkorn) (SIL OFL 1.1) | BSD 2-Clause |
+| [xonsh logo](https://github.com/xonsh/xonsh) | The xonsh developers; filters flattened to solid fills | BSD 2-Clause |
+
+| [Neovim logo](https://github.com/neovim/neovim.github.io) | Jason Long | CC BY 3.0 |
+| [btop logo](https://github.com/aristocratos/btop) | Aristocratos | Apache 2.0 |
+| [Git logo](https://git-scm.com/community/logos) | Jason Long. Git™ is a trademark of the Software Freedom Conservancy | CC BY 3.0 |
+| [tmux logo](https://github.com/tmux/tmux/tree/master/logo) | Jason Long | ISC |
+| [Ruby logo](https://www.ruby-lang.org/en/about/logo/) | Copyright (c) 2006 Yukihiro Matsumoto; style classes converted to fill attributes | CC BY-SA 2.5 |
+| [Python logo](https://www.python.org/psf/trademarks/) | "Python" and the Python logos are trademarks or registered trademarks of the Python Software Foundation | Used under the PSF trademark policy |
+| [Homebrew logo](https://github.com/Homebrew/brew.sh) | Homebrew contributors | BSD 2-Clause |
+| [Deno logo](https://deno.com/brand) | Deno Land Inc. | MIT |
+
+The fish, htop and Emacs marks are original rootshell artwork.
+
 ## Sound Effects
 
 rootshell includes original synthesized waveforms and sounds sourced from
@@ -143,8 +167,12 @@ particular:
 - [BSD 2-Clause License](https://opensource.org/license/bsd-2-clause)
 - [BSD 3-Clause License](https://opensource.org/license/bsd-3-clause)
 - [Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/legalcode)
+- [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/legalcode)
+- [Creative Commons Attribution-ShareAlike 2.5](https://creativecommons.org/licenses/by-sa/2.5/legalcode)
 - [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/legalcode)
+- [Free Art License 1.3](https://artlibre.org/licence/lal/en/)
 - [GNU GPL 2.0](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
+- [ISC License](https://opensource.org/license/isc-license-txt)
 - [MIT License](https://opensource.org/license/mit)
 - [Mozilla Public License 2.0](https://www.mozilla.org/MPL/2.0/)
 - [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/)

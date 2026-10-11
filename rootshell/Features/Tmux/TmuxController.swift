@@ -690,6 +690,8 @@ final class TmuxController {
                 if view.tmuxReportedCurrentCommand != identity.currentCommand {
                     view.tmuxReportedCurrentCommand = identity.currentCommand
                 }
+                view.setForegroundProgram(
+                    ForegroundProgram(rawName: identity.currentCommand, source: .tmux), from: .tmux)
             }
         }
     }

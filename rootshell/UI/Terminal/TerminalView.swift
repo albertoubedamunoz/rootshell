@@ -357,6 +357,17 @@ extension Ghostty {
         /// that progress is removed when the program's work ends.
         var programStatusOwnsProgress = false
 
+        /// One identity per source; the highest source wins
+        /// (`TerminalView+ForegroundProgram`).
+        var foregroundProgramSources: [ForegroundProgram.Source: ForegroundProgram] = [:]
+        /// OSC 7501 records the shell sends about itself and its command.
+        var shellProgramReports = ShellProgramReports()
+        var foregroundProgramCardTask: Task<Void, Never>?
+        var localForegroundProbeTask: Task<Void, Never>?
+        /// Last probed local foreground group; a new one means a new job.
+        var localForegroundProcessGroup: Int32?
+        var loginShellProbeTask: Task<Void, Never>?
+
         /// Progress report state (for OSC 9;4 progress indicators)
         @Published var progressReport: Ghostty.Action.ProgressReport? = nil {
             didSet {
@@ -4970,6 +4981,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             LocalMultiplexerTracker.shared.refresh()
         }
         #endif
+        noteForegroundCommandFinished()
         // A program that exited (or a new prompt) keeps only finished OSC 7501
         // results. Emptying them releases the pane only after the exit below
         // is credited to the agent still holding it.
@@ -5092,6 +5104,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
 
     func handleSurfaceContentChanged() {
         AgentAttentionCenter.shared.noteContentChanged(terminal: self)
+        noteLocalForegroundMayHaveChanged()
         if let binding = tmuxPaneBinding,
            let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface) {
             controller.notePaneContentChanged()
@@ -5448,6 +5461,14 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func handleProgramStatus(_ report: Ghostty.Action.ProgramStatus) {
+        if ShellProgramReports.owns(id: report.id) {
+            applyShellProgramReport(report)
+            return
+        }
+        // A clear with no id removes every record, the shell's included.
+        if report.state == .clear, report.id.isEmpty {
+            clearShellProgramReports()
+        }
         programStatusRecords.apply(report)
         if ProgramStatusDebugLogger.shared.isEnabled {
             ProgramStatusDebugLogger.shared.event(

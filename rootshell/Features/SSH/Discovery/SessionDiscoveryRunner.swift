@@ -707,3 +707,29 @@ enum SessionDiscoveryRunner {
         )
     }
 }
+
+// MARK: - Login shell
+
+extension SessionDiscoveryRunner {
+    /// The account's login shell, for a pane's idle identity when the remote
+    /// shell sends nothing about itself. Wrong only when an rc file execs
+    /// another shell; nil on any failure.
+    static func loginShell(using session: CitadelSSHSession) async -> String? {
+        guard let client = session.client else { return nil }
+        return parseLoginShell(try? await citadelRunner(client)(loginShellCommand))
+    }
+
+    static func loginShell(using session: TrzszSession) async -> String? {
+        parseLoginShell(try? await runOverExecChannel(loginShellCommand, on: session))
+    }
+
+    private static let loginShellCommand = "printf '%s' \"$SHELL\""
+
+    /// A login profile can print a banner first; the path is the last line.
+    static func parseLoginShell(_ output: String?) -> String? {
+        guard let line = output?.split(whereSeparator: \.isNewline).last else { return nil }
+        let path = line.trimmingCharacters(in: .whitespaces)
+        guard path.hasPrefix("/"), path.count < 256 else { return nil }
+        return path
+    }
+}

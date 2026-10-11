@@ -1293,6 +1293,12 @@ final class AgentAttentionCenter {
         scheduleScan(monitor, reasonDelay: Tuning.resizeSettleDelay)
     }
 
+    /// A pane's Running card appeared or went away. Only the tab rollups
+    /// follow it: the card is presentation, with no monitor or inbox state.
+    func foregroundProgramCardDidChange() {
+        publishPresentationRollups(now: Date())
+    }
+
     func noteProgressChanged(terminal: Ghostty.TerminalView) {
         let now = Date()
         let phase: OSCProgressActivity.Phase?
@@ -1584,7 +1590,7 @@ final class AgentAttentionCenter {
         for model in TmuxWindowRegistry.allTabsModels() {
             for tab in model.tabs {
                 for pane in tab.splitTree {
-                    guard let row = pane.presentation.agentRow else { continue }
+                    guard let row = pane.presentation.agentRow, !row.isForegroundProgram else { continue }
                     counts[row.status, default: 0] += 1
                 }
             }

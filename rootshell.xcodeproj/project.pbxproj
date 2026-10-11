@@ -138,6 +138,11 @@
 		47AF04750000000000000C02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */; };
 		47AF04850000000000000A01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */; };
 		47AF04870000000000000A01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */; };
+		47AF05A00000000000000A01 /* rootshell/Features/ProgramIdentity/ForegroundProgram.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B01 /* rootshell/Features/ProgramIdentity/ForegroundProgram.swift */; };
+		47AF05A00000000000000A02 /* rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B02 /* rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift */; };
+		47AF05A00000000000000A03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift */; };
+		47AF05A00000000000000A04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift */; };
+		47AF05A00000000000000A05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift */; };
 		47AF04890000000000000A01 /* rootshell/Features/Tmux/TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* rootshell/Features/Tmux/TmuxDividerResize.swift */; };
 		47AF04890000000000000A02 /* rootshell/Features/Tmux/TmuxDividerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04890000000000000B01 /* rootshell/Features/Tmux/TmuxDividerResize.swift */; };
 		47AF04960000000000000A01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */; };
@@ -630,6 +635,11 @@
 		47AF04750000000000000B02 /* rootshell/Features/Tmux/TmuxSplitEqualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxSplitEqualizer.swift; sourceTree = SOURCE_ROOT; };
 		47AF04850000000000000B01 /* rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalScrollbarAvailabilityPolicy.swift; sourceTree = SOURCE_ROOT; };
 		47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift; sourceTree = SOURCE_ROOT; };
+		47AF05A00000000000000B01 /* rootshell/Features/ProgramIdentity/ForegroundProgram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ForegroundProgram.swift; sourceTree = SOURCE_ROOT; };
+		47AF05A00000000000000B02 /* rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift; sourceTree = SOURCE_ROOT; };
+		47AF05A00000000000000B03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ProgramCatalog.swift; sourceTree = SOURCE_ROOT; };
+		47AF05A00000000000000B04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ShellProgramReports.swift; sourceTree = SOURCE_ROOT; };
+		47AF05A00000000000000B05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift; sourceTree = SOURCE_ROOT; };
 		47AF04890000000000000B01 /* rootshell/Features/Tmux/TmuxDividerResize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxDividerResize.swift; sourceTree = SOURCE_ROOT; };
 		47AF04960000000000000B01 /* rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/RemoteSessionBackgroundGracePolicy.swift; sourceTree = SOURCE_ROOT; };
 		47AF04960000000000000B02 /* rootshell/Core/Terminal/BackgroundExecutionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/BackgroundExecutionPolicy.swift; sourceTree = SOURCE_ROOT; };
@@ -1283,6 +1293,11 @@
 				47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */,
 				47AC7E5700000000000000B9 /* rootshell/Core/Foundation/ByteSearch.swift */,
 				47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */,
+				47AF05A00000000000000B01 /* rootshell/Features/ProgramIdentity/ForegroundProgram.swift */,
+				47AF05A00000000000000B02 /* rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift */,
+				47AF05A00000000000000B03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift */,
+				47AF05A00000000000000B04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift */,
+				47AF05A00000000000000B05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift */,
 				47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */,
 				47AF04990000000000000B01 /* rootshell/Core/Keybinds/MenuKeyEquivalentPolicy.swift */,
 				47AF04A10000000000000B01 /* rootshell/Features/Mosh/Protocol/Transport/MoshTimestampEcho.swift */,
@@ -2303,6 +2318,11 @@
 				47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */,
 				47AC7E5700000000000000A9 /* rootshell/Core/Foundation/ByteSearch.swift in Sources */,
 				47AF04870000000000000A01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift in Sources */,
+				47AF05A00000000000000A01 /* rootshell/Features/ProgramIdentity/ForegroundProgram.swift in Sources */,
+				47AF05A00000000000000A02 /* rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift in Sources */,
+				47AF05A00000000000000A03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift in Sources */,
+				47AF05A00000000000000A04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift in Sources */,
+				47AF05A00000000000000A05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift in Sources */,
 				47AF04310000000000000A01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift in Sources */,
 				47AF04990000000000000A01 /* rootshell/Core/Keybinds/MenuKeyEquivalentPolicy.swift in Sources */,
 				47AF04A10000000000000A01 /* rootshell/Features/Mosh/Protocol/Transport/MoshTimestampEcho.swift in Sources */,

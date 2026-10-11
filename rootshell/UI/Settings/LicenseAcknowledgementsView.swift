@@ -121,6 +121,13 @@ struct LicenseAcknowledgementsView: View {
             }
             #endif
 
+            Section("Logo Artwork") {
+                ForEach(logoLicenses) { entry in
+                    LicenseRow(entry: entry)
+                        .themedRow()
+                }
+            }
+
             Section("Sounds") {
                 ForEach(soundLicenses) { entry in
                     LicenseRow(entry: entry)
@@ -420,6 +427,102 @@ struct LicenseAcknowledgementsView: View {
                 licenseType: "MIT",
                 copyright: "Copyright (c) 2020-present Silero Team. Converted to Core ML by FluidInference.",
                 repositoryURL: "https://github.com/snakers4/silero-vad",
+                licenseText: mitLicenseText
+            ),
+        ]
+    }
+
+    private var logoLicenses: [LicenseEntry] {
+        [
+            LicenseEntry(
+                name: "Bash logo",
+                licenseType: "Free Art License 1.3",
+                copyright: "Copyright (c) 2016 Free Software Foundation",
+                repositoryURL: "https://github.com/odb/official-bash-logo",
+                licenseText: freeArtLicenseText
+            ),
+            LicenseEntry(
+                name: "Zsh logo",
+                licenseType: "CC BY-SA 4.0",
+                copyright: "Justin Dorfman and Zsh-art contributors. Official monochrome logomark, strokes converted to outlines.",
+                repositoryURL: "https://github.com/Zsh-art/logo",
+                licenseText: ccBySa4LicenseText
+            ),
+            LicenseEntry(
+                name: "Nushell logo",
+                licenseType: "MIT",
+                copyright: "The Nushell project developers, via Simple Icons",
+                repositoryURL: "https://github.com/nushell/nushell",
+                licenseText: mitLicenseText
+            ),
+            LicenseEntry(
+                name: "Elvish logo",
+                licenseType: "BSD 2-Clause",
+                copyright: "The Elvish authors. λ outlined from Vollkorn (SIL OFL 1.1).",
+                repositoryURL: "https://github.com/elves/elvish",
+                licenseText: bsd2ClauseLicenseText
+            ),
+            LicenseEntry(
+                name: "xonsh logo",
+                licenseType: "BSD 2-Clause",
+                copyright: "The xonsh developers. Filters flattened to solid fills.",
+                repositoryURL: "https://github.com/xonsh/xonsh",
+                licenseText: bsd2ClauseLicenseText
+            ),
+            LicenseEntry(
+                name: "Neovim logo",
+                licenseType: "CC BY 3.0",
+                copyright: "Jason Long",
+                repositoryURL: "https://github.com/neovim/neovim.github.io",
+                licenseText: ccBy3LicenseText
+            ),
+            LicenseEntry(
+                name: "btop logo",
+                licenseType: "Apache 2.0",
+                copyright: "Aristocratos",
+                repositoryURL: "https://github.com/aristocratos/btop",
+                licenseText: apache2LicenseText
+            ),
+            LicenseEntry(
+                name: "Git logo",
+                licenseType: "CC BY 3.0",
+                copyright: "Jason Long. Git™ is a trademark of the Software Freedom Conservancy.",
+                repositoryURL: "https://git-scm.com/community/logos",
+                licenseText: ccBy3LicenseText
+            ),
+            LicenseEntry(
+                name: "tmux logo",
+                licenseType: "ISC",
+                copyright: "Copyright (c) Jason Long",
+                repositoryURL: "https://github.com/tmux/tmux/tree/master/logo",
+                licenseText: iscLicenseText
+            ),
+            LicenseEntry(
+                name: "Ruby logo",
+                licenseType: "CC BY-SA 2.5",
+                copyright: "Copyright (c) 2006 Yukihiro Matsumoto. Style classes converted to fill attributes.",
+                repositoryURL: "https://www.ruby-lang.org/en/about/logo/",
+                licenseText: ccBySa25LicenseText
+            ),
+            LicenseEntry(
+                name: "Python logo",
+                licenseType: "PSF Trademark Policy",
+                copyright: "\"Python\" and the Python logos are trademarks or registered trademarks of the Python Software Foundation.",
+                repositoryURL: "https://www.python.org/psf/trademarks/",
+                licenseText: "Used unaltered under the Python Software Foundation Trademark Usage Policy: https://www.python.org/psf/trademarks/"
+            ),
+            LicenseEntry(
+                name: "Homebrew logo",
+                licenseType: "BSD 2-Clause",
+                copyright: "Homebrew contributors",
+                repositoryURL: "https://github.com/Homebrew/brew.sh",
+                licenseText: bsd2ClauseLicenseText
+            ),
+            LicenseEntry(
+                name: "Deno logo",
+                licenseType: "MIT",
+                copyright: "Deno Land Inc.",
+                repositoryURL: "https://deno.com/brand",
                 licenseText: mitLicenseText
             ),
         ]
@@ -870,6 +973,46 @@ struct LicenseAcknowledgementsView: View {
         including nom, miniz_oxide, bitflags and anyhow (MIT and/or Apache-2.0). \
         Compiled grammars are derived from NVIDIA NeMo Text Processing \
         (Apache-2.0, Copyright (c) NVIDIA CORPORATION & AFFILIATES).
+        """
+    }
+
+    private var ccBy3LicenseText: String {
+        """
+        This work is licensed under the Creative Commons Attribution 3.0 \
+        Unported License. To view a copy of this license, visit \
+        https://creativecommons.org/licenses/by/3.0/
+        """
+    }
+
+    private var ccBySa25LicenseText: String {
+        """
+        This work is licensed under the Creative Commons Attribution-ShareAlike \
+        2.5 License. To view a copy of this license, visit \
+        https://creativecommons.org/licenses/by-sa/2.5/
+        """
+    }
+
+    private var iscLicenseText: String {
+        """
+        Permission to use, copy, modify, and distribute this software for any \
+        purpose with or without fee is hereby granted, provided that the above \
+        copyright notice and this permission notice appear in all copies.
+
+        THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES \
+        WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF \
+        MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR \
+        ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES \
+        WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN \
+        ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF \
+        OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+        """
+    }
+
+    private var freeArtLicenseText: String {
+        """
+        This artwork is free: you can redistribute it and/or modify it according \
+        to the terms of the Free Art License 1.3. A copy of this license is \
+        available at https://artlibre.org/licence/lal/en/
         """
     }
 

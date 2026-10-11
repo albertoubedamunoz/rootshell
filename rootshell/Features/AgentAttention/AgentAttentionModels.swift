@@ -436,6 +436,10 @@ nonisolated struct AgentRowState: Equatable, Sendable {
     /// from inheriting agent/task notification policy.
     var isOSCProgressActivity = false
 
+    /// A Running card for a program the pane merely runs (htop, nvim): an
+    /// identity, never an attention state, so counts and notifications skip it.
+    var isForegroundProgram = false
+
     /// Manifest entry id ("claude", or "pytest" for a task row) when a
     /// known entry drives this row; nil for plain-command rows
     /// (failed/done via OSC 133).

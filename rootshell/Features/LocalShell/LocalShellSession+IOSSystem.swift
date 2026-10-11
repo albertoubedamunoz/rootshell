@@ -315,6 +315,12 @@ extension LocalShellSession {
         // A command queued behind teardown must not launch on the dead session
         guard !hasStopped else { return }
 
+        // Names the command for the pane's logo and Running card; the clear
+        // goes out after its output, just before the prompt.
+        if let report = ShellProgramReportEncoder.commandStarted(commandLine: command) {
+            Task { @MainActor [weak self] in self?.onOutput?(report) }
+        }
+
         // Reset interactive state for new command
         // This will be set to true if the command outputs cursor control sequences
         interactiveLock.withLock {
@@ -594,6 +600,7 @@ extension LocalShellSession {
                 session.sharedShellEnvironment.setLastExitCode(exitCode)
                 // Invalidate prompt cache - directory may have changed (cd command)
                 session.promptCache.invalidate()
+                session.onOutput?(ShellProgramReportEncoder.commandEnded)
                 session.displayPrompt(ensureAtLineStart: wasFullScreenAtEnd)
 
                 // Replay type-ahead buffer through line editor

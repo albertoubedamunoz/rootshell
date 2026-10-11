@@ -173,6 +173,9 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
 
         // Discover multiplexer sessions in the background (if configured)
         self.discoverSessionsIfConfigured()
+
+        // The remote shell's identity until it, or a multiplexer, says more.
+        self.probeLoginShellIfRemote()
     }
 }
 
