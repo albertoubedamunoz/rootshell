@@ -136,6 +136,7 @@ extension HerdrController {
         for pane in paneInfos.values {
             guard let view = paneViews[pane.terminal_id] else { continue }
             publishProject(for: pane, view: view)
+            view.setForegroundProgram(pane.foregroundProgram, from: .herdr)
         }
     }
 
@@ -297,6 +298,7 @@ extension HerdrController {
         if let view = paneViews[pane.terminal_id] {
             view.seedHerdrTitle(pane.terminal_title ?? pane.title)
             publishProject(for: pane, view: view)
+            view.setForegroundProgram(pane.foregroundProgram, from: .herdr)
         } else if let tab = tabs[pane.tab_id] {
             refreshTitle(of: tab)
         }
@@ -362,6 +364,7 @@ extension HerdrController {
             }
             existing.seedHerdrTitle(pane.terminal_title ?? pane.title)
             publishProject(for: pane, view: existing)
+            existing.setForegroundProgram(pane.foregroundProgram, from: .herdr)
             return
         }
         guard let ghosttyApp else {
@@ -381,6 +384,7 @@ extension HerdrController {
         paneViews[pane.terminal_id] = view
         view.seedHerdrTitle(pane.terminal_title ?? pane.title)
         publishProject(for: pane, view: view)
+        view.setForegroundProgram(pane.foregroundProgram, from: .herdr)
         NotificationCenter.default.post(name: .herdrPaneBindingsChanged, object: nil)
     }
 

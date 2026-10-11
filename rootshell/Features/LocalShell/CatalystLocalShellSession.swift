@@ -390,6 +390,12 @@ public class CatalystLocalShellSession: TerminalSession {
         return { data in q.async { Self.writeAll(fd: fd, data: data) } }
     }
 
+    /// The PTY's foreground process group, for the pane's program identity.
+    func foregroundProcessGroup() -> pid_t? {
+        guard isRunning else { return nil }
+        return LocalForegroundProcessProbe.foregroundProcessGroup(masterFD: masterFD)
+    }
+
     public func setSize(_ size: TerminalPTY.TerminalSize) throws {
         pty.windowSize = size
         scheduleResize(rows: size.rows, cols: size.cols)

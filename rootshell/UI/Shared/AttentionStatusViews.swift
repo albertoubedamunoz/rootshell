@@ -266,81 +266,98 @@ struct AgentStatusLabel: View {
     /// the SwiftUI label updates only when its actual data changes.
     private var label: some View {
         HStack(spacing: 4) {
-            switch row.status {
-            case .working:
-                CompositorBreathingSymbol(
-                    systemName: "circle.dashed",
-                    pointSize: fontSize - 1,
-                    color: labelColor,
-                    breathes: breathes,
-                    minimumOpacity: Float(Self.breatheDim),
-                    halfCycle: Self.breatheHalfCycle
-                )
-                .frame(width: fontSize, height: fontSize)
-                Text(row.status.displayLabel)
+            if row.isForegroundProgram {
+                // Neutral: the shell knows the program runs, not how it is doing.
+                Text("Running")
                     .fontWeight(.medium)
-                if row.backgroundAgentCount > 0 {
-                    // Claude's fleet: "Working · 2 agents". The session
-                    // itself is not counted.
-                    Text("· ^[\(row.backgroundAgentCount) agent](inflect: true)")
-                }
-                if let progress = row.taskProgress {
-                    // Task rows: "Working · 40%", quantized to 10% buckets
-                    // so the row publishes on transitions only.
-                    Text("· \(progress)")
-                }
-                if let since = row.workingSince {
-                    // Same format as the agents' own TUIs ("2m 49s"), so
-                    // the card visibly agrees with the terminal. Adapt to
-                    // the same power tier as terminal rendering.
-                    TimelineView(.periodic(from: .now, by: elapsedRefreshInterval)) { context in
-                        Text(verbatim: Self.elapsedLabel(from: since, to: context.date))
-                            .monospacedDigit()
-                    }
-                }
-            case .paused:
-                Image(systemName: "pause.circle")
-                    .font(.system(size: fontSize - 1, weight: .semibold))
-                Text(row.status.displayLabel)
-                    .fontWeight(.medium)
-                if let progress = row.taskProgress {
-                    Text("· \(progress)")
-                }
                 if let since = row.workingSince {
                     TimelineView(.periodic(from: .now, by: elapsedRefreshInterval)) { context in
                         Text(verbatim: Self.elapsedLabel(from: since, to: context.date))
                             .monospacedDigit()
                     }
                 }
-            case .blocked:
-                Text(row.status.displayLabel)
-                    .fontWeight(.semibold)
-            case .failed:
-                if let code = row.exitCode, code != 0 {
-                    Text("Failed · exit \(code)")
-                        .fontWeight(.semibold)
-                } else {
-                    Text(row.status.displayLabel)
-                        .fontWeight(.semibold)
-                }
-            case .done:
-                Image(systemName: "checkmark.circle")
-                    .font(.system(size: fontSize - 1, weight: .semibold))
-                Text(row.status.displayLabel)
-                    .fontWeight(.medium)
-            case .idle, .unknown:
-                if let finished = row.finishedAt {
-                    // Static until some real state change redraws the row.
-                    // SwiftUI's relative-date style owns an implicit timer,
-                    // which would wake an otherwise-idle agent card.
-                    Text(verbatim: Self.relativeLabel(from: finished, to: Date()))
-                }
+            } else {
+                statusContent
             }
         }
         .font(.system(size: fontSize))
         .foregroundStyle(labelColor)
         .lineLimit(1)
         .fixedSize()
+    }
+
+    @ViewBuilder
+    private var statusContent: some View {
+        switch row.status {
+        case .working:
+            CompositorBreathingSymbol(
+                systemName: "circle.dashed",
+                pointSize: fontSize - 1,
+                color: labelColor,
+                breathes: breathes,
+                minimumOpacity: Float(Self.breatheDim),
+                halfCycle: Self.breatheHalfCycle
+            )
+            .frame(width: fontSize, height: fontSize)
+            Text(row.status.displayLabel)
+                .fontWeight(.medium)
+            if row.backgroundAgentCount > 0 {
+                // Claude's fleet: "Working · 2 agents". The session
+                // itself is not counted.
+                Text("· ^[\(row.backgroundAgentCount) agent](inflect: true)")
+            }
+            if let progress = row.taskProgress {
+                // Task rows: "Working · 40%", quantized to 10% buckets
+                // so the row publishes on transitions only.
+                Text("· \(progress)")
+            }
+            if let since = row.workingSince {
+                // Same format as the agents' own TUIs ("2m 49s"), so
+                // the card visibly agrees with the terminal. Adapt to
+                // the same power tier as terminal rendering.
+                TimelineView(.periodic(from: .now, by: elapsedRefreshInterval)) { context in
+                    Text(verbatim: Self.elapsedLabel(from: since, to: context.date))
+                        .monospacedDigit()
+                }
+            }
+        case .paused:
+            Image(systemName: "pause.circle")
+                .font(.system(size: fontSize - 1, weight: .semibold))
+            Text(row.status.displayLabel)
+                .fontWeight(.medium)
+            if let progress = row.taskProgress {
+                Text("· \(progress)")
+            }
+            if let since = row.workingSince {
+                TimelineView(.periodic(from: .now, by: elapsedRefreshInterval)) { context in
+                    Text(verbatim: Self.elapsedLabel(from: since, to: context.date))
+                        .monospacedDigit()
+                }
+            }
+        case .blocked:
+            Text(row.status.displayLabel)
+                .fontWeight(.semibold)
+        case .failed:
+            if let code = row.exitCode, code != 0 {
+                Text("Failed · exit \(code)")
+                    .fontWeight(.semibold)
+            } else {
+                Text(row.status.displayLabel)
+                    .fontWeight(.semibold)
+            }
+        case .done:
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: fontSize - 1, weight: .semibold))
+            Text(row.status.displayLabel)
+                .fontWeight(.medium)
+        case .idle, .unknown:
+            if let finished = row.finishedAt {
+                // Static until some real state change redraws the row.
+                // SwiftUI's relative-date style owns an implicit timer,
+                // which would wake an otherwise-idle agent card.
+                Text(verbatim: Self.relativeLabel(from: finished, to: Date()))
+            }
+        }
     }
 
     private var labelColor: Color {
