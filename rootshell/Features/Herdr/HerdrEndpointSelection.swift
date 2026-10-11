@@ -136,11 +136,12 @@ nonisolated struct HerdrEndpointPainter {
             let range = (row * rect.width)..<((row + 1) * rect.width)
             if !full, previous[range].elementsEqual(cells[range]) { continue }
             var nextColumn: Int?
+            var coveredUntil = 0
             for column in 0..<rect.width {
+                if column < coveredUntil { continue }
                 let index = row * rect.width + column
                 let cell = cells[index]
                 if cell.skip { continue }
-                if !full, cell == previous[index] { continue }
                 if nextColumn != column { out += "\u{1b}[\(row + 1);\(column + 1)H" }
                 if pen?.foreground != cell.foreground || pen?.background != cell.background || pen?.modifiers != cell.modifiers {
                     out += Self.style(cell)
@@ -153,6 +154,10 @@ nonisolated struct HerdrEndpointPainter {
                 }
                 let symbol = Self.safeText(cell.symbol)
                 out += symbol.isEmpty ? " " : symbol
+                // Herdr can leave ordinary blank cells behind a wide glyph.
+                // Painting them erases the glyph in Ghostty. Repaint the whole
+                // changed row so narrowing a glyph also restores those cells.
+                coveredUntil = column + max(1, DisplayWidth.width(of: symbol))
                 // Consecutive ASCII cells advance the cursor predictably.
                 // Position explicitly after Unicode instead of guessing its
                 // display width (wide cells, combining marks, and emoji).
