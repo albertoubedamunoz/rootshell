@@ -2,12 +2,13 @@ import SwiftUI
 
 /// The navigation container is installed once for the lifetime of the scene;
 /// folding only changes its chrome, never the identity of MainView.
+/// iPhone only: on iPad this stack captures pushes from side-panel NavigationStacks.
 struct DuoSceneHost<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         #if !targetEnvironment(macCatalyst) && !os(visionOS)
-        if #available(iOS 27.1, *) {
+        if #available(iOS 27.1, *), UIDevice.current.userInterfaceIdiom == .phone {
             NavigationStack {
                 DuoSceneContext(content: content)
             }
