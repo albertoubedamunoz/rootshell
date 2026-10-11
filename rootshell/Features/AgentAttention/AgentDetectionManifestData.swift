@@ -301,22 +301,18 @@ nonisolated enum AgentDetectionManifestData {
             "screenSignatures": [
               {
                 "contains": [
-                  "claude code"
-                ],
-                "altScreenOnly": true
-              },
-              {
-                "contains": [
                   "esc to interrupt"
                 ],
                 "regex": [
                   "[✢✳✶✻✽]"
-                ]
+                ],
+                "region": "bottom_non_empty_lines(20)"
               },
               {
                 "lineRegex": [
                   "(?i)\\d+s [·•] ?[↑↓] ?[\\d.,]+k? tokens"
-                ]
+                ],
+                "region": "bottom_non_empty_lines(20)"
               },
               {
                 "lineRegex": [
@@ -328,22 +324,26 @@ nonisolated enum AgentDetectionManifestData {
                 "contains": [
                   "do you want to proceed?",
                   "tell claude"
-                ]
+                ],
+                "region": "bottom_non_empty_lines(14)"
               },
               {
                 "contains": [
                   "do you want to make this edit"
-                ]
+                ],
+                "region": "bottom_non_empty_lines(14)"
               },
               {
                 "contains": [
                   "tell claude what to change"
-                ]
+                ],
+                "region": "bottom_non_empty_lines(14)"
               },
               {
                 "contains": [
                   "shift+tab to approve"
-                ]
+                ],
+                "region": "bottom_non_empty_lines(14)"
               },
               {
                 "contains": [
@@ -395,7 +395,8 @@ nonisolated enum AgentDetectionManifestData {
                 "contains": [
                   "esc to cancel",
                   "tab to amend"
-                ]
+                ],
+                "region": "bottom_non_empty_lines(14)"
               },
               {
                 "all": [
