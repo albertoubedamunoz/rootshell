@@ -217,6 +217,7 @@ enum QuickSettingsCatalog {
             toggle(Settings.Tabs.showScopeMenu),
             toggle(Settings.Tabs.showShortcutIndicators),
             toggle(Settings.Tabs.exposeShowsCaptions),
+            toggle(Settings.Tabs.programIcons),
             toggle(Settings.Sidebar.autoHideOnSelect),
             toggle(Settings.Sidebar.largeControls),
             integer(Settings.Sidebar.rowLines, 1...3),

@@ -195,6 +195,7 @@ final class AgentAttentionCenter {
     @ObservationIgnored private var scanDeadlines = AgentAttentionDeadlineQueue<UUID>()
     @ObservationIgnored private var livenessDeadlines = AgentAttentionDeadlineQueue<UUID>()
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var programIconsTask: Task<Void, Never>?
     @ObservationIgnored private var stateChangeSeq: UInt64 = 0
     @ObservationIgnored private var started = false
     @ObservationIgnored private var foregroundActive = true
@@ -274,8 +275,25 @@ final class AgentAttentionCenter {
             }
         }
         observers = [foreground, background, keyWindow]
+        let changes = SettingsStore.shared.changes()
+        programIconsTask = Task { @MainActor in
+            for await change in changes where change.contains(Settings.Tabs.programIcons.name) {
+                Self.refreshForegroundProgramCards()
+            }
+        }
         foregroundActive = !Ghostty.isAppBackgrounded
         reconcileEnabledCategories()
+    }
+
+    /// Running cards follow Show Program Icons, from any settings source.
+    private static func refreshForegroundProgramCards() {
+        for model in TmuxWindowRegistry.allTabsModels() {
+            for tab in model.tabs {
+                for terminal in tab.splitTree.terminalLeaves {
+                    terminal.refreshForegroundProgramCard()
+                }
+            }
+        }
     }
 
     /// Immediate agent-switch application. This is called directly by the

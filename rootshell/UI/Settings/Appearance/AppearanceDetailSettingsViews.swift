@@ -387,6 +387,13 @@ struct WindowSettingsView: View {
                 )
                 .themedRow()
 
+                SettingDescribedToggle(
+                    Settings.Tabs.programIcons,
+                    title: "Show Program Icons",
+                    description: "Show the shell or running program's logo on tabs and sidebar rows, and a Running card for long-running programs."
+                )
+                .themedRow()
+
                 // Pointer-only: phones have no hover, visionOS gaze never reports one.
                 #if !os(visionOS)
                 if UIDevice.current.userInterfaceIdiom != .phone {

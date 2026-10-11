@@ -70,6 +70,10 @@ nonisolated extension Settings {
         static let exposeShowsCaptions = SettingKey(
             "tabExposeShowsCaptions", default: true, group: .tabs, configKey: "tab-expose-shows-captions",
             title: String(localized: "Tab Exposé Captions", comment: "Setting title"))
+        /// Shell and program logos on tabs and sidebar rows, and their Running cards.
+        static let programIcons = SettingKey(
+            "tabProgramIconsEnabled", default: true, group: .tabs, configKey: "tab-program-icons",
+            title: String(localized: "Show Program Icons", comment: "Setting title"))
         /// Preview thumbnail scale set by pinching in the exposé; 1 = auto-fit.
         static let exposeZoom = SettingKey(
             "tabExposeZoom", default: 1.0, group: .tabs, policy: .localByDefault, configKey: "tab-expose-zoom", range: 0.1...10,
@@ -107,7 +111,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             newTabAction.erased, barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
             duoFrontDisplayMode.erased, duoBehindCameraShowsTabs.erased,
-            showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, exposeZoom.erased,
+            showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, programIcons.erased, exposeZoom.erased,
             hoverPreviews.erased, hoverPreviewActivation.erased, hoverPreviewZoom.erased,
             openInFolderRecents.erased, openInFolderPlacement.erased,
             openInFolderHUDWidth.erased, openInFolderHUDHeight.erased,
