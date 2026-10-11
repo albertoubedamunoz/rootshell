@@ -18,8 +18,10 @@ nonisolated struct ShellProgramReports: Equatable, Sendable {
     static let commandID = "rootshell.shell/cmd"
 
     enum Change: Sendable {
-        /// idle, working or blocked: the record is live.
-        case live
+        /// At rest; for the shell record, back at a prompt.
+        case idle
+        /// working or blocked.
+        case active
         /// done or error: the command finished.
         case finished
         case clear
@@ -47,8 +49,11 @@ nonisolated struct ShellProgramReports: Equatable, Sendable {
             } else if !app.isEmpty {
                 shellApp = app
             }
+            // A shell at its prompt runs nothing, whatever a dropped connection
+            // or a missed clear left behind.
+            if change == .idle { command = nil }
         case Self.commandID:
-            guard change == .live, !app.isEmpty else {
+            guard change == .idle || change == .active, !app.isEmpty else {
                 command = nil
                 return
             }

@@ -362,9 +362,13 @@ extension Ghostty {
         var foregroundProgramSources: [ForegroundProgram.Source: ForegroundProgram] = [:]
         /// OSC 7501 records the shell sends about itself and its command.
         var shellProgramReports = ShellProgramReports()
+        /// The replaced session's records, kept until the new session is
+        /// ready in case it resumed the same remote PTY.
+        var previousSessionShellReports: ShellProgramReports?
         var foregroundProgramCardTask: Task<Void, Never>?
         var localForegroundProbeTask: Task<Void, Never>?
-        /// Last probed local foreground group; a new one means a new job.
+        var localForegroundPollTask: Task<Void, Never>?
+        /// Last resolved local foreground group; a new one means a new job.
         var localForegroundProcessGroup: Int32?
         var loginShellProbeTask: Task<Void, Never>?
 

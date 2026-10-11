@@ -35,7 +35,7 @@ nonisolated enum LocalForegroundProcessProbe {
         return unsafeBitCast(sym, to: ProcPidPathFn.self)
     }()
 
-    private static func executablePath(of pid: pid_t) -> String? {
+    static func executablePath(of pid: pid_t) -> String? {
         guard let procPidPathFn else { return nil }
         var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
         let length = buffer.withUnsafeMutableBytes {
@@ -56,11 +56,15 @@ nonisolated enum LocalForegroundProcessProbe {
         var argMaxMIB = [CTL_KERN, KERN_ARGMAX]
         guard sysctl(&argMaxMIB, 2, &argMax, &size, nil, 0) == 0, argMax > 0 else { return [] }
 
-        var buffer = [UInt8](repeating: 0, count: Int(argMax))
-        size = buffer.count
+        // Revalidation runs this every few seconds; only the bytes sysctl
+        // writes are read, so skip zero-filling the ARG_MAX-sized buffer.
         var mib = [CTL_KERN, KERN_PROCARGS2, pid]
-        guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0,
-              size > MemoryLayout<Int32>.size else { return [] }
+        let buffer = [UInt8](unsafeUninitializedCapacity: Int(argMax)) { storage, count in
+            size = storage.count
+            count = sysctl(&mib, 3, storage.baseAddress, &size, nil, 0) == 0 ? size : 0
+        }
+        size = buffer.count
+        guard size > MemoryLayout<Int32>.size else { return [] }
 
         let argc = buffer.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) }
         var cursor = MemoryLayout<Int32>.size

@@ -92,11 +92,11 @@ final class ProgramIdentityTests: XCTestCase {
 
     func testShellReportsTrackShellAndCommand() {
         var reports = ShellProgramReports()
-        reports.apply(id: ShellProgramReports.shellID, change: .live, app: "zsh", title: "")
+        reports.apply(id: ShellProgramReports.shellID, change: .idle, app: "zsh", title: "")
         XCTAssertEqual(reports.program?.name, "zsh")
         XCTAssertEqual(reports.program?.isShell, true)
 
-        reports.apply(id: ShellProgramReports.commandID, change: .live, app: "sudo", title: "sudo htop -d 5")
+        reports.apply(id: ShellProgramReports.commandID, change: .active, app: "sudo", title: "sudo htop -d 5")
         XCTAssertEqual(reports.program?.name, "htop")
         XCTAssertEqual(reports.program?.isShell, false)
         XCTAssertEqual(reports.program?.commandLine, "sudo htop -d 5")
@@ -105,14 +105,24 @@ final class ProgramIdentityTests: XCTestCase {
         reports.commandFinished()
         XCTAssertEqual(reports.program?.name, "zsh")
 
-        reports.apply(id: ShellProgramReports.commandID, change: .live, app: "vim", title: "")
+        reports.apply(id: ShellProgramReports.commandID, change: .active, app: "vim", title: "")
         reports.apply(id: ShellProgramReports.commandID, change: .finished, app: "vim", title: "")
         XCTAssertEqual(reports.program?.name, "zsh")
 
         // Clearing the shell record clears its children too.
-        reports.apply(id: ShellProgramReports.commandID, change: .live, app: "vim", title: "")
+        reports.apply(id: ShellProgramReports.commandID, change: .active, app: "vim", title: "")
         reports.apply(id: ShellProgramReports.shellID, change: .clear, app: "", title: "")
         XCTAssertNil(reports.program)
+    }
+
+    func testShellIdleReportClearsLeftoverCommand() {
+        // A replacement session's first prompt must not inherit a dropped one's command.
+        var reports = ShellProgramReports()
+        reports.apply(id: ShellProgramReports.commandID, change: .active, app: "htop", title: "htop")
+        XCTAssertEqual(reports.program?.name, "htop")
+        reports.apply(id: ShellProgramReports.shellID, change: .idle, app: "bash", title: "")
+        XCTAssertEqual(reports.program?.name, "bash")
+        XCTAssertEqual(reports.program?.isShell, true)
     }
 
     func testShellReportOwnership() {
