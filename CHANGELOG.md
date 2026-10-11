@@ -3,6 +3,55 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-166 - October 11, 2026
+
+### Theme Gradient Backdrop
+
+- **Window-Wide Gradient:** Added Backdrop in Settings -> Background Effect for a window-wide Theme Gradient that shows around Rounded Panes and through transparent terminals. Adjust Drift speed or turn it off; motion respects Reduce Motion and pauses in inactive apps and windows.
+- **Backdrop Transparency:** On iPhone, iPad, and visionOS, backdrop transparency includes pinned sidebars; iPhone and iPad offer Clear and Regular Liquid Glass. On Mac, Transparent Backdrop shows the desktop at the window's opacity; turning it off keeps the gradient opaque.
+- **Matching Surfaces:** Tabs, sheets, sidebars, and keyboards match the backdrop.
+
+### Shell and Program Icons
+
+- **Program Logos:** Tab and sidebar icons follow focus, and agent badges cover the whole tab. Added logos for bash, zsh, fish, Nushell, Elvish, xonsh, Vim, Neovim, Helix, Emacs, htop, btop, tail, Git, Python, Ruby, Cargo, rustc, rustup, Deno, Homebrew, and tmux. Other shells, editors, monitors, pagers, file managers, SSH/Mosh sessions, and multiplexers use category icons; other programs get a Running icon.
+- **Automatic Detection:** Program icons work automatically in macOS local shells, tmux control mode, and herdr control mode with the latest rootshell fork (rootshell.0.1.9 or later on macOS/Linux). Save your work and restart herdr servers after updating. Elsewhere, shell integration is required; source the repository's bash/zsh or fish demo.
+- **Running Cards and Controls:** Running cards show elapsed time for longer commands without agent counts or notifications. Show Program Icons in Settings -> Tabs or Quick Settings hides program logos and Running cards; agent badges are controlled separately.
+
+### Rounded Panes and Tabs
+
+- **Lit Edges and Integrated Tabs:** Rounded panes and docked sidebars gain lit edges. Integrated tabs join the card and show progress, with edges tracking tab switches and swipes.
+- **Matching Panels:** Tab expose, the full-size file manager, and HTTP Capture match rounded cards and integrated tabs. Full-size panels follow Transparent Pinned Sidebar.
+- **Tab Layout and Swipes:** Tab swipes preserve pane gaps. Tabs stay above terminals past pinned sidebars, and selection stays visible in narrow tab bars. Tab transitions respect Disable Tab Bar Animations.
+- **iPhone Layout:** Tabs on Dynamic Island iPhones sit below the status bar. Hiding the keyboard no longer shifts the terminal's top edge.
+
+### iPad Keyboard and Sidebars
+
+- **Launch Crash:** Fixed a launch crash on iPadOS 27 with the custom touch keyboard enabled.
+- **Keyboard Position:** Detached keyboards keep their position across tabs. With a hardware keyboard connected, toggling the AI sidebar no longer flashes an empty keyboard card.
+- **Sidebar Layout:** Fixed floating-keyboard shifts and sidebar lists overlapping footers, transfers, or the AI composer. Rounded sidebars stay above docked keyboards.
+- **Side-Panel Navigation:** Fixed profile-folder, Settings, and captured-request pages escaping side panels or lingering after closure on iPadOS 27.1 or later.
+
+### herdr Control Mode
+
+- **Fallback Rendering:** Fixed CJK rendering, popup clipping, and wide-glyph selection in fallback mode with upstream herdr, without the rootshell fork. Selecting either half of a wide glyph highlights the whole glyph.
+- **Query Replies:** On protocol 2 servers, other clients' query replies no longer change program colors or leave stray replies at the prompt.
+
+### Tailscale
+
+- **rootshell Only Recovery:** Fixed rootshell Only hanging after backgrounding. Socket resets preserve sessions, and stalled recovery safely restarts the engine across Disconnect and mode changes.
+- **Startup Cancellation:** Turning off rootshell Only during startup stops the engine.
+- **Connection Logs:** VPN Connection logs now include rootshell Only state, interface changes, and recovery.
+
+### Terminal Rendering and Themes
+
+- **Consistent Colors:** iOS and macOS terminal colors match the app UI, and translucent fills blend consistently. TUI apps receive background-color reports that adapt as transparency changes over the gradient. Dark/light reports match the theme, and AI panels follow tab themes.
+- **Scroll Indicators:** Fixed oversized scroll indicators flashing white when returning to live output. Native scrolling uses one indicator, including for keyboard and action scrolling.
+
+### SSH and SFTP Security
+
+- **Malformed SSH Messages:** Hardened ECDSA parsing and SSH channels against malformed messages that could cause memory corruption, crashes, or stalled writes.
+- **Bounded Buffering:** Limited SFTP and forwarded SSH-agent buffering. Zero-length SFTP messages are rejected, and file reads use bounded chunks.
+
 ## 1.0.14-165 - October 9, 2026
 
 ### Program Status Protocol (OSC 7501)
