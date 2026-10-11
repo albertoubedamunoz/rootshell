@@ -3024,6 +3024,8 @@ private struct SidebarTabRowItem: View, Equatable {
             tmuxBadge: tmuxBadge,
             tmuxBadgePalette: .currentTheme,
             agentRow: agentRow,
+            // Same pane the top tab's logo follows.
+            programMark: (tab.focusedPane ?? tab.splitTree.first)?.presentation.foregroundProgram?.mark,
             attentionBadge: attentionBadgesEnabled ? tab.attentionBadge : nil,
             // The agent's own pane's project, not the focused pane's. (id=agent-project)
             contextLine: agentRow?.project,
@@ -3077,6 +3079,7 @@ private struct SidebarPaneRowItem: View, Equatable {
             SidebarTabRow(
                 title: title,
                 agentRow: agentRow,
+                programMark: presentation.foregroundProgram?.mark,
                 attentionBadge: attentionBadgesEnabled ? presentation.attentionStatus : nil,
                 contextLine: agentRow?.project,
                 isSelected: isSelected,
@@ -3315,6 +3318,8 @@ private struct SidebarTabRow: View {
     var tmuxBadgePalette: TmuxTabBadgePalette = .fallback
     /// Non-nil makes a three-line card. (id=agent-attention)
     var agentRow: AgentRowState? = nil
+    /// Shell or program logo, shown only on plain rows; cards carry their own.
+    var programMark: BrandMark? = nil
     /// Dot shown only on plain rows; cards show status on line 1.
     var attentionBadge: AgentAttentionStatus? = nil
     var contextLine: AgentProjectIdentity? = nil
@@ -3437,6 +3442,10 @@ private struct SidebarTabRow: View {
             if let tmuxBadge {
                 TmuxTabBadgeView(badge: tmuxBadge, palette: tmuxBadgePalette)
                     .opacity(recedingOpacity)
+            }
+
+            if agentRow == nil, let programMark {
+                AgentBrandMark(mark: programMark, size: metrics.subtitleSize + 1)
             }
 
             // Titles never recede; only agent metadata does.

@@ -38,6 +38,13 @@ extension MainView {
         let isKeyChanged: Bool
     }
 
+    /// Backs `appTabSwipeState` so the pane glass, in its own hosting
+    /// controller, sees each change in the same animation as the tabs.
+    @Observable
+    final class AppTabSwipeStore {
+        var state: AppTabSwipeState?
+    }
+
     struct AppTabSwipeState: Equatable {
         let sourceTabID: UUID
         let targetTabID: UUID
@@ -70,6 +77,20 @@ extension MainView {
 
         var targetEntryOffset: CGFloat {
             direction == .left ? width : -width
+        }
+
+        /// How far a sliding tab is moved at `width`; nil for other tabs.
+        func offsetX(for tabID: UUID, width: CGFloat) -> CGFloat? {
+            let effectiveWidth = max(max(width, self.width), 1)
+            let translation: CGFloat = switch direction {
+            case .left:
+                min(0, max(-effectiveWidth, translationX))
+            case .right:
+                max(0, min(effectiveWidth, translationX))
+            }
+            if tabID == sourceTabID { return translation }
+            if tabID == targetTabID { return translation + (direction == .left ? effectiveWidth : -effectiveWidth) }
+            return nil
         }
 
         /// Returns the shared toolbar reservation for either tab participating

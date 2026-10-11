@@ -109,7 +109,15 @@ final class TabExposeController {
 
     /// 0 hidden … 1 presented (may overshoot slightly). Read per frame by the
     /// view; deliberately not observed so scrubbing never invalidates SwiftUI.
-    @ObservationIgnored private(set) var progress: CGFloat = 0
+    @ObservationIgnored private(set) var progress: CGFloat = 0 {
+        didSet {
+            let merges = mergesSurface ? progress > 0.02 : progress > 0.05
+            if merges != mergesSurface { mergesSurface = merges }
+        }
+    }
+    /// The reveal is under way: the window draws the terminal area as one
+    /// card. Observed, but flips only near progress zero.
+    private(set) var mergesSurface = false
     /// Set by the view after layout so ↑/↓ move by a row.
     @ObservationIgnored var columns: Int = 1
 

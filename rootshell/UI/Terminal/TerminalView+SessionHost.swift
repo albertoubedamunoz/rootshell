@@ -42,6 +42,7 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
     func terminalSessionWillChange() {
         invalidateWritingAssistance(resetDocument: true)
         outputPipeline.resetURLRequestObserver()
+        foregroundSessionWillChange()
     }
 
     var terminalContainingTabID: UUID? { containingTabID }
@@ -154,6 +155,9 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
         // Record a configured multiplexer before anything reads the screen, so
         // agent detection never adopts an identity from a multi-window surface.
         self.applyConfiguredMultiplexerBinding()
+
+        // Settle the replaced session's identity and start tracking this one.
+        self.foregroundSessionDidBecomeReady()
 
         #if targetEnvironment(macCatalyst)
         if let attachment = restoredLocalMultiplexerAttachment, attachment.isHerdrControl {

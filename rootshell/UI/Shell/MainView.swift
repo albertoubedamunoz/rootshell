@@ -66,6 +66,10 @@ struct MainView: View {
     /// True while saved tabs are being restored; a URL open that lands
     /// meanwhile waits so it follows the restored tabs instead of preceding them.
     @State var restorationInFlight = false
+    /// Relays the joined Integrated tab's span to the split views' card rims.
+    @State var integratedTabJoin = IntegratedTabJoin()
+    /// The visible tab's card frames for the Glass Panes layer.
+    @State var paneCardGlassFrames = PaneCardGlassFrames()
     @State var lifecycleScenePhase: ScenePhase = {
         switch UIApplication.shared.applicationState {
         case .active:
@@ -233,7 +237,11 @@ struct MainView: View {
     // Tab indicator overlay (shown when switching tabs with tab bar hidden)
     // and its one-shot suppression flags (see TabIndicatorController).
     @State var tabIndicator = TabIndicatorController()
-    @State var appTabSwipeState: AppTabSwipeState?
+    @State var appTabSwipeStore = AppTabSwipeStore()
+    var appTabSwipeState: AppTabSwipeState? {
+        get { appTabSwipeStore.state }
+        nonmutating set { appTabSwipeStore.state = newValue }
+    }
 
     // Tab exposé (live previews of the current scope; see TabExposeController).
     @State var tabExpose = TabExposeController()
@@ -471,6 +479,20 @@ struct MainView: View {
                 // Full-bleed backgrounds
                 fullBleedBackground(geometry: geometry, theme: resolvedTheme)
                 windowBackdrop(geometry: geometry, theme: resolvedTheme)
+                if transparencyManager.paneGlassActive {
+                    PaneCardGlassHost(content: PaneCardGlassLayer(
+                        frames: paneCardGlassFrames,
+                        swipe: appTabSwipeStore,
+                        tabsModel: tabsModel,
+                        join: integratedTabJoin,
+                        joinsTab: integratedTabsJoinCards && showsHorizontalTabHeader,
+                        mergesCards: tabExpose.mergesSurface,
+                        tint: (resolvedTheme.baseColor ?? Color(uiColor: .systemBackground))
+                            .opacity(transparencyManager.backgroundOpacity)))
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
 
                 VStack(spacing: 0) {
                     // Top toolbar spacer when tab bar is hidden (Catalyst only)

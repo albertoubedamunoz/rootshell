@@ -54,6 +54,8 @@ struct FileManagerSidebarView: View {
             .background(background)
             .clipShape(PaneCardStyle.trailingColumnShape(rounded: roundedPanes))
             .shadow(color: .black.opacity(roundedPanes ? 0 : 0.15), radius: 8, x: -2, y: 0)
+            .paneCardDepth(roundedPanes, shape: PaneCardStyle.trailingColumnShape(rounded: true),
+                           palette: IntegratedTabEdgePalette(cardSurface: background))
         }
         .background((roundedPanes ? .clear : background).ignoresSafeArea(.container, edges: .bottom))
         .fileManagerTheme(theme)

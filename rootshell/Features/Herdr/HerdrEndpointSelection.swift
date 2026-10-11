@@ -78,18 +78,47 @@ nonisolated struct HerdrEndpointPainter {
         cells.reserveCapacity(rect.width * rect.height)
         for row in 0..<rect.height {
             let index = (rect.y + row) * frame.grid.width + rect.x
+            let popupRow = rect.y + row - popupY
+            let popupColumns: Range<Int>?
+            if let popup = frame.popup, popupRow >= 0, popupRow < popup.grid.height {
+                let start = max(0, popupX - rect.x)
+                let end = min(rect.width, popupX + popup.grid.width - rect.x)
+                popupColumns = start < end ? start..<end : nil
+            } else { popupColumns = nil }
             for column in 0..<rect.width {
                 var cell = frame.grid.cells[index + column]
-                if let popup = frame.popup {
-                    let x = rect.x + column - popupX, y = rect.y + row - popupY
-                    if x >= 0, x < popup.grid.width, y >= 0, y < popup.grid.height {
-                        cell = popup.grid.cells[y * popup.grid.width + x]
+                var availableColumns = rect.width - column
+                if let popup = frame.popup, let popupColumns {
+                    if popupColumns.contains(column) {
+                        let x = rect.x + column - popupX
+                        cell = popup.grid.cells[popupRow * popup.grid.width + x]
+                        availableColumns = popupColumns.upperBound - column
                         if let link = cell.hyperlink {
                             cell.hyperlink = UInt32(exactly: Int(link) + frame.grid.hyperlinks.count)
                         }
+                    } else if column < popupColumns.lowerBound {
+                        availableColumns = popupColumns.lowerBound - column
+                    } else if column == popupColumns.upperBound, column > 0 {
+                        // The popup can hide the leading half of a wide glyph.
+                        // Clear its exposed continuation even if Herdr marks it skipped.
+                        let hidden = frame.grid.cells[index + column - 1]
+                        if !hidden.skip, DisplayWidth.width(of: Self.safeText(hidden.symbol)) > 1 {
+                            cell.symbol = " "; cell.skip = false
+                        }
                     }
                 }
-                if selection?.contains(row: (pane.scroll?.top ?? 0) + UInt64(row), column: column) == true {
+                var glyphWidth = max(1, DisplayWidth.width(of: Self.safeText(cell.symbol)))
+                // A glyph crossing a popup or pane edge cannot be painted partially.
+                // Replace its visible leading cell so it cannot cover the next region.
+                if !cell.skip, glyphWidth > availableColumns {
+                    cell.symbol = " "; glyphWidth = 1
+                }
+                let bufferRow = (pane.scroll?.top ?? 0) + UInt64(row)
+                if selection?.visible == true, (column..<(column + glyphWidth)).contains(where: {
+                    selection?.contains(row: bufferRow, column: $0) == true
+                }) {
+                    // Selecting either half highlights the glyph's leading cell,
+                    // since its continuation will not be painted separately.
                     if let colors = selectionColors {
                         cell.foreground = colors.foreground; cell.background = colors.background
                         cell.modifiers &= ~64
@@ -136,11 +165,12 @@ nonisolated struct HerdrEndpointPainter {
             let range = (row * rect.width)..<((row + 1) * rect.width)
             if !full, previous[range].elementsEqual(cells[range]) { continue }
             var nextColumn: Int?
+            var coveredUntil = 0
             for column in 0..<rect.width {
+                if column < coveredUntil { continue }
                 let index = row * rect.width + column
                 let cell = cells[index]
                 if cell.skip { continue }
-                if !full, cell == previous[index] { continue }
                 if nextColumn != column { out += "\u{1b}[\(row + 1);\(column + 1)H" }
                 if pen?.foreground != cell.foreground || pen?.background != cell.background || pen?.modifiers != cell.modifiers {
                     out += Self.style(cell)
@@ -153,6 +183,10 @@ nonisolated struct HerdrEndpointPainter {
                 }
                 let symbol = Self.safeText(cell.symbol)
                 out += symbol.isEmpty ? " " : symbol
+                // Herdr can leave ordinary blank cells behind a wide glyph.
+                // Painting them erases the glyph in Ghostty. Repaint the whole
+                // changed row so narrowing a glyph also restores those cells.
+                coveredUntil = column + max(1, DisplayWidth.width(of: symbol))
                 // Consecutive ASCII cells advance the cursor predictably.
                 // Position explicitly after Unicode instead of guessing its
                 // display width (wide cells, combining marks, and emoji).

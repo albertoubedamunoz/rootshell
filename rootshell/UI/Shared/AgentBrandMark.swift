@@ -2,10 +2,10 @@
 //  AgentBrandMark.swift
 //  rootshell
 //
-//  The detected agent's product logo, drawn at the trailing edge of the
-//  sidebar card's context line and in the top tab's badge area. Card line 1
-//  already names the agent in text, so the mark is decorative and stays out
-//  of accessibility.
+//  The detected agent's product logo, or the pane's shell or program logo,
+//  drawn at the trailing edge of the sidebar card's context line, before a
+//  plain row's title, and in the top tab's badge area. Decorative, so it
+//  stays out of accessibility.
 //
 
 import SwiftUI
@@ -50,26 +50,43 @@ struct AgentBrandMark: View {
         agentID.flatMap { assetNames[$0] }
     }
 
+    /// Agent marks first, then `ProgramCatalog` ids for Running cards.
+    static func mark(for agentID: String?) -> BrandMark? {
+        guard let agentID else { return nil }
+        if let asset = assetNames[agentID] { return .asset(asset) }
+        return ProgramCatalog.entry(forID: agentID)?.mark
+    }
+
     /// Bypasses the agent-id lookup for callers that already know which
-    /// asset they want. The usage footer needs this: its rows are keyed by
+    /// mark they want. The usage footer needs this: its rows are keyed by
     /// provider brand rather than by a detected agent, and oh-my-pi reports
     /// brands that have no manifest agent id at all.
-    private var explicitAsset: String?
+    private var explicitMark: BrandMark?
+
+    /// Colour for monochrome marks and symbols; the top tab passes its title
+    /// colour so they follow the tab theme.
+    var tint: Color = .secondary
 
     init(agentID: String?, size: CGFloat = 14) {
         self.agentID = agentID
         self.size = size
-        self.explicitAsset = nil
+        self.explicitMark = nil
     }
 
     init(assetName: String, size: CGFloat = 14) {
+        self.init(mark: .asset(assetName), size: size)
+    }
+
+    init(mark: BrandMark, size: CGFloat = 14, tint: Color = .secondary) {
         self.agentID = nil
         self.size = size
-        self.explicitAsset = assetName
+        self.explicitMark = mark
+        self.tint = tint
     }
 
     var body: some View {
-        if let asset = explicitAsset ?? Self.assetName(for: agentID) {
+        switch explicitMark ?? Self.mark(for: agentID) {
+        case .asset(let asset):
             Image(asset)
                 // Brand fills, not a tint: Claude, Helix and Vim use the same
                 // colours in both appearances, the rest ship light/dark variants.
@@ -82,6 +99,22 @@ struct AgentBrandMark: View {
                 // metadata to 0.72, and the two multiply.
                 .opacity(0.85)
                 .accessibilityHidden(true)
+        case .template(let asset):
+            Image(asset)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(tint)
+                .frame(width: size, height: size)
+                .accessibilityHidden(true)
+        case .symbol(let name):
+            Image(systemName: name)
+                .font(.system(size: size * 0.8, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: size, height: size)
+                .accessibilityHidden(true)
+        case nil:
+            EmptyView()
         }
     }
 }

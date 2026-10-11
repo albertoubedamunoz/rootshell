@@ -357,6 +357,21 @@ extension Ghostty {
         /// that progress is removed when the program's work ends.
         var programStatusOwnsProgress = false
 
+        /// One identity per source; the highest source wins
+        /// (`TerminalView+ForegroundProgram`).
+        var foregroundProgramSources: [ForegroundProgram.Source: ForegroundProgram] = [:]
+        /// OSC 7501 records the shell sends about itself and its command.
+        var shellProgramReports = ShellProgramReports()
+        /// The replaced session's records, kept until the new session is
+        /// ready in case it resumed the same remote PTY.
+        var previousSessionShellReports: ShellProgramReports?
+        var foregroundProgramCardTask: Task<Void, Never>?
+        var localForegroundProbeTask: Task<Void, Never>?
+        var localForegroundPollTask: Task<Void, Never>?
+        /// Last resolved local foreground group; a new one means a new job.
+        var localForegroundProcessGroup: Int32?
+        var loginShellProbeTask: Task<Void, Never>?
+
         /// Progress report state (for OSC 9;4 progress indicators)
         @Published var progressReport: Ghostty.Action.ProgressReport? = nil {
             didSet {
@@ -1413,7 +1428,14 @@ extension Ghostty {
         var embeddedTrzszReachedRunning: Bool = false
 
         // Scrollbar state
+        /// Drawn only while the enclosing scroll view's native indicator is off.
         var scrollIndicator: UIView?
+        var nativeScrollIndicatorActive = false {
+            didSet {
+                guard nativeScrollIndicatorActive != oldValue else { return }
+                updateScrollIndicatorVisibility(animated: false, reveal: false)
+            }
+        }
         var scrollbarTotal: UInt64 = 0
         var scrollbarOffset: UInt64 = 0
         var scrollbarLen: UInt64 = 0
@@ -4970,6 +4992,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
             LocalMultiplexerTracker.shared.refresh()
         }
         #endif
+        noteForegroundCommandFinished()
         // A program that exited (or a new prompt) keeps only finished OSC 7501
         // results. Emptying them releases the pane only after the exit below
         // is credited to the agent still holding it.
@@ -5092,6 +5115,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
 
     func handleSurfaceContentChanged() {
         AgentAttentionCenter.shared.noteContentChanged(terminal: self)
+        noteLocalForegroundMayHaveChanged()
         if let binding = tmuxPaneBinding,
            let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface) {
             controller.notePaneContentChanged()
@@ -5330,7 +5354,9 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         updateScrollIndicatorVisibility(animated: true, reveal: revealScrollIndicator)
 
         // Notify TerminalScrollView of scrollbar updates
-        NotificationCenter.default.post(name: .ghosttyDidUpdateScrollbar, object: self)
+        NotificationCenter.default.post(
+            name: .ghosttyDidUpdateScrollbar, object: self,
+            userInfo: [ScrollbarUpdateKey.revealsIndicator: revealScrollIndicator])
     }
 
     /// Apply a multiplexer-derived scrollbar sample (or clear it). Maps the
@@ -5448,6 +5474,14 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func handleProgramStatus(_ report: Ghostty.Action.ProgramStatus) {
+        if ShellProgramReports.owns(id: report.id) {
+            applyShellProgramReport(report)
+            return
+        }
+        // A clear with no id removes every record, the shell's included.
+        if report.state == .clear, report.id.isEmpty {
+            clearShellProgramReports()
+        }
         programStatusRecords.apply(report)
         if ProgramStatusDebugLogger.shared.isEnabled {
             ProgramStatusDebugLogger.shared.event(
@@ -5613,6 +5647,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         // (driven by TerminalScrollView via multiplexerScrollActive) is
         // what shows instead.
         let shouldBeVisible = scrollbarTotal != 0 && !isAtBottom && !isMouseCaptured
+            && !nativeScrollIndicatorActive
         let targetAlpha: CGFloat = shouldBeVisible ? 1 : 0
 
         if !shouldBeVisible {

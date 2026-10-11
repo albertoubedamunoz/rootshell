@@ -34,6 +34,13 @@ final class PanePresentationState {
     /// when coding-agent detection is disabled. It does not create an agent row.
     var reportedProject: AgentProjectIdentity?
 
+    /// The pane's shell at a prompt, or the program in the foreground.
+    var foregroundProgram: ForegroundProgram?
+
+    /// When the current non-shell program took the foreground, set only once
+    /// it has stayed long enough for a Running card.
+    var foregroundProgramCardSince: Date?
+
     var projectForGrouping: AgentProjectIdentity? {
         AgentProjectIdentity.forGrouping(reported: reportedProject, detected: detectedAgentRow?.project)
     }
@@ -90,7 +97,7 @@ final class PanePresentationState {
             return row
         }
 
-        guard let activity = oscProgressActivity else { return nil }
+        guard let activity = oscProgressActivity else { return foregroundProgramRow }
         return AgentRowState(
             status: activity.phase.status,
             isOSCProgressActivity: true,
@@ -99,6 +106,21 @@ final class PanePresentationState {
             taskProgress: activity.progressText,
             workingSince: activity.phase == .failed ? nil : activity.startedAt,
             stateChangeSeq: activity.stateChangeSeq
+        )
+    }
+
+    /// `.unknown` keeps the card out of the attention ladder: it never wins a
+    /// rollup or a sort, and `attentionStatus` stays nil, so no tab dot.
+    private var foregroundProgramRow: AgentRowState? {
+        guard let since = foregroundProgramCardSince,
+              let program = foregroundProgram, program.showsRunningCard else { return nil }
+        return AgentRowState(
+            status: .unknown,
+            isForegroundProgram: true,
+            agentID: program.entry?.id ?? program.name,
+            agentDisplayName: program.displayName,
+            workingSince: since,
+            project: reportedProject
         )
     }
 

@@ -598,6 +598,22 @@ nonisolated enum HerdrControl {
         var foreground_cwd: String?
         let state_labels: [String: String]?
         var label: String?
+        /// Absent from servers that predate it.
+        var foreground_process: ForegroundProcess?
+
+        struct ForegroundProcess: Decodable, Sendable, Equatable {
+            let name: String
+            let argv: [String]?
+            /// The pane's own shell holds the foreground: it is at a prompt.
+            let is_shell: Bool
+        }
+
+        var foregroundProgram: ForegroundProgram? {
+            guard let process = foreground_process else { return nil }
+            return ForegroundProgram(
+                rawName: process.name, arguments: process.argv ?? [],
+                isShell: process.is_shell, source: .herdr)
+        }
 
         /// Prefer the foreground process, falling back to the shell when
         /// the server cannot resolve a usable foreground directory.

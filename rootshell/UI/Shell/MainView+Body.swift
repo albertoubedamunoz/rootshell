@@ -42,6 +42,33 @@ extension MainView {
         }
     }
 
+    /// Feeds the joined tab's window-space span to the split views' card rims.
+    @ViewBuilder
+    func integratedTabJoinReader(activeTabBounds: Anchor<CGRect>?) -> some View {
+        if integratedTabsJoinCards,
+           let activeTabBounds,
+           terminals.indices.contains(selectedTabIndex) {
+            let tabID = terminals[selectedTabIndex].id
+            let animatesSelection = !tabBarAnimationsDisabled
+                && !tabIndicator.suppressNextSelectionAnimation
+                && !UIAccessibility.isReduceMotionEnabled
+            GeometryReader { proxy in
+                let origin = proxy.frame(in: .global).origin
+                let span = IntegratedTabJoin.Span(
+                    rect: proxy[activeTabBounds].offsetBy(dx: origin.x, dy: origin.y),
+                    tabID: tabID,
+                    animatesSelection: animatesSelection)
+                Color.clear
+                    .onChange(of: span, initial: true) { _, span in
+                        integratedTabJoin.update(span)
+                    }
+                    .onDisappear { integratedTabJoin.update(nil) }
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
     // MARK: - Full-Bleed Backgrounds
 
     /// The full-bleed background layer.
