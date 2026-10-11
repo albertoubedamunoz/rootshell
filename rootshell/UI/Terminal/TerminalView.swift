@@ -3694,9 +3694,10 @@ extension Ghostty {
             #endif
 
             // FIX: Ghostty's iOS Metal renderer creates IOSurfaceLayer that doesn't auto-resize
-            // Always update the sublayer frame to match view bounds
+            // Always update the sublayer frame to match view bounds. Skip subview
+            // layers: a stretched scroll indicator flashes as a full-pane sheet.
             if let sublayers = self.layer.sublayers {
-                for sublayer in sublayers {
+                for sublayer in sublayers where !(sublayer.delegate is UIView) {
                     if sublayer.frame != self.bounds {
                         sublayer.frame = self.bounds
                     }
