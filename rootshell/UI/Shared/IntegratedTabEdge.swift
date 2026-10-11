@@ -193,6 +193,41 @@ struct IntegratedActiveTabBoundsPreferenceKey: PreferenceKey {
     }
 }
 
+// MARK: - Joined card rim
+
+/// The selected tab's frame in window coordinates while Integrated tabs join
+/// Rounded Panes cards. Split views open their top rim there and the glass
+/// layer merges the tab into its card. `MainView` never reads it, so tab-strip
+/// scrolling never invalidates it.
+@Observable
+final class IntegratedTabJoin {
+    struct Span: Equatable {
+        let rect: CGRect
+        let tabID: UUID
+        /// Slide with the tab's selection animation.
+        let animatesSelection: Bool
+    }
+
+    private(set) var span: Span?
+    @ObservationIgnored private let observers = NSHashTable<SplitTreeHostingView>.weakObjects()
+
+    func update(_ newSpan: Span?) {
+        guard span != newSpan else { return }
+        span = newSpan
+        for observer in observers.allObjects {
+            observer.integratedTabJoinDidChange()
+        }
+    }
+
+    func addObserver(_ observer: SplitTreeHostingView) {
+        observers.add(observer)
+    }
+
+    func removeObserver(_ observer: SplitTreeHostingView) {
+        observers.remove(observer)
+    }
+}
+
 // MARK: - Shapes
 
 /// Open path, to be stroked. Not pre-stroked via `strokedPath`: a ribbon's two
@@ -490,8 +525,8 @@ private struct IntegratedTabJoinsCardKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// Rounded Panes: the selected tab merges into a keyline-free card, so it
-    /// drops its outline.
+    /// Rounded Panes: the selected tab merges into a card, whose rim opens
+    /// beneath it, so it drops the rule occluder.
     var integratedTabJoinsCard: Bool {
         get { self[IntegratedTabJoinsCardKey.self] }
         set { self[IntegratedTabJoinsCardKey.self] = newValue }

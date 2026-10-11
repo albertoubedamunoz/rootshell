@@ -1413,7 +1413,14 @@ extension Ghostty {
         var embeddedTrzszReachedRunning: Bool = false
 
         // Scrollbar state
+        /// Drawn only while the enclosing scroll view's native indicator is off.
         var scrollIndicator: UIView?
+        var nativeScrollIndicatorActive = false {
+            didSet {
+                guard nativeScrollIndicatorActive != oldValue else { return }
+                updateScrollIndicatorVisibility(animated: false, reveal: false)
+            }
+        }
         var scrollbarTotal: UInt64 = 0
         var scrollbarOffset: UInt64 = 0
         var scrollbarLen: UInt64 = 0
@@ -5330,7 +5337,9 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         updateScrollIndicatorVisibility(animated: true, reveal: revealScrollIndicator)
 
         // Notify TerminalScrollView of scrollbar updates
-        NotificationCenter.default.post(name: .ghosttyDidUpdateScrollbar, object: self)
+        NotificationCenter.default.post(
+            name: .ghosttyDidUpdateScrollbar, object: self,
+            userInfo: [ScrollbarUpdateKey.revealsIndicator: revealScrollIndicator])
     }
 
     /// Apply a multiplexer-derived scrollbar sample (or clear it). Maps the
@@ -5613,6 +5622,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
         // (driven by TerminalScrollView via multiplexerScrollActive) is
         // what shows instead.
         let shouldBeVisible = scrollbarTotal != 0 && !isAtBottom && !isMouseCaptured
+            && !nativeScrollIndicatorActive
         let targetAlpha: CGFloat = shouldBeVisible ? 1 : 0
 
         if !shouldBeVisible {

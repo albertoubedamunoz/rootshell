@@ -56,6 +56,8 @@ struct AIAgentSidebarView: View {
                 .background(Color(uiColor: .systemBackground))
                 .clipShape(PaneCardStyle.trailingColumnShape(rounded: roundedPanes))
                 .shadow(color: .black.opacity(roundedPanes ? 0 : 0.15), radius: 8, x: -2, y: 0)
+                .paneCardDepth(roundedPanes, shape: PaneCardStyle.trailingColumnShape(rounded: true),
+                               palette: IntegratedTabEdgePalette(cardSurface: Color(uiColor: .systemBackground)))
         }
         // Bleed the opaque column fill into the bottom safe area (home-indicator
         // strip) without moving the chat content, mirroring the docked tab
