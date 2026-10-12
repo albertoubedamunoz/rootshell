@@ -71,6 +71,7 @@ extension LiveWeatherConfiguration.Quality {
 struct LiveWeatherSettingsSection: View {
     @ObservedObject var effect: LiveWeatherEffect
     let onShowcase: () -> Void
+    @State private var now = Date()
     private var store: WeatherStore { .shared }
 
     private func binding<Value>(_ key: WritableKeyPath<LiveWeatherConfiguration, Value>) -> Binding<Value> {
@@ -154,34 +155,50 @@ struct LiveWeatherSettingsSection: View {
 
     // MARK: Conditions
 
+    // A TimelineView around the Section would collapse its rows into one, so
+    // the clock ticks from the Refresh row instead.
     private var conditionsSection: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { timeline in
-            Section {
-                if let snapshot = store.snapshot(for: effect.configuration.selection) {
-                    currentConditions(snapshot, now: timeline.date)
-                } else {
-                    Text(emptyConditionsMessage)
-                        .foregroundStyle(.secondary)
-                        .themedRow()
-                }
-                statusRow(now: timeline.date)
-                Button {
-                    store.refreshNow()
-                } label: {
-                    Label("Refresh Now", systemImage: "arrow.clockwise")
-                }
-                .disabled(effect.configuration.demo || store.manualRefreshAt > timeline.date || store.status == .fetching)
-                .themedRow()
-            } header: {
-                Text("Current Conditions")
-            } footer: {
-                if !effect.configuration.demo, store.manualRefreshAt > timeline.date {
-                    Text("Weather refreshes about once an hour while the effect is on screen. You can refresh again \(store.manualRefreshAt, format: .relative(presentation: .named)).")
-                } else {
-                    Text("Weather refreshes about once an hour while the effect is on screen.")
+        Section {
+            if let snapshot = store.snapshot(for: effect.configuration.selection) {
+                currentConditions(snapshot)
+            } else {
+                Text(emptyConditionsMessage)
+                    .foregroundStyle(.secondary)
+                    .themedRow()
+            }
+            statusRow
+            Button {
+                store.refreshNow()
+            } label: {
+                Label("Refresh Now", systemImage: "arrow.clockwise")
+            }
+            .disabled(effect.configuration.demo || store.manualRefreshAt > now || store.status == .fetching)
+            .themedRow()
+            .task {
+                while !Task.isCancelled {
+                    now = Date()
+                    try? await Task.sleep(for: .seconds(30))
                 }
             }
+        } header: {
+            Text("Current Conditions")
+        } footer: {
+            if !effect.configuration.demo, store.manualRefreshAt > now {
+                Text("Weather refreshes about once an hour while the effect is on screen. You can refresh again \(relative(store.manualRefreshAt)).")
+            } else {
+                Text("Weather refreshes about once an hour while the effect is on screen.")
+            }
         }
+    }
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.dateTimeStyle = .named
+        return formatter
+    }()
+
+    private func relative(_ date: Date) -> String {
+        Self.relativeFormatter.localizedString(for: date, relativeTo: now)
     }
 
     private var emptyConditionsMessage: String {
@@ -198,7 +215,7 @@ struct LiveWeatherSettingsSection: View {
     }
 
     @ViewBuilder
-    private func currentConditions(_ snapshot: WeatherSnapshot, now: Date) -> some View {
+    private func currentConditions(_ snapshot: WeatherSnapshot) -> some View {
         let night = SolarCalculator.calculatePosition(date: now, latitude: snapshot.coordinate.latitude,
                                                       longitude: snapshot.coordinate.longitude).altitude < -3
         HStack(spacing: 12) {
@@ -225,7 +242,7 @@ struct LiveWeatherSettingsSection: View {
         HStack {
             Text("Updated")
             Spacer()
-            Text(snapshot.fetchedAt, format: .relative(presentation: .named)).foregroundStyle(.secondary)
+            Text(relative(snapshot.fetchedAt)).foregroundStyle(.secondary)
         }
         .themedRow()
         HStack {
@@ -245,7 +262,7 @@ struct LiveWeatherSettingsSection: View {
     }
 
     @ViewBuilder
-    private func statusRow(now: Date) -> some View {
+    private var statusRow: some View {
         switch store.status {
         case .fetching:
             HStack(spacing: 8) {
@@ -254,7 +271,7 @@ struct LiveWeatherSettingsSection: View {
             }
             .themedRow()
         case .retrying(let date) where date > now && !effect.configuration.demo:
-            Text("The weather service didn't respond. Trying again \(date, format: .relative(presentation: .named)).")
+            Text("The weather service didn't respond. Trying again \(relative(date)).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .themedRow()
