@@ -12,6 +12,7 @@ struct LiveWeatherView: View {
     var showcase = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.terminalEffectBottomInset) private var bottomInset
     @State private var dimFlashingLights = MADimFlashingLightsEnabled()
     @State private var unavailable = false
 
@@ -28,7 +29,7 @@ struct LiveWeatherView: View {
             coordinate: store.coordinate(for: selection), snapshot: store.snapshot(for: selection),
             configuration: configuration, previewCondition: effect.previewCondition, previewTime: effect.previewTime,
             isLight: effect.isLightBackground, reduceMotion: reduceMotion, dimFlashingLights: dimFlashingLights,
-            powerScale: PowerManager.shared.effectIntervalScale)
+            powerScale: PowerManager.shared.effectIntervalScale, bottomInset: bottomInset)
         let fetching = scenePhase != .background && !configuration.demo
         ZStack {
             if unavailable {

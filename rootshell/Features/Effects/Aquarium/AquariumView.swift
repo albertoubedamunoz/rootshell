@@ -11,6 +11,7 @@ struct AquariumView: View {
     @ObservedObject var effect: AquariumEffect
     var showcase = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.terminalEffectBottomInset) private var bottomInset
 
     var body: some View {
         let palette = effect.aquariumPalette
@@ -21,8 +22,8 @@ struct AquariumView: View {
             LinearGradient(colors: [Color(red: 0.025, green: 0.09, blue: 0.12), .black],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
                 .opacity(configuration.intensity * 0.12)
-            AquariumMetalView(configuration: configuration, palette: palette,
-                              powerScale: powerScale, reduceMotion: reduceMotion)
+            AquariumMetalView(configuration: configuration, palette: palette, powerScale: powerScale,
+                              reduceMotion: reduceMotion, bottomInset: bottomInset)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -42,6 +43,7 @@ private struct AquariumMetalView: UIViewRepresentable {
     let palette: AquariumPalette
     let powerScale: Double
     let reduceMotion: Bool
+    let bottomInset: CGFloat
 
     final class Coordinator {
         var renderer: AquariumRenderer?
@@ -68,8 +70,8 @@ private struct AquariumMetalView: UIViewRepresentable {
                 context.coordinator.renderer = renderer
                 view.aquariumRenderer = renderer
                 view.delegate = renderer
-                renderer.update(configuration: configuration, palette: palette,
-                                powerScale: powerScale, reduceMotion: reduceMotion, view: view)
+                renderer.update(configuration: configuration, palette: palette, powerScale: powerScale,
+                                reduceMotion: reduceMotion, bottomInset: bottomInset, view: view)
             } catch {
                 Logger(subsystem: "com.rootshell.aquarium", category: "Renderer")
                     .error("Aquarium unavailable; using static water: \(String(describing: error), privacy: .public)")
@@ -78,8 +80,8 @@ private struct AquariumMetalView: UIViewRepresentable {
         return view
     }
     func updateUIView(_ view: AquariumMTKView, context: Context) {
-        context.coordinator.renderer?.update(configuration: configuration, palette: palette,
-                                             powerScale: powerScale, reduceMotion: reduceMotion, view: view)
+        context.coordinator.renderer?.update(configuration: configuration, palette: palette, powerScale: powerScale,
+                                             reduceMotion: reduceMotion, bottomInset: bottomInset, view: view)
     }
     static func dismantleUIView(_ view: AquariumMTKView, coordinator: Coordinator) {
         view.isPaused = true

@@ -282,6 +282,7 @@ struct FirefliesView: View {
     let effect: FirefliesEffect
 
     @Environment(\.terminalEffectRetainsState) private var retainsState
+    @Environment(\.terminalEffectBottomInset) private var bottomInset
     @State private var hasInitialized = false
     @State private var fireflies: [Firefly] = []
     @State private var startTime = Date.now
@@ -307,18 +308,21 @@ struct FirefliesView: View {
                 }
                 .drawingGroup()
                 .onChange(of: currentTime) { _, newTime in
-                    updatePopulation(at: newTime, in: geometry.size)
+                    updatePopulation(at: newTime, in: spawnArea(geometry.size))
                 }
             }
             .onAppear {
-                viewSize = geometry.size
+                viewSize = spawnArea(geometry.size)
                 if !retainsState || !hasInitialized {
-                    initializeFireflies(in: geometry.size)
+                    initializeFireflies(in: spawnArea(geometry.size))
                     hasInitialized = true
                 }
             }
             .onChange(of: geometry.size) { _, newSize in
-                viewSize = newSize
+                viewSize = spawnArea(newSize)
+            }
+            .onChange(of: bottomInset) { _, _ in
+                viewSize = spawnArea(geometry.size)
             }
             .onChange(of: effect.fireflyCount) { _, _ in
                 // Re-initialize when count changes significantly
@@ -327,6 +331,11 @@ struct FirefliesView: View {
             }
         }
         .allowsHitTesting(false)
+    }
+
+    /// New fireflies appear above the keyboard; flight keeps the full view so none jump.
+    private func spawnArea(_ size: CGSize) -> CGSize {
+        CGSize(width: size.width, height: max(1, size.height - bottomInset))
     }
 
     private func initializeFireflies(in size: CGSize) {

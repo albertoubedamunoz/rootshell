@@ -207,6 +207,11 @@ vertex AQScreen aquariumScreenVertex(uint vid [[vertex_id]]) {
     return out;
 }
 
+/// Screen uv to the tank above the keyboard; past 1 lies beneath it.
+static float2 aqScene(float2 uv, constant AQUniforms &u) {
+    return float2(uv.x, uv.y / max(u.environment.w, 0.2f));
+}
+
 static float aqShadow(float3 world, float nDotL, depth2d<float> shadow, constant AQUniforms &u) {
     constexpr sampler compareSampler(coord::normalized, address::clamp_to_edge, filter::linear, compare_func::less_equal);
     float4 light = u.lightProjection * float4(world, 1);
@@ -371,7 +376,7 @@ fragment half4 aquariumSurfaceFragment(AQSurface in [[stage_in]],
 }
 
 fragment half4 aquariumWaterFragment(AQScreen in [[stage_in]], constant AQUniforms &u [[buffer(2)]]) {
-    float2 uv = in.uv;
+    float2 uv = aqScene(in.uv, u);
     float t = u.cameraTime.w;
     float depth = smoothstep(0.02f,1.0f,uv.y);
     float3 color = u.waterColor.rgb * mix(1.25f,0.19f,depth) + u.fillColor.rgb * 0.017f;
@@ -457,13 +462,14 @@ fragment half4 aquariumComposite(AQScreen in [[stage_in]], constant AQUniforms &
     color = aqSRGB(aqToneMap(color));
     float luminance = dot(color,float3(0.2126f,0.7152f,0.0722f));
     color = max(mix(float3(luminance),color,u.optics.w),0.0f);
-    float vignette = 1-smoothstep(0.30f,0.85f,length((uv-0.5f)*float2(0.85f,1.0f)))*0.32f;
+    float2 tank = aqScene(uv, u);
+    float vignette = 1-smoothstep(0.30f,0.85f,length((tank-0.5f)*float2(0.85f,1.0f)))*0.32f;
     color *= vignette;
     // RootShell uses plusLighter on dark themes and multiply on light themes.
     // Neutral black/white and premultiplied alpha keep both paths predictable.
     if (u.composition.z > 0.5f) color = mix(float3(1),saturate(color*0.88f+0.035f),0.82f);
-    float quietCenter = exp(-dot((uv-float2(0.48f,0.42f))*float2(2.0f,1.65f),
-                                (uv-float2(0.48f,0.42f))*float2(2.0f,1.65f))*2.0f);
+    float quietCenter = exp(-dot((tank-float2(0.48f,0.42f))*float2(2.0f,1.65f),
+                                (tank-float2(0.48f,0.42f))*float2(2.0f,1.65f))*2.0f);
     float alpha = u.composition.x * (1-u.composition.y*quietCenter*0.78f);
     // Small deterministic dither avoids banding in dark water; never adds noise to text.
     float dither = (aqHash(float3(in.position.xy,0.0f))-0.5f)/255.0f;

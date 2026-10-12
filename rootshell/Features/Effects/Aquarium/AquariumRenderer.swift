@@ -57,6 +57,8 @@ final class AquariumRenderer: NSObject, MTKViewDelegate {
     private var palette = AquariumPalette.make(configuration: .init(), background: "#1e1e2e", palette: [])
     private var powerScale: Double = 1
     private var reduceMotion = false
+    private var bottomInset: CGFloat = 0
+    private var sceneFraction = EffectSceneFraction()
     private let logger = Logger(subsystem: "com.rootshell.aquarium", category: "Renderer")
 
     init(device: MTLDevice) throws {
@@ -139,12 +141,13 @@ final class AquariumRenderer: NSObject, MTKViewDelegate {
         assert(MemoryLayout<AquariumUniforms>.stride == 272)
     }
 
-    func update(configuration: AquariumConfiguration, palette: AquariumPalette,
-                powerScale: Double, reduceMotion: Bool, view: AquariumMTKView) {
+    func update(configuration: AquariumConfiguration, palette: AquariumPalette, powerScale: Double,
+                reduceMotion: Bool, bottomInset: CGFloat, view: AquariumMTKView) {
         self.configuration = configuration.sanitized()
         self.palette = palette
         self.powerScale = max(powerScale.isFinite ? powerScale : 1, 1)
         self.reduceMotion = reduceMotion
+        self.bottomInset = bottomInset
         let quality = effectiveQuality
         view.preferredFramesPerSecond = max(15, Int(Double(quality.framesPerSecond) / self.powerScale))
         resize(view)
@@ -299,9 +302,14 @@ final class AquariumRenderer: NSObject, MTKViewDelegate {
               let drawable = view.currentDrawable, let outputPass = view.currentRenderPassDescriptor,
               let command = queue.makeCommandBuffer() else { return }
         command.label = "Aquarium frame"
-        let delta = clock.advance(now: CACurrentMediaTime(), speed: configuration.speed,
+        let now = CACurrentMediaTime()
+        let delta = clock.advance(now: now, speed: configuration.speed,
                                   paused: reduceMotion || configuration.paused || configuration.intensity == 0)
-        let halfWidth = max(2.1, Float(width) / Float(height) * 4.5)
+        // The tank fits above the keyboard and carries on beneath it.
+        sceneFraction.retarget(EffectSceneFraction.visible(height: view.bounds.height, bottomInset: bottomInset),
+                               at: now, animated: !view.freezeAnimation)
+        let fraction = Float(sceneFraction.value(at: now))
+        let halfWidth = max(2.1, Float(width) / (Float(height) * fraction) * 4.5)
         simulation.configure(count: configuration.fishCount, halfWidth: halfWidth)
         simulation.advance(delta: delta, current: Float(configuration.currentStrength))
         rebuildEnvironment(halfWidth: halfWidth)
@@ -337,13 +345,13 @@ final class AquariumRenderer: NSObject, MTKViewDelegate {
         let lightProjection = AquariumMatrix4.orthographic(halfWidth: halfWidth + 5, halfHeight: 9, near: 0.1, far: 40)
         let phase = Float(clock.time.truncatingRemainder(dividingBy: 512 * Double.pi))
         var uniforms = AquariumUniforms(
-            viewProjection: projection * viewMatrix, lightProjection: lightProjection * lightView,
+            viewProjection: AquariumMatrix4.topFraction(fraction) * projection * viewMatrix, lightProjection: lightProjection * lightView,
             cameraTime: aqV4(camera, phase), lightDirection: aqV4(light, Float(configuration.lightIntensity)),
             lightColor: aqV4(palette.light, 1), waterColor: aqV4(palette.water, 1), fillColor: aqV4(palette.fill, 1),
             viewport: SIMD4(Float(width), Float(height), 1 / Float(width), 1 / Float(height)),
             optics: SIMD4(Float(configuration.caustics), Float(configuration.haze), Float(configuration.exposure), Float(configuration.saturation)),
             composition: SIMD4(Float(configuration.intensity), Float(configuration.readingProtection), palette.isLight ? 1 : 0, Float(configuration.bloom)),
-            environment: SIMD4(halfWidth, 1 / Float(currentShadowSize), Float(configuration.currentStrength), 0))
+            environment: SIMD4(halfWidth, 1 / Float(currentShadowSize), Float(configuration.currentStrength), fraction))
 
         func bind(_ encoder: MTLRenderCommandEncoder) {
             encoder.setVertexBytes(&uniforms, length: MemoryLayout<AquariumUniforms>.stride, index: 2)

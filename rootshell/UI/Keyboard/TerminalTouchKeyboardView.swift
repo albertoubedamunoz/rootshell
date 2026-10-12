@@ -15,7 +15,6 @@ private struct TerminalTouchKeyboardEffectBackground: View {
                 .id(effect.id)
                 .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
         }
-        .environment(\.terminalEffectAvoidsKeyboard, false)
         .environment(\.terminalEffectRetainsState, true)
         .ignoresSafeArea()
         .allowsHitTesting(false)

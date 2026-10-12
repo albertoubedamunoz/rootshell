@@ -28,7 +28,7 @@ struct AquariumUniforms: Sendable {
     var viewport: SIMD4<Float>       // width, height, inverse width, inverse height
     var optics: SIMD4<Float>         // caustics, haze, exposure stops, saturation
     var composition: SIMD4<Float>    // intensity, reading protection, light theme, bloom
-    var environment: SIMD4<Float>    // half width, shadow texel size, current, reserved
+    var environment: SIMD4<Float>    // half width, shadow texel size, current, visible height fraction
 }
 
 struct AquariumMatrix4: Sendable {
@@ -58,6 +58,11 @@ struct AquariumMatrix4: Sendable {
         return Self(c0: SIMD4(x.x, y.x, z.x, 0), c1: SIMD4(x.y, y.y, z.y, 0),
                     c2: SIMD4(x.z, y.z, z.z, 0),
                     c3: SIMD4(-aqDot(x, eye), -aqDot(y, eye), -aqDot(z, eye), 1))
+    }
+    /// Moves clip space into the top `fraction` of the viewport (w must be 1).
+    static func topFraction(_ fraction: Float) -> Self {
+        Self(c0: SIMD4(1, 0, 0, 0), c1: SIMD4(0, fraction, 0, 0),
+             c2: SIMD4(0, 0, 1, 0), c3: SIMD4(0, 1 - fraction, 0, 1))
     }
     /// Right-handed view space, Metal depth 0...1.
     static func orthographic(halfWidth: Float, halfHeight: Float, near: Float, far: Float) -> Self {

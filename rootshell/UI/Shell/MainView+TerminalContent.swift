@@ -724,7 +724,9 @@ extension MainView {
         if effectManager.activeEffect != nil,
            visibleContentAllowsTerminalEffects {
             GeometryReader { geometry in
+                let _ = effectManager.keyboardStateVersion
                 TerminalEffectView()
+                    .environment(\.terminalEffectBottomInset, effectBottomInset(in: geometry.frame(in: .global)))
                     // GeometryReader keeps the widened effect out of the
                     // ZStack's layout calculation. The terminal therefore
                     // retains its exact width while only the effect overflows
@@ -791,6 +793,38 @@ extension MainView {
                 // a fade-in would dip the window's opacity.
                 .transition(.identity)
         }
+    }
+
+    /// How much of an effect drawn in `frame` (global space) the docked
+    /// keyboard and toolbar cover, from the same frames the terminal reserves.
+    func effectBottomInset(in frame: CGRect) -> CGFloat {
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        guard terminals.indices.contains(selectedTabIndex),
+              let pane = terminals[selectedTabIndex].focusedPane,
+              let window = pane.window else { return 0 }
+        func localFrame(_ frame: CGRect) -> CGRect {
+            window.convert(frame, from: window.screen.coordinateSpace)
+        }
+        let bounds = window.bounds
+        let keyboard = pane.dockedTouchKeyboardFrameInScreen.map(localFrame)
+            ?? TerminalKeyboardGeometry.includingAccessory(
+                keyboard: localFrame(effectManager.keyboardFrame),
+                accessory: pane.keyboardAccessoryFrameInScreen.map(localFrame),
+                container: bounds)
+        // Docking is judged against the window, not this frame: a floating
+        // keyboard can span a narrow sidebar while the terminal ignores it.
+        let docked = keyboard.maxY >= bounds.maxY - 50
+            && TerminalKeyboardGeometry.overlapHeight(keyboard: keyboard, container: bounds) > 0
+        let keyboardCover = docked
+            ? TerminalKeyboardGeometry.overlapHeight(keyboard: keyboard, container: frame, requireFullWidth: false) : 0
+        // A latched toolbar-only reservation stands on the window's bottom edge.
+        let toolbarHeight = pane.reservedKeyboardToolbarHeightAtBottom
+        let toolbar = CGRect(x: bounds.minX, y: bounds.maxY - toolbarHeight, width: bounds.width, height: toolbarHeight)
+        let toolbarCover = TerminalKeyboardGeometry.overlapHeight(keyboard: toolbar, container: frame, requireFullWidth: false)
+        return max(keyboardCover, toolbarCover)
+        #else
+        return effectManager.keyboardOverlapHeight(in: frame)
+        #endif
     }
 
     /// Calculates bottom padding for a terminal based on effects and keyboard.
@@ -943,15 +977,12 @@ extension MainView {
             // full-width bottom-touching region over 100pt docked, which a drawer
             // row plus the reserved strip satisfies on its own.
             if reservesBottomToolbar && !hasDockedKeyboard {
-                // An accessory-only toolbar covers the ocean from the bottom
-                // up, but a single iPhone row can be shorter than the 8% ocean
-                // band. Keep the normal toolbar clearance, then reserve only
-                // the water still exposed above it. Expanded toolbars that
-                // cover the whole band naturally add no separate ocean gap.
-                let oceanHeight = geometry.size.height * effectManager.terminalBottomInsetFraction
-                let uncoveredOceanHeight = max(0, oceanHeight - rawKeyboardCoverage)
+                // Effects fit above an accessory-only toolbar too (see
+                // effectBottomInset), so the ocean band sits on top of it.
+                let toolbarCoverage = keyboardOffset - preservedKeyboardSafeAreaCompensation
+                let visibleHeight = max(0, geometry.size.height - toolbarCoverage)
                 padding += keyboardOffset
-                padding += uncoveredOceanHeight
+                padding += visibleHeight * effectManager.terminalBottomInsetFraction
             } else {
                 // Docked keyboard or no keyboard with ocean: add ocean gap
                 let visibleHeight = max(0, geometry.size.height - rawKeyboardCoverage)
@@ -1435,11 +1466,15 @@ extension MainView {
                     .overlay {
                         if backgroundSidebarEffectID != BackgroundEffectSelection.followTerminalID,
                            let effect = effectManager.effect(withId: backgroundSidebarEffectID) {
-                            effect.createEffectView()
-                                .id(effect.id)
-                                .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
+                            GeometryReader { proxy in
+                                let _ = effectManager.keyboardStateVersion
+                                effect.createEffectView()
+                                    .environment(\.terminalEffectBottomInset, effectBottomInset(in: proxy.frame(in: .global)))
+                            }
+                            .id(effect.id)
+                            .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                         }
                     }
                     .frame(width: dockedWidth - cardGap)

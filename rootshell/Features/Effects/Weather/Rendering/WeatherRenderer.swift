@@ -18,6 +18,8 @@ struct WeatherSceneInput: Equatable {
     var reduceMotion: Bool
     var dimFlashingLights: Bool
     var powerScale: Double
+    /// Points the keyboard covers; the sky fits above them.
+    var bottomInset: CGFloat
 }
 
 /// How much the scene is moving, which sets the frame rate.
@@ -90,6 +92,9 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
     private var clock = WeatherClock()
     private var lastSkyTime = -Double.infinity
     private var skyAzimuth = Double.nan
+    private var skyFraction = 1.0
+    private var cloudFraction = 1.0
+    private var sceneFraction = EffectSceneFraction()
     private var lastCloudTime = -Double.infinity
     private var cloudDrift = SIMD2<Double>.zero
     private var driftAtCloudRender = SIMD2<Double>.zero
@@ -187,6 +192,11 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
         let configuration = input.configuration
         let quality = effectiveQuality
         let wall = Date()
+        // The sky fits above the keyboard and carries on beneath it.
+        sceneFraction.retarget(EffectSceneFraction.visible(height: view.bounds.height, bottomInset: input.bottomInset),
+                               at: now, animated: !frozen)
+        let fraction = sceneFraction.value(at: now)
+        let reframing = sceneFraction.isAnimating(at: now)
 
         let date = renderDate(input, wall: wall)
         if astronomy == nil || astronomy?.coordinate != input.coordinate
@@ -215,7 +225,7 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
             if let strike { flash = LightningSchedule.flash(at: t, strike: strike) }
         }
 
-        let aspect = Double(width) / Double(max(height, 1))
+        let aspect = Double(width) / max(Double(height) * fraction, 1)
         let azimuth = WeatherSkyGeometry.cameraAzimuth(latitude: input.coordinate.latitude, sunAzimuth: astronomy.sunAzimuth,
                                                        sunAltitude: astronomy.sunAltitude, halfWidth: WeatherCamera.halfWidthDegrees(aspect: aspect))
         let camera = WeatherCamera(aspect: aspect, azimuth: azimuth)
@@ -236,39 +246,51 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
         }
 
         var uniforms = makeUniforms(input: input, state: state, astronomy: astronomy, camera: camera,
-                                    flash: flash, strike: strike,
+                                    flash: flash, strike: strike, fraction: fraction,
                                     width: width, height: height, quality: quality)
 
         let skyDue = now - lastSkyTime > 15 || skyAzimuth.isNaN || abs(WeatherSkyGeometry.wrap180(azimuth - skyAzimuth)) > 0.4
+            || skyFraction != fraction
         if skyDue {
             encodeSky(command, target: skyTexture, uniforms: &uniforms)
             lastSkyTime = now
             skyAzimuth = azimuth
+            skyFraction = fraction
         }
 
         let cloudsVisible = state.cloudLow > 0.003 || state.cloudHigh > 0.003
+        // Clouds rendered for another scene height no longer line up.
+        let reframed = cloudsVisible && cloudFraction != fraction
+        if reframed { historyValid = false }
         var cloudPasses = 0
         if cloudsVisible {
-            if frozen {
-                // A still frame accumulates several jittered passes at once.
-                cloudPasses = (skyDue || lastCloudTime == -.infinity || animator.isActive(at: now)) ? 4 : 0
+            if reframing {
+                cloudPasses = 1
+            } else if frozen || reframed {
+                // A still or newly settled frame accumulates several jittered passes at once.
+                cloudPasses = (skyDue || lastCloudTime == -.infinity || animator.isActive(at: now) || reframed) ? 4 : 0
             } else if now - lastCloudTime >= 1 / quality.cloudRate || !historyValid {
                 cloudPasses = 1
             }
         } else if !cloudsCleared {
             clearClouds(command)
         }
+        // Cloud shifts are in scene uv; the cloud textures are in screen uv.
+        let toScreen = SIMD2<Float>(1, Float(fraction))
         for _ in 0..<cloudPasses {
             var cloudUniforms = uniforms
-            let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender))
+            let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender)) * toScreen
             cloudUniforms.cloudShift = SIMD4(shift.x, shift.y, frameIndex, historyValid ? 1 : 0)
             encodeClouds(command, uniforms: &cloudUniforms)
             driftAtCloudRender = cloudDrift
             frameIndex += 1
         }
-        if cloudPasses > 0 { lastCloudTime = now }
+        if cloudPasses > 0 {
+            lastCloudTime = now
+            cloudFraction = fraction
+        }
 
-        let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender))
+        let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender)) * toScreen
         uniforms.cloudShift = SIMD4(shift.x, shift.y, frameIndex, 0)
         pass.colorAttachments[0].loadAction = .dontCare
         pass.colorAttachments[0].storeAction = .store
@@ -323,7 +345,7 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
         let demand: WeatherFrameDemand
         if frozen {
             demand = .still
-        } else if state.hasPrecipitation || flash > 0 || lightningEnabled {
+        } else if state.hasPrecipitation || flash > 0 || lightningEnabled || reframing {
             demand = .active
         } else if animator.isActive(at: now) || cloudsVisible || state.fog > 0.02 || starsVisible || configuration.demo {
             demand = .ambient
@@ -362,7 +384,7 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
     }
 
     private func makeUniforms(input: WeatherSceneInput, state: WeatherVisualState, astronomy: WeatherAstronomy,
-                              camera: WeatherCamera, flash: Double, strike: LightningStrike?,
+                              camera: WeatherCamera, flash: Double, strike: LightningStrike?, fraction: Double,
                               width: Int, height: Int, quality: LiveWeatherConfiguration.Quality) -> WeatherUniforms {
         let configuration = input.configuration
         let coordinate = input.coordinate
@@ -418,7 +440,8 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
             galaxy: wxV4(pole, Float(quality.cloudSteps)),
             galaxyCenter: wxV4(center, 0),
             rainColor: wxV4(rainColor, 0),
-            snowColor: wxV4(snowColor, 0))
+            snowColor: wxV4(snowColor, 0),
+            scene: SIMD4(Float(fraction), Float(1 / fraction), 0, 0))
     }
 
     // MARK: Passes

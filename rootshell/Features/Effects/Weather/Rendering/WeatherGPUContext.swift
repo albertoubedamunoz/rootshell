@@ -109,7 +109,7 @@ final class WeatherGPUContext {
         stars.label = "Weather stars"
         self.stars = stars
         starCount = starRecords.count
-        assert(MemoryLayout<WeatherUniforms>.stride == 384)
+        assert(MemoryLayout<WeatherUniforms>.stride == 400)
         assert(MemoryLayout<WeatherStar>.stride == 32)
 
         // Generated once on the GPU; later passes on this queue run after it.

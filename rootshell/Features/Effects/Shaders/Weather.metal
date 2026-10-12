@@ -34,6 +34,7 @@ struct WXUniforms {
     float4 galaxyCenter;
     float4 rainColor;
     float4 snowColor;
+    float4 scene;           // visible height fraction, its reciprocal
 };
 struct WXStar { float4 equatorial; float4 color; };
 struct WXBoltSegment { float4 ends; float4 style; };
@@ -142,6 +143,12 @@ vertex WXScreen weatherScreenVertex(uint vid [[vertex_id]]) {
     out.position = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
     out.uv = uv;
     return out;
+}
+
+/// Screen uv to the sky above the keyboard; past 1 lies beneath it. The
+/// offscreen textures stay in screen uv.
+static float2 wxScene(float2 uv, constant WXUniforms &u) {
+    return float2(uv.x, uv.y * u.scene.y);
 }
 
 static float3 wxRay(float2 uv, constant WXUniforms &u) {
@@ -260,7 +267,7 @@ static float3 wxMilkyWay(float3 d, constant WXUniforms &u, texture3d<half> shape
 
 fragment half4 weatherSky(WXScreen in [[stage_in]], constant WXUniforms &u [[buffer(2)]],
                           texture3d<half> shape [[texture(0)]]) {
-    float3 d = wxRay(in.uv, u);
+    float3 d = wxRay(wxScene(in.uv, u), u);
     float below = saturate(-d.y * 14.0f);
     float3 dir = normalize(float3(d.x, max(d.y, 0.0015f), d.z));
     float sunAltitude = u.sunDirection.w;
@@ -329,10 +336,10 @@ fragment half4 weatherClouds(WXScreen in [[stage_in]], constant WXUniforms &u [[
                              texture2d<half> sky [[texture(2)]], texture2d<half> history [[texture(3)]]) {
     constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
     constexpr sampler rep(coord::normalized, address::repeat, filter::linear);
-    float3 d = wxRay(in.uv, u);
+    float3 d = wxRay(wxScene(in.uv, u), u);
     float cover = u.clouds.x;
-    float3 zenith = float3(sky.sample(s, float2(0.5f, 0.02f)).rgb);
-    float3 horizon = float3(sky.sample(s, float2(in.uv.x, 0.9f)).rgb);
+    float3 zenith = float3(sky.sample(s, float2(0.5f, 0.02f * u.scene.x)).rgb);
+    float3 horizon = float3(sky.sample(s, float2(in.uv.x, 0.9f * u.scene.x)).rgb);
     float3 key = u.keyLight.xyz;
     float cosKey = dot(d, key);
     // Forward lobe for silver linings, a back lobe so the far side isn't flat.
@@ -473,7 +480,8 @@ fragment half4 weatherComposite(WXScreen in [[stage_in]], constant WXUniforms &u
     constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
     constexpr sampler rep(coord::normalized, address::repeat, filter::linear);
     float2 uv = in.uv;
-    float3 d = wxRay(uv, u);
+    float2 scene = wxScene(uv, u);
+    float3 d = wxRay(scene, u);
     float phase = u.cameraUp.w;
     float3 color = wxOvercast(float3(sky.sample(s, uv).rgb), u);
     if (u.composition.w > 0.5f) color += (wxSun(d, u) + wxMoon(d, u, shape)) * (1.0f - wxOvercastAmount(u) * 0.8f);
@@ -490,10 +498,10 @@ fragment half4 weatherComposite(WXScreen in [[stage_in]], constant WXUniforms &u
     }
 
     if (u.strike.w > 0.0f) {
-        float2 delta = (uv - u.strike.xy) * float2(u.viewport.x * u.viewport.w, 1.0f);
+        float2 delta = (scene - u.strike.xy) * float2(u.viewport.x * u.viewport.w * u.scene.y, 1.0f);
         // The flash lights the cloud mass unevenly around the stroke.
         float glow = exp(-length(delta) / u.strike.z);
-        float mass = float(shape.sample(rep, float3(uv * float2(2.4f, 1.6f), 0.83f)).r);
+        float mass = float(shape.sample(rep, float3(scene * float2(2.4f, 1.6f), 0.83f)).r);
         glow *= 0.25f + 1.1f * mass * mass;
         color += float3(0.70f, 0.76f, 1.0f) * u.strike.w * (glow * (0.1f + cloud.a * 0.8f) + 0.04f);
     }
@@ -502,35 +510,35 @@ fragment half4 weatherComposite(WXScreen in [[stage_in]], constant WXUniforms &u
     if (rain > 0.01f) {
         // Distant rain shafts: vertically stretched cells sliding down, slanted by the wind.
         float slant = u.wind.z * 0.35f;
-        float streak = float(shape.sample(rep, float3((uv.x + uv.y * slant) * 4.0f, uv.y * 0.5f - phase * 0.3f, 0.21f)).g);
-        float curtain = smoothstep(0.55f, 1.0f, streak) * rain * 0.22f * smoothstep(0.05f, 0.45f, uv.y);
+        float streak = float(shape.sample(rep, float3((scene.x + scene.y * slant) * 4.0f, scene.y * 0.5f - phase * 0.3f, 0.21f)).g);
+        float curtain = smoothstep(0.55f, 1.0f, streak) * rain * 0.22f * smoothstep(0.05f, 0.45f, scene.y);
         color = mix(color, float3(dot(color, wxLuma)) * 0.8f, curtain);
     }
 
     float fog = u.atmosphere.x;
     float haze = u.atmosphere.y;
     if (fog > 0.001f || haze > 0.001f) {
-        float3 horizon = wxOvercast(float3(sky.sample(s, float2(uv.x, 0.96f)).rgb), u);
+        float3 horizon = wxOvercast(float3(sky.sample(s, float2(uv.x, 0.96f * u.scene.x)).rgb), u);
         float luminance = dot(horizon, wxLuma);
         if (fog > 0.001f) {
             float3 fogColor = mix(float3(luminance), horizon, 0.3f) * 0.5f
                 + u.sunRadiance.rgb * 0.002f * pow(saturate(dot(d, u.sunDirection.xyz)), 6.0f);
-            float n = float(shape.sample(rep, float3(uv.x * 1.3f + phase * 0.006f + u.wind.x * 0.02f, uv.y * 0.6f, phase * 0.003f)).r);
+            float n = float(shape.sample(rep, float3(scene.x * 1.3f + phase * 0.006f + u.wind.x * 0.02f, scene.y * 0.6f, phase * 0.003f)).r);
             // Thickest near the ground, thinning overhead.
-            float density = fog * (0.2f + 0.8f * exp(-(1.0f - uv.y) * 3.0f)) * (0.7f + 0.6f * n);
+            float density = fog * (0.2f + 0.8f * exp(-(1.0f - scene.y) * 3.0f)) * (0.7f + 0.6f * n);
             color = mix(color, fogColor, saturate(density) * 0.85f);
         }
         if (haze > 0.001f) {
             // Smoke and dust both veil the sky and stain the light passing through.
             float own = max(dot(color, wxLuma), 0.0005f);
-            color = mix(color, u.hazeTint.rgb * own, saturate(haze * 1.5f * (0.75f + 0.25f * uv.y)));
+            color = mix(color, u.hazeTint.rgb * own, saturate(haze * 1.5f * (0.75f + 0.25f * scene.y)));
             color *= mix(float3(1.0f), u.hazeTint.rgb * 0.75f, haze * 0.8f);
         }
     }
 
     float3 display = wxSRGB(wxToneMap(color * u.keyColor.w));
     display = wxThemeColor(display, u);
-    float alpha = wxCoverage(uv, u);
+    float alpha = wxCoverage(scene, u);
     // A tiny deterministic dither stops banding in dark gradients.
     display = saturate(display + (wxHash12(in.position.xy) - 0.5f) / 255.0f);
     return half4(half3(display * alpha), half(alpha));
@@ -566,11 +574,12 @@ vertex WXStarOut weatherStarVertex(uint vid [[vertex_id]], uint iid [[instance_i
     float2 corner = float2((vid & 1u) ? 1.0f : -1.0f, (vid & 2u) ? 1.0f : -1.0f);
     bool visible = z > 0.05f && w.y > -0.02f && u.atmosphere.w > 0.0f;
     WXStarOut out;
-    out.position = visible ? float4(center + corner * size * 2.0f * u.viewport.zw * 2.0f, 0.0f, 1.0f) : float4(2.0f, 2.0f, 0.0f, 1.0f);
+    float2 screen = float2(center.x, 1.0f - (1.0f - center.y) * u.scene.x);
+    out.position = visible ? float4(screen + corner * size * 2.0f * u.viewport.zw * 2.0f, 0.0f, 1.0f) : float4(2.0f, 2.0f, 0.0f, 1.0f);
     out.local = corner * 2.0f;
     out.color = star.color.rgb * brightness * twinkle * u.atmosphere.w;
     out.uv = float2(center.x * 0.5f + 0.5f, 0.5f - center.y * 0.5f);
-    out.cloudUV = out.uv - u.cloudShift.xy;
+    out.cloudUV = float2(out.uv.x, out.uv.y * u.scene.x) - u.cloudShift.xy;
     return out;
 }
 
@@ -599,8 +608,10 @@ struct WXBoltOut {
 vertex WXBoltOut weatherBoltVertex(uint vid [[vertex_id]], uint iid [[instance_id]],
                                    constant WXBoltSegment *segments [[buffer(0)]], constant WXUniforms &u [[buffer(2)]]) {
     WXBoltSegment segment = segments[iid];
+    // Segments are in scene uv; the scene is the top of the screen, pixel for pixel.
     float2 size = u.viewport.xy;
-    float2 a = segment.ends.xy * size, b = segment.ends.zw * size;
+    float2 sceneSize = float2(size.x, size.y * u.scene.x);
+    float2 a = segment.ends.xy * sceneSize, b = segment.ends.zw * sceneSize;
     float width = segment.style.x * max(size.y / 900.0f, 0.8f);
     float reach = width * 8.0f;
     float2 axis = b - a;
@@ -615,7 +626,7 @@ vertex WXBoltOut weatherBoltVertex(uint vid [[vertex_id]], uint iid [[instance_i
     out.b = b;
     out.width = width;
     out.brightness = segment.style.y;
-    out.uv = p / size;
+    out.uv = p / sceneSize;
     return out;
 }
 
@@ -700,7 +711,8 @@ vertex WXParticle weatherParticleVertex(uint vid [[vertex_id]], uint iid [[insta
     out.alpha = alpha;
     out.softness = softness;
     out.snow = snow ? 1.0f : 0.0f;
-    out.uv = center;
+    // Precipitation falls across the whole screen; only its coverage follows the scene.
+    out.uv = wxScene(center, u);
     return out;
 }
 

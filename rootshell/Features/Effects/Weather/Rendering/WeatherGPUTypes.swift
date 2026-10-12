@@ -31,6 +31,7 @@ struct WeatherUniforms: Sendable {
     var galaxyCenter: SIMD4<Float>   // xyz, reserved
     var rainColor: SIMD4<Float>      // display rgb, reserved
     var snowColor: SIMD4<Float>      // display rgb, reserved
+    var scene: SIMD4<Float>          // visible height fraction, its reciprocal, reserved, reserved
 }
 
 struct WeatherStar: Sendable {
