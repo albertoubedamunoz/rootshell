@@ -5,17 +5,84 @@
 import Foundation
 
 /// Evolves the scene between fetches: current conditions first, then the
-/// hourly forecast, interpolated so nothing jumps on the hour.
+/// hourly forecast, interpolated so nothing jumps on the hour. A recent
+/// station report corrects what the forecast says about now.
 nonisolated enum WeatherTimeline {
     static let currentHold: TimeInterval = 30 * 60
     static let handoff: TimeInterval = 30 * 60
+    static let observationMaxAge: TimeInterval = 75 * 60
 
     static func target(at date: Date, snapshot: WeatherSnapshot) -> WeatherVisualState {
+        let model = modelTarget(at: date, snapshot: snapshot)
+        guard let observation = freshObservation(at: date, snapshot: snapshot) else { return model }
+        let base = modelSample(at: date, snapshot: snapshot)
+        let corrected = merged(base, with: observation)
+        // Only take over when the station changes the picture.
+        guard corrected.kind != base.kind || abs(corrected.cloudCover - base.cloudCover) >= 0.25 else { return model }
+        return .target(for: corrected)
+    }
+
+    /// The conditions to name at `date`.
+    static func sample(at date: Date, snapshot: WeatherSnapshot) -> WeatherSample {
+        let base = modelSample(at: date, snapshot: snapshot)
+        guard let observation = freshObservation(at: date, snapshot: snapshot) else { return base }
+        return merged(base, with: observation)
+    }
+
+    /// A station report over a forecast. The station is believed about what is
+    /// falling, fog and smoke, and cloud cover far from the forecast's; its
+    /// measured temperature, wind, and visibility replace the forecast's.
+    static func merged(_ model: WeatherSample, with observed: WeatherSample) -> WeatherSample {
+        var sample = model
+        sample.temperature = observed.temperature ?? model.temperature
+        sample.windSpeed = observed.windSpeed ?? model.windSpeed
+        sample.windGust = observed.windGust ?? model.windGust
+        sample.windFrom = observed.windFrom ?? model.windFrom
+        sample.visibility = observed.visibility ?? model.visibility
+        let coverDiffers = abs(observed.cloudCover - model.cloudCover) >= 0.5
+        if coverDiffers {
+            sample.cloudCover = observed.cloudCover
+            sample.cloudLow = nil
+            sample.cloudMid = nil
+            sample.cloudHigh = nil
+        }
+        if observed.kind.isWeather {
+            sample.kind = observed.kind
+            sample.cloudCover = max(sample.cloudCover, observed.cloudCover)
+            sample.precipitationRate = observed.precipitationRate
+            sample.thunderChance = observed.thunderChance
+            sample.fogFraction = nil
+            if !coverDiffers { sample.cloudLow = nil; sample.cloudMid = nil; sample.cloudHigh = nil }
+        } else if model.kind.isWeather || coverDiffers {
+            // The station sees nothing falling: keep the forecast's sky, not its rain.
+            sample.kind = observed.kind == .windy ? .windy : .forCover(sample.cloudCover)
+            sample.precipitationRate = nil
+            sample.thunderChance = nil
+            sample.fogFraction = nil
+        }
+        return sample
+    }
+
+    // MARK: Forecast
+
+    private static func modelTarget(at date: Date, snapshot: WeatherSnapshot) -> WeatherVisualState {
         let current = WeatherVisualState.target(for: snapshot.current)
         let elapsed = date.timeIntervalSince(snapshot.fetchedAt)
         guard elapsed > currentHold, let forecast = forecast(at: date, hourly: snapshot.hourly) else { return current }
         let t = smoothstep(min(max((elapsed - currentHold) / handoff, 0), 1))
         return .lerp(current, forecast, t)
+    }
+
+    /// The reported conditions, then the forecast hour, handing over midway
+    /// through the sky's own transition.
+    private static func modelSample(at date: Date, snapshot: WeatherSnapshot) -> WeatherSample {
+        guard date.timeIntervalSince(snapshot.fetchedAt) > currentHold + handoff / 2 else { return snapshot.current }
+        return snapshot.hourly.last(where: { $0.date <= date }) ?? snapshot.hourly.first ?? snapshot.current
+    }
+
+    private static func freshObservation(at date: Date, snapshot: WeatherSnapshot) -> WeatherSample? {
+        guard let observation = snapshot.observation, date.timeIntervalSince(observation.date) < observationMaxAge else { return nil }
+        return observation
     }
 
     /// Hourly samples are interpolated across each hour they describe.

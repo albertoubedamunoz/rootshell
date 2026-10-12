@@ -47,7 +47,7 @@ nonisolated struct NWSClient {
 
     // MARK: Observation
 
-    private func observation(station: String?, now: Date) async -> WeatherSample? {
+    func observation(station: String?, now: Date) async -> WeatherSample? {
         guard let station else { return nil }
         let url = Self.base.appendingPathComponent("stations/\(station)/observations/latest")
         guard let data = try? await body(url) else { return nil }

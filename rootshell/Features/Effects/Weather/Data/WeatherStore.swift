@@ -161,14 +161,38 @@ final class WeatherStore {
             }
             let now = Date()
             let due = state.policy.nextDue(now: now)
-            if due > now {
-                if let retry = state.policy.retryAfter, retry > now { status = .retrying(retry) }
-                // Wake periodically to follow the device location.
-                try? await Task.sleep(for: .seconds(min(due.timeIntervalSince(now), 15 * 60)))
+            if due <= now {
+                await fetch(coordinate)
                 continue
             }
-            await fetch(coordinate)
+            // In the US, the nearest station corrects "now" between forecasts.
+            let observationDue = snapshot?.coordinate == coordinate
+                ? WeatherSourceRouter.observationDue(coordinate, state: state.sources) : nil
+            if let observationDue, observationDue <= now {
+                await observe(coordinate)
+                continue
+            }
+            if let retry = state.policy.retryAfter, retry > now { status = .retrying(retry) }
+            // Wake periodically to follow the device location.
+            let wake = min(due, observationDue ?? .distantFuture).timeIntervalSince(now)
+            try? await Task.sleep(for: .seconds(min(wake, 15 * 60)))
         }
+    }
+
+    /// One station request; the forecast keeps its own schedule.
+    private func observe(_ coordinate: WeatherCoordinate) async {
+        var sources = state.sources
+        let report = await WeatherSourceRouter.observe(coordinate, state: &sources, now: Date())
+        state.sources = sources
+        guard !Task.isCancelled else { return }
+        if let report, var next = snapshot, next.coordinate == coordinate, next.observation != report.sample {
+            next.observation = report.sample
+            next.observationStation = report.station
+            snapshot = next
+            state.snapshot = next
+        }
+        let stateToSave = state
+        Task { await WeatherDiskCache.shared.save(stateToSave) }
     }
 
     private func fetch(_ coordinate: WeatherCoordinate) async {

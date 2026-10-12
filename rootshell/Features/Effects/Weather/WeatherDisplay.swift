@@ -76,11 +76,9 @@ extension WeatherSource {
 
 
 extension WeatherSnapshot {
-    /// The conditions to name at `date`: the reported ones, then the forecast
-    /// hour, handing over midway through the sky's own transition.
+    /// The conditions to name at `date`, as the sky draws them.
     func displaySample(at date: Date) -> WeatherSample {
-        guard date.timeIntervalSince(fetchedAt) > WeatherTimeline.currentHold + WeatherTimeline.handoff / 2 else { return current }
-        return hourly.last(where: { $0.date <= date }) ?? hourly.first ?? current
+        WeatherTimeline.sample(at: date, snapshot: self)
     }
 
     func isNight(at date: Date) -> Bool {

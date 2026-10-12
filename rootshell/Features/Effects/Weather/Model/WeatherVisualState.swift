@@ -37,6 +37,16 @@ nonisolated struct WeatherVisualState: Equatable, Sendable {
                     windNorth: m(a.windNorth, b.windNorth), gustiness: m(a.gustiness, b.gustiness))
     }
 
+    /// The largest change in any one parameter, to tell a jump from a drift.
+    func distance(to other: Self) -> Double {
+        let pairs = [(cloudLow, other.cloudLow), (cloudHigh, other.cloudHigh), (cloudDensity, other.cloudDensity),
+                     (towering, other.towering), (rain, other.rain), (snow, other.snow), (sleetMix, other.sleetMix),
+                     (fog, other.fog), (haze, other.haze), (lightning, other.lightning), (windEast, other.windEast),
+                     (windNorth, other.windNorth), (gustiness, other.gustiness)]
+        let tint = hazeTint - other.hazeTint
+        return pairs.reduce(max(abs(tint.x), abs(tint.y), abs(tint.z))) { max($0, abs($1.0 - $1.1)) }
+    }
+
     /// Per-condition baseline, refined by whatever numbers the source reported.
     static func target(for sample: WeatherSample) -> Self {
         var s = Self()

@@ -211,6 +211,15 @@ struct LiveWeatherSettingsSection: View {
             }
         }
         .themedRow()
+        if let observation = snapshot.observation, let station = snapshot.observationStation,
+           now.timeIntervalSince(observation.date) < WeatherTimeline.observationMaxAge {
+            HStack {
+                Text("Station")
+                Spacer()
+                Text(verbatim: "\(station), \(relative(observation.date))").foregroundStyle(.secondary)
+            }
+            .themedRow()
+        }
     }
 
     private func placeName(_ snapshot: WeatherSnapshot) -> String? {
@@ -314,7 +323,7 @@ struct LiveWeatherSettingsSection: View {
         } header: {
             Text("Weather Data")
         } footer: {
-            Text("US locations use data from the National Weather Service. Other locations, and US locations when it can't be reached, use Open-Meteo, with MET Norway as a backup. Open-Meteo and MET Norway data are licensed under CC BY 4.0, adapted and visualised by rootshell.")
+            Text("Forecasts come from Open-Meteo, with MET Norway as a backup. In the US, the nearest National Weather Service station corrects the current conditions every 15 minutes, and the Weather Service forecast stands in when Open-Meteo can't be reached. Open-Meteo and MET Norway data are licensed under CC BY 4.0, adapted and visualised by rootshell.")
         }
     }
 }

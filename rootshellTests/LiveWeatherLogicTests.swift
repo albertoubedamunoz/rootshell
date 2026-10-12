@@ -296,6 +296,64 @@ final class LiveWeatherLogicTests: XCTestCase {
         XCTAssertGreaterThan(b, a)
     }
 
+    func testStationReportOverridesWhatIsFalling() {
+        var model = sample(.cloudy, at: 0, cover: 0.9)
+        model.cloudLow = 0.9
+        var observed = sample(.rain, at: 0, cover: 1)
+        observed.precipitationRate = 2
+        observed.temperature = 15
+        let merged = WeatherTimeline.merged(model, with: observed)
+        XCTAssertEqual(merged.kind, .rain)
+        XCTAssertEqual(merged.precipitationRate, 2)
+        XCTAssertEqual(merged.temperature, 15)
+        XCTAssertNil(merged.cloudLow)
+    }
+
+    func testDryStationStopsForecastRain() {
+        var model = sample(.rain, at: 0, cover: 0.9)
+        model.precipitationRate = 2.5
+        let merged = WeatherTimeline.merged(model, with: sample(.cloudy, at: 0, cover: 1))
+        XCTAssertEqual(merged.kind, .cloudy)
+        XCTAssertNil(merged.precipitationRate)
+    }
+
+    func testStationCloudCoverCorrectsTheForecastOnlyWhenFarApart() {
+        var clear = sample(.clear, at: 0, cover: 0.05)
+        clear.cloudLow = 0
+        let overcast = WeatherTimeline.merged(clear, with: sample(.cloudy, at: 0, cover: 1))
+        XCTAssertEqual(overcast.kind, .cloudy)
+        XCTAssertEqual(overcast.cloudCover, 1)
+        XCTAssertNil(overcast.cloudLow)
+
+        var partly = sample(.partlyCloudy, at: 0, cover: 0.5)
+        partly.cloudLow = 0.4
+        let agreed = WeatherTimeline.merged(partly, with: sample(.partlyCloudy, at: 0, cover: 0.45))
+        XCTAssertEqual(agreed.kind, .partlyCloudy)
+        XCTAssertEqual(agreed.cloudLow, 0.4)
+    }
+
+    func testTimelineFollowsAFreshStationReport() {
+        var snapshot = WeatherSnapshot(
+            coordinate: WeatherCoordinate(latitude: 1, longitude: 1), source: .openMeteo,
+            current: sample(.clear, at: 0, cover: 0), hourly: [], fetchedAt: t0, expiresAt: nil, placeName: nil)
+        snapshot.observation = sample(.rain, at: 300, cover: 1)
+        let soon = t0.addingTimeInterval(600)
+        XCTAssertEqual(WeatherTimeline.sample(at: soon, snapshot: snapshot).kind, .rain)
+        XCTAssertGreaterThan(WeatherTimeline.target(at: soon, snapshot: snapshot).rain, 0.1)
+        // A report older than the limit no longer counts.
+        let later = t0.addingTimeInterval(300 + WeatherTimeline.observationMaxAge + 60)
+        XCTAssertEqual(WeatherTimeline.sample(at: later, snapshot: snapshot).kind, .clear)
+        XCTAssertEqual(WeatherTimeline.target(at: later, snapshot: snapshot).rain, 0)
+    }
+
+    func testVisualDistanceTellsAJumpFromADrift() {
+        let clear = WeatherVisualState.target(for: sample(.clear, at: 0, cover: 0))
+        let rain = WeatherVisualState.target(for: sample(.rain, at: 0, cover: 1))
+        XCTAssertEqual(clear.distance(to: clear), 0)
+        XCTAssertGreaterThan(clear.distance(to: rain), 0.5)
+        XCTAssertLessThan(clear.distance(to: .lerp(clear, rain, 0.001)), 0.02)
+    }
+
     func testAnimatorRetargetsWithoutAJump() {
         let clear = WeatherVisualState.target(for: sample(.clear, at: 0, cover: 0))
         let storm = WeatherVisualState.target(for: sample(.thunderstorm, at: 0, cover: 1))

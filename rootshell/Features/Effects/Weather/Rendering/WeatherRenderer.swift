@@ -100,6 +100,7 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
     private var animator = WeatherVisualAnimator()
     private var displayed = WeatherVisualState()
     private var targetKey: TargetKey?
+    private var lastTarget: WeatherVisualState?
     private var boltSegments: [LightningSegment] = []
     private var boltSeed: UInt64?
 
@@ -195,10 +196,13 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
         guard let astronomy else { return }
 
         let (target, key) = weatherTarget(input, wall: wall)
-        if let targetKey, targetKey != key {
+        // A new fetch fades in, and so does a station report that changes the sky.
+        let jumped = lastTarget.map { target.distance(to: $0) > 0.02 } ?? false
+        if (targetKey != nil && targetKey != key) || jumped {
             animator.begin(from: displayed, at: now, duration: frozen ? 0 : (configuration.demo ? 3 : 45))
         }
         targetKey = key
+        lastTarget = target
         displayed = animator.apply(target, at: now)
         let state = displayed
 

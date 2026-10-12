@@ -21,6 +21,18 @@ nonisolated enum WeatherConditionKind: String, Codable, CaseIterable, Sendable {
         case .rain, .heavyRain, .heavySnow, .freezingRain, .thunderstorm: return 1
         }
     }
+
+    /// Something falling or hanging in the air, rather than only cloud.
+    var isWeather: Bool {
+        switch self {
+        case .clear, .partlyCloudy, .cloudy, .windy: return false
+        default: return true
+        }
+    }
+
+    static func forCover(_ cover: Double) -> Self {
+        cover < 0.3 ? .clear : (cover < 0.7 ? .partlyCloudy : .cloudy)
+    }
 }
 
 nonisolated enum WeatherSource: String, Codable, Sendable {
@@ -74,6 +86,9 @@ nonisolated struct WeatherSnapshot: Codable, Equatable, Sendable {
     /// The source's earliest refetch time (met.no `Expires`).
     var expiresAt: Date?
     var placeName: String?
+    /// The nearest NWS station's latest report, refreshed between forecasts in the US.
+    var observation: WeatherSample? = nil
+    var observationStation: String? = nil
 }
 
 nonisolated struct WeatherCity: Codable, Hashable, Sendable {
