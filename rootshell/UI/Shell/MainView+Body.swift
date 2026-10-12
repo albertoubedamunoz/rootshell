@@ -42,28 +42,64 @@ extension MainView {
         }
     }
 
-    /// Feeds the joined tab's window-space span to the split views' card rims.
+    /// Feeds the selected tab's window-space span to the split views' card rims
+    /// and the effect window.
     @ViewBuilder
     func integratedTabJoinReader(activeTabBounds: Anchor<CGRect>?) -> some View {
-        if integratedTabsJoinCards,
+        if integratedTabsJoinCards || integratedTabWindowsEffect,
            let activeTabBounds,
            terminals.indices.contains(selectedTabIndex) {
             let tabID = terminals[selectedTabIndex].id
-            let animatesSelection = !tabBarAnimationsDisabled
-                && !tabIndicator.suppressNextSelectionAnimation
-                && !UIAccessibility.isReduceMotionEnabled
             GeometryReader { proxy in
                 let origin = proxy.frame(in: .global).origin
                 IntegratedTabJoinPublisher(
                     rect: proxy[activeTabBounds].offsetBy(dx: origin.x, dy: origin.y),
                     join: integratedTabJoin)
                     // The selected tab's own slide, so the rims stay with it.
-                    .animation(animatesSelection ? TabBar.selectionAnimation : nil, value: tabID)
+                    .animation(animatesIntegratedSelection ? TabBar.selectionAnimation : nil, value: tabID)
                     .onDisappear { integratedTabJoin.update(nil) }
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
+    }
+
+    /// The scrolling track clips the selected tab; so does its effect window.
+    @ViewBuilder
+    func integratedTabTrackClipReader(trackBounds: Anchor<CGRect>?) -> some View {
+        if integratedTabWindowsEffect {
+            GeometryReader { proxy in
+                let origin = proxy.frame(in: .global).origin
+                let clip = trackBounds.map { proxy[$0].offsetBy(dx: origin.x, dy: origin.y) }
+                let _ = integratedTabJoin.updateClip(clip)
+                Color.clear
+                    .onDisappear { integratedTabJoin.updateClip(nil) }
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
+    /// The strip's rule. Under a translucent selected tab, which cannot
+    /// occlude it, it opens beneath the tab and follows its slide.
+    @ViewBuilder
+    func integratedEdgeRule(palette: IntegratedTabEdgePalette, activeTabBounds: Anchor<CGRect>?) -> some View {
+        if let activeTabBounds, terminals.indices.contains(selectedTabIndex) {
+            GeometryReader { proxy in
+                let rect = proxy[activeTabBounds]
+                IntegratedTabEdgeRuleView(palette: palette, gap: rect.minX...rect.maxX)
+                    .animation(animatesIntegratedSelection ? TabBar.selectionAnimation : nil,
+                               value: terminals[selectedTabIndex].id)
+            }
+        } else {
+            IntegratedTabEdgeRuleView(palette: palette)
+        }
+    }
+
+    private var animatesIntegratedSelection: Bool {
+        !tabBarAnimationsDisabled
+            && !tabIndicator.suppressNextSelectionAnimation
+            && !UIAccessibility.isReduceMotionEnabled
     }
 
     // MARK: - Full-Bleed Backgrounds

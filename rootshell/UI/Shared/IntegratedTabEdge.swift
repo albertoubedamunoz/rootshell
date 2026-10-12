@@ -200,16 +200,29 @@ protocol IntegratedTabJoinObserver: AnyObject {
 }
 
 /// The selected tab's frame in window coordinates while Integrated tabs join
-/// Rounded Panes cards, updated every frame of its selection slide. Card rims
-/// (split views, the exposé, full-size panels) open their top edge there.
-/// `MainView` never reads it, so tab-strip scrolling never invalidates it.
+/// Rounded Panes cards or window a background effect, updated every frame of
+/// its selection slide. Card rims (split views, the exposé, full-size panels)
+/// open their top edge there. `MainView` never reads it, so tab-strip
+/// scrolling never invalidates it.
 final class IntegratedTabJoin {
     private(set) var rect: CGRect?
+    /// The scrolling track's visible bounds, which clip the tab.
+    private(set) var clip: CGRect?
     private let observers = NSHashTable<AnyObject>.weakObjects()
 
     func update(_ newRect: CGRect?) {
         guard rect != newRect else { return }
         rect = newRect
+        notify()
+    }
+
+    func updateClip(_ newClip: CGRect?) {
+        guard clip != newClip else { return }
+        clip = newClip
+        notify()
+    }
+
+    private func notify() {
         for case let observer as IntegratedTabJoinObserver in observers.allObjects {
             observer.integratedTabJoinDidChange()
         }
@@ -221,6 +234,37 @@ final class IntegratedTabJoin {
 
     func removeObserver(_ observer: IntegratedTabJoinObserver) {
         observers.remove(observer)
+    }
+}
+
+/// Mirrors an `IntegratedTabJoin` for the SwiftUI view that reads it, so only
+/// that view updates as the tab moves.
+@Observable
+final class IntegratedTabJoinTracker: IntegratedTabJoinObserver {
+    private(set) var rect: CGRect?
+    private(set) var clip: CGRect?
+    @ObservationIgnored private weak var join: IntegratedTabJoin?
+
+    func track(_ newJoin: IntegratedTabJoin) {
+        guard join !== newJoin else { return }
+        join?.removeObserver(self)
+        join = newJoin
+        newJoin.addObserver(self)
+        integratedTabJoinDidChange()
+    }
+
+    func integratedTabJoinDidChange() {
+        if rect != join?.rect { rect = join?.rect }
+        if clip != join?.clip { clip = join?.clip }
+    }
+}
+
+/// Bounds of the scrolling tab track, which clips the selected tab.
+struct IntegratedTabTrackBoundsPreferenceKey: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? = nil
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
     }
 }
 
@@ -238,16 +282,25 @@ struct IntegratedTabOutlineShape: Shape {
 
 /// The horizontal run along the strip/terminal boundary. Centered on the same
 /// band as `IntegratedTabOutlineShape`'s open ends so the two abut without a step.
+/// `gap` leaves it open under a translucent tab, which cannot occlude it.
 struct IntegratedTabEdgeRule: Shape {
     var lineWidth: CGFloat
+    var gap: ClosedRange<CGFloat>?
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(gap?.lowerBound ?? 0, gap?.upperBound ?? 0) }
+        set { if gap != nil { gap = newValue.first...max(newValue.first, newValue.second) } }
+    }
 
     func path(in rect: CGRect) -> Path {
-        Path(CGRect(
-            x: rect.minX,
-            y: rect.maxY - lineWidth,
-            width: rect.width,
-            height: lineWidth
-        ))
+        let y = rect.maxY - lineWidth
+        guard let gap, gap.lowerBound < rect.maxX, gap.upperBound > rect.minX else {
+            return Path(CGRect(x: rect.minX, y: y, width: rect.width, height: lineWidth))
+        }
+        var path = Path()
+        path.addRect(CGRect(x: rect.minX, y: y, width: max(0, gap.lowerBound - rect.minX), height: lineWidth))
+        path.addRect(CGRect(x: gap.upperBound, y: y, width: max(0, rect.maxX - gap.upperBound), height: lineWidth))
+        return path
     }
 }
 
@@ -257,6 +310,7 @@ struct IntegratedTabEdgeRule: Shape {
 /// prevents the shallow active-tab shoulders from appearing to dip below it.
 struct IntegratedTabEdgeRuleView: View {
     let palette: IntegratedTabEdgePalette
+    var gap: ClosedRange<CGFloat>?
 
     @Environment(\.displayScale) private var displayScale
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
@@ -264,26 +318,27 @@ struct IntegratedTabEdgeRuleView: View {
     var body: some View {
         let lineWidth = IntegratedTabEdgeMetrics.lineWidth(for: displayScale)
         let increasedContrast = colorSchemeContrast == .increased
-        IntegratedTabEdgeRule(lineWidth: lineWidth)
+        IntegratedTabEdgeRule(lineWidth: lineWidth, gap: gap)
             .fill(palette.keyline(increasedContrast: increasedContrast))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
 }
 
-/// Paints the rule's band out across the tab, in the tab's own color. At the
+/// Paints the rule's band out across the tab, in the tab's own fill. At the
 /// shoulder tips the silhouette has not yet climbed clear of that band, so rule
 /// and outline would overlap there and composite to double density.
-struct IntegratedTabEdgeOccluder: View {
-    let color: Color
+struct IntegratedTabEdgeOccluder<Fill: View>: View {
+    let fill: Fill
 
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        Rectangle()
-            .fill(color)
-            .frame(height: IntegratedTabEdgeMetrics.lineWidth(for: displayScale))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        fill
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .mask(alignment: .bottom) {
+                Rectangle().frame(height: IntegratedTabEdgeMetrics.lineWidth(for: displayScale))
+            }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -544,5 +599,124 @@ struct IntegratedTabJoinPublisher: View, Animatable {
     var body: some View {
         let _ = join.update(rect)
         Color.clear
+    }
+}
+
+// MARK: - Surface under the tab
+
+/// How a pane background reads behind the selected tab: the same opacity the
+/// terminal draws at over the backdrop, or the Mac's opaque stand-in for a
+/// translucent window, whose real composite the app cannot know.
+struct IntegratedSurfaceStyle: Equatable {
+    var whiteBlend: CGFloat = 0
+    var opacity: Double = 1
+
+    func color(for base: Color) -> Color {
+        if opacity < 1 { return base.opacity(opacity) }
+        return whiteBlend > 0 ? base.blendedWithWhite(whiteBlend) : base
+    }
+
+    var isTranslucent: Bool { opacity < 0.999 }
+}
+
+/// Each tab's top-row pane backgrounds, pushed by its split view, so the
+/// selected tab can paint exactly what sits beneath it.
+@Observable
+final class IntegratedTabSurface {
+    struct Segment: Equatable {
+        /// Host-local x-range of a top-row pane.
+        var minX: CGFloat
+        var maxX: CGFloat
+        var color: UIColor
+    }
+
+    struct Host: Equatable {
+        /// On-screen window x of the host's leading edge.
+        var originX: CGFloat
+        var segments: [Segment]
+    }
+
+    private(set) var hosts: [UUID: Host] = [:]
+    @ObservationIgnored private var owners: [UUID: ObjectIdentifier] = [:]
+
+    /// A rebuilt split view can push before its predecessor is torn down, so
+    /// only the current owner clears a tab.
+    func update(_ host: Host?, for tabID: UUID, from owner: AnyObject) {
+        let ownerID = ObjectIdentifier(owner)
+        if host == nil, owners[tabID] != ownerID { return }
+        owners[tabID] = host == nil ? nil : ownerID
+        guard hosts[tabID] != host else { return }
+        hosts[tabID] = host
+    }
+
+    /// Window-space color runs across `tabIDs`, contiguous from -∞ to +∞ and
+    /// split midway across gaps such as dividers.
+    func runs(for tabIDs: [UUID]) -> [(minX: CGFloat, maxX: CGFloat, color: UIColor)] {
+        var segments = tabIDs.compactMap { hosts[$0] }.flatMap { host in
+            host.segments.map { (minX: host.originX + $0.minX, maxX: host.originX + $0.maxX, color: $0.color) }
+        }
+        segments.sort { $0.minX < $1.minX }
+        var runs: [(minX: CGFloat, maxX: CGFloat, color: UIColor)] = []
+        for (index, segment) in segments.enumerated() {
+            let minX = index == 0 ? -.infinity : (segments[index - 1].maxX + segment.minX) / 2
+            let maxX = index == segments.count - 1 ? .infinity : (segment.maxX + segments[index + 1].minX) / 2
+            // One run per color, or translucent neighbors seam where they meet.
+            if let last = runs.last, last.color == segment.color {
+                runs[runs.count - 1].maxX = maxX
+            } else {
+                runs.append((minX, maxX, segment.color))
+            }
+        }
+        return runs
+    }
+}
+
+/// What the selected Integrated tab paints: the panes on screen beneath it,
+/// or a panel or exposé backdrop that covers them.
+struct IntegratedTabSurfaceFill {
+    let surface: IntegratedTabSurface
+    let tabIDs: [UUID]
+    let style: IntegratedSurfaceStyle
+    let override: Color?
+}
+
+private struct IntegratedTabSurfaceFillKey: EnvironmentKey {
+    static let defaultValue: IntegratedTabSurfaceFill? = nil
+}
+
+extension EnvironmentValues {
+    var integratedTabSurfaceFill: IntegratedTabSurfaceFill? {
+        get { self[IntegratedTabSurfaceFillKey.self] }
+        set { self[IntegratedTabSurfaceFillKey.self] = newValue }
+    }
+}
+
+/// The selected tab's fill. Runs are window-space, so they stay put under the
+/// tab as it slides or the strip scrolls.
+struct IntegratedTabSurfaceFillView: View {
+    let fallback: Color
+    @Environment(\.integratedTabSurfaceFill) private var fill
+
+    var body: some View {
+        let runs = fill.map { $0.surface.runs(for: $0.tabIDs) } ?? []
+        if let override = fill?.override {
+            Rectangle().fill(override)
+        } else if let fill, !runs.isEmpty {
+            GeometryReader { proxy in
+                let originX = proxy.frame(in: .global).minX
+                Canvas { context, size in
+                    for run in runs {
+                        let minX = max(0, run.minX - originX)
+                        let maxX = min(size.width, run.maxX - originX)
+                        guard maxX > minX else { continue }
+                        context.fill(
+                            Path(CGRect(x: minX, y: 0, width: maxX - minX, height: size.height)),
+                            with: .color(fill.style.color(for: Color(uiColor: run.color))))
+                    }
+                }
+            }
+        } else {
+            Rectangle().fill(fallback)
+        }
     }
 }

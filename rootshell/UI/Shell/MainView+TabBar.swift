@@ -55,12 +55,15 @@ extension MainView {
                 - Self.actionButtonsWidth
                 - integratedMinimumDragWidth
         )
-        if integratedTabsJoinCards {
-            // End the track at the terminal card so trailing columns (AI agent,
-            // file manager) scroll the selected tab back over the card it joins.
+        if topTabStyle == .integrated {
+            // End the track at the terminal so trailing columns (AI agent,
+            // file manager) scroll the selected tab back over the surface it
+            // joins.
             let columns = terminalRowColumns(width: geometry.size.width)
-            let cardMaxX = PaneCardStyle.gap + columns.docked + columns.terminal
-            capacity = min(capacity, max(0, cardMaxX - PaneCardStyle.cornerRadius - tabBarLeadingPadding))
+            let cardGap: CGFloat = roundedPanes ? PaneCardStyle.gap : 0
+            let corner: CGFloat = roundedPanes ? PaneCardStyle.cornerRadius : 0
+            let cardMaxX = cardGap + columns.docked + columns.terminal
+            capacity = min(capacity, max(0, cardMaxX - corner - tabBarLeadingPadding))
         }
         return min(preferred, capacity)
     }
@@ -71,12 +74,52 @@ extension MainView {
         roundedPanes && topTabStyle == .integrated
     }
 
-    /// Extra lead that starts Integrated tabs inside the terminal's first card,
-    /// past the pinned sidebar card and the card's corner.
+    /// Extra lead that starts Integrated tabs over the terminal, past the
+    /// pinned sidebar and, under Rounded Panes, the card's corner.
     func integratedCardLeadingInset(windowWidth: CGFloat) -> CGFloat {
-        guard integratedTabsJoinCards else { return 0 }
-        let cardMinX = PaneCardStyle.gap + dockedTabSidebarWidth(windowWidth: windowWidth)
-        return max(0, cardMinX + PaneCardStyle.cornerRadius - tabBarLeadingPadding)
+        guard topTabStyle == .integrated else { return 0 }
+        let cardMinX = (roundedPanes ? PaneCardStyle.gap : 0) + dockedTabSidebarWidth(windowWidth: windowWidth)
+        guard cardMinX > 0 else { return 0 }
+        let corner: CGFloat = roundedPanes ? PaneCardStyle.cornerRadius : 0
+        return max(0, cardMinX + corner - tabBarLeadingPadding)
+    }
+
+    /// The selected Integrated tab windows the terminal's background effect.
+    var integratedTabWindowsEffect: Bool {
+        topTabStyle == .integrated && showsHorizontalTabHeader
+            && effectManager.activeEffect != nil && visibleContentAllowsTerminalEffects
+    }
+
+    /// What the selected Integrated tab paints: the panes on screen beneath
+    /// it, or the full-size panel or exposé backdrop covering them.
+    func integratedTabSurfaceFill(theme: ResolvedTabBarTheme) -> IntegratedTabSurfaceFill? {
+        guard topTabStyle == .integrated else { return nil }
+        let style = integratedSurfaceStyle()
+        var override: Color?
+        if tabExpose.isActive {
+            override = style.color(for: effectiveThemeColors.flatMap { Color(hex: $0.background) } ?? theme.tabBarBackground)
+        } else if integratedTabCoversFullPanel {
+            let sheetTheme = resolvedSheetTheme()
+            // Over the desktop, a translucent panel gets the Mac's stand-in too.
+            override = transparencyManager.fullPanelIsTranslucent && !effectManager.isBackdropEnabled
+                ? style.color(for: sheetTheme.panelSurface)
+                : sheetTheme.panelFill
+        }
+        // The terminal on screen lags the selection until its first frame.
+        let tabIDs: [UUID] = appTabSwipeState.map { [$0.sourceTabID, $0.targetTabID] }
+            ?? (tabsModel.displayedTabID ?? tabsModel.selectedTabID).map { [$0] } ?? []
+        return IntegratedTabSurfaceFill(
+            surface: integratedTabSurface,
+            tabIDs: tabIDs,
+            style: style,
+            override: override)
+    }
+
+    private var integratedTabCoversFullPanel: Bool {
+        #if !CHINA_BUILD
+        if httpCaptureShowsOverlay && httpCapturePresentation == .full { return true }
+        #endif
+        return fileManagerShowsOverlay && fileManagerPresentation == .full
     }
 
     /// Rounded Panes: OSC progress runs along the terminal card's straight

@@ -40,9 +40,37 @@ final class PaneUnderlayModel {
     }
 }
 
+extension Notification.Name {
+    /// A program changed or reset its pane's background (OSC 11 / 111).
+    static let terminalPaneBackgroundDidChange = Notification.Name("terminalPaneBackgroundDidChange")
+}
+
 extension Ghostty.TerminalView {
-    /// The background this pane shows: its tab or window theme, plus Tint by Host.
+    /// The background this pane shows: a program's OSC 11 color, else its
+    /// tab or window theme plus Tint by Host.
     var paneBackgroundColor: UIColor? {
+        if let rgb = programBackgroundRGB {
+            return UIColor(red: CGFloat(rgb.x) / 255, green: CGFloat(rgb.y) / 255, blue: CGFloat(rgb.z) / 255, alpha: 1)
+        }
+        return configuredPaneBackgroundColor
+    }
+
+    func handleBackgroundColorChange(_ rgb: SIMD3<UInt8>) {
+        // A reset reports the configured color, which ends the override. Ghostty
+        // doesn't flag resets, so an OSC 11 to that same color reads as one too.
+        let configured = configuredPaneBackgroundColor.map { color -> SIMD3<UInt8> in
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            color.getRed(&r, green: &g, blue: &b, alpha: &a)
+            let channel = { (value: CGFloat) in UInt8((min(max(value, 0), 1) * 255).rounded()) }
+            return SIMD3(channel(r), channel(g), channel(b))
+        }
+        let override = rgb == configured ? nil : rgb
+        guard override != programBackgroundRGB else { return }
+        programBackgroundRGB = override
+        NotificationCenter.default.post(name: .terminalPaneBackgroundDidChange, object: self)
+    }
+
+    private var configuredPaneBackgroundColor: UIColor? {
         let (themeName, _) = ThemeOverrideManager.shared.resolveTheme(tabId: containingTabID, windowId: windowId)
         let hex = ThemeManager.shared.themeInfo(for: themeName)?.colors.background
             ?? ThemeManager.shared.currentThemeInfo?.colors.background

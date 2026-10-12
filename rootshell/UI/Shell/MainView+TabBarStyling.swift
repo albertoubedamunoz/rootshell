@@ -229,25 +229,21 @@ extension MainView {
                 overrideSheetAccent: nil
             )
         }
+        let surfaceStyle = integratedSurfaceStyle()
         #if targetEnvironment(macCatalyst)
         var terminalSurfaceIsTransparent = transparencyManager.backgroundOpacity < 0.999
-        var terminalSurfaceBackground = baseColor.blendedWithWhite(
-            1 - CGFloat(transparencyManager.backgroundOpacity)
-        )
         #else
         // The iOS/visionOS terminal is composited over the same theme-colored
         // root fill, so opacity does not change its visible base color.
         var terminalSurfaceIsTransparent = false
-        var terminalSurfaceBackground = baseColor
         #endif
+        let terminalSurfaceBackground = surfaceStyle.color(for: baseColor)
         let surface = EffectiveSurface.resolve(background: baseColor)
         let tabBase = surface.onBackdrop ? surface.chrome : baseColor
         if surface.onBackdrop {
             // The terminal draws its background at this opacity over the backdrop;
             // the active tab does the same so the gradient shows through both alike.
-            let opacity = transparencyManager.effectiveBackgroundOpacity
-            terminalSurfaceIsTransparent = opacity < 0.999
-            terminalSurfaceBackground = baseColor.opacity(opacity)
+            terminalSurfaceIsTransparent = surfaceStyle.isTranslucent
         }
         var resolved = ResolvedTabBarTheme(
             themeColors: themeColors,
@@ -267,6 +263,18 @@ extension MainView {
         resolved.onBackdrop = surface.onBackdrop
         resolved.surface = surface
         return resolved
+    }
+
+    /// How a pane background reads behind the selected Integrated tab.
+    func integratedSurfaceStyle() -> IntegratedSurfaceStyle {
+        if effectManager.isBackdropEnabled {
+            return IntegratedSurfaceStyle(opacity: transparencyManager.effectiveBackgroundOpacity)
+        }
+        #if targetEnvironment(macCatalyst)
+        return IntegratedSurfaceStyle(whiteBlend: 1 - CGFloat(transparencyManager.backgroundOpacity))
+        #else
+        return IntegratedSurfaceStyle()
+        #endif
     }
 
     /// Get the effective theme colors for the currently selected tab

@@ -723,22 +723,30 @@ extension MainView {
     func effectOverlay(leadingExtension: CGFloat) -> some View {
         if effectManager.activeEffect != nil,
            visibleContentAllowsTerminalEffects {
+            // The selected Integrated tab is a window onto this same effect,
+            // which reaches up through the header row to draw there.
+            let topExtension = effectTopExtension
             GeometryReader { geometry in
                 let _ = effectManager.keyboardStateVersion
+                let frame = geometry.frame(in: .global)
+                let effectFrame = CGRect(x: frame.minX - leadingExtension, y: frame.minY - topExtension,
+                                         width: frame.width + leadingExtension, height: frame.height + topExtension)
                 TerminalEffectView()
-                    .environment(\.terminalEffectBottomInset, effectBottomInset(in: geometry.frame(in: .global)))
+                    .environment(\.terminalEffectBottomInset, effectBottomInset(in: effectFrame))
                     // GeometryReader keeps the widened effect out of the
                     // ZStack's layout calculation. The terminal therefore
-                    // retains its exact width while only the effect overflows
-                    // left across the docked sidebar.
-                    .frame(
-                        width: geometry.size.width + leadingExtension,
-                        height: geometry.size.height
-                    )
+                    // retains its exact frame while only the effect overflows
+                    // left across the docked sidebar and up into the header.
+                    .frame(width: effectFrame.width, height: effectFrame.height)
                     // Rounded Panes: paint only the cards, never the gaps or
                     // the square corners around them
-                    .paneCardEffectClip(roundedPanes, sidebarWidth: leadingExtension)
-                    .offset(x: -leadingExtension)
+                    .modifier(TerminalEffectWindowClip(
+                        roundedPanes: roundedPanes,
+                        sidebarWidth: leadingExtension,
+                        topExtension: topExtension,
+                        origin: effectFrame.origin,
+                        join: topExtension > 0 ? integratedTabJoin : nil))
+                    .offset(x: -leadingExtension, y: -topExtension)
                     // Use different blend mode for light vs dark themes
                     .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
             }
@@ -757,6 +765,12 @@ extension MainView {
             // included; the exposé backdrop moves beneath it instead.
             .zIndex(tabExpose.isActive && !effectManager.isTextAboveEffectActive ? 2 : 0)
         }
+    }
+
+    /// How far the effect reaches above the terminal to show through the
+    /// selected Integrated tab.
+    var effectTopExtension: CGFloat {
+        integratedTabWindowsEffect ? TabMetrics.tabBarHeight : 0
     }
 
     /// Background fill when terminal is inset for ocean effect.
@@ -974,6 +988,9 @@ extension MainView {
             && effectManager.terminalBottomInsetFraction > 0
 
         if hasOcean {
+            // The ocean is a fraction of the effect's height, which reaches
+            // up into the header for the Integrated tab.
+            padding += effectTopExtension * effectManager.terminalBottomInsetFraction
             #if !os(visionOS) && !targetEnvironment(macCatalyst)
             // `hasDockedKeyboard`, not raw `isDocked`: EffectManager calls any
             // full-width bottom-touching region over 100pt docked, which a drawer
@@ -1160,7 +1177,10 @@ extension MainView {
                                     && showsHorizontalTabHeader,
                                 integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
                                 tracksSwipe: appTabSwipeState.map { $0.sourceTabID == tab.id || $0.targetTabID == tab.id } ?? false,
-                                paneUnderlay: tab.paneUnderlay
+                                paneUnderlay: tab.paneUnderlay,
+                                integratedTabSurface: topTabStyle == .integrated && showsHorizontalTabHeader
+                                    ? integratedTabSurface : nil,
+                                tabID: tab.id
                             )
                             // NOTE: the tmux control-mode client size is NOT driven from here.
                             // A tmux pane is a real ghostty surface, so its grid is recomputed

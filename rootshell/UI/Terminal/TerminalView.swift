@@ -350,6 +350,10 @@ extension Ghostty {
         /// `replayCachedSessionStateOnForeground()`.
         var backgroundProgressReport: Ghostty.Action.ProgressReport?
 
+        /// Background a program set with OSC 11. Ghostty keeps it across config
+        /// changes until OSC 111, which reports the configured color back.
+        var programBackgroundRGB: SIMD3<UInt8>?
+
         /// OSC 7501 program status records for this pane.
         var programStatusRecords = ProgramStatusRecords()
 

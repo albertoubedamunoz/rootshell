@@ -68,6 +68,7 @@ struct MainView: View {
     @State var restorationInFlight = false
     /// Relays the joined Integrated tab's span to the split views' card rims.
     @State var integratedTabJoin = IntegratedTabJoin()
+    @State var integratedTabSurface = IntegratedTabSurface()
     @State var lifecycleScenePhase: ScenePhase = {
         switch UIApplication.shared.applicationState {
         case .active:

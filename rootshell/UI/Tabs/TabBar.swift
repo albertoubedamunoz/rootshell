@@ -1074,6 +1074,9 @@ struct TabBar: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .modifier(ScrollEdgeEffectHiddenModifier())
+            .anchorPreference(key: IntegratedTabTrackBoundsPreferenceKey.self, value: .bounds) { bounds in
+                style == .integrated ? bounds : nil
+            }
         }
     }
 
