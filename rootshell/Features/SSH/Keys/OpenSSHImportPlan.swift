@@ -25,18 +25,20 @@ struct OpenSSHProfilePlan: Identifiable, Hashable {
     var user: String
     /// Stable keys for the linked `OpenSSHKeyPlan` rows (in declaration order).
     var identityKeyPlanIDs: [UUID]
-    /// Parsed jump host coordinates, if a ProxyJump / ProxyCommand was found.
+    /// Parsed jump hops in connection order, from ProxyJump / ProxyCommand.
     /// The final SSHKey UUIDs are resolved at apply time so they reference
     /// real keychain entries, not preview-side plan UUIDs.
-    var jumpHostSource: JumpHostSource?
+    var jumpHostSources: [JumpHostSource]
     /// Source diagnostic ("config:42") for tooltip / debug.
     var source: String
 
     /// Profile name (first alias).
     var name: String { aliases.first ?? hostName }
 
-    /// Display string for any jump host extracted from ProxyJump / ProxyCommand.
-    var jumpHostDisplay: String? { jumpHostSource?.display }
+    /// Display string for the jump chain extracted from ProxyJump / ProxyCommand.
+    var jumpHostDisplay: String? {
+        jumpHostSources.isEmpty ? nil : jumpHostSources.map(\.display).joined(separator: " → ")
+    }
 
     /// Raw jump host data captured during parse. Apply uses the
     /// `identityKeyPlanIDs` field to look up the eventual `SSHKey.id`.
@@ -44,7 +46,7 @@ struct OpenSSHProfilePlan: Identifiable, Hashable {
         var host: String
         var port: Int
         var username: String
-        /// Plan IDs of identity files the target uses; shared with the jump host.
+        /// Plan IDs of the hop's own identity files, or the target's when it declares none.
         var identityKeyPlanIDs: [UUID]
         /// Pre-built display string for the preview UI.
         var display: String
@@ -184,16 +186,25 @@ enum OpenSSHImporter {
 
         // Build the key registry first by collecting every distinct IdentityFile
         // path across all concrete entries (after wildcard inheritance).
-        var resolvedConcretes: [(entry: OpenSSHHostEntry, identityPaths: [String])] = []
+        var resolvedConcretes: [(entry: OpenSSHHostEntry, identityPaths: [String], jump: OpenSSHHostResolution.JumpChainResolution)] = []
         for entry in concretes {
-            let resolved = resolveWithWildcards(entry: entry, wildcards: wildcards)
+            let resolved = OpenSSHHostResolution.resolveWithWildcards(entry: entry, wildcards: wildcards)
             let paths = resolved.identityFiles.map { resolveIdentityPath($0, sshDirectory: sshDirectory) }
-            resolvedConcretes.append((resolved, paths))
+            let jump = OpenSSHHostResolution.resolveJumpChain(
+                for: resolved, concretes: concretes, wildcards: wildcards,
+                defaultUsername: Self.defaultUsername,
+                parseProxyCommand: { command in
+                    ProxyCommandParser.parse(command).map { .init(host: $0.host, port: $0.port, username: $0.username) }
+                },
+                resolvePath: { resolveIdentityPath($0, sshDirectory: sshDirectory) }
+            )
+            resolvedConcretes.append((resolved, paths, jump))
         }
 
         var keyPlanByPath: [String: OpenSSHKeyPlan] = [:]
-        for (_, paths) in resolvedConcretes {
-            for path in paths where keyPlanByPath[path] == nil {
+        for (_, paths, jump) in resolvedConcretes {
+            let hopPaths = jump.hops.flatMap { $0.identityPaths ?? [] }
+            for path in paths + hopPaths where keyPlanByPath[path] == nil {
                 keyPlanByPath[path] = buildKeyPlan(path: path)
             }
         }
@@ -211,7 +222,7 @@ enum OpenSSHImporter {
         var skipped: [OpenSSHSkippedEntry] = []
         var warnings = parseResult.warnings
 
-        for (entry, identityPaths) in resolvedConcretes {
+        for (entry, identityPaths, jump) in resolvedConcretes {
             let hostName = entry.hostName ?? entry.aliases.first ?? ""
             let port = entry.port ?? 22
             let user = entry.user ?? Self.defaultUsername
@@ -233,11 +244,16 @@ enum OpenSSHImporter {
             }
 
             let identityKeyPlanIDs = identityPaths.compactMap { keyIDByPath[$0] }
-            let (jumpSource, jumpWarning) = resolveJumpHost(
-                entry: entry,
-                identityKeyPlanIDs: identityKeyPlanIDs
-            )
-            if let jumpWarning { warnings.append(jumpWarning) }
+            if let jumpWarning = jump.warning { warnings.append(jumpWarning) }
+            let jumpSources = jump.hops.map { hop in
+                OpenSSHProfilePlan.JumpHostSource(
+                    host: hop.host,
+                    port: hop.port,
+                    username: hop.username,
+                    identityKeyPlanIDs: hop.identityPaths.map { $0.compactMap { keyIDByPath[$0] } } ?? identityKeyPlanIDs,
+                    display: hop.display
+                )
+            }
 
             let profile = OpenSSHProfilePlan(
                 aliases: entry.aliases,
@@ -245,7 +261,7 @@ enum OpenSSHImporter {
                 port: port,
                 user: user,
                 identityKeyPlanIDs: identityKeyPlanIDs,
-                jumpHostSource: jumpSource,
+                jumpHostSources: jumpSources,
                 source: "\(entry.sourceFile.lastPathComponent):\(entry.sourceLine)"
             )
             profiles.append(profile)
@@ -387,23 +403,44 @@ enum OpenSSHImporter {
                 }
             }
 
+            // Each hop gets the target's rule: unusable keys skip the profile,
+            // deselected keys fall back to password with a warning.
+            var brokenHop: String?
+            for (index, source) in profilePlan.jumpHostSources.enumerated() where !source.identityKeyPlanIDs.isEmpty {
+                guard !source.identityKeyPlanIDs.contains(where: { resolvedKeyIDs[$0] != nil }) else { continue }
+                let unrecoverable = source.identityKeyPlanIDs.filter { unrecoverableKeyPlanIDs.contains($0) }
+                if unrecoverable.isEmpty {
+                    passwordFallbackWarnings.append(
+                        "Profile '\(profilePlan.name)' jump host \(index + 1) (\(source.display)) saved with password auth: IdentityFile keys were not imported."
+                    )
+                } else {
+                    let reasons = unrecoverable.compactMap { firstFailureReasonByPlanID[$0] }.joined(separator: "; ")
+                    brokenHop = "Skipped because jump host \(index + 1) (\(source.display)) IdentityFile keys could not be used: \(reasons)"
+                    break
+                }
+            }
+            if let brokenHop {
+                profilesFailedToCreate.append((profilePlan.name, brokenHop))
+                let nameForLog = profilePlan.name
+                logger.error("Profile skipped (broken jump host IdentityFile chain): \(nameForLog)")
+                continue
+            }
+
             // Build the jump host config NOW using the same resolved-key map so
             // jump hosts that share identity files with the target end up
             // pointing at real keychain UUIDs, not preview plan UUIDs.
-            let jumpHost = makeJumpHostConfig(
-                source: profilePlan.jumpHostSource,
-                resolvedKeyIDs: resolvedKeyIDs
-            )
+            let jumpChain = profilePlan.jumpHostSources.map {
+                makeJumpHostConfig(source: $0, resolvedKeyIDs: resolvedKeyIDs)
+            }
 
-            let sshConfig = SSHConfig(
+            var configWithFallbacks = SSHConfig(
                 host: profilePlan.hostName,
                 port: profilePlan.port,
                 username: profilePlan.user,
                 authMethod: primaryAuth,
-                cachedIP: nil,
-                jumpHost: jumpHost
+                cachedIP: nil
             )
-            var configWithFallbacks = sshConfig
+            configWithFallbacks.jumpChain = jumpChain
             configWithFallbacks.fallbackKeyIDs = fallbackKeys
 
             do {
@@ -437,10 +474,9 @@ enum OpenSSHImporter {
     /// Build a JumpHostConfig at apply time. Maps the plan's
     /// `identityKeyPlanIDs` into real `SSHKey.id`s using `resolvedKeyIDs`.
     private static func makeJumpHostConfig(
-        source: OpenSSHProfilePlan.JumpHostSource?,
+        source: OpenSSHProfilePlan.JumpHostSource,
         resolvedKeyIDs: [UUID: UUID]
-    ) -> SSHConfig.JumpHostConfig? {
-        guard let source else { return nil }
+    ) -> SSHConfig.JumpHostConfig {
         let resolved = source.identityKeyPlanIDs.compactMap { resolvedKeyIDs[$0] }
         let auth: SSHConfig.AuthMethod
         let fallback: [UUID]?
@@ -472,96 +508,6 @@ enum OpenSSHImporter {
         #else
         return "root"
         #endif
-    }
-
-    // MARK: - Wildcard inheritance
-
-    /// Apply matching wildcard blocks to fill in unset directives on a concrete
-    /// entry. First-match-wins per directive matches OpenSSH semantics for
-    /// directives like `HostName`, `User`, `Port`, etc.
-    private static func resolveWithWildcards(
-        entry: OpenSSHHostEntry,
-        wildcards: [OpenSSHHostEntry]
-    ) -> OpenSSHHostEntry {
-        var resolved = entry
-        for wildcard in wildcards {
-            // A wildcard block applies to this entry if any of the entry's
-            // aliases satisfies the block's full pattern list (positive +
-            // negation, OpenSSH semantics).
-            let matches = resolved.aliases.contains { alias in
-                patternsApply(aliases: wildcard.aliases, target: alias)
-            }
-            guard matches else { continue }
-
-            if resolved.hostName == nil { resolved.hostName = wildcard.hostName }
-            if resolved.port == nil { resolved.port = wildcard.port }
-            if resolved.user == nil { resolved.user = wildcard.user }
-            if resolved.proxyJump == nil { resolved.proxyJump = wildcard.proxyJump }
-            if resolved.proxyCommand == nil { resolved.proxyCommand = wildcard.proxyCommand }
-            // IdentityFile semantics across blocks:
-            // - A wildcard with `IdentityFile none` discards the cumulative
-            //   list (concrete + earlier wildcards) and then appends its own
-            //   remaining identities. The clear propagates so later wildcards
-            //   cannot re-add identities for this profile.
-            // - A wildcard without a clear contributes its identities only if
-            //   no prior block has cleared.
-            if wildcard.identityFilesCleared {
-                resolved.identityFiles.removeAll()
-                resolved.identityFilesCleared = true
-                for path in wildcard.identityFiles where !resolved.identityFiles.contains(path) {
-                    resolved.identityFiles.append(path)
-                }
-            } else if !resolved.identityFilesCleared {
-                for path in wildcard.identityFiles where !resolved.identityFiles.contains(path) {
-                    resolved.identityFiles.append(path)
-                }
-            }
-        }
-        return resolved
-    }
-
-    /// True if a Host block's pattern list applies to `target` under OpenSSH
-    /// semantics: at least one positive pattern matches AND no negated pattern
-    /// matches. A block of only negations never matches (matches OpenSSH).
-    private static func patternsApply(aliases: [String], target: String) -> Bool {
-        var sawPositiveMatch = false
-        for pattern in aliases {
-            if pattern.hasPrefix("!") {
-                let body = String(pattern.dropFirst())
-                if fnmatch(pattern: body, name: target) { return false }
-            } else if fnmatch(pattern: pattern, name: target) {
-                sawPositiveMatch = true
-            }
-        }
-        return sawPositiveMatch
-    }
-
-    private static func fnmatch(pattern: String, name: String) -> Bool {
-        let p = Array(pattern)
-        let n = Array(name)
-        var pi = 0
-        var ni = 0
-        var starPi = -1
-        var starNi = -1
-        while ni < n.count {
-            if pi < p.count, p[pi] == "?" {
-                pi += 1; ni += 1
-            } else if pi < p.count, p[pi] == "*" {
-                starPi = pi
-                starNi = ni
-                pi += 1
-            } else if pi < p.count, p[pi] == n[ni] {
-                pi += 1; ni += 1
-            } else if starPi >= 0 {
-                pi = starPi + 1
-                starNi += 1
-                ni = starNi
-            } else {
-                return false
-            }
-        }
-        while pi < p.count, p[pi] == "*" { pi += 1 }
-        return pi == p.count
     }
 
     // MARK: - Identity path resolution
@@ -665,80 +611,5 @@ enum OpenSSHImporter {
                 cachedKeyContents: nil
             )
         }
-    }
-
-    // MARK: - Jump host resolution
-
-    /// Resolve a `ProxyJump` or `ProxyCommand` line into a `JumpHostSource`,
-    /// capturing the parsed coordinates and sharing identity key plan IDs
-    /// with the target. The real `SSHKey.id` substitution happens at apply.
-    /// Returns a warning string if the directive is partially supported
-    /// (multi-hop) or unparseable.
-    private static func resolveJumpHost(
-        entry: OpenSSHHostEntry,
-        identityKeyPlanIDs: [UUID]
-    ) -> (source: OpenSSHProfilePlan.JumpHostSource?, warning: String?) {
-        if let proxyJump = entry.proxyJump, !proxyJump.isEmpty {
-            // ProxyJump none is OpenSSH's "clear inherited proxy" sentinel.
-            // No jump host should be created for this profile.
-            if proxyJump.caseInsensitiveCompare("none") == .orderedSame {
-                return (nil, nil)
-            }
-
-            // Multi-hop: take the first hop, warn about the rest.
-            let hops = proxyJump.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-            let first = hops.first ?? proxyJump
-            let parsed = parseProxyJumpHop(first)
-            let warning: String? = hops.count > 1
-                ? "Multi-hop ProxyJump for \(entry.aliases.first ?? "host") truncated to first hop (\(first))."
-                : nil
-            let portSuffix = parsed.port == 22 ? "" : ":\(parsed.port)"
-            let display = "\(parsed.username ?? "")@\(parsed.host)\(portSuffix)"
-            let source = OpenSSHProfilePlan.JumpHostSource(
-                host: parsed.host,
-                port: parsed.port,
-                username: parsed.username ?? defaultUsername,
-                identityKeyPlanIDs: identityKeyPlanIDs,
-                display: display
-            )
-            return (source, warning)
-        }
-
-        if let proxyCommand = entry.proxyCommand, !proxyCommand.isEmpty {
-            if let parsed = ProxyCommandParser.parse(proxyCommand) {
-                let portSuffix = parsed.port == 22 ? "" : ":\(parsed.port)"
-                let display = "\(parsed.username ?? "")@\(parsed.host)\(portSuffix)"
-                let source = OpenSSHProfilePlan.JumpHostSource(
-                    host: parsed.host,
-                    port: parsed.port,
-                    username: parsed.username ?? defaultUsername,
-                    identityKeyPlanIDs: identityKeyPlanIDs,
-                    display: display
-                )
-                return (source, nil)
-            }
-            return (
-                nil,
-                "Unrecognized ProxyCommand for \(entry.aliases.first ?? "host"): \(proxyCommand)"
-            )
-        }
-
-        return (nil, nil)
-    }
-
-    /// Parse a `[user@]host[:port]` hop (the format used by ProxyJump entries).
-    private static func parseProxyJumpHop(_ raw: String) -> ParsedJumpHost {
-        var host = raw.trimmingCharacters(in: .whitespaces)
-        var port = 22
-        var username: String? = nil
-        if let atIdx = host.lastIndex(of: "@") {
-            username = String(host[..<atIdx])
-            host = String(host[host.index(after: atIdx)...])
-        }
-        if let colon = host.lastIndex(of: ":"), let parsedPort = Int(host[host.index(after: colon)...]) {
-            port = parsedPort
-            host = String(host[..<colon])
-        }
-        return ParsedJumpHost(host: host, port: port, username: username)
     }
 }

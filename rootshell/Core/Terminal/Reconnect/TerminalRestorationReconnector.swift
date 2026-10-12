@@ -27,42 +27,36 @@ enum TerminalRestorationReconnector {
 
         // Check if password is needed for SSH
         if case .ssh(var sshConfig) = config {
-            if case .password(let pwd) = sshConfig.authMethod, pwd.isEmpty {
-                // Before showing password overlay, check if we have a saved password
-                if SSHPasswordManager.shared.hasPassword(host: sshConfig.host, port: sshConfig.port, username: sshConfig.username) {
-                    // Use saved password instead of prompting
-                    sshConfig.authMethod = .savedPassword
-                    terminalView.connectionConfig = .ssh(sshConfig)
-                    performReconnection(terminalView)
-                    return
-                }
-                // No saved password - show overlay
+            let ready = fillSavedPasswords(&sshConfig)
+            terminalView.connectionConfig = .ssh(sshConfig)
+            if !ready {
                 terminalView.restorationState = .needsPassword(sshConfig)
                 return
-            }
-
-            // Check jump host too
-            if let jump = sshConfig.jumpHost {
-                if case .password(let pwd) = jump.authMethod, pwd.isEmpty {
-                    // Check for saved jump host password
-                    if SSHPasswordManager.shared.hasPassword(host: jump.host, port: jump.port, username: jump.username) {
-                        // Use saved password for jump host
-                        var updatedJump = jump
-                        updatedJump.authMethod = .savedPassword
-                        sshConfig.jumpHost = updatedJump
-                        terminalView.connectionConfig = .ssh(sshConfig)
-                        performReconnection(terminalView)
-                        return
-                    }
-                    // No saved jump host password - show overlay
-                    terminalView.restorationState = .needsPassword(sshConfig)
-                    return
-                }
             }
         }
 
         // Can auto-reconnect (key auth or local/k8s/console)
         performReconnection(terminalView)
+    }
+
+    /// Swaps empty passwords for Keychain ones, jump hops first then the target
+    /// (the overlay's prompt order). False when one still needs typing; the
+    /// config keeps whatever was filled so far.
+    static func fillSavedPasswords(_ sshConfig: inout SSHConfig) -> Bool {
+        var chain = sshConfig.jumpChain
+        defer { sshConfig.jumpChain = chain }
+        for index in chain.indices {
+            guard case .password(let pwd) = chain[index].authMethod, pwd.isEmpty else { continue }
+            guard SSHPasswordManager.shared.hasPassword(host: chain[index].host, port: chain[index].port,
+                                                        username: chain[index].username) else { return false }
+            chain[index].authMethod = .savedPassword
+        }
+        if case .password(let pwd) = sshConfig.authMethod, pwd.isEmpty {
+            guard SSHPasswordManager.shared.hasPassword(host: sshConfig.host, port: sshConfig.port,
+                                                        username: sshConfig.username) else { return false }
+            sshConfig.authMethod = .savedPassword
+        }
+        return true
     }
 
     /// Perform the actual reconnection
@@ -88,24 +82,22 @@ enum TerminalRestorationReconnector {
     static func handlePasswordEntry(for terminalView: Ghostty.TerminalView, password: String) {
         guard case .ssh(var sshConfig) = terminalView.connectionConfig else { return }
 
-        // Check if this is for jump host or target
+        // The prompt's config carries the preflight's saved-password fills.
         if case .needsPassword(let config) = terminalView.restorationState {
-            // Update the appropriate password
-            if let jump = config.jumpHost,
-               case .password(let jumpPwd) = jump.authMethod,
-               jumpPwd.isEmpty {
-                // Jump host needs password
-                var newJump = jump
-                newJump.authMethod = .password(password)
-                sshConfig.jumpHost = newJump
-            } else if case .password = config.authMethod {
-                // Target needs password
+            sshConfig = config
+            // Same order as the overlay: the first jump host without one, else the target
+            var chain = sshConfig.jumpChain
+            if let index = chain.firstIndex(where: { if case .password(let pwd) = $0.authMethod { return pwd.isEmpty }; return false }) {
+                chain[index].authMethod = .password(password)
+                sshConfig.jumpChain = chain
+            } else if case .password = sshConfig.authMethod {
                 sshConfig.authMethod = .password(password)
             }
         }
 
         terminalView.connectionConfig = .ssh(sshConfig)
-        performReconnection(terminalView)
+        // Re-run the checks: a later hop or the target may still need a password.
+        initiateReconnection(terminalView)
     }
 
     /// Retry reconnection for a failed terminal

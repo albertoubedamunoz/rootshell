@@ -204,6 +204,21 @@ struct SSHExecuteTool: MCPTool {
             )
 
             config.jumpHost = jumpConfig
+            // Same rule for later hops: interactive auth falls back to the first saved key.
+            config.extraJumpHosts = entry.extraJumpHostConfigs?.map { hop in
+                var hop = hop
+                switch hop.authMethod {
+                case .key, .none:
+                    break
+                case .password, .savedPassword, .keyboardInteractive, .unknown:
+                    if let defaultKey = SSHKeyManager.shared.savedKeys.first {
+                        hop.authMethod = .key(defaultKey.id)
+                        let fallbackIDs = SSHKeyManager.shared.defaultKeyIDs.filter { $0 != defaultKey.id }
+                        hop.fallbackKeyIDs = fallbackIDs.isEmpty ? nil : fallbackIDs
+                    }
+                }
+                return hop
+            }
         }
 
         // Use cached IP for .local hostnames

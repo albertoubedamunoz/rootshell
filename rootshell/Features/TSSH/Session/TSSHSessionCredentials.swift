@@ -87,8 +87,21 @@ struct TrzszSessionCredentials: Codable, Sendable {
     /// next run ends them by id. Absent in records written before this.
     var auxiliarySessionIDs: [UInt64]?
 
+    /// First relay hop. Kept as its own field so older builds still read single-relay records.
     var relay: TrzszRelayCredentials? = nil
+    /// Relay hops after `relay`, in order.
+    var extraRelays: [TrzszRelayCredentials]? = nil
     var transportMTU: Int? = nil
+
+    /// Every relay hop in order; the target connects through the last.
+    var relayChain: [TrzszRelayCredentials] {
+        get { relay.map { [$0] + (extraRelays ?? []) } ?? [] }
+        set {
+            relay = newValue.first
+            let rest = Array(newValue.dropFirst())
+            extraRelays = rest.isEmpty ? nil : rest
+        }
+    }
 
     // MARK: - TTL Configuration
 

@@ -288,7 +288,7 @@ final class TrzszTransferReceiver {
         )
         let plaintext = try TrzszTransferCrypto.open(bootstrap.ciphertext, using: key)
         let payload = try JSONDecoder().decode(TrzszTransferPayload.self, from: plaintext)
-        guard payload.version == version && (payload.credentials.relay == nil || version == TrzszTransferActivity.relayPayloadVersion) else {
+        guard payload.version == version && version >= TrzszTransferActivity.requiredVersion(for: payload.credentials) else {
             throw TrzszTransferError.versionMismatch(
                 received: payload.version,
                 expected: version

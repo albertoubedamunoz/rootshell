@@ -165,6 +165,7 @@ final class VPNControlServer: @unchecked Sendable {
                 supportsHTTPCapture: true,
                 supportsTailscale: true,
                 supportsTailnetStateHandoff: true,
+                supportsMultiHopJump: true,
                 version: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
                 bundlePath: Bundle.main.bundlePath
             )

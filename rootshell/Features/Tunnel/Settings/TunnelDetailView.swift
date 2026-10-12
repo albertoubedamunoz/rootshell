@@ -90,9 +90,14 @@ struct TunnelDetailView: View {
                 .hostAddressCopyMenu(hostname: profile.sshConfig.host)
                 .themedRow()
 
-                if let jumpHost = profile.sshConfig.jumpHost {
+                let jumpChain = profile.sshConfig.jumpChain
+                ForEach(Array(jumpChain.enumerated()), id: \.offset) { offset, jumpHost in
                     HStack {
-                        Text("Jump Host")
+                        if jumpChain.count > 1 {
+                            Text("Jump Host \(offset + 1)")
+                        } else {
+                            Text("Jump Host")
+                        }
                         Spacer()
                         Text(jumpHost.host)
                             .foregroundStyle(.secondary)

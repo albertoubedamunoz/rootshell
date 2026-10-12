@@ -149,6 +149,12 @@ final class AIAgentExecutor {
                 }
                 self.jumpClient = jumpClientConnection
 
+                let lastHop = try await SSHConnectionHelper.jumpThrough(
+                    resolvedConfig.extraJumpHosts ?? [], from: jumpClientConnection,
+                    auth: { hop in try await self.buildAuthMethod(for: hop) },
+                    hostKeyValidator: { hop, _ in self.buildHostKeyValidator(for: hop.host, port: hop.port) }
+                ).last ?? jumpClientConnection
+
                 // Jump to target
                 let targetAuth = try await buildAuthMethod(for: resolvedConfig)
                 let targetHostKeyValidator = buildHostKeyValidator(for: resolvedConfig.host, port: resolvedConfig.port)
@@ -163,7 +169,7 @@ final class AIAgentExecutor {
                 targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
                 targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: resolvedConfig.host)
 
-                finalClient = try await jumpClientConnection.jump(to: targetSettings)
+                finalClient = try await lastHop.jump(to: targetSettings)
 
             } else {
                 // Direct connection

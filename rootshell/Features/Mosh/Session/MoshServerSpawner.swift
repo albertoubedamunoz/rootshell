@@ -332,6 +332,19 @@ final class MoshServerSpawner {
             }
             self.jumpClient = jumpClientConnection
 
+            let lastHop = try await SSHConnectionHelper.jumpThrough(
+                config.extraJumpHosts ?? [], from: jumpClientConnection,
+                auth: { hop in
+                    self.delegate?.spawner(self, didChangeState: .connectingSSH(host: hop.host, isJumpHost: true))
+                    return try await self.buildAuthMethod(for: hop)
+                },
+                hostKeyValidator: { hop, hopNumber in
+                    SSHConnectionHelper.buildHostKeyValidator(
+                        for: hop.host, port: hop.port, label: "[Jump Host \(hopNumber)]", onValidation: onHostKeyValidation
+                    )
+                }
+            ).last ?? jumpClientConnection
+
             delegate?.spawner(self, didChangeState: .connectingToTarget(host: config.host))
 
             // Jump to target using resolved IP
@@ -352,7 +365,7 @@ final class MoshServerSpawner {
             targetSettings.onUserAuthBanner = { [authBannerBuffer = self.authBannerBuffer] message, _ in
                 authBannerBuffer.append(message)
             }
-            return try await jumpClientConnection.jump(to: targetSettings)
+            return try await lastHop.jump(to: targetSettings)
         }
 
         // Direct connection using pre-resolved IP
@@ -416,8 +429,8 @@ final class MoshServerSpawner {
 
     /// Builds authentication method for jump host config, resolving savedPassword inline from keychain
     private func buildAuthMethod(for jumpHost: SSHConfig.JumpHostConfig) async throws -> SSHAuthenticationMethod {
-        var authMethod = jumpHost.authMethod
-        if case .savedPassword = authMethod {
+        var resolved = jumpHost
+        if case .savedPassword = resolved.authMethod {
             let connectionKey = "\(jumpHost.host):\(jumpHost.port):\(jumpHost.username)"
             guard let password = try? KeychainManager.shared.loadSSHPassword(
                 connectionKey: connectionKey,
@@ -426,12 +439,11 @@ final class MoshServerSpawner {
             ) else {
                 throw MoshError.sshConnectionFailed(reason: "Jump host saved password not found")
             }
-            authMethod = .password(password)
+            resolved.authMethod = .password(password)
         }
+        // The JumpHostConfig overload also tries the hop's fallback keys.
         return try await SSHConnectionHelper.buildAuthMethod(
-            username: jumpHost.username,
-            authMethod: authMethod,
-            sessionName: "[Jump Host] \(jumpHost.displayName)",
+            for: resolved,
             onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge
         )
     }

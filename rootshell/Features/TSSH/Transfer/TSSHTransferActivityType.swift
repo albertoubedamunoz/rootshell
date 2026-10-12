@@ -19,7 +19,15 @@ enum TrzszTransferActivity {
     /// activities with a higher version than they understand.
     nonisolated static let payloadVersion = 1
     nonisolated static let relayPayloadVersion = 2
-    nonisolated static func supports(_ version: Int) -> Bool { version == 1 || version == 2 }
+    /// More than one relay hop; older receivers must refuse rather than drop hops.
+    nonisolated static let multiRelayPayloadVersion = 3
+    nonisolated static func supports(_ version: Int) -> Bool { (1...3).contains(version) }
+
+    /// Lowest payload version that carries `credentials` intact.
+    nonisolated static func requiredVersion(for credentials: TrzszSessionCredentials) -> Int {
+        if credentials.extraRelays?.isEmpty == false { return multiRelayPayloadVersion }
+        return credentials.relay == nil ? payloadVersion : relayPayloadVersion
+    }
 
     /// Keys for the activity's userInfo dictionary. Stored as plain strings
     /// rather than an enum because NSUserActivity userInfo values must be

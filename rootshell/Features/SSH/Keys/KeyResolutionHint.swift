@@ -82,9 +82,7 @@ struct KeyResolutionHint: Codable, Hashable, Sendable {
             keyIDs.append(keyID)
         }
 
-        if let jumpKeyID = config.jumpHost?.authMethod.keyID {
-            keyIDs.append(jumpKeyID)
-        }
+        keyIDs.append(contentsOf: config.jumpChain.compactMap(\.authMethod.keyID))
 
         let result = hintsDict(forKeyIDs: keyIDs)
         return result.isEmpty ? nil : result

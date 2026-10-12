@@ -424,7 +424,7 @@ extension TrzszTransferOriginator {
         let primary = TrzszTransferPayload.truncatedScrollback(snapshot.primaryScrollback)
 
         return TrzszTransferPayload(
-            version: creds.relay == nil ? TrzszTransferActivity.payloadVersion : TrzszTransferActivity.relayPayloadVersion,
+            version: TrzszTransferActivity.requiredVersion(for: creds),
             credentials: creds,
             sshConfig: session.config.sshConfig,
             transportMode: session.config.transportMode,

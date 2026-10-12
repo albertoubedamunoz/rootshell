@@ -29,6 +29,8 @@ nonisolated struct VPNResolvedConfig: Codable, Sendable {
     var snapshot: VPNSharedProfileSnapshot
     var credential: VPNResolvedCredential?
     var jumpCredential: VPNResolvedCredential?
+    /// Hops after the first, index-aligned with `snapshot.extraJumpHosts`.
+    var extraJumpCredentials: [VPNResolvedCredential?]? = nil
     /// Tailscale tunnels only: the sysext can't read the app group either.
     var tailnet: VPNResolvedTailnet? = nil
 }
@@ -39,6 +41,7 @@ nonisolated struct VPNResolvedTailnet: Codable, Sendable {
     var egress: VPNSharedProfileSnapshot?
     var egressCredential: VPNResolvedCredential?
     var egressJumpCredential: VPNResolvedCredential?
+    var egressExtraJumpCredentials: [VPNResolvedCredential?]? = nil
     /// Node state the in-app engine last used; replaces the sysext's copy so
     /// both modes stay one device.
     var importState: [String: Data]? = nil
@@ -58,6 +61,8 @@ struct VPNTunnelConfig: Codable, Sendable {
     let sshUsername: String
     let sshAuth: VPNSharedProfileAuth
     let jumpHostConfig: JumpHostTunnelConfig?
+    // Hops after jumpHostConfig, in order.
+    var extraJumpHostConfigs: [JumpHostTunnelConfig]? = nil
     // Host key the user accepted in a terminal session, and/or trusted host-CA
     // keys covering the host. The connector refuses to dial without at least
     // one of them and fails the connect if the server verifies against neither.
@@ -90,6 +95,7 @@ struct VPNTunnelConfig: Codable, Sendable {
     // shared keychain, which a root system extension cannot access.
     var resolvedCredential: VPNResolvedCredential? = nil
     var jumpResolvedCredential: VPNResolvedCredential? = nil
+    var extraJumpResolvedCredentials: [VPNResolvedCredential?]? = nil
 
     enum TransportType: String, Codable, Sendable {
         case ssh
@@ -108,6 +114,18 @@ struct VPNTunnelConfig: Codable, Sendable {
         let auth: VPNSharedProfileAuth
         var pinnedHostKey: VPNPinnedHostKey? = nil
         var trustedCAKeys: [String]? = nil
+    }
+
+    /// Every jump hop in connection order.
+    var jumpChain: [JumpHostTunnelConfig] {
+        jumpHostConfig.map { [$0] + (extraJumpHostConfigs ?? []) } ?? []
+    }
+
+    /// Resolved secret for hop `index` (0 is jumpHostConfig); nil on iOS.
+    func jumpResolvedCredential(at index: Int) -> VPNResolvedCredential? {
+        if index == 0 { return jumpResolvedCredential }
+        guard let extras = extraJumpResolvedCredentials, extras.indices.contains(index - 1) else { return nil }
+        return extras[index - 1]
     }
 
     /// TSSH server info obtained at runtime by the extension after spawning tsshd.
@@ -212,7 +230,7 @@ extension VPNTunnelConfig {
         self.sshPort = snapshot.port
         self.sshUsername = snapshot.username
         self.sshAuth = snapshot.auth
-        self.jumpHostConfig = snapshot.jumpHost.map { jumpHost in
+        let jumpChain = snapshot.jumpChain.map { jumpHost in
             JumpHostTunnelConfig(
                 tsshRelay: jumpHost.tsshRelay,
                 host: jumpHost.host,
@@ -223,6 +241,8 @@ extension VPNTunnelConfig {
                 trustedCAKeys: jumpHost.trustedCAKeys
             )
         }
+        self.jumpHostConfig = jumpChain.first
+        self.extraJumpHostConfigs = jumpChain.count > 1 ? Array(jumpChain.dropFirst()) : nil
         self.pinnedHostKey = snapshot.hostKey
         self.trustedCAKeys = snapshot.trustedCAKeys
         self.trzszMode = snapshot.trzszMode

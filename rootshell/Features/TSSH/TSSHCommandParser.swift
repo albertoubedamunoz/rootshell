@@ -132,7 +132,8 @@ struct TrzszCommandParser {
         case .success(var sshConfig):
             if relayEnabled {
                 guard sshConfig.jumpHost != nil else { return .error("--jump-relay requires -J / a jump host") }
-                sshConfig.jumpHost?.tsshRelay = relay
+                // Relay through every hop of the -J chain.
+                sshConfig.jumpChain = sshConfig.jumpChain.map { var hop = $0; hop.tsshRelay = relay; return hop }
             }
             // Wrap SSH config in Trzsz config
             let trzszConfig = TrzszConfig(
@@ -146,6 +147,7 @@ struct TrzszCommandParser {
             if relayEnabled {
                 guard partialSSHConfig.jumpHost != nil else { return .error("--jump-relay requires -J / a jump host") }
                 partialSSHConfig.jumpHost?.tsshRelay = relay
+                partialSSHConfig.extraJumpHosts = partialSSHConfig.extraJumpHosts?.map { var hop = $0; hop.tsshRelay = relay; return hop }
             }
             // Need password - return partial Trzsz config
             let partialTrzsz = PartialTrzszConfig(

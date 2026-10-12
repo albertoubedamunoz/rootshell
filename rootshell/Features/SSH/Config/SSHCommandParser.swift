@@ -35,6 +35,7 @@ struct SSHCommandParser {
         var port: Int
         var username: String
         var jumpHost: SSHConfig.JumpHostConfig?
+        var extraJumpHosts: [SSHConfig.JumpHostConfig]? = nil
         var agentConfig: SSHAgentConfig
         var portForwardConfig: PortForwardConfig
         var cachedIP: String?
@@ -68,6 +69,7 @@ struct SSHCommandParser {
             config.zmxAutoEnable = zmxAutoEnable
             config.multiplexerSessionName = multiplexerSessionName
             config.remoteCommand = remoteCommand
+            config.extraJumpHosts = extraJumpHosts
             config.remoteCommandPolicy = remoteCommandPolicy
             return config
         }
@@ -276,32 +278,13 @@ struct SSHCommandParser {
 
         logger.info("Parsed SSH: \(finalUsername)@\(finalHost):\(port), identity=\(identityFile ?? "none"), jump=\(jumpHostString ?? "none"), agent=\(agentForwarding), agentAutoApprove=\(agentAutoApprove)")
 
-        // Build jump host config if specified
-        var jumpHostConfig: SSHConfig.JumpHostConfig?
+        // Build jump host chain if specified
+        var jumpChain: [SSHConfig.JumpHostConfig] = []
         if let jumpStr = jumpHostString {
-            let jumpParsed = parseDestination(jumpStr)
-            let jumpUser = jumpParsed.username ?? finalUsername
-            guard let jumpHost = jumpParsed.host, !jumpHost.isEmpty else {
+            guard let chain = jumpHostChain(jumpStr, defaultUsername: finalUsername) else {
                 return .error("Invalid jump host")
             }
-            // For jump host auth, we'll try to find a matching key or fall back to password prompt
-            let jumpKeyID = findMatchingKey(for: jumpUser, host: jumpHost, identityHint: nil)
-
-            // Build fallback keys for jump host
-            let jumpFallbackIDs: [UUID]?
-            if let keyID = jumpKeyID {
-                jumpFallbackIDs = SSHKeyManager.shared.defaultKeyIDs.filter { $0 != keyID }
-            } else {
-                jumpFallbackIDs = nil
-            }
-
-            jumpHostConfig = SSHConfig.JumpHostConfig(
-                host: jumpHost,
-                port: jumpParsed.port ?? 22,
-                username: jumpUser,
-                authMethod: jumpKeyID != nil ? .key(jumpKeyID!) : .password(""),
-                fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
-            )
+            jumpChain = chain
         }
 
         // Build agent config
@@ -331,7 +314,7 @@ struct SSHCommandParser {
                 username: finalUsername,
                 authMethod: .none,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig,
                 portForwardConfig: portForwardConfig,
                 tmuxAutoEnable: tmuxAutoEnable
@@ -340,6 +323,7 @@ struct SSHCommandParser {
             config.herdrAutoMode = herdrAutoMode
             config.zmxAutoEnable = zmxAutoEnable
             config.remoteCommand = remoteCommand
+            config.jumpChain = jumpChain
             config.remoteCommandPolicy = remoteCommandPolicy
             return .success(config)
         }
@@ -365,7 +349,7 @@ struct SSHCommandParser {
                 username: finalUsername,
                 keyID: foundKeyID,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig,
                 portForwardConfig: portForwardConfig,
                 tmuxAutoEnable: tmuxAutoEnable
@@ -374,6 +358,7 @@ struct SSHCommandParser {
             config.herdrAutoMode = herdrAutoMode
             config.zmxAutoEnable = zmxAutoEnable
             config.remoteCommand = remoteCommand
+            config.jumpChain = jumpChain
             config.remoteCommandPolicy = remoteCommandPolicy
             return .success(config)
         }
@@ -387,7 +372,7 @@ struct SSHCommandParser {
                 username: finalUsername,
                 authMethod: .savedPassword,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig,
                 portForwardConfig: portForwardConfig,
                 tmuxAutoEnable: tmuxAutoEnable
@@ -396,6 +381,7 @@ struct SSHCommandParser {
             config.herdrAutoMode = herdrAutoMode
             config.zmxAutoEnable = zmxAutoEnable
             config.remoteCommand = remoteCommand
+            config.jumpChain = jumpChain
             config.remoteCommandPolicy = remoteCommandPolicy
             return .success(config)
         }
@@ -414,7 +400,7 @@ struct SSHCommandParser {
                 keyID: primaryKeyID,
                 fallbackKeyIDs: fallbackIDs.isEmpty ? nil : fallbackIDs,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig,
                 portForwardConfig: portForwardConfig,
                 tmuxAutoEnable: tmuxAutoEnable
@@ -423,6 +409,7 @@ struct SSHCommandParser {
             config.herdrAutoMode = herdrAutoMode
             config.zmxAutoEnable = zmxAutoEnable
             config.remoteCommand = remoteCommand
+            config.jumpChain = jumpChain
             config.remoteCommandPolicy = remoteCommandPolicy
             return .success(config)
         }
@@ -433,7 +420,8 @@ struct SSHCommandParser {
             host: finalHost,
             port: port,
             username: finalUsername,
-            jumpHost: jumpHostConfig,
+            jumpHost: jumpChain.first,
+            extraJumpHosts: jumpChain.count > 1 ? Array(jumpChain.dropFirst()) : nil,
             agentConfig: agentConfig,
             portForwardConfig: portForwardConfig,
             cachedIP: cachedIP,
@@ -510,6 +498,25 @@ struct SSHCommandParser {
     }
 
     /// Parse [user@]host[:port] destination string
+    /// Builds one jump host per `-J` / `ProxyJump` hop; `none` yields an empty chain.
+    /// Each hop gets a matching key (plus default-key fallbacks) or an empty password.
+    static func jumpHostChain(_ raw: String, defaultUsername: String) -> [SSHConfig.JumpHostConfig]? {
+        if raw.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("none") == .orderedSame { return [] }
+        guard let hops = ProxyJumpSpec.parseList(raw) else { return nil }
+        return hops.map { hop in
+            let user = hop.username ?? defaultUsername
+            let keyID = findMatchingKey(for: user, host: hop.host, identityHint: nil)
+            let fallbackIDs = keyID.map { id in SSHKeyManager.shared.defaultKeyIDs.filter { $0 != id } }
+            return SSHConfig.JumpHostConfig(
+                host: hop.host,
+                port: hop.portOrDefault,
+                username: user,
+                authMethod: keyID.map { .key($0) } ?? .password(""),
+                fallbackKeyIDs: fallbackIDs?.isEmpty == true ? nil : fallbackIDs
+            )
+        }
+    }
+
     private static func parseDestination(_ dest: String) -> (username: String?, host: String?, port: Int?) {
         var remaining = dest
         var username: String?

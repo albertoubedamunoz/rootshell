@@ -168,6 +168,28 @@ nonisolated final class GitSSHSubtransportContext: @unchecked Sendable {
                     self.jumpClient = jumpClient
                     Self.logger.debug("Jump host connected, tunneling to \(host):\(port)")
 
+                    // Later hops ride child channels of jumpClient; unknown host keys are rejected as above.
+                    var lastHop = jumpClient
+                    for (offset, hop) in (profileConfig.extraJumpHosts ?? []).enumerated() {
+                        let hopAuth = try await SSHConnectionHelper.buildAuthMethod(for: hop)
+                        let hopValidator = await SSHConnectionHelper.buildHostKeyValidator(
+                            for: hop.host, port: hop.port, label: "[Git-Jump \(offset + 2)]",
+                            onValidation: { request in
+                                Self.logger.warning("Jump host key not in known hosts for \(hop.host):\(hop.port). SSH interactively first.")
+                                return .reject
+                            }
+                        )
+                        var hopSettings = SSHClientSettings(
+                            host: hop.host, port: hop.port,
+                            authenticationMethod: { hopAuth },
+                            hostKeyValidator: hopValidator
+                        )
+                        hopSettings.algorithms = .all
+                        hopSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
+                        hopSettings.protocolOptions = await SSHConnectionHelper.hostCertificateProtocolOptions(forHost: hop.host)
+                        lastHop = try await lastHop.jump(to: hopSettings)
+                    }
+
                     var targetSettings = SSHClientSettings(
                         host: host, port: port,
                         authenticationMethod: { authMethod },
@@ -177,7 +199,7 @@ nonisolated final class GitSSHSubtransportContext: @unchecked Sendable {
                     targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
                     targetSettings.protocolOptions = await SSHConnectionHelper.hostCertificateProtocolOptions(forHost: host)
 
-                    client = try await jumpClient.jump(to: targetSettings)
+                    client = try await lastHop.jump(to: targetSettings)
                 } else {
                     // Direct connection: pre-resolve CGNAT IPv4 and route
                     // through NWConnection so Tailscale's NAT/DERP path is
