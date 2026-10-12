@@ -26,6 +26,8 @@ final class HerdrEndpointPane {
     private var lastClick = Date.distantPast
     private var lastClickCell: HerdrEndpointSelection.Point?
     private var clickCount = 0
+    /// Case-adjusted key characters by HID usage, so a release matches its press.
+    private var pressedCharacters: [UIKeyboardHIDUsage: String] = [:]
 
     init(view: Ghostty.TerminalView, controller: HerdrController) {
         self.view = view; self.controller = controller
@@ -391,8 +393,21 @@ final class HerdrEndpointPane {
         let kind: UInt64
         switch action { case .press: kind = 0; case .repeat: kind = 1; case .release: kind = 2 }
         if kind != 2 { clearSelection() }
+        // Herdr writes generated text to the PTY verbatim; modifier chords must encode from the key.
+        let encodesFromKey = kind == 2 || !mods.isDisjoint(with: [.ctrl, .alt, .cmd])
+        // Caps Lock case lives only in the dropped text; carry it into the Alt key so ESC+A stays distinct.
+        if kind != 0, let pressed = pressedCharacters[key] {
+            character = pressed
+            if kind == 2 { pressedCharacters[key] = nil }
+        } else if kind != 2, mods.isDisjoint(with: [.shift, .ctrl, .cmd]), mods.contains(.alt), let text, let base = character,
+                  text.unicodeScalars.count == 1, text != base, text.lowercased() == base {
+            character = text
+            pressedCharacters[key] = text
+        } else if kind == 0 {
+            pressedCharacters[key] = nil
+        }
         send(HerdrEndpointWire.key(code: code, character: character, function: function,
-            modifiers: modifiers(mods), kind: kind, text: kind == 2 ? nil : text, physical: UInt32(key.rawValue),
+            modifiers: modifiers(mods), kind: kind, text: encodesFromKey ? nil : text, physical: UInt32(key.rawValue),
             shifted: mods.contains(.shift) ? text?.unicodeScalars.first?.value : nil))
     }
 
