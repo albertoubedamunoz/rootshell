@@ -846,6 +846,13 @@ private struct IntegratedTabBackground: View {
     @ViewBuilder
     private var selectedBackground: some View {
         let background = ZStack {
+            // Erased in the tab's own pass, so the opening slides with it.
+            if surfaceFill?.style.erasesBeneath == true {
+                BrowserTabShape()
+                    .fill(.black)
+                    .blendMode(.destinationOut)
+            }
+
             IntegratedTabSurfaceFillView(fallback: selectedColor)
                 .clipShape(BrowserTabShape())
 
@@ -1052,12 +1059,16 @@ struct ScrollEdgeEffectHiddenModifier: ViewModifier {
 
 /// Wraps content in GlassEffectContainer on iOS 26+, passthrough on older versions
 struct GlassEffectContainerModifier: ViewModifier {
+    /// Glass-free tabs skip the container, whose group would also confine the
+    /// Integrated tab's erase of the strip beneath it.
+    var isEnabled = true
+
     func body(content: Content) -> some View {
         #if os(visionOS)
         // GlassEffectContainer is not available on visionOS
         content
         #else
-        if #available(iOS 26.0, macOS 26.0, *) {
+        if isEnabled, #available(iOS 26.0, macOS 26.0, *) {
             GlassEffectContainer {
                 content
             }

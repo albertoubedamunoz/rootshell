@@ -473,7 +473,7 @@ struct MainView: View {
             ZStack {
                 // Full-bleed backgrounds
                 fullBleedBackground(geometry: geometry, theme: resolvedTheme)
-                windowBackdrop(geometry: geometry, theme: resolvedTheme)
+                windowBackdrop()
 
                 VStack(spacing: 0) {
                     // Top toolbar spacer when tab bar is hidden (Catalyst only)

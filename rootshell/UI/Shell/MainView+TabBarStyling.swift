@@ -53,8 +53,8 @@ struct ResolvedTabBarTheme: Equatable {
     /// What is visible behind the terminal and the tab strip.
     var surface: EffectiveSurface?
 
-    /// Tab fills derive from the color actually behind them: the scrim over
-    /// the gradient on the backdrop, otherwise the theme background.
+    /// Tab fills derive from the color actually behind them: the gradient's
+    /// top band on the backdrop, otherwise the theme background.
     var tabBase: Color? {
         onBackdrop ? surface?.chrome ?? baseColor : baseColor
     }
@@ -115,8 +115,8 @@ struct ResolvedTabBarTheme: Equatable {
     /// chromatic backgrounds instead of washing them toward gray.
     var integratedEdgePalette: IntegratedTabEdgePalette {
         IntegratedTabEdgePalette(
-            // The backdrop surface is translucent; derive the edge from the opaque swatch
-            surfaceColor: onBackdrop ? baseColor : (terminalSurfaceBackground ?? baseColor),
+            // A translucent surface derives the edge from the opaque swatch
+            surfaceColor: terminalSurfaceIsTransparent ? baseColor : (terminalSurfaceBackground ?? baseColor),
             isLightTheme: isLight
         )
     }
@@ -159,6 +159,16 @@ struct ResolvedTabBarTheme: Equatable {
         if let override = overrideTabText { return override }
         guard baseColor != nil else { return .primary }
         return isLight ? Color(white: 0.1) : Color(white: 0.95)
+    }
+
+    /// The selected Integrated tab sits on its terminal's surface, which can
+    /// differ from the strip (a light tab theme over a dark backdrop), so its
+    /// title contrasts with that surface instead.
+    var integratedSelectedText: Color {
+        if let override = overrideTabText { return override }
+        guard let baseColor else { return .primary }
+        let light = onBackdrop ? (surface?.isLight ?? baseColor.isLight) : baseColor.isLight
+        return light ? Color(white: 0.1) : Color(white: 0.95)
     }
 
     var tabSecondaryText: Color {
@@ -267,14 +277,10 @@ extension MainView {
 
     /// How a pane background reads behind the selected Integrated tab.
     func integratedSurfaceStyle() -> IntegratedSurfaceStyle {
-        if effectManager.isBackdropEnabled {
-            return IntegratedSurfaceStyle(opacity: transparencyManager.effectiveBackgroundOpacity)
-        }
-        #if targetEnvironment(macCatalyst)
-        return IntegratedSurfaceStyle(whiteBlend: 1 - CGFloat(transparencyManager.backgroundOpacity))
-        #else
-        return IntegratedSurfaceStyle()
-        #endif
+        let opacity = transparencyManager.effectiveBackgroundOpacity
+        // Over the backdrop the strip is already clear; only the Mac window's
+        // own translucency needs the opaque strip erased.
+        return IntegratedSurfaceStyle(opacity: opacity, erasesBeneath: opacity < 0.999 && !effectManager.isBackdropEnabled)
     }
 
     /// Get the effective theme colors for the currently selected tab

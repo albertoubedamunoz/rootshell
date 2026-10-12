@@ -604,16 +604,16 @@ struct IntegratedTabJoinPublisher: View, Animatable {
 
 // MARK: - Surface under the tab
 
-/// How a pane background reads behind the selected tab: the same opacity the
-/// terminal draws at over the backdrop, or the Mac's opaque stand-in for a
-/// translucent window, whose real composite the app cannot know.
+/// How a pane background reads behind the selected tab: at the opacity the
+/// terminal draws at, over whatever shows through the terminal.
 struct IntegratedSurfaceStyle: Equatable {
-    var whiteBlend: CGFloat = 0
     var opacity: Double = 1
+    /// A translucent Mac window shows the desktop through the terminal, so the
+    /// tab erases the opaque strip beneath it to show the same.
+    var erasesBeneath = false
 
     func color(for base: Color) -> Color {
-        if opacity < 1 { return base.opacity(opacity) }
-        return whiteBlend > 0 ? base.blendedWithWhite(whiteBlend) : base
+        opacity < 1 ? base.opacity(opacity) : base
     }
 
     var isTranslucent: Bool { opacity < 0.999 }

@@ -15,7 +15,7 @@ struct EffectiveSurface: Equatable {
     let baseRGB: SIMD3<Double>
     /// Base at the terminal's opacity over the averaged backdrop.
     let terminalRGB: SIMD3<Double>
-    /// Tab strip scrim over the backdrop's top band.
+    /// The backdrop's top band, which the tab strip sits on.
     let chromeRGB: SIMD3<Double>
     /// Averaged backdrop and the opacity the terminal draws over it.
     var backdropRGB: SIMD3<Double> = .zero
@@ -27,9 +27,6 @@ struct EffectiveSurface: Equatable {
     var chrome: Color { Self.color(chromeRGB) }
     var isLight: Bool { terminal.isLight }
     var terminalHex: String { Self.hex(terminalRGB) }
-
-    /// Matches the backdrop scrim's alpha over the tab strip (MainView+Body).
-    private static let chromeScrimAlpha = 0.7
 
     static func resolve(background: Color) -> EffectiveSurface {
         let base = rgb(background)
@@ -43,7 +40,7 @@ struct EffectiveSurface: Equatable {
         return EffectiveSurface(
             baseRGB: base,
             terminalRGB: base * opacity + sample.average * (1 - opacity),
-            chromeRGB: base * chromeScrimAlpha + sample.topBand * (1 - chromeScrimAlpha),
+            chromeRGB: sample.topBand,
             backdropRGB: sample.average,
             opacity: opacity,
             onBackdrop: true

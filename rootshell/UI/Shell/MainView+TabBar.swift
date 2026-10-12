@@ -99,11 +99,7 @@ extension MainView {
         if tabExpose.isActive {
             override = style.color(for: effectiveThemeColors.flatMap { Color(hex: $0.background) } ?? theme.tabBarBackground)
         } else if integratedTabCoversFullPanel {
-            let sheetTheme = resolvedSheetTheme()
-            // Over the desktop, a translucent panel gets the Mac's stand-in too.
-            override = transparencyManager.fullPanelIsTranslucent && !effectManager.isBackdropEnabled
-                ? style.color(for: sheetTheme.panelSurface)
-                : sheetTheme.panelFill
+            override = resolvedSheetTheme().panelFill
         }
         // The terminal on screen lags the selection until its first frame.
         let tabIDs: [UUID] = appTabSwipeState.map { [$0.sourceTabID, $0.targetTabID] }
