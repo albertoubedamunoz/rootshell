@@ -138,7 +138,7 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
     }
 
     private var effectiveQuality: LiveWeatherConfiguration.Quality {
-        (input?.powerScale ?? 1) > 1 ? .economical : (input?.configuration.quality ?? .balanced)
+        (input?.powerScale ?? 1) > 1 ? .economical : (input?.configuration.quality ?? .cinematic)
     }
 
     func resize(_ view: MTKView) {

@@ -54,7 +54,7 @@ struct LiveWeatherConfiguration: Equatable, Sendable {
 
     var intensity: Double = 0.30
     var readingProtection: Double = 0.40
-    var quality: Quality = .balanced
+    var quality: Quality = .cinematic
     var locationSource: LocationSource = .device
     var city: WeatherCity?
     var showStars = true
