@@ -166,36 +166,13 @@ struct SFTPCommandParser {
         jumpHostString: String?,
         sshOptions: [String: String]
     ) -> ParseResult {
-        // Build jump host config if specified
-        var jumpHostConfig: SSHConfig.JumpHostConfig?
+        // Build jump host chain if specified
+        var jumpChain: [SSHConfig.JumpHostConfig] = []
         if let jumpStr = jumpHostString {
-            let (jumpUser, jumpHost) = parseTarget(jumpStr)
-            let finalJumpUser = jumpUser ?? username
-            guard let finalJumpHost = jumpHost, !finalJumpHost.isEmpty else {
+            guard let chain = SSHCommandParser.jumpHostChain(jumpStr, defaultUsername: username) else {
                 return .error("Invalid jump host")
             }
-
-            // Parse port from jump host if present (user@host:port format)
-            let (parsedJumpHost, jumpPort) = parseHostPort(finalJumpHost)
-
-            // For jump host auth, try to find a matching key
-            let jumpKeyID = findMatchingKey(for: finalJumpUser, host: parsedJumpHost, identityHint: nil)
-
-            // Build fallback keys for jump host
-            let jumpFallbackIDs: [UUID]?
-            if let keyID = jumpKeyID {
-                jumpFallbackIDs = SSHKeyManager.shared.defaultKeyIDs.filter { $0 != keyID }
-            } else {
-                jumpFallbackIDs = nil
-            }
-
-            jumpHostConfig = SSHConfig.JumpHostConfig(
-                host: parsedJumpHost,
-                port: jumpPort ?? 22,
-                username: finalJumpUser,
-                authMethod: jumpKeyID != nil ? .key(jumpKeyID!) : .password(""),
-                fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
-            )
+            jumpChain = chain
         }
 
         // Agent config - disabled for SFTP transfers (can be enabled later if needed)
@@ -209,15 +186,16 @@ struct SFTPCommandParser {
         if let preferredAuth = sshOptions["PreferredAuthentications"]?.lowercased(),
            preferredAuth == "none" {
             logger.info("Using 'none' authentication (PreferredAuthentications=none)")
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 authMethod: .none,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(config)
         }
 
@@ -236,30 +214,32 @@ struct SFTPCommandParser {
 
         // If we found a key, return success
         if let foundKeyID = keyID {
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 keyID: foundKeyID,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(config)
         }
 
         // Check if we have a saved password for this connection
         if SSHPasswordManager.shared.hasPassword(host: host, port: port, username: username) {
             logger.info("Found saved password for \(username)@\(host):\(port)")
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 authMethod: .savedPassword,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(config)
         }
 
@@ -270,16 +250,17 @@ struct SFTPCommandParser {
             let fallbackIDs = Array(allDefaults.dropFirst())
 
             logger.info("Using default key for \(username)@\(host): \(primaryKeyID) (+ \(fallbackIDs.count) fallbacks)")
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 keyID: primaryKeyID,
                 fallbackKeyIDs: fallbackIDs.isEmpty ? nil : fallbackIDs,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(config)
         }
 
@@ -288,7 +269,8 @@ struct SFTPCommandParser {
             host: host,
             port: port,
             username: username,
-            jumpHost: jumpHostConfig,
+            jumpHost: jumpChain.first,
+            extraJumpHosts: jumpChain.count > 1 ? Array(jumpChain.dropFirst()) : nil,
             agentConfig: agentConfig,
             portForwardConfig: .none,
             cachedIP: cachedIP
@@ -347,35 +329,6 @@ struct SFTPCommandParser {
             return (user.isEmpty ? nil : user, host.isEmpty ? nil : host)
         }
         return (nil, target)
-    }
-
-    /// Parse host[:port] string
-    private static func parseHostPort(_ hostPort: String) -> (host: String, port: Int?) {
-        // Handle IPv6 format: [host]:port
-        if hostPort.hasPrefix("[") {
-            if let closeIndex = hostPort.firstIndex(of: "]") {
-                let host = String(hostPort[hostPort.index(after: hostPort.startIndex)..<closeIndex])
-                let afterClose = hostPort.index(after: closeIndex)
-                if afterClose < hostPort.endIndex && hostPort[afterClose] == ":" {
-                    let portStr = String(hostPort[hostPort.index(after: afterClose)...])
-                    if let port = Int(portStr), port > 0, port <= 65535 {
-                        return (host, port)
-                    }
-                }
-                return (host, nil)
-            }
-        }
-
-        // Regular host:port
-        if let colonIndex = hostPort.lastIndex(of: ":") {
-            let portStr = String(hostPort[hostPort.index(after: colonIndex)...])
-            if let port = Int(portStr), port > 0, port <= 65535 {
-                let host = String(hostPort[..<colonIndex])
-                return (host, port)
-            }
-        }
-
-        return (hostPort, nil)
     }
 
     // MARK: - Key Store Integration (mirrors SSHCommandParser/SCPCommandParser)

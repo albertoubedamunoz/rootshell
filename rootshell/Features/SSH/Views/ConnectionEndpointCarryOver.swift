@@ -20,13 +20,8 @@ struct ConnectionEndpoint {
     var host: String = ""
     var username: String = ""
 
-    var usesJumpHost: Bool = false
-    var jumpHost: String = ""
-    var jumpPort: String = "22"
-    var jumpUsername: String = ""
-    var jumpAuthMethod: SSHConnectionView.AuthType = .key
-    var jumpKeyID: UUID?
-    var jumpHasSavedPassword: Bool = false
+    /// Jump hops in order, never carrying a typed password.
+    var jumpHops: [JumpHostDraft] = []
 
     /// Set by the form being written into: it holds a password, typed or
     /// already in the Keychain, that belongs to the host sitting in its
@@ -36,23 +31,15 @@ struct ConnectionEndpoint {
 
     /// Nothing here is worth preserving.
     var isBlank: Bool {
-        host.isEmpty && username.isEmpty && !usesJumpHost
+        host.isEmpty && username.isEmpty && jumpHops.isEmpty
     }
 
     /// Compares only the fields carry-over writes, which is how an untouched
     /// destination is told apart from one the user has since edited.
     func matchesCarriedFields(of other: ConnectionEndpoint) -> Bool {
-        guard host == other.host,
-              username == other.username,
-              usesJumpHost == other.usesJumpHost else {
-            return false
-        }
-        guard usesJumpHost else { return true }
-        return jumpHost == other.jumpHost
-            && jumpPort == other.jumpPort
-            && jumpUsername == other.jumpUsername
-            && jumpAuthMethod == other.jumpAuthMethod
-            && jumpKeyID == other.jumpKeyID
+        host == other.host
+            && username == other.username
+            && jumpHops.map(\.carriedFields) == other.jumpHops.map(\.carriedFields)
     }
 }
 
@@ -88,21 +75,16 @@ struct ConnectionEndpointCarryOver {
         destination.host = source.host.trimmingCharacters(in: .whitespacesAndNewlines)
         destination.username = source.username.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // The jump host transfers as a whole or not at all: a half-filled
-        // tunnel is worse than none.
-        let jumpHost = source.jumpHost.trimmingCharacters(in: .whitespacesAndNewlines)
-        if source.usesJumpHost, !jumpHost.isEmpty {
-            destination.usesJumpHost = true
-            destination.jumpHost = jumpHost
-            destination.jumpPort = source.jumpPort
-            destination.jumpUsername = source.jumpUsername
-            destination.jumpAuthMethod = source.jumpAuthMethod
-            destination.jumpKeyID = source.jumpKeyID
-            destination.jumpHasSavedPassword = source.jumpHasSavedPassword
-        } else {
-            destination.usesJumpHost = false
-            destination.jumpHasSavedPassword = false
+        // The jump chain transfers as a whole or not at all: a half-filled
+        // tunnel is worse than none, and Screen Sharing holds a single hop.
+        let hops = source.jumpHops.map { hop -> JumpHostDraft in
+            var carried = hop
+            carried.hostname = hop.trimmedHost
+            carried.password = ""
+            return carried
         }
+        let complete = !hops.contains { $0.hostname.isEmpty }
+        destination.jumpHops = complete && (side == .sshFamily || hops.count == 1) ? hops : []
 
         var record = destination
         record.hasHostBoundSecret = false
@@ -121,13 +103,7 @@ extension VNCFormState {
             ConnectionEndpoint(
                 host: hostname,
                 username: username,
-                usesJumpHost: jumpSelection == .manual,
-                jumpHost: jumpHostname,
-                jumpPort: jumpPort,
-                jumpUsername: jumpUsername,
-                jumpAuthMethod: jumpAuthMethod,
-                jumpKeyID: jumpSelectedKeyID,
-                jumpHasSavedPassword: jumpHasSavedPassword,
+                jumpHops: jumpSelection == .manual ? [manualJumpDraft] : [],
                 hasHostBoundSecret: !password.isEmpty
                     || !jumpPassword.isEmpty
                     || jumpHasSavedPassword
@@ -140,18 +116,27 @@ extension VNCFormState {
             // A jump pointing at a saved profile is the user's own choice.
             guard jumpSelection == .none || jumpSelection == .manual else { return }
 
-            if newValue.usesJumpHost {
+            if let hop = newValue.jumpHops.first {
                 jumpSelection = .manual
-                jumpHostname = newValue.jumpHost
-                jumpPort = newValue.jumpPort
-                jumpUsername = newValue.jumpUsername
-                jumpAuthMethod = newValue.jumpAuthMethod
-                jumpSelectedKeyID = newValue.jumpKeyID
-                jumpHasSavedPassword = newValue.jumpHasSavedPassword
+                jumpHostname = hop.hostname
+                jumpPort = hop.port
+                jumpUsername = hop.username
+                jumpAuthMethod = hop.authMethod
+                jumpSelectedKeyID = hop.selectedKeyID
+                jumpHasSavedPassword = hop.hasSavedPassword
             } else {
                 jumpSelection = .none
                 jumpHasSavedPassword = false
             }
         }
+    }
+}
+
+private extension VNCFormState {
+    var manualJumpDraft: JumpHostDraft {
+        var draft = JumpHostDraft(hostname: jumpHostname, port: jumpPort, username: jumpUsername,
+                                  authMethod: jumpAuthMethod, selectedKeyID: jumpSelectedKeyID)
+        draft.hasSavedPassword = jumpHasSavedPassword
+        return draft
     }
 }

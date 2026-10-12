@@ -458,6 +458,26 @@ enum HeadlessSSHExecutor {
         }
 
         do {
+            var currentHop: SSHConfig.JumpHostConfig?
+            let lastHop: SSHClient
+            do {
+                lastHop = try await SSHConnectionHelper.jumpThrough(
+                    config.extraJumpHosts ?? [], from: jumpClient,
+                    auth: { hop in
+                        currentHop = hop
+                        do { return try await buildJumpAuth(hop) } catch { throw AuthBuilderFailure(underlying: error) }
+                    },
+                    hostKeyValidator: { hop, hopNumber in
+                        SSHConnectionHelper.buildHostKeyValidator(
+                            for: hop.host, port: hop.port, label: "\(logLabel) Jump \(hopNumber)", onValidation: nil
+                        )
+                    }
+                ).last ?? jumpClient
+            } catch let error where error is HostKeyRejectedError || error is InvalidHostKey {
+                let hop = currentHop ?? jumpConfig
+                throw ExecError.hostKeyUntrusted(host: hop.host, port: hop.port)
+            }
+
             let targetAuth: SSHAuthenticationMethod
             do {
                 targetAuth = try await buildTargetAuth(config)
@@ -485,7 +505,7 @@ enum HeadlessSSHExecutor {
             // child channel carrying the target handshake.
             let jumpClientBox = CancellationSSHClientBox(jumpClient)
             let targetClient = try await withTaskCancellationHandler {
-                try await jumpClient.jump(to: targetSettings)
+                try await lastHop.jump(to: targetSettings)
             } onCancel: {
                 Task { try? await jumpClientBox.client.close() }
             }

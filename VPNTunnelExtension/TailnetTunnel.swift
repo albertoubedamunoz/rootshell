@@ -419,6 +419,7 @@ extension SSHVPNTunnelProvider {
             var egressConfig = try VPNTunnelConfig(snapshot: snapshot)
             egressConfig.resolvedCredential = resolved.egressCredential
             egressConfig.jumpResolvedCredential = resolved.egressJumpCredential
+            egressConfig.extraJumpResolvedCredentials = resolved.egressExtraJumpCredentials
             egress = egressConfig
         }
         return (resolved.settings, egress)

@@ -24,8 +24,10 @@ struct UnresolvedKeyInfo: Sendable {
     let originalKeyID: UUID
     /// The hint associated with the key (if any)
     let hint: KeyResolutionHint?
-    /// Whether this is for the jump host (vs target)
+    /// Whether this is for a jump host (vs target)
     let isJumpHost: Bool
+    /// Index into `SSHConfig.jumpChain` for a jump host key; nil for the target
+    var hopIndex: Int? = nil
 }
 
 @MainActor
@@ -78,24 +80,26 @@ enum ConnectionKeyResolver {
             }
         }
 
-        // Resolve jump host key
-        if var jumpConfig = resolvedConfig.jumpHost, case .key(let jumpKeyID) = jumpConfig.authMethod {
+        // Resolve each jump host key
+        var chain = resolvedConfig.jumpChain
+        for index in chain.indices {
+            guard case .key(let jumpKeyID) = chain[index].authMethod else { continue }
             let resolvedKey = resolveJumpHostKey(
                 keyID: jumpKeyID,
                 config: config,
-                jumpConfig: jumpConfig,
-                deviceOverride: deviceOverride,
+                jumpConfig: chain[index],
+                overrideKeyID: deviceOverride.flatMap { Self.overrideKeyID($0, hopIndex: index) },
                 keyManager: keyManager
             )
             if let resolvedKey {
-                jumpConfig.authMethod = .key(resolvedKey.id)
-                resolvedConfig.jumpHost = jumpConfig
+                chain[index].authMethod = .key(resolvedKey.id)
             } else {
                 let hint = config.keyResolutionHints?[jumpKeyID.uuidString]
-                    ?? jumpConfig.keyResolutionHints?[jumpKeyID.uuidString]
-                unresolvedKeys.append(UnresolvedKeyInfo(originalKeyID: jumpKeyID, hint: hint, isJumpHost: true))
+                    ?? chain[index].keyResolutionHints?[jumpKeyID.uuidString]
+                unresolvedKeys.append(UnresolvedKeyInfo(originalKeyID: jumpKeyID, hint: hint, isJumpHost: true, hopIndex: index))
             }
         }
+        resolvedConfig.jumpChain = chain
 
         // Resolve fallback key IDs (filter to locally available keys)
         if let fallbackIDs = resolvedConfig.fallbackKeyIDs {
@@ -131,11 +135,12 @@ enum ConnectionKeyResolver {
             }
         }
 
-        // Check jump host key
-        if let jumpConfig = config.jumpHost, case .key(let jumpKeyID) = jumpConfig.authMethod {
-            let override = profileID.flatMap { overrideManager.override(forProfile: $0) }
-            if let overrideKeyID = override?.jumpHostKeyID {
-                if keyManager.findKey(id: overrideKeyID) == nil { return false }
+        // Check each jump host key
+        let override = profileID.flatMap { overrideManager.override(forProfile: $0) }
+        for (index, jumpConfig) in config.jumpChain.enumerated() {
+            guard case .key(let jumpKeyID) = jumpConfig.authMethod else { continue }
+            if let overrideID = override.flatMap({ Self.overrideKeyID($0, hopIndex: index) }) {
+                if keyManager.findKey(id: overrideID) == nil { return false }
             } else {
                 let hint = config.keyResolutionHints?[jumpKeyID.uuidString]
                     ?? jumpConfig.keyResolutionHints?[jumpKeyID.uuidString]
@@ -237,11 +242,11 @@ enum ConnectionKeyResolver {
         keyID: UUID,
         config: SSHConfig,
         jumpConfig: SSHConfig.JumpHostConfig,
-        deviceOverride: DeviceKeyOverride?,
+        overrideKeyID: UUID?,
         keyManager: SSHKeyManager
     ) -> SSHKey? {
         // Device override takes priority
-        if let overrideKeyID = deviceOverride?.jumpHostKeyID,
+        if let overrideKeyID,
            let key = keyManager.findKey(id: overrideKeyID) {
             logger.info("Resolved jump host key via device override: \(key.name)")
             return key
@@ -255,5 +260,12 @@ enum ConnectionKeyResolver {
         }
 
         return nil
+    }
+}
+
+extension ConnectionKeyResolver {
+    /// The device override's key for jump-chain hop `hopIndex`.
+    static func overrideKeyID(_ override: DeviceKeyOverride, hopIndex: Int) -> UUID? {
+        hopIndex == 0 ? override.jumpHostKeyID : override.extraJumpHostKeyIDs?[String(hopIndex)]
     }
 }

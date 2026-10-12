@@ -807,6 +807,26 @@ final class UDPHolePuncher {
                 throw error
             }
 
+            let lastHop: SSHClient
+            do {
+                lastHop = try await SSHConnectionHelper.jumpThrough(
+                    sshConfig.extraJumpHosts ?? [], from: jumpClient,
+                    auth: { hop in
+                        // Key hops go through the shared builder so their fallback keys are tried.
+                        guard case .key = hop.authMethod else { return try await self.buildAuthMethod(for: hop) }
+                        return try await SSHConnectionHelper.buildAuthMethod(for: hop)
+                    },
+                    hostKeyValidator: { hop, hopNumber in
+                        SSHConnectionHelper.buildHostKeyValidator(
+                            for: hop.host, port: hop.port, label: "[Jump Host \(hopNumber)]", onValidation: onHostKeyValidation
+                        )
+                    }
+                ).last ?? jumpClient
+            } catch {
+                try? await jumpClient.close()
+                throw error
+            }
+
             var targetSettings = SSHClientSettings(
                 host: host,
                 port: port,
@@ -822,7 +842,7 @@ final class UDPHolePuncher {
             targetSettings.algorithms = .all
             targetSettings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
             targetSettings.protocolOptions = SSHConnectionHelper.hostCertificateProtocolOptions(forHost: sshConfig.host)
-            return try await jumpClient.jump(to: targetSettings)
+            return try await lastHop.jump(to: targetSettings)
         }
 
         // Direct connection

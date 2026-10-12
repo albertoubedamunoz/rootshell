@@ -59,7 +59,12 @@ enum VPNCredentialResolver {
             )
         }
 
-        return VPNResolvedConfig(snapshot: snapshot, credential: credential, jumpCredential: jumpCredential)
+        let extraJumpCredentials = try snapshot.extraJumpHosts?.map { hop in
+            try resolveCredential(auth: hop.auth, host: hop.host, port: hop.port, username: hop.username)
+        }
+
+        return VPNResolvedConfig(snapshot: snapshot, credential: credential, jumpCredential: jumpCredential,
+                                 extraJumpCredentials: extraJumpCredentials)
     }
 
     /// Encode a resolved config for delivery via the control socket (matches the

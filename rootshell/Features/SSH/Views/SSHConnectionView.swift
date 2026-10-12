@@ -58,16 +58,8 @@ struct SSHConnectionView: View {
     @State private var isPortForwardingExpanded: Bool = false
     @State private var isTerminalOptionsExpanded: Bool = false
     
-    // Jump host fields
-    @State private var tsshRelay: TSSHRelaySettings?
-    @State private var useJumpHost: Bool = false
-    @State private var jumpHostname: String = ""
-    @State private var jumpPort: String = "22"
-    @State private var jumpUsername: String = ""
-    @State private var jumpPassword: String = ""
-    @State private var saveJumpPassword: Bool = true  // Save jump host password to Keychain
-    @State private var jumpAuthMethod: AuthType = .key
-    @State private var jumpSelectedKeyID: UUID?
+    // Jump hosts, in connection order
+    @State private var jumpHops: [JumpHostDraft] = []
     
     // Agent forwarding
     @State private var enableAgentForwarding: Bool = false
@@ -497,11 +489,8 @@ struct SSHConnectionView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { connectionToolbar }
-            .onChange(of: useJumpHost) { _, enabled in
-                if enabled && jumpSelectedKeyID == nil {
-                    jumpSelectedKeyID = selectedKeyID
-                }
-                if enabled {
+            .onChange(of: jumpHops.isEmpty) { _, isEmpty in
+                if !isEmpty {
                     isJumpHostExpanded = true
                 }
             }
@@ -830,20 +819,13 @@ struct SSHConnectionView: View {
     
     private var jumpHostDisclosure: some View {
         DisclosureGroup(isExpanded: $isJumpHostExpanded) {
-            JumpHostFormSection(
-                useJumpHost: $useJumpHost,
-                hostname: $jumpHostname,
-                port: $jumpPort,
-                username: $jumpUsername,
-                authMethod: $jumpAuthMethod,
-                password: $jumpPassword,
-                savePassword: $saveJumpPassword,
-                selectedKeyID: $jumpSelectedKeyID
+            JumpHostListSection(
+                hops: $jumpHops,
+                mode: .connection,
+                showsRelay: connectionProtocol == .trzsz,
+                targetName: hostname.trimmingCharacters(in: .whitespacesAndNewlines),
+                defaultDraft: makeDefaultJumpDraft
             )
-            if useJumpHost && connectionProtocol == .trzsz {
-                TSSHRelayForm(settings: $tsshRelay)
-                TSSHRelayAdvancedForm(settings: $tsshRelay)
-            }
         } label: {
             advancedSectionLabel(
                 title: String(localized: "Jump Host"),
@@ -1579,7 +1561,7 @@ struct SSHConnectionView: View {
     
     private var connectionReadinessText: String {
         if isFormValid {
-            return useJumpHost ? "Ready to connect through a jump host." : "Ready to connect."
+            return jumpHops.isEmpty ? "Ready to connect." : "Ready to connect through a jump host."
         }
         
         if hostname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1611,7 +1593,7 @@ struct SSHConnectionView: View {
         }
         
         if isFormValid {
-            return useJumpHost ? String(localized: "Ready via jump host") : String(localized: "Ready")
+            return jumpHops.isEmpty ? String(localized: "Ready") : String(localized: "Ready via jump host")
         }
         
         if hostname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1638,17 +1620,18 @@ struct SSHConnectionView: View {
     }
     
     private var jumpHostSummaryText: String {
-        guard useJumpHost else { return String(localized: "Optional bastion or proxy host") }
-        
-        let host = jumpHostname.trimmingCharacters(in: .whitespacesAndNewlines)
-        let user = jumpUsername.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if host.isEmpty || user.isEmpty {
-            return String(localized: "Jump host enabled")
-        }
-        
-        let portNumber = Int(jumpPort) ?? 22
-        return portNumber == 22 ? "\(user)@\(host)" : "\(user)@\(host):\(portNumber)"
+        guard !jumpHops.isEmpty else { return String(localized: "Optional bastion or proxy host") }
+        let chain = jumpHops.map(\.displayName).joined(separator: " → ")
+        return String(localized: "via \(chain)")
+    }
+
+    /// A new hop starts with the target's username and key.
+    private func makeDefaultJumpDraft() -> JumpHostDraft {
+        JumpHostDraft(
+            username: username.trimmingCharacters(in: .whitespacesAndNewlines),
+            authMethod: .key,
+            selectedKeyID: selectedKeyID ?? sshKeyManager.primaryDefaultKeyID
+        )
     }
     
     private var agentForwardingSummaryText: String {
@@ -1734,13 +1717,8 @@ struct SSHConnectionView: View {
         ConnectionEndpoint(
             host: hostname,
             username: username,
-            usesJumpHost: useJumpHost,
-            jumpHost: jumpHostname,
-            jumpPort: jumpPort,
-            jumpUsername: jumpUsername,
-            jumpAuthMethod: jumpAuthMethod,
-            jumpKeyID: jumpSelectedKeyID,
-            hasHostBoundSecret: !password.isEmpty || !jumpPassword.isEmpty
+            jumpHops: jumpHops,
+            hasHostBoundSecret: !password.isEmpty || jumpHops.contains { !$0.password.isEmpty }
         )
     }
 
@@ -1748,14 +1726,10 @@ struct SSHConnectionView: View {
         hostname = endpoint.host
         username = endpoint.username
 
-        useJumpHost = endpoint.usesJumpHost
-        guard endpoint.usesJumpHost else { return }
-        isJumpHostExpanded = true
-        jumpHostname = endpoint.jumpHost
-        jumpPort = endpoint.jumpPort
-        jumpUsername = endpoint.jumpUsername
-        jumpAuthMethod = endpoint.jumpAuthMethod
-        jumpSelectedKeyID = endpoint.jumpKeyID
+        jumpHops = endpoint.jumpHops
+        if !jumpHops.isEmpty {
+            isJumpHostExpanded = true
+        }
     }
 
     private func selectConnectionType(_ type: ConnectionType) {
@@ -1787,7 +1761,6 @@ struct SSHConnectionView: View {
            sshKeyManager.findKey(id: defaultKeyID) != nil {
             authMethod = .key
             selectedKeyID = defaultKeyID
-            jumpSelectedKeyID = defaultKeyID
         }
         
         if let config = initialConfig {
@@ -1910,35 +1883,8 @@ struct SSHConnectionView: View {
             targetAuthValid = basicValid  // No additional auth validation needed
         }
         
-        // If using jump host, validate jump host fields too
-        if useJumpHost {
-            let jumpBasicValid = !jumpHostname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            !jumpUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            isJumpPortValid
-            
-            let jumpAuthValid: Bool
-            switch jumpAuthMethod {
-            case .password:
-                jumpAuthValid = jumpBasicValid && !jumpPassword.isEmpty
-            case .key:
-                jumpAuthValid = jumpBasicValid && jumpSelectedKeyID != nil
-            case .keyboardInteractive:
-                jumpAuthValid = jumpBasicValid  // Server drives the prompts; no field required
-            case .none:
-                jumpAuthValid = jumpBasicValid  // No additional auth validation needed
-            }
-            
-            return targetAuthValid && jumpAuthValid
-        }
-        
-        return targetAuthValid
-    }
-    
-    private var isJumpPortValid: Bool {
-        if let portNum = Int(jumpPort), portNum > 0 && portNum <= 65535 {
-            return true
-        }
-        return false
+        // Every jump hop must build too
+        return targetAuthValid && jumpHops.allSatisfy { (try? $0.build(sshKeyManager: sshKeyManager)) != nil }
     }
     
     private var isPortValid: Bool {
@@ -1964,23 +1910,9 @@ struct SSHConnectionView: View {
             authType = .none
         }
         
-        let jumpAuthType: SSHAuthType?
-        if useJumpHost {
-            switch jumpAuthMethod {
-            case .password:
-                jumpAuthType = saveJumpPassword ? .savedPassword : .password
-            case .key:
-                let keyID = jumpSelectedKeyID ?? UUID()
-                let fingerprint = SSHKeyManager.shared.findKey(id: keyID)?.fingerprint
-                jumpAuthType = .key(keyID, fingerprint: fingerprint)
-            case .keyboardInteractive:
-                jumpAuthType = .keyboardInteractive
-            case .none:
-                jumpAuthType = SSHAuthType.none
-            }
-        } else {
-            jumpAuthType = nil
-        }
+        let firstHop = jumpHops.first
+        let jumpAuthType = firstHop?.historyAuthType
+        let relays = connectionProtocol == .trzsz
         
         let agentConfig: SSHAgentConfig? = enableAgentForwarding
         ? SSHAgentConfig(
@@ -2015,7 +1947,7 @@ struct SSHConnectionView: View {
         // Build key resolution hints for cross-device key matching
         var keyIDs: [UUID] = []
         if let keyID = authType.keyID { keyIDs.append(keyID) }
-        if let jumpKeyID = jumpAuthType?.keyID { keyIDs.append(jumpKeyID) }
+        keyIDs += jumpHops.compactMap { $0.historyAuthType.keyID }
         let hints = keyIDs.isEmpty ? nil : KeyResolutionHint.hintsDict(forKeyIDs: keyIDs)
 
         var entry = SSHConnectionHistoryEntry(
@@ -2024,9 +1956,9 @@ struct SSHConnectionView: View {
             port: Int(port) ?? 22,
             authType: authType,
             connectionProtocol: connectionProtocol,
-            jumpHost: useJumpHost ? jumpHostname.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
-            jumpPort: useJumpHost ? (Int(jumpPort) ?? 22) : nil,
-            jumpUsername: useJumpHost ? jumpUsername.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+            jumpHost: firstHop?.trimmedHost,
+            jumpPort: firstHop.map { $0.portNumber ?? 22 },
+            jumpUsername: firstHop?.trimmedUsername,
             jumpAuthType: jumpAuthType,
             hssShorthand: currentHSSShorthand,
             agentConfig: agentConfig,
@@ -2050,7 +1982,9 @@ struct SSHConnectionView: View {
                 port: Int(port) ?? 22),
             keyResolutionHints: hints
         )
-        entry.tsshRelay = useJumpHost && connectionProtocol == .trzsz ? tsshRelay : nil
+        entry.tsshRelay = relays ? firstHop?.tsshRelay : nil
+        let extraHops = jumpHops.dropFirst().map { $0.historyHop(relays: relays) }
+        entry.extraJumpHops = extraHops.isEmpty ? nil : extraHops
         return entry
     }
     
@@ -2123,27 +2057,11 @@ struct SSHConnectionView: View {
             cachedIP = nil
         }
         
-        // Build jump host config if enabled (shared builder — same fields
-        // and validation messages as the extracted jump form section)
-        var jumpConfig: SSHConfig.JumpHostConfig?
+        // Build the jump chain; relays only apply to tssh
+        let jumpChain: [SSHConfig.JumpHostConfig]
         do {
-            jumpConfig = try JumpHostFormSection.buildJumpHostConfig(
-                useJumpHost: useJumpHost,
-                hostname: jumpHostname,
-                port: jumpPort,
-                username: jumpUsername,
-                authMethod: jumpAuthMethod,
-                password: jumpPassword,
-                selectedKeyID: jumpSelectedKeyID,
-                sshKeyManager: sshKeyManager
-            )
-            if connectionProtocol == .trzsz, let jump = jumpConfig {
-                var relay = tsshRelay
-                relay?.boundJump = TSSHRelayIdentity(host: jump.host, port: jump.port, username: jump.username)
-                try relay?.validate(host: jump.host, port: jump.port, username: jump.username,
-                    defaultPortMin: TrzszConfig.preferredUDPPortMin, defaultPortMax: TrzszConfig.preferredUDPPortMax)
-                jumpConfig?.tsshRelay = relay
-            }
+            jumpChain = try JumpHostDraft.buildChain(jumpHops, sshKeyManager: sshKeyManager,
+                                                     relays: connectionProtocol == .trzsz)
         } catch {
             errorMessage = (error as? JumpHostFormSection.BuildError)?.message ?? error.localizedDescription
             return
@@ -2225,7 +2143,7 @@ struct SSHConnectionView: View {
             username: trimmedUsername,
             authMethod: resolvedAuthMethod,
             cachedIP: cachedIP,
-            jumpHost: jumpConfig,
+            jumpHost: jumpChain.first,
             hssShorthand: currentHSSShorthand,
             cloudInstanceLabel: selectedCloudInstanceLabel,
             agentConfig: agentConfig,
@@ -2235,6 +2153,7 @@ struct SSHConnectionView: View {
             launchCommand: trimmedLaunchCommand.isEmpty ? nil : trimmedLaunchCommand,
             launchCommandMode: launchCommandMode
         )
+        config.jumpChain = jumpChain
         config.fallbackKeyIDs = fallbackKeyIDs
         config.herdrAutoEnable = enableHerdr
         config.herdrAutoMode = effectiveHerdrAutoMode
@@ -2276,17 +2195,15 @@ struct SSHConnectionView: View {
             )
         }
         
-        // Save jump host password if requested
-        if useJumpHost && jumpAuthMethod == .password && saveJumpPassword && !jumpPassword.isEmpty,
-           let jumpPortNum = Int(jumpPort) {
-            let trimmedJumpHost = jumpHostname.trimmingCharacters(in: .whitespacesAndNewlines)
-            let trimmedJumpUsername = jumpUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Save jump host passwords if requested
+        for hop in jumpHops where hop.authMethod == .password && hop.savePassword && !hop.password.isEmpty {
+            guard let hopPort = hop.portNumber else { continue }
             // Don't block connection on password save failure
             _ = try? SSHPasswordManager.shared.savePassword(
-                jumpPassword,
-                host: trimmedJumpHost,
-                port: jumpPortNum,
-                username: trimmedJumpUsername
+                hop.password,
+                host: hop.trimmedHost,
+                port: hopPort,
+                username: hop.trimmedUsername
             )
         }
         
@@ -2514,24 +2431,22 @@ struct SSHConnectionView: View {
 
         // Update jump host fields if present in quick connect
         if parsed.hasJumpHost {
-            useJumpHost = true
-            jumpHostname = parsed.jumpHost ?? ""
-            jumpUsername = parsed.jumpUsername ?? ""
-            if let parsedJumpPort = parsed.jumpPort {
-                jumpPort = "\(parsedJumpPort)"
-            } else {
-                jumpPort = "22"
-            }
+            // Quick connect names a single hop
+            var hop = jumpHops.first ?? JumpHostDraft()
+            hop.hostname = parsed.jumpHost ?? ""
+            hop.username = parsed.jumpUsername ?? ""
+            hop.port = parsed.jumpPort.map { "\($0)" } ?? "22"
             // Default jump host to same key auth as main connection
-            if authMethod == .key && jumpSelectedKeyID == nil {
-                jumpAuthMethod = .key
-                jumpSelectedKeyID = selectedKeyID
+            if authMethod == .key && hop.selectedKeyID == nil {
+                hop.authMethod = .key
+                hop.selectedKeyID = selectedKeyID
             }
+            jumpHops = [hop]
         } else if !text.lowercased().contains(" via ") {
             // Only reset jump host if user isn't typing "via" syntax
             // This prevents clearing fields while user types
-            if jumpHostname.isEmpty && jumpUsername.isEmpty {
-                useJumpHost = false
+            if jumpHops.count == 1, jumpHops[0].trimmedHost.isEmpty, jumpHops[0].trimmedUsername.isEmpty {
+                jumpHops = []
             }
         }
     }
@@ -2570,20 +2485,17 @@ struct SSHConnectionView: View {
             
             // Populate jump host if detected from ProxyCommand
             if resolution.hasJumpHost {
-                useJumpHost = true
-                jumpHostname = resolution.jumpHost ?? ""
-                jumpPort = "\(resolution.jumpPort)"
-                if let jUser = resolution.jumpUsername {
-                    jumpUsername = jUser
-                } else {
-                    // Default to current system user
-                    jumpUsername = UserPreferences.effectiveUsername
-                }
+                var hop = jumpHops.first ?? JumpHostDraft()
+                hop.hostname = resolution.jumpHost ?? ""
+                hop.port = "\(resolution.jumpPort)"
+                // Default to current system user
+                hop.username = resolution.jumpUsername ?? UserPreferences.effectiveUsername
                 // Default jump host to same key auth as main connection
                 if authMethod == .key {
-                    jumpAuthMethod = .key
-                    jumpSelectedKeyID = selectedKeyID
+                    hop.authMethod = .key
+                    hop.selectedKeyID = selectedKeyID
                 }
+                jumpHops = [hop]
             }
             
         } catch {
@@ -2645,58 +2557,16 @@ struct SSHConnectionView: View {
         
         // Restore jump host settings if present
         if entry.hasJumpHost {
-            useJumpHost = true
-            jumpHostname = entry.jumpHost ?? ""
-            jumpPort = "\(entry.jumpPort ?? 22)"
-            jumpUsername = entry.jumpUsername ?? ""
-            
-            // Restore jump host auth method
-            tsshRelay = entry.tsshRelay
-            if let jumpAuth = entry.jumpAuthType {
-                switch jumpAuth {
-                case .password, .savedPassword:
-                    jumpAuthMethod = .password
-                    jumpPassword = "" // Will check for saved password below
-                case .key(_, _):
-                    // Use enhanced resolution with hints
-                    if let resolvedKey = ConnectionKeyResolver.resolveJumpHostFromHistory(
-                        jumpAuthType: jumpAuth,
-                        hints: entry.keyResolutionHints,
-                        connectionIdentity: entry.connectionIdentity
-                    ) {
-                        jumpAuthMethod = .key
-                        jumpSelectedKeyID = resolvedKey.id
-                    } else {
-                        jumpAuthMethod = .key
-                        jumpSelectedKeyID = nil
-                    }
-                case .keyboardInteractive:
-                    jumpAuthMethod = .keyboardInteractive
-                case .none:
-                    jumpAuthMethod = .none  // Tailscale/WireGuard pre-authenticated
-                case .unknown:
-                    jumpAuthMethod = .none  // Newer app's auth type; shown as None
-                }
+            var hops = JumpHostDraft.drafts(from: entry)
+            // The first hop honours this device's key override
+            if let jumpAuth = entry.jumpAuthType, case .key = jumpAuth, !hops.isEmpty {
+                hops[0].selectedKeyID = ConnectionKeyResolver.resolveJumpHostFromHistory(
+                    jumpAuthType: jumpAuth,
+                    hints: entry.keyResolutionHints,
+                    connectionIdentity: entry.connectionIdentity
+                )?.id
             }
-
-            // Always check for a saved jump host password
-            if jumpAuthMethod == .password {
-                let jumpHost = entry.jumpHost ?? ""
-                let jumpPortNum = entry.jumpPort ?? 22
-                let jumpUser = entry.jumpUsername ?? ""
-                Task {
-                    do {
-                        let savedPassword = try await SSHPasswordManager.shared.loadPassword(
-                            host: jumpHost,
-                            port: jumpPortNum,
-                            username: jumpUser
-                        )
-                        self.jumpPassword = savedPassword
-                    } catch {
-                        // No saved password or load failed - leave empty for user to enter
-                    }
-                }
-            }
+            jumpHops = hops
         }
         
         // Restore agent forwarding settings if present
@@ -2803,54 +2673,8 @@ struct SSHConnectionView: View {
             }
         }
         
-        // Set jump host settings if present
-        tsshRelay = config.jumpHost?.tsshRelay
-        if let jumpConfig = config.jumpHost {
-            useJumpHost = true
-            jumpHostname = jumpConfig.host
-            jumpPort = "\(jumpConfig.port)"
-            jumpUsername = jumpConfig.username
-            
-            switch jumpConfig.authMethod {
-            case .password, .savedPassword:
-                jumpAuthMethod = .password
-                jumpPassword = "" // Will check for saved password below
-            case .key(let keyID):
-                if sshKeyManager.findKey(id: keyID) != nil {
-                    jumpAuthMethod = .key
-                    jumpSelectedKeyID = keyID
-                } else {
-                    jumpAuthMethod = .password
-                }
-            case .keyboardInteractive:
-                jumpAuthMethod = .keyboardInteractive
-            case .none:
-                jumpAuthMethod = .none  // Tailscale/WireGuard pre-authenticated
-            case .unknown:
-                jumpAuthMethod = .none  // Newer app's auth type; shown as None
-            }
-
-            // Always check for a saved jump host password
-            if jumpAuthMethod == .password {
-                let jumpHost = jumpConfig.host
-                let jumpPortNum = jumpConfig.port
-                let jumpUser = jumpConfig.username
-                Task {
-                    do {
-                        let savedPassword = try await SSHPasswordManager.shared.loadPassword(
-                            host: jumpHost,
-                            port: jumpPortNum,
-                            username: jumpUser
-                        )
-                        self.jumpPassword = savedPassword
-                    } catch {
-                        // No saved password or load failed - leave empty for user to enter
-                    }
-                }
-            }
-        } else {
-            useJumpHost = false
-        }
+        // Set jump host settings if present; saved hop passwords stay in the Keychain
+        jumpHops = config.jumpChain.map { JumpHostDraft(config: $0, hints: config.keyResolutionHints) }
         
         // Set agent forwarding settings
         enableAgentForwarding = config.agentConfig.enabled

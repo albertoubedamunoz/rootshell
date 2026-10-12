@@ -125,6 +125,8 @@ nonisolated struct VPNHostInfoResponse: Codable, Sendable {
     var supportsTailscale: Bool? = nil
     /// Sysext can export and import Tailscale node state (one device across modes).
     var supportsTailnetStateHandoff: Bool? = nil
+    /// Sysext connects through every jump host, not just the first.
+    var supportsMultiHopJump: Bool? = nil
     let version: String
     let bundlePath: String
 }

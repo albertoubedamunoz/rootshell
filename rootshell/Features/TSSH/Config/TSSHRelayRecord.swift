@@ -10,7 +10,10 @@ struct TSSHRelayRecord: CloudKitSyncable, Sendable {
     let id: UUID
     let owner: Owner
     let ownerKey: String
+    /// Hop 1. Older builds read only this, so it stays a field of its own.
     var settings: TSSHRelaySettings?
+    /// Relay hops after the first, in order.
+    var extraHopSettings: [TSSHRelaySettings]?
     var modifiedAt: Date
     var isDeleted: Bool = false
     var syncedRevision: Date?
@@ -25,18 +28,24 @@ struct TSSHRelayRecord: CloudKitSyncable, Sendable {
                            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
-    init(owner: Owner, key: String, settings: TSSHRelaySettings?, modifiedAt: Date = Date()) {
+    init(owner: Owner, key: String, relays: [TSSHRelaySettings], modifiedAt: Date = Date()) {
         self.id = Self.identity(owner: owner, key: key)
         self.owner = owner
         self.ownerKey = key
-        self.settings = settings
+        self.settings = relays.first
+        self.extraHopSettings = relays.count > 1 ? Array(relays.dropFirst()) : nil
         self.modifiedAt = modifiedAt
+    }
+
+    /// Every relay hop in order; empty when relaying is off.
+    var relays: [TSSHRelaySettings] {
+        settings.map { [$0] + (extraHopSettings ?? []) } ?? []
     }
 
     // Preserve subsecond revision ordering even in the file store, whose
     // shared ISO-8601 Date strategy otherwise rounds timestamps to seconds.
     private enum CodingKeys: String, CodingKey {
-        case id, owner, ownerKey, settings, modifiedAt, isDeleted, syncedRevision
+        case id, owner, ownerKey, settings, extraHopSettings, modifiedAt, isDeleted, syncedRevision
     }
 
     init(from decoder: Decoder) throws {
@@ -45,6 +54,7 @@ struct TSSHRelayRecord: CloudKitSyncable, Sendable {
         owner = try c.decode(Owner.self, forKey: .owner)
         ownerKey = try c.decode(String.self, forKey: .ownerKey)
         settings = try c.decodeIfPresent(TSSHRelaySettings.self, forKey: .settings)
+        extraHopSettings = (try? c.decodeIfPresent([TSSHRelaySettings].self, forKey: .extraHopSettings)) ?? nil
         modifiedAt = Date(timeIntervalSince1970: try c.decode(Double.self, forKey: .modifiedAt))
         isDeleted = try c.decodeIfPresent(Bool.self, forKey: .isDeleted) ?? false
         syncedRevision = try c.decodeIfPresent(Double.self, forKey: .syncedRevision).map(Date.init(timeIntervalSince1970:))
@@ -56,6 +66,7 @@ struct TSSHRelayRecord: CloudKitSyncable, Sendable {
         try c.encode(owner, forKey: .owner)
         try c.encode(ownerKey, forKey: .ownerKey)
         try c.encodeIfPresent(settings, forKey: .settings)
+        try c.encodeIfPresent(extraHopSettings, forKey: .extraHopSettings)
         try c.encode(modifiedAt.timeIntervalSince1970, forKey: .modifiedAt)
         try c.encode(isDeleted, forKey: .isDeleted)
         try c.encodeIfPresent(syncedRevision?.timeIntervalSince1970, forKey: .syncedRevision)

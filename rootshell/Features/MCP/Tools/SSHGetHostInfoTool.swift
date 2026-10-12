@@ -98,6 +98,9 @@ struct SSHGetHostInfoTool: MCPTool {
             }
 
             info["jumpHost"] = jumpInfo
+            if let extra = entry.extraJumpHops, !extra.isEmpty {
+                info["extraJumpHosts"] = extra.map { ["host": $0.host, "port": $0.port, "username": $0.username] as [String: Any] }
+            }
         }
 
         // Cached IP for .local hostnames

@@ -168,7 +168,7 @@ final class TerminalSessionController {
         }
 
         if case .ssh(let sshConfig) = host.terminalConnectionConfig,
-           sshConfig.authMethod.isSavedPassword || sshConfig.jumpHost?.authMethod.isSavedPassword == true {
+           sshConfig.authMethod.isSavedPassword || sshConfig.jumpChain.contains(where: { $0.authMethod.isSavedPassword }) {
             resolveSavedPasswordAndRetry(for: sshConfig)
             return true
         }
@@ -262,36 +262,11 @@ final class TerminalSessionController {
         }
 
         func checkSSHPasswordAndUpdate(_ sshConfig: inout SSHConfig) -> Bool {
-            if case .password(let pwd) = sshConfig.authMethod, pwd.isEmpty {
-                if SSHPasswordManager.shared.hasPassword(
-                    host: sshConfig.host,
-                    port: sshConfig.port,
-                    username: sshConfig.username
-                ) {
-                    sshConfig.authMethod = .savedPassword
-                } else {
-                    Ghostty.logger.info("SSH requires password - showing overlay")
-                    host.terminalRestorationState = .needsPassword(sshConfig)
-                    return false
-                }
-            }
-
-            if let jump = sshConfig.jumpHost,
-               case .password(let pwd) = jump.authMethod,
-               pwd.isEmpty {
-                if SSHPasswordManager.shared.hasPassword(
-                    host: jump.host,
-                    port: jump.port,
-                    username: jump.username
-                ) {
-                    var updatedJump = jump
-                    updatedJump.authMethod = .savedPassword
-                    sshConfig.jumpHost = updatedJump
-                } else {
-                    Ghostty.logger.info("SSH jump host requires password - showing overlay")
-                    host.terminalRestorationState = .needsPassword(sshConfig)
-                    return false
-                }
+            guard TerminalRestorationReconnector.fillSavedPasswords(&sshConfig) else {
+                // Password entry resumes from this config, keeping the saved-password fills.
+                Ghostty.logger.info("SSH requires password - showing overlay")
+                host.terminalRestorationState = .needsPassword(sshConfig)
+                return false
             }
             return true
         }
@@ -347,9 +322,10 @@ final class TerminalSessionController {
             fallbackConfig.authMethod = .password("")
         }
 
-        if var jump = fallbackConfig.jumpHost, jump.authMethod.isSavedPassword {
-            jump.authMethod = .password("")
-            fallbackConfig.jumpHost = jump
+        fallbackConfig.jumpChain = fallbackConfig.jumpChain.map { jump in
+            var jump = jump
+            if jump.authMethod.isSavedPassword { jump.authMethod = .password("") }
+            return jump
         }
 
         if host.terminalRestorationState == .pendingReconnection || host.terminalRestorationState == .connectingFromRestore {

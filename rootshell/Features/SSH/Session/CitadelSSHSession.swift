@@ -198,7 +198,8 @@ final class CitadelSSHSession: SSHTerminalSession {
             hostKeyAlgorithm: negotiatedHostKey,
             cipherAlgorithm: negotiatedCipher,
             macAlgorithm: negotiatedMac,
-            agentForwardingEnabled: config.agentConfig.enabled
+            agentForwardingEnabled: config.agentConfig.enabled,
+            extraJumpHops: (config.extraJumpHosts ?? []).map { "\($0.host):\($0.port)" }
         ))
     }
 
@@ -281,7 +282,7 @@ final class CitadelSSHSession: SSHTerminalSession {
     private func formatConnectionInfoForEcho() -> String {
         var lines: [String] = []
         lines.append("\(config.username)@\(config.host):\(config.port)")
-        if let jump = config.jumpHost {
+        for jump in config.jumpChain {
             lines.append("via: \(jump.username)@\(jump.host):\(jump.port)")
         }
         if let kex = negotiatedKeyExchange { lines.append("kex:    \(kex)") }
@@ -320,7 +321,7 @@ final class CitadelSSHSession: SSHTerminalSession {
         SSHDebugLogger.shared.logMarker(
             "SSH START host=\(config.host) port=\(config.port) user=\(config.username) (Citadel path)"
         )
-        if let jump = config.jumpHost {
+        for jump in config.jumpChain {
             SSHDebugLogger.shared.event(
                 "CONN",
                 "jump host configured: \(jump.username)@\(jump.host):\(jump.port)"
@@ -604,6 +605,19 @@ final class CitadelSSHSession: SSHTerminalSession {
             // Signal jump host connected, now connecting to target
             transition(to: .authenticating(host: jumpConfig.host, isJumpHost: true))
 
+            // Later hops ride child channels of the first; closing it tears them all down.
+            let lastHop = try await SSHConnectionHelper.jumpThrough(
+                config.extraJumpHosts ?? [], from: jumpClientConnection,
+                auth: { hop in
+                    self.transition(to: .connecting(host: hop.host, isJumpHost: true))
+                    SSHDebugLogger.shared.event("CONN", "dialing jump host \(hop.username)@\(hop.host):\(hop.port)")
+                    return try await self.buildAuthMethod(for: hop)
+                },
+                hostKeyValidator: { hop, hopNumber in
+                    self.buildHostKeyValidator(for: hop.host, port: hop.port, label: "[Jump Host \(hopNumber)]")
+                }
+            ).last ?? jumpClientConnection
+
             Self.logger.info("Jump host connected, creating tunnel to target")
             SSHDebugLogger.shared.event(
                 "CONN",
@@ -646,7 +660,7 @@ final class CitadelSSHSession: SSHTerminalSession {
             let jumpClientBox = CancellationSSHClientBox(jumpClientConnection)
             do {
                 finalClient = try await withTaskCancellationHandler {
-                    try await jumpClientConnection.jump(to: targetSettings)
+                    try await lastHop.jump(to: targetSettings)
                 } onCancel: {
                     Task { try? await jumpClientBox.client.close() }
                 }

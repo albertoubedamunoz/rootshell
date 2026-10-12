@@ -147,6 +147,8 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         let authMethod: AuthMethodSafe
         let cachedIP: String?
         let jumpHost: JumpHostConfigSafe?
+        /// Hops after `jumpHost`. Optional for backward compat.
+        let extraJumpHosts: [JumpHostConfigSafe]?
         let hssShorthand: String?
         let cloudInstanceLabel: String?
         let agentConfig: SSHAgentConfig
@@ -194,6 +196,63 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             let port: Int
             let username: String
             let authMethod: AuthMethodSafe
+
+            init(tsshRelay: TSSHRelaySettings? = nil, host: String, port: Int, username: String, authMethod: AuthMethodSafe) {
+                self.tsshRelay = tsshRelay
+                self.host = host
+                self.port = port
+                self.username = username
+                self.authMethod = authMethod
+            }
+
+            init(_ jump: SSHConfig.JumpHostConfig) {
+                let jumpAuth: AuthMethodSafe
+                switch jump.authMethod {
+                case .password:
+                    jumpAuth = .passwordRequired
+                case .savedPassword:
+                    jumpAuth = .passwordRequired  // Saved password still requires password entry when restoring
+                case .key(let id):
+                    jumpAuth = .key(id)
+                case .none:
+                    jumpAuth = .none
+                case .keyboardInteractive, .unknown:
+                    jumpAuth = .passwordRequired
+                }
+                self.init(tsshRelay: jump.tsshRelay, host: jump.host, port: jump.port,
+                          username: jump.username, authMethod: jumpAuth)
+            }
+
+            /// Password left empty; key hops get the default keys as fallbacks.
+            @MainActor
+            func toJumpHostConfig() -> SSHConfig.JumpHostConfig {
+                let jumpAuth: SSHConfig.AuthMethod
+                switch authMethod {
+                case .passwordRequired:
+                    jumpAuth = .password("")
+                case .key(let id):
+                    jumpAuth = .key(id)
+                case .none:
+                    jumpAuth = .none
+                }
+
+                let jumpFallbackIDs: [UUID]?
+                if case .key(let keyID) = jumpAuth {
+                    jumpFallbackIDs = SSHKeyManager.shared.defaultKeyIDs.filter { $0 != keyID }
+                } else {
+                    jumpFallbackIDs = nil
+                }
+
+                var config = SSHConfig.JumpHostConfig(
+                    host: host,
+                    port: port,
+                    username: username,
+                    authMethod: jumpAuth,
+                    fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
+                )
+                config.tsshRelay = tsshRelay
+                return config
+            }
         }
 
         init(from config: SSHConfig) {
@@ -235,31 +294,9 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
                 self.authMethod = .passwordRequired
             }
 
-            // Convert jump host if present
-            if let jump = config.jumpHost {
-                let jumpAuth: AuthMethodSafe
-                switch jump.authMethod {
-                case .password:
-                    jumpAuth = .passwordRequired
-                case .savedPassword:
-                    jumpAuth = .passwordRequired  // Saved password still requires password entry when restoring
-                case .key(let id):
-                    jumpAuth = .key(id)
-                case .none:
-                    jumpAuth = .none
-                case .keyboardInteractive, .unknown:
-                    jumpAuth = .passwordRequired
-                }
-                self.jumpHost = JumpHostConfigSafe(
-                    tsshRelay: jump.tsshRelay,
-                    host: jump.host,
-                    port: jump.port,
-                    username: jump.username,
-                    authMethod: jumpAuth
-                )
-            } else {
-                self.jumpHost = nil
-            }
+            // Convert jump hosts if present
+            self.jumpHost = config.jumpHost.map { JumpHostConfigSafe($0) }
+            self.extraJumpHosts = config.jumpHost.flatMap { _ in config.extraJumpHosts?.map { JumpHostConfigSafe($0) } }
         }
 
         /// Convert back to SSHConfig, leaving password empty.
@@ -307,32 +344,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
             config.initialDirectory = initialDirectory
 
             if let jump = jumpHost {
-                let jumpAuth: SSHConfig.AuthMethod
-                switch jump.authMethod {
-                case .passwordRequired:
-                    jumpAuth = .password("")
-                case .key(let id):
-                    jumpAuth = .key(id)
-                case .none:
-                    jumpAuth = .none
-                }
-
-                // Build fallback keys for jump host
-                let jumpFallbackIDs: [UUID]?
-                if case .key(let keyID) = jumpAuth {
-                    jumpFallbackIDs = SSHKeyManager.shared.defaultKeyIDs.filter { $0 != keyID }
-                } else {
-                    jumpFallbackIDs = nil
-                }
-
-                config.jumpHost = SSHConfig.JumpHostConfig(
-                    host: jump.host,
-                    port: jump.port,
-                    username: jump.username,
-                    authMethod: jumpAuth,
-                    fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
-                )
-                config.jumpHost?.tsshRelay = jump.tsshRelay
+                config.jumpChain = [jump.toJumpHostConfig()] + (extraJumpHosts ?? []).map { $0.toJumpHostConfig() }
             }
 
             return config
@@ -341,14 +353,16 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         /// Whether this config needs a password to be entered before connecting
         var needsPassword: Bool {
             if case .passwordRequired = authMethod { return true }
-            if let jump = jumpHost, case .passwordRequired = jump.authMethod { return true }
-            return false
+            return jumpHostNeedsPassword
         }
 
-        /// Whether the jump host specifically needs a password
+        /// Whether any jump host specifically needs a password
         var jumpHostNeedsPassword: Bool {
-            if let jump = jumpHost, case .passwordRequired = jump.authMethod { return true }
-            return false
+            jumpChainSafe.contains { if case .passwordRequired = $0.authMethod { return true }; return false }
+        }
+
+        private var jumpChainSafe: [JumpHostConfigSafe] {
+            jumpHost.map { [$0] + (extraJumpHosts ?? []) } ?? []
         }
 
         /// Whether the target host specifically needs a password

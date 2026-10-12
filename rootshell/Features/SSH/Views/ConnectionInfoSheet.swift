@@ -397,7 +397,10 @@ struct ConnectionInfoSheet: View {
             liveDurationRow(since: info.connectedAt)
             if let jumpHost = info.jumpHost {
                 let jumpPort = info.jumpPort.map { ":\($0)" } ?? ""
-                infoRow("Jump Host", value: "\(jumpHost)\(jumpPort)")
+                infoRow(info.extraJumpHops.isEmpty ? "Jump Host" : "Jump Host 1", value: "\(jumpHost)\(jumpPort)")
+                ForEach(Array(info.extraJumpHops.enumerated()), id: \.offset) { offset, hop in
+                    infoRow("Jump Host \(offset + 2)", value: hop)
+                }
             }
             #if !CHINA_BUILD
             if info.jumpHost == nil, let route = Self.tailnetRoute(info) {

@@ -354,6 +354,59 @@ enum SSHConnectionHelper {
         HostCAManager.shared.hasCA(forHost: host) ? [.advertiseHostCertificateAlgorithms] : []
     }
 
+    // MARK: - Jump Chain
+
+    /// Jumps from a connected first hop through `hops` (the chain after hop 1) and
+    /// returns each hop's client in order. Every hop rides a DirectTCPIP child of
+    /// `first`, so closing `first` tears down the whole chain; the caller keeps owning it.
+    static func jumpThrough(
+        _ hops: [SSHConfig.JumpHostConfig],
+        from first: SSHClient,
+        auth: (SSHConfig.JumpHostConfig) async throws -> SSHAuthenticationMethod,
+        hostKeyValidator: (SSHConfig.JumpHostConfig, _ hopNumber: Int) async -> SSHHostKeyValidator
+    ) async throws -> [SSHClient] {
+        var clients: [SSHClient] = []
+        let firstBox = CancellationSSHClientBox(first)
+        for (offset, hop) in hops.enumerated() {
+            let hopNumber = offset + 2
+            logger.info("Jumping to hop \(hopNumber): \(hop.host):\(hop.port)")
+            let hopAuth = try await auth(hop)
+            var settings = SSHClientSettings(
+                host: hop.host,
+                port: hop.port,
+                authenticationMethod: { hopAuth },
+                hostKeyValidator: await hostKeyValidator(hop, hopNumber)
+            )
+            settings.algorithms = .all
+            settings.loginTimeout = SSHTimeoutConfig.citadelLoginTimeout
+            settings.protocolOptions = hostCertificateProtocolOptions(forHost: hop.host)
+            let current = clients.last ?? first
+            let next = try await withTaskCancellationHandler {
+                try await current.jump(to: settings)
+            } onCancel: {
+                Task { try? await firstBox.client.close() }
+            }
+            if Task.isCancelled { throw CancellationError() }
+            clients.append(next)
+        }
+        // NIO owns each hop's channel, so dropping an intermediate client doesn't close it.
+        return clients
+    }
+
+    /// `jumpThrough` with the shared auth and host-key builders.
+    static func jumpThrough(
+        _ hops: [SSHConfig.JumpHostConfig],
+        from first: SSHClient,
+        onHostKeyValidation: ((HostKeyValidationRequest) async -> HostKeyValidationResult)?,
+        onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)? = nil
+    ) async throws -> [SSHClient] {
+        try await jumpThrough(hops, from: first, auth: { hop in
+            try await buildAuthMethod(for: hop, onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge)
+        }, hostKeyValidator: { hop, hopNumber in
+            buildHostKeyValidator(for: hop.host, port: hop.port, label: "[Jump Host \(hopNumber)]", onValidation: onHostKeyValidation)
+        })
+    }
+
     // MARK: - SSH Connection
 
     /// Connect to an SSH host with full support for jump hosts, .local resolution, and CGNAT detection.
@@ -458,6 +511,12 @@ enum SSHConnectionHelper {
                 throw CancellationError()
             }
 
+            let lastHop = try await jumpThrough(
+                config.extraJumpHosts ?? [], from: jumpClient,
+                onHostKeyValidation: onHostKeyValidation,
+                onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge
+            ).last ?? jumpClient
+
             // Jump to target — can throw before reaching the do/catch below.
             let targetAuth = try await buildAuthMethod(for: config, onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge)
             let targetHostKeyValidator = buildHostKeyValidator(
@@ -480,7 +539,7 @@ enum SSHConnectionHelper {
             let finalClient: SSHClient
             do {
                 finalClient = try await withTaskCancellationHandler {
-                    try await jumpClient.jump(to: targetSettings)
+                    try await lastHop.jump(to: targetSettings)
                 } onCancel: {
                     Task { try? await jumpClientBox.client.close() }
                 }

@@ -120,9 +120,7 @@ struct ReconnectionOverlayView: View {
 
     private func passwordPrompt(for config: SSHConfig) -> String {
         // Check if it's jump host or target that needs password
-        if let jump = config.jumpHost,
-           case .password(let pwd) = jump.authMethod,
-           pwd.isEmpty {
+        if let jump = config.jumpChain.first(where: { if case .password(let pwd) = $0.authMethod { return pwd.isEmpty }; return false }) {
             let userHost = "\(jump.username)@\(jump.host)"
             return String(localized: "Enter password for jump host \(userHost)", comment: "Password prompt for jump host reconnection")
         }

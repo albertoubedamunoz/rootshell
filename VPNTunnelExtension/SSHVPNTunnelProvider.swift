@@ -221,6 +221,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         var config = try VPNTunnelConfig(snapshot: resolved.snapshot)
         config.resolvedCredential = resolved.credential
         config.jumpResolvedCredential = resolved.jumpCredential
+        config.extraJumpResolvedCredentials = resolved.extraJumpCredentials
         let tailnetResolved = resolved.tailnet
         debugLog.endPhase("loadProfile", "OK")
 #else
@@ -1101,7 +1102,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         }
 
         let authMethod = config.sshAuth.method.rawValue
-        let hasJumpHost = config.jumpHostConfig != nil
+        let hasJumpHost = !config.jumpChain.isEmpty
 
         do {
             debugLog.beginPhase("sshConnect", "Connecting to \(config.sshHost):\(config.sshPort) user=\(config.sshUsername) auth=\(authMethod) jumpHost=\(hasJumpHost) (with bounded retry)...")
@@ -1221,12 +1222,15 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         // universally supported and avoids IPv4/IPv6 mismatch between SSH and UDP.
         let host = config.sshHost
         debugLog.beginPhase("dnsResolution", "Resolving \(host) (IPv4 preferred)...")
-        let relaySettings = config.jumpHostConfig?.tsshRelay
-        let resolvedHost = relaySettings == nil ? await resolveHostPreferIPv4(host) : host
+        // Relays run unbroken from hop 1; each later relay is reached through the previous one.
+        let relayHops = Array(config.jumpChain.prefix { $0.tsshRelay != nil })
+        let resolvedHost = relayHops.isEmpty ? await resolveHostPreferIPv4(host) : host
         let resolvedJump: String?
-        if let jump = config.jumpHostConfig, let relaySettings {
-            try relaySettings.validate(host: jump.host, port: jump.port, username: jump.username,
-                                       defaultPortMin: 61000, defaultPortMax: 61999)
+        if let jump = relayHops.first {
+            for hop in relayHops {
+                try hop.tsshRelay?.validate(host: hop.host, port: hop.port, username: hop.username,
+                                            defaultPortMin: 61000, defaultPortMax: 61999)
+            }
             resolvedJump = await resolveHostPreferIPv4(jump.host)
             relayEndpoint = resolvedJump
         } else { resolvedJump = nil }
@@ -1235,7 +1239,7 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
 
         // Step 1: SSH to the server using the resolved IP
         let authMethod = config.sshAuth.method.rawValue
-        let hasJumpHost = config.jumpHostConfig != nil
+        let hasJumpHost = !config.jumpChain.isEmpty
         debugLog.beginPhase("sshConnect", "Connecting to \(resolvedHost):\(config.sshPort) user=\(config.sshUsername) auth=\(authMethod) jumpHost=\(hasJumpHost) (with bounded retry)...")
         // Bounded retry on transient connection failures, up to ~5 minutes.
         // Per-attempt loginTimeout ramps so the first attempt fails fast
@@ -1296,24 +1300,41 @@ class SSHVPNTunnelProvider: NEPacketTunnelProvider {
         let serverInfo: VPNTunnelConfig.TSSHServerInfo
         var targetMTU = config.trzszMTU ?? 1400
         do {
-            if let jump = connResult.jumpClient, let relaySettings, let resolvedJump {
-                let outer = try await spawnTsshd(
-                    sshClient: jump, mode: config.trzszMode ?? "KCP",
-                    udpPortMin: relaySettings.udpPortMin ?? 61000,
-                    udpPortMax: relaySettings.udpPortMax ?? 61999,
-                    mtu: config.trzszMTU, serverPath: relaySettings.serverPath,
-                    attachable: true
-                )
-                let json = try config.toGoConfigJSON(tsshServerInfo: outer, resolvedHost: resolvedJump, relayRequired: false)
-                var relayError: NSError?
-                guard let relay = VpntunnelPrepareRelay(json, &relayError) else {
-                    throw relayError ?? NSError(domain: "TSSHRelay", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot connect UDP to the jump host. Check its tsshd installation and UDP range."])
+            if !relayHops.isEmpty {
+                guard connResult.hopClients.count >= relayHops.count, let resolvedJump else {
+                    throw TSSHRelayConfigurationError("The tssh jump relay was requested but no jump SSH connection is available.")
                 }
-                // Retain immediately so all following failures close it.
-                sshStateLock.withLock { preparedRelay = relay }
-                try relay.effectiveMTU(targetMTU, mode: config.trzszMode ?? "KCP", ret0_: &targetMTU)
-            } else if relaySettings != nil {
-                throw TSSHRelayConfigurationError("The tssh jump relay was requested but no jump SSH connection is available.")
+                let mode = config.trzszMode ?? "KCP"
+                for (index, hop) in relayHops.enumerated() {
+                    guard let relaySettings = hop.tsshRelay else { break }
+                    // Hop 1 keeps the configured MTU; later hops spawn at the parent's budget.
+                    let hopMTU = index == 0 ? config.trzszMTU : targetMTU
+                    let outer = try await spawnTsshd(
+                        sshClient: connResult.hopClients[index], mode: mode,
+                        udpPortMin: relaySettings.udpPortMin ?? 61000,
+                        udpPortMax: relaySettings.udpPortMax ?? 61999,
+                        mtu: hopMTU, serverPath: relaySettings.serverPath,
+                        attachable: true
+                    )
+                    var relayError: NSError?
+                    let relay: VpntunnelRelay?
+                    if index == 0 {
+                        let json = try config.toGoConfigJSON(tsshServerInfo: outer, resolvedHost: resolvedJump, relayRequired: false)
+                        relay = VpntunnelPrepareRelay(json, &relayError)
+                    } else {
+                        // The parent relay's tsshd resolves this hop's name.
+                        let json = try config.toGoConfigJSON(tsshServerInfo: outer, resolvedHost: hop.host,
+                                                             transportMTU: hopMTU, relayRequired: false)
+                        relay = VpntunnelPrepareRelayVia(json, sshStateLock.withLock { preparedRelay }, &relayError)
+                    }
+                    guard let relay else {
+                        throw relayError ?? NSError(domain: "TSSHRelay", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot connect UDP to jump host \(hop.host). Check its tsshd installation and UDP range."])
+                    }
+                    // Retain immediately so all following failures close it; it owns its parents.
+                    sshStateLock.withLock { preparedRelay = relay }
+                    try relay.effectiveMTU(targetMTU, mode: mode, ret0_: &targetMTU)
+                    if runningStateLock.withLock({ stopRequested }) { throw CancellationError() }
+                }
             }
             if runningStateLock.withLock({ stopRequested }) { throw CancellationError() }
             let mode = config.trzszMode ?? "KCP"

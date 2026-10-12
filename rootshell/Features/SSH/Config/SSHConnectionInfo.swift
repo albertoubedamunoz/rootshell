@@ -21,6 +21,8 @@ struct SSHConnectionInfo: Sendable {
     let cipherAlgorithm: String?
     let macAlgorithm: String?
     let agentForwardingEnabled: Bool
+    /// Hops after `jumpHost` as "host:port", in connection order.
+    var extraJumpHops: [String] = []
 
     /// Whether the negotiated key exchange uses a post-quantum KEM.
     /// This is what protects against "store now, decrypt later" attacks —

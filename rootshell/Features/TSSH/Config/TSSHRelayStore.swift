@@ -16,20 +16,29 @@ final class TSSHRelayStore {
 
     /// Seed a companion when importing a new backup. A legacy import lacking
     /// relay fields never clears an existing independently synced preference.
+    func seed(owner: TSSHRelayRecord.Owner, key: String, relays: [TSSHRelaySettings], modifiedAt: Date) throws {
+        guard record(owner: owner, key: key) == nil, !relays.isEmpty else { return }
+        let value = TSSHRelayRecord(owner: owner, key: key, relays: relays, modifiedAt: modifiedAt)
+        try store.save(value, updateTimestamp: false, notifySync: false)
+        onLocalChange?(value, .update)
+    }
+
     func seed(owner: TSSHRelayRecord.Owner, key: String, settings: TSSHRelaySettings?, modifiedAt: Date) throws {
-        guard record(owner: owner, key: key) == nil, let settings else { return }
-        let value = TSSHRelayRecord(owner: owner, key: key, settings: settings, modifiedAt: modifiedAt)
+        try seed(owner: owner, key: key, relays: settings.map { [$0] } ?? [], modifiedAt: modifiedAt)
+    }
+
+    /// Records the relay hops in order; an empty chain clears relaying.
+    func update(owner: TSSHRelayRecord.Owner, key: String, relays: [TSSHRelaySettings]) throws {
+        let existing = record(owner: owner, key: key)
+        guard existing?.relays != relays || existing?.isDeleted == true else { return }
+        guard !relays.isEmpty || existing != nil else { return }
+        let value = TSSHRelayRecord(owner: owner, key: key, relays: relays)
         try store.save(value, updateTimestamp: false, notifySync: false)
         onLocalChange?(value, .update)
     }
 
     func update(owner: TSSHRelayRecord.Owner, key: String, settings: TSSHRelaySettings?) throws {
-        let existing = record(owner: owner, key: key)
-        guard existing?.settings != settings || existing?.isDeleted == true else { return }
-        guard settings != nil || existing != nil else { return }
-        let value = TSSHRelayRecord(owner: owner, key: key, settings: settings)
-        try store.save(value, updateTimestamp: false, notifySync: false)
-        onLocalChange?(value, .update)
+        try update(owner: owner, key: key, relays: settings.map { [$0] } ?? [])
     }
 
     func applyRemote(_ incoming: TSSHRelayRecord) throws {
@@ -42,7 +51,7 @@ final class TSSHRelayStore {
 
     func markSynced(_ value: TSSHRelayRecord) throws {
         guard var current = store.record(for: value.id), current.modifiedAt == value.modifiedAt,
-              current.settings == value.settings, current.isDeleted == value.isDeleted else { return }
+              current.relays == value.relays, current.isDeleted == value.isDeleted else { return }
         current.syncedRevision = value.modifiedAt
         try store.save(current, updateTimestamp: false, notifySync: false)
     }

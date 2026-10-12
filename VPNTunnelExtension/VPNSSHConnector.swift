@@ -28,6 +28,8 @@ nonisolated enum VPNSSHConnector {
     struct ConnectionResult {
         let client: SSHClient
         let jumpClient: SSHClient?
+        /// Every jump hop's client in order; [0] is jumpClient.
+        var hopClients: [SSHClient] = []
     }
 
     // DO NOT set .maximumPacketSize in protocol options. NIO SSH uses the same
@@ -120,27 +122,20 @@ nonisolated enum VPNSSHConnector {
             compact: config.compactChannelWindows
         )
 
-        if let jump = config.jumpHostConfig {
-            logger.info("Connecting via jump host: \(jump.host)")
+        let chain = config.jumpChain
+        if let jump = chain.first {
+            logger.info("Connecting via \(chain.count) jump host(s), first: \(jump.host)")
 
-            let jumpValidator = try pinnedValidator(
-                host: jump.host,
-                port: jump.port,
-                pinned: jump.pinnedHostKey,
-                trustedCAKeys: jump.trustedCAKeys
-            )
-            let jumpProtocolOptions = protocolOptions(
-                advertisingHostCertificates: !(jump.trustedCAKeys ?? []).isEmpty,
-                compact: config.compactChannelWindows
-            )
-
-            let jumpAuth = try buildAuthMethod(
-                username: jump.username,
-                host: jump.host,
-                port: jump.port,
-                auth: jump.auth,
-                resolved: config.jumpResolvedCredential
-            )
+            // Every hop's validator and auth before any dial, like the target's.
+            let hops = try chain.enumerated().map { index, hop in
+                (config: hop,
+                 validator: try pinnedValidator(host: hop.host, port: hop.port,
+                                                pinned: hop.pinnedHostKey, trustedCAKeys: hop.trustedCAKeys),
+                 protocolOptions: protocolOptions(advertisingHostCertificates: !(hop.trustedCAKeys ?? []).isEmpty,
+                                                  compact: config.compactChannelWindows),
+                 auth: try buildAuthMethod(username: hop.username, host: hop.host, port: hop.port,
+                                           auth: hop.auth, resolved: config.jumpResolvedCredential(at: index)))
+            }
 
             let loginTimeoutSec = Double(loginTimeout.nanoseconds) / 1_000_000_000
             debugLog.beginPhase("sshJumpHost", "Connecting to jump host \(jump.host):\(jump.port) user=\(jump.username) auth=\(jump.auth.method.rawValue) loginTimeout=\(loginTimeoutSec)s...")
@@ -149,11 +144,11 @@ nonisolated enum VPNSSHConnector {
                 jumpClient = try await SSHClient.connect(
                     host: resolvedJumpHost ?? jump.host,
                     port: jump.port,
-                    authenticationMethod: jumpAuth,
-                    hostKeyValidator: jumpValidator,
+                    authenticationMethod: hops[0].auth,
+                    hostKeyValidator: hops[0].validator,
                     reconnect: .never,
                     algorithms: .all,
-                    protocolOptions: jumpProtocolOptions,
+                    protocolOptions: hops[0].protocolOptions,
                     group: group,
                     loginTimeout: loginTimeout
                 )
@@ -162,6 +157,31 @@ nonisolated enum VPNSSHConnector {
                 throw error
             }
             debugLog.endPhase("sshJumpHost", "OK")
+
+            // Later hops ride DirectTCPIP children of jumpClient; closing it closes them all.
+            var hopClients = [jumpClient]
+            for (offset, hop) in hops.enumerated().dropFirst() {
+                let hopAuth = hop.auth
+                var settings = SSHClientSettings(
+                    host: hop.config.host,
+                    port: hop.config.port,
+                    authenticationMethod: { hopAuth },
+                    hostKeyValidator: hop.validator
+                )
+                settings.algorithms = .all
+                settings.protocolOptions = hop.protocolOptions
+                settings.group = group
+                settings.loginTimeout = loginTimeout
+                debugLog.beginPhase("sshJumpHost\(offset + 1)", "Jumping to jump host \(offset + 1) \(hop.config.host):\(hop.config.port) user=\(hop.config.username)...")
+                do {
+                    hopClients.append(try await hopClients[offset - 1].jump(to: settings))
+                } catch {
+                    debugLog.endPhase("sshJumpHost\(offset + 1)", "FAILED: \(error.localizedDescription)")
+                    try? await jumpClient.close()
+                    throw error
+                }
+                debugLog.endPhase("sshJumpHost\(offset + 1)", "OK")
+            }
 
             var targetSettings = SSHClientSettings(
                 host: host,
@@ -176,7 +196,7 @@ nonisolated enum VPNSSHConnector {
             debugLog.beginPhase("sshTarget", "Jumping to target \(host):\(port)...")
             let finalClient: SSHClient
             do {
-                finalClient = try await jumpClient.jump(to: targetSettings)
+                finalClient = try await hopClients[hopClients.count - 1].jump(to: targetSettings)
             } catch {
                 debugLog.endPhase("sshTarget", "FAILED: \(error.localizedDescription)")
                 // Close the jump client so the next retry attempt doesn't leak it
@@ -184,8 +204,8 @@ nonisolated enum VPNSSHConnector {
                 throw error
             }
             debugLog.endPhase("sshTarget", "OK")
-            logger.info("SSH connected via jump host to \(host):\(port)")
-            return ConnectionResult(client: finalClient, jumpClient: jumpClient)
+            logger.info("SSH connected via \(hopClients.count) jump host(s) to \(host):\(port)")
+            return ConnectionResult(client: finalClient, jumpClient: jumpClient, hopClients: hopClients)
         } else {
             logger.info("Connecting directly to \(host):\(port)")
 

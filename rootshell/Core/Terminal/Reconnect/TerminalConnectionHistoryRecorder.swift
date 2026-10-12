@@ -94,6 +94,7 @@ final class TerminalConnectionHistoryRecorder {
                 jumpUsername: sshConfig.jumpHost?.username,
                 jumpAuthType: jumpAuthType,
                 tsshRelay: sshConfig.jumpHost?.tsshRelay,
+                extraJumpHops: HistoryJumpHop.recording(sshConfig),
                 resolvedIP: resolvedIP,
                 hssShorthand: sshConfig.hssShorthand,
                 agentConfig: sshConfig.agentConfig,
