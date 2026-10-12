@@ -94,6 +94,7 @@ struct RootShellApp: App {
                 .overlay { MCPApprovalOverlay() }
                 .environmentObject(ghosttyApp)
                 .preferredColorScheme(appearanceManager.colorScheme)
+                .modifier(SoftScrollEdgeEffectModifier())
                 .statusBarStyleForTerminalTheme()
                 .immersiveChromeForFullScreen()
                 .fullScreenLaunchNotice()

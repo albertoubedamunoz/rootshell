@@ -132,6 +132,14 @@ struct AppearanceModeSettingsView: View {
             }
 
             Section {
+                SettingToggle(Settings.Theme.softScrollEdges, title: "Soft Scroll Edges")
+                    .themedRow()
+            } footer: {
+                Text("Fade and blur lists as they scroll under toolbars and the title bar.")
+                    .font(.caption)
+            }
+
+            Section {
                 SettingToggle(Settings.Theme.imNoFun, title: "I'm no fun")
                     .themedRow()
             } footer: {
