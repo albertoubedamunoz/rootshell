@@ -5,14 +5,13 @@
 //  Shared jump-host form fields + config builder, extracted from
 //  SSHConnectionView so other connection forms (e.g. Screen Sharing)
 //  can offer the same jump-host UX without duplicating it. The SSH
-//  form keeps its own DisclosureGroup wrapper and summary label; this
-//  section is just the field stack inside it.
+//  forms list several hops through JumpHostListSection; this section
+//  is the single-hop toggle + field stack.
 //
 
 import SwiftUI
 
-/// The jump-host field stack: enable toggle, hostname/port/username,
-/// auth-method picker, and the password/key sub-fields. Renders as a
+/// The jump-host field stack behind an enable toggle. Renders as a
 /// flat run of rows (Form/DisclosureGroup hosts flatten the builder
 /// body), so embedding contexts control the surrounding chrome.
 struct JumpHostFormSection: View {
@@ -27,7 +26,42 @@ struct JumpHostFormSection: View {
     @Binding var savePassword: Bool
     @Binding var selectedKeyID: UUID?
 
+    var body: some View {
+        Toggle("Connect via Jump Host", isOn: $useJumpHost.animation())
+
+        if useJumpHost {
+            JumpHostFieldStack(
+                hostname: $hostname,
+                port: $port,
+                username: $username,
+                authMethod: $authMethod,
+                password: $password,
+                savePassword: $savePassword,
+                selectedKeyID: $selectedKeyID
+            )
+        }
+    }
+}
+
+/// Hostname/port/username, the auth-method picker, and the password/key
+/// sub-fields for one jump hop.
+struct JumpHostFieldStack: View {
+    typealias AuthType = SSHConnectionView.AuthType
+
+    @Binding var hostname: String
+    @Binding var port: String
+    @Binding var username: String
+    @Binding var authMethod: AuthType
+    @Binding var password: String
+    @Binding var savePassword: Bool
+    @Binding var selectedKeyID: UUID?
+    var hasSavedPassword: Binding<Bool> = .constant(false)
+    var showsSavePasswordToggle = true
+    /// Offers "Remove Saved Password" when set.
+    var onForgetSavedPassword: (() -> Void)?
+
     @ObservedObject private var sshKeyManager = SSHKeyManager.shared
+    @State private var isChangingPassword = false
 
     // Keyboard-interactive is surfaced as a toggle under the Password
     // method rather than a fourth segment (matches the target form's
@@ -49,53 +83,63 @@ struct JumpHostFormSection: View {
     }
 
     var body: some View {
-        Toggle("Connect via Jump Host", isOn: $useJumpHost.animation())
+        TextField("Jump Host", text: $hostname)
+            .autocapitalization(.none)
+            .autocorrectionDisabled()
+            .keyboardType(.URL)
 
-        if useJumpHost {
-            TextField("Jump Host", text: $hostname)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
+        HStack {
+            Text("Port")
+            Spacer()
+            TextField("22", text: $port)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 100)
+        }
 
-            HStack {
-                Text("Port")
-                Spacer()
-                TextField("22", text: $port)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 100)
+        TextField("Username", text: $username)
+            .autocapitalization(.none)
+            .autocorrectionDisabled()
+
+        Picker("Method", selection: methodSelection) {
+            ForEach(authMethodPickerCases, id: \.self) { type in
+                Text(type.displayName).tag(type)
             }
+        }
+        .pickerStyle(.segmented)
 
-            TextField("Username", text: $username)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
-
-            Picker("Method", selection: methodSelection) {
-                ForEach(authMethodPickerCases, id: \.self) { type in
-                    Text(type.displayName).tag(type)
+        if authMethod == .password || authMethod == .keyboardInteractive {
+            Toggle("Keyboard-Interactive (2FA / OTP)", isOn: usesKeyboardInteractive)
+            if authMethod == .keyboardInteractive {
+                Text("The jump host will prompt for credentials, such as a one-time code.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if hasSavedPassword.wrappedValue && password.isEmpty && !isChangingPassword {
+                HStack {
+                    Label("Password saved", systemImage: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Spacer()
+                    Button("Change") { isChangingPassword = true }
+                        .buttonStyle(.borderless)
                 }
-            }
-            .pickerStyle(.segmented)
-
-            if authMethod == .password || authMethod == .keyboardInteractive {
-                Toggle("Keyboard-Interactive (2FA / OTP)", isOn: usesKeyboardInteractive)
-                if authMethod == .keyboardInteractive {
-                    Text("The jump host will prompt for credentials, such as a one-time code.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    SecureField("Password", text: $password)
+                if let onForgetSavedPassword {
+                    Button("Remove Saved Password", role: .destructive, action: onForgetSavedPassword)
+                        .font(.subheadline)
+                }
+            } else {
+                SecureField(hasSavedPassword.wrappedValue ? "New Password" : "Password", text: $password)
+                if showsSavePasswordToggle {
                     Toggle("Save Password", isOn: $savePassword)
                 }
-            } else if authMethod == .key {
-                if sshKeyManager.savedKeys.isEmpty {
-                    SSHKeyEmptyStateView(
-                        title: String(localized: "No SSH keys available"),
-                        detail: String(localized: "Import a key for the jump host or switch to password auth.")
-                    )
-                } else {
-                    SSHKeyPickerView(title: String(localized: "SSH Key"), selection: $selectedKeyID)
-                }
+            }
+        } else if authMethod == .key {
+            if sshKeyManager.savedKeys.isEmpty {
+                SSHKeyEmptyStateView(
+                    title: String(localized: "No SSH keys available"),
+                    detail: String(localized: "Import a key for the jump host or switch to password auth.")
+                )
+            } else {
+                SSHKeyPickerView(title: String(localized: "SSH Key"), selection: $selectedKeyID)
             }
         }
     }
@@ -111,10 +155,9 @@ extension JumpHostFormSection {
         let message: String
     }
 
-    /// Build the ``SSHConfig/JumpHostConfig`` from the shared jump form
+    /// Build the ``SSHConfig/JumpHostConfig`` from the single-hop form
     /// fields. Returns nil when the jump host is disabled; throws a
-    /// ``BuildError`` on validation failure. Shared by the SSH connect
-    /// flow and any other form embedding this section.
+    /// ``BuildError`` on validation failure.
     @MainActor
     static func buildJumpHostConfig(
         useJumpHost: Bool,
@@ -127,50 +170,10 @@ extension JumpHostFormSection {
         sshKeyManager: SSHKeyManager
     ) throws -> SSHConfig.JumpHostConfig? {
         guard useJumpHost else { return nil }
-
-        guard let jumpPortNum = Int(port), jumpPortNum > 0 && jumpPortNum <= 65535 else {
-            throw BuildError(message: "Invalid jump host port number.")
-        }
-
-        let trimmedJumpHost = hostname.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedJumpUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let jumpAuth: SSHConfig.AuthMethod
-        switch authMethod {
-        case .password:
-            guard !password.isEmpty else {
-                throw BuildError(message: "Please enter jump host password")
-            }
-            jumpAuth = .password(password)
-        case .key:
-            guard let keyID = selectedKeyID else {
-                throw BuildError(message: "Please select an SSH key for jump host")
-            }
-            guard sshKeyManager.findKey(id: keyID) != nil else {
-                throw BuildError(message: "Selected jump host SSH key not found.")
-            }
-            jumpAuth = .key(keyID)
-        case .keyboardInteractive:
-            jumpAuth = .keyboardInteractive
-        case .none:
-            jumpAuth = .none  // Tailscale/WireGuard pre-authenticated
-        }
-
-        // Build fallback keys for jump host (same pattern as target)
-        let jumpFallbackIDs: [UUID]?
-        if case .key(let keyID) = jumpAuth {
-            jumpFallbackIDs = sshKeyManager.defaultKeyIDs.filter { $0 != keyID }
-        } else {
-            jumpFallbackIDs = nil
-        }
-
-        return SSHConfig.JumpHostConfig(
-            host: trimmedJumpHost,
-            port: jumpPortNum,
-            username: trimmedJumpUsername,
-            authMethod: jumpAuth,
-            fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
-        )
+        var draft = JumpHostDraft(hostname: hostname, port: port, username: username,
+                                  authMethod: authMethod, selectedKeyID: selectedKeyID)
+        draft.password = password
+        return try draft.build(sshKeyManager: sshKeyManager)
     }
 }
 

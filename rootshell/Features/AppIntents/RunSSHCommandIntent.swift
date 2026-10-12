@@ -55,7 +55,7 @@ struct RunSSHCommandIntent: AppIntent, ForegroundContinuableIntent {
         }
 
         try preflightAuth(config.authMethod, profileName: savedProfile.name)
-        if let jumpConfig = config.jumpHost {
+        for jumpConfig in config.jumpChain {
             try preflightAuth(jumpConfig.authMethod, profileName: savedProfile.name)
         }
 
@@ -145,8 +145,7 @@ struct RunSSHCommandIntent: AppIntent, ForegroundContinuableIntent {
 
     private static func needsSavedPassword(_ config: SSHConfig) -> Bool {
         if case .savedPassword = config.authMethod { return true }
-        if let jump = config.jumpHost, case .savedPassword = jump.authMethod { return true }
-        return false
+        return config.jumpChain.contains { if case .savedPassword = $0.authMethod { return true }; return false }
     }
 
     enum IntentError: Swift.Error, CustomLocalizedStringResourceConvertible {

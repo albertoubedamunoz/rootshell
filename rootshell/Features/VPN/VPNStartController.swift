@@ -142,7 +142,7 @@ enum VPNStartController {
         guard snapshot.hostKey != nil || !(snapshot.trustedCAKeys ?? []).isEmpty else {
             throw StartError.hostKeyNotTrusted(host: snapshot.host)
         }
-        if let jump = snapshot.jumpHost, jump.hostKey == nil, (jump.trustedCAKeys ?? []).isEmpty {
+        if let jump = snapshot.jumpChain.first(where: { $0.hostKey == nil && ($0.trustedCAKeys ?? []).isEmpty }) {
             throw StartError.hostKeyNotTrusted(host: jump.host)
         }
     }

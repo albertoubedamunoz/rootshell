@@ -37,7 +37,8 @@ struct FileManagerLocation: Identifiable {
             .sorted { ($0.lastUsedAt ?? .distantPast) > ($1.lastUsedAt ?? .distantPast) }
         for profile in profiles {
             let host = "\(profile.sshConfig.username)@\(profile.sshConfig.host)"
-            let via = profile.sshConfig.jumpHost.map { String(localized: " via \($0.host)", comment: "File manager location picker: jump host suffix") } ?? ""
+            let jumpHosts = profile.sshConfig.jumpChain.map(\.host).joined(separator: " → ")
+            let via = jumpHosts.isEmpty ? "" : String(localized: " via \(jumpHosts)", comment: "File manager location picker: jump host suffix")
             let transport = profile.connectionProtocol == .trzsz ? " · tssh" : ""
             result.append(FileManagerLocation(
                 id: profile.id.uuidString, endpoint: .profile(profile.id), title: profile.name,

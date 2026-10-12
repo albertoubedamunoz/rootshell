@@ -104,7 +104,8 @@ final class TrzszSession: TerminalSession {
             hostKeyAlgorithm: bootstrapHostKey,
             cipherAlgorithm: bootstrapCipher,
             macAlgorithm: bootstrapMac,
-            agentForwardingEnabled: config.sshConfig.agentConfig.enabled
+            agentForwardingEnabled: config.sshConfig.agentConfig.enabled,
+            extraJumpHops: (sshConfig.extraJumpHosts ?? []).map { "\($0.host):\($0.port)" }
         ), transportMode: mode?.rawValue, transportRef: goTransport?.activeTransportRef)
     }
 
@@ -410,7 +411,7 @@ final class TrzszSession: TerminalSession {
     private var recoveringRemoteForwards: Set<UUID> = []
 
     var canRebuildJumpConnection: Bool {
-        config.sshConfig.jumpHost?.tsshRelay != nil && savedCredentials?.relay != nil
+        !config.sshConfig.relayHops.isEmpty && savedCredentials?.relay != nil
     }
 
     /// Explicit action: authenticate only to the jump and keep the target PTY.
@@ -454,7 +455,8 @@ final class TrzszSession: TerminalSession {
     }
 
     private var pendingRelay: TrzszGoTransport?
-    private var relayCredentials: TrzszRelayCredentials?
+    /// Saved relay hops in order; the target connects through the last.
+    private var relayCredentials: [TrzszRelayCredentials] = []
     private var effectiveTransportMTU: Int?
 
     /// Task for periodic credential state updates
@@ -701,8 +703,8 @@ final class TrzszSession: TerminalSession {
             return .fallback(reason: "Saved session credentials could not be loaded")
         }
 
-        relayCredentials = credentials.relay
-        effectiveTransportMTU = credentials.transportMTU ?? credentials.relay?.targetMTU
+        relayCredentials = credentials.relayChain
+        effectiveTransportMTU = credentials.transportMTU ?? credentials.relayChain.last?.targetMTU
         let credHost = credentials.host
         let credPort = credentials.udpPort
         let credMode = credentials.mode.rawValue
@@ -794,8 +796,8 @@ final class TrzszSession: TerminalSession {
                     let rebuilt = try await TrzszSpawnHelper.rebuildRelay(
                         config: config, onHostKeyValidation: onHostKeyValidation,
                         onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge)
-                    let requiredMTU = credentials.transportMTU ?? credentials.relay?.targetMTU ?? config.mtu
-                    guard rebuilt.credentials.targetMTU >= requiredMTU else {
+                    let requiredMTU = credentials.transportMTU ?? credentials.relayChain.last?.targetMTU ?? config.mtu
+                    guard let tail = rebuilt.credentials.last, tail.targetMTU >= requiredMTU else {
                         rebuilt.transport.disconnect()
                         throw TrzszError.connectionFailed("The new jump connection cannot carry this session's saved packet size.")
                     }
@@ -803,12 +805,13 @@ final class TrzszSession: TerminalSession {
                         rebuilt.transport.disconnect()
                         return .aborted
                     }
-                    var relay = rebuilt.credentials
-                    relay = TrzszRelayCredentials(host: relay.host, serverInfo: relay.serverInfo,
-                                                  mtu: relay.mtu, targetMTU: requiredMTU, connectTimeoutSec: relay.connectTimeoutSec)
+                    // The target keeps its saved packet size.
+                    var chain = rebuilt.credentials
+                    chain[chain.count - 1] = TrzszRelayCredentials(host: tail.host, serverInfo: tail.serverInfo,
+                                                                   mtu: tail.mtu, targetMTU: requiredMTU, connectTimeoutSec: tail.connectTimeoutSec)
                     pendingRelay = rebuilt.transport
-                    relayCredentials = relay
-                    credentials.relay = relay
+                    relayCredentials = chain
+                    credentials.relayChain = chain
                     credentials.transportMTU = requiredMTU
                     effectiveTransportMTU = requiredMTU
                 } catch {
@@ -1191,10 +1194,10 @@ final class TrzszSession: TerminalSession {
         // config cannot see), and the auto-start config — the last suppressed once
         // control mode has ended, since a rebuilt transport does not relaunch tmux.
         // ROOTSHELL-TMUX (id=tmux-keep-pending-rebind)
-        if pendingRelay == nil, let relayCredentials {
+        if pendingRelay == nil, !relayCredentials.isEmpty {
             pendingRelay = try await TrzszSpawnHelper.resumeRelay(relayCredentials)
         }
-        if config.sshConfig.jumpHost?.tsshRelay != nil && pendingRelay == nil {
+        if !config.sshConfig.relayHops.isEmpty && pendingRelay == nil {
             throw TrzszError.connectionFailed("Jump relay credentials are missing; direct fallback is disabled.")
         }
         let transport = try TrzszGoTransport(
@@ -1453,7 +1456,7 @@ final class TrzszSession: TerminalSession {
         )
         // Save the session ID for future Attach() after app restart
         credentials.sessionID = goTransport?.sessionID
-        credentials.relay = relayCredentials
+        credentials.relayChain = relayCredentials
         credentials.transportMTU = effectiveTransportMTU ?? config.mtu
         self.savedCredentials = credentials
 
@@ -2452,8 +2455,8 @@ extension TrzszSession {
         try Task.checkCancellation()
 
         var credentials = payload.credentials
-        relayCredentials = credentials.relay
-        effectiveTransportMTU = credentials.transportMTU ?? credentials.relay?.targetMTU
+        relayCredentials = credentials.relayChain
+        effectiveTransportMTU = credentials.transportMTU ?? credentials.relayChain.last?.targetMTU
         guard let savedSessionID = credentials.sessionID else {
             throw TrzszTransferError.noSessionID
         }

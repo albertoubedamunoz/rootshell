@@ -30,6 +30,7 @@ private extension SSHConfig {
         var copy = self
         copy.terminalType = entry.terminalType
         copy.multiplexerSessionName = entry.multiplexerSessionName
+        copy.extraJumpHosts = copy.jumpHost == nil ? nil : entry.extraJumpHostConfigs
         return copy
     }
 }

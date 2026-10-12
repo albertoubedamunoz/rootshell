@@ -24,6 +24,12 @@ struct EffectShowcaseView: View {
                     JellyfishView(effect: jellyfish, previewMode: true, showcase: true)
                         .blendMode(jellyfish.isLightBackground ? .multiply : .plusLighter)
                 }
+                #if !CHINA_BUILD
+                if let weather = effect.asEffect(LiveWeatherEffect.self) {
+                    LiveWeatherView(effect: weather, showcase: true)
+                        .blendMode(weather.isLightBackground ? .multiply : .plusLighter)
+                }
+                #endif
             }
             .ignoresSafeArea(edges: .bottom)
             .navigationTitle(effect.displayName)

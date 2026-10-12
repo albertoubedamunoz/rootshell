@@ -121,6 +121,7 @@ extension LocalShellSession {
             port: config.port,
             username: config.username,
             jumpHost: config.jumpHost,
+            extraJumpHosts: config.extraJumpHosts,
             agentConfig: config.agentConfig,
             portForwardConfig: config.portForwardConfig,
             cachedIP: config.cachedIP,
@@ -313,6 +314,7 @@ extension LocalShellSession {
             jumpUsername: config.jumpHost?.username,
             jumpAuthType: jumpAuthType,
                 tsshRelay: config.jumpHost?.tsshRelay,
+            extraJumpHops: HistoryJumpHop.recording(config),
             resolvedIP: config.cachedIP,
             agentConfig: config.agentConfig,
             portForwardConfig: config.portForwardConfig,
@@ -798,6 +800,7 @@ extension LocalShellSession {
                     port: config.port,
                     username: config.username,
                     jumpHost: config.jumpHost,
+                    extraJumpHosts: config.extraJumpHosts,
                     agentConfig: config.agentConfig,
                     portForwardConfig: config.portForwardConfig,
                     cachedIP: config.cachedIP
@@ -813,6 +816,7 @@ extension LocalShellSession {
                     port: config.port,
                     username: config.username,
                     jumpHost: config.jumpHost,
+                    extraJumpHosts: config.extraJumpHosts,
                     agentConfig: config.agentConfig,
                     portForwardConfig: config.portForwardConfig,
                     cachedIP: config.cachedIP
@@ -1072,6 +1076,7 @@ extension LocalShellSession {
                 port: config.port,
                 username: config.username,
                 jumpHost: config.jumpHost,
+                extraJumpHosts: config.extraJumpHosts,
                 agentConfig: config.agentConfig,
                 portForwardConfig: config.portForwardConfig,
                 cachedIP: config.cachedIP
@@ -1175,6 +1180,7 @@ extension LocalShellSession {
                 port: config.port,
                 username: config.username,
                 jumpHost: config.jumpHost,
+                extraJumpHosts: config.extraJumpHosts,
                 agentConfig: config.agentConfig,
                 portForwardConfig: config.portForwardConfig,
                 cachedIP: config.cachedIP
@@ -1190,6 +1196,7 @@ extension LocalShellSession {
                 port: config.port,
                 username: config.username,
                 jumpHost: config.jumpHost,
+                extraJumpHosts: config.extraJumpHosts,
                 agentConfig: config.agentConfig,
                 portForwardConfig: config.portForwardConfig,
                 cachedIP: config.cachedIP
@@ -1365,6 +1372,7 @@ extension LocalShellSession {
                 port: config.port,
                 username: config.username,
                 jumpHost: config.jumpHost,
+                extraJumpHosts: config.extraJumpHosts,
                 agentConfig: config.agentConfig,
                 portForwardConfig: config.portForwardConfig,
                 cachedIP: config.cachedIP
@@ -1604,6 +1612,7 @@ extension LocalShellSession {
                 port: config.port,
                 username: config.username,
                 jumpHost: config.jumpHost,
+                extraJumpHosts: config.extraJumpHosts,
                 agentConfig: config.agentConfig,
                 portForwardConfig: config.portForwardConfig,
                 cachedIP: config.cachedIP

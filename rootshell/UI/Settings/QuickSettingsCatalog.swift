@@ -187,6 +187,7 @@ enum QuickSettingsCatalog {
                 .requiring { SelectionManager.shared.selectionMode == .custom ? nil : String(localized: "Choose Custom Selection Style first.") },
             choices(Settings.Shaders.animationMode, label: { $0.displayName }, set: { ShaderManager.shared.animationMode = $0 }),
             toggle(Settings.Shaders.themeGradientBackdrop, set: { EffectManager.shared.isBackdropEnabled = $0 }),
+            toggle(Settings.Shaders.textAboveEffect, set: { EffectManager.shared.isTextAboveEffectEnabled = $0 }),
             number(Settings.Transparency.backgroundOpacity, 0...1, step: 0.01, set: { TransparencyManager.shared.backgroundOpacity = $0 }),
             toggle(Settings.Transparency.pinnedSidebarTransparency, set: { TransparencyManager.shared.pinnedSidebarTransparencyEnabled = $0 }),
             toggle(Settings.Selection.copyOnSelect, set: {

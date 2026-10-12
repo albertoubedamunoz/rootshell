@@ -246,12 +246,12 @@ extension Ghostty {
             // terminal, so the CGS radius must be 0. The renderer still draws
             // the theme background at `opacity`; the glass shows through it.
             return (
-                opacity: transparencyManager.effectiveBackgroundOpacity,
+                opacity: transparencyManager.terminalSurfaceOpacity,
                 blur: transparencyManager.usesGlass ? 0 : Int(transparencyManager.backgroundBlurRadius)
             )
 #else
             // Glass is a SwiftUI layer over the backdrop; there is no radius blur.
-            return (opacity: TransparencyManager.shared.effectiveBackgroundOpacity, blur: 0)
+            return (opacity: TransparencyManager.shared.terminalSurfaceOpacity, blur: 0)
 #endif
         }
 

@@ -13,7 +13,7 @@ extension SSHConfig {
     /// treat them as one filesystem.
     ///
     /// - Account scope matters: chrooted / user-scoped servers map the same path to
-    ///   different files per user, so `username` (plus `port`/`jumpHost`) must match.
+    ///   different files per user, so `username` (plus `port` and the jump chain) must match.
     /// - The same server is often reached under different host strings — letter case
     ///   (DNS is case-insensitive) or a `.local` name vs. its resolved/cached IP —
     ///   so we match on any shared host candidate rather than the raw string.
@@ -29,7 +29,8 @@ extension SSHConfig {
     /// filesystem, so any account there may name the same files.
     func reachesSameServer(as other: SSHConfig) -> Bool {
         guard port == other.port,
-              Self.sameJumpLocation(jumpHost, other.jumpHost) else { return false }
+              jumpChain.count == other.jumpChain.count,
+              zip(jumpChain, other.jumpChain).allSatisfy(Self.sameJumpLocation) else { return false }
         return !hostCandidates.isDisjoint(with: other.hostCandidates)
     }
 
@@ -41,20 +42,13 @@ extension SSHConfig {
         return set
     }
 
-    /// Whether two routes traverse the same jump host *location*. Compares only the
+    /// Whether two hops are the same jump host *location*. Compares only the
     /// location-defining fields (host/port/username) — auth details like authMethod,
     /// fallback keys, and key-resolution hints don't change which server is reached,
     /// so including them would wrongly split the same route into "different".
-    private static func sameJumpLocation(_ a: JumpHostConfig?, _ b: JumpHostConfig?) -> Bool {
-        switch (a, b) {
-        case (nil, nil):
-            return true
-        case let (a?, b?):
-            return a.host.lowercased() == b.host.lowercased()
-                && a.port == b.port
-                && a.username == b.username
-        default:
-            return false
-        }
+    private static func sameJumpLocation(_ a: JumpHostConfig, _ b: JumpHostConfig) -> Bool {
+        a.host.lowercased() == b.host.lowercased()
+            && a.port == b.port
+            && a.username == b.username
     }
 }

@@ -966,7 +966,7 @@ struct TabBar: View {
             }
         }
         .contentShape(Rectangle())
-        .modifier(GlassEffectContainerModifier())
+        .modifier(GlassEffectContainerModifier(isEnabled: !style.usesStripLayout))
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: TabMetrics.tabBarHeight)
         // Scoped animation for the selection slide (Liquid Glass / matched
@@ -1063,7 +1063,7 @@ struct TabBar: View {
                 .padding(.leading, usesCompactSpacing ? 0 : 8)
                 .padding(.trailing, usesCompactSpacing ? Self.compactOvershootHeadroom : 8)
                 .contentShape(Rectangle())
-                .modifier(GlassEffectContainerModifier())
+                .modifier(GlassEffectContainerModifier(isEnabled: !style.usesStripLayout))
                 // Scoped animation for the selection slide. See equalWidthView.
                 .animation(
                     tabBarAnimationsDisabled || suppressSelectionAnimation || reduceMotion
@@ -1074,6 +1074,9 @@ struct TabBar: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .modifier(ScrollEdgeEffectHiddenModifier())
+            .anchorPreference(key: IntegratedTabTrackBoundsPreferenceKey.self, value: .bounds) { bounds in
+                style == .integrated ? bounds : nil
+            }
         }
     }
 
@@ -1417,7 +1420,7 @@ struct TabBarItem: View, Equatable {
                 ? (theme.terminalSurfaceBackground ?? theme.selectedBackground)
                 : theme.selectedBackground,
             unselectedBackgroundColor: theme.inactiveHoverBackground(for: style),
-            textColor: theme.tabText,
+            textColor: style == .integrated && (isOnly || isSelected) ? theme.integratedSelectedText : theme.tabText,
             secondaryTextColor: theme.tabSecondaryText,
             isLightTheme: theme.isLight,
             integratedEdgePalette: theme.integratedEdgePalette,

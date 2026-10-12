@@ -121,7 +121,8 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
                                                multiplexerSessionName: multiplexerSessionName,
                                                zmxAutoEnable: zmxAutoEnable,
                                                herdrAutoMode: herdrAutoMode,
-                                               askpassConfig: askpassConfig)
+                                               askpassConfig: askpassConfig,
+                                               extraJumpHops: extraJumpHops)
         if let envelopeData = try? JSONEncoder().encode(envelope) {
             record["extensionData"] = envelopeData
         } else {
@@ -232,6 +233,7 @@ extension SSHConnectionHistoryEntry: CloudKitSyncable {
             jumpPort: jumpPort,
             jumpUsername: jumpUsername,
             jumpAuthType: jumpAuthType,
+            extraJumpHops: extensionPayload?.extraJumpHops,
             lastUsed: lastUsed,
             cachedIP: cachedIP,
             hssShorthand: hssShorthand,
@@ -378,7 +380,7 @@ extension ConnectionProfile: CloudKitSyncable {
             record["sshConfig"] = nil as Data?
         } else {
             var legacyConfig = sshConfig
-            legacyConfig.jumpHost?.tsshRelay = nil
+            legacyConfig.jumpChain = legacyConfig.jumpChain.map { var hop = $0; hop.tsshRelay = nil; return hop }
             record["sshConfig"] = try? JSONEncoder().encode(legacyConfig)
         }
 

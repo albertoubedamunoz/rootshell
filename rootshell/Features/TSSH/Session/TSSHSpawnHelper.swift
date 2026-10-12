@@ -30,7 +30,8 @@ enum TrzszSpawnHelper {
 
     private struct BootstrapResult {
         let target: BootstrapConnection
-        let jump: BootstrapConnection?
+        /// One per jump hop, in order. Closing the first tears down the rest.
+        let jumps: [BootstrapConnection]
     }
 
     /// Result from spawning tsshd.
@@ -39,7 +40,8 @@ enum TrzszSpawnHelper {
         let sshClient: SSHClient
         let jumpClient: SSHClient?
         let relayTransport: TrzszGoTransport?
-        let relayCredentials: TrzszRelayCredentials?
+        /// One per relay hop, in order; `relayTransport` is the last.
+        let relayCredentials: [TrzszRelayCredentials]
         let targetMTU: Int
 
         /// Bootstrap SSH negotiated algorithms (captured before SSH closes)
@@ -100,7 +102,7 @@ enum TrzszSpawnHelper {
             )
         }
         let sshClient = bootstrap.target.client
-        let jumpClient = bootstrap.jump?.client
+        let jumpClient = bootstrap.jumps.first?.client
 
         // Capture negotiated algorithms before SSH closes
         var sshKeyExchange: String?
@@ -115,19 +117,15 @@ enum TrzszSpawnHelper {
         }
 
         var relayTransport: TrzszGoTransport?
-        var relayCredentials: TrzszRelayCredentials?
+        var relayCredentials: [TrzszRelayCredentials] = []
         var targetConfig = config
         do {
             try Task.checkCancellation()
-            if let settings = config.sshConfig.jumpHost?.tsshRelay,
-               let jump = config.sshConfig.jumpHost, let jumpConnection = bootstrap.jump {
-                let prepared = try await prepareRelay(config: config, jump: jump,
-                                                       settings: settings, bootstrap: jumpConnection)
+            if !config.sshConfig.relayHops.isEmpty {
+                let prepared = try await prepareRelayChain(config: config, jumps: bootstrap.jumps)
                 relayTransport = prepared.transport
                 relayCredentials = prepared.credentials
-                targetConfig.mtu = prepared.credentials.targetMTU
-            } else if config.sshConfig.jumpHost?.tsshRelay != nil {
-                throw TrzszError.connectionFailed("The requested jump relay has no SSH bootstrap connection.")
+                targetConfig.mtu = prepared.credentials.last?.targetMTU ?? targetConfig.mtu
             }
             #if !CHINA_BUILD
             // Keep tsshd's packets inside the tailnet's 1280-byte MTU when
@@ -238,60 +236,110 @@ enum TrzszSpawnHelper {
     }
 
     static func connectionHost(for config: TrzszConfig) async throws -> String {
-        if config.sshConfig.jumpHost?.tsshRelay != nil {
-            // Both SSH direct-tcpip and tsshd DialUDP resolve this on the jump.
+        if !config.sshConfig.relayHops.isEmpty {
+            // Both SSH direct-tcpip and tsshd DialUDP resolve this on the last hop.
             return config.sshConfig.host
         }
         let addresses = try await DualStackResolver.resolve(host: config.sshConfig.host, port: 0)
         return addresses.preferredAddress ?? config.sshConfig.host
     }
 
+    /// Starts a relay on each leading relay hop, each reached through the previous one.
+    /// Returns the last relay; closing it tears down the chain.
+    private static func prepareRelayChain(config: TrzszConfig, jumps: [BootstrapConnection])
+        async throws -> (transport: TrzszGoTransport, credentials: [TrzszRelayCredentials]) {
+        try config.sshConfig.validateRelayChain()
+        let hops = config.sshConfig.relayHops
+        guard !hops.isEmpty, jumps.count >= hops.count else {
+            throw TrzszError.connectionFailed("The requested jump relay has no SSH bootstrap connection.")
+        }
+        var previous: TrzszGoTransport?
+        var credentials: [TrzszRelayCredentials] = []
+        var requestedMTU = config.mtu
+        do {
+            for (index, hop) in hops.enumerated() {
+                guard let settings = hop.tsshRelay else { break }
+                let prepared = try await prepareRelay(
+                    config: config, jump: hop, settings: settings, bootstrap: jumps[index],
+                    dialHost: index == 0 ? jumps[index].host : hop.host,
+                    requestedMTU: requestedMTU, via: previous)
+                previous = prepared.transport
+                credentials.append(prepared.credentials)
+                requestedMTU = prepared.credentials.targetMTU
+            }
+        } catch {
+            previous?.disconnect()
+            throw error
+        }
+        guard let tail = previous else {
+            throw TrzszError.connectionFailed("No jump relay configured")
+        }
+        return (tail, credentials)
+    }
+
+    /// Hop 1 dials its pinned address directly; later hops are dialled by the previous relay,
+    /// so their tsshd must use exactly that relay's MTU budget.
     private static func prepareRelay(config: TrzszConfig, jump: SSHConfig.JumpHostConfig,
-                                     settings: TSSHRelaySettings, bootstrap: BootstrapConnection)
+                                     settings: TSSHRelaySettings, bootstrap: BootstrapConnection,
+                                     dialHost: String, requestedMTU: Int, via parent: TrzszGoTransport?)
         async throws -> (transport: TrzszGoTransport, credentials: TrzszRelayCredentials) {
         try settings.validate(host: jump.host, port: jump.port, username: jump.username,
                               defaultPortMin: TrzszConfig.preferredUDPPortMin,
                               defaultPortMax: TrzszConfig.preferredUDPPortMax)
         var outer = config
+        outer.mtu = requestedMTU
         outer.serverPath = settings.serverPath
         outer.udpPortMin = settings.udpPortMin ?? TrzszConfig.preferredUDPPortMin
         outer.udpPortMax = settings.udpPortMax ?? TrzszConfig.preferredUDPPortMax
-        let host = bootstrap.host
         do {
             var info = try await execute(command: outer.serverCommand(), sshClient: bootstrap.client)
             info.clientId = 0
-            let transport = try TrzszGoTransport(host: host, port: info.port, serverInfo: info,
-                                                mtu: config.mtu, connectTimeoutSec: config.connectTimeoutSec, displayName: "jump \(jump.displayName)")
+            let transport = try TrzszGoTransport(host: dialHost, port: info.port, serverInfo: info,
+                                                mtu: requestedMTU, connectTimeoutSec: config.connectTimeoutSec,
+                                                displayName: "jump \(jump.displayName)", relayTransport: parent)
             do {
                 try await transport.connect()
                 try Task.checkCancellation()
-                let mtu = try await transport.effectiveRelayMTU(requested: config.mtu, mode: info.mode.rawValue)
-                return (transport, TrzszRelayCredentials(host: host, serverInfo: info,
-                                                       mtu: config.mtu, targetMTU: mtu, connectTimeoutSec: config.connectTimeoutSec))
+                let mtu = try await transport.effectiveRelayMTU(requested: requestedMTU, mode: info.mode.rawValue)
+                return (transport, TrzszRelayCredentials(host: dialHost, serverInfo: info,
+                                                       mtu: requestedMTU, targetMTU: mtu, connectTimeoutSec: config.connectTimeoutSec))
             } catch { transport.disconnect(); throw error }
         } catch {
             throw TrzszError.connectionFailed("Jump host \(jump.host): \(error.localizedDescription). Relay mode requires tsshd and reachable UDP ports on the jump host.")
         }
     }
 
-    static func resumeRelay(_ credentials: TrzszRelayCredentials) async throws -> TrzszGoTransport {
-        var info = credentials.serverInfo
-        info.clientId = 0
-        let transport = try TrzszGoTransport(host: credentials.host, port: info.port, serverInfo: info,
-                                            mtu: credentials.mtu, connectTimeoutSec: credentials.connectTimeoutSec, displayName: "jump \(credentials.host)")
-        do {
-            try await transport.connect()
-            try Task.checkCancellation()
-            return transport
-        } catch { transport.abandon(); throw error }
+    /// Reconnects saved relays in order (hop 1 direct, each later one through the previous)
+    /// and returns the last.
+    static func resumeRelay(_ chain: [TrzszRelayCredentials]) async throws -> TrzszGoTransport {
+        var previous: TrzszGoTransport?
+        for credentials in chain {
+            var info = credentials.serverInfo
+            info.clientId = 0
+            let transport = try TrzszGoTransport(host: credentials.host, port: info.port, serverInfo: info,
+                                                mtu: credentials.mtu, connectTimeoutSec: credentials.connectTimeoutSec,
+                                                displayName: "jump \(credentials.host)", relayTransport: previous)
+            do {
+                try await transport.connect()
+                try Task.checkCancellation()
+            } catch {
+                transport.abandon()
+                previous?.abandon()
+                throw error
+            }
+            previous = transport
+        }
+        guard let tail = previous else { throw TrzszError.connectionFailed("No jump relay configured") }
+        return tail
     }
 
-    /// Rebuild only the outer transport; the saved target PTY is left intact.
+    /// Rebuild only the relay chain; the saved target PTY is left intact.
     static func rebuildRelay(config: TrzszConfig,
         onHostKeyValidation: ((HostKeyValidationRequest) async -> HostKeyValidationResult)?,
         onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)?)
-        async throws -> (transport: TrzszGoTransport, credentials: TrzszRelayCredentials) {
-        guard let jump = config.sshConfig.jumpHost, let settings = jump.tsshRelay else {
+        async throws -> (transport: TrzszGoTransport, credentials: [TrzszRelayCredentials]) {
+        let hops = config.sshConfig.relayHops
+        guard let jump = hops.first else {
             throw TrzszError.connectionFailed("No jump relay configured")
         }
         var ssh = SSHConfig(host: jump.host, port: jump.port, username: jump.username, authMethod: jump.authMethod)
@@ -306,7 +354,15 @@ enum TrzszSpawnHelper {
             onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge)
         let client = bootstrap.target.client
         do {
-            let result = try await prepareRelay(config: config, jump: jump, settings: settings, bootstrap: bootstrap.target)
+            let laterHops = Array(hops.dropFirst())
+            let laterClients = try await SSHConnectionHelper.jumpThrough(laterHops, from: client, auth: { hop in
+                try await buildAuthMethod(for: hop, onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge)
+            }, hostKeyValidator: { hop, hopNumber in
+                SSHConnectionHelper.buildHostKeyValidator(for: hop.host, port: hop.port,
+                                                          label: "[Jump Host \(hopNumber)]", onValidation: onHostKeyValidation)
+            })
+            let jumps = [bootstrap.target] + zip(laterHops, laterClients).map { BootstrapConnection(client: $1, host: $0.host) }
+            let result = try await prepareRelayChain(config: config, jumps: jumps)
             try? await client.close()
             return result
         } catch { try? await client.close(); throw error }
@@ -340,7 +396,7 @@ enum TrzszSpawnHelper {
             // single, deterministic family (see CitadelSSHSession for the
             // rationale).
             let jumpConnectHost: String
-            if jumpHost.tsshRelay != nil {
+            if !sshConfig.relayHops.isEmpty {
                 let addresses = try await DualStackResolver.resolve(host: jumpHost.host, port: 0)
                 guard let selectedAddress = addresses.preferredAddress else {
                     throw TrzszError.connectionFailed("No address found for jump host \(jumpHost.host)")
@@ -396,16 +452,26 @@ enum TrzszSpawnHelper {
                     authBannerBuffer.append(message)
                 }
             }
+            let extraHops = sshConfig.extraJumpHosts ?? []
             let targetClient: SSHClient
+            let jumps: [BootstrapConnection]
             do {
-                targetClient = try await jumpClient.jump(to: targetSettings)
+                let extraClients = try await SSHConnectionHelper.jumpThrough(extraHops, from: jumpClient, auth: { hop in
+                    try await buildAuthMethod(for: hop, onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge)
+                }, hostKeyValidator: { hop, hopNumber in
+                    SSHConnectionHelper.buildHostKeyValidator(for: hop.host, port: hop.port,
+                                                              label: "[Jump Host \(hopNumber)]", onValidation: onHostKeyValidation)
+                })
+                jumps = [BootstrapConnection(client: jumpClient, host: jumpConnectHost)]
+                    + zip(extraHops, extraClients).map { BootstrapConnection(client: $1, host: $0.host) }
+                targetClient = try await (extraClients.last ?? jumpClient).jump(to: targetSettings)
             } catch {
                 try? await jumpClient.close()
                 throw error
             }
             return BootstrapResult(
                 target: BootstrapConnection(client: targetClient, host: resolvedHost),
-                jump: BootstrapConnection(client: jumpClient, host: jumpConnectHost)
+                jumps: jumps
             )
         }
 
@@ -438,7 +504,7 @@ enum TrzszSpawnHelper {
             try? await directChannel.close()
             throw error
         }
-        return BootstrapResult(target: BootstrapConnection(client: client, host: resolvedHost), jump: nil)
+        return BootstrapResult(target: BootstrapConnection(client: client, host: resolvedHost), jumps: [])
     }
 
     /// Builds SSH auth method, resolving savedPassword from keychain. The
@@ -470,13 +536,14 @@ enum TrzszSpawnHelper {
         )
     }
 
-    /// Builds SSH auth method for jump host, resolving savedPassword from keychain.
+    /// Builds SSH auth method for a jump hop, resolving savedPassword from keychain.
+    /// The shared hop overload keeps the hop's fallback keys.
     private static func buildAuthMethod(
         for jumpHost: SSHConfig.JumpHostConfig,
         onKeyboardInteractiveChallenge: ((KeyboardInteractiveChallenge) async -> [String]?)?
     ) async throws -> SSHAuthenticationMethod {
-        var authMethod = jumpHost.authMethod
-        if case .savedPassword = authMethod {
+        var resolved = jumpHost
+        if case .savedPassword = jumpHost.authMethod {
             let connectionKey = "\(jumpHost.host):\(jumpHost.port):\(jumpHost.username)"
             guard let password = try? KeychainManager.shared.loadSSHPassword(
                 connectionKey: connectionKey,
@@ -485,12 +552,10 @@ enum TrzszSpawnHelper {
             ) else {
                 throw TrzszError.sshConnectionFailed(reason: "Jump host saved password not found")
             }
-            authMethod = .password(password)
+            resolved.authMethod = .password(password)
         }
         return try await SSHConnectionHelper.buildAuthMethod(
-            username: jumpHost.username,
-            authMethod: authMethod,
-            sessionName: "[Jump Host] \(jumpHost.displayName)",
+            for: resolved,
             onKeyboardInteractiveChallenge: onKeyboardInteractiveChallenge
         )
     }

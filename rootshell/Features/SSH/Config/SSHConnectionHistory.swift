@@ -112,6 +112,8 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     var jumpUsername: String?
     var jumpAuthType: SSHAuthType?
     var tsshRelay: TSSHRelaySettings? = nil
+    // Hops after jumpHost, in order. Rides the CloudKit `extensionData` envelope.
+    var extraJumpHops: [HistoryJumpHop]? = nil
 
     // HSS shorthand (optional) - the original !alias used
     var hssShorthand: String?
@@ -189,7 +191,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
 
     init(username: String, host: String, port: Int = 22, authType: SSHAuthType,
          connectionProtocol: ConnectionProtocol? = nil,
-         jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
+         jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil, extraJumpHops: [HistoryJumpHop]? = nil,
          lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil, agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, askpassConfig: RemoteAskpassConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, herdrAutoMode: HerdrAutoMode? = nil, zmxAutoEnable: Bool? = nil, launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil,
          terminalType: String? = nil,
          multiplexerSessionName: String? = nil,
@@ -204,6 +206,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.jumpPort = jumpPort
         self.jumpUsername = jumpUsername
         self.jumpAuthType = jumpAuthType
+        self.extraJumpHops = extraJumpHops
         self.lastUsed = lastUsed
         self.cachedIP = cachedIP
         self.hssShorthand = hssShorthand
@@ -228,7 +231,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
     /// Initialize with explicit ID (for migration and sync)
     init(id: UUID, username: String, host: String, port: Int = 22, authType: SSHAuthType,
          connectionProtocol: ConnectionProtocol? = nil,
-         jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil,
+         jumpHost: String? = nil, jumpPort: Int? = nil, jumpUsername: String? = nil, jumpAuthType: SSHAuthType? = nil, extraJumpHops: [HistoryJumpHop]? = nil,
          lastUsed: Date = Date(), cachedIP: String? = nil, hssShorthand: String? = nil,
          agentConfig: SSHAgentConfig? = nil, gpgAgentConfig: GPGAgentConfig? = nil, askpassConfig: RemoteAskpassConfig? = nil, portForwardConfig: PortForwardConfig? = nil, tmuxAutoEnable: Bool? = nil, tmuxAutoMode: TmuxAutoMode? = nil, herdrAutoEnable: Bool? = nil, herdrAutoMode: HerdrAutoMode? = nil, zmxAutoEnable: Bool? = nil,
          launchCommand: String? = nil, launchCommandMode: SSHConfig.LaunchCommandMode? = nil, terminalType: String? = nil, multiplexerSessionName: String? = nil, keyResolutionHints: [String: KeyResolutionHint]? = nil,
@@ -243,6 +246,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         self.jumpPort = jumpPort
         self.jumpUsername = jumpUsername
         self.jumpAuthType = jumpAuthType
+        self.extraJumpHops = extraJumpHops
         self.lastUsed = lastUsed
         self.cachedIP = cachedIP
         self.hssShorthand = hssShorthand
@@ -268,7 +272,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
 
     private enum CodingKeys: String, CodingKey {
         case id, username, host, port, authType, lastUsed, cachedIP
-        case jumpHost, jumpPort, jumpUsername, jumpAuthType, tsshRelay
+        case jumpHost, jumpPort, jumpUsername, jumpAuthType, tsshRelay, extraJumpHops
         case hssShorthand, agentConfig, gpgAgentConfig, askpassConfig, portForwardConfig, tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, herdrAutoMode, zmxAutoEnable, launchCommand, launchCommandMode
         case connectionProtocol, keyResolutionHints
         case terminalType, multiplexerSessionName
@@ -293,6 +297,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         jumpUsername = try container.decodeIfPresent(String.self, forKey: .jumpUsername)
         jumpAuthType = try container.decodeIfPresent(SSHAuthType.self, forKey: .jumpAuthType)
         tsshRelay = try container.decodeIfPresent(TSSHRelaySettings.self, forKey: .tsshRelay)
+        extraJumpHops = try container.decodeIfPresent([HistoryJumpHop].self, forKey: .extraJumpHops)
 
         hssShorthand = try container.decodeIfPresent(String.self, forKey: .hssShorthand)
         agentConfig = try container.decodeIfPresent(SSHAgentConfig.self, forKey: .agentConfig)
@@ -348,6 +353,9 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
                 jumpPart = "\(jUser)@\(jHost):\(jumpPort!)"
             }
             result += " via \(jumpPart)"
+            for hop in extraJumpHops ?? [] {
+                result += " → \(hop.displayName)"
+            }
         }
 
         return result
@@ -355,6 +363,7 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
 
     /// Unique logical identity for deduplication (ignores UUID)
     /// Format: "protocol:username@host:port" or "protocol:username@host:port via jumpuser@jumphost:jumpport"
+    /// Each extra hop appends another " via user@host:port", so single-hop identities are unchanged.
     /// Protocol prefix differentiates SSH and Mosh connections to the same host
     var connectionIdentity: String {
         let protocolPrefix = (connectionProtocol == .mosh) ? "mosh:" : "ssh:"
@@ -363,6 +372,9 @@ struct SSHConnectionHistoryEntry: Codable, Identifiable, Hashable, SyncableRecor
         if let jumpHost = jumpHost, let jumpUsername = jumpUsername, !jumpHost.isEmpty {
             let jumpPort = self.jumpPort ?? 22
             identity += " via \(jumpUsername)@\(jumpHost):\(jumpPort)"
+            for hop in extraJumpHops ?? [] {
+                identity += " via \(hop.username)@\(hop.host):\(hop.port)"
+            }
         }
 
         return identity
@@ -469,6 +481,16 @@ class SSHConnectionHistoryManager: ObservableObject {
 
     func refreshRelaySettings() { updateEntriesFromStore() }
 
+    /// Leading relay settings, hop 1 first; stops at the first hop that doesn't relay.
+    static func relayChain(first: TSSHRelaySettings?, hops: [HistoryJumpHop]?) -> [TSSHRelaySettings] {
+        guard let first else { return [] }
+        return [first] + (hops ?? []).prefix { $0.tsshRelay != nil }.compactMap(\.tsshRelay)
+    }
+
+    private static func hopKeys(_ hops: [HistoryJumpHop]?) -> [String] {
+        (hops ?? []).map { "\($0.username)@\($0.host):\($0.port)" }
+    }
+
     /// Add or update a connection in history
     func recordConnection(
         username: String,
@@ -481,6 +503,7 @@ class SSHConnectionHistoryManager: ObservableObject {
         jumpUsername: String? = nil,
         jumpAuthType: SSHAuthType? = nil,
         tsshRelay: TSSHRelaySettings? = nil,
+        extraJumpHops: [HistoryJumpHop]? = nil,
         resolvedIP: String? = nil,
         hssShorthand: String? = nil,
         agentConfig: SSHAgentConfig? = nil,
@@ -551,7 +574,9 @@ class SSHConnectionHistoryManager: ObservableObject {
                 updated.keyResolutionHints = keyResolutionHints
             }
             updated.tsshRelay = tsshRelay
-            try? TSSHRelayStore.shared.update(owner: .history, key: updated.connectionIdentity, settings: tsshRelay)
+            updated.extraJumpHops = extraJumpHops
+            try? TSSHRelayStore.shared.update(owner: .history, key: updated.connectionIdentity,
+                                              relays: Self.relayChain(first: tsshRelay, hops: extraJumpHops))
             try? store.save(updated)
             updateEntriesFromStore()
             return
@@ -561,6 +586,7 @@ class SSHConnectionHistoryManager: ObservableObject {
         if let existing = entries.first(where: {
             $0.username == username && $0.host == host && $0.port == port &&
             $0.jumpHost == jumpHost && $0.jumpUsername == jumpUsername && $0.jumpPort == jumpPort &&
+            Self.hopKeys($0.extraJumpHops) == Self.hopKeys(extraJumpHops) &&
             $0.connectionProtocol == connectionProtocol
         }) {
             // Update existing entry's lastUsed, authType, and cachedIP
@@ -614,7 +640,9 @@ class SSHConnectionHistoryManager: ObservableObject {
                 updated.keyResolutionHints = keyResolutionHints
             }
             updated.tsshRelay = tsshRelay
-            try? TSSHRelayStore.shared.update(owner: .history, key: updated.connectionIdentity, settings: tsshRelay)
+            updated.extraJumpHops = extraJumpHops
+            try? TSSHRelayStore.shared.update(owner: .history, key: updated.connectionIdentity,
+                                              relays: Self.relayChain(first: tsshRelay, hops: extraJumpHops))
             try? store.save(updated)
         } else {
             // Add new entry
@@ -646,7 +674,9 @@ class SSHConnectionHistoryManager: ObservableObject {
                 keyResolutionHints: keyResolutionHints
             )
             newEntry.tsshRelay = tsshRelay
-            try? TSSHRelayStore.shared.update(owner: .history, key: newEntry.connectionIdentity, settings: tsshRelay)
+            newEntry.extraJumpHops = extraJumpHops
+            try? TSSHRelayStore.shared.update(owner: .history, key: newEntry.connectionIdentity,
+                                              relays: Self.relayChain(first: tsshRelay, hops: extraJumpHops))
             try? store.save(newEntry)
             identityToUUID[newEntry.connectionIdentity] = newEntry.id
         }
@@ -727,7 +757,7 @@ class SSHConnectionHistoryManager: ObservableObject {
         for remote in remoteEntries {
             do {
                 try TSSHRelayStore.shared.seed(owner: .history, key: remote.connectionIdentity,
-                    settings: remote.tsshRelay, modifiedAt: remote.modifiedAt)
+                    relays: remote.relayChain, modifiedAt: remote.modifiedAt)
             } catch {
                 failures.append((id: remote.id, error: error))
                 continue
@@ -772,6 +802,10 @@ class SSHConnectionHistoryManager: ObservableObject {
                     envelopeVersion >= HistoryExtensionPayload.askpassConfigVersion
                         ? remote.askpassConfig
                         : (remote.askpassConfig ?? existing.askpassConfig)
+                let mergedExtraJumpHops: [HistoryJumpHop]? =
+                    envelopeVersion >= HistoryExtensionPayload.extraJumpHopsVersion
+                        ? remote.extraJumpHops
+                        : (remote.extraJumpHops ?? existing.extraJumpHops)
                 let updated = SSHConnectionHistoryEntry(
                     id: existingUUID,  // Keep local UUID for consistency
                     username: remote.username,
@@ -783,6 +817,7 @@ class SSHConnectionHistoryManager: ObservableObject {
                     jumpPort: remote.jumpPort,
                     jumpUsername: remote.jumpUsername,
                     jumpAuthType: remote.jumpAuthType,
+                    extraJumpHops: mergedExtraJumpHops,
                     lastUsed: max(existing.lastUsed, remote.lastUsed),
                     cachedIP: remote.cachedIP ?? existing.cachedIP,
                     hssShorthand: remote.hssShorthand ?? existing.hssShorthand,
@@ -884,5 +919,96 @@ class SSHConnectionHistoryManager: ObservableObject {
         store.reload()
         rebuildIdentityLookup()
         updateEntriesFromStore()
+    }
+}
+
+// MARK: - Extra jump hops
+
+/// A ProxyJump hop after the first, as recorded in history.
+struct HistoryJumpHop: Codable, Hashable {
+    var host: String
+    var port: Int = 22
+    var username: String
+    var authType: SSHAuthType?
+    /// Applied from TSSHRelayStore; stripped from the CloudKit envelope.
+    var tsshRelay: TSSHRelaySettings? = nil
+
+    init(host: String, port: Int = 22, username: String, authType: SSHAuthType?, tsshRelay: TSSHRelaySettings? = nil) {
+        self.host = host
+        self.port = port
+        self.username = username
+        self.authType = authType
+        self.tsshRelay = tsshRelay
+    }
+
+    init(config: SSHConfig.JumpHostConfig) {
+        self.init(host: config.host, port: config.port, username: config.username,
+                  authType: SSHAuthType(recording: config.authMethod), tsshRelay: config.tsshRelay)
+    }
+
+    var displayName: String {
+        port == 22 ? "\(username)@\(host)" : "\(username)@\(host):\(port)"
+    }
+
+    /// Hops after the first for recording; resolvedConfig turns saved passwords
+    /// into `.password`, so a hop with a Keychain entry is recorded as saved.
+    static func recording(_ config: SSHConfig) -> [HistoryJumpHop]? {
+        guard config.jumpHost != nil, let hops = config.extraJumpHosts, !hops.isEmpty else { return nil }
+        return hops.map { hop in
+            var recorded = HistoryJumpHop(config: hop)
+            if case .password = hop.authMethod,
+               SSHPasswordManager.shared.hasPassword(host: hop.host, port: hop.port, username: hop.username) {
+                recorded.authType = .savedPassword
+            }
+            return recorded
+        }
+    }
+
+    /// Rebuilds the hop; passwords are never recorded, so `.password` comes back empty.
+    func jumpHostConfig() -> SSHConfig.JumpHostConfig {
+        let auth = authType?.configAuthMethod ?? .password("")
+        let fallbackIDs = auth.keyID.map { id in SSHKeyManager.shared.defaultKeyIDs.filter { $0 != id } }
+        var config = SSHConfig.JumpHostConfig(host: host, port: port, username: username, authMethod: auth,
+                                              fallbackKeyIDs: fallbackIDs?.isEmpty == true ? nil : fallbackIDs)
+        config.tsshRelay = tsshRelay
+        return config
+    }
+}
+
+extension SSHAuthType {
+    /// History form of a config auth method; the password itself is dropped.
+    init(recording method: SSHConfig.AuthMethod) {
+        switch method {
+        case .password: self = .password
+        case .savedPassword: self = .savedPassword
+        case .key(let id): self = .key(id, fingerprint: SSHKeyManager.shared.findKey(id: id)?.fingerprint)
+        case .none: self = .none
+        case .keyboardInteractive: self = .keyboardInteractive
+        case .unknown(let rawType): self = .unknown(rawType: rawType)
+        }
+    }
+
+    var configAuthMethod: SSHConfig.AuthMethod {
+        switch self {
+        case .password: return .password("")
+        case .savedPassword: return .savedPassword
+        case .key(let id, _): return .key(id)
+        case .none: return .none
+        case .keyboardInteractive: return .keyboardInteractive
+        case .unknown(let rawType): return .unknown(rawType: rawType)
+        }
+    }
+}
+
+extension SSHConnectionHistoryEntry {
+    /// Relay settings of the leading relay hops, hop 1 first.
+    var relayChain: [TSSHRelaySettings] {
+        SSHConnectionHistoryManager.relayChain(first: tsshRelay, hops: extraJumpHops)
+    }
+
+    /// Hops after the first as jump configs, or nil when there are none.
+    var extraJumpHostConfigs: [SSHConfig.JumpHostConfig]? {
+        guard hasJumpHost, let hops = extraJumpHops, !hops.isEmpty else { return nil }
+        return hops.map { $0.jumpHostConfig() }
     }
 }

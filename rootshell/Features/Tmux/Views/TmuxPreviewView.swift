@@ -349,6 +349,7 @@ struct TmuxPreviewContainer: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: Ghostty.TmuxPreviewView, context: Context) {
+        uiView.backgroundColor = GlyphOnlySurfaceFill.color ?? .clear
         // Only write when the content actually changes (handles SwiftUI view reuse)
         guard context.coordinator.writtenContent != content else { return }
         context.coordinator.writtenContent = content

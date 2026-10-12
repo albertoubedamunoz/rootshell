@@ -147,7 +147,8 @@ extension SettingsSearchDestination {
         case .backgroundEffect:
             Meta(section: .appearance, title: String(localized: "Background Effect"), systemImage: "sparkles",
                  keywords: ["effects", "wallpaper", "visuals", "aurora", "gradient", "theme gradient", "backdrop", "solar graph", "fireflies", "butterflies",
-                            "jellyfish", "photo", "video", "ken burns", "theme tint", "intensity", "speed"])
+                            "jellyfish", "photo", "video", "ken burns", "theme tint", "intensity", "speed"]
+                    + (SearchBuild.isChinaBuild ? [String]() : ["weather", "live weather", "rain", "snow", "clouds", "storm", "sky", "stars"]))
         case .customShaders:
             Meta(section: .appearance, title: String(localized: "Custom Shaders"), systemImage: "cpu",
                  keywords: ["shader", "graphics", "metal"])
@@ -707,6 +708,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["custom keyboard", "toolbar", "effect", "background", "aquarium", "keyboard only"], available: isTouch),
             row("effect-backdrop-transparency", String(localized: "Transparent Backdrop"), in: .backgroundEffect,
                 keywords: ["backdrop", "theme gradient", "transparent", "desktop", "see-through"], available: isCatalyst),
+            row("effect-text-above", String(localized: "Text Above Effect"), in: .backgroundEffect,
+                keywords: ["text", "glyphs", "readability", "blend", "behind text", "true colors", "weather"]),
             row("effect-photo", String(localized: "Photo Background"), in: .backgroundEffect, icon: "photo",
                 keywords: ["photo", "image", "wallpaper", "ken burns", "filter", "tint"]),
             row("effect-video", String(localized: "Video Background"), in: .backgroundEffect, icon: "film",

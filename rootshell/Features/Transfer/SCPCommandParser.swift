@@ -318,32 +318,13 @@ struct SCPCommandParser {
         let port = parsedCommand.port
         let username = parsedCommand.username
 
-        // Build jump host config if specified
-        var jumpHostConfig: SSHConfig.JumpHostConfig?
+        // Build jump host chain if specified
+        var jumpChain: [SSHConfig.JumpHostConfig] = []
         if let jumpStr = jumpHostString {
-            let jumpParsed = parseDestination(jumpStr)
-            let jumpUser = jumpParsed.username ?? username
-            guard let jumpHost = jumpParsed.host, !jumpHost.isEmpty else {
+            guard let chain = SSHCommandParser.jumpHostChain(jumpStr, defaultUsername: username) else {
                 return .error("Invalid jump host")
             }
-            // For jump host auth, try to find a matching key or fall back to password prompt
-            let jumpKeyID = findMatchingKey(for: jumpUser, host: jumpHost, identityHint: nil)
-
-            // Build fallback keys for jump host
-            let jumpFallbackIDs: [UUID]?
-            if let keyID = jumpKeyID {
-                jumpFallbackIDs = SSHKeyManager.shared.defaultKeyIDs.filter { $0 != keyID }
-            } else {
-                jumpFallbackIDs = nil
-            }
-
-            jumpHostConfig = SSHConfig.JumpHostConfig(
-                host: jumpHost,
-                port: jumpParsed.port ?? 22,
-                username: jumpUser,
-                authMethod: jumpKeyID != nil ? .key(jumpKeyID!) : .password(""),
-                fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
-            )
+            jumpChain = chain
         }
 
         // Agent config - disabled for SCP transfers (no forwarding needed)
@@ -357,15 +338,16 @@ struct SCPCommandParser {
         if let preferredAuth = parsedCommand.sshOptions["PreferredAuthentications"]?.lowercased(),
            preferredAuth == "none" {
             logger.info("Using 'none' authentication (PreferredAuthentications=none)")
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 authMethod: .none,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(parsedCommand, config)
         }
 
@@ -384,30 +366,32 @@ struct SCPCommandParser {
 
         // If we found a key, return success
         if let foundKeyID = keyID {
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 keyID: foundKeyID,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(parsedCommand, config)
         }
 
         // Check if we have a saved password for this connection
         if SSHPasswordManager.shared.hasPassword(host: host, port: port, username: username) {
             logger.info("Found saved password for \(username)@\(host):\(port)")
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 authMethod: .savedPassword,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(parsedCommand, config)
         }
 
@@ -418,16 +402,17 @@ struct SCPCommandParser {
             let fallbackIDs = Array(allDefaults.dropFirst())
 
             logger.info("Using default key for \(username)@\(host): \(primaryKeyID) (+ \(fallbackIDs.count) fallbacks)")
-            let config = SSHConfig(
+            var config = SSHConfig(
                 host: host,
                 port: port,
                 username: username,
                 keyID: primaryKeyID,
                 fallbackKeyIDs: fallbackIDs.isEmpty ? nil : fallbackIDs,
                 cachedIP: cachedIP,
-                jumpHost: jumpHostConfig,
+                jumpHost: jumpChain.first,
                 agentConfig: agentConfig
             )
+            config.jumpChain = jumpChain
             return .success(parsedCommand, config)
         }
 
@@ -436,7 +421,8 @@ struct SCPCommandParser {
             host: host,
             port: port,
             username: username,
-            jumpHost: jumpHostConfig,
+            jumpHost: jumpChain.first,
+            extraJumpHosts: jumpChain.count > 1 ? Array(jumpChain.dropFirst()) : nil,
             agentConfig: agentConfig,
             portForwardConfig: .none,
             cachedIP: cachedIP
@@ -587,43 +573,6 @@ struct SCPCommandParser {
 
         // Local path
         return .local(path: spec)
-    }
-
-    /// Parse [user@]host[:port] destination string (for jump hosts)
-    private static func parseDestination(_ dest: String) -> (username: String?, host: String?, port: Int?) {
-        var remaining = dest
-        var username: String?
-        var port: Int?
-
-        // Extract user@ prefix (split on LAST @ so usernames containing @ survive)
-        if let atIndex = remaining.lastIndex(of: "@") {
-            username = String(remaining[..<atIndex])
-            remaining = String(remaining[remaining.index(after: atIndex)...])
-        }
-
-        // Extract :port suffix (but be careful with IPv6 [host]:port)
-        if remaining.hasPrefix("[") {
-            // IPv6 format: [host]:port
-            if let closeIndex = remaining.firstIndex(of: "]") {
-                let afterClose = remaining.index(after: closeIndex)
-                if afterClose < remaining.endIndex && remaining[afterClose] == ":" {
-                    let portStr = String(remaining[remaining.index(after: afterClose)...])
-                    port = Int(portStr)
-                    remaining = String(remaining[remaining.index(after: remaining.startIndex)..<closeIndex])
-                } else {
-                    remaining = String(remaining[remaining.index(after: remaining.startIndex)..<closeIndex])
-                }
-            }
-        } else if let colonIndex = remaining.lastIndex(of: ":") {
-            // Regular host:port - but only if what follows looks like a port number
-            let portStr = String(remaining[remaining.index(after: colonIndex)...])
-            if let p = Int(portStr), p > 0, p <= 65535 {
-                port = p
-                remaining = String(remaining[..<colonIndex])
-            }
-        }
-
-        return (username, remaining.isEmpty ? nil : remaining, port)
     }
 
     // MARK: - Key Store Integration (mirrors SSHCommandParser)

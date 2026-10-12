@@ -130,8 +130,11 @@ struct SSHConfig: Codable, Hashable {
     /// Cached resolved IP for .local hostnames (VPN fallback)
     var cachedIP: String? = nil
 
-    /// Optional jump host configuration for ProxyJump-style connections
+    /// First ProxyJump hop. Kept as its own field so older builds still read a single-hop chain.
     var jumpHost: JumpHostConfig? = nil
+
+    /// Hops after `jumpHost`, in connection order. Ignored when `jumpHost` is nil.
+    var extraJumpHosts: [JumpHostConfig]? = nil
 
     /// HSS shorthand that was used to create this config (for history tracking)
     var hssShorthand: String? = nil
@@ -221,7 +224,7 @@ struct SSHConfig: Codable, Hashable {
     /// Not persisted - only used at runtime to determine auth type for connection history
     var usedSavedPassword: Bool = false
 
-    /// Tracks if the jump host password was loaded from Keychain (for history recording)
+    /// Tracks if the first jump hop's password was loaded from Keychain (for history recording)
     /// Not persisted - only used at runtime to determine auth type for connection history
     var usedSavedJumpPassword: Bool = false
 
@@ -475,6 +478,35 @@ struct SSHConfig: Codable, Hashable {
         jumpHost != nil
     }
 
+    /// Every ProxyJump hop in connection order.
+    var jumpChain: [JumpHostConfig] {
+        get { jumpHost.map { [$0] + (extraJumpHosts ?? []) } ?? [] }
+        set {
+            jumpHost = newValue.first
+            let rest = Array(newValue.dropFirst())
+            extraJumpHosts = rest.isEmpty ? nil : rest
+        }
+    }
+
+    /// Leading hops that relay tssh UDP; the target's transport rides the last one.
+    var relayHops: [JumpHostConfig] {
+        Array(jumpChain.prefix { $0.tsshRelay != nil })
+    }
+
+    /// Relays must run unbroken from the first hop: each relay is reached through the previous one.
+    func validateRelayChain() throws {
+        let chain = jumpChain
+        if chain.dropFirst(relayHops.count).contains(where: { $0.tsshRelay != nil }) {
+            throw TSSHRelayConfigurationError("A jump host can relay tssh only when every jump host before it also relays.")
+        }
+    }
+
+    /// Chain summary such as "a@gw → b@bastion:2222".
+    var jumpChainDisplayName: String? {
+        let chain = jumpChain
+        return chain.isEmpty ? nil : chain.map(\.displayName).joined(separator: " → ")
+    }
+
     /// Whether this config uses a saved password (looks up from Keychain)
     var usesSavedPassword: Bool {
         authMethod.isSavedPassword
@@ -504,16 +536,19 @@ struct SSHConfig: Codable, Hashable {
         }
 
         // Resolve jump host auth if needed
-        if var jumpConfig = resolved.jumpHost, case .savedPassword = jumpConfig.authMethod {
+        var chain = resolved.jumpChain
+        for index in chain.indices {
+            guard case .savedPassword = chain[index].authMethod else { continue }
             let jumpPassword = try await SSHPasswordManager.shared.loadPassword(
-                host: jumpConfig.host,
-                port: jumpConfig.port,
-                username: jumpConfig.username
+                host: chain[index].host,
+                port: chain[index].port,
+                username: chain[index].username
             )
-            jumpConfig.authMethod = .password(jumpPassword)
-            resolved.jumpHost = jumpConfig
-            resolved.usedSavedJumpPassword = true
+            chain[index].authMethod = .password(jumpPassword)
+            // History reads this flag as hop 1's; later hops are recorded per hop.
+            if index == 0 { resolved.usedSavedJumpPassword = true }
         }
+        resolved.jumpChain = chain
 
         return resolved
     }
@@ -536,14 +571,14 @@ struct SSHConfig: Codable, Hashable {
     var displayName: String {
         // If we have a cloud instance label, show it prominently
         if let label = cloudInstanceLabel {
-            if let jump = jumpHost {
-                return "\(label) (\(username)@\(host)) via \(jump.displayName)"
+            if let jump = jumpChainDisplayName {
+                return "\(label) (\(username)@\(host)) via \(jump)"
             }
             return "\(label) (\(username)@\(host))"
         }
 
-        if let jump = jumpHost {
-            return "\(username)@\(host) via \(jump.displayName)"
+        if let jump = jumpChainDisplayName {
+            return "\(username)@\(host) via \(jump)"
         }
         return "\(username)@\(host)"
     }
@@ -572,18 +607,13 @@ struct SSHConfig: Codable, Hashable {
             targetAuthValid = false       // Auth method from a newer app version; not usable here
         }
 
-        // If using jump host, also validate jump host config
-        if let jumpConfig = jumpHost {
-            return targetAuthValid && jumpConfig.isValid
-        }
-
-        return targetAuthValid
+        return targetAuthValid && jumpChain.allSatisfy(\.isValid)
     }
 
     // MARK: - Codable (backward-compatible)
 
     private enum CodingKeys: String, CodingKey {
-        case host, port, username, authMethod, cachedIP, jumpHost
+        case host, port, username, authMethod, cachedIP, jumpHost, extraJumpHosts
         case hssShorthand, cloudInstanceLabel, agentConfig, gpgAgentConfig, askpassConfig, portForwardConfig
         case tmuxAutoEnable, tmuxAutoMode, herdrAutoEnable, herdrAutoMode, zmxAutoEnable, launchCommand, launchCommandMode, fallbackKeyIDs, keyResolutionHints
         case terminalType, multiplexerSessionName
@@ -598,6 +628,7 @@ struct SSHConfig: Codable, Hashable {
         authMethod = try container.decodeIfPresent(AuthMethod.self, forKey: .authMethod) ?? .password("")
         cachedIP = try container.decodeIfPresent(String.self, forKey: .cachedIP)
         jumpHost = try container.decodeIfPresent(JumpHostConfig.self, forKey: .jumpHost)
+        extraJumpHosts = try container.decodeIfPresent([JumpHostConfig].self, forKey: .extraJumpHosts)
         hssShorthand = try container.decodeIfPresent(String.self, forKey: .hssShorthand)
         cloudInstanceLabel = try container.decodeIfPresent(String.self, forKey: .cloudInstanceLabel)
         agentConfig = try container.decodeIfPresent(SSHAgentConfig.self, forKey: .agentConfig) ?? .disabled

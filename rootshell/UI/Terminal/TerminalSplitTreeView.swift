@@ -36,6 +36,11 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     var integratedTabJoin: IntegratedTabJoin?
     /// An app-tab swipe is sliding this tab.
     var tracksSwipe = false
+    /// Receives pane backgrounds while Text Above Effect is active.
+    var paneUnderlay: PaneUnderlayModel?
+    /// Receives this tab's top-row pane backgrounds for the Integrated tab.
+    var integratedTabSurface: IntegratedTabSurface?
+    var tabID: UUID?
 
     func makeUIView(context: Context) -> SplitTreeHostingView {
         SplitTreeHostingView()
@@ -48,7 +53,9 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.cardRimPalette = paneCardRimPalette ?? .fallback
         uiView.cardRimIncreasedContrast = colorSchemeContrast == .increased
         uiView.integratedTabJoin = integratedTabJoin
-        uiView.tracksSwipe = tracksSwipe && integratedTabJoin != nil
+        uiView.surfaceTabID = tabID
+        uiView.integratedTabSurface = integratedTabSurface
+        uiView.tracksSwipe = tracksSwipe && (integratedTabJoin != nil || integratedTabSurface != nil)
         uiView.onResize = onResize
         uiView.onMove = onMove
         uiView.allowsPaneRearrangement = allowsPaneRearrangement
@@ -56,6 +63,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.terminalEffectsEnabled = terminalEffectsEnabled
         uiView.reservesTerminalBottomSafeArea = !duoLayout.extendsTerminalToVerticalEdges
         uiView.routesFocusedProgressToIntegratedEdge = routesFocusedProgressToIntegratedEdge
+        uiView.paneUnderlay = paneUnderlay
         uiView.update(tree: tree, focusedPane: focusedPane)
     }
 
@@ -63,6 +71,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.detachAllPanes()
         uiView.integratedTabJoin = nil
         uiView.tracksSwipe = false
+        uiView.integratedTabSurface = nil
     }
 }
 
@@ -93,6 +102,22 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         }
     }
     private var cardBackdropView: CardBackdropView?
+
+    var paneUnderlay: PaneUnderlayModel? {
+        didSet {
+            guard oldValue !== paneUnderlay else { return }
+            pushPaneUnderlay()
+        }
+    }
+
+    var surfaceTabID: UUID?
+    var integratedTabSurface: IntegratedTabSurface? {
+        didSet {
+            guard oldValue !== integratedTabSurface else { return }
+            if let surfaceTabID { oldValue?.update(nil, for: surfaceTabID, from: self) }
+            pushIntegratedTabSurface()
+        }
+    }
 
     /// Rounded Panes rim colors, from the tab's terminal surface.
     var cardRimPalette: IntegratedTabEdgePalette = .fallback {
@@ -129,6 +154,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
                 swipeDisplayLink = link
             } else {
                 updateCardDepth()
+                pushIntegratedTabSurface()
             }
         }
     }
@@ -446,6 +472,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
     // Observer for layout invalidation notifications
     private var layoutInvalidationObserver: NSObjectProtocol?
     private var overlayPreservationEndedObserver: NSObjectProtocol?
+    private var paneBackgroundObserver: NSObjectProtocol?
 
     /// Re-pushes the tmux window size once a keyboard show/hide animation
     /// settles. `pushTmuxClientSizeIfNeeded` is gated off during the
@@ -454,10 +481,9 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
     /// keyboardAnimationTask for the single-pane path.
     private var keyboardAnimationTask: Task<Void, Never>?
 
-    #if !targetEnvironment(macCatalyst)
-    /// Refresh card fills when Tint by Host or a host's fingerprint changes.
+    /// Refresh card fills and the pane underlay when Tint by Host or a host's
+    /// fingerprint changes.
     private var hostTintTasks: [Task<Void, Never>] = []
-    #endif
 
     /// Frosted-glass cover for the dead margin when a smaller foreign tmux client
     /// has shrunk this window below the size we requested. nil until first needed;
@@ -496,7 +522,6 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         }
 
         armCardThemeObservation()
-        #if !targetEnvironment(macCatalyst)
         let settingChanges = SettingsStore.shared.changes()
         let fingerprintChanges = HostFingerprintRegistry.shared.changes()
         hostTintTasks = [
@@ -511,7 +536,19 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
                 }
             },
         ]
-        #endif
+
+        // A program's OSC 11 recolors the fills that stand in for its background.
+        paneBackgroundObserver = NotificationCenter.default.addObserver(
+            forName: .terminalPaneBackgroundDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            MainActor.assumeIsolated {
+                guard let self, let terminal = notification.object as? Ghostty.TerminalView,
+                      self.tree?.contains(where: { $0 === terminal }) == true else { return }
+                self.updateFocusAppearance()
+            }
+        }
 
         // Listen for layout invalidation notifications (tab bar toggle, titlebar tabs, AI sidebar)
         layoutInvalidationObserver = NotificationCenter.default.addObserver(
@@ -563,10 +600,11 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         if let observer = overlayPreservationEndedObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        if let observer = paneBackgroundObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
         keyboardAnimationTask?.cancel()
-        #if !targetEnvironment(macCatalyst)
         hostTintTasks.forEach { $0.cancel() }
-        #endif
     }
 
     func update(tree: SplitTree<SplitPaneView>, focusedPane: SplitPaneView?) {
@@ -684,6 +722,8 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         hideUnusedDividers(from: dividerReuseIndex)
         updateCardBackdrop()
         updateCardDepth()
+        pushPaneUnderlay()
+        pushIntegratedTabSurface()
         hasCompletedHerdrLayout = true
         // Push from full `bounds` (inside this call), unaffected by `layoutRect`,
         // so tmux reclaims our full size when the foreign client detaches.
@@ -1675,11 +1715,12 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         // uncovered strip with the terminal background, square panes included,
         // so the backdrop never shows through. A translucent terminal fills just
         // that strip, at its own opacity, so the fill never stacks beneath it.
+        // With Text Above Effect the pane underlay paints both instead.
         if let scrollView = container as? Ghostty.TerminalScrollView {
-            let opacity = TransparencyManager.shared.effectiveBackgroundOpacity
+            let opacity = TransparencyManager.shared.terminalSurfaceOpacity
             let surface = cardSurfaceColor(for: scrollView.terminalView)
             scrollView.backgroundColor = opacity >= 1 ? surface : .clear
-            scrollView.overscrollFillColor = opacity < 1 ? surface.withAlphaComponent(opacity) : nil
+            scrollView.overscrollFillColor = opacity > 0 && opacity < 1 ? surface.withAlphaComponent(opacity) : nil
         }
         #endif
     }
@@ -1691,35 +1732,27 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
             _ = ThemeOverrideManager.shared.windowOverrides
             _ = ThemeOverrideManager.shared.tabOverrides
             _ = TransparencyManager.shared.effectiveBackgroundOpacity
+            _ = TransparencyManager.shared.terminalSurfaceOpacity
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 // Square panes still need the overscroll fill refreshed.
                 self.updateFocusAppearance()
+                self.updateCardBackdrop()
+                self.pushPaneUnderlay()
+                self.pushIntegratedTabSurface()
                 self.armCardThemeObservation()
             }
         }
     }
 
     private func cardSurfaceColor(for terminal: Ghostty.TerminalView) -> UIColor {
-        let (themeName, _) = ThemeOverrideManager.shared.resolveTheme(
-            tabId: terminal.containingTabID, windowId: terminal.windowId)
-        let hex = ThemeManager.shared.themeInfo(for: themeName)?.colors.background
-            ?? ThemeManager.shared.currentThemeInfo?.colors.background
-        guard let base = hex.flatMap({ UIColor(hex: $0) }) else { return .clear }
-        // Match the surface's Tint by Host background.
-        guard let fingerprint = HostFingerprintRegistry.shared.tintFingerprint(for: terminal.connectionConfig)
-        else { return base }
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        base.getRed(&r, green: &g, blue: &b, alpha: &a)
-        let channel = { (value: CGFloat) in UInt8((min(max(value, 0), 1) * 255).rounded()) }
-        let tinted = HostTint.tintedBackground(
-            red: channel(r), green: channel(g), blue: channel(b), fingerprint: fingerprint)
-        return UIColor(hex: tinted) ?? base
+        terminal.paneBackgroundColor ?? .clear
     }
 
     private func updateCardBackdrop() {
-        guard roundsPanes, let color = cardBackdropColor else {
+        // The pane underlay draws the gaps beneath the effect instead.
+        guard roundsPanes, let color = cardBackdropColor, !drawsPaneUnderlay else {
             cardBackdropView?.isHidden = true
             return
         }
@@ -1734,12 +1767,63 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         backdrop.isHidden = false
         backdrop.frame = bounds
         sendSubviewToBack(backdrop)
-        let path = UIBezierPath(rect: backdrop.bounds)
+        backdrop.shapeLayer.path = cardGapPath()
+        backdrop.shapeLayer.fillColor = color.cgColor
+    }
+
+    /// The hosting bounds minus the pane cards, for an even-odd fill.
+    private func cardGapPath() -> CGPath {
+        let path = UIBezierPath(rect: CGRect(origin: .zero, size: bounds.size))
         for container in attachedContainers.values where container.superview === self {
             path.append(UIBezierPath(roundedRect: container.frame, cornerRadius: PaneCardStyle.cornerRadius))
         }
-        backdrop.shapeLayer.path = path.cgPath
-        backdrop.shapeLayer.fillColor = color.cgColor
+        return path.cgPath
+    }
+
+    private var drawsPaneUnderlay: Bool {
+        paneUnderlay != nil && EffectManager.shared.isTextAboveEffectActive
+    }
+
+    /// Terminal pane backgrounds, which ghostty no longer draws.
+    private func pushPaneUnderlay() {
+        guard let paneUnderlay, drawsPaneUnderlay, let tree else { return }
+        let opacity = CGFloat(TransparencyManager.shared.effectiveBackgroundOpacity)
+        var panes: [PaneUnderlayModel.Pane] = []
+        for pane in tree where !pane.isDetachedForFullScreen {
+            guard let container = attachedContainers[ObjectIdentifier(pane)] as? Ghostty.TerminalScrollView,
+                  container.superview === self, !container.isHidden else { continue }
+            panes.append(.init(
+                frame: container.frame, cornerRadius: container.layer.cornerRadius,
+                color: cardSurfaceColor(for: container.terminalView).withAlphaComponent(opacity)))
+        }
+        let gaps = roundsPanes ? cardBackdropColor.map { PaneUnderlayModel.Gaps(path: cardGapPath(), color: $0) } : nil
+        paneUnderlay.update(panes: panes, gaps: gaps)
+    }
+
+    /// Top-row pane backgrounds and where this tab sits on screen, for the
+    /// selected Integrated tab to paint what lies beneath it.
+    private func pushIntegratedTabSurface() {
+        guard let integratedTabSurface, let surfaceTabID else { return }
+        guard let window, let tree else {
+            integratedTabSurface.update(nil, for: surfaceTabID, from: self)
+            return
+        }
+        var panes: [(frame: CGRect, color: UIColor)] = []
+        for pane in tree where !pane.isDetachedForFullScreen {
+            guard let container = attachedContainers[ObjectIdentifier(pane)] as? Ghostty.TerminalScrollView,
+                  container.superview === self, !container.isHidden else { continue }
+            panes.append((container.frame, cardSurfaceColor(for: container.terminalView)))
+        }
+        let top = panes.map(\.frame.minY).min() ?? 0
+        let segments = panes.filter { $0.frame.minY <= top + 1 }
+            .sorted { $0.frame.minX < $1.frame.minX }
+            .map { IntegratedTabSurface.Segment(minX: $0.frame.minX, maxX: $0.frame.maxX, color: $0.color) }
+        // A swipe animates this view, so read where it is on screen.
+        let originX = tracksSwipe
+            ? (layer.presentation() ?? layer).convert(CGPoint.zero, to: window.layer.presentation() ?? window.layer).x
+            : convert(CGPoint.zero, to: nil).x
+        integratedTabSurface.update(segments.isEmpty ? nil : .init(originX: originX, segments: segments),
+                                    for: surfaceTabID, from: self)
     }
 
     private func resolvedBorderColor() -> UIColor {
@@ -1768,6 +1852,9 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         }
         // Rims step aside for the focus border.
         updateCardDepth()
+        // Corner radii and host tints were just applied.
+        pushPaneUnderlay()
+        pushIntegratedTabSurface()
     }
 
     // MARK: - Card Depth
@@ -1778,6 +1865,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
 
     @objc private func swipeFrame() {
         updateCardDepth()
+        pushIntegratedTabSurface()
     }
 
     /// Attached cards and whether each draws a rim (a focus border already

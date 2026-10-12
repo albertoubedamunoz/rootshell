@@ -33,6 +33,19 @@ extension MainView {
         }
     }
 
+    /// Text Above Effect: where the exposé backdrop goes, beneath the
+    /// background effect. Framed exactly like `tabExposeHost`.
+    @ViewBuilder
+    func tabExposeBackdropHost(width: CGFloat) -> some View {
+        TabExposeBackdropContainer(controller: tabExpose)
+            .frame(width: width)
+            #if !os(visionOS) && !targetEnvironment(macCatalyst)
+            .ignoresSafeArea(.container, edges: .bottom)
+            #endif
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
     private func tabExposeConfiguration() -> TabExposeView.Configuration {
         var config = TabExposeView.Configuration()
         config.gestureEnabled = { TabExposeSettings.gestureEnabled() }
@@ -49,6 +62,20 @@ extension MainView {
         return config
     }
 
+    /// Text Above Effect: mirrors paint each pane's background, and the
+    /// preview's fill shows between them, in the tab's own theme.
+    func glyphOnlyMirrorBackgrounds() -> [UUID: UIColor] {
+        var colors: [UUID: UIColor] = [:]
+        for tab in terminals {
+            let themeName = ThemeOverrideManager.shared.resolveTheme(tabId: tab.id, windowId: windowId).themeName
+            if let hex = ThemeManager.shared.themeInfo(for: themeName)?.colors.background,
+               let color = UIColor(hex: hex) {
+                colors[tab.id] = color
+            }
+        }
+        return colors
+    }
+
     private func tabExposeAppearance() -> TabExposeView.Appearance {
         var appearance = TabExposeView.Appearance()
         let theme = resolvedTabBarTheme()
@@ -60,6 +87,10 @@ extension MainView {
         // The backdrop stands in for the terminal's card: its fill, opacity,
         // corners and rim.
         appearance.backgroundOpacity = transparencyManager.effectiveBackgroundOpacity
+        if effectManager.isTextAboveEffectActive {
+            appearance.glyphOnlyMirrors = true
+            appearance.tabBackgroundColors = glyphOnlyMirrorBackgrounds()
+        }
         appearance.cornerRadius = roundedPanes ? PaneCardStyle.cornerRadius : 0
         appearance.rimPalette = roundedPanes ? theme.integratedEdgePalette : nil
         appearance.textColor = UIColor(theme.tabText)
@@ -274,6 +305,21 @@ private struct MuxTabCaption: View {
 /// Keeps the safe-area modifier behind a nominal view boundary. Inlining this
 /// extra generic layer into terminalContentZStack's already-large ViewBuilder
 /// can produce invalid AttributeGraph metadata on iOS during the first render.
+private struct TabExposeBackdropContainer: UIViewRepresentable {
+    let controller: TabExposeController
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        controller.backdropHost = view
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        if controller.backdropHost !== view { controller.backdropHost = view }
+    }
+}
+
 private struct TabExposeSafeAreaHost: View {
     let controller: TabExposeController
     let configuration: TabExposeView.Configuration

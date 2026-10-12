@@ -251,6 +251,7 @@ final class ConnectionProfileManager {
             agentConfig: historyEntry.agentConfig ?? .disabled,
             portForwardConfig: historyEntry.portForwardConfig ?? .none
         )
+        sshConfig.extraJumpHosts = jumpHostConfig == nil ? nil : historyEntry.extraJumpHostConfigs
         sshConfig.tmuxAutoEnable = historyEntry.tmuxAutoEnable ?? false
         sshConfig.tmuxAutoMode = historyEntry.tmuxAutoMode ?? .regular
         sshConfig.herdrAutoEnable = historyEntry.herdrAutoEnable ?? false
@@ -617,7 +618,7 @@ final class ConnectionProfileManager {
         for remote in remoteProfiles {
             do {
                 try TSSHRelayStore.shared.seed(owner: .profile, key: remote.id.uuidString,
-                    settings: remote.sshConfig.jumpHost?.tsshRelay, modifiedAt: remote.modifiedAt)
+                    relays: remote.sshConfig.relayChain, modifiedAt: remote.modifiedAt)
             } catch {
                 failures.append((id: remote.id, error: error))
                 continue
@@ -816,11 +817,14 @@ final class ConnectionProfileManager {
     ) throws {
         var sanitized = sanitizeProfileForPersistence(profile)
         if notifySync {
-            var relay = sanitized.sshConfig.jumpHost?.tsshRelay
-            if let jump = sanitized.sshConfig.jumpHost, relay != nil, relay?.boundJump == nil {
-                relay?.boundJump = TSSHRelayIdentity(host: jump.host, port: jump.port, username: jump.username)
+            let relays = sanitized.sshConfig.relayHops.compactMap { hop -> TSSHRelaySettings? in
+                guard var relay = hop.tsshRelay else { return nil }
+                if relay.boundJump == nil {
+                    relay.boundJump = TSSHRelayIdentity(host: hop.host, port: hop.port, username: hop.username)
+                }
+                return relay
             }
-            try TSSHRelayStore.shared.update(owner: .profile, key: profile.id.uuidString, settings: relay)
+            try TSSHRelayStore.shared.update(owner: .profile, key: profile.id.uuidString, relays: relays)
         }
         sanitized = TSSHRelayStore.shared.applying(to: sanitized)
         if notifySync {
@@ -958,8 +962,10 @@ final class ConnectionProfileManager {
             username: profile.sshConfig.username
         )
 
-        let jumpHost = profile.sshConfig.jumpHost.map { jumpHost in
-            var relay = jumpHost.tsshRelay
+        // Only the unbroken run of relays from hop 1 is usable.
+        let relayCount = profile.sshConfig.relayHops.count
+        let jumpChain = profile.sshConfig.jumpChain.enumerated().map { index, jumpHost in
+            var relay = index < relayCount ? jumpHost.tsshRelay : nil
             if var resolved = relay {
                 resolved.udpPortMin = resolved.udpPortMin ?? TrzszConfig.preferredUDPPortMin
                 resolved.udpPortMax = resolved.udpPortMax ?? TrzszConfig.preferredUDPPortMax
@@ -981,7 +987,9 @@ final class ConnectionProfileManager {
             )
         }
 
-        let jumpStartable = jumpHost?.auth.isBackgroundStartable ?? true
+        let jumpHost = jumpChain.first
+        let extraJumpHosts = jumpChain.count > 1 ? Array(jumpChain.dropFirst()) : nil
+        let jumpStartable = jumpChain.allSatisfy(\.auth.isBackgroundStartable)
 
         return VPNSharedProfileSnapshot(
             id: profile.id,
@@ -993,6 +1001,7 @@ final class ConnectionProfileManager {
             transportType: profile.connectionProtocol == .trzsz ? .tssh : .ssh,
             auth: auth,
             jumpHost: jumpHost,
+            extraJumpHosts: extraJumpHosts,
             trzszMode: profile.connectionProtocol == .trzsz ? profile.trzszTransportMode.resolved.displayName : nil,
             trzszUDPPortMin: profile.connectionProtocol == .trzsz ? (profile.trzszPortMin ?? TrzszConfig.preferredUDPPortMin) : nil,
             trzszUDPPortMax: profile.connectionProtocol == .trzsz ? (profile.trzszPortMax ?? TrzszConfig.preferredUDPPortMax) : nil,

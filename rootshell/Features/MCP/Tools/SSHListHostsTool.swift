@@ -80,6 +80,9 @@ struct SSHListHostsTool: MCPTool {
                 host["jumpHost"] = entry.jumpHost
                 host["jumpPort"] = entry.jumpPort ?? 22
                 host["jumpUsername"] = entry.jumpUsername
+                if let extra = entry.extraJumpHops, !extra.isEmpty {
+                    host["extraJumpHosts"] = extra.map { ["host": $0.host, "port": $0.port, "username": $0.username] as [String: Any] }
+                }
             }
 
             // Include HSS shorthand if present

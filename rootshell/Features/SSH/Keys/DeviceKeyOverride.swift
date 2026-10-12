@@ -70,6 +70,9 @@ struct DeviceKeyOverride: Codable, Sendable, Identifiable {
     /// Override for jump host fallback chain
     var jumpHostFallbackKeyIDs: [UUID]?
 
+    /// Overrides for hops after the first, keyed by jump-chain index ("1", "2", ...)
+    var extraJumpHostKeyIDs: [String: UUID]?
+
     /// When this override was created
     var createdAt: Date
 

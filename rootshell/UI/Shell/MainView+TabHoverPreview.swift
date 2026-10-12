@@ -77,6 +77,10 @@ extension MainView {
         // Keep the window's transparency in the mirrored picture.
         style.backgroundOpacity = transparencyManager.backgroundOpacity
         #endif
+        if effectManager.isTextAboveEffectActive {
+            style.glyphOnlyMirrors = true
+            style.tabBackgroundColors = glyphOnlyMirrorBackgrounds()
+        }
         style.isLight = theme.isLight
         if let accent = sheetAccentColor {
             style.accentColor = UIColor(accent)

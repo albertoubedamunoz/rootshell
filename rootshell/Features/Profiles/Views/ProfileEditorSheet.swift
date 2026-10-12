@@ -130,17 +130,8 @@ struct ProfileEditorSheet: View {
     @State private var isChangingPassword: Bool = false  // true when editing existing password
     @State private var newPassword: String = ""
 
-    // Jump host state
-    @State private var tsshRelay: TSSHRelaySettings?
-    @State private var useJumpHost: Bool = false
-    @State private var jumpHost: String = ""
-    @State private var jumpPort: String = "22"
-    @State private var jumpUsername: String = ""
-    @State private var jumpAuthMethod: AuthMethodType = .key
-    @State private var jumpKeyID: UUID?
-    @State private var hasExistingJumpPassword: Bool = false
-    @State private var isChangingJumpPassword: Bool = false  // true when editing existing jump password
-    @State private var newJumpPassword: String = ""
+    // Jump hosts, in connection order
+    @State private var jumpHops: [JumpHostDraft] = []
 
     // Port forwarding state
     @State private var portForwards: [PortForwardConfig.PortForward] = []
@@ -258,18 +249,6 @@ struct ProfileEditorSheet: View {
         Binding(
             get: { authMethod == .keyboardInteractive },
             set: { authMethod = $0 ? .keyboardInteractive : .password }
-        )
-    }
-    private var jumpMethodSelection: Binding<AuthMethodType> {
-        Binding(
-            get: { jumpAuthMethod == .keyboardInteractive ? .password : jumpAuthMethod },
-            set: { jumpAuthMethod = $0 }
-        )
-    }
-    private var jumpUsesKeyboardInteractive: Binding<Bool> {
-        Binding(
-            get: { jumpAuthMethod == .keyboardInteractive },
-            set: { jumpAuthMethod = $0 ? .keyboardInteractive : .password }
         )
     }
 
@@ -965,6 +944,12 @@ struct ProfileEditorSheet: View {
 
     // MARK: - Device Override Section
 
+    private func jumpOverrideKeys(_ override: DeviceKeyOverride) -> [(hopIndex: Int, keyID: UUID)] {
+        let extra = (override.extraJumpHostKeyIDs ?? [:]).compactMap { key, id in Int(key).map { ($0, id) } }
+        let first = override.jumpHostKeyID.map { [(0, $0)] } ?? []
+        return (first + extra).sorted { $0.0 < $1.0 }.map { (hopIndex: $0.0, keyID: $0.1) }
+    }
+
     @ViewBuilder
     private var deviceOverrideSection: some View {
         if let override = deviceOverride, let profile = existingProfile {
@@ -981,11 +966,13 @@ struct ProfileEditorSheet: View {
                     }
                     .themedRow()
                 }
-                if let jumpOverrideKeyID = override.jumpHostKeyID {
+                ForEach(jumpOverrideKeys(override), id: \.hopIndex) { entry in
                     HStack {
-                        Label("Jump Host Device Key", systemImage: "iphone")
+                        Label(entry.hopIndex == 0 ? String(localized: "Jump Host Device Key")
+                                                  : String(localized: "Jump Host \(entry.hopIndex + 1) Device Key"),
+                              systemImage: "iphone")
                         Spacer()
-                        if let key = SSHKeyManager.shared.findKey(id: jumpOverrideKeyID) {
+                        if let key = SSHKeyManager.shared.findKey(id: entry.keyID) {
                             Text(key.name).foregroundStyle(.secondary)
                         } else {
                             Text("Key missing").foregroundStyle(.red)
@@ -1019,115 +1006,20 @@ struct ProfileEditorSheet: View {
 
     private var jumpHostSection: some View {
         Section {
-            Toggle("Use Jump Host", isOn: $useJumpHost)
-                .themedRow()
-
-            if useJumpHost {
-                if connectionProtocol == .trzsz { TSSHRelayForm(settings: $tsshRelay) }
-                TextField("Jump Hostname", text: $jumpHost)
-                    .autocapitalization(.none)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .themedRow()
-
-                validationMessage(jumpHostValidationMessage)
-
-                HStack {
-                    Text("Jump Port")
-                    Spacer()
-                    TextField("22", text: $jumpPort)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
+            JumpHostListSection(
+                hops: $jumpHops,
+                mode: .profile,
+                showsRelay: connectionProtocol == .trzsz,
+                targetName: trimmedHost,
+                defaultDraft: {
+                    JumpHostDraft(username: trimmedUsername, authMethod: .key,
+                                  selectedKeyID: selectedKeyID ?? SSHKeyManager.shared.primaryDefaultKeyID)
                 }
-                .themedRow()
-
-                validationMessage(jumpPortValidationMessage)
-
-                TextField("Jump Username", text: $jumpUsername)
-                    .autocapitalization(.none)
-                    .autocorrectionDisabled()
-                    .themedRow()
-
-                validationMessage(jumpUsernameValidationMessage)
-
-                Picker("Jump Authentication", selection: jumpMethodSelection) {
-                    ForEach(authMethodPickerCases, id: \.self) { method in
-                        Text(method.displayName).tag(method)
-                    }
-                }
-                .themedRow()
-
-                if jumpAuthMethod == .key {
-                    sshKeyPicker(selection: $jumpKeyID, hint: jumpKeyHint)
-                        .themedRow()
-                    validationMessage(jumpKeyValidationMessage)
-                }
-
-                if jumpAuthMethod == .password || jumpAuthMethod == .keyboardInteractive {
-                    Toggle("Keyboard-Interactive (2FA / OTP)", isOn: jumpUsesKeyboardInteractive)
-                        .themedRow()
-                }
-
-                if jumpAuthMethod == .keyboardInteractive {
-                    Text("The jump host will prompt for credentials, such as a one-time code.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .themedRow()
-                }
-
-                if jumpAuthMethod == .password {
-                    if isChangingJumpPassword {
-                        SecureField(hasExistingJumpPassword ? "Enter new password" : "Enter password", text: $newJumpPassword)
-                            .themedRow()
-                        Button("Cancel") {
-                            newJumpPassword = ""
-                            isChangingJumpPassword = false
-                        }
-                        .foregroundColor(.secondary)
-                        .themedRow()
-                    } else if hasExistingJumpPassword {
-                        HStack {
-                            Label("Password saved", systemImage: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Spacer()
-                            Button("Change") {
-                                isChangingJumpPassword = true
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                        .themedRow()
-                        Button("Remove Saved Password", role: .destructive, action: removeJumpPassword)
-                            .font(.subheadline)
-                            .themedRow()
-                    } else {
-                        Button {
-                            isChangingJumpPassword = true
-                        } label: {
-                            Label("Save Password...", systemImage: "key.fill")
-                        }
-                        .themedRow()
-                    }
-                }
-
-                if connectionProtocol == .trzsz {
-                    TSSHRelayAdvancedForm(settings: $tsshRelay)
-                }
-            }
+            )
         } header: {
-            Text("Jump Host")
+            Text("Jump Hosts")
         } footer: {
-            if useJumpHost && jumpAuthMethod == .password {
-                if isChangingJumpPassword {
-                    Text("Enter password to save securely in Keychain.")
-                } else if hasExistingJumpPassword {
-                    Text("Jump host password stored securely in Keychain.")
-                } else {
-                    Text("Jump host password will be prompted on connect.")
-                }
-            } else {
-                Text("Connect through an intermediate server (bastion/proxy)")
-            }
+            Text("Connect through intermediate servers (bastion/proxy), in order.")
         }
     }
 
@@ -1489,10 +1381,12 @@ struct ProfileEditorSheet: View {
            !HostCAManager.shared.hasCA(forHost: trimmedHost) {
             return trimmedHost
         }
-        if useJumpHost, let jumpPort = resolvedJumpPort, !trimmedJumpHost.isEmpty,
-           KnownHostsManager.shared.getHost(hostname: trimmedJumpHost, port: jumpPort) == nil,
-           !HostCAManager.shared.hasCA(forHost: trimmedJumpHost) {
-            return trimmedJumpHost
+        for hop in jumpHops {
+            if let hopPort = hop.portNumber, !hop.trimmedHost.isEmpty,
+               KnownHostsManager.shared.getHost(hostname: hop.trimmedHost, port: hopPort) == nil,
+               !HostCAManager.shared.hasCA(forHost: hop.trimmedHost) {
+                return hop.trimmedHost
+            }
         }
         return nil
     }
@@ -1726,12 +1620,6 @@ struct ProfileEditorSheet: View {
         return existingProfile?.sshConfig.keyResolutionHints?[keyID.uuidString]
     }
 
-    private var jumpKeyHint: KeyResolutionHint? {
-        guard let keyID = jumpKeyID else { return nil }
-        return existingProfile?.sshConfig.keyResolutionHints?[keyID.uuidString]
-            ?? existingProfile?.sshConfig.jumpHost?.keyResolutionHints?[keyID.uuidString]
-    }
-
     // MARK: - Password Actions
 
     private func startEditingPassword() {
@@ -1759,31 +1647,6 @@ struct ProfileEditorSheet: View {
         newPassword = ""
     }
 
-    private func startEditingJumpPassword() {
-        isChangingJumpPassword = true
-    }
-
-    private func cancelEditingJumpPassword() {
-        newJumpPassword = ""
-        isChangingJumpPassword = false
-    }
-
-    private func removeJumpPassword() {
-        guard let port = resolvedJumpPort else {
-            errorMessage = jumpPortValidationMessage
-            return
-        }
-        let key = SSHSavedPassword.makeConnectionKey(
-            host: trimmedJumpHost,
-            port: port,
-            username: trimmedJumpUsername
-        )
-        try? SSHPasswordManager.shared.deletePassword(connectionKey: key)
-        hasExistingJumpPassword = false
-        isChangingJumpPassword = false
-        newJumpPassword = ""
-    }
-
     // MARK: - Validation
 
     private var isTrzszTimeoutValid: Bool {
@@ -1806,14 +1669,7 @@ struct ProfileEditorSheet: View {
         usernameValidationMessage == nil &&
         targetKeyValidationMessage == nil &&
         (connectionProtocol != .trzsz || isTrzszTimeoutValid) &&
-        (!useJumpHost || isJumpHostValid)
-    }
-
-    private var isJumpHostValid: Bool {
-        jumpHostValidationMessage == nil &&
-        jumpPortValidationMessage == nil &&
-        jumpUsernameValidationMessage == nil &&
-        jumpKeyValidationMessage == nil
+        jumpHops.allSatisfy { (try? $0.build(sshKeyManager: .shared, forConnecting: false)) != nil }
     }
 
     private var trimmedName: String {
@@ -1828,20 +1684,8 @@ struct ProfileEditorSheet: View {
         username.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var trimmedJumpHost: String {
-        jumpHost.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var trimmedJumpUsername: String {
-        jumpUsername.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     private var resolvedPort: Int? {
         resolvedPort(from: port)
-    }
-
-    private var resolvedJumpPort: Int? {
-        resolvedPort(from: jumpPort)
     }
 
     private func resolvedPort(from text: String) -> Int? {
@@ -1870,26 +1714,6 @@ struct ProfileEditorSheet: View {
     private var targetKeyValidationMessage: String? {
         authMethod == .key && selectedKeyID == nil
             ? "Select an SSH key or choose another authentication method."
-            : nil
-    }
-
-    private var jumpHostValidationMessage: String? {
-        useJumpHost && trimmedJumpHost.isEmpty ? "Jump hostname is required." : nil
-    }
-
-    private var jumpPortValidationMessage: String? {
-        useJumpHost && resolvedJumpPort == nil
-            ? "Jump port must be between 1 and 65535, or blank for 22."
-            : nil
-    }
-
-    private var jumpUsernameValidationMessage: String? {
-        useJumpHost && trimmedJumpUsername.isEmpty ? "Jump username is required." : nil
-    }
-
-    private var jumpKeyValidationMessage: String? {
-        useJumpHost && jumpAuthMethod == .key && jumpKeyID == nil
-            ? "Select an SSH key for the jump host or choose another authentication method."
             : nil
     }
 
@@ -1934,17 +1758,10 @@ struct ProfileEditorSheet: View {
         ConnectionEndpoint(
             host: host,
             username: username,
-            usesJumpHost: useJumpHost,
-            jumpHost: jumpHost,
-            jumpPort: jumpPort,
-            jumpUsername: jumpUsername,
-            jumpAuthMethod: Self.sharedAuthType(jumpAuthMethod),
-            jumpKeyID: jumpKeyID,
-            jumpHasSavedPassword: hasExistingJumpPassword,
+            jumpHops: jumpHops,
             hasHostBoundSecret: hasExistingPassword
                 || !newPassword.isEmpty
-                || hasExistingJumpPassword
-                || !newJumpPassword.isEmpty
+                || jumpHops.contains { $0.hasSavedPassword || !$0.password.isEmpty }
         )
     }
 
@@ -1952,37 +1769,7 @@ struct ProfileEditorSheet: View {
         host = endpoint.host
         username = endpoint.username
 
-        useJumpHost = endpoint.usesJumpHost
-        guard endpoint.usesJumpHost else {
-            hasExistingJumpPassword = false
-            return
-        }
-        jumpHost = endpoint.jumpHost
-        jumpPort = endpoint.jumpPort
-        jumpUsername = endpoint.jumpUsername
-        jumpAuthMethod = Self.editorAuthType(endpoint.jumpAuthMethod)
-        jumpKeyID = endpoint.jumpKeyID
-        hasExistingJumpPassword = endpoint.jumpHasSavedPassword
-    }
-
-    /// The editor and the Screen Sharing form spell the same auth choices
-    /// with two enums; map explicitly rather than leaning on raw values.
-    private static func sharedAuthType(_ method: AuthMethodType) -> SSHConnectionView.AuthType {
-        switch method {
-        case .password: return .password
-        case .key: return .key
-        case .keyboardInteractive: return .keyboardInteractive
-        case .none: return .none
-        }
-    }
-
-    private static func editorAuthType(_ method: SSHConnectionView.AuthType) -> AuthMethodType {
-        switch method {
-        case .password: return .password
-        case .key: return .key
-        case .keyboardInteractive: return .keyboardInteractive
-        case .none: return .none
-        }
+        jumpHops = endpoint.jumpHops
     }
 
     // MARK: - Actions
@@ -2103,41 +1890,7 @@ struct ProfileEditorSheet: View {
                 authMethod = .none  // Newer app's auth type; shown as None (re-pick to change)
             }
 
-            tsshRelay = config.jumpHost?.tsshRelay
-            if let jump = config.jumpHost {
-                useJumpHost = true
-                jumpHost = jump.host
-                jumpPort = "\(jump.port)"
-                jumpUsername = jump.username
-
-                switch jump.authMethod {
-                case .password:
-                    jumpAuthMethod = .password
-                case .savedPassword:
-                    jumpAuthMethod = .password
-                    // Check if password actually exists in Keychain
-                    hasExistingJumpPassword = SSHPasswordManager.shared.hasPassword(
-                        host: jump.host,
-                        port: jump.port,
-                        username: jump.username
-                    )
-                case .key(let keyID):
-                    jumpAuthMethod = .key
-                    let jumpHint = config.keyResolutionHints?[keyID.uuidString]
-                        ?? jump.keyResolutionHints?[keyID.uuidString]
-                    if let resolved = SSHKeyManager.shared.resolveKey(id: keyID, hint: jumpHint) {
-                        jumpKeyID = resolved.id
-                    } else {
-                        jumpKeyID = keyID
-                    }
-                case .none:
-                    jumpAuthMethod = .none  // Tailscale/WireGuard pre-authenticated
-                case .keyboardInteractive:
-                    jumpAuthMethod = .keyboardInteractive
-                case .unknown:
-                    jumpAuthMethod = .none  // Newer app's auth type; shown as None
-                }
-            }
+            jumpHops = config.jumpChain.map { JumpHostDraft(config: $0, hints: config.keyResolutionHints) }
 
             // Load device override
             deviceOverride = DeviceKeyOverrideManager.shared.override(forProfile: profile.id)
@@ -2194,7 +1947,6 @@ struct ProfileEditorSheet: View {
 
             // Load connection protocol from history
             connectionProtocol = entry.connectionProtocol ?? .ssh
-            tsshRelay = entry.tsshRelay
 
             switch entry.authType {
             case .password:
@@ -2218,37 +1970,8 @@ struct ProfileEditorSheet: View {
                 authMethod = .none  // Newer app's auth type; shown as None (re-pick to change)
             }
 
-            // Jump host from history
-            if let jHost = entry.jumpHost, !jHost.isEmpty {
-                useJumpHost = true
-                jumpHost = jHost
-                jumpPort = "\(entry.jumpPort ?? 22)"
-                jumpUsername = entry.jumpUsername ?? entry.username
-
-                if let jumpAuth = entry.jumpAuthType {
-                    switch jumpAuth {
-                    case .password:
-                        jumpAuthMethod = .password
-                    case .savedPassword:
-                        jumpAuthMethod = .password
-                        // Check if password actually exists in Keychain
-                        hasExistingJumpPassword = SSHPasswordManager.shared.hasPassword(
-                            host: jHost,
-                            port: entry.jumpPort ?? 22,
-                            username: entry.jumpUsername ?? entry.username
-                        )
-                    case .key(let keyID, _):
-                        jumpAuthMethod = .key
-                        jumpKeyID = keyID
-                    case .keyboardInteractive:
-                        jumpAuthMethod = .keyboardInteractive
-                    case .none:
-                        jumpAuthMethod = .none  // Tailscale/WireGuard pre-authenticated
-                    case .unknown:
-                        jumpAuthMethod = .none  // Newer app's auth type; shown as None
-                    }
-                }
-            }
+            // Jump hosts from history
+            jumpHops = JumpHostDraft.drafts(from: entry)
 
             // Agent config from history
             if let agentConfig = entry.agentConfig {
@@ -2358,68 +2081,29 @@ struct ProfileEditorSheet: View {
             sshAuthMethod = .none  // Tailscale/WireGuard pre-authenticated
         }
 
-        let jumpPortNum: Int
-        if useJumpHost {
-            guard let resolved = resolvedJumpPort else {
-                errorMessage = jumpPortValidationMessage
+        // Jump chain; relays only apply to tssh, and typed hop passwords go to the Keychain
+        var jumpChain: [SSHConfig.JumpHostConfig]
+        do {
+            jumpChain = try JumpHostDraft.buildChain(jumpHops, sshKeyManager: .shared, forConnecting: false,
+                                                     relays: connectionProtocol == .trzsz)
+        } catch {
+            errorMessage = (error as? JumpHostFormSection.BuildError)?.message ?? error.localizedDescription
+            return
+        }
+        for index in jumpChain.indices {
+            guard case .password(let hopPassword) = jumpChain[index].authMethod, !hopPassword.isEmpty else { continue }
+            do {
+                try SSHPasswordManager.shared.savePassword(
+                    hopPassword,
+                    host: jumpChain[index].host,
+                    port: jumpChain[index].port,
+                    username: jumpChain[index].username
+                )
+                jumpChain[index].authMethod = .savedPassword
+            } catch {
+                errorMessage = "Failed to save jump host password: \(error.localizedDescription)"
                 return
             }
-            jumpPortNum = resolved
-        } else {
-            jumpPortNum = 22
-        }
-        let targetJumpHost = trimmedJumpHost
-        let targetJumpUsername = trimmedJumpUsername
-
-        var jumpHostConfig: SSHConfig.JumpHostConfig?
-        if useJumpHost {
-            let jumpAuth: SSHConfig.AuthMethod
-            switch jumpAuthMethod {
-            case .password:
-                if !newJumpPassword.isEmpty {
-                    // New password entered - save it
-                    do {
-                        try SSHPasswordManager.shared.savePassword(
-                            newJumpPassword,
-                            host: targetJumpHost,
-                            port: jumpPortNum,
-                            username: targetJumpUsername
-                        )
-                        jumpAuth = .savedPassword
-                    } catch {
-                        errorMessage = "Failed to save jump host password: \(error.localizedDescription)"
-                        return
-                    }
-                } else if hasExistingJumpPassword {
-                    // Keep existing saved password
-                    jumpAuth = .savedPassword
-                } else {
-                    // No password saved - prompt on connect
-                    jumpAuth = .password("")
-                }
-            case .key:
-                jumpAuth = .key(jumpKeyID!)
-            case .keyboardInteractive:
-                jumpAuth = .keyboardInteractive
-            case .none:
-                jumpAuth = .none  // Tailscale/WireGuard pre-authenticated
-            }
-
-            // Build fallback keys for jump host
-            let jumpFallbackIDs: [UUID]?
-            if case .key(let keyID) = jumpAuth {
-                jumpFallbackIDs = SSHKeyManager.shared.defaultKeyIDs.filter { $0 != keyID }
-            } else {
-                jumpFallbackIDs = nil
-            }
-
-            jumpHostConfig = SSHConfig.JumpHostConfig(
-                host: targetJumpHost,
-                port: jumpPortNum,
-                username: targetJumpUsername,
-                authMethod: jumpAuth,
-                fallbackKeyIDs: jumpFallbackIDs?.isEmpty == true ? nil : jumpFallbackIDs
-            )
         }
 
         // Build agent config
@@ -2444,7 +2128,7 @@ struct ProfileEditorSheet: View {
             username: targetUsername,
             password: "",  // Never store passwords
             cachedIP: nil,
-            jumpHost: jumpHostConfig,
+            jumpHost: jumpChain.first,
             hssShorthand: nil,
             cloudInstanceLabel: nil,
             agentConfig: agentConfig,
@@ -2457,15 +2141,7 @@ struct ProfileEditorSheet: View {
 
         // Update auth method after init
         var finalConfig = sshConfig
-        if connectionProtocol == .trzsz, let jump = finalConfig.jumpHost {
-            var relay = tsshRelay
-            relay?.boundJump = TSSHRelayIdentity(host: jump.host, port: jump.port, username: jump.username)
-            do {
-                try relay?.validate(host: jump.host, port: jump.port, username: jump.username,
-                    defaultPortMin: TrzszConfig.preferredUDPPortMin, defaultPortMax: TrzszConfig.preferredUDPPortMax)
-            } catch { errorMessage = error.localizedDescription; return }
-            finalConfig.jumpHost?.tsshRelay = relay
-        }
+        finalConfig.jumpChain = jumpChain
         finalConfig.authMethod = sshAuthMethod
         finalConfig.herdrAutoEnable = enableHerdr
         finalConfig.herdrAutoMode = effectiveHerdrAutoMode

@@ -37,6 +37,9 @@ struct CursorSettingsView: View {
             Section {
                 if cursorManager.cursorEffect != .none {
                     CursorEffectPreviewContainer(effect: cursorManager.cursorEffect)
+                        .background {
+                            if let fill = GlyphOnlySurfaceFill.color { Color(uiColor: fill) }
+                        }
                         .frame(height: 180)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))

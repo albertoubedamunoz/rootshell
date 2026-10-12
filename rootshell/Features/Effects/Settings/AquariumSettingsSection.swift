@@ -114,7 +114,7 @@ struct AquariumSettingsSection: View {
 
 /// Keep interactive slider motion local; persist and rebuild only on release.
 /// External reset/sync updates are still reflected when the slider isn't being dragged.
-private struct AquariumSettingSlider: View {
+struct AquariumSettingSlider: View {
     let title: LocalizedStringKey
     @Binding var value: Double
     let range: ClosedRange<Double>

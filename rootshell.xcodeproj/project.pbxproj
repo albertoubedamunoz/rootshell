@@ -112,6 +112,9 @@
 		47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */; };
 		47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */; };
 		47AC7E5700000000000000A9 /* rootshell/Core/Foundation/ByteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B9 /* rootshell/Core/Foundation/ByteSearch.swift */; };
+		47AC7E57000000000000E6A1 /* rootshell/Features/SSH/Config/ProxyJumpSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000E6B1 /* rootshell/Features/SSH/Config/ProxyJumpSpec.swift */; };
+		47AC7E57000000000000E6A2 /* rootshell/Features/SSH/Config/OpenSSHHostResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000E6B2 /* rootshell/Features/SSH/Config/OpenSSHHostResolution.swift */; };
+		47AC7E57000000000000E6A3 /* rootshell/Features/SSH/Config/OpenSSHConfigParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000E6B3 /* rootshell/Features/SSH/Config/OpenSSHConfigParser.swift */; };
 		47AC7E57000000000000CB01 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */; };
 		47AC7E57000000000000CB03 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */; };
 		47AC7E57000000000000CD01 /* rootshell/UI/Overlays/SessionPickerGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */; };
@@ -614,6 +617,9 @@
 		47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrReplyFilter.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalGridReports.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B9 /* rootshell/Core/Foundation/ByteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Foundation/ByteSearch.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000E6B1 /* rootshell/Features/SSH/Config/ProxyJumpSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/SSH/Config/ProxyJumpSpec.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000E6B2 /* rootshell/Features/SSH/Config/OpenSSHHostResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/SSH/Config/OpenSSHHostResolution.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000E6B3 /* rootshell/Features/SSH/Config/OpenSSHConfigParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/SSH/Config/OpenSSHConfigParser.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Overlays/SessionPickerGeometry.swift; sourceTree = SOURCE_ROOT; };
@@ -1292,6 +1298,9 @@
 				47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */,
 				47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */,
 				47AC7E5700000000000000B9 /* rootshell/Core/Foundation/ByteSearch.swift */,
+				47AC7E57000000000000E6B1 /* rootshell/Features/SSH/Config/ProxyJumpSpec.swift */,
+				47AC7E57000000000000E6B2 /* rootshell/Features/SSH/Config/OpenSSHHostResolution.swift */,
+				47AC7E57000000000000E6B3 /* rootshell/Features/SSH/Config/OpenSSHConfigParser.swift */,
 				47AF04870000000000000B01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift */,
 				47AF05A00000000000000B01 /* rootshell/Features/ProgramIdentity/ForegroundProgram.swift */,
 				47AF05A00000000000000B02 /* rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift */,
@@ -2317,6 +2326,9 @@
 				47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */,
 				47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */,
 				47AC7E5700000000000000A9 /* rootshell/Core/Foundation/ByteSearch.swift in Sources */,
+				47AC7E57000000000000E6A1 /* rootshell/Features/SSH/Config/ProxyJumpSpec.swift in Sources */,
+				47AC7E57000000000000E6A2 /* rootshell/Features/SSH/Config/OpenSSHHostResolution.swift in Sources */,
+				47AC7E57000000000000E6A3 /* rootshell/Features/SSH/Config/OpenSSHConfigParser.swift in Sources */,
 				47AF04870000000000000A01 /* rootshell/Core/Terminal/PaneCloseConfirmationPolicy.swift in Sources */,
 				47AF05A00000000000000A01 /* rootshell/Features/ProgramIdentity/ForegroundProgram.swift in Sources */,
 				47AF05A00000000000000A02 /* rootshell/Features/ProgramIdentity/ProgramNameNormalizer.swift in Sources */,
@@ -7047,7 +7059,7 @@
 			repositoryURL = "https://github.com/kitknox/trzsz-ssh-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.16;
+				version = 0.2.17;
 			};
 		};
 		47XZPKG02FF00000AABB0000 /* XCRemoteSwiftPackageReference "xz_ios-rootshell" */ = {

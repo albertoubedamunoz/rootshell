@@ -20,7 +20,7 @@ struct KeyResolutionSheet: View {
 
     @Environment(\.sheetThemeColors) private var sheetThemeColors
     @State private var targetKeySelection: UUID?
-    @State private var jumpHostKeySelection: UUID?
+    @State private var jumpKeySelections: [Int: UUID] = [:]
     @State private var saveAsDeviceOverride: Bool = true
 
     private var keyManager: SSHKeyManager { SSHKeyManager.shared }
@@ -29,8 +29,14 @@ struct KeyResolutionSheet: View {
         unresolvedKeys.first { !$0.isJumpHost }
     }
 
-    private var jumpHostUnresolved: UnresolvedKeyInfo? {
-        unresolvedKeys.first { $0.isJumpHost }
+    private var jumpHostsUnresolved: [UnresolvedKeyInfo] {
+        unresolvedKeys.filter(\.isJumpHost)
+    }
+
+    private var hopCount: Int { config.jumpChain.count }
+
+    private func jumpKeySelection(_ hopIndex: Int) -> Binding<UUID?> {
+        Binding(get: { jumpKeySelections[hopIndex] }, set: { jumpKeySelections[hopIndex] = $0 })
     }
 
     var body: some View {
@@ -66,15 +72,19 @@ struct KeyResolutionSheet: View {
                     }
                 }
 
-                // Jump host key resolution
-                if let info = jumpHostUnresolved {
+                // Jump host key resolution, one section per hop
+                ForEach(jumpHostsUnresolved, id: \.hopIndexOrZero) { info in
                     Section {
                         hintInfoView(hint: info.hint)
                             .themedRow()
-                        keyPickerView(selection: $jumpHostKeySelection, filterType: info.hint?.keyType)
+                        keyPickerView(selection: jumpKeySelection(info.hopIndexOrZero), filterType: info.hint?.keyType)
                             .themedRow()
                     } header: {
-                        Text("Jump Host Key")
+                        if hopCount > 1 {
+                            Text("Jump Host \(info.hopIndexOrZero + 1) Key")
+                        } else {
+                            Text("Jump Host Key")
+                        }
                     }
                 }
 
@@ -175,7 +185,7 @@ struct KeyResolutionSheet: View {
 
     private var isSelectionComplete: Bool {
         let targetOK = targetUnresolved == nil || targetKeySelection != nil
-        let jumpOK = jumpHostUnresolved == nil || jumpHostKeySelection != nil
+        let jumpOK = jumpHostsUnresolved.allSatisfy { jumpKeySelections[$0.hopIndexOrZero] != nil }
         return targetOK && jumpOK
     }
 
@@ -187,11 +197,15 @@ struct KeyResolutionSheet: View {
             resolved.authMethod = .key(selectedID)
         }
 
-        // Apply jump host key selection
-        if jumpHostUnresolved != nil, let selectedID = jumpHostKeySelection, var jumpConfig = resolved.jumpHost {
-            jumpConfig.authMethod = .key(selectedID)
-            resolved.jumpHost = jumpConfig
+        // Apply jump host key selections
+        var chain = resolved.jumpChain
+        for info in jumpHostsUnresolved {
+            let index = info.hopIndexOrZero
+            if chain.indices.contains(index), let selectedID = jumpKeySelections[index] {
+                chain[index].authMethod = .key(selectedID)
+            }
         }
+        resolved.jumpChain = chain
 
         // Save device override if requested
         if saveAsDeviceOverride {
@@ -206,10 +220,14 @@ struct KeyResolutionSheet: View {
                 return
             }
 
+            let extraSelections = Dictionary(uniqueKeysWithValues: jumpKeySelections
+                .filter { $0.key > 0 }
+                .map { (String($0.key), $0.value) })
             let override = DeviceKeyOverride(
                 target: target,
                 targetKeyID: targetKeySelection,
-                jumpHostKeyID: jumpHostKeySelection,
+                jumpHostKeyID: jumpKeySelections[0],
+                extraJumpHostKeyIDs: extraSelections.isEmpty ? nil : extraSelections,
                 createdAt: Date()
             )
             DeviceKeyOverrideManager.shared.save(override)
@@ -217,4 +235,9 @@ struct KeyResolutionSheet: View {
 
         onResolved(resolved)
     }
+}
+
+private extension UnresolvedKeyInfo {
+    /// Jump keys from older resolvers carry no index; they belong to the first hop.
+    var hopIndexOrZero: Int { hopIndex ?? 0 }
 }

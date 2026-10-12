@@ -71,6 +71,8 @@ nonisolated struct VPNSharedProfileSnapshot: Codable, Identifiable, Sendable, Ha
     var transportType: VPNSharedTransportType
     var auth: VPNSharedProfileAuth
     var jumpHost: VPNSharedJumpHostSnapshot?
+    // Hops after jumpHost, in order. Optional so mirrors from older builds decode.
+    var extraJumpHosts: [VPNSharedJumpHostSnapshot]? = nil
     var trzszMode: String?
     var trzszUDPPortMin: Int?
     var trzszUDPPortMax: Int?
@@ -85,6 +87,13 @@ nonisolated struct VPNSharedProfileSnapshot: Codable, Identifiable, Sendable, Ha
     var isBackgroundStartable: Bool
     var hostKey: VPNPinnedHostKey?
     var trustedCAKeys: [String]?
+}
+
+nonisolated extension VPNSharedProfileSnapshot {
+    /// Every jump hop in connection order.
+    var jumpChain: [VPNSharedJumpHostSnapshot] {
+        jumpHost.map { [$0] + (extraJumpHosts ?? []) } ?? []
+    }
 }
 
 private nonisolated struct VPNSharedProfileStorePayload: Codable, Sendable {

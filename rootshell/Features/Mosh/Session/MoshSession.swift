@@ -80,7 +80,8 @@ final class MoshSession: TerminalSession {
             hostKeyAlgorithm: bootstrapHostKey,
             cipherAlgorithm: bootstrapCipher,
             macAlgorithm: bootstrapMac,
-            agentForwardingEnabled: false
+            agentForwardingEnabled: false,
+            extraJumpHops: (sshConfig.extraJumpHosts ?? []).map { "\($0.host):\($0.port)" }
         ))
     }
 
