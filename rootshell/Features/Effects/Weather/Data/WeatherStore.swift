@@ -27,6 +27,10 @@ final class WeatherStore {
     private(set) var locality: String?
     private(set) var manualRefreshAt = Date.distantPast
     private(set) var deviceCoordinate: WeatherCoordinate?
+    /// What a visible, live (not demo) Live Weather view is showing; nil when none is.
+    private(set) var activeSelection: WeatherLocationSelection?
+    /// The Show in Tab Sidebar setting, reported by the visible view.
+    var showsInSidebar = true
 
     @ObservationIgnored private var state: WeatherDiskState
     @ObservationIgnored private let resolver = WeatherLocationResolver()
@@ -58,9 +62,19 @@ final class WeatherStore {
             && abs(WeatherSkyGeometry.wrap180(snapshot.coordinate.longitude - wanted.longitude)) < 0.25 ? snapshot : nil
     }
 
+    var activeSnapshot: WeatherSnapshot? { activeSelection.flatMap { snapshot(for: $0) } }
+    var sidebarSnapshot: WeatherSnapshot? { showsInSidebar ? activeSnapshot : nil }
+
+    var activePlaceName: String? {
+        guard let activeSelection else { return nil }
+        if case .city(let city) = activeSelection { return city.name }
+        return activeSnapshot?.placeName ?? locality
+    }
+
     /// Keeps the fetch loop alive until the calling task is cancelled.
     func hold(_ selection: WeatherLocationSelection) async {
         consumers += 1
+        if activeSelection != selection { activeSelection = selection }
         if selection != self.selection || loop == nil {
             self.selection = selection
             restart()
@@ -70,6 +84,7 @@ final class WeatherStore {
         }
         consumers -= 1
         if consumers == 0 {
+            activeSelection = nil
             loop?.cancel()
             loop = nil
             if status == .fetching { status = .idle }

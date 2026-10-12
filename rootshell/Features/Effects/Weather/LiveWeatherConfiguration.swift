@@ -60,6 +60,7 @@ struct LiveWeatherConfiguration: Equatable, Sendable {
     var showStars = true
     var showSunAndMoon = true
     var lightningFlashes = true
+    var showInSidebar = true
     var demo = false
 
     var selection: WeatherLocationSelection {
@@ -91,7 +92,7 @@ struct LiveWeatherConfiguration: Equatable, Sendable {
             "version": 1, "intensity": c.intensity, "readingProtection": c.readingProtection,
             "quality": c.quality.rawValue, "locationSource": c.locationSource.rawValue,
             "showStars": c.showStars, "showSunAndMoon": c.showSunAndMoon,
-            "lightningFlashes": c.lightningFlashes, "demo": c.demo
+            "lightningFlashes": c.lightningFlashes, "showInSidebar": c.showInSidebar, "demo": c.demo
         ]
         if let city = c.city {
             dictionary["cityName"] = city.name
@@ -118,6 +119,7 @@ struct LiveWeatherConfiguration: Equatable, Sendable {
         c.showStars = data["showStars"] as? Bool ?? c.showStars
         c.showSunAndMoon = data["showSunAndMoon"] as? Bool ?? c.showSunAndMoon
         c.lightningFlashes = data["lightningFlashes"] as? Bool ?? c.lightningFlashes
+        c.showInSidebar = data["showInSidebar"] as? Bool ?? c.showInSidebar
         c.demo = data["demo"] as? Bool ?? c.demo
         return c.sanitized()
     }

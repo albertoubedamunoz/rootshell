@@ -5,66 +5,6 @@
 import SwiftUI
 import UIKit
 
-extension WeatherConditionKind {
-    var localizedName: String {
-        switch self {
-        case .clear: return String(localized: "Clear", comment: "Weather condition")
-        case .partlyCloudy: return String(localized: "Partly Cloudy", comment: "Weather condition")
-        case .cloudy: return String(localized: "Cloudy", comment: "Weather condition")
-        case .fog: return String(localized: "Fog", comment: "Weather condition")
-        case .haze: return String(localized: "Haze", comment: "Weather condition")
-        case .smoke: return String(localized: "Smoke", comment: "Weather condition")
-        case .dust: return String(localized: "Dust", comment: "Weather condition")
-        case .drizzle: return String(localized: "Drizzle", comment: "Weather condition")
-        case .rain: return String(localized: "Rain", comment: "Weather condition")
-        case .heavyRain: return String(localized: "Heavy Rain", comment: "Weather condition")
-        case .snow: return String(localized: "Snow", comment: "Weather condition")
-        case .heavySnow: return String(localized: "Heavy Snow", comment: "Weather condition")
-        case .sleet: return String(localized: "Sleet", comment: "Weather condition")
-        case .freezingRain: return String(localized: "Freezing Rain", comment: "Weather condition")
-        case .thunderstorm: return String(localized: "Thunderstorms", comment: "Weather condition")
-        case .windy: return String(localized: "Windy", comment: "Weather condition")
-        }
-    }
-
-    func symbolName(night: Bool) -> String {
-        switch self {
-        case .clear: return night ? "moon.stars.fill" : "sun.max.fill"
-        case .partlyCloudy: return night ? "cloud.moon.fill" : "cloud.sun.fill"
-        case .cloudy: return "cloud.fill"
-        case .fog: return "cloud.fog.fill"
-        case .haze: return night ? "moon.haze.fill" : "sun.haze.fill"
-        case .smoke: return "smoke.fill"
-        case .dust: return night ? "moon.dust.fill" : "sun.dust.fill"
-        case .drizzle: return "cloud.drizzle.fill"
-        case .rain: return "cloud.rain.fill"
-        case .heavyRain: return "cloud.heavyrain.fill"
-        case .snow, .heavySnow: return "cloud.snow.fill"
-        case .sleet, .freezingRain: return "cloud.sleet.fill"
-        case .thunderstorm: return "cloud.bolt.rain.fill"
-        case .windy: return "wind"
-        }
-    }
-}
-
-extension WeatherSource {
-    var displayName: String {
-        switch self {
-        case .nws: return String(localized: "National Weather Service", comment: "Weather data source")
-        case .openMeteo: return String(localized: "Open-Meteo", comment: "Weather data source")
-        case .metNorway: return String(localized: "MET Norway", comment: "Weather data source")
-        }
-    }
-
-    var website: URL {
-        switch self {
-        case .nws: return URL(string: "https://www.weather.gov")!
-        case .openMeteo: return URL(string: "https://open-meteo.com/")!
-        case .metNorway: return URL(string: "https://api.met.no")!
-        }
-    }
-}
-
 extension WeatherSkyGeometry.PreviewTime {
     var displayName: String {
         switch self {
@@ -234,23 +174,21 @@ struct LiveWeatherSettingsSection: View {
 
     @ViewBuilder
     private func currentConditions(_ snapshot: WeatherSnapshot) -> some View {
-        let night = SolarCalculator.calculatePosition(date: now, latitude: snapshot.coordinate.latitude,
-                                                      longitude: snapshot.coordinate.longitude).altitude < -3
+        let sample = snapshot.displaySample(at: now)
         HStack(spacing: 12) {
-            Image(systemName: snapshot.current.kind.symbolName(night: night))
+            Image(systemName: sample.kind.symbolName(night: snapshot.isNight(at: now)))
                 .symbolRenderingMode(.multicolor)
                 .font(.title2)
                 .frame(width: 32)
             VStack(alignment: .leading, spacing: 2) {
-                Text(snapshot.current.kind.localizedName)
+                Text(sample.kind.localizedName)
                 if let place = placeName(snapshot) {
                     Text(place).font(.caption).foregroundStyle(.secondary)
                 }
             }
             Spacer()
-            if let temperature = snapshot.current.temperature {
-                Text(Measurement(value: temperature, unit: UnitTemperature.celsius),
-                     format: .measurement(width: .abbreviated, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0))))
+            if let temperature = sample.temperature {
+                Text(WeatherFormat.temperature(temperature, width: .abbreviated))
                     .font(.title3)
                     .monospacedDigit()
             }
@@ -306,6 +244,7 @@ struct LiveWeatherSettingsSection: View {
             Toggle("Stars", isOn: binding(\.showStars)).themedRow()
             Toggle("Sun and Moon", isOn: binding(\.showSunAndMoon)).themedRow()
             Toggle("Lightning Flashes", isOn: binding(\.lightningFlashes)).themedRow()
+            Toggle("Show in Tab Sidebar", isOn: binding(\.showInSidebar)).themedRow()
             AquariumSettingSlider(title: "Reading Protection", value: binding(\.readingProtection), range: 0...1).themedRow()
             Picker("Render Quality", selection: binding(\.quality)) {
                 ForEach(LiveWeatherConfiguration.Quality.allCases, id: \.self) { quality in
@@ -320,7 +259,7 @@ struct LiveWeatherSettingsSection: View {
         } header: {
             Text("Weather Presentation")
         } footer: {
-            Text("Stars appear on dark themes. Lightning is off when Reduce Motion or Dim Flashing Lights is on. Reduce Motion shows a still sky, and Battery Saver lowers quality automatically.")
+            Text("Show in Tab Sidebar puts the current conditions at the bottom of the vertical tab sidebar; tap them for details. Stars appear on dark themes. Lightning is off when Reduce Motion or Dim Flashing Lights is on. Reduce Motion shows a still sky, and Battery Saver lowers quality automatically.")
         }
     }
 

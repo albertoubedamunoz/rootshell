@@ -4,7 +4,8 @@
 //
 //  Subtle subscription-usage footer at the bottom of the vertical tab
 //  sidebar: one compact row per provider with a live agent, tap for the
-//  detail popover. Renders nothing when there is nothing to show — no
+//  detail popover, plus a Live Weather row while that background is live.
+//  Renders nothing when there is nothing to show — no
 //  spinner, no placeholder.
 //
 //  A separate view so the `AgentUsageCenter.revision` read is scoped here
@@ -33,7 +34,7 @@ struct SidebarAgentUsageFooter: View {
         // Registers the Observation dependency; the value itself is meaningless.
         let _ = AgentUsageCenter.shared.revision
         let rows = AgentUsageCenter.shared.rows()
-        if !rows.isEmpty {
+        if !rows.isEmpty || hasWeather {
             VStack(spacing: 2) {
                 Divider()
                     .padding(.bottom, 3)
@@ -62,10 +63,22 @@ struct SidebarAgentUsageFooter: View {
                             .themedSubSheet(sheetThemeColors)
                     })
                 }
+                #if !CHINA_BUILD
+                SidebarWeatherRow(metrics: metrics)
+                #endif
             }
             .padding(.horizontal, 16)
             .padding(.bottom, bottomPadding)
         }
+    }
+
+    /// Live Weather's row, shown while a live weather background is on screen.
+    private var hasWeather: Bool {
+        #if CHINA_BUILD
+        return false
+        #else
+        return WeatherStore.shared.sidebarSnapshot != nil
+        #endif
     }
 
     private var bottomPadding: CGFloat {
@@ -291,7 +304,8 @@ private struct AgentUsageDetailPopover: View {
 /// the content can reach that root. Here we own the UIHostingController,
 /// remove `.keyboard` from its safe-area regions, and let
 /// `preferredContentSize` track the content's real ideal size.
-private struct AnchoredUsagePopover<Content: View>: UIViewRepresentable {
+/// Also hosts the Live Weather detail, so both footer popovers match.
+struct AnchoredUsagePopover<Content: View>: UIViewRepresentable {
     @Binding var isPresented: Bool
     @ViewBuilder let content: () -> Content
 
@@ -338,7 +352,7 @@ private struct AnchoredUsagePopover<Content: View>: UIViewRepresentable {
 /// build (arm64, -Onone) compiled. Erasing the content type keeps the
 /// optimizer on ground it can handle.
 @MainActor
-private final class AnchoredUsagePopoverCoordinator: NSObject, UIPopoverPresentationControllerDelegate {
+final class AnchoredUsagePopoverCoordinator: NSObject, UIPopoverPresentationControllerDelegate {
     var isPresented: Binding<Bool> = .constant(false)
     var makeContent: () -> AnyView = { AnyView(EmptyView()) }
     var presented: UIHostingController<AnyView>?

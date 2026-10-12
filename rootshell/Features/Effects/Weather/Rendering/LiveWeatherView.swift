@@ -46,6 +46,9 @@ struct LiveWeatherView: View {
             guard fetching else { return }
             await store.hold(selection)
         }
+        .onChange(of: configuration.showInSidebar, initial: true) { _, show in
+            if store.showsInSidebar != show { store.showsInSidebar = show }
+        }
         .task {
             let name = Notification.Name(kMADimFlashingLightsChangedNotification as String)
             for await _ in NotificationCenter.default.notifications(named: name) {
