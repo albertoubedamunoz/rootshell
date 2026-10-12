@@ -458,6 +458,10 @@ extension Ghostty {
                 width: capturedSourceRect.width * Self.magnification,
                 height: capturedSourceRect.height * Self.magnification
             )
+            // Text Above Effect leaves the surface glyph-only.
+            if EffectManager.shared.isTextAboveEffectActive, let terminal = sourceView as? Ghostty.TerminalView {
+                snapshot.backgroundColor = terminal.paneBackgroundColor
+            }
 
             CATransaction.begin()
             CATransaction.setDisableActions(true)

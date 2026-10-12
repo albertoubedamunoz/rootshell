@@ -19,6 +19,10 @@ final class TabHoverPreviewView: UIView {
         var backgroundColor: UIColor = .black
         /// Window background opacity (macOS transparency); 1 = opaque.
         var backgroundOpacity: CGFloat = 1
+        /// Text Above Effect: frames are glyph-only, so the mirror paints each
+        /// pane's background and the picture takes the tab's own theme.
+        var glyphOnlyMirrors = false
+        var tabBackgroundColors: [UUID: UIColor] = [:]
         var isLight = false
         var accentColor: UIColor = .tintColor
     }
@@ -354,9 +358,11 @@ final class TabHoverPreviewView: UIView {
 
     private func applyStyle(_ style: Style) {
         overrideUserInterfaceStyle = style.isLight ? .light : .dark
-        let background = style.backgroundColor.withAlphaComponent(style.backgroundOpacity)
+        let base = mirror.tab.flatMap { style.tabBackgroundColors[$0.id] } ?? style.backgroundColor
+        let background = base.withAlphaComponent(style.backgroundOpacity)
         picture.backgroundColor = background
         mirror.backgroundColor = background
+        mirror.fillsPaneBackgrounds = style.glyphOnlyMirrors
         picture.layer.borderColor = (style.isLight ? UIColor.black : UIColor.white).withAlphaComponent(0.1).cgColor
         placeholder.tintColor = (style.isLight ? UIColor.black : UIColor.white).withAlphaComponent(0.3)
     }

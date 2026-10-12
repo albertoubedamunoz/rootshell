@@ -708,6 +708,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
                 keywords: ["custom keyboard", "toolbar", "effect", "background", "aquarium", "keyboard only"], available: isTouch),
             row("effect-backdrop-transparency", String(localized: "Transparent Backdrop"), in: .backgroundEffect,
                 keywords: ["backdrop", "theme gradient", "transparent", "desktop", "see-through"], available: isCatalyst),
+            row("effect-text-above", String(localized: "Text Above Effect"), in: .backgroundEffect,
+                keywords: ["text", "glyphs", "readability", "blend", "behind text", "true colors", "weather"]),
             row("effect-photo", String(localized: "Photo Background"), in: .backgroundEffect, icon: "photo",
                 keywords: ["photo", "image", "wallpaper", "ken burns", "filter", "tint"]),
             row("effect-video", String(localized: "Video Background"), in: .backgroundEffect, icon: "film",

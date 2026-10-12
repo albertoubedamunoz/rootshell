@@ -116,6 +116,9 @@ final class TabExposeController {
     // MARK: - Wiring
 
     @ObservationIgnored weak var tabsModel: TabsModel?
+    /// Text Above Effect: holds the exposé backdrop beneath the background
+    /// effect, framed like the exposé view, so the effect stays visible.
+    @ObservationIgnored weak var backdropHost: UIView?
     @ObservationIgnored weak var observer: TabExposeControllerObserver?
     /// Serves the multiplexer page; started on activation when the hero
     /// tab's terminal is bound to a raw multiplexer.

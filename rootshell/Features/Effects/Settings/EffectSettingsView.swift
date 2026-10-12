@@ -180,6 +180,14 @@ struct EffectSettingsView: View {
                 KeyboardBackgroundEffectPicker()
                     .themedRow()
                 #endif
+                SettingDescribedToggle(
+                    Settings.Shaders.textAboveEffect,
+                    isOn: Binding(get: { effectManager.isTextAboveEffectEnabled },
+                                  set: { effectManager.isTextAboveEffectEnabled = $0 }),
+                    title: "Text Above Effect",
+                    description: "Draws terminal text over the effect in its own colors, while the effect still tints the background. Programs that paint their own background, such as some Neovim color schemes, cover the effect there."
+                )
+                .themedRow()
             } header: {
                 SettingGroupHeader("Layout", group: .shaders)
             }

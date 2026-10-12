@@ -753,7 +753,9 @@ extension MainView {
             // returning later. The controller flips `isActive` at progress
             // zero on both ends, where changing the stacking order is
             // visually lossless and does not recreate the effect view.
-            .zIndex(tabExpose.isActive ? 2 : 0)
+            // Text Above Effect keeps it beneath every glyph, the exposé's
+            // included; the exposé backdrop moves beneath it instead.
+            .zIndex(tabExpose.isActive && !effectManager.isTextAboveEffectActive ? 2 : 0)
         }
     }
 
@@ -1018,14 +1020,20 @@ extension MainView {
         return padding
     }
 
+    enum TerminalTabsLayer {
+        case content
+        /// Text Above Effect pane backgrounds, laid out exactly like the content.
+        case underlay
+    }
+
     /// The terminal tabs ForEach view.
     @ViewBuilder
-    func terminalTabsView(geometry: GeometryProxy, width: CGFloat) -> some View {
+    func terminalTabsView(geometry: GeometryProxy, width: CGFloat, layer: TerminalTabsLayer = .content) -> some View {
         // Read keyboard state directly to ensure SwiftUI tracks these dependencies
         let keyboardFrame = effectManager.keyboardFrame
         let keyboardHeight = effectManager.keyboardHeight
         let _ = effectManager.keyboardStateVersion // Force re-render on keyboard state changes
-        let _ = checkUniquePaneOwnership()
+        let _ = layer == .content ? checkUniquePaneOwnership() : ()
         // `inner` sits outside the container safe-area escape and `expanded`
         // inside it, so their height difference is the expansion UIKit granted
         // this pass. The escape lets the drawable extend into the home-indicator
@@ -1042,7 +1050,8 @@ extension MainView {
                     width: width,
                     keyboardFrame: keyboardFrame,
                     keyboardHeight: keyboardHeight,
-                    containerBottomSafeAreaExpansion: max(0, expanded.size.height - inner.size.height)
+                    containerBottomSafeAreaExpansion: max(0, expanded.size.height - inner.size.height),
+                    layer: layer
                 )
             }
             // A floating keyboard still reports a keyboard region the size of
@@ -1062,7 +1071,8 @@ extension MainView {
                 width: width,
                 keyboardFrame: keyboardFrame,
                 keyboardHeight: keyboardHeight,
-                containerBottomSafeAreaExpansion: 0
+                containerBottomSafeAreaExpansion: 0,
+                layer: layer
             )
             #endif
         }
@@ -1083,7 +1093,8 @@ extension MainView {
         width: CGFloat,
         keyboardFrame: CGRect,
         keyboardHeight: CGFloat,
-        containerBottomSafeAreaExpansion: CGFloat
+        containerBottomSafeAreaExpansion: CGFloat,
+        layer: TerminalTabsLayer
     ) -> some View {
         // One measurement of the active pane's accessory for this layout pass;
         // existing keyboard notifications already invalidate the shared view.
@@ -1126,50 +1137,58 @@ extension MainView {
                         containerBottomSafeAreaExpansion: containerBottomSafeAreaExpansion,
                         terminalEffectsEnabled: terminalEffectsEnabled
                     )
-                    TerminalSplitTreeView(
-                        tree: tab.splitTree,
-                        onResize: { node, ratio in
-                            handleSplitResize(tabIndex: index, node: node, ratio: ratio)
-                        },
-                        onMove: { source, destination, zone in
-                            handlePaneMove(tabID: tab.id, source: source, destination: destination, zone: zone)
-                        },
-                        allowsPaneRearrangement: !tab.paneMove.isPending && !isAnySheetPresented
-                            && appTabSwipeState == nil && !tabExpose.isActive
-                            && tabsModel.fullScreenPaneID == nil,
-                        isActive: index == selectedTabIndex,
-                        focusedPane: tab.focusedPane,
-                        terminalEffectsEnabled: terminalEffectsEnabled,
-                        routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
-                            && showsHorizontalTabHeader,
-                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
-                        tracksSwipe: appTabSwipeState.map { $0.sourceTabID == tab.id || $0.targetTabID == tab.id } ?? false
-                    )
-                    // NOTE: the tmux control-mode client size is NOT driven from here.
-                    // A tmux pane is a real ghostty surface, so its grid is recomputed
-                    // in the core (cell/font/inset-aware) on every resize/keyboard/font
-                    // change exactly like a normal surface, and the tmux backend relays
-                    // it; the viewer turns a single-pane window's resize into
-                    // `refresh-client -C`. Driving it from SwiftUI geometry here would
-                    // re-derive the grid in the wrong place and add a round trip.
-                    //
-                    // The id is scoped by tab. `structuralIdentity` alone compares
-                    // leaves by pane OBJECT identity, so two tabs holding the same
-                    // pane (a tmux move-pane before the source tab's layout heals)
-                    // gave sibling ForEach children an equal explicit id and SwiftUI
-                    // trapped in DisplayList.ViewUpdater.ViewCache with "repeated
-                    // view". Combining the stable tab UUID keeps the rebuild-on-
-                    // structure-change behavior the tmux reconcile depends on.
-                    .id(TabSplitTreeIdentity(tabID: tab.id, tree: tab.splitTree.structuralIdentity))
-                    .overlay(alignment: .top) {
-                        if let message = tab.paneMove.errorMessage {
-                            Text(message)
-                                .font(.callout)
-                                .padding(10)
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                                .padding(8)
-                                .allowsHitTesting(false)
-                                .accessibilityLabel(message)
+                    Group {
+                        switch layer {
+                        case .underlay:
+                            PaneUnderlay(model: tab.paneUnderlay)
+                        case .content:
+                            TerminalSplitTreeView(
+                                tree: tab.splitTree,
+                                onResize: { node, ratio in
+                                    handleSplitResize(tabIndex: index, node: node, ratio: ratio)
+                                },
+                                onMove: { source, destination, zone in
+                                    handlePaneMove(tabID: tab.id, source: source, destination: destination, zone: zone)
+                                },
+                                allowsPaneRearrangement: !tab.paneMove.isPending && !isAnySheetPresented
+                                    && appTabSwipeState == nil && !tabExpose.isActive
+                                    && tabsModel.fullScreenPaneID == nil,
+                                isActive: index == selectedTabIndex,
+                                focusedPane: tab.focusedPane,
+                                terminalEffectsEnabled: terminalEffectsEnabled,
+                                routesFocusedProgressToIntegratedEdge: topTabStyle == .integrated
+                                    && showsHorizontalTabHeader,
+                                integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader ? integratedTabJoin : nil,
+                                tracksSwipe: appTabSwipeState.map { $0.sourceTabID == tab.id || $0.targetTabID == tab.id } ?? false,
+                                paneUnderlay: tab.paneUnderlay
+                            )
+                            // NOTE: the tmux control-mode client size is NOT driven from here.
+                            // A tmux pane is a real ghostty surface, so its grid is recomputed
+                            // in the core (cell/font/inset-aware) on every resize/keyboard/font
+                            // change exactly like a normal surface, and the tmux backend relays
+                            // it; the viewer turns a single-pane window's resize into
+                            // `refresh-client -C`. Driving it from SwiftUI geometry here would
+                            // re-derive the grid in the wrong place and add a round trip.
+                            //
+                            // The id is scoped by tab. `structuralIdentity` alone compares
+                            // leaves by pane OBJECT identity, so two tabs holding the same
+                            // pane (a tmux move-pane before the source tab's layout heals)
+                            // gave sibling ForEach children an equal explicit id and SwiftUI
+                            // trapped in DisplayList.ViewUpdater.ViewCache with "repeated
+                            // view". Combining the stable tab UUID keeps the rebuild-on-
+                            // structure-change behavior the tmux reconcile depends on.
+                            .id(TabSplitTreeIdentity(tabID: tab.id, tree: tab.splitTree.structuralIdentity))
+                            .overlay(alignment: .top) {
+                                if let message = tab.paneMove.errorMessage {
+                                    Text(message)
+                                        .font(.callout)
+                                        .padding(10)
+                                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                        .padding(8)
+                                        .allowsHitTesting(false)
+                                        .accessibilityLabel(message)
+                                }
+                            }
                         }
                     }
                     // Visibility keys off the lagging displayedTabID (not the
@@ -1185,7 +1204,8 @@ extension MainView {
                     .opacity(visualMetrics.opacity)
                     .offset(x: visualMetrics.offsetX)
                     .zIndex(visualMetrics.zIndex)
-                    .allowsHitTesting(index == selectedTabIndex && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
+                    .allowsHitTesting(layer == .content && index == selectedTabIndex
+                        && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
                     .padding(.bottom, bottomPadding)
                     // The safe-area escape moved up to the reader in
                     // terminalTabsView that measures the expansion it grants.
@@ -1258,15 +1278,27 @@ extension MainView {
         effectLeadingExtension: CGFloat
     ) -> some View {
         let terminalOpacity: Double = fullPanelHidesTerminal ? 0 : 1
+        let textAboveEffect = effectManager.isTextAboveEffectActive
         ZStack {
             terminalBackgroundFill
                 .opacity(terminalOpacity)
             tabRevealBackdropFill
                 .opacity(terminalOpacity)
+            // Text Above Effect: pane backgrounds and the exposé backdrop,
+            // then the effect, then glyph-only terminals and exposé mirrors.
+            if textAboveEffect {
+                terminalTabsView(geometry: geometry, width: width, layer: .underlay)
+                    .opacity(terminalOpacity)
+                    .allowsHitTesting(false)
+                tabExposeBackdropHost(width: width)
+                effectOverlay(leadingExtension: effectLeadingExtension)
+            }
             terminalTabsView(geometry: geometry, width: width)
                 .opacity(terminalOpacity)
             tmuxReconnectingSwipeFallback
-            effectOverlay(leadingExtension: effectLeadingExtension)
+            if !textAboveEffect {
+                effectOverlay(leadingExtension: effectLeadingExtension)
+            }
             terminalOverlays()
                 .modifier(DuoControlClearance())
                 // A see-through exposé backdrop would show them.
