@@ -50,7 +50,7 @@ struct EffectSettingsView: View {
     @State private var showcaseEffect: AnyTerminalEffect?
 
     // Built-in effect IDs (non-video)
-    private let builtInEffectIds = ["aquarium", "aurora", "themeGradient", "solarGraph", "fireflies", "butterflies", "jellyfish", "photoBackground"]
+    private let builtInEffectIds = ["aquarium", "aurora", "themeGradient", "solarGraph", "liveWeather", "fireflies", "butterflies", "jellyfish", "photoBackground"]
 
     /// Built-in effects only (not video backgrounds)
     private var builtInEffects: [AnyTerminalEffect] {
@@ -109,6 +109,9 @@ struct EffectSettingsView: View {
                            let solarEffect = effect.asEffect(SolarGraphEffect.self) {
                             Task { await solarEffect.onActivated() }
                         }
+                        #if !CHINA_BUILD
+                        if !wasActive { effect.asEffect(LiveWeatherEffect.self)?.onActivated() }
+                        #endif
                     }) {
                         HStack {
                             Image(systemName: effect.previewIcon)
@@ -371,8 +374,8 @@ struct EffectSettingsView: View {
                         .themedRow()
                     }
 
-                    // Speed slider (for non-SolarGraph effects)
-                    if activeEffect.id != "solarGraph" {
+                    // Speed slider (Solar and Live Weather follow real time)
+                    if activeEffect.id != "solarGraph" && activeEffect.id != "liveWeather" {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Speed")
@@ -666,6 +669,15 @@ struct EffectSettingsView: View {
                     }
                 }
 
+                #if !CHINA_BUILD
+                if activeEffect.id == "liveWeather",
+                   let weatherEffect = activeEffect.asEffect(LiveWeatherEffect.self) {
+                    LiveWeatherSettingsSection(effect: weatherEffect) {
+                        showcaseEffect = activeEffect
+                    }
+                }
+                #endif
+
                 // Aurora-specific settings
                 if activeEffect.id == "aurora",
                    let auroraEffect = activeEffect.asEffect(AuroraEffect.self) {
@@ -697,7 +709,7 @@ struct EffectSettingsView: View {
                             JellyfishView(effect: jellyfishEffect, previewMode: true)
                                 .blendMode(jellyfishEffect.isLightBackground ? .multiply : .plusLighter)
                         } else if activeEffect.id == "aurora" || activeEffect.id == "aquarium"
-                                    || activeEffect.id == "themeGradient" {
+                                    || activeEffect.id == "themeGradient" || activeEffect.id == "liveWeather" {
                             // These shaders' light-theme output is white-based
                             // and needs the same blend mode MainView applies.
                             activeEffect.createEffectView()

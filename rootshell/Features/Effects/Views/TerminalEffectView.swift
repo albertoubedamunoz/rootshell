@@ -65,6 +65,9 @@ private struct BackgroundEffectSelectionPicker: View {
             if let solar = effectManager.selectedEffect(id: effectID)?.asEffect(SolarGraphEffect.self) {
                 Task { await solar.onActivated() }
             }
+            #if !CHINA_BUILD
+            effectManager.selectedEffect(id: effectID)?.asEffect(LiveWeatherEffect.self)?.onActivated()
+            #endif
         }
     }
 }

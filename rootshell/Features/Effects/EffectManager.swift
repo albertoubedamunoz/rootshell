@@ -603,6 +603,9 @@ final class EffectManager {
         registerEffect(ButterfliesEffect())
         registerEffect(JellyfishEffect())
         registerEffect(PhotoBackgroundEffect())
+        #if !CHINA_BUILD
+        registerEffect(LiveWeatherEffect())
+        #endif
 
         // Register video background effects
         registerVideoBackgroundEffects()
