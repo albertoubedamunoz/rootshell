@@ -9,50 +9,90 @@ struct WeatherCitySearchView: View {
     let onSelect: (WeatherCity) -> Void
     @State private var model = WeatherCitySearchModel()
     @State private var resolving = false
+    @FocusState private var searchFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
-            if model.query.isEmpty {
-                Text("Search for a city or town.")
-                    .foregroundStyle(.secondary)
-                    .themedRow()
-            } else if model.results.isEmpty {
-                Text("No matching places.")
-                    .foregroundStyle(.secondary)
-                    .themedRow()
+            Section {
+                searchField.themedRow()
             }
-            ForEach(Array(model.results.enumerated()), id: \.offset) { _, completion in
-                Button {
-                    guard !resolving else { return }
-                    resolving = true
-                    Task {
-                        defer { resolving = false }
-                        if let city = await model.resolve(completion) {
-                            onSelect(city)
-                            dismiss()
-                        }
-                    }
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(completion.title).foregroundStyle(.primary)
-                        if !completion.subtitle.isEmpty {
-                            Text(completion.subtitle).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    .contentShape(Rectangle())
+            Section {
+                if model.query.isEmpty {
+                    Text("Search for a city or town.")
+                        .foregroundStyle(.secondary)
+                        .themedRow()
+                } else if model.results.isEmpty {
+                    Text("No matching places.")
+                        .foregroundStyle(.secondary)
+                        .themedRow()
                 }
-                .buttonStyle(.plain)
-                .themedRow()
+                ForEach(Array(model.results.enumerated()), id: \.offset) { _, completion in
+                    Button {
+                        choose(completion)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(completion.title).foregroundStyle(.primary)
+                            if !completion.subtitle.isEmpty {
+                                Text(completion.subtitle).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .themedRow()
+                }
             }
         }
         .themedList()
         .overlay { if resolving { ProgressView() } }
-        .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always),
-                    prompt: Text("City"))
         .onChange(of: model.query) { _, _ in model.search() }
+        .task {
+            // Focus set during the push animation is dropped.
+            try? await Task.sleep(for: .milliseconds(350))
+            searchFocused = true
+        }
         .navigationTitle(String(localized: "Weather City", comment: "Live Weather city search title"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// An inline field, not `.searchable`: the navigation bar's search
+    /// controller sat over this screen and could outlive it after going back.
+    private var searchField: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            TextField("City", text: $model.query)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.words)
+                .submitLabel(.search)
+                .focused($searchFocused)
+                .onSubmit { if let first = model.results.first { choose(first) } }
+            if !model.query.isEmpty {
+                Button {
+                    model.query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Clear"))
+            }
+        }
+    }
+
+    private func choose(_ completion: MKLocalSearchCompletion) {
+        guard !resolving else { return }
+        resolving = true
+        Task {
+            defer { resolving = false }
+            if let city = await model.resolve(completion) {
+                searchFocused = false
+                onSelect(city)
+                dismiss()
+            }
+        }
     }
 }
 
