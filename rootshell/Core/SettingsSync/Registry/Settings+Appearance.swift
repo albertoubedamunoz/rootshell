@@ -252,12 +252,16 @@ nonisolated extension Settings {
             "themeGradientBackdrop", default: false, group: .shaders,
             configKey: "theme-gradient-backdrop",
             title: String(localized: "Theme Gradient Backdrop", comment: "Setting title"))
+        static let textAboveEffect = SettingKey(
+            "backgroundEffectTextAbove", default: true, group: .shaders,
+            configKey: "background-effect-text-above",
+            title: String(localized: "Text Above Effect", comment: "Setting title"))
 
         static let all: [AnySettingDefinition] = [
             animationMode.erased, activeEffectId.erased, effectConfigurations.erased, customShadersList.erased,
             enabledCustomShaders.erased, pendingVideoActivation.erased, solarCachedLocation.erased,
             videoPausedDownloads, effectIncludesPinnedSidebar.erased, keyboardBackgroundEffect.erased,
-            keyboardEffectId.erased, sidebarEffectId.erased, themeGradientBackdrop.erased,
+            keyboardEffectId.erased, sidebarEffectId.erased, themeGradientBackdrop.erased, textAboveEffect.erased,
         ]
     }
 }

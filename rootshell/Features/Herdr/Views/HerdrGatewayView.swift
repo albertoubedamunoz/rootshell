@@ -38,9 +38,10 @@ struct HerdrGatewayView: View {
             // Pane sizing settles over several passes on restore; the layout
             // switches below must snap, not animate.
             .transaction { $0.animation = nil }
-            // Matches the terminal fill so a backdrop or the desktop shows through.
+            // Matches the surface's own fill so a backdrop, the desktop or the
+            // Text Above Effect underlay shows through.
             .background((theme.translucentBackground ?? theme.themeColors?.background ?? Color(uiColor: .systemBackground))
-                .opacity(TransparencyManager.shared.effectiveBackgroundOpacity))
+                .opacity(TransparencyManager.shared.terminalSurfaceOpacity))
             .environment(\.sheetThemeColors, theme.themeColors)
             .tint(theme.accentColor)
             .environment(\.colorScheme, theme.colorScheme ?? systemColorScheme)

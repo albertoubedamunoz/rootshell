@@ -3,6 +3,7 @@ import SwiftUI
 extension MainView {
     func horizontalTabHeader(geometry: GeometryProxy, resolvedTheme: ResolvedTabBarTheme) -> some View {
         let cardInset = integratedCardLeadingInset(windowWidth: geometry.size.width)
+        let surfaceFill = integratedTabSurfaceFill(theme: resolvedTheme)
         return HStack(spacing: 0) {
             tabBarLeadingSpacer(geometry: geometry, theme: resolvedTheme)
 
@@ -58,7 +59,7 @@ extension MainView {
         .frame(maxWidth: .infinity)
         // Track the docked column's spring; a live drag drives it directly.
         .animation(tabSidebarIsDragging ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: cardInset)
-        .background {
+        .backgroundPreferenceValue(IntegratedActiveTabBoundsPreferenceKey.self) { bounds in
             ZStack {
                 // The window fill beneath the backdrop already has this color.
                 if !effectManager.isBackdropEnabled {
@@ -70,9 +71,8 @@ extension MainView {
                 // reads as rising around that tab.
                 // Rounded Integrated tabs join cards, whose rims open under the tab.
                 if topTabStyle.usesStripLayout, !integratedTabsJoinCards {
-                    IntegratedTabEdgeRuleView(
-                        palette: resolvedTheme.integratedEdgePalette
-                    )
+                    integratedEdgeRule(palette: resolvedTheme.integratedEdgePalette,
+                                       activeTabBounds: surfaceFill?.style.isTranslucent == true ? bounds : nil)
                 }
             }
             // Visual chrome must not own an interaction behind
@@ -83,7 +83,11 @@ extension MainView {
             integratedOSCProgressEdge(activeTabBounds: bounds)
             integratedTabJoinReader(activeTabBounds: bounds)
         }
+        .overlayPreferenceValue(IntegratedTabTrackBoundsPreferenceKey.self) { bounds in
+            integratedTabTrackClipReader(trackBounds: bounds)
+        }
         .environment(\.integratedTabJoinsCard, integratedTabsJoinCards)
+        .environment(\.integratedTabSurfaceFill, surfaceFill)
         .modifier(ContainerCornerModifier())
 #if targetEnvironment(macCatalyst)
         .catalystCursorRegion()

@@ -17,6 +17,10 @@ final class TabPreviewMirrorView: UIView {
         didSet { if tab !== oldValue { rebuild() } }
     }
 
+    /// Text Above Effect leaves frames glyph-only: paint each pane's own
+    /// background (host tint included) beneath its pixels.
+    var fillsPaneBackgrounds = false
+
     private final class PaneMirror {
         let layer = CALayer()
         var vncSnapshot: UIView?
@@ -94,7 +98,10 @@ final class TabPreviewMirrorView: UIView {
                     mirror.placeholder?.removeFromSuperlayer()
                     mirror.placeholder = nil
                 }
-                mirror.layer.backgroundColor = terminal.backgroundColor?.cgColor ?? backgroundColor?.cgColor
+                let paneFill = fillsPaneBackgrounds
+                    ? terminal.paneBackgroundColor?.withAlphaComponent(TransparencyManager.shared.effectiveBackgroundOpacity)
+                    : terminal.backgroundColor
+                mirror.layer.backgroundColor = paneFill?.cgColor ?? backgroundColor?.cgColor
             } else {
                 sourceRect = pane.convert(pane.bounds, to: host)
                 refreshVNCSnapshot(for: pane, mirror: mirror)

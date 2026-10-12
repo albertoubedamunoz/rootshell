@@ -53,8 +53,8 @@ struct ResolvedTabBarTheme: Equatable {
     /// What is visible behind the terminal and the tab strip.
     var surface: EffectiveSurface?
 
-    /// Tab fills derive from the color actually behind them: the scrim over
-    /// the gradient on the backdrop, otherwise the theme background.
+    /// Tab fills derive from the color actually behind them: the gradient's
+    /// top band on the backdrop, otherwise the theme background.
     var tabBase: Color? {
         onBackdrop ? surface?.chrome ?? baseColor : baseColor
     }
@@ -115,8 +115,8 @@ struct ResolvedTabBarTheme: Equatable {
     /// chromatic backgrounds instead of washing them toward gray.
     var integratedEdgePalette: IntegratedTabEdgePalette {
         IntegratedTabEdgePalette(
-            // The backdrop surface is translucent; derive the edge from the opaque swatch
-            surfaceColor: onBackdrop ? baseColor : (terminalSurfaceBackground ?? baseColor),
+            // A translucent surface derives the edge from the opaque swatch
+            surfaceColor: terminalSurfaceIsTransparent ? baseColor : (terminalSurfaceBackground ?? baseColor),
             isLightTheme: isLight
         )
     }
@@ -159,6 +159,16 @@ struct ResolvedTabBarTheme: Equatable {
         if let override = overrideTabText { return override }
         guard baseColor != nil else { return .primary }
         return isLight ? Color(white: 0.1) : Color(white: 0.95)
+    }
+
+    /// The selected Integrated tab sits on its terminal's surface, which can
+    /// differ from the strip (a light tab theme over a dark backdrop), so its
+    /// title contrasts with that surface instead.
+    var integratedSelectedText: Color {
+        if let override = overrideTabText { return override }
+        guard let baseColor else { return .primary }
+        let light = onBackdrop ? (surface?.isLight ?? baseColor.isLight) : baseColor.isLight
+        return light ? Color(white: 0.1) : Color(white: 0.95)
     }
 
     var tabSecondaryText: Color {
@@ -229,25 +239,21 @@ extension MainView {
                 overrideSheetAccent: nil
             )
         }
+        let surfaceStyle = integratedSurfaceStyle()
         #if targetEnvironment(macCatalyst)
         var terminalSurfaceIsTransparent = transparencyManager.backgroundOpacity < 0.999
-        var terminalSurfaceBackground = baseColor.blendedWithWhite(
-            1 - CGFloat(transparencyManager.backgroundOpacity)
-        )
         #else
         // The iOS/visionOS terminal is composited over the same theme-colored
         // root fill, so opacity does not change its visible base color.
         var terminalSurfaceIsTransparent = false
-        var terminalSurfaceBackground = baseColor
         #endif
+        let terminalSurfaceBackground = surfaceStyle.color(for: baseColor)
         let surface = EffectiveSurface.resolve(background: baseColor)
         let tabBase = surface.onBackdrop ? surface.chrome : baseColor
         if surface.onBackdrop {
             // The terminal draws its background at this opacity over the backdrop;
             // the active tab does the same so the gradient shows through both alike.
-            let opacity = transparencyManager.effectiveBackgroundOpacity
-            terminalSurfaceIsTransparent = opacity < 0.999
-            terminalSurfaceBackground = baseColor.opacity(opacity)
+            terminalSurfaceIsTransparent = surfaceStyle.isTranslucent
         }
         var resolved = ResolvedTabBarTheme(
             themeColors: themeColors,
@@ -267,6 +273,14 @@ extension MainView {
         resolved.onBackdrop = surface.onBackdrop
         resolved.surface = surface
         return resolved
+    }
+
+    /// How a pane background reads behind the selected Integrated tab.
+    func integratedSurfaceStyle() -> IntegratedSurfaceStyle {
+        let opacity = transparencyManager.effectiveBackgroundOpacity
+        // Over the backdrop the strip is already clear; only the Mac window's
+        // own translucency needs the opaque strip erased.
+        return IntegratedSurfaceStyle(opacity: opacity, erasesBeneath: opacity < 0.999 && !effectManager.isBackdropEnabled)
     }
 
     /// Get the effective theme colors for the currently selected tab

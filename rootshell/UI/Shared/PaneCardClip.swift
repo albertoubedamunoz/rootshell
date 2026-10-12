@@ -116,6 +116,70 @@ struct PaneCardEffectShape: Shape {
     }
 }
 
+/// The window-wide effect's visible area: its cards under Rounded Panes (or
+/// the whole terminal), shifted down by `topExtension`, plus the selected
+/// Integrated tab's silhouette, which shows the same effect.
+struct TerminalEffectWindowShape: Shape {
+    var sidebarWidth: CGFloat
+    var topExtension: CGFloat
+    var roundedPanes: Bool
+    /// The selected tab and its track's visible bounds, in local space.
+    var tabRect: CGRect?
+    var clip: CGRect?
+
+    var animatableData: CGFloat {
+        get { sidebarWidth }
+        set { sidebarWidth = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let terminal = CGRect(x: rect.minX, y: rect.minY + topExtension,
+                              width: rect.width, height: max(0, rect.height - topExtension))
+        var path = roundedPanes
+            ? PaneCardEffectShape(sidebarWidth: sidebarWidth)
+                .path(in: CGRect(origin: .zero, size: terminal.size))
+                .offsetBy(dx: terminal.minX, dy: terminal.minY)
+            : Path(terminal)
+        guard let tabRect, !tabRect.isEmpty else { return path }
+        var tab = IntegratedTabGeometry(in: tabRect).silhouettePath
+        if let clip { tab = tab.intersection(Path(clip)) }
+        path = path.union(tab)
+        return path
+    }
+}
+
+/// Clips the effect to `TerminalEffectWindowShape`, following the selected
+/// tab through `join` without invalidating `MainView`.
+struct TerminalEffectWindowClip: ViewModifier {
+    let roundedPanes: Bool
+    let sidebarWidth: CGFloat
+    let topExtension: CGFloat
+    /// The effect's global origin, to bring the tab into local space.
+    let origin: CGPoint
+    let join: IntegratedTabJoin?
+
+    @State private var tracker = IntegratedTabJoinTracker()
+
+    func body(content: Content) -> some View {
+        let local = { (rect: CGRect) in rect.offsetBy(dx: -origin.x, dy: -origin.y) }
+        if join == nil && !roundedPanes {
+            content
+        } else {
+            content
+                .clipShape(TerminalEffectWindowShape(
+                    sidebarWidth: sidebarWidth,
+                    topExtension: topExtension,
+                    roundedPanes: roundedPanes,
+                    tabRect: join == nil ? nil : tracker.rect.map(local),
+                    clip: join == nil ? nil : tracker.clip.map(local)))
+                .onAppear { if let join { tracker.track(join) } }
+                .onChange(of: join.map { ObjectIdentifier($0) }) { _, _ in
+                    if let join { tracker.track(join) }
+                }
+        }
+    }
+}
+
 extension View {
     /// Theme fills behind the terminal: full bleed normally, the terminal
     /// card under Rounded Panes so they never square off its corners.
@@ -125,16 +189,6 @@ extension View {
             clipShape(PaneCardStyle.shape(rounded: true))
         } else {
             ignoresSafeArea()
-        }
-    }
-
-    /// Clips the effect layer to its cards only while Rounded Panes is on.
-    @ViewBuilder
-    func paneCardEffectClip(_ isEnabled: Bool, sidebarWidth: CGFloat) -> some View {
-        if isEnabled {
-            clipShape(PaneCardEffectShape(sidebarWidth: sidebarWidth))
-        } else {
-            self
         }
     }
 }

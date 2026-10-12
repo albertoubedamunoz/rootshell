@@ -38,9 +38,13 @@ struct CachedSolarLocation: Codable {
     let timestamp: Date
     let locality: String?
 
+    nonisolated static let maxAge: TimeInterval = 30 * 24 * 60 * 60
+
     /// Location is valid if less than 30 days old
-    var isValid: Bool {
-        Date().timeIntervalSince(timestamp) < 30 * 24 * 60 * 60
+    var isValid: Bool { isFresh(maxAge: Self.maxAge) }
+
+    func isFresh(maxAge: TimeInterval) -> Bool {
+        Date().timeIntervalSince(timestamp) < maxAge
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -95,10 +99,10 @@ final class SolarLocationService: NSObject, ObservableObject {
         locationManager.requestWhenInUseAuthorization()
     }
 
-    /// Fetch location (does NOT auto-request permission - call requestPermission() first)
-    func requestLocation() async throws -> CLLocationCoordinate2D {
-        // Return cached if available and valid
-        if let cached = loadCachedLocation(), cached.isValid {
+    /// Fetch location (does NOT auto-request permission - call requestPermission() first).
+    /// A cached fix younger than `maxAge` is returned without asking CoreLocation.
+    func requestLocation(maxAge: TimeInterval = CachedSolarLocation.maxAge) async throws -> CLLocationCoordinate2D {
+        if let cached = loadCachedLocation(), cached.isFresh(maxAge: maxAge) {
             currentLocation = cached.coordinate
             locality = cached.locality
             return cached.coordinate

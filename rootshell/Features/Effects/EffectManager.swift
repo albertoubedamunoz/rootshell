@@ -34,6 +34,7 @@ final class EffectManager {
     var activeEffect: AnyTerminalEffect? {
         didSet {
             if !isReloading { saveActiveEffect() }
+            updateTextAboveEffectActive()
             effectDidChange.send()
         }
     }
@@ -68,6 +69,19 @@ final class EffectManager {
             if isLoaded { TransparencyManager.shared.transparencyDidChange.send() }
         }
     }
+
+    /// Area effects draw between an app-drawn terminal background and
+    /// glyph-only terminals, so text keeps its own colors.
+    var isTextAboveEffectEnabled = true {
+        didSet {
+            guard isTextAboveEffectEnabled != oldValue else { return }
+            if !isReloading { SettingsStore.shared.set(Settings.Shaders.textAboveEffect, isTextAboveEffectEnabled) }
+            updateTextAboveEffectActive()
+        }
+    }
+
+    /// Ghostty draws no default background while set; see `TransparencyManager.terminalSurfaceOpacity`.
+    private(set) var isTextAboveEffectActive = false
 
     @ObservationIgnored private var isReloading = false
     @ObservationIgnored private var isLoaded = false
@@ -184,7 +198,7 @@ final class EffectManager {
 
         SettingsRefreshHub.shared.register(keys: [
             Settings.Shaders.activeEffectId.name, Settings.Shaders.effectConfigurations.name,
-            Settings.Shaders.themeGradientBackdrop.name,
+            Settings.Shaders.themeGradientBackdrop.name, Settings.Shaders.textAboveEffect.name,
         ]) { [weak self] keys in self?.reload(keys: keys) }
         isLoaded = true
     }
@@ -222,6 +236,17 @@ final class EffectManager {
         if keys.contains(Settings.Shaders.themeGradientBackdrop.name) {
             isBackdropEnabled = SettingsStore.shared.get(Settings.Shaders.themeGradientBackdrop)
         }
+        if keys.contains(Settings.Shaders.textAboveEffect.name) {
+            isTextAboveEffectEnabled = SettingsStore.shared.get(Settings.Shaders.textAboveEffect)
+        }
+    }
+
+    private func updateTextAboveEffectActive() {
+        let active = isTextAboveEffectEnabled && activeEffect != nil
+        guard active != isTextAboveEffectActive else { return }
+        isTextAboveEffectActive = active
+        // The config carries the surface opacity; not during init, as for the backdrop.
+        if isLoaded { TransparencyManager.shared.transparencyDidChange.send() }
     }
 
     func notifyKeyboardToolbarLayoutChanged() {
@@ -335,6 +360,7 @@ final class EffectManager {
     private func loadSettings() {
         isReloading = true
         isBackdropEnabled = SettingsStore.shared.get(Settings.Shaders.themeGradientBackdrop)
+        isTextAboveEffectEnabled = SettingsStore.shared.get(Settings.Shaders.textAboveEffect)
         isReloading = false
         // Load active effect
         if let activeId = SettingsStore.shared.get(Settings.Shaders.activeEffectId) {
@@ -603,6 +629,9 @@ final class EffectManager {
         registerEffect(ButterfliesEffect())
         registerEffect(JellyfishEffect())
         registerEffect(PhotoBackgroundEffect())
+        #if !CHINA_BUILD
+        registerEffect(LiveWeatherEffect())
+        #endif
 
         // Register video background effects
         registerVideoBackgroundEffects()

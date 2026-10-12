@@ -124,6 +124,12 @@ final class TransparencyManager {
         #endif
     }
 
+    /// Opacity of the background ghostty itself draws. With Text Above Effect
+    /// the app draws it beneath the effect, so terminals carry only glyphs.
+    var terminalSurfaceOpacity: Double {
+        EffectManager.shared.isTextAboveEffectActive ? 0 : effectiveBackgroundOpacity
+    }
+
     /// Whether the pinned vertical tab sidebar uses the window's background
     /// opacity instead of its normal opaque fill.
     var pinnedSidebarTransparencyEnabled: Bool {

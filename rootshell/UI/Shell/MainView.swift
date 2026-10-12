@@ -68,6 +68,7 @@ struct MainView: View {
     @State var restorationInFlight = false
     /// Relays the joined Integrated tab's span to the split views' card rims.
     @State var integratedTabJoin = IntegratedTabJoin()
+    @State var integratedTabSurface = IntegratedTabSurface()
     @State var lifecycleScenePhase: ScenePhase = {
         switch UIApplication.shared.applicationState {
         case .active:
@@ -472,7 +473,7 @@ struct MainView: View {
             ZStack {
                 // Full-bleed backgrounds
                 fullBleedBackground(geometry: geometry, theme: resolvedTheme)
-                windowBackdrop(geometry: geometry, theme: resolvedTheme)
+                windowBackdrop()
 
                 VStack(spacing: 0) {
                     // Top toolbar spacer when tab bar is hidden (Catalyst only)

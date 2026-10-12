@@ -11,6 +11,7 @@ import SwiftUI
 struct VideoBackgroundView: View {
     @ObservedObject var effect: VideoBackgroundEffect
     var effectManager = EffectManager.shared
+    @Environment(\.terminalEffectBottomInset) private var bottomInset
 
     var body: some View {
         GeometryReader { geometry in
@@ -23,7 +24,8 @@ struct VideoBackgroundView: View {
                 playbackRate: effect.speed,
                 themeTintEnabled: effect.themeTintEnabled,
                 themeTintAmount: effect.themeTintAmount,
-                themeColors: effect.themeColors
+                themeColors: effect.themeColors,
+                bottomInset: bottomInset
             )
             .id("\(effect.videoInfo.id)-\(effect.videoInfo.seamlessLoop ? "seamless" : "crossfade")")
             .opacity(effect.intensity)
@@ -44,6 +46,7 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
     let themeTintEnabled: Bool
     let themeTintAmount: Double
     let themeColors: EffectThemeColors
+    let bottomInset: CGFloat
 
     func makeUIView(context: Context) -> VideoBackgroundUIView {
         VideoBackgroundUIView(
@@ -55,7 +58,8 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
             playbackRate: playbackRate,
             themeTintEnabled: themeTintEnabled,
             themeTintAmount: themeTintAmount,
-            themeColors: themeColors
+            themeColors: themeColors,
+            bottomInset: bottomInset
         )
     }
 
@@ -66,5 +70,6 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
             amount: themeTintAmount,
             themeColors: themeColors
         )
+        uiView.updateBottomInset(bottomInset)
     }
 }

@@ -133,6 +133,9 @@ protocol GhosttyActionDelegate: AnyObject {
     /// Called when progress report is requested
     func handleProgressReport(_ report: Ghostty.Action.ProgressReport)
 
+    /// Called when a program sets or resets the background (OSC 11 / 111)
+    func handleBackgroundColorChange(_ rgb: SIMD3<UInt8>)
+
     /// Called for each OSC 7501 program status report (the pane keeps the records)
     func handleProgramStatus(_ report: Ghostty.Action.ProgramStatus)
 
@@ -2904,6 +2907,17 @@ extension Ghostty {
                     Ghostty.logger.warning("Progress report action but target is not SURFACE (tag=\(target.tag.rawValue))")
                 }
 
+                return true
+
+            case GHOSTTY_ACTION_COLOR_CHANGE:
+                let change = action.action.color_change
+                guard target.tag == GHOSTTY_TARGET_SURFACE,
+                      change.kind == GHOSTTY_ACTION_COLOR_KIND_BACKGROUND else { return true }
+                let surfaceId = Int(bitPattern: target.target.surface)
+                let rgb = SIMD3(change.r, change.g, change.b)
+                Task { @MainActor in
+                    appInstance.surfaceDelegates[surfaceId]?.delegate?.handleBackgroundColorChange(rgb)
+                }
                 return true
 
             case GHOSTTY_ACTION_START_SEARCH:

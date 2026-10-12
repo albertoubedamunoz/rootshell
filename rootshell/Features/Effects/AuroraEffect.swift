@@ -214,18 +214,22 @@ struct AuroraView: View {
     let effect: AuroraEffect
 
     @State private var clock = AuroraClock()
+    @Environment(\.terminalEffectBottomInset) private var bottomInset
 
     var body: some View {
         GeometryReader { geometry in
             TimelineView(.animation(minimumInterval: (1.0 / 30.0) * PowerManager.shared.effectIntervalScale)) { timeline in
                 let phase = clock.phase(at: timeline.date, speed: effect.speed)
                 let colors = effect.shaderColors
+                // The sky fits above the keyboard; below it is the untouched lower band.
+                let sky = CGSize(width: geometry.size.width,
+                                 height: max(1, geometry.size.height - bottomInset))
 
                 Rectangle()
                     .fill(Color.white.opacity(0.001))  // Nearly invisible base for shader
                     .colorEffect(
                         ShaderLibrary.aurora(
-                            .float2(geometry.size),
+                            .float2(sky),
                             .float(Float(phase)),
                             .float(Float(effect.intensity)),
                             .color(colors.base),

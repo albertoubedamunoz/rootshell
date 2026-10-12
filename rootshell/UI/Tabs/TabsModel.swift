@@ -214,6 +214,8 @@ nonisolated struct TabOrderProjection: Equatable, Sendable {
 final class TabModel: Identifiable {
     let id = UUID()
     let paneMove = PaneMoveState()
+    /// Text Above Effect pane backgrounds, pushed by this tab's split host.
+    let paneUnderlay = PaneUnderlayModel()
     /// Stops a delayed move reply from overriding a newer focus choice.
     @ObservationIgnored private(set) var paneFocusRevision: UInt64 = 0
 

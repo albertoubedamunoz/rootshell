@@ -43,6 +43,12 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         var backgroundColor: UIColor = .black
         /// The terminal surface's opacity, for the backdrop and cells; 1 = opaque.
         var backgroundOpacity: CGFloat = 1
+        /// Text Above Effect: mirrored frames carry no background. The backdrop
+        /// moves beneath the effect, the hero is punched through to the pane
+        /// underlay, and cells paint each pane's background themselves.
+        var glyphOnlyMirrors = false
+        /// Per-tab cell fills; a tab missing here uses `backgroundColor`.
+        var tabBackgroundColors: [UUID: UIColor] = [:]
         /// Rounded Panes: the backdrop and hero take the terminal card's corners.
         var cornerRadius: CGFloat = 0
         /// Rounded Panes: the card's top-lit rim; nil draws none.
@@ -63,6 +69,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     }
 
     private let backdrop = UIView()
+    /// The backdrop's frame in this view's coordinates, wherever it is hosted.
+    private var backdropRect: CGRect = .zero
     /// Punches the hero out of a translucent backdrop so the hero's own
     /// translucent background isn't stacked on a second fill.
     private let backdropMask = CAShapeLayer()
@@ -78,10 +86,13 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
             updateRim()
         }
     }
-    /// The live terminal hosts hidden behind the hero while translucent, so
-    /// the backdrop sees the desktop rather than the terminal: the hero's,
+    /// The live terminal hosts hidden behind the hero while it is punched
+    /// through, so the hole shows what lies beneath rather than them: the hero's,
     /// and the displayed tab's until a selection's display handoff.
     private let concealedHosts = NSHashTable<UIView>.weakObjects()
+    /// Text Above Effect: the same tabs' pane underlays, slid along with the hero.
+    private let shiftedUnderlays = NSHashTable<PaneUnderlayView>.weakObjects()
+    private var heroShift: CGFloat = 0
     /// The active scope's page.
     private var primary = TabExposeTrayView()
     /// A neighbor scope's page while a swipe / ⌘⌥[ ] is in flight.
@@ -278,6 +289,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
             stopDisplayLink()
             if isFirstResponder { _ = resignFirstResponder() }
             isHidden = true
+            // It may be hosted outside this view.
+            backdrop.isHidden = true
             accessibilityViewIsModal = false
             hero.releaseContents()
             syncTerminalConcealment()
@@ -389,8 +402,10 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     private func applyAppearance() {
         guard !Ghostty.isSecureDrawProhibitedAtomic else { return }
         backdrop.backgroundColor = appearance.backgroundColor.withAlphaComponent(appearance.backgroundOpacity)
-        // Mirrored pixels already carry the terminal's translucent background.
-        hero.backgroundColor = isTranslucent ? .clear : appearance.backgroundColor
+        syncBackdropPlacement()
+        // Mirrored pixels already carry the terminal's translucent background,
+        // or sit over the pane underlay showing through.
+        hero.backgroundColor = punchesHero ? .clear : appearance.backgroundColor
         for view in [backdrop, hero] {
             view.layer.cornerRadius = appearance.cornerRadius
             view.layer.cornerCurve = .continuous
@@ -409,12 +424,14 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
     // MARK: - Layout
 
     private var isTranslucent: Bool { appearance.backgroundOpacity < 1 }
+    /// What lies beneath shows through the hero, so the backdrop is cut away there.
+    private var punchesHero: Bool { isTranslucent || appearance.glyphOnlyMirrors }
 
     /// The hero mirror is pixel-for-pixel the terminal, so hiding the real
     /// host under it is invisible; restores when inactive or opaque.
     private func syncTerminalConcealment() {
         var targets: [UIView] = []
-        if controller.isActive, isTranslucent {
+        if controller.isActive, punchesHero {
             let displayed = controller.tabsModel?.displayedTabID.flatMap { controller.tabsModel?.tab(withID: $0) }
             targets = [hero.tab, displayed].compactMap { $0?.splitTree.first?.enclosingSplitHost }
         }
@@ -425,6 +442,36 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         for host in targets where !concealedHosts.contains(host) {
             host.alpha = 0
             concealedHosts.add(host)
+        }
+        syncUnderlayShift()
+    }
+
+    /// Text Above Effect: the backdrop moves beneath the background effect,
+    /// into a host framed like this view, so the effect shows over the
+    /// backdrop but never over the mirrors' glyphs.
+    private func syncBackdropPlacement() {
+        let host = appearance.glyphOnlyMirrors ? (controller.backdropHost ?? self) : self
+        if backdrop.superview !== host {
+            if host === self { insertSubview(backdrop, at: 0) } else { host.addSubview(backdrop) }
+        }
+        backdrop.frame = host.convert(backdropRect, from: self)
+    }
+
+    /// The hero's glyph-only mirror slides over the pane underlay beneath the
+    /// effect, so that underlay slides with it.
+    private func syncUnderlayShift() {
+        var targets: [PaneUnderlayView] = []
+        if controller.isActive, appearance.glyphOnlyMirrors {
+            let displayed = controller.tabsModel?.displayedTabID.flatMap { controller.tabsModel?.tab(withID: $0) }
+            targets = [hero.tab, displayed].compactMap { $0?.paneUnderlay.view }
+        }
+        for view in shiftedUnderlays.allObjects where !targets.contains(view) {
+            view.contentShift = 0
+            shiftedUnderlays.remove(view)
+        }
+        for view in targets {
+            view.contentShift = heroShift
+            shiftedUnderlays.add(view)
         }
     }
 
@@ -524,7 +571,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         // could expose terminal pixels around the home-indicator strip even
         // though preview geometry was otherwise right.
         // Rounded Panes cards stop at the terminal host, so the fill does too.
-        backdrop.frame = appearance.cornerRadius > 0 ? heroRect : bounds
+        backdropRect = appearance.cornerRadius > 0 ? heroRect : bounds
+        syncBackdropPlacement()
         updateRim()
         hero.transform = .identity
         hero.frame = heroRect
@@ -552,6 +600,8 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         CATransaction.setDisableActions(true)
         hero.transform = CGAffineTransform(translationX: 0, y: clamped * H)
         hero.isHidden = clamped >= 1
+        heroShift = clamped * H
+        syncUnderlayShift()
         var primaryTransform = CGAffineTransform(translationX: pageShift, y: y)
         var companionTransform = CGAffineTransform(translationX: pageShift + CGFloat(companionSide) * pageWidth, y: y)
         if p > 1 {
@@ -571,9 +621,9 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         companion?.setChrome(captionAlpha: chromeAlpha, ringAlpha: ringAlpha)
         pageControl.alpha = chromeAlpha
         backdrop.isHidden = p <= 0
-        if isTranslucent, !hero.isHidden {
+        if punchesHero, !hero.isHidden {
             let path = UIBezierPath(rect: backdrop.bounds)
-            let heroFrame = heroRect.offsetBy(dx: -backdrop.frame.minX, dy: clamped * H - backdrop.frame.minY)
+            let heroFrame = heroRect.offsetBy(dx: -backdropRect.minX, dy: clamped * H - backdropRect.minY)
             path.append(UIBezierPath(roundedRect: heroFrame, cornerRadius: appearance.cornerRadius))
             backdropMask.frame = backdrop.bounds
             backdropMask.path = path.cgPath
@@ -626,6 +676,7 @@ final class TabExposeView: UIView, TabExposeControllerObserver, PreviewRendering
         applyProgress()
         // A just-selected tab's host may attach a frame or two later.
         syncTerminalConcealment()
+        syncBackdropPlacement()
         if !hero.isHidden { hero.sync() }
         // Both pages report: a swipe drags the multiplexer page in as the
         // companion, and paging away from it leaves no mux cells at all —

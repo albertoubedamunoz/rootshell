@@ -364,6 +364,7 @@ struct ThemeGradientView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var clock = ThemeGradientClock()
+    @Environment(\.terminalEffectBottomInset) private var bottomInset
 
     private var isRunning: Bool {
         effect.drift && !reduceMotion && scenePhase != .background
@@ -376,12 +377,15 @@ struct ThemeGradientView: View {
                 let palette = effect.palette
                 let offsets = clock.offsets(at: timeline.date, speed: effect.speed, running: isRunning)
                 let colors = clock.colors(for: palette, at: timeline.date, animated: isRunning)
+                // The glow fits above the keyboard and carries on beneath it.
+                let area = CGSize(width: geometry.size.width,
+                                  height: max(1, geometry.size.height - bottomInset))
 
                 Rectangle()
                     .fill(Color.white.opacity(0.001))  // Nearly invisible base for shader
                     .colorEffect(
                         ShaderLibrary.themeGradient(
-                            .float2(geometry.size),
+                            .float2(area),
                             .float4(Float(offsets[0].x), Float(offsets[0].y), Float(offsets[1].x), Float(offsets[1].y)),
                             .float4(Float(offsets[2].x), Float(offsets[2].y), Float(offsets[3].x), Float(offsets[3].y)),
                             .color(Self.color(colors[0])),

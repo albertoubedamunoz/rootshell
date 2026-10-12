@@ -15,8 +15,7 @@ import CoreLocation
 /// WatchOS solarGraph-inspired background effect
 struct SolarGraphView: View {
     @ObservedObject var effect: SolarGraphEffect
-    var effectManager = EffectManager.shared
-    @Environment(\.terminalEffectAvoidsKeyboard) private var avoidsKeyboard
+    @Environment(\.terminalEffectBottomInset) private var bottomInset
 
     /// Combined ID for settings that should trigger immediate re-render
     private var settingsId: String {
@@ -40,9 +39,7 @@ struct SolarGraphView: View {
         let animationTime = date.timeIntervalSinceReferenceDate
 
         GeometryReader { geometry in
-            let keyboardOffset = avoidsKeyboard
-                ? effectManager.keyboardOverlapHeight(in: geometry.frame(in: .global)) : 0
-            let adjustedHeight = max(0, geometry.size.height - keyboardOffset)
+            let adjustedHeight = max(0, geometry.size.height - bottomInset)
             let adjustedSize = CGSize(
                 width: geometry.size.width,
                 height: adjustedHeight

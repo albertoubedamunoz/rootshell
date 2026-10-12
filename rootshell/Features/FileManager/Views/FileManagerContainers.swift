@@ -78,11 +78,9 @@ extension View {
     func panelHUDBackground(fills: Bool, theme: ResolvedSheetTheme, rounded: Bool, cardBackdrop: Color?,
                             integratedTabJoin: IntegratedTabJoin?) -> some View {
         if fills {
-            let surface = theme.themeColors?.background ?? Color(uiColor: .systemBackground)
+            let surface = theme.panelSurface
             let transparency = TransparencyManager.shared
-            let fill = transparency.fullPanelIsTranslucent
-                ? (theme.translucentBackground ?? surface).opacity(transparency.effectiveBackgroundOpacity)
-                : surface
+            let fill = theme.panelFill
             let card = PaneCardStyle.shape(rounded: rounded)
             // Content stays above the home indicator; the fill covers the terminal below it.
             background {
@@ -154,4 +152,19 @@ extension HUDResizing {
         minSize: CGSize(width: 320, height: 320),
         widthKey: Settings.Transfer.fileManagerHUDWidth,
         heightKey: Settings.Transfer.fileManagerHUDHeight)
+}
+
+extension ResolvedSheetTheme {
+    /// A full-size panel's opaque surface, which its rim derives from.
+    var panelSurface: Color {
+        themeColors?.background ?? Color(uiColor: .systemBackground)
+    }
+
+    /// What a full-size panel paints over the terminal; a joined tab paints it too.
+    var panelFill: Color {
+        let transparency = TransparencyManager.shared
+        return transparency.fullPanelIsTranslucent
+            ? (translucentBackground ?? panelSurface).opacity(transparency.effectiveBackgroundOpacity)
+            : panelSurface
+    }
 }

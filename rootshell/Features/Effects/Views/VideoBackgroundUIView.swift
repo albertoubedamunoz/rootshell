@@ -79,6 +79,9 @@ class VideoBackgroundUIView: UIView {
     // Current playback rate
     private var currentRate: Float = 1.0
 
+    // Points the keyboard covers; the video fits above them
+    private var bottomInset: CGFloat
+
     // Theme-tint state (shared with AVVideoComposition handler thread)
     private let tintState: VideoTintState
 
@@ -97,7 +100,8 @@ class VideoBackgroundUIView: UIView {
         playbackRate: Double,
         themeTintEnabled: Bool,
         themeTintAmount: Double,
-        themeColors: EffectThemeColors
+        themeColors: EffectThemeColors,
+        bottomInset: CGFloat
     ) {
         self.videoURL = videoURL
         self.aspectMode = aspectMode
@@ -105,6 +109,7 @@ class VideoBackgroundUIView: UIView {
         self.seamlessLoop = seamlessLoop
         self.crossfadeDuration = crossfadeDuration
         self.currentRate = Float(playbackRate)
+        self.bottomInset = bottomInset
         self.tintState = VideoTintState(
             enabled: themeTintEnabled,
             amount: themeTintAmount,
@@ -218,7 +223,7 @@ class VideoBackgroundUIView: UIView {
 
         playerLayer = AVPlayerLayer(player: queuePlayer)
         playerLayer?.videoGravity = videoGravity
-        playerLayer?.frame = bounds
+        playerLayer?.frame = frameForAspectMode()
 
         if let playerLayer = playerLayer {
             layer.addSublayer(playerLayer)
@@ -243,7 +248,7 @@ class VideoBackgroundUIView: UIView {
 
         primaryPlayerLayer = AVPlayerLayer(player: primaryPlayer)
         primaryPlayerLayer?.videoGravity = videoGravity
-        primaryPlayerLayer?.frame = bounds
+        primaryPlayerLayer?.frame = frameForAspectMode()
 
         // Create secondary player for crossfade
         let secondaryItem = AVPlayerItem(asset: asset)
@@ -254,7 +259,7 @@ class VideoBackgroundUIView: UIView {
 
         secondaryPlayerLayer = AVPlayerLayer(player: secondaryPlayer)
         secondaryPlayerLayer?.videoGravity = videoGravity
-        secondaryPlayerLayer?.frame = bounds
+        secondaryPlayerLayer?.frame = frameForAspectMode()
         secondaryPlayerLayer?.opacity = 0
 
         // Add layers (secondary underneath primary)
@@ -612,23 +617,33 @@ class VideoBackgroundUIView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-
-        playerLayer?.frame = frameForAspectMode()
-        primaryPlayerLayer?.frame = frameForAspectMode()
-        secondaryPlayerLayer?.frame = frameForAspectMode()
+        layoutPlayerLayers()
     }
 
-    /// Calculate frame based on aspect mode and alignment
-    private func frameForAspectMode() -> CGRect {
-        // For fill and stretch, just use bounds
-        guard aspectMode == .fit else {
-            return bounds
-        }
+    private func layoutPlayerLayers() {
+        let frame = frameForAspectMode()
+        playerLayer?.frame = frame
+        primaryPlayerLayer?.frame = frame
+        secondaryPlayerLayer?.frame = frame
+    }
 
-        // For fit mode, we need to handle alignment
-        // AVLayerVideoGravity.resizeAspect centers by default
-        // We adjust the layer position for different alignments
-        return bounds
+    /// The video eases with the keyboard, so no empty band opens beside it.
+    func updateBottomInset(_ inset: CGFloat) {
+        guard inset != bottomInset else { return }
+        bottomInset = inset
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(EffectSceneFraction.duration)
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+        layoutPlayerLayers()
+        CATransaction.commit()
+    }
+
+    /// The area above the keyboard. Every aspect mode lays out in it;
+    /// resizeAspect centers a fitted video there.
+    private func frameForAspectMode() -> CGRect {
+        var frame = bounds
+        frame.size.height = max(1, bounds.height - bottomInset)
+        return frame
     }
 
     // MARK: - Audio Track Management

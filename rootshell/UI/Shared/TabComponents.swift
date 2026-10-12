@@ -825,6 +825,7 @@ private struct IntegratedTabBackground: View {
     let namespace: Namespace.ID?
     let reduceMotion: Bool
     @Environment(\.integratedTabJoinsCard) private var joinsCard
+    @Environment(\.integratedTabSurfaceFill) private var surfaceFill
 
     var body: some View {
         ZStack {
@@ -840,19 +841,27 @@ private struct IntegratedTabBackground: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
     }
 
-    /// Opaque silhouette plus the edge arching over it. Open at the bottom so
-    /// the tab still merges into the terminal; the run it joins is in `MainView`.
+    /// The surface beneath it plus the edge arching over it. Open at the bottom
+    /// so the tab still merges into the terminal; the run it joins is in `MainView`.
     @ViewBuilder
     private var selectedBackground: some View {
         let background = ZStack {
-            BrowserTabShape()
-                .fill(selectedColor)
+            // Erased in the tab's own pass, so the opening slides with it.
+            if surfaceFill?.style.erasesBeneath == true {
+                BrowserTabShape()
+                    .fill(.black)
+                    .blendMode(.destinationOut)
+            }
+
+            IntegratedTabSurfaceFillView(fallback: selectedColor)
+                .clipShape(BrowserTabShape())
 
             // Between fill and outline: clears the strip's rule out of the
             // outline's shoulder band. Joined cards have no rule; their rim
             // opens under the tab and this outline carries it up around it.
-            if !joinsCard {
-                IntegratedTabEdgeOccluder(color: selectedColor)
+            // A translucent fill can't hide the rule, which opens instead.
+            if !joinsCard, surfaceFill?.style.isTranslucent != true {
+                IntegratedTabEdgeOccluder(fill: IntegratedTabSurfaceFillView(fallback: selectedColor))
             }
 
             IntegratedTabOutlineView(palette: edgePalette)
@@ -1050,12 +1059,16 @@ struct ScrollEdgeEffectHiddenModifier: ViewModifier {
 
 /// Wraps content in GlassEffectContainer on iOS 26+, passthrough on older versions
 struct GlassEffectContainerModifier: ViewModifier {
+    /// Glass-free tabs skip the container, whose group would also confine the
+    /// Integrated tab's erase of the strip beneath it.
+    var isEnabled = true
+
     func body(content: Content) -> some View {
         #if os(visionOS)
         // GlassEffectContainer is not available on visionOS
         content
         #else
-        if #available(iOS 26.0, macOS 26.0, *) {
+        if isEnabled, #available(iOS 26.0, macOS 26.0, *) {
             GlassEffectContainer {
                 content
             }

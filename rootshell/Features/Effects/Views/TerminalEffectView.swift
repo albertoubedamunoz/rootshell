@@ -6,9 +6,10 @@
 //
 
 import SwiftUI
+import QuartzCore
 
-private struct TerminalEffectAvoidsKeyboardKey: EnvironmentKey {
-    static let defaultValue = true
+private struct TerminalEffectBottomInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
 }
 
 private struct TerminalEffectRetainsStateKey: EnvironmentKey {
@@ -23,11 +24,46 @@ extension EnvironmentValues {
         set { self[TerminalEffectRetainsStateKey.self] = newValue }
     }
 
-    /// A surface inside the keyboard already has the correct drawing bounds.
-    var terminalEffectAvoidsKeyboard: Bool {
-        get { self[TerminalEffectAvoidsKeyboardKey.self] }
-        set { self[TerminalEffectAvoidsKeyboardKey.self] = newValue }
+    /// Points at the bottom of the effect covered by the docked keyboard and
+    /// toolbar. Scenes fit above it but keep drawing beneath, so no gap opens.
+    var terminalEffectBottomInset: CGFloat {
+        get { self[TerminalEffectBottomInsetKey.self] }
+        set { self[TerminalEffectBottomInsetKey.self] = newValue }
     }
+}
+
+/// The share of a Metal effect's height its scene fills, eased so the scene
+/// follows the keyboard instead of jumping.
+struct EffectSceneFraction {
+    static let duration: CFTimeInterval = 0.25
+    private var from = 1.0
+    private(set) var target = 1.0
+    private var start = -CFTimeInterval.infinity
+    private var hasTarget = false
+
+    static func visible(height: CGFloat, bottomInset: CGFloat) -> Double {
+        guard height > 0, bottomInset.isFinite else { return 1 }
+        return min(max(Double((height - bottomInset) / height), 0.2), 1)
+    }
+
+    mutating func retarget(_ fraction: Double, at now: CFTimeInterval, animated: Bool) {
+        if hasTarget && abs(fraction - target) <= 0.001 {
+            // A paused or motion-reduced scene must not keep a part-way frame.
+            if !animated { from = target }
+            return
+        }
+        from = hasTarget && animated ? value(at: now) : fraction
+        target = fraction
+        start = now
+        hasTarget = true
+    }
+
+    func value(at now: CFTimeInterval) -> Double {
+        let t = min(max((now - start) / Self.duration, 0), 1)
+        return from + (target - from) * (1 - pow(1 - t, 3))
+    }
+
+    func isAnimating(at now: CFTimeInterval) -> Bool { from != target && now - start < Self.duration }
 }
 
 private struct BackgroundEffectSelectionPicker: View {
@@ -65,6 +101,9 @@ private struct BackgroundEffectSelectionPicker: View {
             if let solar = effectManager.selectedEffect(id: effectID)?.asEffect(SolarGraphEffect.self) {
                 Task { await solar.onActivated() }
             }
+            #if !CHINA_BUILD
+            effectManager.selectedEffect(id: effectID)?.asEffect(LiveWeatherEffect.self)?.onActivated()
+            #endif
         }
     }
 }
