@@ -24,7 +24,7 @@ nonisolated enum WeatherConditionKind: String, Codable, CaseIterable, Sendable {
 }
 
 nonisolated enum WeatherSource: String, Codable, Sendable {
-    case nws, metNorway
+    case nws, openMeteo, metNorway
 }
 
 /// Rounded to 0.01° (about 1 km): the cache key, and all that leaves the device.

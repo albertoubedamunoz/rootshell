@@ -65,6 +65,18 @@ final class LiveWeatherLogicTests: XCTestCase {
         XCTAssertNil(METNorwayConditionMapping.reading(symbolCode: "mystery"))
     }
 
+    func testOpenMeteoWeatherCodes() {
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 0)?.kind, .clear)
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 2)?.kind, .partlyCloudy)
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 48)?.kind, .fog)
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 57)?.kind, .freezingRain)
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 65)?.kind, .heavyRain)
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 77)?.kind, .snow)
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 86)?.kind, .heavySnow)
+        XCTAssertEqual(OpenMeteoConditionMapping.reading(weatherCode: 97)?.thunder, true)
+        XCTAssertNil(OpenMeteoConditionMapping.reading(weatherCode: 42))
+    }
+
     func testNWSCoverage() {
         XCTAssertTrue(NWSCoverage.contains(WeatherCoordinate(latitude: 40.71, longitude: -74.01)))   // New York
         XCTAssertTrue(NWSCoverage.contains(WeatherCoordinate(latitude: 21.31, longitude: -157.86)))  // Honolulu
@@ -110,6 +122,41 @@ final class LiveWeatherLogicTests: XCTestCase {
         XCTAssertEqual(snapshot.hourly.map(\.kind), [.partlyCloudy, .heavyRain])
         // Six-hour totals become an hourly rate.
         XCTAssertEqual(snapshot.hourly.last?.precipitationRate, 5)
+    }
+
+    func testOpenMeteoForecastParsing() throws {
+        let json = """
+        {"latitude":48.85,"longitude":2.36,
+         "current":{"time":1791808200,"interval":900,"temperature_2m":12.5,"weather_code":63,"cloud_cover":100,
+           "cloud_cover_low":90,"cloud_cover_mid":40,"cloud_cover_high":null,"precipitation":0.5,"visibility":9000,
+           "wind_speed_10m":5.5,"wind_direction_10m":220,"wind_gusts_10m":9.8},
+         "hourly":{"time":[1791806400,1791810000,1791813600],"weather_code":[63,2,95],"cloud_cover":[100,45,90],
+           "precipitation":[1.2,0.0,6.0],"precipitation_probability":[90,10,70],"visibility":[8000,null,20000]}}
+        """
+        let now = Date(timeIntervalSince1970: 1_791_808_300)
+        let coordinate = WeatherCoordinate(latitude: 48.86, longitude: 2.35)
+        let snapshot = try OpenMeteoClient.snapshot(from: Data(json.utf8), coordinate: coordinate, now: now)
+        XCTAssertEqual(snapshot.source, .openMeteo)
+        XCTAssertEqual(snapshot.current.kind, .rain)
+        // 0.5 mm in the last 15 minutes.
+        XCTAssertEqual(snapshot.current.precipitationRate, 2)
+        XCTAssertEqual(snapshot.current.cloudLow, 0.9)
+        XCTAssertNil(snapshot.current.cloudHigh)
+        XCTAssertEqual(snapshot.current.windGust, 9.8)
+        // The 12:00 row is behind the 12:30 current conditions.
+        XCTAssertEqual(snapshot.hourly.map(\.kind), [.partlyCloudy, .thunderstorm])
+        XCTAssertEqual(snapshot.hourly.first?.precipitationChance, 0.1)
+        XCTAssertNil(snapshot.hourly.first?.visibility)
+        XCTAssertEqual(snapshot.hourly.last?.thunderChance, 0.8)
+        XCTAssertEqual(snapshot.hourly.last?.precipitationRate, 6)
+
+        // Without a current block, the latest hourly row stands in.
+        let hourlyOnly = """
+        {"hourly":{"time":[1791806400,1791810000],"weather_code":[3,61],"cloud_cover":[95,100]}}
+        """
+        let fallback = try OpenMeteoClient.snapshot(from: Data(hourlyOnly.utf8), coordinate: coordinate, now: now)
+        XCTAssertEqual(fallback.current.kind, .cloudy)
+        XCTAssertEqual(fallback.hourly.map(\.kind), [.rain])
     }
 
     func testNWSObservationParsing() throws {

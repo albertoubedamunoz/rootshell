@@ -1,6 +1,6 @@
 // WeatherConditionMapping.swift
 // rootshell
-// Maps NWS icon codes, METAR phenomena, and MET Norway symbol codes onto
+// Maps NWS icon codes, METAR phenomena, MET Norway symbol codes, and WMO codes onto
 // WeatherConditionKind. Pure, so the tables are unit tested without a network.
 
 #if !CHINA_BUILD
@@ -199,10 +199,48 @@ nonisolated enum METNorwayConditionMapping {
     }
 }
 
+// MARK: - Open-Meteo
+
+nonisolated enum OpenMeteoConditionMapping {
+    /// The WMO weather codes Open-Meteo reports.
+    static func reading(weatherCode code: Int) -> WeatherConditionReading? {
+        switch code {
+        case 0: return .init(kind: .clear, cloudCover: 0)
+        case 1: return .init(kind: .clear, cloudCover: 0.2)
+        case 2: return .init(kind: .partlyCloudy, cloudCover: 0.5)
+        case 3: return .init(kind: .cloudy, cloudCover: 1)
+        case 45, 48: return .init(kind: .fog, cloudCover: 0.9)
+        case 51: return .init(kind: .drizzle, cloudCover: 0.95, precipitationRate: 0.15)
+        case 53: return .init(kind: .drizzle, cloudCover: 0.95, precipitationRate: 0.3)
+        case 55: return .init(kind: .drizzle, cloudCover: 0.95, precipitationRate: 0.6)
+        case 56: return .init(kind: .freezingRain, cloudCover: 1, precipitationRate: 0.3)
+        case 57: return .init(kind: .freezingRain, cloudCover: 1, precipitationRate: 0.8)
+        case 61: return .init(kind: .rain, cloudCover: 0.95, precipitationRate: 0.8)
+        case 63: return .init(kind: .rain, cloudCover: 0.95, precipitationRate: 3)
+        case 65: return .init(kind: .heavyRain, cloudCover: 1, precipitationRate: 10)
+        case 66: return .init(kind: .freezingRain, cloudCover: 1, precipitationRate: 1)
+        case 67: return .init(kind: .freezingRain, cloudCover: 1, precipitationRate: 4)
+        case 71: return .init(kind: .snow, cloudCover: 0.95, precipitationRate: 0.5)
+        case 73: return .init(kind: .snow, cloudCover: 1, precipitationRate: 1.5)
+        case 75: return .init(kind: .heavySnow, cloudCover: 1, precipitationRate: 4)
+        case 77: return .init(kind: .snow, cloudCover: 0.95, precipitationRate: 0.3)
+        case 80: return .init(kind: .rain, cloudCover: 0.75, precipitationRate: 1)
+        case 81: return .init(kind: .rain, cloudCover: 0.8, precipitationRate: 3)
+        case 82: return .init(kind: .heavyRain, cloudCover: 0.85, precipitationRate: 10)
+        case 85: return .init(kind: .snow, cloudCover: 0.8, precipitationRate: 0.8)
+        case 86: return .init(kind: .heavySnow, cloudCover: 0.85, precipitationRate: 3)
+        case 95: return .init(kind: .thunderstorm, cloudCover: 0.9, precipitationRate: 5, thunder: true)
+        case 96, 99: return .init(kind: .thunderstorm, cloudCover: 0.95, precipitationRate: 8, thunder: true)
+        case 97: return .init(kind: .thunderstorm, cloudCover: 1, precipitationRate: 10, thunder: true)
+        default: return nil
+        }
+    }
+}
+
 // MARK: - Coverage
 
 /// Rough boxes around the areas api.weather.gov serves. A miss only costs a
-/// MET Norway request; a false hit falls back on the NWS 404.
+/// Open-Meteo request; a false hit falls back on the NWS 404.
 nonisolated enum NWSCoverage {
     private static let regions: [(lat: ClosedRange<Double>, lon: ClosedRange<Double>)] = [
         (24.3...49.5, -125.0...(-66.8)),    // contiguous states

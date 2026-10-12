@@ -47,6 +47,24 @@ extension WeatherConditionKind {
     }
 }
 
+extension WeatherSource {
+    var displayName: String {
+        switch self {
+        case .nws: return String(localized: "National Weather Service", comment: "Weather data source")
+        case .openMeteo: return String(localized: "Open-Meteo", comment: "Weather data source")
+        case .metNorway: return String(localized: "MET Norway", comment: "Weather data source")
+        }
+    }
+
+    var website: URL {
+        switch self {
+        case .nws: return URL(string: "https://www.weather.gov")!
+        case .openMeteo: return URL(string: "https://open-meteo.com/")!
+        case .metNorway: return URL(string: "https://api.met.no")!
+        }
+    }
+}
+
 extension WeatherSkyGeometry.PreviewTime {
     var displayName: String {
         switch self {
@@ -245,13 +263,14 @@ struct LiveWeatherSettingsSection: View {
             Text(relative(snapshot.fetchedAt)).foregroundStyle(.secondary)
         }
         .themedRow()
-        HStack {
-            Text("Source")
-            Spacer()
-            Text(snapshot.source == .nws
-                 ? String(localized: "National Weather Service", comment: "Weather data source")
-                 : String(localized: "MET Norway", comment: "Weather data source"))
-                .foregroundStyle(.secondary)
+        // Open-Meteo's licence asks for a link wherever its data is shown.
+        Link(destination: snapshot.source.website) {
+            HStack {
+                Text("Source").foregroundStyle(.primary)
+                Spacer()
+                Text(snapshot.source.displayName).foregroundStyle(.secondary)
+                Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.secondary)
+            }
         }
         .themedRow()
     }
@@ -337,11 +356,15 @@ struct LiveWeatherSettingsSection: View {
 
     private var dataSection: some View {
         Section {
-            Link(destination: URL(string: "https://www.weather.gov")!) {
+            Link(destination: WeatherSource.nws.website) {
                 Label("NOAA National Weather Service", systemImage: "arrow.up.right.square")
             }
             .themedRow()
-            Link(destination: URL(string: "https://api.met.no")!) {
+            Link(destination: WeatherSource.openMeteo.website) {
+                Label("Weather data by Open-Meteo.com", systemImage: "arrow.up.right.square")
+            }
+            .themedRow()
+            Link(destination: WeatherSource.metNorway.website) {
                 Label("MET Norway", systemImage: "arrow.up.right.square")
             }
             .themedRow()
@@ -352,7 +375,7 @@ struct LiveWeatherSettingsSection: View {
         } header: {
             Text("Weather Data")
         } footer: {
-            Text("US locations use data from the National Weather Service. Other locations, and US locations when it can't be reached, use data from MET Norway under CC BY 4.0, adapted and visualised by rootshell.")
+            Text("US locations use data from the National Weather Service. Other locations, and US locations when it can't be reached, use Open-Meteo, with MET Norway as a backup. Open-Meteo and MET Norway data are licensed under CC BY 4.0, adapted and visualised by rootshell.")
         }
     }
 }

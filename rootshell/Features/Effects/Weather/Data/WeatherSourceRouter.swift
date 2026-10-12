@@ -24,8 +24,8 @@ nonisolated enum WeatherFetchOutcome: Sendable {
     case notModified(expiresAt: Date?)
 }
 
-/// weather.gov for US locations; MET Norway everywhere else and whenever
-/// NWS fails, within the same refresh.
+/// weather.gov for US locations; Open-Meteo everywhere else and whenever NWS
+/// fails; MET Norway if Open-Meteo fails too. All within one refresh.
 nonisolated enum WeatherSourceRouter {
     static func fetch(_ coordinate: WeatherCoordinate, previous: WeatherSnapshot?,
                       state: inout WeatherSourceState, now: Date) async throws -> WeatherFetchOutcome {
@@ -48,8 +48,15 @@ nonisolated enum WeatherSourceRouter {
                     state.nwsPoints[key] = nil
                     state.nwsUncovered[key] = now
                 }
-                Ghostty.logger.info("Live Weather: NWS unavailable (\(String(describing: error), privacy: .public)), using MET Norway")
+                try Task.checkCancellation()
+                Ghostty.logger.info("Live Weather: NWS unavailable (\(String(describing: error), privacy: .public)), using Open-Meteo")
             }
+        }
+        do {
+            return .updated(try await OpenMeteoClient().fetch(coordinate, now: now))
+        } catch {
+            try Task.checkCancellation()
+            Ghostty.logger.info("Live Weather: Open-Meteo unavailable (\(String(describing: error), privacy: .public)), using MET Norway")
         }
         let validator = state.metCoordinate == coordinate && previous?.source == .metNorway
             && previous?.coordinate == coordinate ? state.metValidator : nil
