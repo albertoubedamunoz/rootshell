@@ -188,10 +188,10 @@ enum OpenSSHImporter {
         // path across all concrete entries (after wildcard inheritance).
         var resolvedConcretes: [(entry: OpenSSHHostEntry, identityPaths: [String], jump: OpenSSHHostResolution.JumpChainResolution)] = []
         for entry in concretes {
-            let resolved = OpenSSHHostResolution.resolveWithWildcards(entry: entry, wildcards: wildcards)
+            let resolved = OpenSSHHostResolution.resolve(entry: entry, entries: parseResult.entries)
             let paths = resolved.identityFiles.map { resolveIdentityPath($0, sshDirectory: sshDirectory) }
             let jump = OpenSSHHostResolution.resolveJumpChain(
-                for: resolved, concretes: concretes, wildcards: wildcards,
+                for: resolved, entries: parseResult.entries,
                 defaultUsername: Self.defaultUsername,
                 parseProxyCommand: { command in
                     ProxyCommandParser.parse(command).map { .init(host: $0.host, port: $0.port, username: $0.username) }
