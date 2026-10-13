@@ -112,6 +112,18 @@
 		47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */; };
 		47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */; };
 		47AC7E5700000000000000A9 /* rootshell/Core/Foundation/ByteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E5700000000000000B9 /* rootshell/Core/Foundation/ByteSearch.swift */; };
+		47AC7E57000000000000F7A1 /* rootshell/Features/Effects/Weather/Model/LightningSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B1 /* rootshell/Features/Effects/Weather/Model/LightningSchedule.swift */; };
+		47AC7E57000000000000F7A2 /* rootshell/Features/Effects/Weather/Model/WeatherConditionMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B2 /* rootshell/Features/Effects/Weather/Model/WeatherConditionMapping.swift */; };
+		47AC7E57000000000000F7A3 /* rootshell/Features/Effects/Weather/Model/WeatherFetchPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B3 /* rootshell/Features/Effects/Weather/Model/WeatherFetchPolicy.swift */; };
+		47AC7E57000000000000F7A4 /* rootshell/Features/Effects/Weather/Model/WeatherModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B4 /* rootshell/Features/Effects/Weather/Model/WeatherModels.swift */; };
+		47AC7E57000000000000F7A5 /* rootshell/Features/Effects/Weather/Model/WeatherSkyGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B5 /* rootshell/Features/Effects/Weather/Model/WeatherSkyGeometry.swift */; };
+		47AC7E57000000000000F7A6 /* rootshell/Features/Effects/Weather/Model/WeatherTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B6 /* rootshell/Features/Effects/Weather/Model/WeatherTimeline.swift */; };
+		47AC7E57000000000000F7A7 /* rootshell/Features/Effects/Weather/Model/WeatherVisualAnimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B7 /* rootshell/Features/Effects/Weather/Model/WeatherVisualAnimator.swift */; };
+		47AC7E57000000000000F7A8 /* rootshell/Features/Effects/Weather/Model/WeatherVisualState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B8 /* rootshell/Features/Effects/Weather/Model/WeatherVisualState.swift */; };
+		47AC7E57000000000000F7A9 /* rootshell/Features/Effects/Weather/Data/WeatherHTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7B9 /* rootshell/Features/Effects/Weather/Data/WeatherHTTP.swift */; };
+		47AC7E57000000000000F7AA /* rootshell/Features/Effects/Weather/Data/NWSClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7BA /* rootshell/Features/Effects/Weather/Data/NWSClient.swift */; };
+		47AC7E57000000000000F7AB /* rootshell/Features/Effects/Weather/Data/METNorwayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7BB /* rootshell/Features/Effects/Weather/Data/METNorwayClient.swift */; };
+		47AC7E57000000000000F7AC /* rootshell/Features/Effects/Weather/Data/OpenMeteoClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000F7BC /* rootshell/Features/Effects/Weather/Data/OpenMeteoClient.swift */; };
 		47AC7E57000000000000CB01 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */; };
 		47AC7E57000000000000CB03 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */; };
 		47AC7E57000000000000CD01 /* rootshell/UI/Overlays/SessionPickerGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */; };
@@ -617,6 +629,18 @@
 		47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Herdr/HerdrReplyFilter.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalGridReports.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E5700000000000000B9 /* rootshell/Core/Foundation/ByteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Foundation/ByteSearch.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B1 /* rootshell/Features/Effects/Weather/Model/LightningSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/LightningSchedule.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B2 /* rootshell/Features/Effects/Weather/Model/WeatherConditionMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/WeatherConditionMapping.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B3 /* rootshell/Features/Effects/Weather/Model/WeatherFetchPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/WeatherFetchPolicy.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B4 /* rootshell/Features/Effects/Weather/Model/WeatherModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/WeatherModels.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B5 /* rootshell/Features/Effects/Weather/Model/WeatherSkyGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/WeatherSkyGeometry.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B6 /* rootshell/Features/Effects/Weather/Model/WeatherTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/WeatherTimeline.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B7 /* rootshell/Features/Effects/Weather/Model/WeatherVisualAnimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/WeatherVisualAnimator.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B8 /* rootshell/Features/Effects/Weather/Model/WeatherVisualState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Model/WeatherVisualState.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7B9 /* rootshell/Features/Effects/Weather/Data/WeatherHTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Data/WeatherHTTP.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7BA /* rootshell/Features/Effects/Weather/Data/NWSClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Data/NWSClient.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7BB /* rootshell/Features/Effects/Weather/Data/METNorwayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Data/METNorwayClient.swift; sourceTree = SOURCE_ROOT; };
+		47AC7E57000000000000F7BC /* rootshell/Features/Effects/Weather/Data/OpenMeteoClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Effects/Weather/Data/OpenMeteoClient.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CB02 /* rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalTouchKeyboardModel.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CB04 /* rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Keyboard/TerminalKeyboardEffectSurface.swift; sourceTree = SOURCE_ROOT; };
 		47AC7E57000000000000CD02 /* rootshell/UI/Overlays/SessionPickerGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/UI/Overlays/SessionPickerGeometry.swift; sourceTree = SOURCE_ROOT; };
@@ -1298,6 +1322,18 @@
 				47AC7E5700000000000000B7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift */,
 				47AC7E5700000000000000B8 /* rootshell/Core/Terminal/TerminalGridReports.swift */,
 				47AC7E5700000000000000B9 /* rootshell/Core/Foundation/ByteSearch.swift */,
+				47AC7E57000000000000F7B1 /* rootshell/Features/Effects/Weather/Model/LightningSchedule.swift */,
+				47AC7E57000000000000F7B2 /* rootshell/Features/Effects/Weather/Model/WeatherConditionMapping.swift */,
+				47AC7E57000000000000F7B3 /* rootshell/Features/Effects/Weather/Model/WeatherFetchPolicy.swift */,
+				47AC7E57000000000000F7B4 /* rootshell/Features/Effects/Weather/Model/WeatherModels.swift */,
+				47AC7E57000000000000F7B5 /* rootshell/Features/Effects/Weather/Model/WeatherSkyGeometry.swift */,
+				47AC7E57000000000000F7B6 /* rootshell/Features/Effects/Weather/Model/WeatherTimeline.swift */,
+				47AC7E57000000000000F7B7 /* rootshell/Features/Effects/Weather/Model/WeatherVisualAnimator.swift */,
+				47AC7E57000000000000F7B8 /* rootshell/Features/Effects/Weather/Model/WeatherVisualState.swift */,
+				47AC7E57000000000000F7B9 /* rootshell/Features/Effects/Weather/Data/WeatherHTTP.swift */,
+				47AC7E57000000000000F7BA /* rootshell/Features/Effects/Weather/Data/NWSClient.swift */,
+				47AC7E57000000000000F7BB /* rootshell/Features/Effects/Weather/Data/METNorwayClient.swift */,
+				47AC7E57000000000000F7BC /* rootshell/Features/Effects/Weather/Data/OpenMeteoClient.swift */,
 				47AC7E57000000000000E6B1 /* rootshell/Features/SSH/Config/ProxyJumpSpec.swift */,
 				47AC7E57000000000000E6B2 /* rootshell/Features/SSH/Config/OpenSSHHostResolution.swift */,
 				47AC7E57000000000000E6B3 /* rootshell/Features/SSH/Config/OpenSSHConfigParser.swift */,
@@ -2326,6 +2362,18 @@
 				47AC7E5700000000000000A7 /* rootshell/Features/Herdr/HerdrReplyFilter.swift in Sources */,
 				47AC7E5700000000000000A8 /* rootshell/Core/Terminal/TerminalGridReports.swift in Sources */,
 				47AC7E5700000000000000A9 /* rootshell/Core/Foundation/ByteSearch.swift in Sources */,
+				47AC7E57000000000000F7A1 /* rootshell/Features/Effects/Weather/Model/LightningSchedule.swift in Sources */,
+				47AC7E57000000000000F7A2 /* rootshell/Features/Effects/Weather/Model/WeatherConditionMapping.swift in Sources */,
+				47AC7E57000000000000F7A3 /* rootshell/Features/Effects/Weather/Model/WeatherFetchPolicy.swift in Sources */,
+				47AC7E57000000000000F7A4 /* rootshell/Features/Effects/Weather/Model/WeatherModels.swift in Sources */,
+				47AC7E57000000000000F7A5 /* rootshell/Features/Effects/Weather/Model/WeatherSkyGeometry.swift in Sources */,
+				47AC7E57000000000000F7A6 /* rootshell/Features/Effects/Weather/Model/WeatherTimeline.swift in Sources */,
+				47AC7E57000000000000F7A7 /* rootshell/Features/Effects/Weather/Model/WeatherVisualAnimator.swift in Sources */,
+				47AC7E57000000000000F7A8 /* rootshell/Features/Effects/Weather/Model/WeatherVisualState.swift in Sources */,
+				47AC7E57000000000000F7A9 /* rootshell/Features/Effects/Weather/Data/WeatherHTTP.swift in Sources */,
+				47AC7E57000000000000F7AA /* rootshell/Features/Effects/Weather/Data/NWSClient.swift in Sources */,
+				47AC7E57000000000000F7AB /* rootshell/Features/Effects/Weather/Data/METNorwayClient.swift in Sources */,
+				47AC7E57000000000000F7AC /* rootshell/Features/Effects/Weather/Data/OpenMeteoClient.swift in Sources */,
 				47AC7E57000000000000E6A1 /* rootshell/Features/SSH/Config/ProxyJumpSpec.swift in Sources */,
 				47AC7E57000000000000E6A2 /* rootshell/Features/SSH/Config/OpenSSHHostResolution.swift in Sources */,
 				47AC7E57000000000000E6A3 /* rootshell/Features/SSH/Config/OpenSSHConfigParser.swift in Sources */,

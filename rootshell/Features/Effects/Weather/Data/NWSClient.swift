@@ -63,7 +63,9 @@ nonisolated struct NWSClient {
             entry.weather.map { (weather: $0, intensity: entry.intensity, modifier: entry.modifier) }
         }
         let weather = NWSConditionMapping.reading(phenomena: phenomena)
-        let layers = NWSConditionMapping.cloudCover(layerAmounts: (p.cloudLayers ?? []).compactMap(\.amount))
+        let reported = (p.cloudLayers ?? []).compactMap { layer in layer.amount.map { (amount: $0, base: layer.base?.value) } }
+        let layers = NWSConditionMapping.cloudCover(layerAmounts: reported.map(\.amount))
+        let split = NWSConditionMapping.cloudLayers(reported)
         let icon = p.icon.flatMap(NWSConditionMapping.reading(iconURL:))?.reading
         let kind: WeatherConditionKind
         if let weather {
@@ -81,12 +83,15 @@ nonisolated struct NWSClient {
             precipitation = (p.precipitationLastHour?.unitCode?.hasSuffix(":m") == true) ? last * 1_000 : last
         }
         return WeatherSample(
-            date: date, kind: kind, cloudCover: cover, precipitationRate: precipitation,
-            thunderChance: weather?.thunder == true ? 1 : nil,
+            date: date, kind: kind, cloudCover: cover, cloudLow: split?.low, cloudMid: split?.mid, cloudHigh: split?.high,
+            precipitationRate: precipitation, thunderChance: weather?.thunder == true ? 1 : nil,
             windSpeed: p.windSpeed?.value.map { NWSConditionMapping.metresPerSecond($0, unitCode: p.windSpeed?.unitCode) },
             windGust: p.windGust?.value.map { NWSConditionMapping.metresPerSecond($0, unitCode: p.windGust?.unitCode) },
             windFrom: p.windDirection?.value, visibility: p.visibility?.value,
-            temperature: p.temperature?.value.map { Self.celsius($0, unit: p.temperature?.unitCode) })
+            temperature: p.temperature?.value.map { Self.celsius($0, unit: p.temperature?.unitCode) },
+            dewPoint: p.dewpoint?.value.map { Self.celsius($0, unit: p.dewpoint?.unitCode) },
+            cloudBase: split?.base,
+            convectiveCloud: p.rawMessage.flatMap(NWSConditionMapping.convectiveCloud(metar:)))
     }
 
     // MARK: Hourly forecast
@@ -170,13 +175,15 @@ nonisolated struct NWSClient {
 
     private struct ObservationResponse: Decodable {
         struct Phenomenon: Decodable { var intensity: String?; var modifier: String?; var weather: String? }
-        struct Layer: Decodable { var amount: String? }
+        struct Layer: Decodable { var amount: String?; var base: Quantity? }
         struct Properties: Decodable {
             var timestamp: String?
+            var rawMessage: String?
             var icon: String?
             var presentWeather: [Phenomenon]?
             var cloudLayers: [Layer]?
             var temperature: Quantity?
+            var dewpoint: Quantity?
             var windDirection: Quantity?
             var windSpeed: Quantity?
             var windGust: Quantity?

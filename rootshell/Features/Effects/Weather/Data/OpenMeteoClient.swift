@@ -9,7 +9,8 @@ import Foundation
 
 nonisolated struct OpenMeteoClient {
     private static let endpoint = URL(string: "https://api.open-meteo.com/v1/forecast")!
-    private static let currentFields = "temperature_2m,weather_code,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,"
+    private static let currentFields = "temperature_2m,dew_point_2m,cape,weather_code,"
+        + "cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,"
         + "precipitation,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m"
     private static let hourlyFields = currentFields + ",precipitation_probability"
 
@@ -49,13 +50,14 @@ nonisolated struct OpenMeteoClient {
         var code: Double?
         var cover, low, mid, high: Double?
         var precipitation, chance, visibility: Double?
-        var wind, gust, from, temperature: Double?
+        var wind, gust, from, temperature, dewPoint, cape: Double?
     }
 
     private static func currentSample(_ c: Forecast.Current) -> WeatherSample? {
         let values = Values(code: c.weather_code, cover: c.cloud_cover, low: c.cloud_cover_low, mid: c.cloud_cover_mid,
                             high: c.cloud_cover_high, precipitation: c.precipitation, chance: nil, visibility: c.visibility,
-                            wind: c.wind_speed_10m, gust: c.wind_gusts_10m, from: c.wind_direction_10m, temperature: c.temperature_2m)
+                            wind: c.wind_speed_10m, gust: c.wind_gusts_10m, from: c.wind_direction_10m, temperature: c.temperature_2m,
+                            dewPoint: c.dew_point_2m, cape: c.cape)
         // Current precipitation is the sum over the preceding interval, usually 15 minutes.
         return sample(at: Date(timeIntervalSince1970: c.time), values, hours: max(c.interval ?? 900, 60) / 3600)
     }
@@ -66,7 +68,8 @@ nonisolated struct OpenMeteoClient {
             let values = Values(code: at(h.weather_code), cover: at(h.cloud_cover), low: at(h.cloud_cover_low),
                                 mid: at(h.cloud_cover_mid), high: at(h.cloud_cover_high), precipitation: at(h.precipitation),
                                 chance: at(h.precipitation_probability), visibility: at(h.visibility), wind: at(h.wind_speed_10m),
-                                gust: at(h.wind_gusts_10m), from: at(h.wind_direction_10m), temperature: at(h.temperature_2m))
+                                gust: at(h.wind_gusts_10m), from: at(h.wind_direction_10m), temperature: at(h.temperature_2m),
+                                dewPoint: at(h.dew_point_2m), cape: at(h.cape))
             return sample(at: Date(timeIntervalSince1970: h.time[i]), values, hours: 1)
         }
     }
@@ -83,7 +86,8 @@ nonisolated struct OpenMeteoClient {
             precipitationRate: measured.flatMap { $0 > 0 ? $0 : nil } ?? reading?.precipitationRate,
             precipitationChance: v.chance.map { $0 / 100 },
             thunderChance: reading?.thunder == true ? 0.8 : nil,
-            windSpeed: v.wind, windGust: v.gust, windFrom: v.from, visibility: v.visibility, temperature: v.temperature)
+            windSpeed: v.wind, windGust: v.gust, windFrom: v.from, visibility: v.visibility, temperature: v.temperature,
+            dewPoint: v.dewPoint, cape: v.cape)
     }
 
     // MARK: Wire format
@@ -93,6 +97,8 @@ nonisolated struct OpenMeteoClient {
             var time: TimeInterval
             var interval: Double?
             var temperature_2m: Double?
+            var dew_point_2m: Double?
+            var cape: Double?
             var weather_code: Double?
             var cloud_cover: Double?
             var cloud_cover_low: Double?
@@ -107,6 +113,8 @@ nonisolated struct OpenMeteoClient {
         struct Hourly: Decodable {
             var time: [TimeInterval]
             var temperature_2m: [Double?]?
+            var dew_point_2m: [Double?]?
+            var cape: [Double?]?
             var weather_code: [Double?]?
             var cloud_cover: [Double?]?
             var cloud_cover_low: [Double?]?

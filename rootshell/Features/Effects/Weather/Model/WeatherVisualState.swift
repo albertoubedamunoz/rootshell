@@ -8,8 +8,11 @@ import Foundation
 /// linearly, so condition changes become smooth transitions.
 nonisolated struct WeatherVisualState: Equatable, Sendable {
     var cloudLow: Double = 0.1       // cumulus and stratus coverage
+    var cloudMid: Double = 0         // altocumulus and altostratus coverage
     var cloudHigh: Double = 0.1      // cirrus coverage
     var cloudDensity: Double = 0.4   // optical thickness of the low layer
+    var cloudBase = WeatherSkyGeometry.cloudBase  // km, low layer
+    var cumuliform: Double = 0.5     // 0 stable sheets, 1 convective heaps
     var towering: Double = 0         // vertical development (cumulonimbus)
     var rain: Double = 0
     var snow: Double = 0
@@ -28,8 +31,9 @@ nonisolated struct WeatherVisualState: Equatable, Sendable {
     static func lerp(_ a: Self, _ b: Self, _ t: Double) -> Self {
         let t = min(max(t, 0), 1)
         func m(_ x: Double, _ y: Double) -> Double { x + (y - x) * t }
-        return Self(cloudLow: m(a.cloudLow, b.cloudLow), cloudHigh: m(a.cloudHigh, b.cloudHigh),
-                    cloudDensity: m(a.cloudDensity, b.cloudDensity), towering: m(a.towering, b.towering),
+        return Self(cloudLow: m(a.cloudLow, b.cloudLow), cloudMid: m(a.cloudMid, b.cloudMid), cloudHigh: m(a.cloudHigh, b.cloudHigh),
+                    cloudDensity: m(a.cloudDensity, b.cloudDensity), cloudBase: m(a.cloudBase, b.cloudBase),
+                    cumuliform: m(a.cumuliform, b.cumuliform), towering: m(a.towering, b.towering),
                     rain: m(a.rain, b.rain), snow: m(a.snow, b.snow), sleetMix: m(a.sleetMix, b.sleetMix),
                     fog: m(a.fog, b.fog), haze: m(a.haze, b.haze),
                     hazeTint: a.hazeTint + (b.hazeTint - a.hazeTint) * t,
@@ -39,7 +43,8 @@ nonisolated struct WeatherVisualState: Equatable, Sendable {
 
     /// The largest change in any one parameter, to tell a jump from a drift.
     func distance(to other: Self) -> Double {
-        let pairs = [(cloudLow, other.cloudLow), (cloudHigh, other.cloudHigh), (cloudDensity, other.cloudDensity),
+        let pairs = [(cloudLow, other.cloudLow), (cloudMid, other.cloudMid), (cloudHigh, other.cloudHigh),
+                     (cloudDensity, other.cloudDensity), (cloudBase / 3, other.cloudBase / 3), (cumuliform, other.cumuliform),
                      (towering, other.towering), (rain, other.rain), (snow, other.snow), (sleetMix, other.sleetMix),
                      (fog, other.fog), (haze, other.haze), (lightning, other.lightning), (windEast, other.windEast),
                      (windNorth, other.windNorth), (gustiness, other.gustiness)]
@@ -53,12 +58,16 @@ nonisolated struct WeatherVisualState: Equatable, Sendable {
         let kind = sample.kind
         let cover = clamp(sample.cloudCover)
         if let low = sample.cloudLow {
-            s.cloudLow = clamp(max(low, (sample.cloudMid ?? 0) * 0.8))
+            // Rain falls from a low base, even when the model files its deck as mid cloud.
+            let mid = clamp(sample.cloudMid ?? 0)
+            s.cloudLow = clamp(kind.isPrecipitation ? max(low, mid * 0.8) : low)
             if s.cloudLow < 0.08 { s.cloudLow = 0 }
+            s.cloudMid = mid < 0.05 ? 0 : mid
             s.cloudHigh = clamp(sample.cloudHigh ?? cover * 0.3)
         } else {
             // A few percent reads as clear; stray specks look like stains at night.
             s.cloudLow = cover < 0.08 ? 0 : cover
+            s.cloudMid = kind == .partlyCloudy || kind == .windy ? cover * 0.35 : 0
             s.cloudHigh = [.clear, .partlyCloudy, .windy, .haze].contains(kind) ? min(cover * 0.8 + 0.15, 0.6) : cover * 0.3
         }
         switch kind {
@@ -73,6 +82,21 @@ nonisolated struct WeatherVisualState: Equatable, Sendable {
         case .thunderstorm: s.cloudDensity = 1
         }
         s.towering = kind == .thunderstorm ? 1 : (kind == .heavyRain ? 0.35 : (kind == .rain ? 0.12 : 0))
+
+        // A measured base, else the lifting condensation level: about 125 m per °C of dew-point spread.
+        let spread = sample.temperature.flatMap { t in sample.dewPoint.map { max(t - $0, 0) } }
+        if let base = sample.cloudBase ?? spread.map({ $0 * 125 }), base.isFinite {
+            s.cloudBase = min(max(base / 1_000, 0.5), 2.6)
+        }
+        // Instability heaps low cloud and builds congestus; a stable column spreads it into sheets.
+        if let cape = sample.cape, cape.isFinite {
+            s.cumuliform = 0.25 + 0.75 * (1 - exp(-max(cape, 0) / 300))
+            if s.cloudLow > 0.05 { s.towering = max(s.towering, smoothstep(800, 3_000, cape) * 0.45) }
+        }
+        if let convective = sample.convectiveCloud, convective > 0 {
+            s.cumuliform = max(s.cumuliform, 0.8)
+            s.towering = max(s.towering, clamp(convective) * 0.75)
+        }
 
         let chance = sample.precipitationChance.map { 0.45 + 0.55 * clamp($0) } ?? 1
         let rate = sample.precipitationRate

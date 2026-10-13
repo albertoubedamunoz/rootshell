@@ -127,7 +127,7 @@ final class LiveWeatherLogicTests: XCTestCase {
     func testOpenMeteoForecastParsing() throws {
         let json = """
         {"latitude":48.85,"longitude":2.36,
-         "current":{"time":1791808200,"interval":900,"temperature_2m":12.5,"weather_code":63,"cloud_cover":100,
+         "current":{"time":1791808200,"interval":900,"temperature_2m":12.5,"dew_point_2m":9.5,"cape":120,"weather_code":63,"cloud_cover":100,
            "cloud_cover_low":90,"cloud_cover_mid":40,"cloud_cover_high":null,"precipitation":0.5,"visibility":9000,
            "wind_speed_10m":5.5,"wind_direction_10m":220,"wind_gusts_10m":9.8},
          "hourly":{"time":[1791806400,1791810000,1791813600],"weather_code":[63,2,95],"cloud_cover":[100,45,90],
@@ -142,6 +142,9 @@ final class LiveWeatherLogicTests: XCTestCase {
         XCTAssertEqual(snapshot.current.precipitationRate, 2)
         XCTAssertEqual(snapshot.current.cloudLow, 0.9)
         XCTAssertNil(snapshot.current.cloudHigh)
+        XCTAssertEqual(snapshot.current.cloudMid, 0.4)
+        XCTAssertEqual(snapshot.current.dewPoint, 9.5)
+        XCTAssertEqual(snapshot.current.cape, 120)
         XCTAssertEqual(snapshot.current.windGust, 9.8)
         // The 12:00 row is behind the 12:30 current conditions.
         XCTAssertEqual(snapshot.hourly.map(\.kind), [.partlyCloudy, .thunderstorm])
@@ -177,6 +180,10 @@ final class LiveWeatherLogicTests: XCTestCase {
         XCTAssertEqual(sample.windFrom, 200)
         XCTAssertEqual(sample.temperature, 12.2)
         XCTAssertEqual(sample.precipitationRate, 0.8)
+        XCTAssertEqual(sample.cloudLow, 1)
+        XCTAssertEqual(sample.cloudMid, 0)
+        XCTAssertEqual(sample.cloudBase, 900)
+        XCTAssertNil(sample.convectiveCloud)
         // A stale report doesn't describe now.
         XCTAssertNil(NWSClient.observation(from: data, now: now.addingTimeInterval(3 * 3600)))
     }
@@ -330,6 +337,100 @@ final class LiveWeatherLogicTests: XCTestCase {
         let agreed = WeatherTimeline.merged(partly, with: sample(.partlyCloudy, at: 0, cover: 0.45))
         XCTAssertEqual(agreed.kind, .partlyCloudy)
         XCTAssertEqual(agreed.cloudLow, 0.4)
+    }
+
+    func testStationLayersReplaceTheForecastsButCirrusOnlyWhenReported() {
+        var model = sample(.partlyCloudy, at: 0, cover: 0.3)
+        model.cloudLow = 0.1; model.cloudMid = 0.2; model.cloudHigh = 0.6
+        var observed = sample(.cloudy, at: 0, cover: 1)
+        observed.cloudLow = 0.45; observed.cloudMid = 1; observed.cloudBase = 1_200
+        let merged = WeatherTimeline.merged(model, with: observed)
+        XCTAssertEqual(merged.cloudLow, 0.45)
+        XCTAssertEqual(merged.cloudMid, 1)
+        XCTAssertEqual(merged.cloudHigh, 0.6)
+        XCTAssertEqual(merged.cloudBase, 1_200)
+
+        observed.cloudHigh = 0.2
+        XCTAssertEqual(WeatherTimeline.merged(model, with: observed).cloudHigh, 0.2)
+    }
+
+    func testStationWithoutMeasurementsKeepsTheInterpolatedForecast() {
+        func forecast(_ offset: TimeInterval, dewPoint: Double) -> WeatherSample {
+            var s = sample(.partlyCloudy, at: offset, cover: 0.5)
+            s.temperature = 20; s.dewPoint = dewPoint
+            return s
+        }
+        var snapshot = WeatherSnapshot(
+            coordinate: WeatherCoordinate(latitude: 1, longitude: 1), source: .openMeteo,
+            current: forecast(0, dewPoint: 10), hourly: [forecast(3600, dewPoint: 12), forecast(7200, dewPoint: 14)],
+            fetchedAt: t0, expiresAt: nil, placeName: nil)
+        let date = t0.addingTimeInterval(5_400)
+        let interpolated = WeatherTimeline.target(at: date, snapshot: snapshot)
+        snapshot.observation = sample(.partlyCloudy, at: 5_000, cover: 0.5)
+        XCTAssertEqual(WeatherTimeline.target(at: date, snapshot: snapshot).cloudBase, interpolated.cloudBase)
+
+        // A measured base still replaces the forecast's.
+        snapshot.observation?.cloudBase = 2_000
+        XCTAssertEqual(WeatherTimeline.target(at: date, snapshot: snapshot).cloudBase, 2.0, accuracy: 1e-9)
+    }
+
+    func testStationLayerSplitAndConvectiveCloud() {
+        let split = NWSConditionMapping.cloudLayers([
+            (amount: "SCT", base: 1_980), (amount: "BKN", base: 2_900), (amount: "FEW", base: 800)
+        ])
+        XCTAssertEqual(split?.low, 0.45)
+        XCTAssertEqual(split?.mid, 0.75)
+        XCTAssertEqual(split?.base, 800)
+        XCTAssertNil(split?.high)
+        // An observer's high layer is cirrus, not a mid deck.
+        let high = NWSConditionMapping.cloudLayers([(amount: "FEW", base: 1_200), (amount: "BKN", base: 7_620)])
+        XCTAssertEqual(high?.mid, 0)
+        XCTAssertEqual(high?.high, 0.75)
+        // Clear below the ceilometer's reach: no cloud, and no base.
+        let clear = NWSConditionMapping.cloudLayers([(amount: "CLR", base: 3_810)])
+        XCTAssertEqual(clear?.low, 0)
+        XCTAssertNil(clear?.base)
+        XCTAssertNil(NWSConditionMapping.cloudLayers([]))
+
+        XCTAssertEqual(NWSConditionMapping.convectiveCloud(metar: "KMIA 131853Z 09010KT 10SM SCT030CB BKN250 31/22 A3001"), 1)
+        XCTAssertEqual(NWSConditionMapping.convectiveCloud(metar: "KMIA 131853Z 09010KT 10SM FEW035TCU 31/22 A3001"), 0.6)
+        XCTAssertNil(NWSConditionMapping.convectiveCloud(metar: "KMIA 131353Z 03008KT 10SM FEW027 28/21 A3003 RMK AO2 CB DSNT W"))
+        XCTAssertNil(NWSConditionMapping.convectiveCloud(metar: ""))
+    }
+
+    func testCloudLayersAndFormFollowTheData() {
+        var layered = sample(.partlyCloudy, at: 0, cover: 0.7)
+        layered.cloudLow = 0.2; layered.cloudMid = 0.6; layered.cloudHigh = 0.1
+        let altocumulus = WeatherVisualState.target(for: layered)
+        // Mid cloud is its own layer, not folded into the low one.
+        XCTAssertEqual(altocumulus.cloudLow, 0.2)
+        XCTAssertEqual(altocumulus.cloudMid, 0.6)
+        XCTAssertEqual(altocumulus.cloudBase, WeatherSkyGeometry.cloudBase)
+        XCTAssertEqual(altocumulus.cumuliform, 0.5)
+        // Rain from a deck the model files as mid cloud still falls from a low base.
+        var rain = layered
+        rain.kind = .rain
+        XCTAssertEqual(WeatherVisualState.target(for: rain).cloudLow, 0.48, accuracy: 1e-9)
+
+        // Base from the dew-point spread, clamped to what the sky can show.
+        var humid = layered
+        humid.temperature = 24; humid.dewPoint = 16
+        XCTAssertEqual(WeatherVisualState.target(for: humid).cloudBase, 1.0, accuracy: 1e-9)
+        humid.dewPoint = 24
+        XCTAssertEqual(WeatherVisualState.target(for: humid).cloudBase, 0.5)
+        humid.cloudBase = 1_800
+        XCTAssertEqual(WeatherVisualState.target(for: humid).cloudBase, 1.8, accuracy: 1e-9)
+
+        var stable = layered
+        stable.cape = 0
+        var unstable = layered
+        unstable.cape = 2_500
+        XCTAssertEqual(WeatherVisualState.target(for: stable).cumuliform, 0.25)
+        XCTAssertGreaterThan(WeatherVisualState.target(for: unstable).cumuliform, 0.95)
+        XCTAssertGreaterThan(WeatherVisualState.target(for: unstable).towering, 0.3)
+        var reported = layered
+        reported.convectiveCloud = 1
+        XCTAssertEqual(WeatherVisualState.target(for: reported).towering, 0.75)
     }
 
     func testTimelineFollowsAFreshStationReport() {

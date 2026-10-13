@@ -32,6 +32,7 @@ nonisolated struct WeatherUniforms: Sendable {
     var rainColor: SIMD4<Float>      // display rgb, reserved
     var snowColor: SIMD4<Float>      // display rgb, reserved
     var scene: SIMD4<Float>          // visible height fraction, its reciprocal, reserved, reserved
+    var cloudForm: SIMD4<Float>      // mid cover, low base (km), cumuliform, reserved
 }
 
 nonisolated struct WeatherStar: Sendable {
