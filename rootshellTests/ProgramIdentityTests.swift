@@ -55,6 +55,7 @@ final class ProgramIdentityTests: XCTestCase {
         XCTAssertEqual(ProgramCatalog.entry(for: "mksh")?.mark, .symbol("terminal"))
         XCTAssertEqual(ProgramCatalog.entry(for: "pwsh")?.kind, .shell)
         XCTAssertEqual(ProgramCatalog.entry(for: "btm")?.id, "bottom")
+        XCTAssertEqual(ProgramCatalog.entry(for: "nodejs")?.id, "node")
         XCTAssertNil(ProgramCatalog.entry(for: "make"))
     }
 
@@ -67,6 +68,7 @@ final class ProgramIdentityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "/opt/homebrew/bin/gtail", source: .localProcess)).mark, .asset("TailLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "nvim", source: .tmux)).mark, .asset("NeovimLogo"))
         XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "python3.12", source: .tmux)).mark, .asset("PythonLogo"))
+        XCTAssertEqual(try XCTUnwrap(ForegroundProgram(rawName: "node22", source: .tmux)).mark, .asset("NodeLogo"))
         XCTAssertTrue(try XCTUnwrap(ForegroundProgram(rawName: "htop", source: .tmux)).showsRunningCard)
         XCTAssertFalse(try XCTUnwrap(ForegroundProgram(rawName: "tmux", source: .localProcess)).showsRunningCard)
         XCTAssertFalse(try XCTUnwrap(ForegroundProgram(rawName: "-zsh", source: .localProcess)).showsRunningCard)

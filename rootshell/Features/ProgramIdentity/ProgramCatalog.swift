@@ -70,6 +70,7 @@ nonisolated enum ProgramCatalog {
         Entry(id: "git", displayName: "Git", mark: .asset("GitLogo"), kind: .program),
         Entry(id: "python", displayName: "Python", mark: .asset("PythonLogo"), kind: .program),
         Entry(id: "ruby", displayName: "Ruby", mark: .asset("RubyLogo"), kind: .program),
+        Entry(id: "node", displayName: "Node.js", mark: .asset("NodeLogo"), kind: .program),
         Entry(id: "cargo", displayName: "Cargo", mark: .asset("CargoLogo"), kind: .program),
         Entry(id: "rustc", displayName: "rustc", mark: .asset("CargoLogo"), kind: .program),
         Entry(id: "rustup", displayName: "rustup", mark: .asset("CargoLogo"), kind: .program),
@@ -115,6 +116,9 @@ nonisolated enum ProgramCatalog {
         "ipython": "python",
         "bpython": "python",
         "irb": "ruby",
+        "nodejs": "node",
+        "npm": "node",
+        "npx": "node",
     ]
 
     private static let byID: [String: Entry] = Dictionary(
