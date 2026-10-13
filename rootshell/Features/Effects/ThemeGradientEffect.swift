@@ -312,6 +312,9 @@ final class ThemeGradientClock {
 
     var isCrossfading: Bool { from != nil }
 
+    /// Freeze the drift so the next running frame resumes without a jump.
+    func hold() { lastDate = nil }
+
     /// Uv drift amplitude and periods (seconds at speed 1) per gradient, in
     /// shader order. Incommensurate periods keep the motion from visibly looping.
     private static let drifts: [(amplitude: SIMD2<Double>, period: SIMD2<Double>)] = [

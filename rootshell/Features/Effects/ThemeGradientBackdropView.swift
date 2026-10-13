@@ -109,7 +109,7 @@ final class ThemeGradientBackdropMTKView: MTKView {
     }
 
     var canDrift: Bool {
-        canDraw && !sceneSuppressed && !appSuppressed
+        canDraw && !sceneSuppressed && !appSuppressed && !TerminalScrollActivity.isActive
             && window?.windowScene?.activationState == .foregroundActive
             && UIApplication.shared.applicationState == .active
     }
@@ -122,6 +122,7 @@ final class ThemeGradientBackdropMTKView: MTKView {
         center.addObserver(self, selector: #selector(sceneWillEnterForeground(_:)), name: UIScene.willEnterForegroundNotification, object: nil)
         center.addObserver(self, selector: #selector(appWillDeactivate), name: UIApplication.willResignActiveNotification, object: nil)
         center.addObserver(self, selector: #selector(appDidActivate), name: UIApplication.didBecomeActiveNotification, object: nil)
+        center.addObserver(self, selector: #selector(terminalScrollActivityChanged), name: TerminalScrollActivity.didChange, object: nil)
         registerForTraitChanges([UITraitDisplayScale.self]) { (view: ThemeGradientBackdropMTKView, _: UITraitCollection) in
             view.renderer?.resize(view)
             view.refreshActivity(redraw: true)
@@ -147,6 +148,7 @@ final class ThemeGradientBackdropMTKView: MTKView {
     /// A running loop picks up changes on its next frame; a paused one draws once.
     func refreshActivity(redraw: Bool) {
         isPaused = !(wantsDrift && canDrift) || renderer == nil
+        if isPaused { renderer?.holdDrift() }
         guard redraw, isPaused, renderer != nil, !redrawPending else { return }
         redrawPending = true
         Task { @MainActor [weak self] in
@@ -178,6 +180,9 @@ final class ThemeGradientBackdropMTKView: MTKView {
     @objc private func appDidActivate() {
         appSuppressed = false
         refreshActivity(redraw: true)
+    }
+    @objc private func terminalScrollActivityChanged() {
+        refreshActivity(redraw: false)
     }
 }
 
@@ -252,6 +257,8 @@ final class ThemeGradientBackdropRenderer: NSObject, MTKViewDelegate {
                           height: (view.bounds.height * scale * Self.renderScale).rounded(.up))
         if view.drawableSize != size { view.drawableSize = size }
     }
+
+    func holdDrift() { clock.hold() }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
