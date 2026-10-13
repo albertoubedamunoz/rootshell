@@ -217,6 +217,7 @@ enum QuickSettingsCatalog {
             choices(Settings.Tabs.topTabStyle, label: { $0.displayName }),
             toggle(Settings.Tabs.compactPillSpacing),
             toggle(Settings.Tabs.showScopeMenu),
+            choices(Settings.Tabs.scopeMenuSize, label: { $0.choiceName }),
             toggle(Settings.Tabs.showShortcutIndicators),
             toggle(Settings.Tabs.exposeShowsCaptions),
             toggle(Settings.Tabs.programIcons),

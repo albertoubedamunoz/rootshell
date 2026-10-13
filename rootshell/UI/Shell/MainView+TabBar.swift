@@ -139,12 +139,7 @@ extension MainView {
         guard showTabScopeMenu,
               tabsModel.orderProjection.mode != .flat,
               let title = tabsModel.orderProjection.activeScopeTitle else { return 0 }
-        #if canImport(UIKit)
-        let font = UIFont.systemFont(ofSize: 11, weight: .semibold)
-        return min(170, max(66, ceil((title as NSString).size(withAttributes: [.font: font]).width) + 46))
-        #else
-        return min(170, max(66, CGFloat(title.count * 7) + 46))
-        #endif
+        return tabScopeMenuSize.labelWidth(for: title)
     }
 
     var integratedMinimumDragWidth: CGFloat {

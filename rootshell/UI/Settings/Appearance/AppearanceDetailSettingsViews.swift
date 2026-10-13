@@ -268,6 +268,8 @@ struct WindowSettingsView: View {
     @Setting(Settings.Tabs.compactPillSpacing) private var compactPillTabSpacing
     @Setting(Settings.Tabs.hoverPreviews) private var tabHoverPreviewsEnabled
     @Setting(Settings.Tabs.hoverPreviewActivation) private var tabHoverPreviewActivation
+    @Setting(Settings.Tabs.showScopeMenu) private var showTabScopeMenu
+    @Setting(Settings.Tabs.scopeMenuSize) private var tabScopeMenuSize
     @Setting(Settings.Tabs.hoverPreviewZoom) private var tabHoverPreviewZoom
     @Setting(Settings.Sidebar.translucent) private var tabSidebarTranslucent
     @Setting(Settings.Sidebar.rowLines) private var tabSidebarRowLines
@@ -384,6 +386,20 @@ struct WindowSettingsView: View {
                     description: "Show the active group or project switcher in the top tab bar while tabs are grouped."
                 )
                 .themedRow()
+
+                if showTabScopeMenu {
+                    Picker(selection: $tabScopeMenuSize) {
+                        ForEach(TabScopeMenuSize.allCases, id: \.rawValue) { size in
+                            Text(size.choiceName).tag(size)
+                        }
+                    } label: {
+                        Text("Group Menu Size")
+                            .settingRow(Settings.Tabs.scopeMenuSize)
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(SettingFileLock.isReadOnly(Settings.Tabs.scopeMenuSize.name))
+                    .themedRow()
+                }
 
                 SettingToggle(Settings.Tabs.barAnimationsDisabled, title: "Disable Tab Animations")
                     .themedRow()

@@ -213,6 +213,7 @@ struct MainView: View {
     @Setting(Settings.Tabs.topTabStyle) var topTabStyle
     @Setting(Settings.Tabs.compactPillSpacing) var compactPillTabSpacing
     @Setting(Settings.Tabs.showScopeMenu) var showTabScopeMenu
+    @Setting(Settings.Tabs.scopeMenuSize) var tabScopeMenuSize
 
     /// Raw-value bridge for the shared tab components that still take `Binding<String>`.
     var topTabStyleRawValueBinding: Binding<String> {
