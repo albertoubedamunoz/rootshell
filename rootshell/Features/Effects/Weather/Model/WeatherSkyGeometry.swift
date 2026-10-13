@@ -107,7 +107,7 @@ nonisolated enum WeatherSkyGeometry {
 
     // MARK: Preview times
 
-    enum PreviewTime: String, CaseIterable, Sendable {
+    nonisolated enum PreviewTime: String, CaseIterable, Sendable {
         case sunrise, noon, sunset, night
     }
 

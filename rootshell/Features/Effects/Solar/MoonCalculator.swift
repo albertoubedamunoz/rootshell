@@ -13,14 +13,14 @@ import Foundation
 // MARK: - Data Models
 
 /// Moon position in the sky
-struct MoonPosition {
+nonisolated struct MoonPosition {
     let altitude: Double       // Degrees above horizon (-90 to 90)
     let azimuth: Double        // Degrees from north (0-360)
     let parallacticAngle: Double  // For proper phase shadow orientation
 }
 
 /// Moon phase information
-struct MoonPhaseInfo {
+nonisolated struct MoonPhaseInfo {
     let phase: MoonPhase       // Named phase
     let illumination: Double   // 0.0 to 1.0
     let phaseAngle: Double     // 0-360 degrees through cycle
@@ -28,7 +28,7 @@ struct MoonPhaseInfo {
 }
 
 /// Named moon phases
-enum MoonPhase: String, CaseIterable {
+nonisolated enum MoonPhase: String, CaseIterable {
     case newMoon = "New Moon"
     case waxingCrescent = "Waxing Crescent"
     case firstQuarter = "First Quarter"
@@ -81,7 +81,7 @@ enum MoonPhase: String, CaseIterable {
 }
 
 /// Complete lunar data for rendering
-struct MoonData {
+nonisolated struct MoonData {
     let position: MoonPosition
     let phaseInfo: MoonPhaseInfo
     let isAboveHorizon: Bool
@@ -90,7 +90,7 @@ struct MoonData {
 // MARK: - Moon Calculator
 
 /// Lunar ephemeris calculator using Meeus algorithms
-enum MoonCalculator {
+nonisolated enum MoonCalculator {
 
     // MARK: - Constants
 

@@ -5,8 +5,8 @@
 import Foundation
 import CoreFoundation
 
-struct LiveWeatherConfiguration: Equatable, Sendable {
-    enum Quality: String, CaseIterable, Sendable {
+nonisolated struct LiveWeatherConfiguration: Equatable, Sendable {
+    nonisolated enum Quality: String, CaseIterable, Sendable {
         case economical, balanced, cinematic
         var pixelBudget: Double {
             switch self {
@@ -48,7 +48,7 @@ struct LiveWeatherConfiguration: Equatable, Sendable {
         }
     }
 
-    enum LocationSource: String, CaseIterable, Sendable {
+    nonisolated enum LocationSource: String, CaseIterable, Sendable {
         case device, city
     }
 

@@ -34,7 +34,7 @@ extension EnvironmentValues {
 
 /// The share of a Metal effect's height its scene fills, eased so the scene
 /// follows the keyboard instead of jumping.
-struct EffectSceneFraction {
+nonisolated struct EffectSceneFraction {
     static let duration: CFTimeInterval = 0.25
     private var from = 1.0
     private(set) var target = 1.0
