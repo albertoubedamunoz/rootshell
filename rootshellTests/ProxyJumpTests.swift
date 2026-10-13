@@ -41,10 +41,9 @@ final class ProxyJumpTests: XCTestCase {
     private func resolveChain(_ text: String, target: String) throws -> OpenSSHHostResolution.JumpChainResolution {
         let entries = OpenSSHConfigParser.parse(text: text, sshDirectory: sshDirectory).entries
         let concretes = entries.filter { !$0.isWildcard }
-        let wildcards = entries.filter(\.isWildcard)
         let entry = try XCTUnwrap(concretes.first { $0.aliases.contains(target) })
-        let resolved = OpenSSHHostResolution.resolveWithWildcards(entry: entry, wildcards: wildcards)
-        return OpenSSHHostResolution.resolveJumpChain(for: resolved, concretes: concretes, wildcards: wildcards,
+        let resolved = OpenSSHHostResolution.resolve(entry: entry, entries: entries)
+        return OpenSSHHostResolution.resolveJumpChain(for: resolved, entries: entries,
                                                       defaultUsername: "root", resolvePath: { $0 })
     }
 
@@ -190,5 +189,211 @@ final class ProxyJumpTests: XCTestCase {
         let resolution = try resolveChain("Host work\n    ProxyJump none\n", target: "work")
         XCTAssertTrue(resolution.hops.isEmpty)
         XCTAssertNil(resolution.warning)
+    }
+
+    func testEarlierWildcardWinsHopOptionsAndKeepsIdentityOrder() throws {
+        let config = """
+        Host work
+            ProxyJump gateway
+
+        Host gateway*
+            HostName shared.example.com
+            User shared
+            Port 2200
+            IdentityFile ~/.ssh/shared_key
+
+        Host gateway
+            HostName specific.example.com
+            User ops
+            Port 22
+            IdentityFile ~/.ssh/specific_key
+        """
+        let hop = try XCTUnwrap(try resolveChain(config, target: "work").hops.first)
+        XCTAssertEqual(hop.host, "shared.example.com")
+        XCTAssertEqual(hop.username, "shared")
+        XCTAssertEqual(hop.port, 2200)
+        XCTAssertEqual(hop.identityPaths, ["~/.ssh/shared_key", "~/.ssh/specific_key"])
+    }
+
+    func testLaterWildcardOnlyFillsUnsetHopOptions() throws {
+        let config = """
+        Host work
+            ProxyJump gateway
+
+        Host gateway
+            HostName specific.example.com
+            User ops
+            IdentityFile ~/.ssh/specific_key
+
+        Host gateway*
+            HostName shared.example.com
+            User shared
+            Port 2200
+            IdentityFile ~/.ssh/shared_key
+        """
+        let hop = try XCTUnwrap(try resolveChain(config, target: "work").hops.first)
+        XCTAssertEqual(hop.host, "specific.example.com")
+        XCTAssertEqual(hop.username, "ops")
+        XCTAssertEqual(hop.port, 2200)
+        XCTAssertEqual(hop.identityPaths, ["~/.ssh/specific_key", "~/.ssh/shared_key"])
+    }
+
+    func testInterleavedBlocksUseFirstValueForEachHopOption() throws {
+        let config = """
+        Host work
+            ProxyJump gateway
+
+        Host gateway*
+            User shared
+
+        Host gateway
+            HostName specific.example.com
+            Port 2200
+
+        Host * !work
+            User ignored
+            Port 2299
+
+        Host gateway
+            User ops
+            Port 22
+        """
+        let hop = try XCTUnwrap(try resolveChain(config, target: "work").hops.first)
+        XCTAssertEqual(hop.host, "specific.example.com")
+        XCTAssertEqual(hop.username, "shared")
+        XCTAssertEqual(hop.port, 2200)
+    }
+
+    func testEarlierWildcardProxyJumpWinsForDestination() throws {
+        let config = """
+        Host work*
+            ProxyJump gateway
+
+        Host work
+            ProxyJump ignored
+        """
+        let resolution = try resolveChain(config, target: "work")
+        XCTAssertNil(resolution.warning)
+        XCTAssertEqual(resolution.hops.map(\.host), ["gateway"])
+    }
+
+    func testIncludedWildcardKeepsItsPositionBeforeConcreteBlock() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try """
+        Host gateway*
+            User shared
+            Port 2200
+            IdentityFile ~/.ssh/shared_key
+        """.write(to: directory.appendingPathComponent("defaults.conf"), atomically: true, encoding: .utf8)
+        let configURL = directory.appendingPathComponent("config")
+        try """
+        Include defaults.conf
+        Host work
+            ProxyJump gateway
+        Host gateway
+            User ops
+            Port 22
+            IdentityFile ~/.ssh/specific_key
+        """.write(to: configURL, atomically: true, encoding: .utf8)
+        let parsed = try OpenSSHConfigParser.parse(fileURL: configURL, sshDirectory: directory)
+        XCTAssertTrue(parsed.warnings.isEmpty)
+        let entry = try XCTUnwrap(parsed.entries.first { $0.aliases == ["work"] })
+        let resolved = OpenSSHHostResolution.resolve(entry: entry, entries: parsed.entries)
+        let chain = OpenSSHHostResolution.resolveJumpChain(
+            for: resolved, entries: parsed.entries, defaultUsername: "root", resolvePath: { $0 }
+        )
+        XCTAssertNil(chain.warning)
+        let hop = try XCTUnwrap(chain.hops.first)
+        XCTAssertEqual(hop.username, "shared")
+        XCTAssertEqual(hop.port, 2200)
+        XCTAssertEqual(hop.identityPaths, ["~/.ssh/shared_key", "~/.ssh/specific_key"])
+    }
+
+    private func resolveFirst(_ text: String, target: String) throws -> OpenSSHHostEntry {
+        let entries = OpenSSHConfigParser.parse(text: text, sshDirectory: sshDirectory).entries
+        let entry = try XCTUnwrap(entries.first { $0.aliases.contains(target) })
+        return OpenSSHHostResolution.resolve(entry: entry, entries: entries)
+    }
+
+    func testEarlierProxyCommandBlocksLaterProxyJump() throws {
+        let resolved = try resolveFirst("""
+        Host work
+            ProxyCommand ssh -W %h:%p ops@edge
+        Host work
+            ProxyJump other
+        """, target: "work")
+        XCTAssertEqual(resolved.proxyCommand, "ssh -W %h:%p ops@edge")
+        XCTAssertNil(resolved.proxyJump)
+    }
+
+    func testFirstProxyDirectiveWinsWithinBlock() throws {
+        let jumpFirst = try resolveFirst("""
+        Host work
+            ProxyJump gateway
+            ProxyCommand ssh -W %h:%p ops@edge
+        """, target: "work")
+        XCTAssertEqual(jumpFirst.proxyJump, "gateway")
+        XCTAssertNil(jumpFirst.proxyCommand)
+
+        let commandFirst = try resolveFirst("""
+        Host work
+            ProxyCommand ssh -W %h:%p ops@edge
+            ProxyJump gateway
+        """, target: "work")
+        XCTAssertNil(commandFirst.proxyJump)
+        XCTAssertEqual(commandFirst.proxyCommand, "ssh -W %h:%p ops@edge")
+    }
+
+    func testProxyJumpNoneLeavesLaterProxyCommandInEffect() throws {
+        let resolved = try resolveFirst("""
+        Host work
+            ProxyJump none
+        Host *
+            ProxyJump ignored
+            ProxyCommand ssh -W %h:%p ops@edge
+        """, target: "work")
+        let chain = OpenSSHHostResolution.resolveJumpChain(
+            for: resolved, entries: [], defaultUsername: "root",
+            parseProxyCommand: { _ in .init(host: "edge", port: 22, username: "ops") },
+            resolvePath: { $0 }
+        )
+        XCTAssertNil(chain.warning)
+        XCTAssertEqual(chain.hops.map(\.host), ["edge"])
+    }
+
+    func testProxyCommandNoneMeansDirect() throws {
+        let resolved = try resolveFirst("""
+        Host work
+            ProxyCommand none
+        Host *
+            ProxyJump gateway
+        """, target: "work")
+        let chain = OpenSSHHostResolution.resolveJumpChain(
+            for: resolved, entries: [], defaultUsername: "root", resolvePath: { $0 }
+        )
+        XCTAssertNil(chain.warning)
+        XCTAssertTrue(chain.hops.isEmpty)
+    }
+
+    func testIdentityFileNoneKeepsOtherIdentities() throws {
+        let acrossBlocks = try resolveFirst("""
+        Host work
+            IdentityFile ~/.ssh/work_key
+        Host work
+            IdentityFile none
+        """, target: "work")
+        XCTAssertEqual(acrossBlocks.identityFiles, ["~/.ssh/work_key"])
+
+        let sameBlock = try resolveFirst("""
+        Host work
+            IdentityFile ~/.ssh/work_key
+            IdentityFile none
+        Host *
+            IdentityFile ~/.ssh/shared_key
+        """, target: "work")
+        XCTAssertEqual(sameBlock.identityFiles, ["~/.ssh/work_key", "~/.ssh/shared_key"])
+        XCTAssertTrue(sameBlock.listsIdentityFileNone)
     }
 }
