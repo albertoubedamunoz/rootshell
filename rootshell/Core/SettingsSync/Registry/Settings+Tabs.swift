@@ -25,9 +25,33 @@ enum TabHoverPreviewActivation: String, CaseIterable, Sendable {
     }
 }
 
+/// Type size of the top bar's collapsed group menu pill.
+enum TabScopeMenuSize: String, CaseIterable, Sendable {
+    case small
+    case medium
+    case large
+    case extraLarge
+
+    var displayName: String {
+        switch self {
+        case .small: return String(localized: "Small", comment: "Group menu size")
+        case .medium: return String(localized: "Medium", comment: "Group menu size")
+        case .large: return String(localized: "Large", comment: "Group menu size")
+        case .extraLarge: return String(localized: "Extra Large", comment: "Group menu size")
+        }
+    }
+
+    /// Menu and picker label; marks the default size.
+    var choiceName: String {
+        guard self == Settings.Tabs.scopeMenuSize.defaultValue else { return displayName }
+        return String(localized: "\(displayName) (Default)", comment: "Group menu size choice that is the default")
+    }
+}
+
 extension DuoFrontDisplayMode: SettingValue {}
 extension NewTabAction: SettingValue {}
 extension TabHoverPreviewActivation: SettingValue {}
+extension TabScopeMenuSize: SettingValue {}
 extension TopTabStyle: SettingValue {}
 extension SplitFocusBorderStyle: SettingValue {}
 extension SplitFocusBorderColor: SettingValue {}
@@ -64,6 +88,10 @@ nonisolated extension Settings {
         static let showScopeMenu = SettingKey(
             "showTabScopeMenu", default: true, group: .tabs, configKey: "show-tab-scope-menu",
             title: String(localized: "Show Group Menu", comment: "Setting title"))
+        static let scopeMenuSize = SettingKey(
+            "tabScopeMenuSize", default: TabScopeMenuSize.small, group: .tabs, policy: .localByDefault,
+            configKey: "tab-scope-menu-size",
+            title: String(localized: "Group Menu Size", comment: "Setting title"))
         static let showShortcutIndicators = SettingKey(
             "showTabShortcutIndicators", default: false, group: .tabs, configKey: "show-tab-shortcut-indicators",
             title: String(localized: "Show Tab Shortcuts", comment: "Setting title"))
@@ -111,7 +139,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             newTabAction.erased, barHidden.erased, barAnimationsDisabled.erased, topTabStyle.erased, compactPillSpacing.erased,
             duoFrontDisplayMode.erased, duoBehindCameraShowsTabs.erased,
-            showScopeMenu.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, programIcons.erased, exposeZoom.erased,
+            showScopeMenu.erased, scopeMenuSize.erased, showShortcutIndicators.erased, exposeShowsCaptions.erased, programIcons.erased, exposeZoom.erased,
             hoverPreviews.erased, hoverPreviewActivation.erased, hoverPreviewZoom.erased,
             openInFolderRecents.erased, openInFolderPlacement.erased,
             openInFolderHUDWidth.erased, openInFolderHUDHeight.erased,

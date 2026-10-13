@@ -352,6 +352,7 @@ struct TabBar: View {
 
     @Setting(Settings.Tabs.barAnimationsDisabled) private var tabBarAnimationsDisabled
     @Setting(Settings.Tabs.showScopeMenu) private var showTabScopeMenu
+    @Setting(Settings.Tabs.scopeMenuSize) private var scopeMenuSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Dialog state
@@ -452,12 +453,7 @@ struct TabBar: View {
         guard showTabScopeMenu,
               tabsModel.orderProjection.mode != .flat,
               let title = tabsModel.orderProjection.activeScopeTitle else { return 0 }
-        #if canImport(UIKit)
-        let font = UIFont.systemFont(ofSize: 11, weight: .semibold)
-        return min(170, max(66, ceil((title as NSString).size(withAttributes: [.font: font]).width) + 46))
-        #else
-        return min(170, max(66, CGFloat(title.count * 7) + 46))
-        #endif
+        return scopeMenuSize.labelWidth(for: title)
     }
 
     private func sizingItem(
@@ -732,6 +728,8 @@ struct TabBar: View {
         return tabsModel.index(of: orderedTabs[targetVisibleIndex].id)
     }
 
+    // Inline pickers, not checkmark-icon labels: menus can hide item images,
+    // but a picker's selection always renders as the native checked state.
     @ViewBuilder
     private var activeScopeMenu: some View {
         if showTabScopeMenu {
@@ -742,24 +740,21 @@ struct TabBar: View {
             case .userGrouped:
                 if let title = tabsModel.orderProjection.activeScopeTitle {
                     Menu {
-                        ForEach(tabsModel.orderedGroups) { group in
-                            Button {
-                                guard let targetID = tabsModel.preferredTabID(inGroup: group),
-                                      let rawIndex = tabsModel.index(of: targetID) else { return }
-                                onSelectTab(rawIndex)
-                            } label: {
-                                if tabsModel.activeGroupID == group.id {
-                                    Label(group.title, systemImage: "checkmark")
-                                } else {
-                                    Text(group.title)
-                                }
+                        Picker(selection: activeGroupSelection) {
+                            ForEach(tabsModel.orderedGroups) { group in
+                                Text(group.title).tag(Optional(group.id))
                             }
+                        } label: {
+                            Text("Tab Group")
                         }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
                     } label: {
                         scopeMenuLabel(title: title, systemImage: "square.grid.2x2")
                     }
                     .buttonStyle(.plain)
-                    .frame(maxWidth: 170)
+                    .frame(maxWidth: scopeMenuSize.maxLabelWidth)
+                    .contextMenu { scopeMenuSizePicker }
                     .help("Active tab group")
                     .accessibilityLabel("Active tab group: \(title)")
                 }
@@ -767,24 +762,21 @@ struct TabBar: View {
             case .projectGrouped:
                 if let title = tabsModel.orderProjection.activeScopeTitle {
                     Menu {
-                        ForEach(tabsModel.projectSections.filter { !$0.tabIDs.isEmpty }) { section in
-                            Button {
-                                guard let targetID = tabsModel.preferredTabID(inProjectSection: section),
-                                      let rawIndex = tabsModel.index(of: targetID) else { return }
-                                onSelectTab(rawIndex)
-                            } label: {
-                                if tabsModel.orderProjection.activeProjectID == section.id {
-                                    Label(section.title, systemImage: "checkmark")
-                                } else {
-                                    Text(section.title)
-                                }
+                        Picker(selection: activeProjectSelection) {
+                            ForEach(tabsModel.projectSections.filter { !$0.tabIDs.isEmpty }) { section in
+                                Text(section.title).tag(Optional(section.id))
                             }
+                        } label: {
+                            Text("Project")
                         }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
                     } label: {
                         scopeMenuLabel(title: title, systemImage: "folder")
                     }
                     .buttonStyle(.plain)
-                    .frame(maxWidth: 170)
+                    .frame(maxWidth: scopeMenuSize.maxLabelWidth)
+                    .contextMenu { scopeMenuSizePicker }
                     .help("Active project")
                     .accessibilityLabel("Active project: \(title)")
                 }
@@ -792,25 +784,69 @@ struct TabBar: View {
         }
     }
 
+    private var activeGroupSelection: Binding<TabGroupID?> {
+        Binding(
+            get: { tabsModel.activeGroupID },
+            set: { id in
+                guard let group = tabsModel.orderedGroups.first(where: { $0.id == id }),
+                      let targetID = tabsModel.preferredTabID(inGroup: group),
+                      let rawIndex = tabsModel.index(of: targetID) else { return }
+                onSelectTab(rawIndex)
+            }
+        )
+    }
+
+    private var activeProjectSelection: Binding<ProjectGroupID?> {
+        Binding(
+            get: { tabsModel.orderProjection.activeProjectID },
+            set: { id in
+                guard let section = tabsModel.projectSections.first(where: { $0.id == id }),
+                      let targetID = tabsModel.preferredTabID(inProjectSection: section),
+                      let rawIndex = tabsModel.index(of: targetID) else { return }
+                onSelectTab(rawIndex)
+            }
+        )
+    }
+
+    /// Secondary click / two-finger tap on the group menu.
+    private var scopeMenuSizePicker: some View {
+        Picker(selection: Binding(
+            get: { scopeMenuSize },
+            set: { size in
+                // Resizing can move the menu between layout branches;
+                // leave the context-menu callback first.
+                Task { @MainActor in scopeMenuSize = size }
+            }
+        )) {
+            ForEach(TabScopeMenuSize.allCases, id: \.self) { size in
+                Text(size.choiceName).tag(size)
+            }
+        } label: {
+            Text("Group Menu Size")
+        }
+        .pickerStyle(.inline)
+    }
+
     private func scopeMenuLabel(title: String, systemImage: String) -> some View {
-        HStack(spacing: 5) {
+        let size = scopeMenuSize
+        return HStack(spacing: 5 * size.labelFontSize / 11) {
             Image(systemName: systemImage)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: size.labelFontSize - 1, weight: .semibold))
 
             Text(title)
                 .lineLimit(1)
 
             Image(systemName: "chevron.down")
-                .font(.system(size: 8, weight: .bold))
+                .font(.system(size: size.labelFontSize - 3, weight: .bold))
                 .opacity(0.65)
         }
-        .font(.system(size: 11, weight: .medium))
+        .font(.system(size: size.labelFontSize, weight: .medium))
         // Keep this adaptive to the terminal theme, but visually secondary to
         // the selected tab. The rounded rectangle also distinguishes this as
         // a scope selector instead of another tab.
         .foregroundStyle(theme.tabSecondaryText)
-        .padding(.horizontal, 8)
-        .frame(height: 24)
+        .padding(.horizontal, 8 * size.labelFontSize / 11)
+        .frame(height: size.labelHeight)
         .background(
             theme.unselectedBackground.opacity(0.45),
             in: RoundedRectangle(cornerRadius: 6, style: .continuous)

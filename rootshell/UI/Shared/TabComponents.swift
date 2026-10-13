@@ -348,6 +348,40 @@ enum TabMetrics {
     #endif
 }
 
+// MARK: - Group Menu Sizing
+
+/// Small is the original 11pt pill; the other sizes scale it.
+extension TabScopeMenuSize {
+    var labelFontSize: CGFloat {
+        switch self {
+        case .small: return 11
+        case .medium: return 13
+        case .large: return 15
+        case .extraLarge: return 17
+        }
+    }
+
+    var labelHeight: CGFloat {
+        switch self {
+        case .small: return 24
+        case .medium: return 28
+        case .large: return 32
+        case .extraLarge: return 36
+        }
+    }
+
+    private var scale: CGFloat { labelFontSize / 11 }
+
+    var maxLabelWidth: CGFloat { (170 * scale).rounded() }
+
+    /// Collapsed pill width for `title`, including icon, chevron and padding.
+    func labelWidth(for title: String) -> CGFloat {
+        let font = UIFont.systemFont(ofSize: labelFontSize, weight: .semibold)
+        let textWidth = ceil((title as NSString).size(withAttributes: [.font: font]).width)
+        return min(maxLabelWidth, max(66 * scale, textWidth + 46 * scale))
+    }
+}
+
 // MARK: - Tab Button
 
 /// Reusable tab button with glass effect, hover-to-close, and optional health indicator

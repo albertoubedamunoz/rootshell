@@ -13,12 +13,23 @@ nonisolated enum WeatherTimeline {
     static let observationMaxAge: TimeInterval = 75 * 60
 
     static func target(at date: Date, snapshot: WeatherSnapshot) -> WeatherVisualState {
-        let model = modelTarget(at: date, snapshot: snapshot)
+        var model = modelTarget(at: date, snapshot: snapshot)
         guard let observation = freshObservation(at: date, snapshot: snapshot) else { return model }
         let base = modelSample(at: date, snapshot: snapshot)
         let corrected = merged(base, with: observation)
-        // Only take over when the station changes the picture.
-        guard corrected.kind != base.kind || abs(corrected.cloudCover - base.cloudCover) >= 0.25 else { return model }
+        // Only take over when the station changes the picture; what it measured
+        // still refines the forecast, which otherwise keeps its interpolation.
+        guard corrected.kind != base.kind || abs(corrected.cloudCover - base.cloudCover) >= 0.25 else {
+            let measured = WeatherVisualState.target(for: corrected)
+            if observation.cloudBase != nil || (observation.temperature != nil && observation.dewPoint != nil) {
+                model.cloudBase = measured.cloudBase
+            }
+            if observation.convectiveCloud != nil {
+                model.cumuliform = max(model.cumuliform, measured.cumuliform)
+                model.towering = max(model.towering, measured.towering)
+            }
+            return model
+        }
         return .target(for: corrected)
     }
 
@@ -31,20 +42,21 @@ nonisolated enum WeatherTimeline {
 
     /// A station report over a forecast. The station is believed about what is
     /// falling, fog and smoke, and cloud cover far from the forecast's; its
-    /// measured temperature, wind, and visibility replace the forecast's.
+    /// measured temperature, wind, visibility, and cloud base replace the forecast's.
     static func merged(_ model: WeatherSample, with observed: WeatherSample) -> WeatherSample {
         var sample = model
         sample.temperature = observed.temperature ?? model.temperature
+        sample.dewPoint = observed.dewPoint ?? model.dewPoint
         sample.windSpeed = observed.windSpeed ?? model.windSpeed
         sample.windGust = observed.windGust ?? model.windGust
         sample.windFrom = observed.windFrom ?? model.windFrom
         sample.visibility = observed.visibility ?? model.visibility
+        sample.cloudBase = observed.cloudBase ?? model.cloudBase
+        sample.convectiveCloud = observed.convectiveCloud ?? model.convectiveCloud
         let coverDiffers = abs(observed.cloudCover - model.cloudCover) >= 0.5
         if coverDiffers {
             sample.cloudCover = observed.cloudCover
-            sample.cloudLow = nil
-            sample.cloudMid = nil
-            sample.cloudHigh = nil
+            takeLayers(from: observed, into: &sample)
         }
         if observed.kind.isWeather {
             sample.kind = observed.kind
@@ -52,7 +64,7 @@ nonisolated enum WeatherTimeline {
             sample.precipitationRate = observed.precipitationRate
             sample.thunderChance = observed.thunderChance
             sample.fogFraction = nil
-            if !coverDiffers { sample.cloudLow = nil; sample.cloudMid = nil; sample.cloudHigh = nil }
+            if !coverDiffers { takeLayers(from: observed, into: &sample) }
         } else if model.kind.isWeather || coverDiffers {
             // The station sees nothing falling: keep the forecast's sky, not its rain.
             sample.kind = observed.kind == .windy ? .windy : .forCover(sample.cloudCover)
@@ -61,6 +73,18 @@ nonisolated enum WeatherTimeline {
             sample.fogFraction = nil
         }
         return sample
+    }
+
+    /// The station's layers. Most stations can't see high cloud, so the
+    /// forecast's stays unless an observer reported a high layer.
+    private static func takeLayers(from observed: WeatherSample, into sample: inout WeatherSample) {
+        guard let low = observed.cloudLow else {
+            sample.cloudLow = nil; sample.cloudMid = nil; sample.cloudHigh = nil
+            return
+        }
+        sample.cloudLow = low
+        sample.cloudMid = observed.cloudMid
+        sample.cloudHigh = observed.cloudHigh ?? sample.cloudHigh
     }
 
     // MARK: Forecast

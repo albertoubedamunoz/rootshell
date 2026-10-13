@@ -35,13 +35,14 @@ struct WXUniforms {
     float4 rainColor;
     float4 snowColor;
     float4 scene;           // visible height fraction, its reciprocal
+    float4 cloudForm;       // mid cover, low base (km), cumuliform, reserved
 };
 struct WXStar { float4 equatorial; float4 color; };
 struct WXBoltSegment { float4 ends; float4 style; };
 struct WXScreen { float4 position [[position]]; float2 uv; };
 
 constant float wxPi = 3.14159265f;
-constant float wxCloudBase = 1.4f;
+constant float wxMidBase = 4.2f;
 constant float wxEarthRadius = 6360.0f;
 constant float wxAtmosphereRadius = 6420.0f;
 constant float3 wxRayleigh = float3(5.802e-3f, 13.558e-3f, 33.1e-3f);   // per km
@@ -192,8 +193,13 @@ static float3 wxThemeColor(float3 display, constant WXUniforms &u) {
 static float wxNight(constant WXUniforms &u) {
     return 1.0f - smoothstep(-0.21f, -0.07f, u.sunDirection.w);
 }
+/// An altostratus deck greys the sky too, though less than a low one.
+static float wxMidSheet(constant WXUniforms &u) {
+    return saturate((u.cloudForm.x - 0.55f) * 2.2f);
+}
 static float wxOvercastAmount(constant WXUniforms &u) {
-    return u.clouds.x * u.clouds.x * smoothstep(0.45f, 0.85f, u.clouds.z);
+    float mid = u.cloudForm.x;
+    return max(u.clouds.x * u.clouds.x * smoothstep(0.45f, 0.85f, u.clouds.z), mid * mid * wxMidSheet(u) * 0.55f);
 }
 static float3 wxOvercast(float3 sky, constant WXUniforms &u) {
     float overcast = wxOvercastAmount(u);
@@ -297,11 +303,13 @@ struct WXCloudLayer {
 
 static WXCloudLayer wxCloudLayer(constant WXUniforms &u) {
     float cover = u.clouds.x, density = u.clouds.z, towering = u.clouds.w;
+    float cumuliform = u.cloudForm.z;
     WXCloudLayer layer;
-    layer.bottom = wxCloudBase;
-    layer.stratus = saturate((cover - 0.6f) * 2.5f) * (1.0f - towering);
-    // Overcast rain cloud is deep; storms tower.
-    layer.thickness = 0.8f + 2.4f * cover * cover * density + 4.5f * towering;
+    layer.bottom = u.cloudForm.y;
+    // A stable column spreads cloud into sheets at lower cover; instability keeps heaps.
+    layer.stratus = saturate((cover - mix(0.35f, 0.85f, cumuliform)) * 2.5f) * (1.0f - towering);
+    // Overcast rain cloud is deep; convective cells grow taller; storms tower.
+    layer.thickness = 0.5f + 0.6f * cumuliform + 2.4f * cover * cover * density + 4.5f * towering;
     layer.extinction = mix(14.0f, 48.0f, density);
     return layer;
 }
@@ -329,6 +337,21 @@ static float wxCloudDensity(float3 p, constant WXUniforms &u, WXCloudLayer layer
         density = saturate(density - edge * 0.45f * (1.0f - density));
     }
     return density;
+}
+
+/// Altocumulus: patches of small cloudlets in rough rows. Altostratus: the
+/// patches merge into a deck that keeps only faint texture. Cells fade with
+/// distance, where they would shimmer at the cloud pass's resolution.
+static float wxMidDensity(float2 w, float distance, constant WXUniforms &u,
+                          texture3d<half> shape, texture3d<half> detail) {
+    constexpr sampler rep(coord::normalized, address::repeat, filter::linear);
+    float mid = u.cloudForm.x, sheet = wxMidSheet(u);
+    float evolve = u.cameraUp.w * 0.0008f;
+    float patch = float(shape.sample(rep, float3(w * 0.05f, 0.53f + evolve)).r);
+    float field = saturate((patch - (1.0f - mid)) / max(mid * 0.6f, 0.08f));
+    float cells = float(detail.sample(rep, float3(w * float2(0.75f, 1.05f), 0.29f + evolve * 2.0f)).r);
+    cells = mix(smoothstep(0.3f, 0.7f, cells), 0.6f, smoothstep(25.0f, 70.0f, distance));
+    return field * mix(cells, 0.8f + 0.2f * cells, sheet);
 }
 
 fragment half4 weatherClouds(WXScreen in [[stage_in]], constant WXUniforms &u [[buffer(2)]],
@@ -360,8 +383,10 @@ fragment half4 weatherClouds(WXScreen in [[stage_in]], constant WXUniforms &u [[
         int steps = int(u.galaxy.w);
         float dt = (t1 - t0) / float(steps);
         cloudDistance = t0;
-        // The sky above an overcast is hidden from the cloud's own underside.
-        float3 skyLight = zenith * 1.6f * (1.0f - 0.7f * cover);
+        // The sky above an overcast is hidden from the cloud's own underside,
+        // and a mid-level deck shades the sun.
+        float3 skyLight = zenith * 1.6f * (1.0f - 0.7f * max(cover, u.cloudForm.x * 0.8f));
+        float3 keyColor = u.keyColor.rgb * (1.0f - 0.6f * u.cloudForm.x * wxMidSheet(u));
         float3 groundLight = horizon * 0.35f;
         float3 glowLight = wxSkyglow * 2.2f * wxNight(u) * (1.0f - 0.6f * u.moonDirection.w);
         // Broken cloud lets light around it; only a deck shadows itself throughout.
@@ -386,9 +411,9 @@ fragment half4 weatherClouds(WXScreen in [[stage_in]], constant WXUniforms &u [[
             // Powder: wisps facing the light scatter less back toward the viewer.
             float powder = 1.0f - exp(-sigma * 0.15f);
             float h = saturate((p.y - layer.bottom) / layer.thickness);
-            float3 direct = u.keyColor.rgb * beer * phase * mix(0.35f, 1.0f, powder);
+            float3 direct = keyColor * beer * phase * mix(0.35f, 1.0f, powder);
             // Light bounced around inside the cloud fills its core.
-            float3 ambient = mix(groundLight, skyLight, h) * (0.35f + 0.65f * h) + u.keyColor.rgb * 0.015f * (0.4f + 0.6f * h)
+            float3 ambient = mix(groundLight, skyLight, h) * (0.35f + 0.65f * h) + keyColor * 0.015f * (0.4f + 0.6f * h)
                            + glowLight * (1.0f - h);
             float3 scatter = (direct + ambient) * sigma;
             float stepTransmittance = exp(-sigma * dt);
@@ -401,6 +426,33 @@ fragment half4 weatherClouds(WXScreen in [[stage_in]], constant WXUniforms &u [[
         float3 entry = d * t0;
         float mottle = float(shape.sample(rep, float3(entry.x - u.wind.x, entry.z - u.wind.y, 0.5f) * 0.22f).r);
         light *= mix(1.0f, 0.6f + 0.8f * mottle, wxOvercastAmount(u));
+    }
+
+    // Mid-level cloud: one thin slab, lit through its own thickness, with a
+    // sample toward the light so sunward edges glow and cores stay grey.
+    float mid = u.cloudForm.x;
+    if (mid > 0.003f && d.y > 0.015f && transmittance > 0.02f) {
+        float tm = wxMidBase / d.y;
+        if (tm < 140.0f) {
+            float3 pm = d * tm;
+            float2 w = float2(pm.x - u.wind.x * 1.4f, pm.z - u.wind.y * 1.4f);
+            float m = wxMidDensity(w, tm, u, shape, detail);
+            if (m > 0.002f) {
+                float thickness = mix(1.4f, 3.0f, wxMidSheet(u));
+                float2 toward = key.xz / max(length(key.xz), 1e-3f);
+                float sunward = wxMidDensity(w + toward * 0.35f, tm, u, shape, detail);
+                float depth = (m * 0.5f + sunward) * thickness / max(abs(key.y), 0.12f);
+                float beer = exp(-depth) * 0.7f + 0.3f * exp(-depth * 0.08f);
+                float lit = saturate(dot(u.keyColor.rgb, wxLuma) * 0.5f);
+                float alpha = (1.0f - exp(-m * thickness)) * smoothstep(0.015f, 0.06f, d.y) * mix(0.6f, 1.0f, lit);
+                float3 ambient = mix(horizon * 0.35f, zenith * 1.6f, 0.55f) * 0.7f
+                               + wxSkyglow * 1.3f * wxNight(u) * (1.0f - 0.6f * u.moonDirection.w);
+                float3 color = u.keyColor.rgb * beer * phase + ambient;
+                light += transmittance * color * alpha;
+                transmittance *= 1.0f - alpha;
+                cloudDistance = cloudDistance > 0.0f ? cloudDistance : tm;
+            }
+        }
     }
 
     if (u.clouds.y > 0.003f && d.y > 0.02f) {
@@ -552,9 +604,12 @@ fragment half4 weatherComposite(WXScreen in [[stage_in]], constant WXUniforms &u
     float3 display = wxSRGB(wxToneMap(color * u.keyColor.w));
     display = wxThemeColor(display, u);
     float alpha = wxCoverage(scene, u);
-    // A tiny deterministic dither stops banding in dark gradients.
-    display = saturate(display + (wxHash12(in.position.xy) - 0.5f) / 255.0f);
-    return half4(half3(display * alpha), half(alpha));
+    // Triangular dither of one 8-bit step, added after coverage scales the
+    // colour; dithering before it fades with intensity and leaves bands. It
+    // fades out near zero coverage, and colour never exceeds alpha.
+    float noise = wxHash12(in.position.xy) + wxHash12(in.position.xy + 71.3f) - 1.0f;
+    float3 rgb = display * alpha + noise * saturate(alpha * 32.0f) / 255.0f;
+    return half4(half3(clamp(rgb, 0.0f, alpha)), half(alpha));
 }
 
 // MARK: - Stars (instanced, additive, only on dark themes)

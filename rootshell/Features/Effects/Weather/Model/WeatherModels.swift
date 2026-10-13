@@ -30,6 +30,13 @@ nonisolated enum WeatherConditionKind: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    var isPrecipitation: Bool {
+        switch self {
+        case .drizzle, .rain, .heavyRain, .snow, .heavySnow, .sleet, .freezingRain, .thunderstorm: return true
+        default: return false
+        }
+    }
+
     static func forCover(_ cover: Double) -> Self {
         cover < 0.3 ? .clear : (cover < 0.7 ? .partlyCloudy : .cloudy)
     }
@@ -75,6 +82,10 @@ nonisolated struct WeatherSample: Codable, Equatable, Sendable {
     var visibility: Double? = nil           // metres
     var fogFraction: Double? = nil          // 0...1
     var temperature: Double? = nil          // °C
+    var dewPoint: Double? = nil             // °C
+    var cloudBase: Double? = nil            // metres above ground, lowest measured layer
+    var cape: Double? = nil                 // J/kg
+    var convectiveCloud: Double? = nil      // reported towering cumulus 0.6, cumulonimbus 1
 }
 
 nonisolated struct WeatherSnapshot: Codable, Equatable, Sendable {

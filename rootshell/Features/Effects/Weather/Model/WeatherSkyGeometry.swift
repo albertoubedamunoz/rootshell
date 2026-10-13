@@ -7,7 +7,7 @@
 import Foundation
 
 nonisolated enum WeatherSkyGeometry {
-    static let cloudBase: Double = 1.4   // km, matches wxCloudBase
+    static let cloudBase: Double = 1.4   // km, the low layer base without better data
 
     /// Unit vector for a compass azimuth (degrees from north, clockwise) and altitude.
     static func direction(azimuth: Double, altitude: Double) -> SIMD3<Float> {
@@ -183,11 +183,11 @@ nonisolated struct WeatherCamera: Equatable, Sendable {
         return SIMD2((x + 1) * 0.5, (1 - y) * 0.5)
     }
 
-    /// Screen motion of clouds at the base height near the middle of the
+    /// Screen motion of clouds just above a `base` (km) near the middle of the
     /// frame when the cloud field drifts by `world` kilometres.
-    func cloudShift(world: SIMD2<Float>) -> SIMD2<Float> {
+    func cloudShift(world: SIMD2<Float>, base: Double = WeatherSkyGeometry.cloudBase) -> SIMD2<Float> {
         let center = ray(uv: SIMD2(0.5, 0.45))
-        let height = Float(WeatherSkyGeometry.cloudBase + 0.4)
+        let height = Float(base + 0.4)
         let distance = height / max(center.y, 0.12)
         let delta = SIMD3<Float>(world.x, 0, world.y)
         let depth = distance * max((center * forward).sum(), 0.2)

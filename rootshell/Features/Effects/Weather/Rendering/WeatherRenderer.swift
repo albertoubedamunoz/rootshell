@@ -361,7 +361,7 @@ nonisolated final class WeatherRenderer: NSObject, CAMetalDisplayLinkDelegate, @
             skyFraction = fraction
         }
 
-        let cloudsVisible = state.cloudLow > 0.003 || state.cloudHigh > 0.003
+        let cloudsVisible = state.cloudLow > 0.003 || state.cloudMid > 0.003 || state.cloudHigh > 0.003
         // Clouds rendered for another scene height no longer line up.
         let reframed = cloudsVisible && cloudFraction != fraction
         if reframed { historyValid = false }
@@ -382,7 +382,7 @@ nonisolated final class WeatherRenderer: NSObject, CAMetalDisplayLinkDelegate, @
         let toScreen = SIMD2<Float>(1, Float(fraction))
         for _ in 0..<cloudPasses {
             var cloudUniforms = uniforms
-            let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender)) * toScreen
+            let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender), base: state.cloudBase) * toScreen
             cloudUniforms.cloudShift = SIMD4(shift.x, shift.y, frameIndex, historyValid ? 1 : 0)
             encodeClouds(command, uniforms: &cloudUniforms)
             driftAtCloudRender = cloudDrift
@@ -393,7 +393,7 @@ nonisolated final class WeatherRenderer: NSObject, CAMetalDisplayLinkDelegate, @
             cloudFraction = fraction
         }
 
-        let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender)) * toScreen
+        let shift = camera.cloudShift(world: SIMD2<Float>(cloudDrift - driftAtCloudRender), base: state.cloudBase) * toScreen
         uniforms.cloudShift = SIMD4(shift.x, shift.y, frameIndex, 0)
         pass.colorAttachments[0].loadAction = .dontCare
         pass.colorAttachments[0].storeAction = .store
@@ -544,7 +544,8 @@ nonisolated final class WeatherRenderer: NSObject, CAMetalDisplayLinkDelegate, @
             galaxyCenter: wxV4(center, 0),
             rainColor: wxV4(rainColor, 0),
             snowColor: wxV4(snowColor, 0),
-            scene: SIMD4(Float(fraction), Float(1 / fraction), 0, 0))
+            scene: SIMD4(Float(fraction), Float(1 / fraction), 0, 0),
+            cloudForm: SIMD4(Float(state.cloudMid), Float(state.cloudBase), Float(state.cumuliform), 0))
     }
 
     // MARK: Passes

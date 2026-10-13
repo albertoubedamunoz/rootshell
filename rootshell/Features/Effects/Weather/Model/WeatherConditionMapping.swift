@@ -117,17 +117,50 @@ nonisolated enum NWSConditionMapping {
 
     /// METAR cloud layer amounts; the densest layer sets the cover.
     static func cloudCover(layerAmounts: [String]) -> Double? {
-        let values = layerAmounts.compactMap { amount -> Double? in
-            switch amount.uppercased() {
-            case "CLR", "SKC", "NCD", "NSC": return 0
-            case "FEW": return 0.2
-            case "SCT": return 0.45
-            case "BKN": return 0.75
-            case "OVC", "VV": return 1
-            default: return nil
+        layerAmounts.compactMap(layerFraction).max()
+    }
+
+    static func layerFraction(_ amount: String) -> Double? {
+        switch amount.uppercased() {
+        case "CLR", "SKC", "NCD", "NSC": return 0
+        case "FEW": return 0.2
+        case "SCT": return 0.45
+        case "BKN": return 0.75
+        case "OVC", "VV": return 1
+        default: return nil
+        }
+    }
+
+    /// Station layers in the US bands (low under 6,500 ft, high over 20,000 ft),
+    /// with the low layer's base in metres. Ceilometers stop at 12,000 ft, so
+    /// high cover is nil unless an observer reported a high layer.
+    static func cloudLayers(_ layers: [(amount: String, base: Double?)])
+        -> (low: Double, mid: Double, high: Double?, base: Double?)? {
+        var low = 0.0, mid = 0.0, high: Double?, base: Double?, reported = false
+        for layer in layers {
+            guard let fraction = layerFraction(layer.amount) else { continue }
+            reported = true
+            guard fraction > 0 else { continue }
+            guard let height = layer.base else { low = max(low, fraction); continue }
+            if height >= 6_096 {
+                high = max(high ?? 0, fraction)
+            } else if height >= 1_981 {
+                mid = max(mid, fraction)
+            } else {
+                low = max(low, fraction)
+                base = min(base ?? height, height)
             }
         }
-        return values.max()
+        return reported ? (low, mid, high, base) : nil
+    }
+
+    /// Towering cumulus (0.6) or cumulonimbus (1) in a METAR's sky groups, such as "SCT030CB".
+    static func convectiveCloud(metar: String) -> Double? {
+        let body = metar.components(separatedBy: " RMK")[0]
+        let groups = body.split(separator: " ").filter { $0.count > 6 && ["FEW", "SCT", "BKN", "OVC"].contains($0.prefix(3)) }
+        if groups.contains(where: { $0.hasSuffix("CB") }) { return 1 }
+        if groups.contains(where: { $0.hasSuffix("TCU") }) { return 0.6 }
+        return nil
     }
 
     /// "SW", "NNE" ... as meteorological degrees.

@@ -66,7 +66,8 @@ nonisolated struct METNorwayClient {
             precipitationChance: summary?.details?.probability_of_precipitation.map { $0 / 100 },
             thunderChance: summary?.details?.probability_of_thunder.map { $0 / 100 } ?? (reading?.thunder == true ? 0.8 : nil),
             windSpeed: d.wind_speed, windGust: d.wind_speed_of_gust, windFrom: d.wind_from_direction,
-            fogFraction: d.fog_area_fraction.map { $0 / 100 }, temperature: d.air_temperature)
+            fogFraction: d.fog_area_fraction.map { $0 / 100 }, temperature: d.air_temperature,
+            dewPoint: d.dew_point_temperature)
     }
 
     // MARK: Wire format
@@ -77,6 +78,7 @@ nonisolated struct METNorwayClient {
                 struct Instant: Decodable {
                     struct Details: Decodable {
                         var air_temperature: Double?
+                        var dew_point_temperature: Double?
                         var cloud_area_fraction: Double?
                         var cloud_area_fraction_low: Double?
                         var cloud_area_fraction_medium: Double?

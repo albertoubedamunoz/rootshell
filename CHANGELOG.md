@@ -3,6 +3,43 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-167 - October 13, 2026
+
+### Live Weather
+
+- **Weather Background:** Added Live Weather in Settings -> Background Effect: a sky that follows the day, with clouds, rain, snow, fog, wind, thunderstorms, sun, moon, and stars.
+- **Location and Privacy:** Use Device Location or choose a city. Location is rounded to about 1 km and sent directly to weather providers only to fetch weather data; rootshell servers never receive it. Without a location or city, the sky follows your time zone.
+- **Sidebar Forecast:** The vertical tab sidebar shows conditions and temperature while Live Weather is visible. Tap for details and a six-hour forecast; Show in Tab Sidebar controls the row.
+- **Weather Providers:** Forecasts use Open-Meteo with MET Norway backup. In the US, National Weather Service observations update current conditions, and NWS forecasts provide a fallback.
+- **Controls and Preview:** Adjust Reading Protection, stars, sun/moon, and lightning. Preview and Demo Mode show conditions and times of day without fetching weather.
+- **Motion and Battery:** Reduce Motion shows a still sky; it and Dim Flashing Lights disable lightning. Battery Saver lowers quality automatically.
+
+### Multiple SSH Jump Hosts and Config Import
+
+- **Jump Host Chains:** Connect through an ordered chain of jump hosts. Add, edit, remove, or reorder hops in connection and profile editors, with separate credentials per hop.
+- **Command-Line Support:** Comma-separated `-J` lists work with `ssh`, `tssh`, `scp`, and `sftp`, with per-hop users, ports, and bracketed IPv6.
+- **OpenSSH Route Import:** OpenSSH import resolves jump aliases and nested ProxyJump routes. Invalid or looping routes produce warnings.
+- **Import Precedence:** Fixed OpenSSH import precedence: matching Host blocks, wildcards, and Include files follow file order, with the first value winning. ProxyJump/ProxyCommand precedence follows their order. `IdentityFile none` suppresses default keys without discarding explicitly listed keys.
+- **Connections Through Chains:** Chains work for file transfers, Git over SSH, remote commands, and SSH VPNs. Mosh uses the chain to start its server; UDP still needs a reachable target.
+- **tssh UDP Relays:** tssh relays UDP through multiple hops for VPNs and resumed sessions. Each relay needs tsshd and reachable UDP ports; relays must run consecutively from hop one. `--jump-relay` applies to the whole `-J` chain.
+
+### Scrolling, Backgrounds, and Tabs
+
+- **Smoother Scrolling:** Optimized the rendering pipeline, especially when blending multiple layers, transparency, and background effects. Resolved upstream libghostty performance issues, improved flick-and-coast scrolling on ProMotion displays, and fixed glyph corruption while scrolling.
+- **Soft Scroll Edges:** Added Soft Scroll Edges in Appearance and Quick Settings to fade and blur lists under toolbars and the title bar on iOS/iPadOS and macOS 26+. Off by default.
+- **Text Above Effect:** Added Text Above Effect, on by default, to preserve text, cursor, and selection colors while effects tint the background, including Tab Expose and previews. Available in Background Effect settings and Quick Settings. Program-painted backgrounds cover the effect there.
+- **Background Framing:** Weather, Aquarium, Aurora, Theme Gradient, Solar Graph, photos, and videos fit above the docked keyboard and toolbar, keeping the scene's bottom visible as the keyboard opens or closes.
+- **Integrated Tab Backgrounds:** The selected Integrated tab uses the same background as the terminal beneath it, including animated effects, Tint by Host, and colors set by running programs. It stays matched during tab swipes and in full-size panels and Tab Expose. On Mac, the tab matches the terminal's transparency over the desktop.
+- **Theme Gradient:** Theme Gradient no longer darkens the band behind the status bar and tabs.
+
+### Program Icons
+
+- **Node.js Logo:** Tabs running `node`, `npm`, or `npx` now show the Node.js logo.
+
+### herdr Keyboard Fixes
+
+- **Fallback Key Encoding:** In fallback mode, toolbar Ctrl+C sends an interrupt instead of typing c. Ctrl, Alt, and Cmd chords encode correctly; Alt with Caps Lock preserves uppercase on press, repeat, and release.
+
 ## 1.0.14-166 - October 11, 2026
 
 ### Theme Gradient Backdrop
