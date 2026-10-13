@@ -525,6 +525,13 @@ struct LicenseAcknowledgementsView: View {
                 repositoryURL: "https://deno.com/brand",
                 licenseText: mitLicenseText
             ),
+            LicenseEntry(
+                name: "Node.js logo",
+                licenseType: "MIT",
+                copyright: "Node.js Website WG contributors. Node.js is a trademark of the OpenJS Foundation.",
+                repositoryURL: "https://github.com/nodejs/nodejs.org",
+                licenseText: mitLicenseText
+            ),
         ]
     }
 

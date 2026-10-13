@@ -3,7 +3,7 @@
 
 #if !CHINA_BUILD
 import SwiftUI
-import MetalKit
+import UIKit
 import MediaAccessibility
 import os
 
@@ -72,13 +72,8 @@ private struct WeatherMetalView: UIViewRepresentable {
     let input: WeatherSceneInput
     let onUnavailable: () -> Void
 
-    final class Coordinator {
-        var renderer: WeatherRenderer?
-    }
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeUIView(context: Context) -> WeatherMTKView {
-        let gpu: WeatherGPUContext
+    func makeUIView(context: Context) -> WeatherSurfaceView {
+        let gpu: WeatherGPUContext?
         do {
             gpu = try WeatherGPUContext.shared()
         } catch {
@@ -87,42 +82,19 @@ private struct WeatherMetalView: UIViewRepresentable {
             // Report after this update transaction.
             let report = onUnavailable
             Task { @MainActor in report() }
-            return WeatherMTKView(frame: .zero, device: nil)
+            gpu = nil
         }
-        let view = WeatherMTKView(frame: .zero, device: gpu.device)
-        view.colorPixelFormat = .bgra8Unorm // The shader encodes sRGB exactly once.
-        view.depthStencilPixelFormat = .invalid
-        view.isOpaque = false
-        view.backgroundColor = .clear
-        view.clearColor = MTLClearColorMake(0, 0, 0, 0)
-        view.framebufferOnly = true
-        view.autoResizeDrawable = false
-        view.enableSetNeedsDisplay = false
-        view.isPaused = true
-        view.isUserInteractionEnabled = false
-        if let layer = view.layer as? CAMetalLayer {
-            layer.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
-            // The drawable is budget-sized; smooth the upscale.
-            layer.magnificationFilter = .linear
-        }
-        let renderer = WeatherRenderer(context: gpu)
-        context.coordinator.renderer = renderer
-        view.weatherRenderer = renderer
-        view.delegate = renderer
-        renderer.update(input, view: view)
+        let view = WeatherSurfaceView(context: gpu)
+        view.update(input)
         return view
     }
 
-    func updateUIView(_ view: WeatherMTKView, context: Context) {
-        context.coordinator.renderer?.update(input, view: view)
+    func updateUIView(_ view: WeatherSurfaceView, context: Context) {
+        view.update(input)
     }
 
-    static func dismantleUIView(_ view: WeatherMTKView, coordinator: Coordinator) {
-        view.isPaused = true
+    static func dismantleUIView(_ view: WeatherSurfaceView, coordinator: ()) {
         view.tearDown()
-        view.delegate = nil
-        view.weatherRenderer = nil
-        coordinator.renderer = nil
     }
 }
 #endif

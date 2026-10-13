@@ -2,13 +2,14 @@
 // rootshell
 
 #if !CHINA_BUILD
-import MetalKit
+import Metal
 import QuartzCore
+import Synchronization
 import UIKit
 import os
 
 /// Everything the SwiftUI layer hands the renderer; the rest is derived per frame.
-struct WeatherSceneInput: Equatable {
+nonisolated struct WeatherSceneInput: Equatable, Sendable {
     var coordinate: WeatherCoordinate
     var snapshot: WeatherSnapshot?
     var configuration: LiveWeatherConfiguration
@@ -23,14 +24,14 @@ struct WeatherSceneInput: Equatable {
 }
 
 /// How much the scene is moving, which sets the frame rate.
-enum WeatherFrameDemand: Equatable {
+nonisolated enum WeatherFrameDemand: Equatable, Sendable {
     case still      // paused; redrawn every 15 s as the sky turns
     case ambient    // drifting clouds, fog, twinkling stars, a transition
     case active     // rain, snow, lightning
 }
 
 /// Sun, moon, and sidereal orientation at the weather location.
-struct WeatherAstronomy {
+nonisolated struct WeatherAstronomy {
     let date: Date
     let coordinate: WeatherCoordinate
     let sunAltitude: Double
@@ -58,16 +59,25 @@ struct WeatherAstronomy {
     }
 }
 
-/// MTKView invokes the delegate on the main thread. GPU completion handlers
-/// touch only the semaphore and logger.
-@MainActor
-final class WeatherRenderer: NSObject, MTKViewDelegate {
-    private struct TargetKey: Equatable {
+/// What the main thread tells the renderer; read once per sync on the render thread.
+nonisolated struct WeatherSurfaceState: Sendable {
+    var input: WeatherSceneInput?
+    var boundsHeight: CGFloat = 0
+    /// The view's scene and the app are foreground-active.
+    var active = false
+    var redraw = false
+}
+
+/// Renders on EffectRenderThread, driven by a CAMetalDisplayLink, so frames
+/// never block the main thread. Everything but `state` is confined to that
+/// thread; GPU completion handlers touch only the semaphore and logger.
+nonisolated final class WeatherRenderer: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sendable {
+    private nonisolated struct TargetKey: Equatable {
         var fetchedAt: Date?
         var demoKind: WeatherConditionKind?
         var coordinate: WeatherCoordinate
     }
-    private enum Failure: Error { case unavailable(String) }
+    private nonisolated enum Failure: Error { case unavailable(String) }
 
     private static let demoCycle: [WeatherConditionKind] = [
         .clear, .partlyCloudy, .cloudy, .drizzle, .rain, .heavyRain, .thunderstorm,
@@ -76,9 +86,20 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
     private static let demoHold: Double = 12
 
     private let context: WeatherGPUContext
+    private let layer: CAMetalLayer
+    private let thread = EffectRenderThread.shared
+    private let state = Mutex(WeatherSurfaceState())
     private let inFlight = DispatchSemaphore(value: 3)
     private let logger = Logger(subsystem: "com.rootshell.weather", category: "Renderer")
     private var input: WeatherSceneInput?
+    private var boundsHeight: CGFloat = 0
+    private var active = false
+    private var demand = WeatherFrameDemand.ambient
+    private var framesPerSecond = 0
+    private var link: CAMetalDisplayLink?
+    private var drawOnce = false
+    private var stillTimer: Timer?
+    private var releaseTimer: Timer?
 
     private var skyTexture: MTLTexture?
     private var cloudTextures: [MTLTexture] = []
@@ -109,8 +130,9 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
     private var boltSegments: [LightningSegment] = []
     private var boltSeed: UInt64?
 
-    init(context: WeatherGPUContext) {
+    init(context: WeatherGPUContext, layer: CAMetalLayer) {
         self.context = context
+        self.layer = layer
         super.init()
         boltSegments.reserveCapacity(128)
         for pass in [skyPass, cloudPass] {
@@ -118,82 +140,163 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
             pass.colorAttachments[0].storeAction = .store
         }
         assert(MemoryLayout<LightningSegment>.stride == 32)
+        thread.perform { [self] in attach() }
     }
 
-    func update(_ input: WeatherSceneInput, view: WeatherMTKView) {
-        let previous = self.input
-        self.input = input
-        if previous?.previewTime != input.previewTime || previous?.coordinate != input.coordinate
-            || previous?.configuration.demo != input.configuration.demo {
-            previewDate = nil
-            astronomy = nil
-            lastSkyTime = -.infinity
-        }
-        if previous?.configuration.quality != input.configuration.quality || previous?.powerScale != input.powerScale {
-            resize(view)
-        }
-        // Any input change may alter the clouds; re-render them on the next frame.
-        if previous != input { lastCloudTime = -.infinity }
-        view.refreshActivity(redraw: true)
+    // MARK: Main thread
+
+    /// Applies a main-thread change and has the render thread pick it up.
+    func post(_ change: (inout WeatherSurfaceState) -> Void) {
+        state.withLock { change(&$0) }
+        thread.perform { [self] in sync() }
     }
 
-    private var effectiveQuality: LiveWeatherConfiguration.Quality {
+    func stop() {
+        thread.perform { [self] in
+            link?.invalidate()
+            link = nil
+            stillTimer?.invalidate(); stillTimer = nil
+            releaseTimer?.invalidate(); releaseTimer = nil
+        }
+    }
+
+    /// The budget-sized drawable for a view of this size.
+    static func drawableSize(bounds: CGSize, scale: CGFloat, input: WeatherSceneInput?) -> CGSize {
+        guard bounds.width > 0, bounds.height > 0 else { return .zero }
+        let scale = min(max(Double(scale), 1), 2)
+        let width = Double(bounds.width) * scale
+        let height = Double(bounds.height) * scale
+        let multiplier = min(1, sqrt(effectiveQuality(input).pixelBudget / max(width * height, 1)), 4096 / max(width, height))
+        return CGSize(width: max(1, (width * multiplier).rounded(.down)),
+                      height: max(1, (height * multiplier).rounded(.down)))
+    }
+
+    private static func effectiveQuality(_ input: WeatherSceneInput?) -> LiveWeatherConfiguration.Quality {
         (input?.powerScale ?? 1) > 1 ? .economical : (input?.configuration.quality ?? .cinematic)
     }
 
-    func resize(_ view: MTKView) {
-        guard view.bounds.width > 0, view.bounds.height > 0 else { return }
-        let scale = min(max(Double(view.contentScaleFactor), 1), 2)
-        let width = Double(view.bounds.width) * scale
-        let height = Double(view.bounds.height) * scale
-        let multiplier = min(1, sqrt(effectiveQuality.pixelBudget / max(width * height, 1)), 4096 / max(width, height))
-        let size = CGSize(width: max(1, (width * multiplier).rounded(.down)),
-                          height: max(1, (height * multiplier).rounded(.down)))
-        if view.drawableSize != size { view.drawableSize = size }
+    // MARK: Render thread
+
+    private func attach() {
+        let link = CAMetalDisplayLink(metalLayer: layer)
+        link.delegate = self
+        link.isPaused = true
+        link.add(to: thread.runLoop, forMode: .default)
+        self.link = link
+        sync()
+    }
+
+    private func sync() {
+        let posted = state.withLock { state in
+            defer { state.redraw = false }
+            return state
+        }
+        boundsHeight = posted.boundsHeight
+        active = posted.active
+        if let next = posted.input, next != input {
+            let previous = input
+            input = next
+            if previous?.previewTime != next.previewTime || previous?.coordinate != next.coordinate
+                || previous?.configuration.demo != next.configuration.demo {
+                previewDate = nil
+                astronomy = nil
+                lastSkyTime = -.infinity
+            }
+            // Any input change may alter the clouds; re-render them on the next frame.
+            lastCloudTime = -.infinity
+        }
+        refreshActivity(redraw: posted.redraw)
+    }
+
+    private func refreshActivity(redraw: Bool) {
+        guard let link else { return }
+        let running = active && input != nil && demand != .still
+        link.isPaused = !running
+        scheduleStillRedraws(active && input != nil && demand == .still)
+        scheduleRelease(!active)
+        if redraw && active && !running { drawNow() }
+    }
+
+    private func apply(_ demand: WeatherFrameDemand, framesPerSecond: Int) {
+        if framesPerSecond != self.framesPerSecond, let link {
+            self.framesPerSecond = framesPerSecond
+            let fps = Float(framesPerSecond)
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: fps, maximum: fps, preferred: fps)
+        }
+        guard demand != self.demand else { return }
+        self.demand = demand
+        refreshActivity(redraw: false)
+    }
+
+    /// The layer's drawables belong to the link, so a still frame runs the
+    /// paused link for one update.
+    private func drawNow() {
+        guard let link else { return }
+        drawOnce = true
+        link.isPaused = false
+    }
+
+    func metalDisplayLink(_ link: CAMetalDisplayLink, needsUpdate update: CAMetalDisplayLink.Update) {
+        if active { autoreleasepool { drawFrame(update.drawable) } }
+        guard drawOnce else { return }
+        drawOnce = false
+        link.isPaused = !(active && input != nil && demand != .still)
+    }
+
+    /// A still sky still turns: redraw it every 15 s without the display link.
+    private func scheduleStillRedraws(_ enabled: Bool) {
+        guard enabled else { stillTimer?.invalidate(); stillTimer = nil; return }
+        guard stillTimer == nil else { return }
+        let timer = Timer(timeInterval: 15, repeats: true) { [weak self] _ in self?.drawNow() }
+        thread.runLoop.add(timer, forMode: .default)
+        stillTimer = timer
     }
 
     /// Frees the size-dependent targets while the view is hidden for a while.
-    func releaseTextures() {
-        skyTexture = nil
-        cloudTextures = []
-        textureSize = .zero
-        historyValid = false
-        cloudsCleared = false
-    }
-
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
-
-    func draw(in view: MTKView) {
-        guard let view = view as? WeatherMTKView, view.canRender,
-              view.drawableSize.width >= 1, view.drawableSize.height >= 1 else { return }
-        autoreleasepool { drawFrame(view) }
+    private func scheduleRelease(_ enabled: Bool) {
+        guard enabled else { releaseTimer?.invalidate(); releaseTimer = nil; return }
+        guard releaseTimer == nil else { return }
+        let timer = Timer(timeInterval: 30, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            self.releaseTimer = nil
+            guard !self.active else { return }
+            self.skyTexture = nil
+            self.cloudTextures = []
+            self.textureSize = .zero
+            self.historyValid = false
+            self.cloudsCleared = false
+        }
+        thread.runLoop.add(timer, forMode: .default)
+        releaseTimer = timer
     }
 
     // MARK: Frame
 
-    private func drawFrame(_ view: WeatherMTKView) {
+    private func drawFrame(_ drawable: CAMetalDrawable) {
         guard let input else { return }
-        // Never wait on the GPU on the UI thread; drop the frame instead.
+        // Drop the frame rather than queue behind the GPU.
         guard inFlight.wait(timeout: .now()) == .success else { return }
         var submitted = false
         defer { if !submitted { inFlight.signal() } }
-        let width = Int(view.drawableSize.width), height = Int(view.drawableSize.height)
+        let width = drawable.texture.width, height = drawable.texture.height
+        guard width >= 1, height >= 1 else { return }
         do { try ensureTextures(width: width, height: height) } catch {
             logger.error("Live Weather attachments failed: \(String(describing: error), privacy: .public)")
             return
         }
-        guard let skyTexture, cloudTextures.count == 2, let drawable = view.currentDrawable,
-              let pass = view.currentRenderPassDescriptor, let command = context.queue.makeCommandBuffer() else { return }
+        guard let skyTexture, cloudTextures.count == 2, let command = context.queue.makeCommandBuffer() else { return }
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = drawable.texture
         command.label = "Live Weather frame"
 
         let now = CACurrentMediaTime()
         let frozen = input.reduceMotion
         let delta = clock.advance(now: now, paused: frozen)
         let configuration = input.configuration
-        let quality = effectiveQuality
+        let quality = Self.effectiveQuality(input)
         let wall = Date()
         // The sky fits above the keyboard and carries on beneath it.
-        sceneFraction.retarget(EffectSceneFraction.visible(height: view.bounds.height, bottomInset: input.bottomInset),
+        sceneFraction.retarget(EffectSceneFraction.visible(height: boundsHeight, bottomInset: input.bottomInset),
                                at: now, animated: !frozen)
         let fraction = sceneFraction.value(at: now)
         let reframing = sceneFraction.isAnimating(at: now)
@@ -353,7 +456,7 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
             demand = .still
         }
         let base = demand == .active ? quality.activeFramesPerSecond : quality.ambientFramesPerSecond
-        view.apply(demand, framesPerSecond: max(8, Int(Double(base) / max(input.powerScale, 1))))
+        apply(demand, framesPerSecond: max(8, Int(Double(base) / max(input.powerScale, 1))))
     }
 
     // MARK: Scene
@@ -514,89 +617,99 @@ final class WeatherRenderer: NSObject, MTKViewDelegate {
     }
 }
 
-/// Lifecycle observation stays in this leaf UIKit view. It watches its own
-/// scene, so another window can't pause it.
-@MainActor
-final class WeatherMTKView: MTKView {
-    weak var weatherRenderer: WeatherRenderer?
+/// Hosts the renderer's CAMetalLayer and reports layout and activity to it.
+/// It watches its own scene, so another window can't pause it.
+final class WeatherSurfaceView: UIView {
+    override class var layerClass: AnyClass { CAMetalLayer.self }
+
+    private var renderer: WeatherRenderer?
+    private var input: WeatherSceneInput?
     private var sceneSuppressed = false
     private var appSuppressed = false
-    private var demand = WeatherFrameDemand.ambient
-    private var stillTimer: Task<Void, Never>?
-    private var releaseTimer: Task<Void, Never>?
+    private var postedHeight: CGFloat = -1
 
-    var canRender: Bool {
+    private var metalLayer: CAMetalLayer { layer as! CAMetalLayer }
+
+    private var canRender: Bool {
         window != nil && !isHidden && !sceneSuppressed && !appSuppressed
             && window?.windowScene?.activationState == .foregroundActive
             && UIApplication.shared.applicationState == .active
     }
 
-    override init(frame: CGRect, device: MTLDevice?) {
-        super.init(frame: frame, device: device)
+    /// A nil `context` makes an inert view for when Metal is unavailable.
+    init(context: WeatherGPUContext?) {
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        isOpaque = false
+        isUserInteractionEnabled = false
+        guard let context else { return }
+        metalLayer.device = context.device
+        metalLayer.pixelFormat = .bgra8Unorm // The shader encodes sRGB exactly once.
+        metalLayer.isOpaque = false
+        metalLayer.framebufferOnly = true
+        metalLayer.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
+        // The drawable is budget-sized; smooth the upscale.
+        metalLayer.magnificationFilter = .linear
+        renderer = WeatherRenderer(context: context, layer: metalLayer)
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(sceneWillDeactivate(_:)), name: UIScene.willDeactivateNotification, object: nil)
         center.addObserver(self, selector: #selector(sceneDidActivate(_:)), name: UIScene.didActivateNotification, object: nil)
         center.addObserver(self, selector: #selector(appWillDeactivate), name: UIApplication.willResignActiveNotification, object: nil)
         center.addObserver(self, selector: #selector(appDidActivate), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
-    required init(coder: NSCoder) { fatalError("WeatherMTKView is created programmatically") }
+    required init(coder: NSCoder) { fatalError("WeatherSurfaceView is created programmatically") }
     deinit { NotificationCenter.default.removeObserver(self) }
+
+    func update(_ input: WeatherSceneInput) {
+        let previous = self.input
+        guard input != previous else { return }
+        self.input = input
+        if previous?.configuration.quality != input.configuration.quality || previous?.powerScale != input.powerScale {
+            resizeDrawable()
+        }
+        renderer?.post { $0.input = input; $0.redraw = true }
+    }
+
+    func tearDown() {
+        renderer?.post { $0.active = false }
+        renderer?.stop()
+        renderer = nil
+    }
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
         sceneSuppressed = window?.windowScene?.activationState != .foregroundActive
         appSuppressed = UIApplication.shared.applicationState != .active
-        weatherRenderer?.resize(self)
+        resizeDrawable()
         refreshActivity(redraw: true)
     }
+
     override func layoutSubviews() {
         super.layoutSubviews()
-        weatherRenderer?.resize(self)
-        if isPaused { refreshActivity(redraw: true) }
+        // Layout passes during scrolling leave the size alone; only a change redraws.
+        let height = bounds.height
+        guard resizeDrawable() || height != postedHeight else { return }
+        postedHeight = height
+        renderer?.post { $0.boundsHeight = height; $0.redraw = true }
     }
 
-    func refreshActivity(redraw: Bool) {
-        let rendering = canRender && weatherRenderer != nil
-        isPaused = !rendering || demand == .still
-        scheduleStillRedraws(rendering && demand == .still)
-        scheduleRelease(!rendering)
-        if redraw && rendering { draw() }
+    /// Returns whether the drawable size changed.
+    @discardableResult
+    private func resizeDrawable() -> Bool {
+        guard renderer != nil else { return false }
+        let size = WeatherRenderer.drawableSize(bounds: bounds.size, scale: contentScaleFactor, input: input)
+        guard size.width >= 1, metalLayer.drawableSize != size else { return false }
+        metalLayer.drawableSize = size
+        return true
     }
 
-    func apply(_ demand: WeatherFrameDemand, framesPerSecond: Int) {
-        if preferredFramesPerSecond != framesPerSecond { preferredFramesPerSecond = framesPerSecond }
-        guard demand != self.demand else { return }
-        self.demand = demand
-        refreshActivity(redraw: false)
-    }
-
-    func tearDown() {
-        stillTimer?.cancel(); stillTimer = nil
-        releaseTimer?.cancel(); releaseTimer = nil
-    }
-
-    /// A still sky still turns: redraw it every 15 s without a display link.
-    private func scheduleStillRedraws(_ enabled: Bool) {
-        guard enabled else { stillTimer?.cancel(); stillTimer = nil; return }
-        guard stillTimer == nil else { return }
-        stillTimer = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(15))
-                guard let self, !Task.isCancelled else { return }
-                guard self.canRender else { self.stillTimer = nil; return }
-                self.draw()
-            }
-        }
-    }
-
-    private func scheduleRelease(_ enabled: Bool) {
-        guard enabled else { releaseTimer?.cancel(); releaseTimer = nil; return }
-        guard releaseTimer == nil else { return }
-        releaseTimer = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(30))
-            guard let self, !Task.isCancelled else { return }
-            self.releaseTimer = nil
-            if !self.canRender { self.weatherRenderer?.releaseTextures() }
+    private func refreshActivity(redraw: Bool) {
+        let active = canRender
+        let height = bounds.height
+        renderer?.post {
+            $0.active = active
+            $0.boundsHeight = height
+            if redraw { $0.redraw = true }
         }
     }
 

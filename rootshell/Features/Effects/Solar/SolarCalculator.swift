@@ -11,7 +11,7 @@ import Foundation
 // MARK: - Data Models
 
 /// Solar times for a given day and location
-struct SolarTimes {
+nonisolated struct SolarTimes {
     let sunrise: Date
     let sunset: Date
     let solarNoon: Date
@@ -25,13 +25,13 @@ struct SolarTimes {
 }
 
 /// Current sun position in the sky
-struct SolarPosition {
+nonisolated struct SolarPosition {
     let altitude: Double   // Degrees above horizon (-90 to 90)
     let azimuth: Double    // Degrees from north (0-360)
 }
 
 /// Time phase based on sun altitude
-enum SolarPhase: String, CaseIterable {
+nonisolated enum SolarPhase: String, CaseIterable {
     case night              // altitude < -18
     case astronomicalTwilight  // -18 to -12
     case nauticalTwilight   // -12 to -6
@@ -61,7 +61,7 @@ enum SolarPhase: String, CaseIterable {
 
 /// NOAA Solar Calculator implementation
 /// Based on: https://gml.noaa.gov/grad/solcalc/calcdetails.html
-enum SolarCalculator {
+nonisolated enum SolarCalculator {
 
     // MARK: - Public API
 
@@ -362,7 +362,7 @@ enum SolarCalculator {
 
 // MARK: - Default Location Fallback
 
-extension SolarCalculator {
+nonisolated extension SolarCalculator {
     /// Estimate rough latitude from timezone (very approximate)
     static func estimatedLatitude(from timezone: TimeZone) -> Double {
         // Most populated areas are between 30-50 degrees latitude

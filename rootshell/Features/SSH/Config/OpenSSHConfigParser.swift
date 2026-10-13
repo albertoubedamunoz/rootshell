@@ -22,16 +22,17 @@ struct OpenSSHHostEntry: Hashable, Sendable {
     var port: Int?
     /// `User` directive value, if present.
     var user: String?
-    /// Every `IdentityFile` line in the order they appeared (after `none`
-    /// resets are applied within the block).
+    /// Every `IdentityFile` line in the order they appeared, except `none`.
     var identityFiles: [String]
-    /// True if the block contained `IdentityFile none` — OpenSSH's sentinel
-    /// to discard any IdentityFile entries inherited from wildcard blocks.
-    var identityFilesCleared: Bool
+    /// True if the block lists `IdentityFile none`. ssh skips that entry but it
+    /// stops the default keys being added; it never removes other entries.
+    var listsIdentityFileNone: Bool
     /// First `ProxyJump` value, if present (later occurrences are ignored).
     var proxyJump: String?
     /// First `ProxyCommand` value, if present.
     var proxyCommand: String?
+    /// True if the first ProxyCommand line precedes the first ProxyJump line.
+    var proxyCommandFirst = false
     /// First `IdentityAgent` value, if present. May be a socket path (possibly
     /// `~`-relative), the literal `SSH_AUTH_SOCK`, an `$ENV_VAR` reference, or
     /// `none`. Kept verbatim; consumers decide how to resolve it.
@@ -161,7 +162,7 @@ nonisolated enum OpenSSHConfigParser {
                     port: nil,
                     user: nil,
                     identityFiles: [],
-                    identityFilesCleared: false,
+                    listsIdentityFileNone: false,
                     proxyJump: nil,
                     proxyCommand: nil,
                     identityAgent: nil,
@@ -222,14 +223,8 @@ nonisolated enum OpenSSHConfigParser {
         case "identityfile":
             let path = unquote(value)
             if path.isEmpty { break }
-            // `IdentityFile none` is OpenSSH's sentinel for "discard any
-            // identities inherited from wildcard blocks." We clear the
-            // current block's list AT THIS POINT (subsequent IdentityFile
-            // lines in the same block can still append after the reset)
-            // and remember the clear so wildcard inheritance is suppressed.
             if path.caseInsensitiveCompare("none") == .orderedSame {
-                state.currentBlock?.identityFiles.removeAll()
-                state.currentBlock?.identityFilesCleared = true
+                state.currentBlock?.listsIdentityFileNone = true
             } else {
                 state.currentBlock?.identityFiles.append(path)
             }
@@ -239,7 +234,9 @@ nonisolated enum OpenSSHConfigParser {
             }
         case "proxycommand":
             if state.currentBlock?.proxyCommand == nil {
+                let first = state.currentBlock?.proxyJump == nil
                 state.currentBlock?.proxyCommand = unquote(value)
+                state.currentBlock?.proxyCommandFirst = first
             }
         case "identityagent":
             if state.currentBlock?.identityAgent == nil {

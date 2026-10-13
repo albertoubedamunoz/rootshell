@@ -6,7 +6,7 @@ import Foundation
 
 // SIMD4-only records keep Swift and Metal layouts identical. The matching
 // structs live at the top of Weather.metal.
-struct WeatherUniforms: Sendable {
+nonisolated struct WeatherUniforms: Sendable {
     var cameraForward: SIMD4<Float>  // xyz, tan(half width)
     var cameraRight: SIMD4<Float>    // xyz, tan(half height)
     var cameraUp: SIMD4<Float>       // xyz, animation phase (s)
@@ -34,10 +34,10 @@ struct WeatherUniforms: Sendable {
     var scene: SIMD4<Float>          // visible height fraction, its reciprocal, reserved, reserved
 }
 
-struct WeatherStar: Sendable {
+nonisolated struct WeatherStar: Sendable {
     var equatorial: SIMD4<Float>     // unit vector, visual magnitude
     var color: SIMD4<Float>          // rgb, twinkle seed
 }
 
-func wxV4(_ v: SIMD3<Float>, _ w: Float) -> SIMD4<Float> { SIMD4(v.x, v.y, v.z, w) }
+nonisolated func wxV4(_ v: SIMD3<Float>, _ w: Float) -> SIMD4<Float> { SIMD4(v.x, v.y, v.z, w) }
 #endif

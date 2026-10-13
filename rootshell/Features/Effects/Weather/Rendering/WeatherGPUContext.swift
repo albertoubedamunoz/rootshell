@@ -7,9 +7,9 @@ import os
 
 /// Pipelines, noise volumes, and the star field, built once and shared by
 /// every Live Weather surface. Released when the last renderer goes away.
-@MainActor
-final class WeatherGPUContext {
-    enum Failure: Error { case unavailable(String) }
+/// Built on the main thread, then read-only, so the render thread may use it.
+nonisolated final class WeatherGPUContext: @unchecked Sendable {
+    nonisolated enum Failure: Error { case unavailable(String) }
 
     let device: MTLDevice
     let queue: MTLCommandQueue
@@ -26,9 +26,9 @@ final class WeatherGPUContext {
     let stars: MTLBuffer
     let starCount: Int
 
-    private static weak var cached: WeatherGPUContext?
+    @MainActor private static weak var cached: WeatherGPUContext?
 
-    static func shared() throws -> WeatherGPUContext {
+    @MainActor static func shared() throws -> WeatherGPUContext {
         if let cached { return cached }
         guard let device = MTLCreateSystemDefaultDevice() else { throw Failure.unavailable("Metal device") }
         let context = try WeatherGPUContext(device: device)
@@ -36,7 +36,7 @@ final class WeatherGPUContext {
         return context
     }
 
-    private init(device: MTLDevice) throws {
+    @MainActor private init(device: MTLDevice) throws {
         self.device = device
         guard let queue = device.makeCommandQueue(), let library = device.makeDefaultLibrary() else {
             throw Failure.unavailable("Metal queue or default library")
@@ -130,7 +130,7 @@ final class WeatherGPUContext {
 
     /// The bright-star catalogue plus a seeded field of fainter stars that
     /// thickens toward the Milky Way, all in equatorial coordinates.
-    private static func makeStars() -> [WeatherStar] {
+    @MainActor private static func makeStars() -> [WeatherStar] {
         var records: [WeatherStar] = []
         records.reserveCapacity(2_600)
         var random = WeatherRandom(seed: 0x57A2_F1E1D)
@@ -156,7 +156,7 @@ final class WeatherGPUContext {
         return records
     }
 
-    private static func star(_ v: SIMD3<Float>, magnitude: Double, spectral: SpectralClass, seed: Double) -> WeatherStar {
+    @MainActor private static func star(_ v: SIMD3<Float>, magnitude: Double, spectral: SpectralClass, seed: Double) -> WeatherStar {
         let rgb = spectral.color
         let color = SIMD4<Float>(Float(rgb.r), Float(rgb.g), Float(rgb.b), Float(seed))
         return WeatherStar(equatorial: wxV4(v, Float(magnitude)), color: color)

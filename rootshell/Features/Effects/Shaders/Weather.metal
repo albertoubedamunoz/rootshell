@@ -437,9 +437,21 @@ fragment half4 weatherClouds(WXScreen in [[stage_in]], constant WXUniforms &u [[
 
 // MARK: - Composite (every displayed frame)
 
-static float3 wxSun(float3 d, constant WXUniforms &u) {
+/// Offset from a sky direction's projected centre, as an angle vector along
+/// camera right and up. Measured on screen, so discs stay round where the
+/// wide-angle projection stretches the sky toward the edges.
+static float2 wxDiscOffset(float2 scene, float3 m, constant WXUniforms &u) {
+    float z = dot(m, u.cameraForward.xyz);
+    if (z <= 0.01f) return float2(1e3f);
+    float2 ndc = float2(scene.x * 2.0f - 1.0f, 1.0f - scene.y * 2.0f);
+    float2 center = float2(dot(m, u.cameraRight.xyz) / (z * u.cameraForward.w),
+                           dot(m, u.cameraUp.xyz) / (z * u.cameraRight.w));
+    return (ndc - center) * float2(u.cameraForward.w, u.cameraRight.w) * z;
+}
+
+static float3 wxSun(float2 scene, constant WXUniforms &u) {
     float radius = u.sunRadiance.w;
-    float angle = acos(clamp(dot(d, u.sunDirection.xyz), -1.0f, 1.0f));
+    float angle = length(wxDiscOffset(scene, u.sunDirection.xyz, u));
     if (angle > radius * 10.0f) return 0.0f;
     float r = angle / radius;
     float disc = 1.0f - smoothstep(0.94f, 1.0f, r);
@@ -448,19 +460,20 @@ static float3 wxSun(float3 d, constant WXUniforms &u) {
     return u.sunRadiance.rgb * (disc * limb * 3.0f + aureole);
 }
 
-static float3 wxMoon(float3 d, constant WXUniforms &u, texture3d<half> shape) {
+static float3 wxMoon(float3 d, float2 scene, constant WXUniforms &u, texture3d<half> shape) {
     constexpr sampler rep(coord::normalized, address::repeat, filter::linear);
     float illumination = u.moonDirection.w;
     if (illumination <= 0.0f) return 0.0f;
     float3 m = u.moonDirection.xyz;
     float radius = u.keyLight.w;
-    float angle = acos(clamp(dot(d, m), -1.0f, 1.0f));
+    float2 offset = wxDiscOffset(scene, m, u);
+    float angle = length(offset);
     float3 color = float3(0.80f, 0.86f, 1.0f) * exp(-angle / (radius * 1.6f)) * 0.0025f * illumination;
     if (angle < radius * 1.02f) {
-        float3 axis = abs(m.y) > 0.98f ? float3(1.0f, 0.0f, 0.0f) : float3(0.0f, 1.0f, 0.0f);
-        float3 mx = normalize(cross(axis, m));
-        float3 my = cross(m, mx);
-        float2 local = float2(dot(d, mx), dot(d, my)) / sin(radius);
+        // Disc axes follow the screen so the round disc maps onto the sphere.
+        float3 mx = normalize(u.cameraRight.xyz - m * dot(u.cameraRight.xyz, m));
+        float3 my = normalize(u.cameraUp.xyz - m * dot(u.cameraUp.xyz, m) - mx * dot(u.cameraUp.xyz, mx));
+        float2 local = offset / sin(radius);
         float rr = dot(local, local);
         // The visible hemisphere faces back toward the viewer; the sun lights
         // it from its true direction, so the phase and bright limb are exact.
@@ -484,7 +497,7 @@ fragment half4 weatherComposite(WXScreen in [[stage_in]], constant WXUniforms &u
     float3 d = wxRay(scene, u);
     float phase = u.cameraUp.w;
     float3 color = wxOvercast(float3(sky.sample(s, uv).rgb), u);
-    if (u.composition.w > 0.5f) color += (wxSun(d, u) + wxMoon(d, u, shape)) * (1.0f - wxOvercastAmount(u) * 0.8f);
+    if (u.composition.w > 0.5f) color += (wxSun(scene, u) + wxMoon(d, scene, u, shape)) * (1.0f - wxOvercastAmount(u) * 0.8f);
 
     // Clouds drift between their re-renders by reprojecting the last one.
     float4 cloud = float4(clouds.sample(s, uv - u.cloudShift.xy));

@@ -16,25 +16,24 @@ enum OpenSSHHostResolution {
         var username: String?
     }
 
-    // MARK: - Wildcard inheritance
+    // MARK: - Host resolution
 
-    /// Apply matching wildcard blocks to fill in unset directives on a concrete
-    /// entry. First-match-wins per directive matches OpenSSH semantics for
-    /// directives like `HostName`, `User`, `Port`, etc.
-    static func resolveWithWildcards(
+    /// OpenSSH takes the first value across all matching blocks in file order.
+    /// Match only the requested alias, even if its Host line names other aliases.
+    static func resolve(
         entry: OpenSSHHostEntry,
-        wildcards: [OpenSSHHostEntry]
+        entries: [OpenSSHHostEntry]
     ) -> OpenSSHHostEntry {
-        var resolved = entry
-        for wildcard in wildcards {
-            // A wildcard block applies to this entry if any of the entry's
-            // aliases satisfies the block's full pattern list (positive +
-            // negation, OpenSSH semantics).
-            let matches = resolved.aliases.contains { alias in
-                patternsApply(aliases: wildcard.aliases, target: alias)
-            }
-            guard matches else { continue }
-            inherit(&resolved, from: wildcard)
+        guard let alias = entry.aliases.first else { return entry }
+        var resolved = OpenSSHHostEntry(
+            aliases: entry.aliases, hostName: nil, port: nil, user: nil,
+            identityFiles: [], listsIdentityFileNone: false,
+            proxyJump: nil, proxyCommand: nil, identityAgent: nil,
+            isWildcard: entry.isWildcard, sourceFile: entry.sourceFile, sourceLine: entry.sourceLine
+        )
+        for block in entries {
+            guard patternsApply(aliases: block.aliases, target: alias) else { continue }
+            inherit(&resolved, from: block)
         }
         return resolved
     }
@@ -45,25 +44,36 @@ enum OpenSSHHostResolution {
         if resolved.hostName == nil { resolved.hostName = block.hostName }
         if resolved.port == nil { resolved.port = block.port }
         if resolved.user == nil { resolved.user = block.user }
-        if resolved.proxyJump == nil { resolved.proxyJump = block.proxyJump }
-        if resolved.proxyCommand == nil { resolved.proxyCommand = block.proxyCommand }
-        // IdentityFile semantics across blocks:
-        // - A block with `IdentityFile none` discards the cumulative list
-        //   (earlier blocks) and then appends its own remaining identities.
-        //   The clear propagates so later blocks cannot re-add identities.
-        // - A block without a clear contributes its identities only if no
-        //   prior block has cleared.
-        if block.identityFilesCleared {
-            resolved.identityFiles.removeAll()
-            resolved.identityFilesCleared = true
-            for path in block.identityFiles where !resolved.identityFiles.contains(path) {
-                resolved.identityFiles.append(path)
-            }
-        } else if !resolved.identityFilesCleared {
-            for path in block.identityFiles where !resolved.identityFiles.contains(path) {
-                resolved.identityFiles.append(path)
-            }
+        if block.proxyCommandFirst {
+            takeProxyCommand(block.proxyCommand, into: &resolved)
+            takeProxyJump(block.proxyJump, into: &resolved)
+        } else {
+            takeProxyJump(block.proxyJump, into: &resolved)
+            takeProxyCommand(block.proxyCommand, into: &resolved)
         }
+        if resolved.identityAgent == nil { resolved.identityAgent = block.identityAgent }
+        for path in block.identityFiles where !resolved.identityFiles.contains(path) {
+            resolved.identityFiles.append(path)
+        }
+        if block.listsIdentityFileNone { resolved.listsIdentityFileNone = true }
+    }
+
+    // Whichever of ProxyJump/ProxyCommand comes first wins (readconf.c parse_jump);
+    // only `ProxyJump none` leaves a later ProxyCommand usable.
+    private static func takeProxyJump(_ value: String?, into resolved: inout OpenSSHHostEntry) {
+        guard let value, resolved.proxyJump == nil else { return }
+        guard resolved.proxyCommand == nil || isNone(value) else { return }
+        resolved.proxyJump = value
+    }
+
+    private static func takeProxyCommand(_ value: String?, into resolved: inout OpenSSHHostEntry) {
+        guard let value, resolved.proxyCommand == nil else { return }
+        guard resolved.proxyJump.map(isNone) ?? true else { return }
+        resolved.proxyCommand = value
+    }
+
+    private static func isNone(_ value: String) -> Bool {
+        value.caseInsensitiveCompare("none") == .orderedSame
     }
 
     /// True if a Host block's pattern list applies to `target` under OpenSSH
@@ -131,29 +141,26 @@ enum OpenSSHHostResolution {
     static let maxJumpDepth = 8
 
     /// Resolves a wildcard-resolved entry's `ProxyJump` (or `ProxyCommand`) into
-    /// hops. Each hop alias is looked up against the concrete Host blocks (then
-    /// wildcards) for its HostName/User/Port/IdentityFile; `user@`/`:port` in
+    /// hops. Each hop alias is looked up against matching Host blocks in file
+    /// order for its HostName/User/Port/IdentityFile; `user@`/`:port` in
     /// the ProxyJump value win. Like OpenSSH, the first hop's own ProxyJump is
     /// prepended (recursively); later hops are reached through the previous one.
     static func resolveJumpChain(
         for entry: OpenSSHHostEntry,
-        concretes: [OpenSSHHostEntry],
-        wildcards: [OpenSSHHostEntry],
+        entries: [OpenSSHHostEntry],
         defaultUsername: String,
         parseProxyCommand: (String) -> ProxyCommandHop? = { _ in nil },
         resolvePath: (String) -> String
     ) -> JumpChainResolution {
         let label = entry.aliases.first ?? "host"
 
-        if let proxyJump = entry.proxyJump, !proxyJump.isEmpty {
-            // ProxyJump none is OpenSSH's "clear inherited proxy" sentinel.
-            if proxyJump.caseInsensitiveCompare("none") == .orderedSame {
-                return JumpChainResolution()
-            }
+        // `none` blocks later values of the directive, then means no proxy.
+        if let proxyJump = entry.proxyJump, !proxyJump.isEmpty,
+           !isNone(proxyJump) {
             do {
                 let hops = try expandJumpChain(
                     proxyJump, visiting: entry.aliases.map { $0.lowercased() }, depth: 1,
-                    concretes: concretes, wildcards: wildcards,
+                    entries: entries,
                     defaultUsername: defaultUsername, sourceFile: entry.sourceFile, resolvePath: resolvePath
                 )
                 return JumpChainResolution(hops: hops)
@@ -164,7 +171,8 @@ enum OpenSSHHostResolution {
             }
         }
 
-        if let proxyCommand = entry.proxyCommand, !proxyCommand.isEmpty {
+        if let proxyCommand = entry.proxyCommand, !proxyCommand.isEmpty,
+           !isNone(proxyCommand) {
             if let parsed = parseProxyCommand(proxyCommand) {
                 let username = parsed.username ?? defaultUsername
                 return JumpChainResolution(hops: [ResolvedJumpHop(
@@ -189,8 +197,7 @@ enum OpenSSHHostResolution {
         _ proxyJump: String,
         visiting: [String],
         depth: Int,
-        concretes: [OpenSSHHostEntry],
-        wildcards: [OpenSSHHostEntry],
+        entries: [OpenSSHHostEntry],
         defaultUsername: String,
         sourceFile: URL,
         resolvePath: (String) -> String
@@ -208,18 +215,13 @@ enum OpenSSHHostResolution {
             guard !visiting.contains(alias.lowercased()) else {
                 throw JumpChainError(message: "jump host \(alias) loops back to itself")
             }
-            // Every block naming the hop applies, in file order; wildcards match only
-            // the name ssh would look up, not a block's other aliases.
-            var hopEntry = OpenSSHHostEntry(
+            let hopEntry = OpenSSHHostEntry(
                 aliases: [alias], hostName: nil, port: nil, user: nil,
-                identityFiles: [], identityFilesCleared: false,
+                identityFiles: [], listsIdentityFileNone: false,
                 proxyJump: nil, proxyCommand: nil, identityAgent: nil,
                 isWildcard: false, sourceFile: sourceFile, sourceLine: 0
             )
-            for block in concretes where block.aliases.contains(where: { $0.caseInsensitiveCompare(alias) == .orderedSame }) {
-                inherit(&hopEntry, from: block)
-            }
-            let block = resolveWithWildcards(entry: hopEntry, wildcards: wildcards)
+            let block = resolve(entry: hopEntry, entries: entries)
 
             // Later hops are reached through the previous one, which overrides
             // their own ProxyJump (OpenSSH passes -J for them).
@@ -227,7 +229,7 @@ enum OpenSSHHostResolution {
                nested.caseInsensitiveCompare("none") != .orderedSame {
                 hops += try expandJumpChain(
                     nested, visiting: visiting + [alias.lowercased()], depth: depth + 1,
-                    concretes: concretes, wildcards: wildcards,
+                    entries: entries,
                     defaultUsername: defaultUsername, sourceFile: sourceFile, resolvePath: resolvePath
                 )
             }
@@ -235,7 +237,7 @@ enum OpenSSHHostResolution {
             let host = block.hostName ?? alias
             let port = spec.port ?? block.port ?? 22
             let username = spec.username ?? block.user ?? defaultUsername
-            let identityPaths: [String]? = block.identityFiles.isEmpty && !block.identityFilesCleared
+            let identityPaths: [String]? = block.identityFiles.isEmpty && !block.listsIdentityFileNone
                 ? nil
                 : block.identityFiles.map(resolvePath)
             hops.append(ResolvedJumpHop(

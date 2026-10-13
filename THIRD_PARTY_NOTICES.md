@@ -148,6 +148,7 @@ license does not apply to them; each keeps its own license.
 | [Python logo](https://www.python.org/psf/trademarks/) | "Python" and the Python logos are trademarks or registered trademarks of the Python Software Foundation | Used under the PSF trademark policy |
 | [Homebrew logo](https://github.com/Homebrew/brew.sh) | Homebrew contributors | BSD 2-Clause |
 | [Deno logo](https://deno.com/brand) | Deno Land Inc. | MIT |
+| [Node.js logo](https://github.com/nodejs/nodejs.org) | Node.js Website WG contributors. Node.js is a trademark of the OpenJS Foundation | MIT |
 
 The fish, htop, Emacs, Cargo and tail marks are original rootshell artwork.
 
