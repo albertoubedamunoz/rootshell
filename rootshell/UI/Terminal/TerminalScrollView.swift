@@ -3,6 +3,20 @@ import Combine
 import os
 import GhosttyKit
 
+/// Terminal scroll views moving under a finger or coasting. Ambient effects
+/// pause meanwhile; their frames make the coast stutter.
+enum TerminalScrollActivity {
+    static let didChange = Notification.Name("TerminalScrollActivityDidChange")
+    private static var scrolling: Set<ObjectIdentifier> = []
+    static var isActive: Bool { !scrolling.isEmpty }
+
+    static func setScrolling(_ active: Bool, _ id: ObjectIdentifier) {
+        let wasActive = isActive
+        if active { scrolling.insert(id) } else { scrolling.remove(id) }
+        if isActive != wasActive { NotificationCenter.default.post(name: didChange, object: nil) }
+    }
+}
+
 extension Ghostty {
     /// A UIScrollView wrapper for TerminalView that provides native iOS scrollback functionality.
     /// Based on the macOS SurfaceScrollView implementation.
@@ -26,7 +40,13 @@ extension Ghostty {
     let terminalView: TerminalView
 
     /// Track whether the user is actively scrolling (prevents fighting user gestures)
-    private var isLiveScrolling: Bool = false
+    private var isLiveScrolling: Bool = false {
+        didSet {
+            if isLiveScrolling != oldValue {
+                TerminalScrollActivity.setScrolling(isLiveScrolling, ObjectIdentifier(self))
+            }
+        }
+    }
 
     /// Track whether the current drag started from touch (two-finger) vs trackpad
     private var isTouchScrolling: Bool = false
@@ -265,6 +285,8 @@ extension Ghostty {
         selectionScrollIndicatorHoldWorkItem?.cancel()
         // Clean up notification observers
         observers.forEach { NotificationCenter.default.removeObserver($0) }
+        let id = ObjectIdentifier(self)
+        Task { @MainActor in TerminalScrollActivity.setScrolling(false, id) }
     }
 
     // MARK: - Hit Testing
