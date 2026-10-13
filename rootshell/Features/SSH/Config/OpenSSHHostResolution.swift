@@ -27,7 +27,7 @@ enum OpenSSHHostResolution {
         guard let alias = entry.aliases.first else { return entry }
         var resolved = OpenSSHHostEntry(
             aliases: entry.aliases, hostName: nil, port: nil, user: nil,
-            identityFiles: [], identityFilesCleared: false,
+            identityFiles: [], listsIdentityFileNone: false,
             proxyJump: nil, proxyCommand: nil, identityAgent: nil,
             isWildcard: entry.isWildcard, sourceFile: entry.sourceFile, sourceLine: entry.sourceLine
         )
@@ -44,26 +44,36 @@ enum OpenSSHHostResolution {
         if resolved.hostName == nil { resolved.hostName = block.hostName }
         if resolved.port == nil { resolved.port = block.port }
         if resolved.user == nil { resolved.user = block.user }
-        if resolved.proxyJump == nil { resolved.proxyJump = block.proxyJump }
-        if resolved.proxyCommand == nil { resolved.proxyCommand = block.proxyCommand }
-        if resolved.identityAgent == nil { resolved.identityAgent = block.identityAgent }
-        // IdentityFile semantics across blocks:
-        // - A block with `IdentityFile none` discards the cumulative list
-        //   (earlier blocks) and then appends its own remaining identities.
-        //   The clear propagates so later blocks cannot re-add identities.
-        // - A block without a clear contributes its identities only if no
-        //   prior block has cleared.
-        if block.identityFilesCleared {
-            resolved.identityFiles.removeAll()
-            resolved.identityFilesCleared = true
-            for path in block.identityFiles where !resolved.identityFiles.contains(path) {
-                resolved.identityFiles.append(path)
-            }
-        } else if !resolved.identityFilesCleared {
-            for path in block.identityFiles where !resolved.identityFiles.contains(path) {
-                resolved.identityFiles.append(path)
-            }
+        if block.proxyCommandFirst {
+            takeProxyCommand(block.proxyCommand, into: &resolved)
+            takeProxyJump(block.proxyJump, into: &resolved)
+        } else {
+            takeProxyJump(block.proxyJump, into: &resolved)
+            takeProxyCommand(block.proxyCommand, into: &resolved)
         }
+        if resolved.identityAgent == nil { resolved.identityAgent = block.identityAgent }
+        for path in block.identityFiles where !resolved.identityFiles.contains(path) {
+            resolved.identityFiles.append(path)
+        }
+        if block.listsIdentityFileNone { resolved.listsIdentityFileNone = true }
+    }
+
+    // Whichever of ProxyJump/ProxyCommand comes first wins (readconf.c parse_jump);
+    // only `ProxyJump none` leaves a later ProxyCommand usable.
+    private static func takeProxyJump(_ value: String?, into resolved: inout OpenSSHHostEntry) {
+        guard let value, resolved.proxyJump == nil else { return }
+        guard resolved.proxyCommand == nil || isNone(value) else { return }
+        resolved.proxyJump = value
+    }
+
+    private static func takeProxyCommand(_ value: String?, into resolved: inout OpenSSHHostEntry) {
+        guard let value, resolved.proxyCommand == nil else { return }
+        guard resolved.proxyJump.map(isNone) ?? true else { return }
+        resolved.proxyCommand = value
+    }
+
+    private static func isNone(_ value: String) -> Bool {
+        value.caseInsensitiveCompare("none") == .orderedSame
     }
 
     /// True if a Host block's pattern list applies to `target` under OpenSSH
@@ -144,11 +154,9 @@ enum OpenSSHHostResolution {
     ) -> JumpChainResolution {
         let label = entry.aliases.first ?? "host"
 
-        if let proxyJump = entry.proxyJump, !proxyJump.isEmpty {
-            // ProxyJump none is OpenSSH's "clear inherited proxy" sentinel.
-            if proxyJump.caseInsensitiveCompare("none") == .orderedSame {
-                return JumpChainResolution()
-            }
+        // `none` blocks later values of the directive, then means no proxy.
+        if let proxyJump = entry.proxyJump, !proxyJump.isEmpty,
+           !isNone(proxyJump) {
             do {
                 let hops = try expandJumpChain(
                     proxyJump, visiting: entry.aliases.map { $0.lowercased() }, depth: 1,
@@ -163,7 +171,8 @@ enum OpenSSHHostResolution {
             }
         }
 
-        if let proxyCommand = entry.proxyCommand, !proxyCommand.isEmpty {
+        if let proxyCommand = entry.proxyCommand, !proxyCommand.isEmpty,
+           !isNone(proxyCommand) {
             if let parsed = parseProxyCommand(proxyCommand) {
                 let username = parsed.username ?? defaultUsername
                 return JumpChainResolution(hops: [ResolvedJumpHop(
@@ -208,7 +217,7 @@ enum OpenSSHHostResolution {
             }
             let hopEntry = OpenSSHHostEntry(
                 aliases: [alias], hostName: nil, port: nil, user: nil,
-                identityFiles: [], identityFilesCleared: false,
+                identityFiles: [], listsIdentityFileNone: false,
                 proxyJump: nil, proxyCommand: nil, identityAgent: nil,
                 isWildcard: false, sourceFile: sourceFile, sourceLine: 0
             )
@@ -228,7 +237,7 @@ enum OpenSSHHostResolution {
             let host = block.hostName ?? alias
             let port = spec.port ?? block.port ?? 22
             let username = spec.username ?? block.user ?? defaultUsername
-            let identityPaths: [String]? = block.identityFiles.isEmpty && !block.identityFilesCleared
+            let identityPaths: [String]? = block.identityFiles.isEmpty && !block.listsIdentityFileNone
                 ? nil
                 : block.identityFiles.map(resolvePath)
             hops.append(ResolvedJumpHop(

@@ -310,4 +310,90 @@ final class ProxyJumpTests: XCTestCase {
         XCTAssertEqual(hop.port, 2200)
         XCTAssertEqual(hop.identityPaths, ["~/.ssh/shared_key", "~/.ssh/specific_key"])
     }
+
+    private func resolveFirst(_ text: String, target: String) throws -> OpenSSHHostEntry {
+        let entries = OpenSSHConfigParser.parse(text: text, sshDirectory: sshDirectory).entries
+        let entry = try XCTUnwrap(entries.first { $0.aliases.contains(target) })
+        return OpenSSHHostResolution.resolve(entry: entry, entries: entries)
+    }
+
+    func testEarlierProxyCommandBlocksLaterProxyJump() throws {
+        let resolved = try resolveFirst("""
+        Host work
+            ProxyCommand ssh -W %h:%p ops@edge
+        Host work
+            ProxyJump other
+        """, target: "work")
+        XCTAssertEqual(resolved.proxyCommand, "ssh -W %h:%p ops@edge")
+        XCTAssertNil(resolved.proxyJump)
+    }
+
+    func testFirstProxyDirectiveWinsWithinBlock() throws {
+        let jumpFirst = try resolveFirst("""
+        Host work
+            ProxyJump gateway
+            ProxyCommand ssh -W %h:%p ops@edge
+        """, target: "work")
+        XCTAssertEqual(jumpFirst.proxyJump, "gateway")
+        XCTAssertNil(jumpFirst.proxyCommand)
+
+        let commandFirst = try resolveFirst("""
+        Host work
+            ProxyCommand ssh -W %h:%p ops@edge
+            ProxyJump gateway
+        """, target: "work")
+        XCTAssertNil(commandFirst.proxyJump)
+        XCTAssertEqual(commandFirst.proxyCommand, "ssh -W %h:%p ops@edge")
+    }
+
+    func testProxyJumpNoneLeavesLaterProxyCommandInEffect() throws {
+        let resolved = try resolveFirst("""
+        Host work
+            ProxyJump none
+        Host *
+            ProxyJump ignored
+            ProxyCommand ssh -W %h:%p ops@edge
+        """, target: "work")
+        let chain = OpenSSHHostResolution.resolveJumpChain(
+            for: resolved, entries: [], defaultUsername: "root",
+            parseProxyCommand: { _ in .init(host: "edge", port: 22, username: "ops") },
+            resolvePath: { $0 }
+        )
+        XCTAssertNil(chain.warning)
+        XCTAssertEqual(chain.hops.map(\.host), ["edge"])
+    }
+
+    func testProxyCommandNoneMeansDirect() throws {
+        let resolved = try resolveFirst("""
+        Host work
+            ProxyCommand none
+        Host *
+            ProxyJump gateway
+        """, target: "work")
+        let chain = OpenSSHHostResolution.resolveJumpChain(
+            for: resolved, entries: [], defaultUsername: "root", resolvePath: { $0 }
+        )
+        XCTAssertNil(chain.warning)
+        XCTAssertTrue(chain.hops.isEmpty)
+    }
+
+    func testIdentityFileNoneKeepsOtherIdentities() throws {
+        let acrossBlocks = try resolveFirst("""
+        Host work
+            IdentityFile ~/.ssh/work_key
+        Host work
+            IdentityFile none
+        """, target: "work")
+        XCTAssertEqual(acrossBlocks.identityFiles, ["~/.ssh/work_key"])
+
+        let sameBlock = try resolveFirst("""
+        Host work
+            IdentityFile ~/.ssh/work_key
+            IdentityFile none
+        Host *
+            IdentityFile ~/.ssh/shared_key
+        """, target: "work")
+        XCTAssertEqual(sameBlock.identityFiles, ["~/.ssh/work_key", "~/.ssh/shared_key"])
+        XCTAssertTrue(sameBlock.listsIdentityFileNone)
+    }
 }
