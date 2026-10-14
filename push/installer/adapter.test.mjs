@@ -187,6 +187,31 @@ test("only terminal rounds notify; continuations, aborts, tool calls and subagen
   }
 });
 
+test("OMP agent_end may be busy until the final idle or shutdown boundary", async (t) => {
+  for (const boundary of ["timer", "shutdown"]) {
+    await t.test(boundary, async (t) => {
+      const h = await harness(t, "omp");
+      h.ctx.hasUI = false;
+      h.emit("agent_start");
+      h.idle(false);
+      h.emit("agent_end", { messages: [assistant()], willContinue: false });
+      assert.equal(h.calls.length, 0);
+      h.idle(true);
+      if (boundary === "timer") {
+        h.tick();
+        assert.equal(h.calls.length, 1);
+        h.close();
+      } else {
+        const flushing = h.shutdown();
+        assert.equal(h.calls.length, 1);
+        h.close();
+        await flushing;
+      }
+      assert.equal(h.calls[0].payload.stop_reason, "stop");
+    });
+  }
+});
+
 test("new runs, retries and session switches cancel stale completions; each round has its own ID", async (t) => {
   const h = await harness(t);
   const end = () => h.emit("agent_end", { messages: [assistant()] });

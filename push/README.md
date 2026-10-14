@@ -128,6 +128,10 @@ Codex requires you to trust new hooks: run `codex` then `/hooks`, review the
 rootshell entry and mark it trusted. The installer never writes
 `trusted_hash` or edits `config.toml`.
 
+Codex's Stop hook waits for the sender with a 30-second timeout. Codex can
+cancel asynchronous hooks when a one-shot `exec` exits; a synchronous,
+fail-open Stop hook lets the final notification finish before that teardown.
+
 Plugin bundles for both tools live in [plugins/](plugins/).
 
 ### What you get
@@ -179,7 +183,9 @@ A completion means the assistant turn ended, not that a larger task succeeded.
 Aborted responses are silent. Pi waits for `agent_settled`; OMP's
 `willContinue`, idle state and pending queued messages suppress intermediate
 completions. OMP's boundary does not prove that unrelated background jobs or
-a larger goal have finished. Delayed and queued input reminders are cancelled
+a larger goal have finished. OMP may still be busy during `agent_end`, so the
+extension retains a candidate and rechecks idle/pending state after dispatch
+or during normal shutdown. Delayed and queued input reminders are cancelled
 when the request resolves, a new run starts or the session changes; already
 submitted pushes cannot be recalled by the extension. OMP ask-tool events
 are only an approximation of a visible dialog: headless calls and requests

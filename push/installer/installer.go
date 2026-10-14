@@ -65,6 +65,19 @@ func (t Tool) command() string {
 	return Command + " --agent " + string(t)
 }
 
+func (t Tool) hookAsync() bool {
+	// Codex exec tears down async hooks on exit. Waiting for this fail-open
+	// sender keeps a completed one-shot turn from losing its notification.
+	return t != Codex
+}
+
+func (t Tool) hookTimeout() int {
+	if t == Codex {
+		return 30
+	}
+	return HookTimeout
+}
+
 // matchers restricts an event to specific tools; PreToolUse only fires for questions.
 var matchers = map[string]string{"PreToolUse": "AskUserQuestion"}
 
@@ -197,7 +210,7 @@ func load(path string) (map[string]any, bool, error) {
 func ourEntry(event string, t Tool) map[string]any {
 	g := map[string]any{
 		"hooks": []any{map[string]any{
-			"type": "command", "command": t.command(), "async": true, "timeout": HookTimeout, TagKey: Tag,
+			"type": "command", "command": t.command(), "async": t.hookAsync(), "timeout": t.hookTimeout(), TagKey: Tag,
 		}},
 	}
 	if m := matchers[event]; m != "" {
@@ -227,18 +240,18 @@ func groupHasOurs(g any) bool {
 
 func hookIsCurrent(h any, t Tool) bool {
 	m, ok := h.(map[string]any)
-	return ok && isOurs(m) && m["type"] == "command" && m["command"] == t.command() && m["async"] == true && timeoutIsCurrent(m["timeout"])
+	return ok && isOurs(m) && m["type"] == "command" && m["command"] == t.command() && m["async"] == t.hookAsync() && timeoutIsCurrent(m["timeout"], t.hookTimeout())
 }
 
-func timeoutIsCurrent(v any) bool {
+func timeoutIsCurrent(v any, want int) bool {
 	switch n := v.(type) {
 	case int:
-		return n == HookTimeout
+		return n == want
 	case float64:
-		return n == HookTimeout
+		return n == float64(want)
 	case json.Number:
 		i, err := n.Int64()
-		return err == nil && i == HookTimeout
+		return err == nil && i == int64(want)
 	default:
 		return false
 	}
@@ -309,8 +322,8 @@ func install(doc map[string]any, t Tool) bool {
 				if !hookIsCurrent(hm, t) {
 					hm["type"] = "command"
 					hm["command"] = t.command()
-					hm["async"] = true
-					hm["timeout"] = HookTimeout
+					hm["async"] = t.hookAsync()
+					hm["timeout"] = t.hookTimeout()
 					changed = true
 				}
 			}

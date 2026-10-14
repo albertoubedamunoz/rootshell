@@ -269,7 +269,8 @@ export default function rootshellPush(api) {
     clearBlocks();
     cancelInvalidActive();
     if (settled || event.willContinue || ctx.hasPendingMessages()) return;
-    if (AGENT === "omp" && !ctx.isIdle()) return;
+    // OMP can still be busy while notifying agent_end handlers. Retain the
+    // candidate; commitEnd checks idle/pending state after dispatch or at quit.
     const message = event.messages?.findLast((item) => item.role === "assistant");
     if (!message || !["stop", "length", "error"].includes(message.stopReason)) return;
     const id = session;
