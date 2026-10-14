@@ -1,5 +1,5 @@
-// Package installer merges the rootshell-notify hook into Claude Code and
-// Codex hook files, tagging its entries so uninstall removes exactly them.
+// Package installer installs rootshell-notify hooks and agent extensions,
+// preserving configuration and extensions belonging to the user.
 package installer
 
 import (
@@ -28,21 +28,28 @@ type Tool string
 const (
 	ClaudeCode Tool = "claude-code"
 	Codex      Tool = "codex"
+	Pi         Tool = "pi"
+	OMP        Tool = "omp"
 )
 
-var Tools = []Tool{ClaudeCode, Codex}
+var Tools = []Tool{ClaudeCode, Codex, Pi, OMP}
 
 func ParseTool(s string) (Tool, error) {
 	switch Tool(s) {
-	case ClaudeCode, Codex:
+	case ClaudeCode, Codex, Pi, OMP:
 		return Tool(s), nil
 	}
-	return "", fmt.Errorf("unknown tool %q (want claude-code or codex)", s)
+	return "", fmt.Errorf("unknown tool %q (want claude-code, codex, pi or omp)", s)
 }
 
 func (t Tool) Name() string {
-	if t == Codex {
+	switch t {
+	case Codex:
 		return "Codex"
+	case Pi:
+		return "Pi"
+	case OMP:
+		return "OMP"
 	}
 	return "Claude Code"
 }
@@ -63,17 +70,18 @@ var matchers = map[string]string{"PreToolUse": "AskUserQuestion"}
 
 // Path returns the hook file for the tool, project-local when project is set.
 func Path(t Tool, project bool) (string, error) {
-	base := "."
-	if !project {
-		var err error
-		if base, err = os.UserHomeDir(); err != nil {
-			return "", err
-		}
+	dir, err := ConfigDir(t, project)
+	if err != nil {
+		return "", err
 	}
-	if t == Codex {
-		return filepath.Join(base, ".codex", "hooks.json"), nil
+	switch t {
+	case Pi, OMP:
+		return filepath.Join(dir, "extensions", "rootshell-push.ts"), nil
+	case Codex:
+		return filepath.Join(dir, "hooks.json"), nil
+	default:
+		return filepath.Join(dir, "settings.json"), nil
 	}
-	return filepath.Join(base, ".claude", "settings.json"), nil
 }
 
 type Result struct {
@@ -89,10 +97,16 @@ type Status struct {
 }
 
 func Install(t Tool, project bool) (Result, error) {
+	if isExtension(t) {
+		return applyExtension(t, project, false)
+	}
 	return apply(t, project, func(doc map[string]any) bool { return install(doc, t) })
 }
 
 func Uninstall(t Tool, project bool) (Result, error) {
+	if isExtension(t) {
+		return applyExtension(t, project, true)
+	}
 	return apply(t, project, uninstall)
 }
 
@@ -102,6 +116,12 @@ func GetStatus(t Tool, project bool) (Status, error) {
 		return Status{}, err
 	}
 	st := Status{Tool: t, Path: path}
+	if isExtension(t) {
+		raw, exists, err := readExtension(path)
+		st.Exists = exists
+		st.Installed = exists && bytes.Equal(raw, extensionSource(t))
+		return st, err
+	}
 	doc, exists, err := load(path)
 	if err != nil {
 		return st, err

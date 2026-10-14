@@ -52,7 +52,7 @@ Commands:
   test [label]             Send a test notification to one or all devices
   send --title T [opts]    Send a custom notification
   hook --agent TOOL        Agent hook entry point (reads JSON on stdin)
-  install <tool>           Install the hook (claude-code | codex) [--project]
+  install <tool>           Install a hook (claude-code | codex | pi | omp) [--project]
   uninstall <tool>         Remove the hook [--project] [--purge] [--yes]
   status                   Show hook and pairing status
   upgrade                  Download and install the latest release
@@ -67,13 +67,13 @@ devices actions:
 setup options:
   --pair BUNDLE            Pairing bundle (or pipe it on stdin)
   --no-pair                Skip pairing; only install or refresh agent hooks
-  --hooks SPEC             auto (default) | claude-code,codex | none
-  --project                Install hooks into ./.claude or ./.codex
+  --hooks SPEC             auto (default) | claude-code,codex,pi,omp | none
+  --project                Install project-local hooks or extensions
 
 upgrade options:
   --check                  Only report; exit 3 if an update is available
   --version X.Y.Z          Install a specific version
-  --hooks SPEC             Refresh hooks afterwards: auto (default) | claude-code,codex | none
+  --hooks SPEC             Refresh hooks afterwards: auto (default) | claude-code,codex,pi,omp | none
   --server URL             Release server (default https://push.rootshell.com/releases)
 
 send options:
@@ -518,7 +518,7 @@ func cmdHook(args []string, stdin io.Reader) int {
 	}()
 	f, err := parseFlags(args)
 	if err != nil || len(f.args) != 0 || !f.has("agent") {
-		logger.Printf("usage: rootshell-notify hook --agent claude-code|codex")
+		logger.Printf("usage: rootshell-notify hook --agent claude-code|codex|pi|omp")
 		return exitOK
 	}
 	agent, err := hook.ParseAgent(f.vals["agent"])
@@ -572,7 +572,7 @@ func toolArg(args []string, stderr io.Writer, bools ...string) (installer.Tool, 
 		return "", nil, exitUsage
 	}
 	if len(f.args) != 1 {
-		fmt.Fprintln(stderr, "usage: rootshell-notify install|uninstall claude-code|codex [--project]")
+		fmt.Fprintln(stderr, "usage: rootshell-notify install|uninstall claude-code|codex|pi|omp [--project]")
 		return "", nil, exitUsage
 	}
 	t, err := installer.ParseTool(f.args[0])
@@ -618,34 +618,59 @@ func warnPath(stdout io.Writer) {
 }
 
 // hookTools resolves a --hooks spec; auto picks tools whose config dir exists.
-func hookTools(spec string) ([]installer.Tool, error) {
+func hookTools(spec string, project bool) ([]installer.Tool, error) {
+	var tools []installer.Tool
 	switch spec {
 	case "none":
 		return nil, nil
 	case "", "auto":
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, err
-		}
-		var tools []installer.Tool
 		for _, t := range installer.Tools {
-			dir := ".claude"
-			if t == installer.Codex {
-				dir = ".codex"
+			dir, err := installer.ConfigDir(t, project)
+			if err != nil {
+				return nil, err
 			}
-			if st, err := os.Stat(filepath.Join(home, dir)); err == nil && st.IsDir() {
+			if st, err := os.Stat(dir); err == nil && st.IsDir() {
 				tools = append(tools, t)
 			}
 		}
-		return tools, nil
+	default:
+		for _, s := range strings.Split(spec, ",") {
+			t, err := installer.ParseTool(strings.TrimSpace(s))
+			if err != nil {
+				return nil, err
+			}
+			tools = append(tools, t)
+		}
 	}
-	var tools []installer.Tool
-	for _, s := range strings.Split(spec, ",") {
-		t, err := installer.ParseTool(strings.TrimSpace(s))
+	paths := map[string]installer.Tool{}
+	for _, t := range tools {
+		dir, err := installer.ConfigDir(t, project)
 		if err != nil {
 			return nil, err
 		}
-		tools = append(tools, t)
+		canonical, err := filepath.Abs(dir)
+		if err != nil {
+			return nil, err
+		}
+		if resolved, err := filepath.EvalSymlinks(canonical); err == nil {
+			canonical = resolved
+		}
+		path, err := installer.Path(t, project)
+		if err != nil {
+			return nil, err
+		}
+		rel, err := filepath.Rel(dir, filepath.Dir(path))
+		if err != nil {
+			return nil, err
+		}
+		key := filepath.Join(canonical, rel, filepath.Base(path))
+		if resolved, err := filepath.EvalSymlinks(filepath.Dir(path)); err == nil {
+			key = filepath.Join(resolved, filepath.Base(path))
+		}
+		if previous, ok := paths[key]; ok && previous != t {
+			return nil, fmt.Errorf("%s and %s share extension destination %s; use separate agent directories or select only one agent with --hooks", previous, t, key)
+		}
+		paths[key] = t
 	}
 	return tools, nil
 }
@@ -656,11 +681,11 @@ func cmdSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 		}
-		fmt.Fprintln(stderr, "usage: rootshell-notify setup (--pair <bundle> | --no-pair) [--hooks auto|claude-code,codex|none] [--project]")
+		fmt.Fprintln(stderr, "usage: rootshell-notify setup (--pair <bundle> | --no-pair) [--hooks auto|claude-code,codex,pi,omp|none] [--project]")
 		return exitUsage
 	}
 	spec := f.vals["hooks"]
-	tools, err := hookTools(spec)
+	tools, err := hookTools(spec, f.has("project"))
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return exitUsage
@@ -690,7 +715,7 @@ func cmdSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func refreshHooks(tools []installer.Tool, project bool, stdout, stderr io.Writer) {
 	if len(tools) == 0 {
-		fmt.Fprintln(stdout, "No Claude Code or Codex config found; run `rootshell-notify install claude-code` or `install codex` later.")
+		fmt.Fprintln(stdout, "No agent config found; run `rootshell-notify install <claude-code|codex|pi|omp>` later.")
 		return
 	}
 	for _, t := range tools {
@@ -707,11 +732,11 @@ func cmdUpgrade(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 		}
-		fmt.Fprintln(stderr, "usage: rootshell-notify upgrade [--check] [--version x.y.z] [--hooks auto|claude-code,codex|none] [--server URL]")
+		fmt.Fprintln(stderr, "usage: rootshell-notify upgrade [--check] [--version x.y.z] [--hooks auto|claude-code,codex,pi,omp|none] [--server URL]")
 		return exitUsage
 	}
 	spec := f.vals["hooks"]
-	tools, err := hookTools(spec)
+	tools, err := hookTools(spec, false)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return exitUsage

@@ -1,4 +1,4 @@
-// Package hook turns agent hook payloads (Claude Code, Codex) into
+// Package hook turns agent hook payloads (Claude Code, Codex, Pi, OMP) into
 // notification events. Parse is pure; Route reads the environment.
 package hook
 
@@ -35,12 +35,14 @@ type Agent string
 const (
 	ClaudeCode Agent = "claude-code"
 	Codex      Agent = "codex"
+	Pi         Agent = "pi"
+	OMP        Agent = "omp"
 )
 
 // ParseAgent validates an agent identifier from the command line.
 func ParseAgent(s string) (Agent, error) {
 	switch Agent(s) {
-	case ClaudeCode, Codex:
+	case ClaudeCode, Codex, Pi, OMP:
 		return Agent(s), nil
 	default:
 		return "", fmt.Errorf("hook: unknown agent %q", s)
@@ -48,9 +50,9 @@ func ParseAgent(s string) (Agent, error) {
 }
 
 type Event struct {
-	Agent     string // claude-code | codex
-	AgentName string // Claude Code | Codex
-	Status    string // done | blocked
+	Agent     string // claude-code | codex | pi | omp
+	AgentName string // Claude Code | Codex | Pi | OMP
+	Status    string // done | blocked | failed
 	Title     string
 	Body      string
 	Thread    string
@@ -61,7 +63,43 @@ type Event struct {
 
 // Header builds the envelope header for this event with the given route.
 func (e *Event) Header(route *envelope.Route) *envelope.Header {
-	return &envelope.Header{Kind: "agent", Agent: e.Agent, Status: e.Status, Title: e.Title, Body: e.Body, Thread: e.Thread, Route: route}
+	title := e.Title
+	if route != nil && route.Host != "" {
+		host := route.Host
+		if i := strings.LastIndexByte(host, '@'); i >= 0 {
+			host = host[i+1:]
+		}
+		if host != "" {
+			title = "[" + host + "] " + title
+		}
+	}
+	if r := []rune(title); len(r) > envelope.MaxTitleLen {
+		title = string(r[:envelope.MaxTitleLen-1]) + "…"
+	}
+	h := &envelope.Header{Kind: "agent", Agent: e.Agent, Status: e.Status, Title: title, Body: e.Body, Thread: e.Thread, Route: route}
+	// The title shares the APNs byte budget with multibyte text and routing
+	// hints. Shorten presentation text, never the route used to resolve taps.
+	for {
+		raw, _ := json.Marshal(h)
+		if len(raw) <= envelope.MaxHeaderBytes {
+			return h
+		}
+		if h.Body != "" {
+			h.Body = shorten(h.Body)
+		} else if h.Title != "" {
+			h.Title = shorten(h.Title)
+		} else {
+			return h
+		}
+	}
+}
+
+func shorten(s string) string {
+	r := []rune(strings.TrimSuffix(s, "…"))
+	if len(r) <= 1 {
+		return ""
+	}
+	return string(r[:len(r)-1]) + "…"
 }
 
 type payload struct {
@@ -77,6 +115,11 @@ type payload struct {
 	TurnID               string          `json:"turn_id"`
 	ToolName             string          `json:"tool_name"`
 	ToolInput            json.RawMessage `json:"tool_input"`
+
+	// Normalized lifecycle events from the installed Pi/OMP extensions.
+	EventID      string `json:"event_id"`
+	StopReason   string `json:"stop_reason"`
+	WillContinue bool   `json:"will_continue"`
 
 	// Codex legacy `notify` payload.
 	Type                string `json:"type"`
@@ -100,9 +143,46 @@ func Parse(agent Agent, data []byte) (*Event, error) {
 			return parseCodexLegacy(&p)
 		}
 		return parseCodex(&p)
+	case Pi, OMP:
+		return parseExtension(agent, &p)
 	default:
 		return nil, fmt.Errorf("hook: unknown agent %q", agent)
 	}
+}
+
+func parseExtension(agent Agent, p *payload) (*Event, error) {
+	if p.WillContinue {
+		return nil, ErrIgnore
+	}
+	if p.HookEventName != "agent_end" && p.HookEventName != "input_required" {
+		return nil, ErrIgnore
+	}
+	if strings.TrimSpace(p.SessionID) == "" || strings.TrimSpace(p.EventID) == "" {
+		return nil, errors.New("hook: extension event requires session_id and event_id")
+	}
+	name := "Pi"
+	if agent == OMP {
+		name = "OMP"
+	}
+	e := &Event{Agent: string(agent), AgentName: name, SessionID: p.SessionID, Cwd: p.Cwd}
+	if p.HookEventName == "input_required" {
+		e.Status = "blocked"
+		e.Body = Summarize(p.Message, MaxBody)
+	} else {
+		switch p.StopReason {
+		case "aborted", "toolUse":
+			return nil, ErrIgnore
+		case "error":
+			e.Status = "failed"
+		case "", "stop", "length":
+			e.Status = "done"
+		default:
+			return nil, ErrIgnore
+		}
+		e.Body = Summarize(p.LastAssistantMessage, MaxBody)
+	}
+	finish(e, p.HookEventName, p.EventID)
+	return e, nil
 }
 
 func parseClaude(p *payload) (*Event, error) {
