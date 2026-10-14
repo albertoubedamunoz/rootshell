@@ -14,6 +14,7 @@ test:
 	go vet ./...
 	go test ./...
 	$(MAKE) test-extensions
+	python3 installer/hermes_test.py
 
 test-extensions:
 	node --test installer/adapter.test.mjs

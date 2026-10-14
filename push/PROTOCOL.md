@@ -109,7 +109,7 @@ showing twice.
 |----------|----------|----------------------------------------------------------|
 | `v`      | yes      | `1`                                                      |
 | `kind`   | yes      | `agent` or `generic`                                     |
-| `agent`  | no       | `claude-code`, `codex`, `pi`, `omp`, ...                  |
+| `agent`  | no       | `claude-code`, `codex`, `pi`, `omp`, `hermes`, ...        |
 | `status` | no       | `done`, `blocked`, `failed`, `info`                      |
 | `title`  | yes      | at most 120 characters                                   |
 | `body`   | no       | at most 600 characters (senders use 200 for summaries)   |

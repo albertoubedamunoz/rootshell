@@ -1,4 +1,4 @@
-// Package hook turns agent hook payloads (Claude Code, Codex, Pi, OMP) into
+// Package hook turns agent hook payloads (Claude Code, Codex, Pi, OMP, Hermes) into
 // notification events. Parse is pure; Route reads the environment.
 package hook
 
@@ -37,12 +37,13 @@ const (
 	Codex      Agent = "codex"
 	Pi         Agent = "pi"
 	OMP        Agent = "omp"
+	Hermes     Agent = "hermes"
 )
 
 // ParseAgent validates an agent identifier from the command line.
 func ParseAgent(s string) (Agent, error) {
 	switch Agent(s) {
-	case ClaudeCode, Codex, Pi, OMP:
+	case ClaudeCode, Codex, Pi, OMP, Hermes:
 		return Agent(s), nil
 	default:
 		return "", fmt.Errorf("hook: unknown agent %q", s)
@@ -50,8 +51,8 @@ func ParseAgent(s string) (Agent, error) {
 }
 
 type Event struct {
-	Agent     string // claude-code | codex | pi | omp
-	AgentName string // Claude Code | Codex | Pi | OMP
+	Agent     string // claude-code | codex | pi | omp | hermes
+	AgentName string // Claude Code | Codex | Pi | OMP | Hermes
 	Status    string // done | blocked | failed
 	Title     string
 	Body      string
@@ -116,7 +117,7 @@ type payload struct {
 	ToolName             string          `json:"tool_name"`
 	ToolInput            json.RawMessage `json:"tool_input"`
 
-	// Normalized lifecycle events from the installed Pi/OMP extensions.
+	// Normalized lifecycle events from the installed extensions and plugins.
 	EventID      string `json:"event_id"`
 	StopReason   string `json:"stop_reason"`
 	WillContinue bool   `json:"will_continue"`
@@ -143,7 +144,7 @@ func Parse(agent Agent, data []byte) (*Event, error) {
 			return parseCodexLegacy(&p)
 		}
 		return parseCodex(&p)
-	case Pi, OMP:
+	case Pi, OMP, Hermes:
 		return parseExtension(agent, &p)
 	default:
 		return nil, fmt.Errorf("hook: unknown agent %q", agent)
@@ -163,6 +164,8 @@ func parseExtension(agent Agent, p *payload) (*Event, error) {
 	name := "Pi"
 	if agent == OMP {
 		name = "OMP"
+	} else if agent == Hermes {
+		name = "Hermes"
 	}
 	e := &Event{Agent: string(agent), AgentName: name, SessionID: p.SessionID, Cwd: p.Cwd}
 	if p.HookEventName == "input_required" {

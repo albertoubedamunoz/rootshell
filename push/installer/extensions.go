@@ -32,6 +32,8 @@ func ConfigDir(t Tool, project bool) (string, error) {
 		dotDir = ".pi"
 	case OMP:
 		dotDir = ".omp"
+	case Hermes:
+		dotDir = ".hermes"
 	default:
 		return "", fmt.Errorf("unknown tool %q", t)
 	}
@@ -41,6 +43,12 @@ func ConfigDir(t Tool, project bool) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
+	}
+	if t == Hermes {
+		if value := os.Getenv("HERMES_HOME"); value != "" {
+			return expandHermesHome(value, home)
+		}
+		dotDir += os.Getenv("HERMES_DATA_DIR_SUFFIX")
 	}
 	if isExtension(t) {
 		if t == OMP {

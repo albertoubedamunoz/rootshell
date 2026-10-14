@@ -30,16 +30,17 @@ const (
 	Codex      Tool = "codex"
 	Pi         Tool = "pi"
 	OMP        Tool = "omp"
+	Hermes     Tool = "hermes"
 )
 
-var Tools = []Tool{ClaudeCode, Codex, Pi, OMP}
+var Tools = []Tool{ClaudeCode, Codex, Pi, OMP, Hermes}
 
 func ParseTool(s string) (Tool, error) {
 	switch Tool(s) {
-	case ClaudeCode, Codex, Pi, OMP:
+	case ClaudeCode, Codex, Pi, OMP, Hermes:
 		return Tool(s), nil
 	}
-	return "", fmt.Errorf("unknown tool %q (want claude-code, codex, pi or omp)", s)
+	return "", fmt.Errorf("unknown tool %q (want claude-code, codex, pi, omp or hermes)", s)
 }
 
 func (t Tool) Name() string {
@@ -50,6 +51,8 @@ func (t Tool) Name() string {
 		return "Pi"
 	case OMP:
 		return "OMP"
+	case Hermes:
+		return "Hermes"
 	}
 	return "Claude Code"
 }
@@ -88,6 +91,8 @@ func Path(t Tool, project bool) (string, error) {
 		return "", err
 	}
 	switch t {
+	case Hermes:
+		return filepath.Join(dir, "plugins", "rootshell-push", "__init__.py"), nil
 	case Pi, OMP:
 		return filepath.Join(dir, "extensions", "rootshell-push.ts"), nil
 	case Codex:
@@ -110,6 +115,9 @@ type Status struct {
 }
 
 func Install(t Tool, project bool) (Result, error) {
+	if t == Hermes {
+		return applyHermes(project, false)
+	}
 	if isExtension(t) {
 		return applyExtension(t, project, false)
 	}
@@ -117,6 +125,9 @@ func Install(t Tool, project bool) (Result, error) {
 }
 
 func Uninstall(t Tool, project bool) (Result, error) {
+	if t == Hermes {
+		return applyHermes(project, true)
+	}
 	if isExtension(t) {
 		return applyExtension(t, project, true)
 	}
@@ -129,6 +140,25 @@ func GetStatus(t Tool, project bool) (Status, error) {
 		return Status{}, err
 	}
 	st := Status{Tool: t, Path: path}
+	if t == Hermes {
+		if err := checkHermesPath(path); err != nil {
+			st.Exists = true
+			return st, err
+		}
+		current := true
+		for _, file := range hermesFiles(path) {
+			raw, exists, err := readExtension(file.path)
+			if err != nil {
+				return st, err
+			}
+			st.Exists = st.Exists || exists
+			if !exists || !bytes.Equal(raw, file.source) {
+				current = false
+			}
+		}
+		st.Installed = current
+		return st, nil
+	}
 	if isExtension(t) {
 		raw, exists, err := readExtension(path)
 		st.Exists = exists

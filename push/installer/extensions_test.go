@@ -16,7 +16,7 @@ func TestExtensionToolPaths(t *testing.T) {
 	for _, key := range []string{"PI_CODING_AGENT_DIR", "PI_AGENT_DIR", "OMP_CODING_AGENT_DIR", "OMP_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE", "PI_CONFIG_DIR"} {
 		t.Setenv(key, "")
 	}
-	if !reflect.DeepEqual(Tools, []Tool{ClaudeCode, Codex, Pi, OMP}) {
+	if !reflect.DeepEqual(Tools, []Tool{ClaudeCode, Codex, Pi, OMP, Hermes}) {
 		t.Fatalf("tools: %v", Tools)
 	}
 	for _, tc := range []struct {

@@ -2,7 +2,7 @@
 
 End-to-end encrypted push notifications from your computers to the rootshell
 app. `rootshell-notify` is a small, dependency-free Go binary that AI coding
-agents (Claude Code, Codex, Pi and Oh My Pi) call from their hooks or extensions
+agents (Claude Code, Codex, Pi, Oh My Pi and Hermes) call from their hooks, extensions or plugins
 when a turn finishes. Supported input requests also notify when the agent is
 waiting on you. It works as a plain `send` command from scripts too.
 
@@ -24,7 +24,7 @@ curl -fsSL https://push.rootshell.com/install.sh | sh -s -- --pair 'rspair1....'
 This installs `rootshell-notify` into `~/.local/bin`, pairs with the device,
 sends a test notification, and installs the hook for every agent it finds
 (`~/.claude` for Claude Code, `~/.codex` for Codex, `~/.pi/agent` for Pi,
-`~/.omp/agent` for Oh My Pi). If the binary is already at the current version
+`~/.omp/agent` for Oh My Pi, `~/.hermes` for Hermes). If the binary is already at the current version
 the download is skipped.
 
 Installer options:
@@ -32,8 +32,8 @@ Installer options:
 | Flag              | Effect                                                |
 |-------------------|-------------------------------------------------------|
 | `--pair <bundle>` | Run `rootshell-notify setup` after installing         |
-| `--hooks <spec>`  | `auto` (default), a comma-separated list of `claude-code,codex,pi,omp`, or `none` |
-| `--project`       | Install into `./.claude`, `./.codex`, `./.pi` or `./.omp` |
+| `--hooks <spec>`  | `auto` (default), a comma-separated list of `claude-code,codex,pi,omp,hermes`, or `none` |
+| `--project`       | Install into `./.claude`, `./.codex`, `./.pi`, `./.omp` or `./.hermes` |
 | `--system`        | Install to `/usr/local/bin` (sudo if needed)          |
 
 The script downloads one binary, verifies its SHA-256 against a table
@@ -111,6 +111,8 @@ rootshell-notify install claude-code     # merges into ~/.claude/settings.json
 rootshell-notify install codex           # merges into ~/.codex/hooks.json
 rootshell-notify install pi              # ~/.pi/agent/extensions/rootshell-push.ts
 rootshell-notify install omp             # ~/.omp/agent/extensions/rootshell-push.ts
+rootshell-notify install hermes          # ~/.hermes/plugins/rootshell-push/
+hermes plugins enable rootshell-push     # Hermes plugins require explicit activation
 ```
 
 Add `--project` for project-local installation. Claude Code and Codex use
@@ -149,6 +151,9 @@ Plugin bundles for both tools live in [plugins/](plugins/).
 | Pi          | Interactive UI prompt still pending after 2 seconds | blocked |
 | OMP         | Interactive `ask` still running after 2 seconds   | blocked |
 | OMP         | Tool approval request still pending after 2 seconds | blocked |
+| Hermes      | `on_session_end`, completed interactive turn       | done    |
+| Hermes      | Failed or incomplete interactive turn             | failed  |
+| Hermes      | Human input request (questions and approval)       | blocked |
 
 Claude Code subagent stops, re-entrant stop hooks, other PreToolUse tools and other
 notification types are ignored. The hooks never answer or approve anything;
@@ -206,6 +211,34 @@ sender's existing pane/tmux/herdr environment. Without a matching terminal
 route the notification can still arrive, but a tap cannot recreate a session.
 Pi/OMP thumbnails require a rootshell app release bundling the new logo
 resources; older apps can still decrypt and display the notification text.
+
+### Hermes plugin
+
+The installer writes a dependency-free Python plugin and YAML manifest to
+`~/.hermes/plugins/rootshell-push/`, or under `HERMES_HOME` when set. Enable it
+with `hermes plugins enable rootshell-push` and restart Hermes. `status` reports
+whether the managed files are current; plugin activation is shown by
+`hermes plugins list`. The installer does not rewrite Hermes's YAML config.
+Project installation uses `./.hermes/plugins/rootshell-push/`; Hermes also
+requires `HERMES_ENABLE_PROJECT_PLUGINS=1` to discover project plugins.
+
+The plugin caches the final `post_llm_call` response, then waits for
+`on_session_end` to classify the turn as done or failed. Interrupted turns,
+session cleanup and messaging/gateway platforms do not notify. Only interactive
+`cli`, `tui`, `desktop` and `acp` turns are eligible. Newer Hermes versions use
+`on_human_input_request`; older versions fall back to `pre_approval_request`
+(human surfaces only). Clarify-question waiting notifications require the newer
+human-input observer; legacy pre-tool calls cannot establish that a human
+actually needs to respond. Automated smart approvals are silent. Plugins only
+observe these events; they never answer or approve them.
+
+Each turn or human request has a deduplication ID. A serial Python executor
+runs the sender off the hook callback and drains at normal interpreter exit,
+so one-shot completions survive shutdown. Each sender is bounded to 30 seconds;
+missing binaries and delivery errors cannot fail the Hermes turn.
+Managed Python and manifest files carry content hashes: installation and
+removal refuse foreign or edited files, preserve unrelated plugin files,
+and back up the first managed version before updates or removal.
 
 ## What is sent
 
@@ -269,7 +302,7 @@ to GitHub releases), verifies its SHA-256, replaces the running binary in
 place, runs the new binary's `version` to confirm it works, and then
 refreshes the agent hooks the same way `setup --no-pair` does. Pairings are
 never touched. Options: `--version x.y.z` pins a release, `--hooks
-auto|claude-code,codex,pi,omp|none` controls the hook refresh, `--server URL`
+auto|claude-code,codex,pi,omp,hermes|none` controls the hook refresh, `--server URL`
 overrides the release server.
 
 If the binary lives in `/usr/local/bin` (installed with `--system`), the
@@ -289,6 +322,8 @@ rootshell-notify uninstall claude-code
 rootshell-notify uninstall codex
 rootshell-notify uninstall pi
 rootshell-notify uninstall omp
+hermes plugins disable rootshell-push
+rootshell-notify uninstall hermes
 rootshell-notify uninstall claude-code --purge   # also deletes ~/.config/rootshell-push
 rm ~/.local/bin/rootshell-notify
 ```
@@ -317,6 +352,8 @@ Requires Go 1.26 or later. The sender uses the standard library only. Running
 the Pi/OMP extension behavior tests also requires Node.js 22 or later; the
 installed extensions run in their agent's own Node.js/Bun runtime and have no
 additional package dependencies.
+Hermes plugin behavior tests require Python 3.9 or later; the installed plugin
+uses Hermes's existing Python runtime and standard library only.
 
 ```sh
 cd push
@@ -336,6 +373,18 @@ ROOTSHELL_OMP_BIN="$(command -v omp)" node installer/loader-smoke.mjs
 This checks extension loading and event registration, not a model turn or
 physical-device notification delivery.
 
+An opt-in Hermes smoke check uses the installed Hermes loader and runs a real
+agent turn against a local OpenAI-compatible fixture. It checks final response,
+completion classification, plugin registration and sender subprocess delivery,
+without accessing the real model or relay:
+
+```sh
+HERMES_AGENT_DIR="$HOME/.hermes/hermes-agent" \
+HERMES_DISABLE_LAZY_INSTALLS=1 \
+  "$HOME/.hermes/hermes-agent/venv/bin/python" \
+  installer/hermes-smoke.py ./rootshell-notify
+```
+
 Build output under `dist/` is never committed. Releases are built locally
 with `make release VERSION=x.y.z`, published to `push.rootshell.com/releases/`
 with `deploy/publish-client.sh` from the relay repo, and optionally attached
@@ -349,6 +398,6 @@ to a GitHub Release tagged `push/vx.y.z` (the installer's fallback source).
 | `config/`     | Paired device store and log file                       |
 | `client/`     | Relay HTTP client                                      |
 | `hook/`       | Agent payload parsing, summarization, redaction        |
-| `installer/`  | Hook file merging and embedded Pi / OMP extensions     |
+| `installer/`  | Hook file merging, embedded Pi / OMP extensions and Hermes plugin |
 | `cmd/rootshell-notify/` | The CLI                                      |
 | `plugins/`    | Plugin bundles for Claude Code and Codex               |

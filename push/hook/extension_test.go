@@ -66,7 +66,7 @@ func TestHostPrefixFitsExistingEnvelopeBudget(t *testing.T) {
 }
 
 func TestExtensionAgentEvents(t *testing.T) {
-	for _, agent := range []string{"pi", "omp"} {
+	for _, agent := range []string{"pi", "omp", "hermes"} {
 		t.Run(agent, func(t *testing.T) {
 			a, err := ParseAgent(agent)
 			if err != nil {
@@ -75,6 +75,8 @@ func TestExtensionAgentEvents(t *testing.T) {
 			name := "Pi"
 			if agent == "omp" {
 				name = "OMP"
+			} else if agent == "hermes" {
+				name = "Hermes"
 			}
 			for _, tc := range []struct {
 				event, stop, message, wantStatus, wantBody string

@@ -52,7 +52,7 @@ Commands:
   test [label]             Send a test notification to one or all devices
   send --title T [opts]    Send a custom notification
   hook --agent TOOL        Agent hook entry point (reads JSON on stdin)
-  install <tool>           Install a hook (claude-code | codex | pi | omp) [--project]
+  install <tool>           Install a hook (claude-code | codex | pi | omp | hermes) [--project]
   uninstall <tool>         Remove the hook [--project] [--purge] [--yes]
   status                   Show hook and pairing status
   upgrade                  Download and install the latest release
@@ -67,13 +67,13 @@ devices actions:
 setup options:
   --pair BUNDLE            Pairing bundle (or pipe it on stdin)
   --no-pair                Skip pairing; only install or refresh agent hooks
-  --hooks SPEC             auto (default) | claude-code,codex,pi,omp | none
+  --hooks SPEC             auto (default) | claude-code,codex,pi,omp,hermes | none
   --project                Install project-local hooks or extensions
 
 upgrade options:
   --check                  Only report; exit 3 if an update is available
   --version X.Y.Z          Install a specific version
-  --hooks SPEC             Refresh hooks afterwards: auto (default) | claude-code,codex,pi,omp | none
+  --hooks SPEC             Refresh hooks afterwards: auto (default) | claude-code,codex,pi,omp,hermes | none
   --server URL             Release server (default https://push.rootshell.com/releases)
 
 send options:
@@ -518,7 +518,7 @@ func cmdHook(args []string, stdin io.Reader) int {
 	}()
 	f, err := parseFlags(args)
 	if err != nil || len(f.args) != 0 || !f.has("agent") {
-		logger.Printf("usage: rootshell-notify hook --agent claude-code|codex|pi|omp")
+		logger.Printf("usage: rootshell-notify hook --agent claude-code|codex|pi|omp|hermes")
 		return exitOK
 	}
 	agent, err := hook.ParseAgent(f.vals["agent"])
@@ -572,7 +572,7 @@ func toolArg(args []string, stderr io.Writer, bools ...string) (installer.Tool, 
 		return "", nil, exitUsage
 	}
 	if len(f.args) != 1 {
-		fmt.Fprintln(stderr, "usage: rootshell-notify install|uninstall claude-code|codex|pi|omp [--project]")
+		fmt.Fprintln(stderr, "usage: rootshell-notify install|uninstall claude-code|codex|pi|omp|hermes [--project]")
 		return "", nil, exitUsage
 	}
 	t, err := installer.ParseTool(f.args[0])
@@ -607,6 +607,8 @@ func installHook(t installer.Tool, project bool, stdout io.Writer) error {
 	}
 	if t == installer.Codex {
 		fmt.Fprintln(stdout, installer.CodexTrustNote)
+	} else if t == installer.Hermes {
+		fmt.Fprintln(stdout, installer.HermesEnableNote)
 	}
 	return nil
 }
@@ -681,7 +683,7 @@ func cmdSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 		}
-		fmt.Fprintln(stderr, "usage: rootshell-notify setup (--pair <bundle> | --no-pair) [--hooks auto|claude-code,codex,pi,omp|none] [--project]")
+		fmt.Fprintln(stderr, "usage: rootshell-notify setup (--pair <bundle> | --no-pair) [--hooks auto|claude-code,codex,pi,omp,hermes|none] [--project]")
 		return exitUsage
 	}
 	spec := f.vals["hooks"]
@@ -715,7 +717,7 @@ func cmdSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func refreshHooks(tools []installer.Tool, project bool, stdout, stderr io.Writer) {
 	if len(tools) == 0 {
-		fmt.Fprintln(stdout, "No agent config found; run `rootshell-notify install <claude-code|codex|pi|omp>` later.")
+		fmt.Fprintln(stdout, "No agent config found; run `rootshell-notify install <claude-code|codex|pi|omp|hermes>` later.")
 		return
 	}
 	for _, t := range tools {
@@ -732,7 +734,7 @@ func cmdUpgrade(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 		}
-		fmt.Fprintln(stderr, "usage: rootshell-notify upgrade [--check] [--version x.y.z] [--hooks auto|claude-code,codex,pi,omp|none] [--server URL]")
+		fmt.Fprintln(stderr, "usage: rootshell-notify upgrade [--check] [--version x.y.z] [--hooks auto|claude-code,codex,pi,omp,hermes|none] [--server URL]")
 		return exitUsage
 	}
 	spec := f.vals["hooks"]

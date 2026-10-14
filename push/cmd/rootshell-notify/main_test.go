@@ -275,7 +275,7 @@ func TestExtensionHooksDeliverNativeAgentNotifications(t *testing.T) {
 	if err := cfg.Save(); err != nil {
 		t.Fatal(err)
 	}
-	for _, agent := range []string{"pi", "omp"} {
+	for _, agent := range []string{"pi", "omp", "hermes"} {
 		for _, eventID := range []string{"run-1", "run-1", "run-2"} {
 			in := `{"hook_event_name":"agent_end","session_id":"s-1","event_id":"` + eventID +
 				`","cwd":"/srv/app","last_assistant_message":"Done. password=hunter2","stop_reason":"stop"}`
@@ -288,12 +288,14 @@ func TestExtensionHooksDeliverNativeAgentNotifications(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(received) != 6 {
-		t.Fatalf("want six encrypted deliveries, got %d", len(received))
+	if len(received) != 9 {
+		t.Fatalf("want nine encrypted deliveries, got %d", len(received))
 	}
 	for i, d := range received {
 		agent, name := "pi", "Pi"
-		if i >= 3 {
+		if i >= 6 {
+			agent, name = "hermes", "Hermes"
+		} else if i >= 3 {
 			agent, name = "omp", "OMP"
 		}
 		h := d.header
@@ -303,7 +305,7 @@ func TestExtensionHooksDeliverNativeAgentNotifications(t *testing.T) {
 			t.Fatalf("decrypted header: %+v", h)
 		}
 	}
-	for _, start := range []int{0, 3} {
+	for _, start := range []int{0, 3, 6} {
 		a, b, c := received[start], received[start+1], received[start+2]
 		if a.eid != b.eid || a.eid == c.eid || a.header.Thread != c.header.Thread {
 			t.Fatalf("deduplication/grouping: %+v %+v %+v", a, b, c)
