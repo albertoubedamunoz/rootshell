@@ -69,6 +69,7 @@ struct MainView: View {
     /// Relays the joined Integrated tab's span to the split views' card rims.
     @State var integratedTabJoin = IntegratedTabJoin()
     @State var integratedTabSurface = IntegratedTabSurface()
+    @State var paneCardGaps = PaneCardGaps()
     @State var lifecycleScenePhase: ScenePhase = {
         switch UIApplication.shared.applicationState {
         case .active:

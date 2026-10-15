@@ -40,6 +40,8 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     var paneUnderlay: PaneUnderlayModel?
     /// Receives this tab's top-row pane backgrounds for the Integrated tab.
     var integratedTabSurface: IntegratedTabSurface?
+    /// Receives this tab's split gaps for the window-wide effect's clip.
+    var paneCardGaps: PaneCardGaps?
     var tabID: UUID?
 
     func makeUIView(context: Context) -> SplitTreeHostingView {
@@ -55,7 +57,9 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.integratedTabJoin = integratedTabJoin
         uiView.surfaceTabID = tabID
         uiView.integratedTabSurface = integratedTabSurface
-        uiView.tracksSwipe = tracksSwipe && (integratedTabJoin != nil || integratedTabSurface != nil)
+        uiView.paneCardGaps = paneCardGaps
+        uiView.tracksSwipe = tracksSwipe
+            && (integratedTabJoin != nil || integratedTabSurface != nil || paneCardGaps != nil)
         uiView.onResize = onResize
         uiView.onMove = onMove
         uiView.allowsPaneRearrangement = allowsPaneRearrangement
@@ -72,6 +76,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.integratedTabJoin = nil
         uiView.tracksSwipe = false
         uiView.integratedTabSurface = nil
+        uiView.paneCardGaps = nil
     }
 }
 
@@ -119,6 +124,14 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         }
     }
 
+    var paneCardGaps: PaneCardGaps? {
+        didSet {
+            guard oldValue !== paneCardGaps else { return }
+            if let surfaceTabID { oldValue?.update(nil, for: surfaceTabID, from: self) }
+            pushPaneCardGaps()
+        }
+    }
+
     /// Rounded Panes rim colors, from the tab's terminal surface.
     var cardRimPalette: IntegratedTabEdgePalette = .fallback {
         didSet {
@@ -155,6 +168,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
             } else {
                 updateCardDepth()
                 pushIntegratedTabSurface()
+                pushPaneCardGaps()
             }
         }
     }
@@ -724,6 +738,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         updateCardDepth()
         pushPaneUnderlay()
         pushIntegratedTabSurface()
+        pushPaneCardGaps()
         hasCompletedHerdrLayout = true
         // Push from full `bounds` (inside this call), unaffected by `layoutRect`,
         // so tmux reclaims our full size when the foreign client detaches.
@@ -1826,6 +1841,28 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
                                     for: surfaceTabID, from: self)
     }
 
+    /// The gaps between this tab's cards and where it sits on screen, so the
+    /// window-wide effect leaves them to whatever lies behind the cards.
+    private func pushPaneCardGaps() {
+        guard let paneCardGaps, let surfaceTabID else { return }
+        let cards = roundsPanes ? cardDepthCards().map(\.container.frame) : []
+        guard cards.count > 1, let window else {
+            paneCardGaps.update(nil, for: surfaceTabID, from: self)
+            return
+        }
+        let panes = CGMutablePath()
+        for card in cards {
+            panes.addPath(UIBezierPath(roundedRect: card, cornerRadius: PaneCardStyle.cornerRadius).cgPath)
+        }
+        // A swipe animates this view, so read where it is on screen.
+        let origin = tracksSwipe
+            ? (layer.presentation() ?? layer).convert(CGPoint.zero, to: window.layer.presentation() ?? window.layer)
+            : convert(CGPoint.zero, to: nil)
+        var transform = CGAffineTransform(translationX: origin.x, y: origin.y)
+        let gaps = CGPath(rect: bounds, transform: nil).subtracting(panes)
+        paneCardGaps.update(gaps.copy(using: &transform), for: surfaceTabID, from: self)
+    }
+
     private func resolvedBorderColor() -> UIColor {
         let store = SettingsStore.shared
         switch store.value(Settings.Window.splitFocusBorderColor) {
@@ -1866,6 +1903,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
     @objc private func swipeFrame() {
         updateCardDepth()
         pushIntegratedTabSurface()
+        pushPaneCardGaps()
     }
 
     /// Attached cards and whether each draws a rim (a focus border already

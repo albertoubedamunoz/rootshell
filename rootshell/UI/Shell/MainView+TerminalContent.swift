@@ -718,6 +718,14 @@ extension MainView {
         }
     }
 
+    /// Tabs whose split gaps the effect skips: those on screen, unless exposé
+    /// or a full-size panel stands in for them.
+    var effectGapTabIDs: [UUID] {
+        guard roundedPanes, !tabExpose.isActive, !fullPanelHidesTerminal else { return [] }
+        if let swipe = appTabSwipeState { return [swipe.sourceTabID, swipe.targetTabID] }
+        return tabsModel.displayedTabID.map { [$0] } ?? []
+    }
+
     /// The effect overlay layer (ocean, CRT, etc.)
     @ViewBuilder
     func effectOverlay(leadingExtension: CGFloat) -> some View {
@@ -745,7 +753,9 @@ extension MainView {
                         sidebarWidth: leadingExtension,
                         topExtension: topExtension,
                         origin: effectFrame.origin,
-                        join: topExtension > 0 ? integratedTabJoin : nil))
+                        join: topExtension > 0 ? integratedTabJoin : nil,
+                        gaps: paneCardGaps,
+                        gapTabIDs: effectGapTabIDs))
                     .offset(x: -leadingExtension, y: -topExtension)
                     // Use different blend mode for light vs dark themes
                     .blendMode(effectManager.isLightTheme ? .multiply : .plusLighter)
@@ -1180,6 +1190,7 @@ extension MainView {
                                 paneUnderlay: tab.paneUnderlay,
                                 integratedTabSurface: topTabStyle == .integrated && showsHorizontalTabHeader
                                     ? integratedTabSurface : nil,
+                                paneCardGaps: roundedPanes ? paneCardGaps : nil,
                                 tabID: tab.id
                             )
                             // NOTE: the tmux control-mode client size is NOT driven from here.
