@@ -109,9 +109,9 @@ def main():
             assert result["final_response"] == "Hermes rootshell smoke completed.", result
             second = agent.run_conversation("Reply with the completion message again.")
             assert second["completed"], second
-            # A real one-shot process drains this executor automatically. Join
-            # it explicitly here so the smoke can inspect the subprocess output.
-            loaded.module._delivery.shutdown(wait=True)
+            # A real one-shot process drains at exit. Drain explicitly here so
+            # the smoke can inspect the subprocess output.
+            loaded.module._drain()
             events = [json.loads(line) for line in capture.read_text().splitlines()]
             assert len(events) == 2, events
             assert events[0]["event_id"] != events[1]["event_id"], events

@@ -60,7 +60,8 @@ func checkHermesPath(path string) error {
 
 func hermesFiles(path string) []hermesFile {
 	source := []byte(fmt.Sprintf("# rootshell-notify managed plugin v1 hermes sha256=%x\n%s", sha256.Sum256([]byte(hermesTemplate)), hermesTemplate))
-	body := []byte("name: rootshell-push\nversion: \"0.1.0\"\ndescription: Encrypted rootshell notifications for interactive Hermes turns\nprovides_hooks:\n  - pre_llm_call\n  - post_llm_call\n  - on_session_end\n  - pre_approval_request\n")
+	// Lists what current Hermes registers; older hosts get the approval-hook fallback.
+	body := []byte("name: rootshell-push\nversion: \"0.1.0\"\ndescription: Encrypted rootshell notifications for interactive Hermes turns\nprovides_hooks:\n  - pre_llm_call\n  - post_llm_call\n  - on_session_end\n  - on_human_input_request\n  - on_human_input_resolved\n")
 	manifest := append([]byte(fmt.Sprintf("# rootshell-notify managed manifest v1 hermes sha256=%x\n", sha256.Sum256(body))), body...)
 	return []hermesFile{{path, source}, {filepath.Join(filepath.Dir(path), "plugin.yaml"), manifest}}
 }

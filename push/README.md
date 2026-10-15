@@ -130,9 +130,9 @@ Codex requires you to trust new hooks: run `codex` then `/hooks`, review the
 rootshell entry and mark it trusted. The installer never writes
 `trusted_hash` or edits `config.toml`.
 
-Codex's Stop hook waits for the sender with a 30-second timeout. Codex can
-cancel asynchronous hooks when a one-shot `exec` exits; a synchronous,
-fail-open Stop hook lets the final notification finish before that teardown.
+Codex can cancel asynchronous hooks when a one-shot `exec` exits, so its Stop
+hook is synchronous. The sender only hands the payload to a detached child
+process and returns, so interactive turns do not wait for delivery.
 
 Plugin bundles for both tools live in [plugins/](plugins/).
 
@@ -189,14 +189,15 @@ Aborted responses are silent. Pi waits for `agent_settled`; OMP's
 `willContinue`, idle state and pending queued messages suppress intermediate
 completions. OMP's boundary does not prove that unrelated background jobs or
 a larger goal have finished. OMP may still be busy during `agent_end`, so the
-extension retains a candidate and rechecks idle/pending state after dispatch
-or during normal shutdown. Delayed and queued input reminders are cancelled
-when the request resolves, a new run starts or the session changes; already
-submitted pushes cannot be recalled by the extension. OMP ask-tool events
-are only an approximation of a visible dialog: headless calls and requests
-resolved within two seconds are ignored. Pi observes its real
-`ui_prompt_start` / `ui_prompt_end` events, not invented ask or approval
-events; these do not cover arbitrary third-party permission interfaces.
+extension retains a candidate and rechecks idle/pending state every 100 ms
+(for up to a minute) or during normal shutdown. Delayed and queued input
+reminders are cancelled when the request resolves, a new run starts or the
+session changes; already submitted pushes cannot be recalled by the
+extension. OMP ask-tool events are only an approximation of a visible
+dialog: headless calls and requests resolved within two seconds are ignored.
+Pi observes its real `ui_prompt_start` / `ui_prompt_end` events, not invented
+ask or approval events; these do not cover arbitrary third-party permission
+interfaces.
 
 User-level directory overrides follow the agents' settings:
 `PI_CODING_AGENT_DIR` for Pi, and OMP's `PI_CONFIG_DIR`, `OMP_PROFILE`
@@ -226,15 +227,21 @@ The plugin caches the final `post_llm_call` response, then waits for
 `on_session_end` to classify the turn as done or failed. Interrupted turns,
 session cleanup and messaging/gateway platforms do not notify. Only interactive
 `cli`, `tui`, `desktop` and `acp` turns are eligible. Newer Hermes versions use
-`on_human_input_request`; older versions fall back to `pre_approval_request`
-(human surfaces only). Clarify-question waiting notifications require the newer
+`on_human_input_request` and `on_human_input_resolved`; older versions fall
+back to `pre_approval_request` and `post_approval_response` (human surfaces
+only). Like the Pi and OMP extensions, a waiting notification is sent only
+if the request is still unanswered after 2 seconds. Clarify-question waiting notifications require the newer
 human-input observer; legacy pre-tool calls cannot establish that a human
 actually needs to respond. Automated smart approvals are silent. Plugins only
 observe these events; they never answer or approve them.
 
-Each turn or human request has a deduplication ID. A serial Python executor
-runs the sender off the hook callback and drains at normal interpreter exit,
-so one-shot completions survive shutdown. Each sender is bounded to 30 seconds;
+Each turn or human request has a deduplication ID. One background thread runs
+the sender off the hook callback. At most 8 deliveries wait in its queue;
+waiting notifications are shed before completions. Resolving a request, a new
+turn or a completion drops matching waiting notifications, whether queued or
+already being sent. Normal interpreter exit drains the queue for up to 10
+seconds, so one-shot completions survive shutdown without a slow relay
+holding Hermes open. Each sender is bounded to 30 seconds;
 missing binaries and delivery errors cannot fail the Hermes turn.
 Managed Python and manifest files carry content hashes: installation and
 removal refuse foreign or edited files, preserve unrelated plugin files,

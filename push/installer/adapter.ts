@@ -182,12 +182,17 @@ export default function rootshellPush(api) {
     finalSend = send(end.payload, () => currentEnd(end));
   }
 
-  function scheduleEnd(end) {
-    if (!end || settled) return;
+  // OMP can stay busy after agent_end (e.g. revoking computer control), so
+  // recheck until idle; a new run, session change or reset clears the timer.
+  function scheduleEnd(end, attempt = 0) {
+    if (!end || settled || attempt >= 600) return;
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
       try {
-        commitEnd(end);
+        if (generation !== end.currentGeneration ||
+          end.ctx.sessionManager.getSessionId() !== end.id) return;
+        if (currentEnd(end)) commitEnd(end);
+        else scheduleEnd(end, attempt + 1);
       } catch {
         // Missing notifier binaries and I/O errors are fail-open.
       }

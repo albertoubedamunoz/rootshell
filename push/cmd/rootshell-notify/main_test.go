@@ -17,6 +17,67 @@ import (
 	"github.com/kitknox/rootshell/push/installer"
 )
 
+func TestMain(m *testing.M) {
+	// Deliver Codex hooks in-process; a detached child would rerun the test binary.
+	os.Setenv(hookChildEnv, "1")
+	os.Exit(m.Run())
+}
+
+func TestCodexHookHandsDeliveryToDetachedChild(t *testing.T) {
+	t.Setenv(config.EnvPath, filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv(hookChildEnv, "")
+	var mu sync.Mutex
+	delivered := 0
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		delivered++
+		mu.Unlock()
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+	old := newClient
+	newClient = func() *client.Client {
+		c := client.New("test")
+		c.HTTP = srv.Client()
+		return c
+	}
+	t.Cleanup(func() { newClient = old })
+	cfg := &config.Config{Devices: []config.Device{testDevice(t, "phone", "rsc1.phone", srv.URL, true)}}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	var gotArgs []string
+	var gotData []byte
+	detachErr := error(nil)
+	oldDetach := detachHook
+	detachHook = func(args []string, data []byte) error {
+		gotArgs, gotData = args, data
+		return detachErr
+	}
+	t.Cleanup(func() { detachHook = oldDetach })
+
+	payload := `{"session_id":"s","cwd":"/srv/app","turn_id":"t","hook_event_name":"Stop","last_assistant_message":"Done."}`
+	var out, errb bytes.Buffer
+	if code := run([]string{"hook", "--agent", "codex"}, strings.NewReader(payload), &out, &errb); code != exitOK {
+		t.Fatal(code)
+	}
+	mu.Lock()
+	if delivered != 0 || strings.Join(gotArgs, " ") != "--agent codex" || string(gotData) != payload {
+		t.Fatalf("detached hand-off: delivered %d, args %v, data %q", delivered, gotArgs, gotData)
+	}
+	mu.Unlock()
+
+	detachErr = os.ErrPermission
+	if code := run([]string{"hook", "--agent", "codex"}, strings.NewReader(payload), &out, &errb); code != exitOK {
+		t.Fatal(code)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if delivered != 1 || out.Len() != 0 {
+		t.Fatalf("failed detach must deliver inline: %d %q", delivered, out.String())
+	}
+}
+
 func TestHookIsSilentWithoutDevices(t *testing.T) {
 	t.Setenv(config.EnvPath, filepath.Join(t.TempDir(), "config.json"))
 	var out, errb bytes.Buffer
@@ -322,24 +383,23 @@ func TestHookToolsAutoDetectsExtensions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	tools, err := hookTools("auto", false)
-	if err != nil || len(tools) != 2 || string(tools[0]) != "pi" || string(tools[1]) != "omp" {
-		t.Fatalf("auto-detected tools: %v %v", tools, err)
+	tools, skipped, err := hookTools("auto", false)
+	if err != nil || len(skipped) != 0 || len(tools) != 2 || string(tools[0]) != "pi" || string(tools[1]) != "omp" {
+		t.Fatalf("auto-detected tools: %v %q %v", tools, skipped, err)
 	}
 }
 
-func TestHookToolsRejectSharedAgentDirectory(t *testing.T) {
+func TestHookToolsSharedAgentDirectory(t *testing.T) {
 	clearAgentOverrides(t)
 	t.Setenv("HOME", t.TempDir())
 	shared := t.TempDir()
 	t.Setenv("PI_CODING_AGENT_DIR", shared)
-	for _, spec := range []string{"auto", "pi,omp"} {
-		if _, err := hookTools(spec, false); err == nil || !strings.Contains(err.Error(), "share") {
-			t.Fatalf("shared directory must fail before partial installation: %s: %v", spec, err)
-		}
+	if _, _, err := hookTools("pi,omp", false); err == nil || !strings.Contains(err.Error(), "share") {
+		t.Fatalf("explicit shared directory must fail before partial installation: %v", err)
 	}
+	expectAutoSkipsOMP(t)
 	for _, spec := range []string{"pi", "omp"} {
-		if tools, err := hookTools(spec, false); err != nil || len(tools) != 1 {
+		if tools, _, err := hookTools(spec, false); err != nil || len(tools) != 1 {
 			t.Fatalf("explicit single-agent setup: %s: %v %v", spec, tools, err)
 		}
 	}
@@ -353,8 +413,52 @@ func TestHookToolsRejectSharedAgentDirectory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := hookTools("auto", false); err == nil || !strings.Contains(err.Error(), "share") {
-		t.Fatalf("shared extension directory symlink: %v", err)
+	expectAutoSkipsOMP(t)
+}
+
+// A shared Pi/OMP destination must not block pairing or upgrades in auto mode.
+func expectAutoSkipsOMP(t *testing.T) {
+	t.Helper()
+	tools, skipped, err := hookTools("auto", false)
+	if err != nil || len(tools) != 1 || tools[0] != installer.Pi || len(skipped) != 1 ||
+		!strings.Contains(skipped[0], "Skipping OMP hook") || !strings.Contains(skipped[0], "share") {
+		t.Fatalf("auto with shared destination: %v %q %v", tools, skipped, err)
+	}
+}
+
+func TestHookToolsAutoSkipsInvalidOMPProfile(t *testing.T) {
+	clearAgentOverrides(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OMP_PROFILE", "Work")
+	tools, skipped, err := hookTools("auto", false)
+	if err != nil || len(tools) != 1 || tools[0] != installer.ClaudeCode || len(skipped) != 0 {
+		t.Fatalf("invalid OMP profile must not block auto: %v %q %v", tools, skipped, err)
+	}
+	if _, _, err := hookTools("omp", false); err == nil || !strings.Contains(err.Error(), "invalid OMP profile") {
+		t.Fatalf("explicit OMP with invalid profile: %v", err)
+	}
+}
+
+func TestSetupProjectAutoUsesUserAgentsInFreshRepo(t *testing.T) {
+	clearAgentOverrides(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(config.EnvPath, filepath.Join(home, "config.json"))
+	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(t.TempDir())
+	var out, errb bytes.Buffer
+	code := run([]string{"setup", "--no-pair", "--project"}, strings.NewReader(""), &out, &errb)
+	if code != exitOK || !strings.Contains(out.String(), "Installed Claude Code hook in .claude") || errb.Len() != 0 {
+		t.Fatalf("project auto in fresh repo: %d %q %q", code, out.String(), errb.String())
+	}
+	if _, err := os.Stat(filepath.Join(".claude", "settings.json")); err != nil {
+		t.Fatal(err)
 	}
 }
 

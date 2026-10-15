@@ -69,16 +69,9 @@ func (t Tool) command() string {
 }
 
 func (t Tool) hookAsync() bool {
-	// Codex exec tears down async hooks on exit. Waiting for this fail-open
-	// sender keeps a completed one-shot turn from losing its notification.
+	// Codex exec tears down async hooks on exit. The synchronous sender only
+	// hands the payload to a detached child, so Codex barely waits.
 	return t != Codex
-}
-
-func (t Tool) hookTimeout() int {
-	if t == Codex {
-		return 30
-	}
-	return HookTimeout
 }
 
 // matchers restricts an event to specific tools; PreToolUse only fires for questions.
@@ -112,6 +105,8 @@ type Status struct {
 	Path      string
 	Exists    bool
 	Installed bool
+	// Outdated means a managed hook is present but differs from this version's.
+	Outdated bool
 }
 
 func Install(t Tool, project bool) (Result, error) {
@@ -145,7 +140,7 @@ func GetStatus(t Tool, project bool) (Status, error) {
 			st.Exists = true
 			return st, err
 		}
-		current := true
+		current, owned := true, true
 		for _, file := range hermesFiles(path) {
 			raw, exists, err := readExtension(file.path)
 			if err != nil {
@@ -155,14 +150,19 @@ func GetStatus(t Tool, project bool) (Status, error) {
 			if !exists || !bytes.Equal(raw, file.source) {
 				current = false
 			}
+			if exists && !ownedHermesFile(file, raw) {
+				owned = false
+			}
 		}
 		st.Installed = current
+		st.Outdated = !current && st.Exists && owned
 		return st, nil
 	}
 	if isExtension(t) {
 		raw, exists, err := readExtension(path)
 		st.Exists = exists
 		st.Installed = exists && bytes.Equal(raw, extensionSource(t))
+		st.Outdated = exists && !st.Installed && ownedExtension(raw, t)
 		return st, err
 	}
 	doc, exists, err := load(path)
@@ -171,6 +171,7 @@ func GetStatus(t Tool, project bool) (Status, error) {
 	}
 	st.Exists = exists
 	st.Installed = installed(doc, t)
+	st.Outdated = !st.Installed && hasOurs(doc)
 	return st, nil
 }
 
@@ -240,7 +241,7 @@ func load(path string) (map[string]any, bool, error) {
 func ourEntry(event string, t Tool) map[string]any {
 	g := map[string]any{
 		"hooks": []any{map[string]any{
-			"type": "command", "command": t.command(), "async": t.hookAsync(), "timeout": t.hookTimeout(), TagKey: Tag,
+			"type": "command", "command": t.command(), "async": t.hookAsync(), "timeout": HookTimeout, TagKey: Tag,
 		}},
 	}
 	if m := matchers[event]; m != "" {
@@ -270,7 +271,7 @@ func groupHasOurs(g any) bool {
 
 func hookIsCurrent(h any, t Tool) bool {
 	m, ok := h.(map[string]any)
-	return ok && isOurs(m) && m["type"] == "command" && m["command"] == t.command() && m["async"] == t.hookAsync() && timeoutIsCurrent(m["timeout"], t.hookTimeout())
+	return ok && isOurs(m) && m["type"] == "command" && m["command"] == t.command() && m["async"] == t.hookAsync() && timeoutIsCurrent(m["timeout"], HookTimeout)
 }
 
 func timeoutIsCurrent(v any, want int) bool {
@@ -324,6 +325,17 @@ func installed(doc map[string]any, t Tool) bool {
 	return true
 }
 
+func hasOurs(doc map[string]any) bool {
+	for _, v := range hooksMap(doc) {
+		for _, g := range asList(v) {
+			if groupHasOurs(g) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func asList(v any) []any {
 	l, _ := v.([]any)
 	return l
@@ -353,7 +365,7 @@ func install(doc map[string]any, t Tool) bool {
 					hm["type"] = "command"
 					hm["command"] = t.command()
 					hm["async"] = t.hookAsync()
-					hm["timeout"] = t.hookTimeout()
+					hm["timeout"] = HookTimeout
 					changed = true
 				}
 			}

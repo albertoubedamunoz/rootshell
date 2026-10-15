@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kitknox/rootshell/push/envelope"
 )
@@ -82,25 +83,32 @@ func (e *Event) Header(route *envelope.Route) *envelope.Header {
 	// hints. Shorten presentation text, never the route used to resolve taps.
 	for {
 		raw, _ := json.Marshal(h)
-		if len(raw) <= envelope.MaxHeaderBytes {
+		over := len(raw) - envelope.MaxHeaderBytes
+		if over <= 0 {
 			return h
 		}
 		if h.Body != "" {
-			h.Body = shorten(h.Body)
+			h.Body = shorten(h.Body, over)
 		} else if h.Title != "" {
-			h.Title = shorten(h.Title)
+			h.Title = shorten(h.Title, over)
 		} else {
 			return h
 		}
 	}
 }
 
-func shorten(s string) string {
-	r := []rune(strings.TrimSuffix(s, "…"))
-	if len(r) <= 1 {
+// shorten drops at least n bytes, cutting on a rune boundary. Every byte
+// encodes to at least one JSON byte, so one pass usually fits.
+func shorten(s string, n int) string {
+	s = strings.TrimSuffix(s, "…")
+	cut := len(s) - n - len("…")
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	if cut <= 0 {
 		return ""
 	}
-	return string(r[:len(r)-1]) + "…"
+	return s[:cut] + "…"
 }
 
 type payload struct {

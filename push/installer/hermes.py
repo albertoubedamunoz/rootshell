@@ -1,19 +1,31 @@
 """Hermes lifecycle adapter; the sender owns encryption, redaction and routing."""
 
-from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+import atexit
+from collections import OrderedDict, deque
 import json
 import os
 import subprocess
 import threading
+import time
 import uuid
 
 _INTERACTIVE = {"cli", "tui", "desktop", "acp"}
 _LIMIT = 256
+_MAX_QUEUED = 8
+# Answered prompts stay silent; matches the Pi/OMP extension.
+_BLOCK_DELAY = 2.0
+_SEND_TIMEOUT = 30
+_EXIT_GRACE = 10.0
 _turns = OrderedDict()
 _seen = OrderedDict()
+_blocks = {}
 _lock = threading.RLock()
-_delivery = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rootshell-push")
+_ready = threading.Condition(_lock)
+_queue = deque()
+_worker = None
+_busy = False
+_active = None
+_closed = False
 
 
 def _bounded_put(table, key, value):
@@ -49,18 +61,110 @@ def _turn(kwargs, new=False):
         return dict(state)
 
 
-def _deliver(payload, env):
+def _kill(proc):
     try:
-        subprocess.run(
-            ["rootshell-notify", "hook", "--agent", "hermes"],
-            input=json.dumps(payload), text=True, env=env, timeout=30,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
+        proc.kill()
+    except OSError:
         pass
 
 
-def _send(event, session, event_id, cwd, **extra):
+def _deliver(payload, env, timeout=_SEND_TIMEOUT, job=None):
+    try:
+        proc = subprocess.Popen(
+            ["rootshell-notify", "hook", "--agent", "hermes"], stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True, env=env,
+        )
+    except OSError:
+        return
+    with _lock:
+        if job is not None:
+            job["proc"] = proc
+            if job["cancelled"]:
+                _kill(proc)
+    try:
+        proc.communicate(json.dumps(payload), timeout=timeout)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        _kill(proc)
+        proc.wait()
+
+
+def _work():
+    global _busy, _active
+    while True:
+        with _ready:
+            while not _queue:
+                _ready.wait()
+            payload, env, token = _queue.popleft()
+            _busy = True
+            # A reminder stays cancellable while its sender runs.
+            job = _active = {"token": token, "proc": None, "cancelled": False}
+        try:
+            _deliver(payload, env, job=job)
+        finally:
+            with _ready:
+                _busy = False
+                _active = None
+                _ready.notify_all()
+
+
+def _drop_reminders(match):
+    """Drops queued and in-flight reminders whose (session, request) token matches."""
+    for item in [item for item in _queue if item[2] is not None and match(item[2])]:
+        _queue.remove(item)
+    job = _active
+    if job is not None and job["token"] is not None and match(job["token"]):
+        job["cancelled"] = True
+        if job["proc"] is not None:
+            _kill(job["proc"])
+
+
+def _enqueue(payload, env, token=None):
+    global _worker
+    with _ready:
+        if not _closed:
+            if payload["hook_event_name"] == "agent_end":
+                session = payload["session_id"]
+                _drop_reminders(lambda t: t[0] == session)
+            if len(_queue) >= _MAX_QUEUED:
+                # Shed a reminder before any completion.
+                reminders = [item for item in _queue if item[2] is not None]
+                _queue.remove(reminders[0] if reminders else _queue[0])
+            _queue.append((payload, env, token))
+            try:
+                if _worker is None:
+                    _worker = threading.Thread(target=_work, name="rootshell-push", daemon=True)
+                    _worker.start()
+                _ready.notify_all()
+                return
+            except RuntimeError:
+                _worker = None
+                _queue.pop()
+    # Interpreter shutdown: the exit drain already ran, so send inline.
+    _deliver(payload, env, timeout=_EXIT_GRACE)
+
+
+def _drain():
+    """Waits for queued deliveries, bounded so a slow relay cannot hold exit."""
+    global _closed
+    deadline = time.monotonic() + _EXIT_GRACE
+    with _ready:
+        _closed = True
+        for timer in _blocks.values():
+            timer.cancel()
+        _blocks.clear()
+        while _queue or _busy:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                _queue.clear()
+                break
+            _ready.wait(remaining)
+
+
+# Normal one-shot exit must still deliver its final notification.
+atexit.register(_drain)
+
+
+def _send(event, session, event_id, cwd, token=None, **extra):
     if not session or not event_id:
         return
     key = (event, session, event_id)
@@ -72,16 +176,52 @@ def _send(event, session, event_id, cwd, **extra):
         "hook_event_name": event, "session_id": session,
         "event_id": event_id, "cwd": cwd, **extra,
     }
-    # Callbacks must return promptly, but normal one-shot Python exit must
-    # drain notifications. The executor provides both without detached jobs.
-    env = dict(os.environ)
-    try:
-        _delivery.submit(_deliver, payload, env)
-    except RuntimeError:
-        _deliver(payload, env)
+    _enqueue(payload, dict(os.environ), token)
+
+
+def _cancel_blocks(session):
+    with _lock:
+        for token in [token for token in _blocks if token[0] == session]:
+            _blocks.pop(token).cancel()
+        _drop_reminders(lambda t: t[0] == session)
+
+
+def _block(token, kwargs, prompt, event_id=None):
+    state = _turn(kwargs)
+    if state is None or state["platform"] not in _INTERACTIVE:
+        return
+    session = _session(kwargs)
+    token = (session, token)
+    event_id = event_id or uuid.uuid4().hex
+
+    def fire():
+        # Queue under the lock so a concurrent resolve finds the reminder.
+        with _lock:
+            if _blocks.get(token) is not timer:
+                return
+            del _blocks[token]
+            _send("input_required", session, event_id, state["cwd"], token, message=prompt[:4096])
+
+    timer = threading.Timer(_BLOCK_DELAY, fire)
+    timer.daemon = True
+    with _lock:
+        if _closed or token in _blocks or len(_blocks) >= _MAX_QUEUED:
+            return
+        _blocks[token] = timer
+    timer.start()
+
+
+def _unblock(token, kwargs):
+    token = (_session(kwargs), token)
+    with _lock:
+        timer = _blocks.pop(token, None)
+        _drop_reminders(lambda t: t == token)
+    if timer is not None:
+        timer.cancel()
 
 
 def on_pre_llm_call(**kwargs):
+    _cancel_blocks(_session(kwargs))
     _turn(kwargs, new=True)
 
 
@@ -98,6 +238,7 @@ def on_session_end(completed=None, failed=False, interrupted=False, **kwargs):
     state = _turn(kwargs)
     if state is None:
         return
+    _cancel_blocks(_session(kwargs))
     if interrupted or (completed is None and not failed):
         with _lock:
             _turns.pop(_session(kwargs), None)
@@ -114,23 +255,28 @@ def on_session_end(completed=None, failed=False, interrupted=False, **kwargs):
 
 
 def on_human_input_request(request_id="", prompt="", **kwargs):
-    state = _turn(kwargs)
-    if state is None or state["platform"] not in _INTERACTIVE:
-        return
-    _send(
-        "input_required", _session(kwargs), str(request_id or uuid.uuid4().hex),
-        state["cwd"], message=str(prompt or "Hermes is waiting for your input.")[:4096],
-    )
+    if request_id:
+        _block(str(request_id), kwargs, str(prompt or "Hermes is waiting for your input."), str(request_id))
+
+
+def on_human_input_resolved(request_id="", **kwargs):
+    _unblock(str(request_id), kwargs)
+
+
+def _approval_token(kwargs):
+    return "approval:" + str(kwargs.get("tool_call_id") or kwargs.get("command") or "")
 
 
 def on_pre_approval_request(surface="", command="", description="", **kwargs):
     # Smart approval is an automated decision, not a human blocker.
     if surface not in _INTERACTIVE:
         return
-    on_human_input_request(
-        prompt=description or command or "Hermes needs permission.",
-        **{**kwargs, "platform": surface},
-    )
+    kwargs = {**kwargs, "command": command, "platform": surface}
+    _block(_approval_token(kwargs), kwargs, description or command or "Hermes needs permission.")
+
+
+def on_post_approval_response(surface="", command="", **kwargs):
+    _unblock(_approval_token({**kwargs, "command": command}), kwargs)
 
 
 def register(ctx):
@@ -143,5 +289,7 @@ def register(ctx):
     from hermes_cli.plugins import VALID_HOOKS
     if "on_human_input_request" in VALID_HOOKS:
         ctx.register_hook("on_human_input_request", on_human_input_request)
+        ctx.register_hook("on_human_input_resolved", on_human_input_resolved)
     else:
         ctx.register_hook("pre_approval_request", on_pre_approval_request)
+        ctx.register_hook("post_approval_response", on_post_approval_response)

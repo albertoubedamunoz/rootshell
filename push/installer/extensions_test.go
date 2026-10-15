@@ -205,7 +205,7 @@ func TestExtensionUpdatesBackupAndProtectEdits(t *testing.T) {
 	if err := os.WriteFile(path, old, 0o640); err != nil {
 		t.Fatal(err)
 	}
-	if st, err := GetStatus(Pi, false); err != nil || !st.Exists || st.Installed {
+	if st, err := GetStatus(Pi, false); err != nil || !st.Exists || st.Installed || !st.Outdated {
 		t.Fatalf("old status: %+v %v", st, err)
 	}
 	if res, err := Install(Pi, false); err != nil || !res.Changed {
@@ -228,8 +228,8 @@ func TestExtensionUpdatesBackupAndProtectEdits(t *testing.T) {
 	if _, err := Uninstall(Pi, false); err == nil {
 		t.Fatal("user edit removed")
 	}
-	if st, _ := GetStatus(Pi, false); st.Installed {
-		t.Fatal("edited extension reported current")
+	if st, _ := GetStatus(Pi, false); st.Installed || st.Outdated {
+		t.Fatal("edited extension reported as managed")
 	}
 	os.WriteFile(path, current, 0o640)
 	if _, err := Uninstall(Pi, false); err != nil {

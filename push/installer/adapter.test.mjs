@@ -159,13 +159,18 @@ test("only terminal rounds notify; continuations, aborts, tool calls and subagen
         h.emit("agent_start");
         h.idle(false);
         end();
-        h.tick();
+        h.tick(1000);
+        assert.equal(h.calls.length, 0);
+        // Settlement can outlast many rechecks without losing the completion.
         h.idle(true);
+        h.tick();
+        assert.equal(h.calls.length, 1);
+        h.close();
         const subCtx = { ...h.ctx, agent: { kind: "sub", depth: 0 } };
         h.emit("agent_start", {}, subCtx);
         h.emit("agent_end", { messages: [assistant()] }, subCtx);
         h.tick();
-        assert.equal(h.calls.length, 0);
+        assert.equal(h.calls.length, 1);
       } else {
         // Pi 1.2.0's agent_end context is still busy until handlers return.
         h.emit("agent_start");

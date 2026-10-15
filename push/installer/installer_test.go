@@ -75,7 +75,7 @@ func TestInstallUninstallRoundTrip(t *testing.T) {
 				last := group["hooks"].([]any)[0].(map[string]any)
 				wantAsync, wantTimeout := true, float64(10)
 				if tc.tool == Codex {
-					wantAsync, wantTimeout = false, 30
+					wantAsync = false
 				}
 				if last["command"] != tc.tool.command() || last["async"] != wantAsync || last["timeout"] != wantTimeout || last[TagKey] != Tag {
 					t.Fatalf("%s: %+v", ev, last)
@@ -149,6 +149,9 @@ func TestCodexRefreshesAsyncHookForOneShotExit(t *testing.T) {
 	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if st, err := GetStatus(Codex, false); err != nil || st.Installed || !st.Outdated {
+		t.Fatalf("async Codex hook status: %+v %v", st, err)
+	}
 	res, err := Install(Codex, false)
 	if err != nil || !res.Changed {
 		t.Fatalf("async Codex hook must be refreshed: %+v %v", res, err)
@@ -156,8 +159,8 @@ func TestCodexRefreshesAsyncHookForOneShotExit(t *testing.T) {
 	doc := parse(t, path)
 	hooks := doc["hooks"].(map[string]any)["Stop"].([]any)[0].(map[string]any)["hooks"].([]any)
 	ours := hooks[0].(map[string]any)
-	if ours["async"] != false || ours["timeout"] != float64(30) {
-		t.Fatalf("one-shot exit must wait for the sender's bounded deadline: %+v", ours)
+	if ours["async"] != false || ours["timeout"] != float64(10) {
+		t.Fatalf("one-shot exit must wait for the sender to hand off: %+v", ours)
 	}
 	foreign := hooks[1].(map[string]any)
 	if foreign["async"] != true || foreign["timeout"] != float64(10) {
