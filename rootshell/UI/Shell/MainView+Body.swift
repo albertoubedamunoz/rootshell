@@ -85,11 +85,14 @@ extension MainView {
     @ViewBuilder
     func integratedEdgeRule(palette: IntegratedTabEdgePalette, activeTabBounds: Anchor<CGRect>?) -> some View {
         if let activeTabBounds, terminals.indices.contains(selectedTabIndex) {
+            // Read outside the reader: its closure can re-run after the last
+            // tab closes, before this guard is re-evaluated.
+            let selectedTabID = terminals[selectedTabIndex].id
             GeometryReader { proxy in
                 let rect = proxy[activeTabBounds]
                 IntegratedTabEdgeRuleView(palette: palette, gap: rect.minX...rect.maxX)
                     .animation(animatesIntegratedSelection ? TabBar.selectionAnimation : nil,
-                               value: terminals[selectedTabIndex].id)
+                               value: selectedTabID)
             }
         } else {
             IntegratedTabEdgeRuleView(palette: palette)
