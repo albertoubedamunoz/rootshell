@@ -136,15 +136,18 @@ final class DayNightThemeManager: ObservableObject {
     // MARK: - Private Methods
 
     private func setupNotifications() {
-        // Handle app returning to foreground
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.willEnterForegroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let strongSelf = self else { return }
-            Task { @MainActor in
-                strongSelf.handleForegroundReturn()
+        // Handle app returning to foreground. didBecomeActive also covers a trait
+        // change that arrives while the state still reads .background.
+        for name in [UIApplication.willEnterForegroundNotification, UIApplication.didBecomeActiveNotification] {
+            NotificationCenter.default.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let strongSelf = self else { return }
+                Task { @MainActor in
+                    strongSelf.handleForegroundReturn()
+                }
             }
         }
     }
@@ -295,6 +298,11 @@ final class DayNightThemeManager: ObservableObject {
     private func attachTraitObserver(to window: UIWindow) {
         let observer = TraitObserverView { [weak self] isLight in
             guard let self else { return }
+            #if !targetEnvironment(macCatalyst)
+            // Background flips are the system's light/dark snapshot passes;
+            // handleForegroundReturn applies the real change.
+            guard UIApplication.shared.applicationState != .background else { return }
+            #endif
             guard self.isCurrentlyLight != isLight else { return }
             Self.logger.info("System appearance changed to \(isLight ? "light" : "dark")")
             self.isCurrentlyLight = isLight
