@@ -764,7 +764,7 @@ extension Ghostty {
             nonisolated(unsafe) let overrides = overrideSurfaces
             nonisolated(unsafe) let schemes = surfaceSchemes
             Ghostty.TerminalView.ghosttyAPIQueue.async {
-                // A surface's scheme reaches its terminal on the next config update
+                // Schemes land first; the config update then re-sends ?997 with the new palette
                 ghostty_app_set_color_scheme(appPtr, appScheme)
                 for (surface, scheme) in schemes { ghostty_surface_set_color_scheme(surface, scheme) }
                 ghostty_app_update_config(appPtr, cfg)
