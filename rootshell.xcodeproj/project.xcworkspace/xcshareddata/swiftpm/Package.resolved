@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/curl_ios-rootshell.git",
       "state" : {
-        "revision" : "be242207461c50e427933f289b0c3f4b6f95f0e1",
-        "version" : "0.2.1"
+        "revision" : "ddc67feec7200d3f933111b0d46bbed906594bc1",
+        "version" : "0.2.2"
       }
     },
     {
@@ -114,8 +114,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/libarchive_ios-rootshell.git",
       "state" : {
-        "revision" : "beb512f57ac11823a6638a2d8c66aa91fc0acd15",
-        "version" : "0.1.0"
+        "revision" : "2b14c22b946b899f00be1e6ec1f346a82615df1b",
+        "version" : "0.1.1"
       }
     },
     {

@@ -126,6 +126,8 @@ struct TerminalEffectWindowShape: Shape {
     /// The selected tab and its track's visible bounds, in local space.
     var tabRect: CGRect?
     var clip: CGRect?
+    /// Gaps between split cards, in local space.
+    var gaps: Path?
 
     var animatableData: CGFloat {
         get { sidebarWidth }
@@ -140,6 +142,12 @@ struct TerminalEffectWindowShape: Shape {
                 .path(in: CGRect(origin: .zero, size: terminal.size))
                 .offsetBy(dx: terminal.minX, dy: terminal.minY)
             : Path(terminal)
+        // A swiping tab's gaps slide past the terminal card; keep them off the sidebar's.
+        if let gaps {
+            let card = CGRect(x: terminal.minX + sidebarWidth, y: terminal.minY,
+                              width: max(0, terminal.width - sidebarWidth), height: terminal.height)
+            path = path.subtracting(gaps.intersection(Path(card)))
+        }
         guard let tabRect, !tabRect.isEmpty else { return path }
         var tab = IntegratedTabGeometry(in: tabRect).silhouettePath
         if let clip { tab = tab.intersection(Path(clip)) }
@@ -157,6 +165,9 @@ struct TerminalEffectWindowClip: ViewModifier {
     /// The effect's global origin, to bring the tab into local space.
     let origin: CGPoint
     let join: IntegratedTabJoin?
+    let gaps: PaneCardGaps?
+    /// The tabs on screen, whose split gaps the effect leaves to the backdrop.
+    let gapTabIDs: [UUID]
 
     @State private var tracker = IntegratedTabJoinTracker()
 
@@ -171,12 +182,40 @@ struct TerminalEffectWindowClip: ViewModifier {
                     topExtension: topExtension,
                     roundedPanes: roundedPanes,
                     tabRect: join == nil ? nil : tracker.rect.map(local),
-                    clip: join == nil ? nil : tracker.clip.map(local)))
+                    clip: join == nil ? nil : tracker.clip.map(local),
+                    gaps: roundedPanes ? localGaps : nil))
                 .onAppear { if let join { tracker.track(join) } }
                 .onChange(of: join.map { ObjectIdentifier($0) }) { _, _ in
                     if let join { tracker.track(join) }
                 }
         }
+    }
+
+    private var localGaps: Path? {
+        guard let gaps else { return nil }
+        let paths = gapTabIDs.compactMap { gaps.paths[$0] }
+        guard !paths.isEmpty else { return nil }
+        var path = Path()
+        for gap in paths { path.addPath(Path(gap)) }
+        return path.offsetBy(dx: -origin.x, dy: -origin.y)
+    }
+}
+
+/// Each tab's Rounded Panes split gaps in window space, pushed by its split
+/// view, so the window-wide effect paints only the cards.
+@Observable
+final class PaneCardGaps {
+    private(set) var paths: [UUID: CGPath] = [:]
+    @ObservationIgnored private var owners: [UUID: ObjectIdentifier] = [:]
+
+    /// A rebuilt split view can push before its predecessor is torn down, so
+    /// only the current owner clears a tab.
+    func update(_ path: CGPath?, for tabID: UUID, from owner: AnyObject) {
+        let ownerID = ObjectIdentifier(owner)
+        if path == nil, owners[tabID] != ownerID { return }
+        owners[tabID] = path == nil ? nil : ownerID
+        guard paths[tabID] != path else { return }
+        paths[tabID] = path
     }
 }
 
