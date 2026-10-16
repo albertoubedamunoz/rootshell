@@ -358,6 +358,10 @@ struct EffectSettingsView: View {
 
             // Keyboard and sidebar controls do not activate the terminal effect.
             if let activeEffect = effectBeingConfigured {
+                if let gradientEffect = activeEffect.asEffect(ThemeGradientEffect.self) {
+                    ThemeGradientStyleSection(effect: gradientEffect)
+                }
+
                 Section("Settings") {
                     // Intensity slider; the backdrop is always opaque
                     if activeEffect.asEffect(ThemeGradientEffect.self)?.isBackdrop != true {
@@ -1771,7 +1775,7 @@ private struct ThemeGradientSettingsSection: View {
             )) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Drift")
-                    Text("Colors follow the terminal theme palette. Turn off for a still gradient that uses no GPU after drawing")
+                    Text("Slowly moves the glow. Turn off for a still gradient that uses no GPU after drawing")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

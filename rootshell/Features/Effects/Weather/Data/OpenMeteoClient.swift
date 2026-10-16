@@ -75,7 +75,8 @@ nonisolated struct OpenMeteoClient {
     }
 
     private static func sample(at date: Date, _ v: Values, hours: Double) -> WeatherSample? {
-        let reading = v.code.flatMap { OpenMeteoConditionMapping.reading(weatherCode: Int($0)) }
+        // Int(_:) traps on out-of-range values such as 1e20.
+        let reading = v.code.flatMap { Int(exactly: $0) }.flatMap { OpenMeteoConditionMapping.reading(weatherCode: $0) }
         let cover = v.cover.map { $0 / 100 }
         let coverKind = cover.map { c -> WeatherConditionKind in c < 0.3 ? .clear : (c < 0.7 ? .partlyCloudy : .cloudy) }
         guard let kind = reading?.kind ?? coverKind else { return nil }

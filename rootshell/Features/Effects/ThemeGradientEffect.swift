@@ -4,6 +4,7 @@
 //
 //  Soft drifting gradient built from the terminal theme palette, rendered
 //  by the ThemeGradient.metal shader: a primary base under four radial gradients.
+//  ThemeGradientPalette picks the colors.
 //
 
 import SwiftUI
@@ -37,7 +38,17 @@ final class ThemeGradientEffect: TerminalEffect, ObservableObject {
     var themeColors: EffectThemeColors = .defaults {
         didSet {
             guard themeColors != oldValue else { return }
-            palette = ThemeGradientPalette(themeColors: themeColors)
+            palette = ThemeGradientPalette(themeColors: themeColors, look: look)
+            objectWillChange.send()
+            configurationDidChange.send()
+        }
+    }
+
+    /// Style, custom colors and adjustments.
+    var look = ThemeGradientLook() {
+        didSet {
+            guard look != oldValue else { return }
+            palette = ThemeGradientPalette(themeColors: themeColors, look: look)
             objectWillChange.send()
             configurationDidChange.send()
         }
@@ -62,14 +73,17 @@ final class ThemeGradientEffect: TerminalEffect, ObservableObject {
         intensity = 0.35
         speed = 1.0
         drift = true
+        look = ThemeGradientLook()
     }
 
     func encodeConfiguration() -> [String: Any] {
-        [
+        var data: [String: Any] = [
             "intensity": intensity,
             "speed": speed,
             "drift": drift
         ]
+        look.encode(into: &data)
+        return data
     }
 
     func decodeConfiguration(_ data: [String: Any]) {
@@ -82,217 +96,7 @@ final class ThemeGradientEffect: TerminalEffect, ObservableObject {
         if let drift = data["drift"] as? Bool {
             self.drift = drift
         }
-    }
-}
-
-// MARK: - Palette
-
-/// Shader colors derived once per theme: the primary, an accent with a
-/// distinct hue, and a mid tone between them.
-struct ThemeGradientPalette: Equatable {
-    var primary: SIMD3<Double>
-    var accent: SIMD3<Double>
-    var mid: SIMD3<Double>
-    var isLight: Bool
-
-    var colors: [SIMD3<Double>] { [primary, accent, mid] }
-
-    private struct HSB {
-        var h: Double
-        var s: Double
-        var b: Double
-    }
-
-    private struct Candidate {
-        var hsb: HSB
-        var order: Int
-        var score: Double = 0
-    }
-
-    init(themeColors: EffectThemeColors) {
-        let background = Self.rgb(hex: themeColors.background) ?? SIMD3(0.1, 0.1, 0.15)
-        let foreground = Self.rgb(hex: themeColors.foreground) ?? SIMD3(0.8, 0.8, 0.85)
-        isLight = Color(hex: themeColors.background)?.isLight ?? false
-
-        // ANSI 0, 7, 8 and 15 are the theme's grays
-        let indices = [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14]
-        var hexes = indices.filter { $0 < themeColors.palette.count }.map { themeColors.palette[$0] }
-        hexes.append(themeColors.cursor)
-        var candidates = hexes.enumerated().compactMap { order, hex -> Candidate? in
-            guard let rgb = Self.rgb(hex: hex) else { return nil }
-            let hsb = Self.hsb(rgb)
-            guard hsb.s >= 0.15, hsb.b >= 0.15 else { return nil }
-            return Candidate(hsb: hsb, order: order)
-        }
-
-        guard !candidates.isEmpty else {
-            // Monochrome theme: a dim wash of the foreground with a lighter glow
-            let wash = foreground + (background - foreground) * 0.7
-            let faint = foreground + (background - foreground) * 0.45
-            self.primary = wash
-            self.accent = faint
-            self.mid = (wash + faint) / 2
-            return
-        }
-
-        // Hue prevalence stands in for the pixel share used on artwork
-        for i in candidates.indices {
-            let hsb = candidates[i].hsb
-            let neighbors = candidates.filter { Self.hueDistance($0.hsb.h, hsb.h) <= 0.08 }.count
-            let prevalence = Double(neighbors) / Double(candidates.count)
-            let brightness = 1 - abs(hsb.b - 0.5) * 2
-            candidates[i].score = hsb.s * 0.4 + brightness * 0.3 + prevalence * 0.3
-        }
-        candidates.sort { $0.score != $1.score ? $0.score > $1.score : $0.order < $1.order }
-
-        var primary = candidates[0].hsb
-        if primary.b > 0.7 {
-            primary.b *= 0.7
-            primary.s = min(1, primary.s * 1.1)
-        } else if primary.b > 0.5 {
-            primary.b *= 0.85
-        }
-        // Theme colors run brighter than artwork; keep dark themes rich, not pastel
-        if !isLight { primary.b = min(primary.b, 0.5) }
-
-        var accent: HSB
-        if let match = candidates.dropFirst().first(where: { Self.hueDistance($0.hsb.h, primary.h) > 0.15 }) {
-            accent = match.hsb
-        } else {
-            let b = primary.b < 0.3 ? primary.b * 1.5 : primary.b * 0.8
-            accent = HSB(h: (primary.h + 0.15).truncatingRemainder(dividingBy: 1),
-                         s: min(1, primary.s * 1.2),
-                         b: min(max(b, 0.4), 0.8))
-        }
-        if !isLight { accent.b = min(accent.b, 0.7) }
-
-        // Circular mean so red/magenta pairs don't average to green
-        let angleP = primary.h * 2 * .pi
-        let angleA = accent.h * 2 * .pi
-        var midHue = atan2(sin(angleP) + sin(angleA), cos(angleP) + cos(angleA)) / (2 * .pi)
-        if midHue < 0 { midHue += 1 }
-        let mid = HSB(h: midHue, s: max(primary.s, accent.s) * 0.8, b: (primary.b + accent.b) / 2)
-
-        self.primary = Self.rgb(primary)
-        self.accent = Self.rgb(accent)
-        self.mid = Self.rgb(mid)
-    }
-
-    // MARK: Backdrop sample
-
-    /// Area-averaged backdrop shading, in sRGB like the backdrop drawable.
-    struct Sample: Equatable {
-        var average: SIMD3<Double>
-        /// The strip under the status bar and top tabs.
-        var topBand: SIMD3<Double>
-    }
-
-    private static var cachedSample: (palette: ThemeGradientPalette, sample: Sample)?
-
-    /// Undrifted backdrop averaged over a nominal 16:10 window.
-    var backdropSample: Sample {
-        if let cached = Self.cachedSample, cached.palette == self { return cached.sample }
-        let size = SIMD2<Double>(1280, 800)
-        let columns = 32, rows = 20, topRows = 2
-        var total = SIMD3<Double>.zero, top = SIMD3<Double>.zero
-        for row in 0..<rows {
-            for column in 0..<columns {
-                let x: Double = (Double(column) + 0.5) / Double(columns) * size.x
-                let y: Double = (Double(row) + 0.5) / Double(rows) * size.y
-                let position = SIMD2<Double>(x, y)
-                let rgb = backdropShade(at: position, size: size)
-                total += rgb
-                if row < topRows { top += rgb }
-            }
-        }
-        let sample = Sample(average: total / Double(columns * rows), topBand: top / Double(columns * topRows))
-        Self.cachedSample = (self, sample)
-        return sample
-    }
-
-    /// CPU copy of themeGradientShade's backdrop path in ThemeGradient.metal; keep in sync.
-    private func backdropShade(at position: SIMD2<Double>, size: SIMD2<Double>) -> SIMD3<Double> {
-        func stop(_ c: SIMD3<Double>, _ a: Double) -> SIMD4<Double> { SIMD4(c.x * a, c.y * a, c.z * a, a) }
-        func mix(_ a: SIMD4<Double>, _ b: SIMD4<Double>, _ t: Double) -> SIMD4<Double> { a + (b - a) * t }
-        func ramp(_ t: Double, _ c0: SIMD4<Double>, _ l1: Double, _ c1: SIMD4<Double>, _ l2: Double, _ c2: SIMD4<Double>) -> SIMD4<Double> {
-            let t = min(max(t, 0), 1)
-            if t < l1 { return mix(c0, c1, t / l1) }
-            if t < l2 { return mix(c1, c2, (t - l1) / (l2 - l1)) }
-            return mix(c2, .zero, (t - l2) / (1 - l2))
-        }
-        func over(_ dst: SIMD4<Double>, _ src: SIMD4<Double>) -> SIMD4<Double> { src + dst * (1 - src.w) }
-        func distance(to anchor: SIMD2<Double>) -> Double {
-            let d = position - anchor * size
-            return (d.x * d.x + d.y * d.y).squareRoot()
-        }
-
-        let s = min(size.x, size.y), h = size.y
-        var col = SIMD4(primary.x, primary.y, primary.z, 1)
-        col = over(col, ramp(distance(to: SIMD2(0.10, 0.10)) / (0.9 * s),
-                             stop(accent, 0.6), 0.3, stop(accent, 0.3), 0.7, stop(mid, 0.15)))
-        col = over(col, ramp((distance(to: SIMD2(0.70, 1.10)) - 0.2 * h) / (0.6 * h),
-                             stop(primary, 0.4), 0.3, stop(primary, 0.2), 0.6, stop(mid, 0.1)))
-        col = over(col, ramp(distance(to: SIMD2(1.00, 0.60)) / (0.5 * s),
-                             stop(mid, 0.2), 0.5, stop(accent, 0.1), 0.75, stop(accent, 0.05)))
-        col = over(col, ramp(distance(to: SIMD2(0.35, 0.45)) / (0.35 * s),
-                             stop(accent, 0.25), 0.4, stop(mid, 0.15), 0.7, stop(mid, 0.075)))
-
-        let y = position.y / size.y
-        let shade: Double = y < 0.3 ? 0.1 * (y / 0.3)
-            : y < 0.7 ? 0.1 + 0.2 * ((y - 0.3) / 0.4)
-            : 0.3 + 0.2 * ((y - 0.7) / 0.3)
-        var rgb = SIMD3(col.x, col.y, col.z) * (1 - shade)
-        if isLight { rgb = 1 - (1 - rgb) * 0.45 }
-        return rgb
-    }
-
-    // MARK: Color math
-
-    private static func hueDistance(_ a: Double, _ b: Double) -> Double {
-        let d = abs(a - b)
-        return min(d, 1 - d)
-    }
-
-    private static func rgb(hex: String) -> SIMD3<Double>? {
-        var s = hex.trimmingCharacters(in: .whitespaces)
-        if s.hasPrefix("#") { s.removeFirst() }
-        guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
-        return SIMD3(Double((v >> 16) & 0xff), Double((v >> 8) & 0xff), Double(v & 0xff)) / 255
-    }
-
-    private static func hsb(_ c: SIMD3<Double>) -> HSB {
-        let maxC = c.max(), minC = c.min()
-        let delta = maxC - minC
-        var h = 0.0
-        if delta > 0 {
-            if maxC == c.x {
-                h = ((c.y - c.z) / delta).truncatingRemainder(dividingBy: 6)
-            } else if maxC == c.y {
-                h = (c.z - c.x) / delta + 2
-            } else {
-                h = (c.x - c.y) / delta + 4
-            }
-            h /= 6
-            if h < 0 { h += 1 }
-        }
-        return HSB(h: h, s: maxC > 0 ? delta / maxC : 0, b: maxC)
-    }
-
-    private static func rgb(_ hsb: HSB) -> SIMD3<Double> {
-        let h = (hsb.h - floor(hsb.h)) * 6
-        let c = hsb.b * hsb.s
-        let x = c * (1 - abs(h.truncatingRemainder(dividingBy: 2) - 1))
-        let m = hsb.b - c
-        let base: SIMD3<Double>
-        switch Int(h) {
-        case 0: base = SIMD3(c, x, 0)
-        case 1: base = SIMD3(x, c, 0)
-        case 2: base = SIMD3(0, c, x)
-        case 3: base = SIMD3(0, x, c)
-        case 4: base = SIMD3(x, 0, c)
-        default: base = SIMD3(c, 0, x)
-        }
-        return base + m
+        look = ThemeGradientLook(configuration: data)
     }
 }
 

@@ -70,6 +70,10 @@ final class EffectManager {
         }
     }
 
+    /// The backdrop's look, observed by surfaces derived from it.
+    private(set) var backdropLook = ThemeGradientLook()
+    @ObservationIgnored private var backdropLookConfigTask: Task<Void, Never>?
+
     /// Area effects draw between an app-drawn terminal background and
     /// glyph-only terminals, so text keeps its own colors.
     var isTextAboveEffectEnabled = true {
@@ -206,11 +210,26 @@ final class EffectManager {
     private func setUpBackdrop() {
         restoreConfiguration(for: backdropEffect)
         backdropEffect.themeColors = themeColors
+        syncBackdropLook()
         effectConfigCancellables[backdropEffect.id] = backdropEffect.configurationDidChange
             .sink { [weak self] in
                 guard let self else { return }
                 self.saveEffectConfiguration(self.backdropEffect)
+                self.syncBackdropLook()
             }
+    }
+
+    private func syncBackdropLook() {
+        guard let look = backdropEffect.asEffect(ThemeGradientEffect.self)?.look, look != backdropLook else { return }
+        backdropLook = look
+        guard isLoaded, isBackdropEnabled else { return }
+        // The config carries the backdrop OSC 11 color; color pickers change it continuously
+        backdropLookConfigTask?.cancel()
+        backdropLookConfigTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            TransparencyManager.shared.transparencyDidChange.send()
+        }
     }
 
     private func reload(keys: Set<String>) {
