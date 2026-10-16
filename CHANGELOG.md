@@ -3,6 +3,40 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-168 - October 16, 2026
+
+### Theme Gradient Styles
+
+- **Theme-Based Styles:** Theme Gradient now previews eight styles: Theme, Glow, Contrast, Spectrum, Tonal, Warm, Cool, and Mist. Each uses the current theme's colors and changes with the theme.
+- **Custom Colors:** Choose Custom to set Base, Glow, and Blend colors. Start From a Style copies a preset's colors for editing; custom colors stay fixed when you change themes.
+- **Gradient Adjustments:** Vibrance and Brightness adjust every style, with Reset Adjustments to restore defaults. Available for the terminal effect and window backdrop in Settings -> Background Effect.
+- **Matching Colors:** Tab bar colors and terminal background-color reports follow the chosen backdrop colors.
+
+### Tabs and Rounded Panes
+
+- **Group Menu Size:** The top tab bar's group/project menu offers Small, Medium, Large, and Extra Large sizes. Right-click or two-finger tap it to choose, or use Group Menu Size in Settings or Quick Settings. Small keeps the original size.
+- **Menu Selection:** Group, project, and size menus show a checkmark beside the active choice.
+- **Pane Gaps:** With Rounded Panes enabled, effects no longer brighten split-pane gaps. Gaps match the surrounding backdrop, including during tab swipes.
+- **Closing Tabs:** Fixed a crash when closing the last tab with a translucent Integrated tab bar.
+
+### Live Weather
+
+- **Mid-Level Clouds:** Added a separate layer of altocumulus patches or altostratus sheets. Overcast mid-level clouds shade the sky and clouds below.
+- **Cloud Height and Shape:** Low-cloud height follows station observations when available, or an estimate from temperature and dew point. Forecast instability and reported storm clouds shape flat layers, heaped clouds, and taller formations.
+- **Smoother Gradients:** Reduced visible banding at low effect intensity.
+- **Weather Code Handling:** Fixed a crash from an out-of-range Open-Meteo weather code. Unusable codes fall back to cloud-cover data when available.
+
+### Terminal Theme Detection
+
+- **Light/Dark Reports:** Programs that query or follow the terminal's light/dark scheme receive the active theme's scheme correctly, including dark themes. Updates reach the terminal immediately.
+- **Background Appearance:** On iPhone and iPad, app-switcher snapshots no longer trigger spurious light/dark changes while rootshell is in the background. Real appearance changes apply when returning to the app.
+
+### Local Shell Commands (iOS/visionOS)
+
+- **curl Update:** Updated curl to 8.23.0, fixing an HTTP/2 upload use-after-free (CVE-2026-92392). Concurrent curl commands in separate sessions keep independent transfer lists and parallel-transfer counts.
+- **Archive Tools:** Updated to libarchive 3.8.10, fixing a ZIP-writing heap overflow with very long paths (CVE-2026-45308), hangs on crafted ISO images, and a use-after-free during unzip cleanup. Archive commands keep working buffers separate across sessions.
+- **unzip and tar:** unzip rejects unsafe parent-directory paths and symlink targets, and tries .zip and .ZIP when a filename without an extension is not found. tar gains `--mode` for setting archived file permissions.
+
 ## 1.0.14-167 - October 13, 2026
 
 ### Live Weather
