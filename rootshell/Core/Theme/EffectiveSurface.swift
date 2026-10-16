@@ -35,7 +35,7 @@ struct EffectiveSurface: Equatable {
             return EffectiveSurface(baseRGB: base, terminalRGB: base, chromeRGB: base, onBackdrop: false)
         }
         // The Mac desktop share behind a transparent backdrop is unknowable; treat it as opaque
-        let sample = backdropPalette().backdropSample
+        let sample = backdropPalette(look: effects.backdropLook).backdropSample
         let opacity = TransparencyManager.shared.effectiveBackgroundOpacity
         return EffectiveSurface(
             baseRGB: base,
@@ -69,15 +69,15 @@ struct EffectiveSurface: Equatable {
     /// Clears `ghosttyConfigLines` in a config cloned from one that set them.
     static let resetGhosttyConfigLines = ["osc-color-report-background ="]
 
-    private static var cachedPalette: (colors: EffectThemeColors, palette: ThemeGradientPalette)?
+    private static var cachedPalette: (colors: EffectThemeColors, look: ThemeGradientLook, palette: ThemeGradientPalette)?
 
     /// The backdrop follows the global theme. Read from ThemeManager rather
     /// than EffectManager so a config written on themeDidChange is never stale.
-    private static func backdropPalette() -> ThemeGradientPalette {
+    private static func backdropPalette(look: ThemeGradientLook) -> ThemeGradientPalette {
         let colors = ThemeManager.shared.currentThemeInfo.map { EffectThemeColors(from: $0.colors) } ?? .defaults
-        if let cachedPalette, cachedPalette.colors == colors { return cachedPalette.palette }
-        let palette = ThemeGradientPalette(themeColors: colors)
-        cachedPalette = (colors, palette)
+        if let cachedPalette, cachedPalette.colors == colors, cachedPalette.look == look { return cachedPalette.palette }
+        let palette = ThemeGradientPalette(themeColors: colors, look: look)
+        cachedPalette = (colors, look, palette)
         return palette
     }
 
