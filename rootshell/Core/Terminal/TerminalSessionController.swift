@@ -404,6 +404,8 @@ final class TerminalSessionController {
                 await launchEmbeddedSession(localSession, isRestoring)
 
                 self.responsePipeline.start(for: localSession)
+            } catch is CancellationError {
+                Ghostty.logger.info("Shell-launched session stopped before start")
             } catch {
                 Ghostty.logger.error("Failed to start shell-launched session: \(error)")
                 host.terminalSetError(error)

@@ -85,6 +85,9 @@ final class IOSLocalExecutor {
 
     /// Whether the executor is "connected" (session is configured)
     private var isConnected = false
+    /// Set while connect() waits on bookmark restoration; disconnect() clears it
+    /// so a released session is never set up.
+    private var isConnectPending = false
 
     /// Serial dispatch queue for blocking ios_system calls
     private let commandQueue = DispatchQueue(label: "com.rootshell.aiagent.ios-executor", qos: .userInitiated)
@@ -100,7 +103,11 @@ final class IOSLocalExecutor {
     /// Configure ios_system session for this executor
     /// - Parameter workingDirectory: Initial working directory (from terminal CWD), defaults to Documents
     func connect(workingDirectory: String? = nil) async throws {
+        isConnectPending = true
+        await BookmarkedLocationsManager.shared.waitUntilSynced()
         guard !isConnected else { return }
+        guard isConnectPending else { throw CancellationError() }
+        isConnectPending = false
 
         Self.logger.info("Connecting IOSLocalExecutor")
 
@@ -160,6 +167,7 @@ final class IOSLocalExecutor {
 
     /// Disconnect and clean up the ios_system session
     func disconnect() async {
+        isConnectPending = false
         Self.logger.debug("Disconnecting IOSLocalExecutor")
         currentTask?.cancel()
         currentTask = nil

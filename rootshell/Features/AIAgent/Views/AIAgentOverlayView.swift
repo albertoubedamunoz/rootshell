@@ -683,6 +683,8 @@ struct AIAgentOverlayView: View {
 
         do {
             try await session.connect()
+        } catch is CancellationError {
+            // Disconnected while connecting (tab closed); nothing to report.
         } catch {
             errorMessage = error.localizedDescription
             showError = true

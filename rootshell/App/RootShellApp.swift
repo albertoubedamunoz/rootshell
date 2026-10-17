@@ -140,7 +140,8 @@ struct RootShellApp: App {
                     // window is available, so it can't detect dark mode.
                     DayNightThemeManager.shared.recheckAppearance()
 
-                    // Restore bookmarked external folder access and symlinks
+                    // Restore bookmarked external folder access and symlinks.
+                    // Resolution runs off main; local shells wait for it.
                     #if !targetEnvironment(macCatalyst)
                     BookmarkedLocationsManager.shared.syncOnLaunch()
                     #endif
