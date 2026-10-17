@@ -392,6 +392,8 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
         /// Optional keeps window-state decoding compatible with builds that
         /// predate the profile setting. Live configs always materialize it.
         let automaticallyEnterFullScreen: Bool?
+        /// Optional for window state written before the setting existed.
+        let remoteSystem: VNCConnectionConfig.RemoteSystemPreference?
 
         /// Jump routing with the inline SSH config password-stripped.
         nonisolated enum JumpSafe: Codable, Equatable, Sendable {
@@ -414,6 +416,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
                 config.promptForLoginPasswordAtLoginWindow
             self.keyboardToolbar = config.keyboardToolbar
             self.automaticallyEnterFullScreen = config.automaticallyEnterFullScreen
+            self.remoteSystem = config.remoteSystem
             switch config.jump {
             case .none:
                 self.jump = .none
@@ -454,6 +457,7 @@ nonisolated struct SerializableConnectionConfig: Codable, Equatable, Sendable {
                     promptForLoginPasswordAtLoginWindow ?? true,
                 jump: liveJump,
                 keyboardToolbar: keyboardToolbar,
+                remoteSystem: remoteSystem ?? .automatic,
                 automaticallyEnterFullScreen: automaticallyEnterFullScreen ?? false
             )
         }

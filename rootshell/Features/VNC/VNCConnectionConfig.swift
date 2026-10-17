@@ -56,6 +56,7 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
         case vncPassword
         case appleDH
         case appleARD
+        case appleSRP
 
         var displayName: String {
             switch self {
@@ -69,6 +70,27 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
                 return String(localized: "Apple Diffie-Hellman", comment: "VNC security preference")
             case .appleARD:
                 return String(localized: "Apple Remote Desktop", comment: "VNC security preference")
+            case .appleSRP:
+                return String(localized: "Apple SRP", comment: "VNC security preference")
+            }
+        }
+    }
+
+    /// The system behind the server. Linux servers that speak Apple's
+    /// protocol read Option as Alt rather than Meta.
+    nonisolated enum RemoteSystemPreference: String, Codable, CaseIterable, Hashable, Sendable {
+        case automatic
+        case mac
+        case linux
+
+        var displayName: String {
+            switch self {
+            case .automatic:
+                return String(localized: "Automatic", comment: "VNC remote system preference")
+            case .mac:
+                return String(localized: "Mac", comment: "VNC remote system preference")
+            case .linux:
+                return String(localized: "Linux", comment: "VNC remote system preference")
             }
         }
     }
@@ -185,6 +207,9 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
     /// Per-connection keyboard toolbar override.
     var keyboardToolbar: KeyboardToolbarPreference
 
+    /// Which modifier convention the remote keyboard uses.
+    var remoteSystem: RemoteSystemPreference
+
     /// Whether the pane should enter the in-window full-screen takeover after
     /// its initial connection becomes operational.
     var automaticallyEnterFullScreen: Bool
@@ -201,6 +226,7 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
         promptForLoginPasswordAtLoginWindow: Bool = true,
         jump: Jump = .none,
         keyboardToolbar: KeyboardToolbarPreference = .followAppSetting,
+        remoteSystem: RemoteSystemPreference = .automatic,
         automaticallyEnterFullScreen: Bool = false
     ) {
         self.host = host
@@ -214,6 +240,7 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
         self.promptForLoginPasswordAtLoginWindow = promptForLoginPasswordAtLoginWindow
         self.jump = jump
         self.keyboardToolbar = keyboardToolbar
+        self.remoteSystem = remoteSystem
         self.automaticallyEnterFullScreen = automaticallyEnterFullScreen
     }
 
@@ -223,7 +250,7 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
         case host, port, username, quality, security
         case displaySizingModeRaw, displayModeRaw
         case enableRemoteAudio, promptForLoginPasswordAtLoginWindow
-        case jump, keyboardToolbar
+        case jump, keyboardToolbar, remoteSystem
         case automaticallyEnterFullScreen
     }
 
@@ -258,6 +285,9 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
         let toolbarRaw = Self.lossyString(in: container, forKey: .keyboardToolbar)
         keyboardToolbar = toolbarRaw.flatMap(KeyboardToolbarPreference.init(rawValue:))
             ?? .followAppSetting
+        remoteSystem = Self.lossyString(in: container, forKey: .remoteSystem)
+            .flatMap(RemoteSystemPreference.init(rawValue:))
+            ?? .automatic
         automaticallyEnterFullScreen = Self.lossyBool(
             in: container,
             forKey: .automaticallyEnterFullScreen) ?? false
@@ -322,6 +352,7 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
         case "password", "vncauth", "vncauthentication": return .vncPassword
         case "apple30", "dh": return .appleDH
         case "macauthentication", "apple33", "ard": return .appleARD
+        case "srp", "apple36": return .appleSRP
         case "noauth": return SecurityPreference.none
         default: return nil
         }
@@ -342,6 +373,7 @@ struct VNCConnectionConfig: Codable, Hashable, Sendable {
             forKey: .promptForLoginPasswordAtLoginWindow)
         try container.encode(jump, forKey: .jump)
         try container.encode(keyboardToolbar, forKey: .keyboardToolbar)
+        try container.encode(remoteSystem, forKey: .remoteSystem)
         try container.encode(automaticallyEnterFullScreen, forKey: .automaticallyEnterFullScreen)
     }
 
@@ -413,6 +445,11 @@ extension VNCConnectionConfig {
         configuration.promptForLoginPasswordAtLoginWindow =
             promptForLoginPasswordAtLoginWindow
         configuration.cursorRendering = Self.resolvedCursorRendering()
+        configuration.remoteSystem = switch remoteSystem {
+        case .automatic: .automatic
+        case .mac: .mac
+        case .linux: .other
+        }
         return configuration
     }
 
@@ -437,6 +474,7 @@ extension VNCConnectionConfig {
         case .vncPassword: .vncAuthentication
         case .appleDH: .apple30
         case .appleARD: .macAuthentication
+        case .appleSRP: .appleSRP
         }
     }
 
