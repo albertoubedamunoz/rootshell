@@ -81530,6 +81530,161 @@
         }
       }
     },
+    "Apple SRP" : {
+      "comment" : "VNC security preference",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple SRP"
+          }
+        }
+      }
+    },
     "Apple system binary" : {
       "comment" : "Local SSH agent client identity line for Apple platform binary",
       "localizations" : {
@@ -99600,7 +99755,7 @@
       }
     },
     "Automatic" : {
-      "comment" : "Appearance mode: follow system setting\nHole-punch mode: automatic detection\nVNC security preference",
+      "comment" : "Appearance mode: follow system setting\nHole-punch mode: automatic detection\nVNC remote system preference\nVNC security preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -141625,6 +141780,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選擇組合鍵"
+          }
+        }
+      }
+    },
+    "Choose Linux for Linux desktops shared with Apple's protocol, such as wayshare on Hyprland, so Option sends Alt." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختر Linux لأسطح مكتب Linux المشتركة عبر بروتوكول Apple، مثل wayshare على Hyprland، ليرسل مفتاح Option مفتاح Alt."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trieu Linux per als escriptoris Linux compartits amb el protocol d'Apple, com ara wayshare a Hyprland, perquè Option enviï Alt."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro linuxové plochy sdílené protokolem Apple, například wayshare na Hyprlandu, zvolte Linux, aby klávesa Option odesílala Alt."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vælg Linux til Linux-skriveborde, der deles med Apples protokol, f.eks. wayshare på Hyprland, så Optionstasten sender Alt."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wählen Sie Linux für Linux-Desktops, die über Apples Protokoll freigegeben werden, etwa wayshare unter Hyprland, damit die Wahltaste Alt sendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elija Linux para escritorios Linux compartidos con el protocolo de Apple, como wayshare en Hyprland, para que Option envíe Alt."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valitse Linux Applen protokollalla jaetuille Linux-työpöydille, kuten wayshare Hyprlandissa, jotta Option-näppäin lähettää Altin."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez Linux pour les bureaux Linux partagés avec le protocole d'Apple, comme wayshare sous Hyprland, afin que Option envoie Alt."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "בחר Linux עבור שולחנות עבודה של Linux המשותפים בפרוטוקול של Apple, כמו wayshare ב-Hyprland, כדי שמקש Option ישלח Alt."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Válassza a Linux lehetőséget az Apple protokolljával megosztott Linux asztalokhoz, például a Hyprlandon futó wayshare-hez, hogy az Option billentyű Alt-ot küldjön."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli Linux per i desktop Linux condivisi con il protocollo di Apple, come wayshare su Hyprland, in modo che Opzione invii Alt."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HyprlandのwayshareなどAppleのプロトコルで共有されるLinuxデスクトップではLinuxを選択すると、OptionキーでAltが送信されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hyprland의 wayshare처럼 Apple 프로토콜로 공유되는 Linux 데스크톱에서는 Linux를 선택하면 Option 키가 Alt를 보냅니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velg Linux for Linux-skrivebord som deles med Apples protokoll, for eksempel wayshare på Hyprland, slik at Alternativtasten sender Alt."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies Linux voor Linux-bureaubladen die met het protocol van Apple worden gedeeld, zoals wayshare op Hyprland, zodat Option Alt verstuurt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wybierz Linux dla pulpitów Linux udostępnianych protokołem Apple, takich jak wayshare w Hyprland, aby klawisz Option wysyłał Alt."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha Linux para desktops Linux compartilhados com o protocolo da Apple, como o wayshare no Hyprland, para que Option envie Alt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha Linux para ambientes de trabalho Linux partilhados com o protocolo da Apple, como o wayshare no Hyprland, para que Option envie Alt."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alege Linux pentru desktopurile Linux partajate prin protocolul Apple, cum ar fi wayshare pe Hyprland, pentru ca Option să trimită Alt."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za namizja Linux, deljena s protokolom Apple, kot je wayshare v Hyprlandu, izberite Linux, da tipka Option pošilja Alt."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välj Linux för Linux-skrivbord som delas med Apples protokoll, till exempel wayshare på Hyprland, så att Option skickar Alt."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виберіть Linux для робочих столів Linux, до яких надано спільний доступ за протоколом Apple, як-от wayshare у Hyprland, щоб клавіша Option надсилала Alt."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chọn Linux cho các màn hình nền Linux được chia sẻ bằng giao thức của Apple, chẳng hạn wayshare trên Hyprland, để phím Option gửi Alt."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对于通过 Apple 协议共享的 Linux 桌面（如 Hyprland 上的 wayshare），请选择 Linux，以便 Option 键发送 Alt。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對於透過 Apple 通訊協定共享的 Linux 桌面（例如 Hyprland 上的 wayshare），請選擇 Linux，讓 Option 鍵傳送 Alt。"
           }
         }
       }
@@ -279483,6 +279792,7 @@
       }
     },
     "Enter a macOS username for Apple Remote Desktop authentication. Leave it empty to sign in with a plain VNC password." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -283957,6 +284267,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "請輸入此螢幕共享連線的密碼。"
+          }
+        }
+      }
+    },
+    "Enter the remote account's username for Apple authentication. Leave it empty to sign in with a plain VNC password." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أدخل اسم مستخدم الحساب البعيد لمصادقة Apple. اتركه فارغًا لتسجيل الدخول بكلمة مرور VNC عادية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduïu el nom d'usuari del compte remot per a l'autenticació d'Apple. Deixeu-lo buit per iniciar la sessió amb una contrasenya VNC simple."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zadejte uživatelské jméno vzdáleného účtu pro ověření Apple. Ponechte prázdné pro přihlášení běžným heslem VNC."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indtast brugernavnet for den eksterne konto til Apple-godkendelse. Lad det stå tomt for at logge ind med en almindelig VNC-adgangskode."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geben Sie den Benutzernamen des entfernten Kontos für die Apple-Authentifizierung ein. Lassen Sie das Feld leer, um sich mit einem einfachen VNC-Passwort anzumelden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduzca el nombre de usuario de la cuenta remota para la autenticación de Apple. Déjelo vacío para iniciar sesión con una contraseña VNC simple."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syötä etätilin käyttäjänimi Apple-todennusta varten. Jätä se tyhjäksi kirjautuaksesi tavallisella VNC-salasanalla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez le nom d'utilisateur du compte distant pour l'authentification Apple. Laissez vide pour vous connecter avec un simple mot de passe VNC."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הזן את שם המשתמש של החשבון המרוחק לאימות Apple. השאר ריק כדי להתחבר עם סיסמת VNC רגילה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adja meg a távoli fiók felhasználónevét az Apple-hitelesítéshez. Hagyja üresen, ha egyszerű VNC jelszóval szeretne bejelentkezni."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci il nome utente dell'account remoto per l'autenticazione Apple. Lascialo vuoto per accedere con una semplice password VNC."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple認証用のリモートアカウントのユーザー名を入力してください。空のままにすると、通常のVNCパスワードでサインインします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 인증에 사용할 원격 계정의 사용자 이름을 입력하세요. 일반 VNC 비밀번호로 로그인하려면 비워 두세요."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skriv inn brukernavnet til den eksterne kontoen for Apple-autentisering. La feltet stå tomt for å logge på med et vanlig VNC-passord."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voer de gebruikersnaam van het externe account in voor Apple-verificatie. Laat het leeg om u aan te melden met een gewoon VNC-wachtwoord."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wprowadź nazwę użytkownika konta zdalnego do uwierzytelniania Apple. Pozostaw puste, aby zalogować się zwykłym hasłem VNC."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insira o nome de usuário da conta remota para a autenticação da Apple. Deixe vazio para entrar com uma senha VNC simples."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduza o nome de utilizador da conta remota para a autenticação Apple. Deixe vazio para iniciar sessão com uma palavra-passe VNC simples."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introdu numele de utilizator al contului la distanță pentru autentificarea Apple. Lasă gol pentru a te autentifica cu o parolă VNC simplă."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vnesite uporabniško ime oddaljenega računa za preverjanje pristnosti Apple. Pustite prazno za prijavo z navadnim geslom VNC."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ange användarnamnet för fjärrkontot för Apple-autentisering. Lämna tomt för att logga in med ett vanligt VNC-lösenord."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введіть ім'я користувача віддаленого облікового запису для автентифікації Apple. Залиште порожнім, щоб увійти зі звичайним паролем VNC."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhập tên người dùng của tài khoản từ xa để xác thực Apple. Để trống để đăng nhập bằng mật khẩu VNC thông thường."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入远程账户的用户名以进行 Apple 认证。留空则使用普通 VNC 密码登录。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入遠端帳號的使用者名稱以進行 Apple 驗證。留空則使用一般 VNC 密碼登入。"
           }
         }
       }
@@ -423473,6 +423937,161 @@
         }
       }
     },
+    "Linux" : {
+      "comment" : "VNC remote system preference",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linux"
+          }
+        }
+      }
+    },
     "Linux kernel 5.6 or later is required for MPTCP v1 support." : {
       "localizations" : {
         "ar" : {
@@ -440306,6 +440925,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "深色主題上呈現明亮藍色，淺色主題上呈現溫暖橙色"
+          }
+        }
+      }
+    },
+    "Mac" : {
+      "comment" : "VNC remote system preference",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
           }
         }
       }
@@ -591217,6 +591991,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "遠端通訊端路徑"
+          }
+        }
+      }
+    },
+    "Remote System" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "النظام البعيد"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema remot"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vzdálený systém"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksternt system"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remote-System"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema remoto"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etäjärjestelmä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Système distant"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מערכת מרוחקת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Távoli rendszer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema remoto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リモートシステム"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원격 시스템"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksternt system"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extern systeem"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System zdalny"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema Remoto"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema Remoto"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistem la distanță"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oddaljeni sistem"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fjärrsystem"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Віддалена система"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hệ thống từ xa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远程系统"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "遠端系統"
           }
         }
       }
