@@ -11,6 +11,9 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
     let pty: TerminalPTY
 
     private(set) var isRunning: Bool = false
+    /// Set while start() waits on bookmark restoration; stop() clears it so a
+    /// tab closed during the wait never starts.
+    private var isStartPending = false
     var shellTask: Task<Void, Never>?
     var imgcatTask: Task<Void, Never>?
     var whatIsMyIPTask: Task<Void, Never>?
@@ -493,7 +496,13 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
 
     /// Starts the local shell session
     func start() async throws {
+        isStartPending = true
+        await BookmarkedLocationsManager.shared.waitUntilSynced()
         guard !isRunning else { return }
+        // Stopped during the wait: throw so callers skip follow-up work
+        // (embedded SSH/Mosh/Trzsz launches).
+        guard isStartPending else { throw CancellationError() }
+        isStartPending = false
 
         Self.logger.info("Starting local shell session")
 
@@ -569,6 +578,7 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
     }
 
     private func stop(preservingEmbeddedRoamSessions: Bool) {
+        isStartPending = false
         guard isRunning else { return }
 
         Self.logger.info("Stopping local shell session")

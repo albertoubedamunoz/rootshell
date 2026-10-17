@@ -6,7 +6,7 @@ import OSLog
 
 // MARK: - Data Model
 
-struct BookmarkedLocation: Codable, Identifiable {
+nonisolated struct BookmarkedLocation: Codable, Identifiable, Sendable {
     let id: UUID
     var name: String
     var bookmarkData: Data
@@ -16,6 +16,8 @@ struct BookmarkedLocation: Codable, Identifiable {
     /// Whether the bookmark data is stale and needs re-creation
     var isStale: Bool = false
 
+    // Decoding stays pure: bookmark resolution is a blocking FileProvider XPC
+    // call and only happens off main in `syncOnLaunch`.
     enum CodingKeys: String, CodingKey {
         case id, name, bookmarkData
     }
@@ -24,23 +26,6 @@ struct BookmarkedLocation: Codable, Identifiable {
         self.id = id
         self.name = name
         self.bookmarkData = bookmarkData
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        bookmarkData = try container.decode(Data.self, forKey: .bookmarkData)
-
-        // Resolve bookmark data on decode
-        var stale = false
-        resolvedURL = try? URL(
-            resolvingBookmarkData: bookmarkData,
-            options: .withoutUI,
-            relativeTo: nil,
-            bookmarkDataIsStale: &stale
-        )
-        isStale = stale
     }
 }
 
@@ -96,6 +81,7 @@ final class BookmarkedLocationsManager: ObservableObject {
 
     private let fileManager = FileManager.default
     private var accessedURLs: [UUID: URL] = [:]
+    private var syncTask: Task<Void, Never>?
 
     private init() {}
 
@@ -181,6 +167,23 @@ final class BookmarkedLocationsManager: ObservableObject {
     }
 
     func syncOnLaunch() {
+        let previous = syncTask
+        syncTask = Task {
+            await previous?.value
+            await performSync()
+        }
+    }
+
+    /// Waits for bookmark access to be restored. Shell setup awaits this so a
+    /// bookmarked working directory or `.rootshellrc` path resolves.
+    func waitUntilSynced() async {
+        if syncTask == nil {
+            syncOnLaunch()
+        }
+        await syncTask?.value
+    }
+
+    private func performSync() async {
         // Stop any previously accessed URLs to avoid leaking access counts
         // on repeated calls (e.g., scene recreation, multiple windows)
         for url in accessedURLs.values {
@@ -188,9 +191,76 @@ final class BookmarkedLocationsManager: ObservableObject {
         }
         accessedURLs.removeAll()
 
-        load()
+        // Load before resolving so add/remove during resolution edits (and
+        // saves) the full stored list.
+        locations = Self.loadLocations(from: storageURL)
+
+        let resolved = await Self.resolveLocations(locations)
+        let resolvedByID = Dictionary(resolved.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        // Release access for locations removed while resolving.
+        let currentIDs = Set(locations.map(\.id))
+        for location in resolved where !currentIDs.contains(location.id) {
+            location.resolvedURL?.stopAccessingSecurityScopedResource()
+        }
 
         var changed = false
+        var prunedCount = 0
+        locations = locations.compactMap { location in
+            // Added while resolving: addLocation already holds its access.
+            guard let result = resolvedByID[location.id] else { return location }
+            guard let url = result.resolvedURL else {
+                prunedCount += 1
+                return nil
+            }
+            accessedURLs[location.id] = url
+            recreateSymlinkIfMissing(name: location.name, destination: url)
+            if result.bookmarkData != location.bookmarkData {
+                changed = true
+            }
+            return result
+        }
+
+        if prunedCount > 0 {
+            changed = true
+            Self.logger.info("Pruned \(prunedCount) broken bookmarks")
+        }
+
+        if changed {
+            save()
+        }
+
+        updateIOSSystemConfig()
+
+        let count = locations.count
+        Self.logger.info("Synced \(count) bookmarked locations on launch")
+    }
+
+    /// Runs after reconciling with the current list so a bookmark removed while
+    /// resolving doesn't get its symlink back.
+    private func recreateSymlinkIfMissing(name: String, destination: URL) {
+        let symlinkPath = documentsURL.appendingPathComponent(name).path
+        guard !fileManager.fileExists(atPath: symlinkPath) else { return }
+        do {
+            try fileManager.createSymbolicLink(
+                atPath: symlinkPath,
+                withDestinationPath: destination.path
+            )
+            Self.logger.info("Recreated symlink for: \(name)")
+        } catch {
+            Self.logger.error("Failed to recreate symlink for \(name): \(error.localizedDescription)")
+        }
+    }
+
+    /// Resolves and starts accessing bookmarks off the main actor: each resolution
+    /// is a synchronous XPC to fileproviderd, which can stall for seconds right
+    /// after boot or while locked. Unresolvable entries keep a nil `resolvedURL`.
+    @concurrent
+    private nonisolated static func resolveLocations(
+        _ locations: [BookmarkedLocation]
+    ) async -> [BookmarkedLocation] {
+        var locations = locations
+
         for i in locations.indices {
             let location = locations[i]
 
@@ -216,23 +286,6 @@ final class BookmarkedLocationsManager: ObservableObject {
                 continue
             }
             locations[i].resolvedURL = url
-            accessedURLs[location.id] = url
-
-            // Recreate symlink if missing
-            let symlinkPath = documentsURL.appendingPathComponent(location.name).path
-            if !fileManager.fileExists(atPath: symlinkPath) {
-                do {
-                    try fileManager.createSymbolicLink(
-                        atPath: symlinkPath,
-                        withDestinationPath: url.path
-                    )
-                    let name = location.name
-                    Self.logger.info("Recreated symlink for: \(name)")
-                } catch {
-                    let name = location.name
-                    Self.logger.error("Failed to recreate symlink for \(name): \(error.localizedDescription)")
-                }
-            }
 
             // Re-create bookmark if stale
             if stale {
@@ -243,30 +296,13 @@ final class BookmarkedLocationsManager: ObservableObject {
                 ) {
                     locations[i].bookmarkData = newData
                     locations[i].isStale = false
-                    changed = true
                     let name = location.name
                     Self.logger.info("Refreshed stale bookmark for: \(name)")
                 }
             }
         }
 
-        // Prune locations that couldn't be resolved at all
-        let beforeCount = locations.count
-        locations.removeAll { location in location.resolvedURL == nil }
-        if locations.count < beforeCount {
-            changed = true
-            let prunedCount = beforeCount - locations.count
-            Self.logger.info("Pruned \(prunedCount) broken bookmarks")
-        }
-
-        if changed {
-            save()
-        }
-
-        updateIOSSystemConfig()
-
-        let count = locations.count
-        Self.logger.info("Synced \(count) bookmarked locations on launch")
+        return locations
     }
 
     func configureIOSSystem() {
@@ -441,18 +477,17 @@ final class BookmarkedLocationsManager: ObservableObject {
         }
     }
 
-    private func load() {
-        guard fileManager.fileExists(atPath: storageURL.path) else {
-            locations = []
-            return
+    private nonisolated static func loadLocations(from storageURL: URL) -> [BookmarkedLocation] {
+        guard FileManager.default.fileExists(atPath: storageURL.path) else {
+            return []
         }
 
         do {
             let data = try Data(contentsOf: storageURL)
-            locations = try JSONDecoder().decode([BookmarkedLocation].self, from: data)
+            return try JSONDecoder().decode([BookmarkedLocation].self, from: data)
         } catch {
-            Self.logger.error("Failed to load bookmarked locations: \(error.localizedDescription)")
-            locations = []
+            logger.error("Failed to load bookmarked locations: \(error.localizedDescription)")
+            return []
         }
     }
 }

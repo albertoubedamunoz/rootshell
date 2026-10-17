@@ -136,6 +136,9 @@ final class AIAgentSession {
     #else
     @ObservationIgnored private var iosLocalExecutor: IOSLocalExecutor?
     @ObservationIgnored private var iosLocalFingerprintCollector: IOSLocalFingerprintCollector?
+    /// Bumped by disconnect() so a connect still awaiting its executor can tell
+    /// it was abandoned.
+    @ObservationIgnored private var connectAttempt = 0
     #endif
 
     /// Unique identifier for this session
@@ -243,7 +246,14 @@ final class AIAgentSession {
             #else
             // Create iOS local executor and connect (via ios_system)
             let iosLocal = IOSLocalExecutor()
+            let attempt = connectAttempt
             try await iosLocal.connect(workingDirectory: initialWorkingDirectory)
+            // disconnect() ran during the connect and couldn't reach this
+            // executor; tear down only it, leaving any newer attempt alone.
+            guard attempt == connectAttempt else {
+                await iosLocal.disconnect()
+                throw CancellationError()
+            }
             self.iosLocalExecutor = iosLocal
 
             // Create iOS fingerprint collector
@@ -288,6 +298,7 @@ final class AIAgentSession {
         localExecutor = nil
         localFingerprintCollector = nil
         #else
+        connectAttempt += 1
         if let iosLocalExecutor = iosLocalExecutor {
             await iosLocalExecutor.disconnect()
         }

@@ -708,6 +708,23 @@ struct TabBar: View {
         }
     }
 
+    /// Everything a wrapped tab and its menu capture by value.
+    private func tabMenuIdentity(
+        item: TabBarItem,
+        moveLeftTarget: Int?,
+        moveRightTarget: Int?,
+        includeThemeOverrideClear: Bool
+    ) -> TabContextMenuIdentity {
+        TabContextMenuIdentity(
+            item: item,
+            moveLeftTarget: moveLeftTarget,
+            moveRightTarget: moveRightTarget,
+            includeThemeOverrideClear: includeThemeOverrideClear,
+            pinsEqualWidth: usesCompactSpacing || shouldPinEqualWidthTabs,
+            tabFrames: tabFrames
+        )
+    }
+
     /// Drag modifier reused by `equalWidth` and `scrolling` cases.
     private func dragModifier(for tab: TabModel, index: Int) -> TabDragModifier {
         TabDragModifier(
@@ -739,123 +756,53 @@ struct TabBar: View {
 
             case .userGrouped:
                 if let title = tabsModel.orderProjection.activeScopeTitle {
-                    Menu {
-                        Picker(selection: activeGroupSelection) {
-                            ForEach(tabsModel.orderedGroups) { group in
-                                Text(group.title).tag(Optional(group.id))
-                            }
-                        } label: {
-                            Text("Tab Group")
-                        }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    } label: {
-                        scopeMenuLabel(title: title, systemImage: "square.grid.2x2")
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: scopeMenuSize.maxLabelWidth)
-                    .contextMenu { scopeMenuSizePicker }
-                    .help("Active tab group")
-                    .accessibilityLabel("Active tab group: \(title)")
+                    TabScopeMenu<TabGroupID>(
+                        scope: .group,
+                        title: title,
+                        options: tabsModel.orderedGroups.map { .init(id: $0.id, title: $0.title) },
+                        selection: tabsModel.activeGroupID,
+                        size: scopeMenuSize,
+                        theme: theme,
+                        onSelect: { [tabsModel, onSelectTab] id in
+                            guard let group = tabsModel.orderedGroups.first(where: { $0.id == id }),
+                                  let targetID = tabsModel.preferredTabID(inGroup: group),
+                                  let rawIndex = tabsModel.index(of: targetID) else { return }
+                            onSelectTab(rawIndex)
+                        },
+                        onResize: resizeScopeMenu
+                    )
+                    .equatable()
                 }
 
             case .projectGrouped:
                 if let title = tabsModel.orderProjection.activeScopeTitle {
-                    Menu {
-                        Picker(selection: activeProjectSelection) {
-                            ForEach(tabsModel.projectSections.filter { !$0.tabIDs.isEmpty }) { section in
-                                Text(section.title).tag(Optional(section.id))
-                            }
-                        } label: {
-                            Text("Project")
-                        }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    } label: {
-                        scopeMenuLabel(title: title, systemImage: "folder")
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: scopeMenuSize.maxLabelWidth)
-                    .contextMenu { scopeMenuSizePicker }
-                    .help("Active project")
-                    .accessibilityLabel("Active project: \(title)")
+                    TabScopeMenu<ProjectGroupID>(
+                        scope: .project,
+                        title: title,
+                        options: tabsModel.projectSections
+                            .filter { !$0.tabIDs.isEmpty }
+                            .map { .init(id: $0.id, title: $0.title) },
+                        selection: tabsModel.orderProjection.activeProjectID,
+                        size: scopeMenuSize,
+                        theme: theme,
+                        onSelect: { [tabsModel, onSelectTab] id in
+                            guard let section = tabsModel.projectSections.first(where: { $0.id == id }),
+                                  let targetID = tabsModel.preferredTabID(inProjectSection: section),
+                                  let rawIndex = tabsModel.index(of: targetID) else { return }
+                            onSelectTab(rawIndex)
+                        },
+                        onResize: resizeScopeMenu
+                    )
+                    .equatable()
                 }
             }
         }
     }
 
-    private var activeGroupSelection: Binding<TabGroupID?> {
-        Binding(
-            get: { tabsModel.activeGroupID },
-            set: { id in
-                guard let group = tabsModel.orderedGroups.first(where: { $0.id == id }),
-                      let targetID = tabsModel.preferredTabID(inGroup: group),
-                      let rawIndex = tabsModel.index(of: targetID) else { return }
-                onSelectTab(rawIndex)
-            }
-        )
-    }
-
-    private var activeProjectSelection: Binding<ProjectGroupID?> {
-        Binding(
-            get: { tabsModel.orderProjection.activeProjectID },
-            set: { id in
-                guard let section = tabsModel.projectSections.first(where: { $0.id == id }),
-                      let targetID = tabsModel.preferredTabID(inProjectSection: section),
-                      let rawIndex = tabsModel.index(of: targetID) else { return }
-                onSelectTab(rawIndex)
-            }
-        )
-    }
-
-    /// Secondary click / two-finger tap on the group menu.
-    private var scopeMenuSizePicker: some View {
-        Picker(selection: Binding(
-            get: { scopeMenuSize },
-            set: { size in
-                // Resizing can move the menu between layout branches;
-                // leave the context-menu callback first.
-                Task { @MainActor in scopeMenuSize = size }
-            }
-        )) {
-            ForEach(TabScopeMenuSize.allCases, id: \.self) { size in
-                Text(size.choiceName).tag(size)
-            }
-        } label: {
-            Text("Group Menu Size")
-        }
-        .pickerStyle(.inline)
-    }
-
-    private func scopeMenuLabel(title: String, systemImage: String) -> some View {
-        let size = scopeMenuSize
-        return HStack(spacing: 5 * size.labelFontSize / 11) {
-            Image(systemName: systemImage)
-                .font(.system(size: size.labelFontSize - 1, weight: .semibold))
-
-            Text(title)
-                .lineLimit(1)
-
-            Image(systemName: "chevron.down")
-                .font(.system(size: size.labelFontSize - 3, weight: .bold))
-                .opacity(0.65)
-        }
-        .font(.system(size: size.labelFontSize, weight: .medium))
-        // Keep this adaptive to the terminal theme, but visually secondary to
-        // the selected tab. The rounded rectangle also distinguishes this as
-        // a scope selector instead of another tab.
-        .foregroundStyle(theme.tabSecondaryText)
-        .padding(.horizontal, 8 * size.labelFontSize / 11)
-        .frame(height: size.labelHeight)
-        .background(
-            theme.unselectedBackground.opacity(0.45),
-            in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(theme.tabText.opacity(0.08), lineWidth: 0.5)
-        }
-        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    private func resizeScopeMenu(_ size: TabScopeMenuSize) {
+        // Resizing can move the menu between layout branches;
+        // leave the context-menu callback first.
+        Task { @MainActor in scopeMenuSize = size }
     }
 
     // MARK: - Single tab
@@ -886,25 +833,33 @@ struct TabBar: View {
                     compactScopeMenuSpacer
                     cardLeadingGutter
                     troughWell(segmentCount: 1, segmentWidth: resolvedWidth) {
-                        tabItem(
+                        let item = tabItem(
                             for: tab,
                             index: rawIndex,
                             isOnly: true,
                             gatewayOwnerIDs: gatewayOwnerIDs,
                             tabWidth: resolvedWidth
                         )
-                            .frame(width: resolvedWidth)
-                            .contextMenu {
-                                // Full shared menu — a lone visible tab can still be a
-                                // tmux gateway/window. No move targets with one tab.
-                                tabContextMenu(
-                                    for: tab,
-                                    index: rawIndex,
-                                    moveLeftTarget: nil,
-                                    moveRightTarget: nil,
-                                    includeThemeOverrideClear: true
-                                )
-                            }
+                        TabContextMenuRow(identity: tabMenuIdentity(
+                            item: item,
+                            moveLeftTarget: nil,
+                            moveRightTarget: nil,
+                            includeThemeOverrideClear: true
+                        )) {
+                            item
+                                .frame(width: resolvedWidth)
+                        } menu: {
+                            // Full shared menu — a lone visible tab can still be a
+                            // tmux gateway/window. No move targets with one tab.
+                            tabContextMenu(
+                                for: tab,
+                                index: rawIndex,
+                                moveLeftTarget: nil,
+                                moveRightTarget: nil,
+                                includeThemeOverrideClear: true
+                            )
+                        }
+                        .equatable()
                     }
                 }
                 .fixedSize(horizontal: true, vertical: false)
@@ -976,28 +931,36 @@ struct TabBar: View {
                     let index = tabsModel.index(of: tab.id) ?? 0
                     let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
                     let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                    equalWidthTabFrame(width: tabWidth) {
-                        tabItem(
+                    let item = tabItem(
+                        for: tab,
+                        index: index,
+                        isOnly: false,
+                        gatewayOwnerIDs: gatewayOwnerIDs,
+                        tabWidth: tabWidth
+                    )
+                    TabContextMenuRow(identity: tabMenuIdentity(
+                        item: item,
+                        moveLeftTarget: moveLeftTarget,
+                        moveRightTarget: moveRightTarget,
+                        includeThemeOverrideClear: false
+                    )) {
+                        equalWidthTabFrame(width: tabWidth) {
+                            item
+                                .equatable()
+                        }
+                            .contentShape(Rectangle())
+                            .modifier(dragModifier(for: tab, index: index))
+                    } menu: {
+                        tabContextMenu(
                             for: tab,
                             index: index,
-                            isOnly: false,
-                            gatewayOwnerIDs: gatewayOwnerIDs,
-                            tabWidth: tabWidth
+                            moveLeftTarget: moveLeftTarget,
+                            moveRightTarget: moveRightTarget,
+                            includeThemeOverrideClear: false
                         )
-                            .equatable()
                     }
-                        .contentShape(Rectangle())
-                        .id(tab.id)
-                        .modifier(dragModifier(for: tab, index: index))
-                        .contextMenu {
-                            tabContextMenu(
-                                for: tab,
-                                index: index,
-                                moveLeftTarget: moveLeftTarget,
-                                moveRightTarget: moveRightTarget,
-                                includeThemeOverrideClear: false
-                            )
-                        }
+                    .equatable()
+                    .id(tab.id)
                 }
             }
         }
@@ -1072,27 +1035,35 @@ struct TabBar: View {
                             let index = tabsModel.index(of: tab.id) ?? 0
                             let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
                             let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                            tabItem(
+                            let item = tabItem(
                                 for: tab,
                                 index: index,
                                 isOnly: false,
                                 gatewayOwnerIDs: gatewayOwnerIDs,
                                 tabWidth: tabWidth
                             )
-                                .equatable()
-                                .frame(width: tabWidth)
-                                .contentShape(Rectangle())
-                                .id(tab.id)
-                                .modifier(dragModifier(for: tab, index: index))
-                                .contextMenu {
-                                    tabContextMenu(
-                                        for: tab,
-                                        index: index,
-                                        moveLeftTarget: moveLeftTarget,
-                                        moveRightTarget: moveRightTarget,
-                                        includeThemeOverrideClear: true
-                                    )
-                                }
+                            TabContextMenuRow(identity: tabMenuIdentity(
+                                item: item,
+                                moveLeftTarget: moveLeftTarget,
+                                moveRightTarget: moveRightTarget,
+                                includeThemeOverrideClear: true
+                            )) {
+                                item
+                                    .equatable()
+                                    .frame(width: tabWidth)
+                                    .contentShape(Rectangle())
+                                    .modifier(dragModifier(for: tab, index: index))
+                            } menu: {
+                                tabContextMenu(
+                                    for: tab,
+                                    index: index,
+                                    moveLeftTarget: moveLeftTarget,
+                                    moveRightTarget: moveRightTarget,
+                                    includeThemeOverrideClear: true
+                                )
+                            }
+                            .equatable()
+                            .id(tab.id)
                         }
                     }
                 }
@@ -1483,5 +1454,155 @@ struct TabBarItem: View, Equatable {
             tabWidth: tabWidth,
             usesTitlebarTabs: usesTitlebarTabs
         )
+    }
+}
+
+// MARK: - Scope Menu
+
+/// The tab group / project menu. Equatable so TabBar and MainView renders
+/// (keyboard changes, tab title churn) skip this body and never rebuild the
+/// menu while it is open. The callbacks are excluded; they act on live state.
+private struct TabScopeMenu<ID: Hashable>: View, Equatable {
+    enum Scope { case group, project }
+
+    struct Option: Equatable {
+        let id: ID
+        let title: String
+    }
+
+    let scope: Scope
+    let title: String
+    let options: [Option]
+    let selection: ID?
+    let size: TabScopeMenuSize
+    let theme: ResolvedTabBarTheme
+    let onSelect: (ID) -> Void
+    let onResize: (TabScopeMenuSize) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.scope == rhs.scope
+            && lhs.title == rhs.title
+            && lhs.options == rhs.options
+            && lhs.selection == rhs.selection
+            && lhs.size == rhs.size
+            && lhs.theme == rhs.theme
+    }
+
+    var body: some View {
+        Menu {
+            Picker(selection: Binding(
+                get: { selection },
+                set: { id in if let id { onSelect(id) } }
+            )) {
+                ForEach(options, id: \.id) { option in
+                    Text(option.title).tag(Optional(option.id))
+                }
+            } label: {
+                switch scope {
+                case .group: Text("Tab Group")
+                case .project: Text("Project")
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+        } label: {
+            label
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: size.maxLabelWidth)
+        .contextMenu { sizePicker }
+        .help(scope == .group ? "Active tab group" : "Active project")
+        .accessibilityLabel(scope == .group ? "Active tab group: \(title)" : "Active project: \(title)")
+    }
+
+    /// Secondary click / two-finger tap on the group menu.
+    private var sizePicker: some View {
+        Picker(selection: Binding(get: { size }, set: { onResize($0) })) {
+            ForEach(TabScopeMenuSize.allCases, id: \.self) { size in
+                Text(size.choiceName).tag(size)
+            }
+        } label: {
+            Text("Group Menu Size")
+        }
+        .pickerStyle(.inline)
+    }
+
+    private var label: some View {
+        HStack(spacing: 5 * size.labelFontSize / 11) {
+            Image(systemName: scope == .group ? "square.grid.2x2" : "folder")
+                .font(.system(size: size.labelFontSize - 1, weight: .semibold))
+
+            Text(title)
+                .lineLimit(1)
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: size.labelFontSize - 3, weight: .bold))
+                .opacity(0.65)
+        }
+        .font(.system(size: size.labelFontSize, weight: .medium))
+        // Keep this adaptive to the terminal theme, but visually secondary to
+        // the selected tab. The rounded rectangle also distinguishes this as
+        // a scope selector instead of another tab.
+        .foregroundStyle(theme.tabSecondaryText)
+        .padding(.horizontal, 8 * size.labelFontSize / 11)
+        .frame(height: size.labelHeight)
+        .background(
+            theme.unselectedBackground.opacity(0.45),
+            in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(theme.tabText.opacity(0.08), lineWidth: 0.5)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
+// MARK: - Tab Context Menu Isolation
+
+private struct TabContextMenuIdentity: Equatable {
+    let item: TabBarItem
+    let moveLeftTarget: Int?
+    let moveRightTarget: Int?
+    let includeThemeOverrideClear: Bool
+    let pinsEqualWidth: Bool
+    let tabFrames: [UUID: CGRect]
+}
+
+/// Equatable owner for a tab's `.contextMenu`, so keyboard changes and parent
+/// renders don't rebuild the menu while it is open. `content` still observes
+/// in its own scope.
+private struct TabContextMenuRow<RowContent: View, MenuContent: View>: View, Equatable {
+    let identity: TabContextMenuIdentity
+    let content: RowContent
+    let menu: () -> MenuContent
+
+    init(
+        identity: TabContextMenuIdentity,
+        @ViewBuilder content: () -> RowContent,
+        @ViewBuilder menu: @escaping () -> MenuContent
+    ) {
+        self.identity = identity
+        self.content = content()
+        self.menu = menu
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.identity == rhs.identity
+    }
+
+    var body: some View {
+        content.contextMenu {
+            TabContextMenuContents(build: menu)
+        }
+    }
+}
+
+/// Non-equatable and lazily built, so each presentation reads current state.
+private struct TabContextMenuContents<Content: View>: View {
+    @ViewBuilder let build: () -> Content
+
+    var body: some View {
+        build()
     }
 }
