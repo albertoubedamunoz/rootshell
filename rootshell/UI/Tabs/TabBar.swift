@@ -708,6 +708,23 @@ struct TabBar: View {
         }
     }
 
+    /// Everything a wrapped tab and its menu capture by value.
+    private func tabMenuIdentity(
+        item: TabBarItem,
+        moveLeftTarget: Int?,
+        moveRightTarget: Int?,
+        includeThemeOverrideClear: Bool
+    ) -> TabContextMenuIdentity {
+        TabContextMenuIdentity(
+            item: item,
+            moveLeftTarget: moveLeftTarget,
+            moveRightTarget: moveRightTarget,
+            includeThemeOverrideClear: includeThemeOverrideClear,
+            pinsEqualWidth: usesCompactSpacing || shouldPinEqualWidthTabs,
+            tabFrames: tabFrames
+        )
+    }
+
     /// Drag modifier reused by `equalWidth` and `scrolling` cases.
     private func dragModifier(for tab: TabModel, index: Int) -> TabDragModifier {
         TabDragModifier(
@@ -816,25 +833,33 @@ struct TabBar: View {
                     compactScopeMenuSpacer
                     cardLeadingGutter
                     troughWell(segmentCount: 1, segmentWidth: resolvedWidth) {
-                        tabItem(
+                        let item = tabItem(
                             for: tab,
                             index: rawIndex,
                             isOnly: true,
                             gatewayOwnerIDs: gatewayOwnerIDs,
                             tabWidth: resolvedWidth
                         )
-                            .frame(width: resolvedWidth)
-                            .contextMenu {
-                                // Full shared menu — a lone visible tab can still be a
-                                // tmux gateway/window. No move targets with one tab.
-                                tabContextMenu(
-                                    for: tab,
-                                    index: rawIndex,
-                                    moveLeftTarget: nil,
-                                    moveRightTarget: nil,
-                                    includeThemeOverrideClear: true
-                                )
-                            }
+                        TabContextMenuRow(identity: tabMenuIdentity(
+                            item: item,
+                            moveLeftTarget: nil,
+                            moveRightTarget: nil,
+                            includeThemeOverrideClear: true
+                        )) {
+                            item
+                                .frame(width: resolvedWidth)
+                        } menu: {
+                            // Full shared menu — a lone visible tab can still be a
+                            // tmux gateway/window. No move targets with one tab.
+                            tabContextMenu(
+                                for: tab,
+                                index: rawIndex,
+                                moveLeftTarget: nil,
+                                moveRightTarget: nil,
+                                includeThemeOverrideClear: true
+                            )
+                        }
+                        .equatable()
                     }
                 }
                 .fixedSize(horizontal: true, vertical: false)
@@ -906,28 +931,36 @@ struct TabBar: View {
                     let index = tabsModel.index(of: tab.id) ?? 0
                     let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
                     let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                    equalWidthTabFrame(width: tabWidth) {
-                        tabItem(
+                    let item = tabItem(
+                        for: tab,
+                        index: index,
+                        isOnly: false,
+                        gatewayOwnerIDs: gatewayOwnerIDs,
+                        tabWidth: tabWidth
+                    )
+                    TabContextMenuRow(identity: tabMenuIdentity(
+                        item: item,
+                        moveLeftTarget: moveLeftTarget,
+                        moveRightTarget: moveRightTarget,
+                        includeThemeOverrideClear: false
+                    )) {
+                        equalWidthTabFrame(width: tabWidth) {
+                            item
+                                .equatable()
+                        }
+                            .contentShape(Rectangle())
+                            .modifier(dragModifier(for: tab, index: index))
+                    } menu: {
+                        tabContextMenu(
                             for: tab,
                             index: index,
-                            isOnly: false,
-                            gatewayOwnerIDs: gatewayOwnerIDs,
-                            tabWidth: tabWidth
+                            moveLeftTarget: moveLeftTarget,
+                            moveRightTarget: moveRightTarget,
+                            includeThemeOverrideClear: false
                         )
-                            .equatable()
                     }
-                        .contentShape(Rectangle())
-                        .id(tab.id)
-                        .modifier(dragModifier(for: tab, index: index))
-                        .contextMenu {
-                            tabContextMenu(
-                                for: tab,
-                                index: index,
-                                moveLeftTarget: moveLeftTarget,
-                                moveRightTarget: moveRightTarget,
-                                includeThemeOverrideClear: false
-                            )
-                        }
+                    .equatable()
+                    .id(tab.id)
                 }
             }
         }
@@ -1002,27 +1035,35 @@ struct TabBar: View {
                             let index = tabsModel.index(of: tab.id) ?? 0
                             let moveLeftTarget = moveTargetRawIndex(for: tab, delta: -1)
                             let moveRightTarget = moveTargetRawIndex(for: tab, delta: 1)
-                            tabItem(
+                            let item = tabItem(
                                 for: tab,
                                 index: index,
                                 isOnly: false,
                                 gatewayOwnerIDs: gatewayOwnerIDs,
                                 tabWidth: tabWidth
                             )
-                                .equatable()
-                                .frame(width: tabWidth)
-                                .contentShape(Rectangle())
-                                .id(tab.id)
-                                .modifier(dragModifier(for: tab, index: index))
-                                .contextMenu {
-                                    tabContextMenu(
-                                        for: tab,
-                                        index: index,
-                                        moveLeftTarget: moveLeftTarget,
-                                        moveRightTarget: moveRightTarget,
-                                        includeThemeOverrideClear: true
-                                    )
-                                }
+                            TabContextMenuRow(identity: tabMenuIdentity(
+                                item: item,
+                                moveLeftTarget: moveLeftTarget,
+                                moveRightTarget: moveRightTarget,
+                                includeThemeOverrideClear: true
+                            )) {
+                                item
+                                    .equatable()
+                                    .frame(width: tabWidth)
+                                    .contentShape(Rectangle())
+                                    .modifier(dragModifier(for: tab, index: index))
+                            } menu: {
+                                tabContextMenu(
+                                    for: tab,
+                                    index: index,
+                                    moveLeftTarget: moveLeftTarget,
+                                    moveRightTarget: moveRightTarget,
+                                    includeThemeOverrideClear: true
+                                )
+                            }
+                            .equatable()
+                            .id(tab.id)
                         }
                     }
                 }
@@ -1514,5 +1555,54 @@ private struct TabScopeMenu<ID: Hashable>: View, Equatable {
                 .stroke(theme.tabText.opacity(0.08), lineWidth: 0.5)
         }
         .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
+// MARK: - Tab Context Menu Isolation
+
+private struct TabContextMenuIdentity: Equatable {
+    let item: TabBarItem
+    let moveLeftTarget: Int?
+    let moveRightTarget: Int?
+    let includeThemeOverrideClear: Bool
+    let pinsEqualWidth: Bool
+    let tabFrames: [UUID: CGRect]
+}
+
+/// Equatable owner for a tab's `.contextMenu`, so keyboard changes and parent
+/// renders don't rebuild the menu while it is open. `content` still observes
+/// in its own scope.
+private struct TabContextMenuRow<RowContent: View, MenuContent: View>: View, Equatable {
+    let identity: TabContextMenuIdentity
+    let content: RowContent
+    let menu: () -> MenuContent
+
+    init(
+        identity: TabContextMenuIdentity,
+        @ViewBuilder content: () -> RowContent,
+        @ViewBuilder menu: @escaping () -> MenuContent
+    ) {
+        self.identity = identity
+        self.content = content()
+        self.menu = menu
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.identity == rhs.identity
+    }
+
+    var body: some View {
+        content.contextMenu {
+            TabContextMenuContents(build: menu)
+        }
+    }
+}
+
+/// Non-equatable and lazily built, so each presentation reads current state.
+private struct TabContextMenuContents<Content: View>: View {
+    @ViewBuilder let build: () -> Content
+
+    var body: some View {
+        build()
     }
 }
