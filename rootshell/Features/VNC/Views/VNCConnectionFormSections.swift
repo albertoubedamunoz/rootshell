@@ -42,6 +42,7 @@ struct VNCFormState: Hashable {
     var security: VNCConnectionConfig.SecurityPreference = .automatic
     var quality: VNCConnectionConfig.QualityMode = .adaptive
     var keyboardToolbar: VNCConnectionConfig.KeyboardToolbarPreference = .followAppSetting
+    var remoteSystem: VNCConnectionConfig.RemoteSystemPreference = .automatic
     var automaticallyEnterFullScreen: Bool = false
 
     /// Raw package enum values; nil = package default. Kept raw so the
@@ -79,6 +80,7 @@ struct VNCFormState: Hashable {
         security = config.security
         quality = config.quality
         keyboardToolbar = config.keyboardToolbar
+        remoteSystem = config.remoteSystem
         automaticallyEnterFullScreen = config.automaticallyEnterFullScreen
         displaySizingModeRaw = config.displaySizingModeRaw
         displayModeRaw = config.displayModeRaw
@@ -218,6 +220,7 @@ struct VNCFormState: Hashable {
                 promptForLoginPasswordAtLoginWindow,
             jump: jump,
             keyboardToolbar: keyboardToolbar,
+            remoteSystem: remoteSystem,
             automaticallyEnterFullScreen: automaticallyEnterFullScreen
         )
     }
@@ -333,6 +336,15 @@ struct VNCConnectionFormSections: View {
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 100)
                 }
+
+                Picker("Remote System", selection: $form.remoteSystem) {
+                    ForEach(VNCConnectionConfig.RemoteSystemPreference.allCases, id: \.self) { system in
+                        Text(system.displayName).tag(system)
+                    }
+                }
+                Text("Choose Linux for Linux desktops shared with Apple's protocol, such as wayshare on Hyprland, so Option sends Alt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             .themedRow()
         }
@@ -377,7 +389,7 @@ struct VNCConnectionFormSections: View {
             if hasSavedPassword && !form.savePassword {
                 Text("Turning off Save Password removes the saved password when you save.")
             } else {
-                Text("Enter a macOS username for Apple Remote Desktop authentication. Leave it empty to sign in with a plain VNC password.")
+                Text("Enter the remote account's username for Apple authentication. Leave it empty to sign in with a plain VNC password.")
             }
         }
     }

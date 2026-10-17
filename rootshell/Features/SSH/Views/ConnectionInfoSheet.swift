@@ -683,7 +683,7 @@ struct ConnectionInfoSheet: View {
         case .apple30: return "Apple (Diffie-Hellman)"
         case .macAuthentication: return "Apple (Diffie-Hellman)"
         case .srp: return "SRP"
-        case .kerberos: return "Kerberos"
+        case .appleSRP: return "Apple (SRP)"
         case .unknown(let value): return "Type \(value)"
         }
     }
