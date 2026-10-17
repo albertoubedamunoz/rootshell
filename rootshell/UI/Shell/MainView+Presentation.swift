@@ -193,7 +193,7 @@ extension MainView {
                 .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
             }
             // Clipboard manager: compact-width presentation (iPhone). Regular
-            // width mounts the draggable glass HUD in terminalOverlays() instead.
+            // width mounts the draggable glass HUD in floatingHUDOverlays() instead.
             .sheet(isPresented: Binding(
                 get: { showClipboardManager && UIDevice.current.userInterfaceIdiom == .phone },
                 set: { if !$0 { showClipboardManager = false } }

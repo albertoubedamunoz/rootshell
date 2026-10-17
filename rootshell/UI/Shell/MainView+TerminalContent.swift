@@ -297,13 +297,10 @@ extension MainView {
         }
     }
 
-    /// The terminal overlays ZStack (search, reconnection, theme picker, compose).
+    /// The terminal overlays ZStack (reconnection, compose, full-size panels).
     @ViewBuilder
     func terminalOverlays() -> some View {
         Group {
-            // Search overlay for focused terminal
-            searchOverlay(searchStateVersion: searchStateVersion)
-
             // Reconnection overlay for restored sessions
             reconnectionOverlay
 
@@ -315,6 +312,36 @@ extension MainView {
 
             // Detach banner lives on MainView’s content area (not here) so it
             // still shows after tmux -CC prune empties every tab.
+
+            // Full-size panels stand in for the terminal column only
+            fileManagerOverlays(fullSize: true)
+
+            #if !CHINA_BUILD
+            httpCaptureOverlays(fullSize: true)
+            #endif
+
+            // Compose text overlay
+            composeOverlay(composeStateVersion: composeStateVersion)
+
+            // Multiplexer session discovery overlay
+            sessionDiscoveryOverlay(sessionDiscoveryVersion: sessionDiscoveryVersion)
+
+            #if os(visionOS)
+            // Floating button to toggle keyboard toolbar ornament
+            visionOSKeyboardToggle
+            #endif
+        }
+        .tint(sheetAccentColor)
+        .optionalColorSchemeEnvironment(sheetColorSchemeForSheets)
+    }
+
+    /// Draggable HUDs. Laid over the docked sidebar and the terminal column so
+    /// they can be dragged across both.
+    @ViewBuilder
+    func floatingHUDOverlays() -> some View {
+        Group {
+            // Search overlay for focused terminal
+            searchOverlay(searchStateVersion: searchStateVersion)
 
             if showQuickSettingsOverlay {
                 QuickSettingsHUD(isPresented: $showQuickSettingsOverlay)
@@ -329,10 +356,10 @@ extension MainView {
             }
 
             // File manager HUD, or the transfer pill while it is hidden
-            fileManagerOverlays()
+            fileManagerOverlays(fullSize: false)
 
             #if !CHINA_BUILD
-            httpCaptureOverlays()
+            httpCaptureOverlays(fullSize: false)
             #endif
 
             // Theme picker overlay
@@ -354,17 +381,6 @@ extension MainView {
                 DictationHUD(isPresented: $showDictationHUD) { dictationTarget }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            #endif
-
-            // Compose text overlay
-            composeOverlay(composeStateVersion: composeStateVersion)
-
-            // Multiplexer session discovery overlay
-            sessionDiscoveryOverlay(sessionDiscoveryVersion: sessionDiscoveryVersion)
-
-            #if os(visionOS)
-            // Floating button to toggle keyboard toolbar ornament
-            visionOSKeyboardToggle
             #endif
         }
         .tint(sheetAccentColor)
@@ -1518,6 +1534,15 @@ extension MainView {
                 aiSidebarView(currentTabId: currentTabId, session: session, sidebarWidth: sidebarWidth, totalWidth: geometry.size.width)
             }
             #endif
+        }
+        // Above the docked column's zIndex, so HUDs can float over the sidebar.
+        .overlay(alignment: .leading) {
+            floatingHUDOverlays()
+                .modifier(DuoControlClearance())
+                // Exposé covers the terminal, and with it these HUDs.
+                .opacity(tabExpose.isActive ? 0 : 1)
+                .frame(width: dockedWidth + terminalWidth)
+                .ignoresSafeArea(.keyboard, edges: duoTabletopAvailable && !duoTabletopDisabled ? [] : .all)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // The sidebar fill sits below its controls. Linked effects span in from
