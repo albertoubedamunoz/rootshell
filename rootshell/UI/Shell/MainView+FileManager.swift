@@ -211,12 +211,13 @@ extension MainView {
     }
 
     /// The HUD and, while the manager is hidden, the transfer progress pill.
+    /// `fullSize` picks the full-size panel's layer or the floating one.
     @ViewBuilder
-    func fileManagerOverlays() -> some View {
-        if fileManagerShowsOverlay, let model = fileManagerModel {
+    func fileManagerOverlays(fullSize: Bool) -> some View {
+        if fileManagerShowsOverlay, (fileManagerPresentation == .full) == fullSize, let model = fileManagerModel {
             FileManagerHUD(
                 manager: model,
-                fills: fileManagerPresentation == .full,
+                fills: fullSize,
                 canFocus: showFileManager,
                 theme: resolvedSheetTheme(),
                 onClose: { closeFileManager() },
@@ -227,7 +228,7 @@ extension MainView {
             // A fresh host per presentation; the HUD host sets up dragging and resizing once.
             .id(fileManagerPresentation)
         }
-        if !showFileManager {
+        if !fullSize, !showFileManager {
             TransferPill(onOpen: { openFileManager() })
                 .padding(.bottom, 16)
                 .padding(.trailing, 16)

@@ -173,12 +173,13 @@ extension MainView {
         }
     }
 
+    /// `fullSize` picks the full-size panel's layer or the floating one.
     @ViewBuilder
-    func httpCaptureOverlays() -> some View {
-        if httpCaptureShowsOverlay, let model = httpCaptureModel {
+    func httpCaptureOverlays(fullSize: Bool) -> some View {
+        if httpCaptureShowsOverlay, (httpCapturePresentation == .full) == fullSize, let model = httpCaptureModel {
             HTTPCaptureHUD(
                 model: model,
-                fills: httpCapturePresentation == .full,
+                fills: fullSize,
                 theme: resolvedSheetTheme(),
                 onClose: { closeHTTPCapture() },
                 onSwitchPresentation: { switchHTTPCapturePresentation($0) },
