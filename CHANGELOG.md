@@ -3,6 +3,29 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.14-169 - October 17, 2026
+
+### Screen Sharing on Linux
+
+- **wayshare Support:** Connect to wayshare Screen Sharing servers on Linux, including Hyprland desktops, with Apple SRP login. Both Standard and High Performance modes are supported.
+- **Remote System:** Added Automatic, Mac, and Linux choices in Screen Sharing connections. Automatic recognizes wayshare and sends Option as Alt; choose Linux to force this behavior for other Linux desktops shared with Apple's protocol.
+- **Apple SRP:** Added Apple SRP to the security choices.
+
+### Screen Sharing Fixes
+
+- **Multiple Displays:** Fixed Standard mode getting stuck on "Waiting for first screen update" when connecting to a Mac with multiple displays, whether viewing one display or all displays together. Mixed display sizes, gaps between displays, and displays that send their first image later no longer prevent the picture from appearing.
+- **Display Positioning:** Fixed a selected display being cropped and clicks landing in the wrong place when it was not the leftmost display in the remote desktop layout.
+- **VeNCrypt TLS:** Fixed connections failing with "EOF during handshake" on servers such as WayVNC.
+
+### Startup and Tab Menus
+
+- **Folder Restoration:** Fixed launch hangs and crashes while restoring bookmarked folders, especially just after a reboot when the system Files service is slow. Folder restoration now runs in the background; local shells and local AI agent commands wait for folder access before starting.
+- **Tab Menu Freezes:** Fixed app freezes caused by keyboard or tab updates while the top tab bar's tab context menus or group/project menu were open.
+
+### Floating Panels
+
+- **Panel Positioning:** Floating panels such as HTTP Capture, File Manager, and Find can now be dragged over the pinned tab sidebar, giving you more room to position them. Full-size panels continue to fill the terminal area.
+
 ## 1.0.14-168 - October 16, 2026
 
 ### Theme Gradient Styles
