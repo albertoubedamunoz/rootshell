@@ -17,6 +17,10 @@ import os
 import OSLog
 @preconcurrency import TrzszSSH
 
+#if targetEnvironment(macCatalyst)
+import IOKit
+#endif
+
 /// Bridges Go's `TSSHOutputCallback` interface to a `TrzszGoTransport`.
 /// Calls land on background goroutine threads; the transport's nonisolated
 /// hooks own the dispatch back onto Swift's main actor / output sinks.
@@ -103,3 +107,26 @@ nonisolated final class TrzszGoHealthBridge: NSObject, IosbridgeHealthNotifierPr
         transport?.handleHealthTransitionFromGoCallback(isTimeout: false, lastActiveMs: lastActiveMs)
     }
 }
+
+#if targetEnvironment(macCatalyst)
+/// Holds tsshd reconnects while macOS lacks the Graphics capability (Dark
+/// Wake), so a sleeping Mac doesn't reconnect and resize a shared tmux window.
+nonisolated final class TrzszGoDarkWakePauser: NSObject, IosbridgeReconnectPauserProtocol, @unchecked Sendable {
+    static let shared = TrzszGoDarkWakePauser()
+
+    /// kIOPMSystemCapabilityGraphics in IOPMrootDomain's "System Capabilities".
+    private static let graphicsCapability: UInt64 = 0x02
+    private let rootDomain = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
+
+    func pauseReason() -> String {
+        // An unreadable value never blocks reconnects.
+        guard rootDomain != IO_OBJECT_NULL,
+              let capabilities = IORegistryEntryCreateCFProperty(
+                rootDomain, "System Capabilities" as CFString, kCFAllocatorDefault, 0
+              )?.takeRetainedValue() as? NSNumber,
+              capabilities.uint64Value & Self.graphicsCapability == 0
+        else { return "" }
+        return "macOS Graphics capability is unavailable (possibly Dark Wake)"
+    }
+}
+#endif

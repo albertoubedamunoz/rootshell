@@ -655,6 +655,9 @@ final class TrzszGoTransport: NSObject {
         // Wire Go tsshd debug output to file-based logger when enabled.
         let logger = ResumeDebugLogger.shared.isEnabled ? TrzszGoDebugLoggerBridge() : nil
         await TSSHCallGate.shared.setDebugLogger(logger)
+        #if targetEnvironment(macCatalyst)
+        await TSSHCallGate.shared.setReconnectPauser(TrzszGoDarkWakePauser.shared)
+        #endif
 
         // Validate KCP credentials before handing off to the gate.
         if serverInfo.mode == .kcp {
