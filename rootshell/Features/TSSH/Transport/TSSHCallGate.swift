@@ -235,6 +235,11 @@ actor TSSHCallGate {
         IosbridgeSetDebugLogger(bridge)
     }
 
+    /// Registers (or clears) the global Go-side reconnect pauser. Pass nil to disable.
+    func setReconnectPauser(_ pauser: (any IosbridgeReconnectPauserProtocol)?) {
+        IosbridgeSetReconnectPauser(pauser)
+    }
+
     // MARK: - Transport lifecycle
 
     func connect(_ params: TSSHTransportParams, via proxyRef: TSSHTransportRef? = nil) async throws -> TSSHTransportRef {
