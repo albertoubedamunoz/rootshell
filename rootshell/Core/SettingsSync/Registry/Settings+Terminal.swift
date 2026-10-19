@@ -22,6 +22,10 @@ nonisolated extension Settings {
             "openLinksFromPrograms", default: false, group: .terminal, policy: .localByDefault,
             configKey: "open-links-from-programs",
             title: String(localized: "Open Links from Programs", comment: "Setting title"))
+        static let showRemotePorts = SettingKey(
+            "showRemotePorts", default: true, group: .terminal, policy: .localByDefault,
+            configKey: "show-remote-ports",
+            title: String(localized: "Show Remote Ports", comment: "Setting title"))
         static let terminalTypeLocal = SettingKey(
             "terminalTypeLocal", default: TerminalTypeSettings.localFallback, group: .terminal, policy: .localByDefault,
             configKey: "terminal-type-local",
@@ -55,6 +59,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             programURLRequestReplayCache.erased,
             openLinksFromPrograms.erased,
+            showRemotePorts.erased,
             terminalTypeLocal.erased, terminalTypeRemote.erased, localShellCommand.erased,
             paddingXOverride.erased, paddingYOverride.erased,
             rcfileInProgress.erased, rcfileConsecutiveFailures.erased, rcfileLastFailureTimestamp.erased,

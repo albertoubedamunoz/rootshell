@@ -754,6 +754,19 @@ struct SettingsTerminalSection: View {
             }
 #endif
 
+            // MARK: - Remote Ports
+            Section {
+                SettingToggle(Settings.Terminal.showRemotePorts,
+                              title: "Show Remote Ports", icon: "network")
+                    .themedRow()
+                Text("Lists the TCP ports the connected host listens on, in a floating pill at the bottom of the terminal. Click a port to forward it to this device and open it in an in-app browser.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .themedRow()
+            } header: {
+                Text("Remote Ports")
+            }
+
             // MARK: - Program Links
             Section {
                 SettingToggle(Settings.Terminal.openLinksFromPrograms,

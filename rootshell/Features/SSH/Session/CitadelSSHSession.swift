@@ -85,6 +85,21 @@ final class CitadelSSHSession: SSHTerminalSession {
     // Port forwarding
     private var portForwardManager: PortForwardManager?
 
+    /// Created on demand when the remote-port status bar starts a forward and
+    /// the connection has no configured forwards to reuse.
+    private var adHocPortForwardManager: PortForwardManager?
+
+    /// Status-bar forwards reuse the configured manager when there is one, so
+    /// both kinds share the same SSH client and teardown.
+    var adHocForwarding: AdHocForwarding? {
+        guard let client else { return nil }
+        if let portForwardManager { return portForwardManager }
+        if let adHocPortForwardManager { return adHocPortForwardManager }
+        let manager = PortForwardManager(client: client, config: .none)
+        adHocPortForwardManager = manager
+        return manager
+    }
+
     // Connection health monitoring
     private var healthMonitor: ConnectionHealthMonitor?
 
@@ -1357,10 +1372,12 @@ final class CitadelSSHSession: SSHTerminalSession {
 
         // Capture references before nil'ing so the Task can use them
         let managerToStop = portForwardManager
+        let adHocManagerToStop = adHocPortForwardManager
         let clientToClose = client
         let jumpClientToClose = jumpClient
 
         portForwardManager = nil
+        adHocPortForwardManager = nil
         client = nil
         jumpClient = nil
 
@@ -1380,6 +1397,13 @@ final class CitadelSSHSession: SSHTerminalSession {
                 }
             } catch {
                 Self.logger.warning("Port forward cleanup timed out — abandoning")
+            }
+            do {
+                try await withTimeout(seconds: Self.cleanupTimeoutSeconds) {
+                    await adHocManagerToStop?.stopAllForwards()
+                }
+            } catch {
+                Self.logger.warning("Ad hoc forward cleanup timed out — abandoning")
             }
             do {
                 try await withTimeout(seconds: Self.cleanupTimeoutSeconds) {
@@ -2235,3 +2259,7 @@ final class CitadelHostKeyValidatorDelegate: NIOSSHClientServerAuthenticationDel
 // MARK: - Auth banner card
 
 extension CitadelSSHSession: SSHAuthBannerCardProviding {}
+
+// MARK: - AdHocForwardingProviding
+
+extension CitadelSSHSession: AdHocForwardingProviding {}

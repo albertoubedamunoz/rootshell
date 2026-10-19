@@ -325,6 +325,11 @@ final class TabModel: Identifiable {
         }
     }
 
+    /// A web page tab opened from the remote-port pill. Such a tab has an
+    /// empty split tree and renders a WKWebView instead of a terminal; it is
+    /// deliberately ephemeral and never serialized.
+    var webPreview: PortPreview?
+
     /// Setting this rewires title/health observation.
     var focusedPane: SplitPaneView? {
         didSet {
