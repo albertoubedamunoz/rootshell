@@ -909,6 +909,14 @@ extension CustomKey {
             }
         }
     }
+
+    /// Base sequence of a lone special key with no baked-in modifiers, so
+    /// toolbar modifiers can be applied to it (e.g. Ctrl+Page Up).
+    var plainSpecialKeyInput: String? {
+        guard sequence.count == 1, case .keyCombo(let combo) = sequence[0],
+              combo.modifiers.isEmpty, case .special(let key) = combo.key else { return nil }
+        return String(decoding: key.baseData, as: UTF8.self)
+    }
 }
 
 extension SequenceStep.KeyCombo {

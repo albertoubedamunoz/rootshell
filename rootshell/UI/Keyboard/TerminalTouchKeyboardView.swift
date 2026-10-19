@@ -1698,6 +1698,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             guard let custom = KeyboardToolbarManager.shared.customKey(for: id) else { return }
             if let character = custom.plainCharacter {
                 perform(Model.Key(title: String(character), action: .text(String(character))))
+            } else if let input = custom.plainSpecialKeyInput, modifierState.rawValue != 0 {
+                keyPressed(input, modifiers: [])
             } else { sendCustomSequence(custom.sequence) }
         case .joystick:
             if isToolbarOnly { toggleToolbarDrawer() } else { showPage(.navigation) }
