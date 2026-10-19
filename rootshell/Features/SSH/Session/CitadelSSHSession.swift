@@ -90,11 +90,12 @@ final class CitadelSSHSession: SSHTerminalSession {
     private var adHocPortForwardManager: PortForwardManager?
 
     /// Status-bar forwards reuse the configured manager when there is one, so
-    /// both kinds share the same SSH client and teardown.
-    var adHocForwarding: AdHocForwarding? {
-        guard let client else { return nil }
-        if let portForwardManager { return portForwardManager }
+    /// both kinds share the same SSH client and teardown. An on-demand manager
+    /// that already exists wins, so its forwards stay findable.
+    func adHocForwarding(create: Bool) -> AdHocForwarding? {
         if let adHocPortForwardManager { return adHocPortForwardManager }
+        if let portForwardManager { return portForwardManager }
+        guard create, let client else { return nil }
         let manager = PortForwardManager(client: client, config: .none)
         adHocPortForwardManager = manager
         return manager

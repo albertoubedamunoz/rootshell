@@ -27,8 +27,9 @@ final class MoshControlConnection {
     }
 
     /// The same SSH client hosts both the scan probes and the ad hoc forwards.
-    var forwarding: PortForwardManager {
+    func forwarding(create: Bool) -> PortForwardManager? {
         if let portForwardManager { return portForwardManager }
+        guard create else { return nil }
         let manager = PortForwardManager(client: client, config: .none)
         portForwardManager = manager
         return manager

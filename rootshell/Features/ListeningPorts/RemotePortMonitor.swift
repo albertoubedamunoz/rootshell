@@ -53,12 +53,19 @@ final class RemotePortMonitor {
     }
 
     private func refreshIfNeeded() async {
-        guard visible,
-              !Ghostty.isAppBackgroundedAtomic,
-              SettingsStore.shared.value(Settings.Terminal.showRemotePorts),
-              let terminal,
-              terminal.session != nil,
-              RemoteExecProbe.canProbe(terminal)
+        guard visible, !Ghostty.isAppBackgroundedAtomic, let terminal else { return }
+        guard SettingsStore.shared.value(Settings.Terminal.showRemotePorts) else {
+            if !terminal.remotePorts.isEmpty { terminal.remotePorts = [] }
+            return
+        }
+        // A tmux -CC or herdr pane rides its gateway's connection.
+        guard let owner = TerminalConnectionOwner.resolve(for: terminal) else {
+            if !terminal.remotePorts.isEmpty { terminal.remotePorts = [] }
+            return
+        }
+        guard owner.connectionConfig.underlyingSSHConfig != nil,
+              owner.session != nil,
+              RemoteExecProbe.canProbe(owner)
         else { return }
 
         let (command, nonce) = RemotePortScanCommand.command(
@@ -67,7 +74,7 @@ final class RemotePortMonitor {
         do {
             let output = try await RemoteExecProbe.run(
                 command,
-                on: terminal,
+                on: owner,
                 timeout: 6,
                 maxResponseBytes: 128 * 1024
             )

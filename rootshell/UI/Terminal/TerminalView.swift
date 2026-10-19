@@ -456,6 +456,9 @@ extension Ghostty {
                     tmuxReportedPaneTitle = nil
                     tmuxReportedCurrentCommand = nil
                 }
+                if (tmuxPaneBinding == nil) != (oldValue == nil) {
+                    syncProjectedRemotePortMonitor()
+                }
                 refreshPanePresentationTitle()
             }
         }
@@ -482,6 +485,7 @@ extension Ghostty {
                 }
                 if (herdrPaneBinding == nil) != (oldValue == nil) {
                     invalidateWritingAssistance(resetDocument: true)
+                    syncProjectedRemotePortMonitor()
                     refreshPanePresentationTitle()
                 }
             }

@@ -9,14 +9,18 @@
 import Foundation
 
 extension Ghostty.TerminalView {
-    /// Called when the session is ready. No-op for transports that cannot run
-    /// an out-of-band command (Mosh has no such channel).
+    /// Called when the session is ready, or when a tmux -CC or herdr binding
+    /// attaches. No-op for transports that cannot run an out-of-band command.
     func startRemotePortMonitor() {
-        // Local shells are not remote hosts; the pill is for SSH/tssh/mosh.
-        guard connectionConfig.underlyingSSHConfig != nil,
-              RemoteExecProbe.canProbe(self) else {
-            remotePortMonitor?.stop()
-            return
+        // A projected pane has no session of its own; the monitor resolves its
+        // gateway on every scan, since the gateway may not be ready yet.
+        if !isTmuxPane, !isHerdrPane {
+            // Local shells are not remote hosts; the pill is for SSH/tssh/mosh.
+            guard connectionConfig.underlyingSSHConfig != nil,
+                  RemoteExecProbe.canProbe(self) else {
+                remotePortMonitor?.stop()
+                return
+            }
         }
         if remotePortMonitor == nil {
             remotePortMonitor = RemotePortMonitor(terminal: self)
@@ -24,10 +28,20 @@ extension Ghostty.TerminalView {
         remotePortMonitor?.start()
     }
 
+    /// Forwards are left alone: they belong to the connection, which may
+    /// outlive this pane (a tmux gateway) and tears them down itself.
     func stopRemotePortMonitor() {
         remotePortMonitor?.stop()
         remotePortMonitor = nil
-        Task { await remotePortForwarder.stopAll() }
+    }
+
+    /// tmux -CC and herdr panes never see `sessionDidBecomeReady`.
+    func syncProjectedRemotePortMonitor() {
+        if isTmuxPane || isHerdrPane {
+            startRemotePortMonitor()
+        } else {
+            stopRemotePortMonitor()
+        }
     }
 
     func setRemotePortMonitorVisible(_ visible: Bool) {

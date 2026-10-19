@@ -1268,7 +1268,12 @@ extension MainView {
                     // A remote-port page lives in an ordinary app tab: keep
                     // the app foreground so its loopback forward stays alive.
                     let metrics = appTabSwipeVisualMetrics(for: tab.id, width: width)
-                    PortPreviewTabView(preview: preview)
+                    PortPreviewTabView(
+                        preview: preview,
+                        roundedPanes: roundedPanes,
+                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader
+                            ? integratedTabJoin : nil
+                    )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .opacity(metrics.opacity)
                         .offset(x: metrics.offsetX)
@@ -1546,11 +1551,12 @@ extension MainView {
                     : 0
             )
             .overlay(alignment: .bottomTrailing) {
-                if SettingsStore.shared.value(Settings.Terminal.showRemotePorts),
-                   let portsTerminal {
+                if showRemotePorts, let portsTerminal {
                     ListeningPortsPill(terminal: portsTerminal) { preview in
                         openPortPreviewTab(preview)
                     }
+                    // Expanded/busy state belongs to one pane.
+                    .id(portsTerminal.uuid)
                     .padding(.bottom, portPillKeyboardLift)
                     .opacity(tabExpose.isActive ? 0 : 1)
                 }

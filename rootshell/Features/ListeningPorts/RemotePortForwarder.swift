@@ -2,9 +2,10 @@
 //  RemotePortForwarder.swift
 //  rootshell
 //
-//  Owns the loopback forwards started by the remote-port pill. One forward per
-//  remote port, kept for as long as the pane lives; stopping is explicit or
-//  happens with the session.
+//  Starts and stops the loopback forwards opened from the remote-port pill.
+//  The forwards belong to the transport manager of the pane's connection
+//  owner (the gateway for a tmux -CC or herdr pane), so they end with that
+//  connection and their state is always read back from it.
 //
 
 import Foundation
@@ -28,30 +29,30 @@ nonisolated enum RemotePortForwardError: LocalizedError {
 @MainActor
 final class RemotePortForwarder {
     private weak var terminal: Ghostty.TerminalView?
-    private var handles: [UInt16: AdHocForwardHandle] = [:]
 
     init(terminal: Ghostty.TerminalView) {
         self.terminal = terminal
     }
 
-    func localPort(for remotePort: UInt16) -> UInt16? {
-        handles[remotePort]?.localPort
+    private func forwarding(create: Bool) -> AdHocForwarding? {
+        guard let terminal,
+              let owner = TerminalConnectionOwner.resolve(for: terminal),
+              let provider = owner.session as? AdHocForwardingProviding else { return nil }
+        return provider.adHocForwarding(create: create)
     }
 
-    func canStop(remotePort: UInt16) -> Bool {
-        handles[remotePort]?.canStop ?? false
+    /// nil once the transport dropped the forward, e.g. after a reconnect.
+    func localPort(for remotePort: UInt16) -> UInt16? {
+        forwarding(create: false)?.adHocForward(forRemotePort: remotePort)?.localPort
     }
 
     /// Returns the loopback port the page should use. Reuses an existing
     /// forward for the same remote port.
     func forward(_ port: RemotePort) async throws -> UInt16 {
-        if let handle = handles[port.number] {
-            return handle.localPort
-        }
-        guard let terminal else { throw RemotePortForwardError.noSession }
-        guard let session = terminal.session else { throw RemotePortForwardError.noSession }
-        guard let provider = session as? AdHocForwardingProviding,
-              let forwarding = provider.adHocForwarding else {
+        guard let terminal,
+              let owner = TerminalConnectionOwner.resolve(for: terminal),
+              owner.session != nil else { throw RemotePortForwardError.noSession }
+        guard let forwarding = forwarding(create: true) else {
             throw RemotePortForwardError.unsupportedTransport
         }
 
@@ -64,26 +65,12 @@ final class RemotePortForwarder {
             remotePort: port.number,
             preferredLocalPort: preferred
         )
-        handles[port.number] = handle
         return handle.localPort
     }
 
     func stop(remotePort: UInt16) async {
-        guard let handle = handles.removeValue(forKey: remotePort) else { return }
-        guard let session = terminal?.session,
-              let provider = session as? AdHocForwardingProviding,
-              let forwarding = provider.adHocForwarding else { return }
+        guard let forwarding = forwarding(create: false),
+              let handle = forwarding.adHocForward(forRemotePort: remotePort) else { return }
         await forwarding.stopAdHocLocalForward(handle)
-    }
-
-    func stopAll() async {
-        let live = handles
-        handles.removeAll()
-        guard let session = terminal?.session,
-              let provider = session as? AdHocForwardingProviding,
-              let forwarding = provider.adHocForwarding else { return }
-        for handle in live.values {
-            await forwarding.stopAdHocLocalForward(handle)
-        }
     }
 }

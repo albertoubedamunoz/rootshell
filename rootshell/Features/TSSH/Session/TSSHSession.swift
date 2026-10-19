@@ -268,10 +268,12 @@ final class TrzszSession: TerminalSession {
     /// demand when the connection has no configured forwards to reuse.
     private var adHocTrzszPortForwardManager: TrzszPortForwardManager?
 
-    var adHocForwarding: AdHocForwarding? {
-        if let trzszPortForwardManager { return trzszPortForwardManager }
+    /// An on-demand manager that already exists wins over the configured one,
+    /// so its forwards stay findable when the configured one is rebuilt.
+    func adHocForwarding(create: Bool) -> AdHocForwarding? {
         if let adHocTrzszPortForwardManager { return adHocTrzszPortForwardManager }
-        guard let transportRef = goTransport?.activeTransportRef else { return nil }
+        if let trzszPortForwardManager { return trzszPortForwardManager }
+        guard create, let transportRef = goTransport?.activeTransportRef else { return nil }
         let manager = TrzszPortForwardManager(transportRef: transportRef, config: .none)
         adHocTrzszPortForwardManager = manager
         return manager

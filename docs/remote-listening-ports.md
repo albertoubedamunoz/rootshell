@@ -18,6 +18,10 @@ after a hover (pointer) or tap (touch).
 The page's text is zoomed against a 16 pt web baseline using the terminal's
 effective font size, so a 14 pt terminal and the page read at the same size.
 
+The page tab's address bar is editable: change `http://` to `https://`, edit the
+path, or enter another address and press Return. An address without a scheme
+opens as `http://`.
+
 A new tab is used instead of an external browser on purpose: the loopback
 forward is owned by the app process, and iOS suspends that process when Safari
 comes to the foreground.
@@ -29,6 +33,7 @@ comes to the foreground.
 | SSH (Citadel/NIO) | `ss` / `lsof` / `netstat` over an exec channel | `-L` equivalent through `PortForwardManager` |
 | tssh (`trzsz-ssh`) | `TSSHSession.runProbeCommand` | `TrzszPortForwardManager` |
 | Mosh / Roam | Over the retained SSH connection that spawned mosh-server | Same SSH connection |
+| tmux -CC / herdr pane | Through the gateway pane's connection | Same as the gateway |
 
 Mosh has no exec or forwarding channel of its own, so rootshell keeps the SSH
 connection used for `mosh-server` alive for scans and forwards. That connection
@@ -48,6 +53,15 @@ containers, or other users therefore do not appear.
 ## Security
 
 - The local listener binds `127.0.0.1` only.
+- The local port matches the remote one when nothing on this device already
+  listens there; otherwise an ephemeral port is used, so a local server on the
+  same port is never shadowed.
+- The tunnel dials the address the remote socket listens on (`127.0.0.1`,
+  `::1`, `127.0.0.2`, ...); a wildcard IPv6 socket is dialed on `::1`.
+- For `https://` on the tab's own forward (`127.0.0.1` and its local port), the
+  page tab accepts the server's certificate without validation: development
+  servers are usually self-signed, and the SSH tunnel already authenticates the
+  host. Every other address and port, and every hostname, is validated normally.
 - A forward starts only when the user taps a port; nothing is forwarded
   automatically.
 - The page uses a non-persistent `WKWebsiteDataStore`.

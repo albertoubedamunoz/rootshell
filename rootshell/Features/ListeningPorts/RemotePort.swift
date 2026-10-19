@@ -13,10 +13,10 @@ import Foundation
 nonisolated struct RemotePort: Hashable, Sendable, Identifiable {
     /// Where the socket listens. This decides how a tunnel must dial it.
     nonisolated enum Bind: Hashable, Sendable {
-        /// The host's own loopback only.
-        case loopback
+        /// The host's own loopback only: `127.0.0.1`, `127.0.0.2`, `::1`.
+        case loopback(String)
         /// Every address: `*`, `0.0.0.0`, or `::`.
-        case any
+        case any(String)
         /// One specific, non-loopback address.
         case address(String)
 
@@ -37,15 +37,13 @@ nonisolated struct RemotePort: Hashable, Sendable, Identifiable {
     var id: UInt16 { number }
 
     /// The host `ssh -L` should dial on the remote side. A wildcard socket
-    /// accepts loopback too, and a remote loopback is exactly what a tunnel
-    /// can reach without extra routing.
+    /// accepts its own family's loopback; an IPv6 one may be v6-only, so it
+    /// gets `::1`. Every other socket is dialed exactly where it listens.
     var targetHost: String {
         switch bind {
-        case .any:
-            return "127.0.0.1"
-        case .loopback:
-            return "127.0.0.1"
-        case .address(let host):
+        case .any(let host):
+            return host == "::" ? "::1" : "127.0.0.1"
+        case .loopback(let host), .address(let host):
             return host
         }
     }
@@ -58,9 +56,7 @@ nonisolated struct RemotePort: Hashable, Sendable, Identifiable {
         switch bind {
         case .any:
             return "*:\(number)"
-        case .loopback:
-            return "127.0.0.1:\(number)"
-        case .address(let host):
+        case .loopback(let host), .address(let host):
             return host.contains(":") ? "[\(host)]:\(number)" : "\(host):\(number)"
         }
     }
@@ -147,14 +143,17 @@ nonisolated enum RemotePortScanParser {
         if let percent = host.firstIndex(of: "%") {
             host = String(host[..<percent])
         }
+        // An IPv4-mapped address is dialed as the IPv4 address it maps.
+        if host.lowercased().hasPrefix("::ffff:"), host.contains(".") {
+            host = String(host.dropFirst("::ffff:".count))
+        }
         guard !host.isEmpty else { return nil }
 
         let bind: RemotePort.Bind
         if host == "*" || host == "0.0.0.0" || host == "::" {
-            bind = .any
-        } else if host == "localhost" || host == "::1" || host == "::ffff:127.0.0.1"
-                    || host.hasPrefix("127.") {
-            bind = .loopback
+            bind = .any(host)
+        } else if host == "localhost" || host == "::1" || host.hasPrefix("127.") {
+            bind = .loopback(host)
         } else {
             bind = .address(host)
         }
@@ -162,7 +161,7 @@ nonisolated enum RemotePortScanParser {
     }
 }
 
-private extension String {
+nonisolated private extension String {
     /// Trailing spaces are the only whitespace `trimmingCharacters` leaves in
     /// an address read from `ss` on some BusyBox builds.
     func rstripSpaces() -> String {

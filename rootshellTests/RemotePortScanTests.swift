@@ -19,9 +19,9 @@ final class RemotePortScanTests: XCTestCase {
 
         XCTAssertTrue(result.complete)
         XCTAssertEqual(result.ports.map(\.number), [5000, 7000, 14013, 49155])
-        XCTAssertEqual(result.ports[0].bind, .any)
-        XCTAssertEqual(result.ports[1].bind, .any)
-        XCTAssertEqual(result.ports[2].bind, .loopback)
+        XCTAssertEqual(result.ports[0].bind, .any("*"))
+        XCTAssertEqual(result.ports[1].bind, .any("*"))
+        XCTAssertEqual(result.ports[2].bind, .loopback("127.0.0.1"))
     }
 
     func testParsesSSAndPrefersWildcardOverLoopback() {
@@ -33,21 +33,30 @@ final class RemotePortScanTests: XCTestCase {
         """), nonce: nonce)
 
         XCTAssertEqual(result.ports.map(\.number), [3000, 8080, 8081, 9090])
-        XCTAssertEqual(result.ports[0].bind, .any)
-        XCTAssertEqual(result.ports[1].bind, .loopback)
-        XCTAssertEqual(result.ports[2].bind, .any)
-        XCTAssertEqual(result.ports[3].bind, .loopback)
+        XCTAssertEqual(result.ports[0].bind, .any("0.0.0.0"))
+        XCTAssertEqual(result.ports[1].bind, .loopback("::1"))
+        XCTAssertEqual(result.ports[2].bind, .any("::"))
+        XCTAssertEqual(result.ports[3].bind, .loopback("127.0.0.1"))
     }
 
-    func testLoopbackBindsTunnelToLoopbackAndAnyBindsToLoopback() {
+    func testTunnelDialsTheAddressTheSocketListensOn() {
         let ports = RemotePortScanParser.parse(output("""
         L 1 127.0.0.1:9090
         L 2 0.0.0.0:3000
         L 3 [::1]:8080
         L 4 192.168.1.9:7000
+        L 5 127.0.0.2:8000
+        L 6 [::]:8081
+        L 7 [::ffff:127.0.0.1]:8082
         """), nonce: nonce).ports
 
-        XCTAssertEqual(ports.map(\.targetHost), ["127.0.0.1", "192.168.1.9", "127.0.0.1", "127.0.0.1"])
+        XCTAssertEqual(ports.map(\.number), [3000, 7000, 8000, 8080, 8081, 8082, 9090])
+        XCTAssertEqual(
+            ports.map(\.targetHost),
+            ["127.0.0.1", "192.168.1.9", "127.0.0.2", "::1", "::1", "127.0.0.1", "127.0.0.1"]
+        )
+        XCTAssertEqual(ports[3].address, "[::1]:8080")
+        XCTAssertEqual(ports[2].address, "127.0.0.2:8000")
     }
 
     func testTruncatedAndUnavailable() {

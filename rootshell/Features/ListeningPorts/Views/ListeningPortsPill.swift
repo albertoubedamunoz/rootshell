@@ -28,7 +28,8 @@ struct ListeningPortsPill: View {
     @State private var hovering = false
     @State private var collapseTask: Task<Void, Never>?
     @State private var busyPort: UInt16?
-    @State private var activePorts: Set<UInt16> = []
+    /// Remote port -> local port, read back from the connection's forwards.
+    @State private var localPorts: [UInt16: UInt16] = [:]
     @State private var errorMessage: String?
 
     private static let collapseDelay: Duration = .seconds(3)
@@ -39,26 +40,28 @@ struct ListeningPortsPill: View {
                 globeButton
 
                 if expanded {
-                    ForEach(terminal.remotePorts) { port in
-                        chip(for: port)
-                    }
-                    if let busyPort {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .padding(.horizontal, 4)
-                            .accessibilityLabel("Opening port \(busyPort)")
+                    // Too many ports for the width scroll instead of pushing
+                    // the globe offscreen.
+                    ViewThatFits(in: .horizontal) {
+                        portRow
+                        ScrollView(.horizontal) {
+                            portRow
+                        }
+                        .scrollIndicators(.hidden)
+                        // A small overlay scroll view; UIKit 26 would blur its edges.
+                        .modifier(ScrollEdgeEffectHiddenModifier())
                     }
                 }
             }
             .padding(.horizontal, expanded ? 8 : 0)
             .frame(height: 39)
-            .fixedSize(horizontal: true, vertical: false)
             .background(.ultraThinMaterial, in: Capsule())
             .overlay {
                 Capsule()
                     .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
             }
             .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+            .padding(.leading, 12)
             .padding(.trailing, 12)
             .padding(.bottom, 10)
             .onHover { inside in
@@ -69,12 +72,8 @@ struct ListeningPortsPill: View {
                     scheduleCollapse()
                 }
             }
-            .onChange(of: terminal.remotePorts.isEmpty) { _, empty in
-                if empty {
-                    collapseTask?.cancel()
-                    expanded = false
-                }
-            }
+            .onAppear(perform: refreshLocalPorts)
+            .onChange(of: terminal.remotePorts) { _, _ in refreshLocalPorts() }
             .alert(
                 "Could Not Open Port",
                 isPresented: Binding(
@@ -88,8 +87,24 @@ struct ListeningPortsPill: View {
             }
             .animation(.easeInOut(duration: 0.16), value: expanded)
             .onDisappear {
+                // The ports went away; the next ones start collapsed.
                 collapseTask?.cancel()
                 collapseTask = nil
+                expanded = false
+            }
+        }
+    }
+
+    private var portRow: some View {
+        HStack(spacing: 4) {
+            ForEach(terminal.remotePorts) { port in
+                chip(for: port)
+            }
+            if let busyPort {
+                ProgressView()
+                    .controlSize(.mini)
+                    .padding(.horizontal, 4)
+                    .accessibilityLabel("Opening port \(busyPort)")
             }
         }
     }
@@ -117,8 +132,8 @@ struct ListeningPortsPill: View {
     }
 
     private func chip(for port: RemotePort) -> some View {
-        let local = terminal.remotePortForwarder.localPort(for: port.number)
-        let isActive = activePorts.contains(port.number) || local != nil
+        let local = localPorts[port.number]
+        let isActive = local != nil
         return Button {
             open(port)
         } label: {
@@ -148,11 +163,11 @@ struct ListeningPortsPill: View {
             } label: {
                 Label("Copy Local URL", systemImage: "doc.on.doc")
             }
-            if isActive, terminal.remotePortForwarder.canStop(remotePort: port.number) {
+            if isActive {
                 Button(role: .destructive) {
                     Task {
                         await terminal.remotePortForwarder.stop(remotePort: port.number)
-                        activePorts.remove(port.number)
+                        refreshLocalPorts()
                     }
                 } label: {
                     Label("Stop Forward", systemImage: "xmark.circle")
@@ -161,9 +176,18 @@ struct ListeningPortsPill: View {
         }
     }
 
+    private func refreshLocalPorts() {
+        var ports: [UInt16: UInt16] = [:]
+        for port in terminal.remotePorts {
+            ports[port.number] = terminal.remotePortForwarder.localPort(for: port.number)
+        }
+        if ports != localPorts { localPorts = ports }
+    }
+
     private func expand() {
         collapseTask?.cancel()
         collapseTask = nil
+        refreshLocalPorts()
         expanded = true
     }
 
@@ -187,10 +211,12 @@ struct ListeningPortsPill: View {
         guard busyPort == nil else { return }
         busyPort = port.number
         Task {
-            defer { busyPort = nil }
+            defer {
+                busyPort = nil
+                refreshLocalPorts()
+            }
             do {
                 let localPort = try await terminal.remotePortForwarder.forward(port)
-                activePorts.insert(port.number)
                 collapse()
                 guard let url = URL(string: "http://127.0.0.1:\(localPort)/") else { return }
                 let fontSize = terminal.fontSizeOverride ?? FontManager.shared.currentFontSize
@@ -205,10 +231,12 @@ struct ListeningPortsPill: View {
         guard busyPort == nil else { return }
         busyPort = port.number
         Task {
-            defer { busyPort = nil }
+            defer {
+                busyPort = nil
+                refreshLocalPorts()
+            }
             do {
                 let localPort = try await terminal.remotePortForwarder.forward(port)
-                activePorts.insert(port.number)
                 UIPasteboard.general.string = "http://127.0.0.1:\(localPort)/"
             } catch {
                 errorMessage = error.localizedDescription
@@ -216,3 +244,4 @@ struct ListeningPortsPill: View {
         }
     }
 }
+

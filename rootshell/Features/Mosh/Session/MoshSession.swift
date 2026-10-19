@@ -172,8 +172,8 @@ final class MoshSession: TerminalSession {
     private var controlConnection: MoshControlConnection?
 
     /// Mosh forwards through the retained SSH control connection.
-    var adHocForwarding: AdHocForwarding? {
-        controlConnection?.forwarding
+    func adHocForwarding(create: Bool) -> AdHocForwarding? {
+        controlConnection?.forwarding(create: create)
     }
 
     /// The SSH client a remote-port probe may use, when the control
@@ -843,7 +843,11 @@ final class MoshSession: TerminalSession {
             let spawnResult = try await spawner.spawn(resolvedHost: connectionHost)
             self.currentSpawnResult = spawnResult
             // Adopt the connection the spawner now keeps alive. It hosts the
-            // remote-port scan and forwards for this mosh session.
+            // remote-port scan and forwards for this mosh session. A re-spawn
+            // uses a new spawner, so the previous connection is closed here.
+            if let previous = self.controlConnection, previous !== spawner.controlConnection {
+                Task { await previous.close() }
+            }
             self.controlConnection = spawner.controlConnection
 
             // Capture bootstrap SSH algorithms from spawn
