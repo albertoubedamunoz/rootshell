@@ -1478,6 +1478,13 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
                     return
                 }
 
+                let combinedModifiers = combinedModifiersIncludingSystemShift(modifiers)
+                if let input = customKey.plainSpecialKeyInput, !combinedModifiers.isEmpty {
+                    self.delegate?.keyPressed(input, modifiers: combinedModifiers)
+                    clearOneShotModifiers()
+                    return
+                }
+
                 sendCustomKeySequence(customKey.sequence)
             }
             clearOneShotModifiers()

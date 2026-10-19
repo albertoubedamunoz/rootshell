@@ -96,6 +96,14 @@ extension Ghostty {
             HardwareKeyboardText.shiftedCharacter(char)
         }
 
+        /// Navigation keys whose modified forms need Ghostty's encoder.
+        /// Arrows keep their own path so Cmd still maps to the Alt bit.
+        static let navigationKeyHIDUsageMap: [String: UIKeyboardHIDUsage] = [
+            "\u{1B}[H": .keyboardHome, "\u{1B}[F": .keyboardEnd,
+            "\u{1B}[5~": .keyboardPageUp, "\u{1B}[6~": .keyboardPageDown,
+            "\u{1B}[3~": .keyboardDeleteForward
+        ]
+
         /// Maps characters to HID usages for routing virtual keyboard
         /// key presses through Ghostty's key encoding pipeline.
         /// This enables proper CSI u / kitty protocol encoding for modified keys.
@@ -5789,13 +5797,7 @@ extension Ghostty.TerminalView {
     private func sendViaGhosttyKeyEvent(_ char: Character, modifiers: KeyModifiers) -> Bool {
         let lookupChar = char.lowercased().first ?? char
         guard let hidUsage = Self.characterHIDUsageMap[lookupChar] else { return false }
-
-        // Convert KeyModifiers to Ghostty mods
-        var mods = Ghostty.Input.Mods.none
-        if modifiers.contains(.control) { mods.insert(.ctrl) }
-        if modifiers.contains(.shift) { mods.insert(.shift) }
-        if modifiers.contains(.alt) { mods.insert(.alt) }
-        if modifiers.contains(.command) { mods.insert(.cmd) }
+        let mods = Self.ghosttyMods(modifiers)
 
         // Build the text payload: apply shift transformation so legacy mode
         // sends the correct character (e.g., 'A' instead of 'a').
@@ -5819,6 +5821,15 @@ extension Ghostty.TerminalView {
         _ = sendKeyViaGhostty(keyCode: hidUsage, action: .release, mods: mods)
 
         return true
+    }
+
+    private static func ghosttyMods(_ modifiers: KeyModifiers) -> Ghostty.Input.Mods {
+        var mods = Ghostty.Input.Mods.none
+        if modifiers.contains(.control) { mods.insert(.ctrl) }
+        if modifiers.contains(.shift) { mods.insert(.shift) }
+        if modifiers.contains(.alt) { mods.insert(.alt) }
+        if modifiers.contains(.command) { mods.insert(.cmd) }
+        return mods
     }
 
     /// Route a key through Ghostty's encoder via `ghostty_surface_key()`.
@@ -5957,6 +5968,14 @@ extension Ghostty.TerminalView: KeyboardButtonDelegate {
             }
         }
 
+        if !modifiers.isEmpty, let usage = Self.navigationKeyHIDUsageMap[key] {
+            let mods = Self.ghosttyMods(modifiers)
+            if sendKeyViaGhostty(keyCode: usage, action: .press, mods: mods) {
+                _ = sendKeyViaGhostty(keyCode: usage, action: .release, mods: mods)
+                return
+            }
+        }
+
         // Fallback: manually build escape sequences for keys that don't have
         // a Ghostty key mapping (e.g., multi-byte escape sequences for arrows)
         // or when the surface is unavailable.
@@ -5975,19 +5994,21 @@ extension Ghostty.TerminalView: KeyboardButtonDelegate {
             keySequence = "\u{1B}O\(direction)"
         }
 
-        // Modified arrow keys: xterm CSI `1;{param}` encoding where
-        // param = 1 + Shift(1) + Alt(2) + Ctrl(4). Cmd maps to the Alt bit,
+        // Modified arrow and navigation keys: xterm `1;{param}X` or `{n};{param}~`
+        // where param = 1 + Shift(1) + Alt(2) + Ctrl(4). Cmd maps to the Alt bit,
         // matching the previous Cmd+arrow behavior.
         if !modifiers.isEmpty,
-           key.count == 3,
            key.hasPrefix("\u{1B}["),
-           let direction = key.last,
-           "ABCD".contains(direction) {
+           let finalByte = key.last,
+           (key.count == 3 && "ABCDHF".contains(finalByte))
+            || (finalByte == "~" && Self.navigationKeyHIDUsageMap[key] != nil) {
             var param = 1
             if modifiers.contains(.shift) { param += 1 }
             if modifiers.contains(.alt) || modifiers.contains(.command) { param += 2 }
             if modifiers.contains(.control) { param += 4 }
-            keySequence = "\u{1B}[1;\(param)\(direction)"
+            keySequence = finalByte == "~"
+                ? "\(key.dropLast());\(param)~"
+                : "\u{1B}[1;\(param)\(finalByte)"
         }
 
         // Handle modifiers for special keys
