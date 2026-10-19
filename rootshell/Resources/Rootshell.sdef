@@ -36,6 +36,26 @@
 				<cocoa key="profile"/>
 			</parameter>
 		</command>
+		<command name="focus pane" code="RTSHfpan" description="Focus a terminal pane by its surface UUID (from LC_ROOTSHELL_PANE).">
+			<cocoa class="RootshellFocusPaneCommand"/>
+			<direct-parameter optional="yes" description="The surface UUID of the pane to focus.">
+				<type type="text"/>
+			</direct-parameter>
+			<parameter name="with id" code="rpid" type="text" optional="yes" description="The surface UUID of the pane to focus.">
+				<cocoa key="paneId"/>
+			</parameter>
+			<result type="boolean" description="True if the pane was found and focused."/>
+		</command>
+		<command name="current pane id" code="RTSHcpid" description="Get the surface UUID of the currently focused terminal pane.">
+			<cocoa class="RootshellCurrentPaneIdCommand"/>
+			<result type="text" description="The surface UUID of the focused terminal pane, or an empty string if none."/>
+		</command>
+		<command name="list pane ids" code="RTSHlpid" description="Get the surface UUIDs of all open terminal panes.">
+			<cocoa class="RootshellListPaneIdsCommand"/>
+			<result description="A list of surface UUIDs of all open terminal panes.">
+				<type type="text" list="yes"/>
+			</result>
+		</command>
 	</suite>
 
 </dictionary>
