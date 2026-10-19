@@ -725,8 +725,8 @@ extension Ghostty {
             get { keyboardAccessoryController?.dismissTapStartPoint }
             set { keyboardAccessoryController?.dismissTapStartPoint = newValue }
         }
-        /// Bumped by every input path (bytes, key events, pastes). Dictation compares it
-        /// to tell its own insertions from typing that happened since.
+        /// Bumped by every input path (bytes, key events, pastes) except on-device
+        /// dictation's own delivery, which compares it to spot typing since.
         var userInputGeneration: UInt64 = 0
         /// Whether AI Agent overlay is visible for this terminal's tab (suppresses keyboard toolbar)
         var aiAgentOverlayActive: Bool = false {
@@ -1363,6 +1363,11 @@ extension Ghostty {
         var pendingDictationPlaceholderTokens = Set<String>()
         var dictationDeliveryDepth = 0
         var dictationSettleDeadline: TimeInterval?
+        /// On-device dictation output held behind a delayed Return, in order.
+        var dictationPending: [(submit: Bool, work: @MainActor (Ghostty.TerminalView) -> Void)] = []
+        var dictationDrainTask: Task<Void, Never>?
+        var dictationLastTextAt: ContinuousClock.Instant?
+        var dictationDelivering = false
 
         /// Long-press spacebar trackpad state. iOS reports drag offsets via
         /// `updateFloatingCursor(at:)`; we bucket them into whole-cell steps and
@@ -5844,18 +5849,20 @@ extension Ghostty.TerminalView {
         text: String? = nil,
         unshiftedCodepoint: UInt32 = 0
     ) -> Bool {
-        userInputGeneration &+= 1
+        noteUserInput()
         endDictationSession()
         invalidateWritingAssistance()
         // Covered herdr gateway: Ghostty would encode straight into the hidden
         // shell. Escape already detached upstream; swallow the rest as handled.
         if herdrController?.showsGatewayStatus == true { return true }
         if let state = herdrEndpointPane {
-            state.sendKey(keyCode, action: action, mods: mods,
-                          text: text.flatMap { KeyCode.isUIKeyInputSentinel($0) ? nil : $0 }, unshifted: unshiftedCodepoint)
+            emitAfterDictation { _ in
+                state.sendKey(keyCode, action: action, mods: mods,
+                              text: text.flatMap { KeyCode.isUIKeyInputSentinel($0) ? nil : $0 }, unshifted: unshiftedCodepoint)
+            }
             return true
         }
-        guard let surface = surface else { return false }
+        guard surface != nil else { return false }
         guard let nativeKeycode = Ghostty.Input.nativeKeyCode(for: keyCode) else { return false }
 
         // A UIKit sentinel is a key name, not text.
@@ -5869,7 +5876,10 @@ extension Ghostty.TerminalView {
             consumedMods: consumedMods,
             unshiftedCodepoint: unshiftedCodepoint
         )
-        event.withCValue { ghostty_surface_key(surface, $0) }
+        emitAfterDictation { view in
+            guard let surface = view.surface else { return }
+            event.withCValue { ghostty_surface_key(surface, $0) }
+        }
         return true
     }
 
