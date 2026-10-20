@@ -3,6 +3,45 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.15-170 - October 20, 2026
+
+### Security Updates
+
+- **Certificate Validation:** Rebuilt the tssh and VPN frameworks with Go 1.27.3, which rejects certificate chains containing the compromised eMudhra CA keys.
+- **Local Shell Certificates:** Updated the local shell's curl CA certificate bundle to remove the eMudhra roots. Existing installations now refresh their local copy when the bundled certificates change.
+
+### Remote Ports
+
+- **Port Discovery:** Enable Show Remote Ports in Settings -> Appearance -> Window to discover listening TCP ports on your remote host. Off by default. Tap or hover over the globe at the bottom-right of the terminal to see ports; long rows scroll sideways.
+- **Forward and Browse:** Choose a port to forward it to this device and open its page in a new rootshell tab. The editable address bar supports paths and switching between HTTP and HTTPS, including self-signed development servers on that forward. Page text follows the terminal font size.
+- **Supported Connections:** Works over SSH, tssh, and the retained SSH connection for Mosh/Roam, including tmux and herdr control-mode panes using those connections. Mosh/Roam sessions restored after an app relaunch need a fresh SSH bootstrap for this feature.
+- **Scanning:** Scans run only for visible terminals while the app is in the foreground, with one shared scan per connection. Where supported, results are limited to services started under that connection; multiplexer sessions fall back to a broader list.
+- **Forward Controls:** Port menus offer Copy Local URL and Stop Forward. Tunnels bind only to this device's loopback address, use another local port if the preferred one is occupied, and end with the connection.
+
+### Agent Push Notifications
+
+- **Pi, Oh My Pi, and Hermes:** Added native integrations with turn completion, failure, and supported requests for human input. Waiting reminders are delayed by two seconds and cancelled if answered first. Pi and Oh My Pi notifications include their agent logos.
+- **Sending Host:** Notification titles now include the sending hostname, making it easier to distinguish agents running on different computers.
+- **Completion Delivery:** Fixed completion notifications being lost when a one-shot Codex command exits. Pi and Oh My Pi also finish pending completion delivery during normal shutdown and avoid reporting intermediate continuations as finished turns.
+- **Hook Client Update:** Update rootshell-notify on each sending computer using Install or Upgrade the Hook Client in Push Notification settings, then restart the agents or reload extensions. Hermes also requires enabling the rootshell-push plugin with `hermes plugins enable rootshell-push`.
+
+### Mac Automation and Reconnection
+
+- **Pane Automation:** New AppleScript commands: `focus pane`, `current pane id`, and `list pane ids`. Scripts can identify and focus terminal panes across tabs and windows by UUID, including tmux and herdr control-mode panes.
+- **Dark Wake:** tssh pauses reconnection during macOS Dark Wake, preventing a sleeping Mac from reconnecting and resizing a shared tmux window.
+
+### Terminal and Theme Fixes
+
+- **tmux Pane Focus:** Fixed focus jumping back to an earlier tmux pane when switching panes quickly while selection commands were still in flight.
+- **Windows Launch Commands:** Fixed configured launch commands being typed without executing in Windows consoles. Launch commands now send Return, including between lines of multiline commands.
+- **Toolbar Modifiers:** Toolbar modifiers now apply to custom Page Up, Page Down, and other single special keys, so combinations such as Ctrl+Page Up work.
+- **System Theme Matching:** Fixed Match System Theme stopping after the window it was observing closed. Automatic light/dark themes now follow a remaining window and respond to changes in the app's Appearance setting.
+- **Revealing Focused Panes:** Focusing another pane through automation or a notification now reveals it when a sibling pane is zoomed or full-screen.
+
+### Local Shell (iOS/visionOS)
+
+- **Working Directory Recovery:** Fixed a crash opening a local shell after its working directory was deleted or became inaccessible, such as a bookmarked folder belonging to an uninstalled app. Falls back to the home directory.
+
 ## 1.0.14-169 - October 17, 2026
 
 ### Screen Sharing on Linux
