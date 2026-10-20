@@ -723,6 +723,125 @@ nonisolated enum TerminalTouchKeyboardModel {
         return (rowHeight, max(0, height - chrome - rowHeight * Double(rowCount)))
     }
 
+    /// One typing row divided around the half-open Duo's vertical fold.
+    struct SplitRow: Equatable {
+        var left: [Key]
+        var right: [Key]
+    }
+
+    struct SplitMetrics: Equatable {
+        let unit: Double
+        let halfWidth: Double
+        let leftMinX: Double
+        let rightMinX: Double
+    }
+
+    private static func weight(_ keys: [Key]) -> Double { keys.reduce(0) { $0 + $1.weight } }
+
+    /// Mirrors the system's split keyboard: an odd run of text keys repeats its
+    /// middle key in both halves (G, V), and Space appears in each half, widened
+    /// to match the widest row.
+    static func splitRows(_ rows: [[Key]]) -> [SplitRow] {
+        let space = Action.text(" ")
+        let split = rows.map { row -> SplitRow in
+            if let index = row.firstIndex(where: { $0.action == space }) {
+                return SplitRow(left: Array(row[...index]), right: Array(row[index...]))
+            }
+            let leading = Array(row.prefix { !$0.isText })
+            let rest = row.dropFirst(leading.count)
+            let trailing = Array(rest.reversed().prefix { !$0.isText }.reversed())
+            let text = Array(rest.dropLast(trailing.count))
+            let half = text.count / 2
+            let left = text.count.isMultiple(of: 2) ? text[..<half] : text[...half]
+            return SplitRow(left: leading + left, right: Array(text[half...]) + trailing)
+        }
+        let widest = split.filter { !$0.left.contains { $0.action == space } }
+            .flatMap { [weight($0.left), weight($0.right)] }.max() ?? 0
+        func widened(_ keys: [Key]) -> [Key] {
+            guard let index = keys.firstIndex(where: { $0.action == space }) else { return keys }
+            var keys = keys
+            keys[index].weight = max(2, widest - (weight(keys) - keys[index].weight))
+            return keys
+        }
+        return split.map { SplitRow(left: widened($0.left), right: widened($0.right)) }
+    }
+
+    static let splitEdgeInset = 2.0
+    static let splitFoldClearance = 12.0
+
+    /// As the system keyboard does, each half is centered in its side of the
+    /// fold, with one key unit capped near the system's size. nil when either
+    /// side is too narrow for usable keys.
+    static func splitMetrics(_ rows: [SplitRow], width: Double, fold: ClosedRange<Double>) -> SplitMetrics? {
+        let widest = rows.flatMap { [weight($0.left), weight($0.right)] }.max() ?? 0
+        let leftMax = fold.lowerBound - splitFoldClearance
+        let rightMin = fold.upperBound + splitFoldClearance
+        let side = min(leftMax - splitEdgeInset, width - splitEdgeInset - rightMin)
+        guard widest > 0, side / widest >= 30 else { return nil }
+        let unit = min(56, side / widest)
+        let half = unit * widest
+        return SplitMetrics(unit: unit, halfWidth: half, leftMinX: (splitEdgeInset + leftMax - half) / 2,
+                            rightMinX: (rightMin + width - splitEdgeInset - half) / 2)
+    }
+
+    /// A row narrower than its half sits against the outer edge, or with
+    /// `towardFold` against the fold, giving the system's half-key stagger.
+    /// `outerInset` keeps the bottom row clear of the rounded screen corners.
+    static func splitFrames(_ row: SplitRow, metrics: SplitMetrics, width: Double, y: Double,
+                            height: Double, towardFold: Bool = false, outerInset: Double = 0) -> [CGRect] {
+        let edge = splitEdgeInset + outerInset
+        let leftMinX = max(metrics.leftMinX, edge)
+        let rightMaxX = min(metrics.rightMinX + metrics.halfWidth, width - edge)
+        func place(_ keys: [Key], minX: Double, maxX: Double, outerIsMin: Bool) -> [CGRect] {
+            let span = max(0, maxX - minX)
+            let used = min(span, metrics.unit * weight(keys))
+            let start = outerIsMin != towardFold ? minX : maxX - used
+            return frames(keys: keys, width: used, y: y, height: height).map { $0.offsetBy(dx: start, dy: 0) }
+        }
+        return place(row.left, minX: leftMinX, maxX: metrics.leftMinX + metrics.halfWidth, outerIsMin: true)
+            + place(row.right, minX: metrics.rightMinX, maxX: rightMaxX, outerIsMin: false)
+    }
+
+    /// Equal columns on both sides of the fold, each block hugging its outer edge.
+    struct SplitColumns: Equatable {
+        let unit: Double
+        let leftCount: Int
+        let rightStart: Double
+
+        var leftEnd: Double { Double(leftCount) * unit }
+
+        func x(column: Int) -> Double {
+            column < leftCount ? Double(column) * unit : rightStart + Double(column - leftCount) * unit
+        }
+
+        /// Sequential origins; anything that would reach the fold moves to the right-hand block.
+        func positions(widths: [Double]) -> [Double] {
+            var x = 0.0
+            return widths.map { width in
+                if x < rightStart, x + width > leftEnd + 0.001 { x = rightStart }
+                defer { x += width }
+                return x
+            }
+        }
+    }
+
+    /// Columns for `count` slots across `width`, shared out in proportion to
+    /// the room on each side of `fold` (same coordinates as `width`).
+    static func splitColumns(count: Int, width: Double, fold: ClosedRange<Double>) -> SplitColumns? {
+        let left = fold.lowerBound - splitFoldClearance
+        let right = width - fold.upperBound - splitFoldClearance
+        guard count > 0, left > 0, right > 0 else { return nil }
+        let leftCount = count == 1 ? 1 : min(count - 1, max(1, Int((Double(count) * left / (left + right)).rounded())))
+        let rightCount = count - leftCount
+        let unit = rightCount == 0 ? left / Double(leftCount) : min(left / Double(leftCount), right / Double(rightCount))
+        return SplitColumns(unit: unit, leftCount: leftCount, rightStart: width - Double(rightCount) * unit)
+    }
+
+    /// The width a split row loses to the fold and its clearance.
+    static func splitFoldBlock(_ fold: ClosedRange<Double>) -> Double {
+        fold.upperBound - fold.lowerBound + splitFoldClearance * 2
+    }
+
     enum Placement: Equatable { case docked, floating }
 
     static func placementAfterPinch(_ scale: CGFloat, from placement: Placement) -> Placement {
