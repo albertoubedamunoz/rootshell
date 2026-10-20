@@ -2,7 +2,7 @@ import Foundation
 import os
 
 /// Manages curl resources (CA certificates) for the local shell
-/// Copies the bundled cacert.pem CA certificate bundle to the user's home directory on first launch
+/// Keeps the user's home directory copy of the bundled cacert.pem CA certificate bundle current
 /// Note: Curl TLS is only needed on iOS/iPadOS - Mac Catalyst uses system certificates
 @MainActor
 final class CurlResourceManager {
@@ -12,7 +12,7 @@ final class CurlResourceManager {
 
     private init() {}
 
-    /// Sets up curl resources if they don't exist
+    /// Sets up curl resources
     /// This copies the bundled cacert.pem to ~/.curl/cacert.pem for TLS/HTTPS support
     func setupResources() {
         #if targetEnvironment(macCatalyst)
@@ -40,19 +40,22 @@ final class CurlResourceManager {
             }
         }
 
-        // Copy cacert.pem to ~/.curl/cacert.pem if not present
+        // Refresh ~/.curl/cacert.pem whenever it differs from the bundle, so app updates carry CA distrusts
         let cacertDest = curlDir.appendingPathComponent("cacert.pem")
-        if !fileManager.fileExists(atPath: cacertDest.path) {
-            if let cacertSource = Bundle.main.url(forResource: "cacert", withExtension: "pem", subdirectory: "curl") {
+        if let cacertSource = Bundle.main.url(forResource: "cacert", withExtension: "pem", subdirectory: "curl") {
+            if !fileManager.contentsEqual(atPath: cacertSource.path, andPath: cacertDest.path) {
                 do {
+                    if fileManager.fileExists(atPath: cacertDest.path) {
+                        try fileManager.removeItem(at: cacertDest)
+                    }
                     try fileManager.copyItem(at: cacertSource, to: cacertDest)
                     Self.logger.info("Copied cacert.pem to \(cacertDest.path)")
                 } catch {
                     Self.logger.error("Failed to copy cacert.pem: \(error.localizedDescription)")
                 }
-            } else {
-                Self.logger.warning("cacert.pem not found in bundle")
             }
+        } else {
+            Self.logger.warning("cacert.pem not found in bundle")
         }
 
         Self.logger.info("Curl resource setup complete")
