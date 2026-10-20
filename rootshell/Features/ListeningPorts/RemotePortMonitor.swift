@@ -4,6 +4,7 @@
 //
 //  Polls the host behind one pane for its listening TCP ports. One probe at a
 //  time, only while the pane is visible and the app is in the foreground.
+//  Panes that share a connection share one probe through RemotePortScanCache.
 //
 
 import Foundation
@@ -54,7 +55,7 @@ final class RemotePortMonitor {
 
     private func refreshIfNeeded() async {
         guard visible, !Ghostty.isAppBackgroundedAtomic, let terminal else { return }
-        guard SettingsStore.shared.value(Settings.Terminal.showRemotePorts) else {
+        guard SettingsStore.shared.value(Settings.Window.showRemotePorts) else {
             if !terminal.remotePorts.isEmpty { terminal.remotePorts = [] }
             return
         }
@@ -68,17 +69,26 @@ final class RemotePortMonitor {
               RemoteExecProbe.canProbe(owner)
         else { return }
 
+        // A multiplexer (mosh, tmux, herdr, zmx) runs the pane's shell under a
+        // detached server, so nothing the pane starts sits below this
+        // connection's sshd and ancestry would hide it. Ask for the unfiltered
+        // list in that case instead of showing nothing.
+        let ssh = owner.connectionConfig.underlyingSSHConfig
+        let ridesMultiplexer = (ssh?.tmuxAutoEnable ?? false)
+            || (ssh?.herdrAutoEnable ?? false)
+            || (ssh?.zmxAutoEnable ?? false)
         let (command, nonce) = RemotePortScanCommand.command(
-            pathPrefix: SSHConfig.remoteExecPathPrefix
+            pathPrefix: SSHConfig.remoteExecPathPrefix,
+            filterOwnership: owner.connectionConfig.moshConfig == nil && !ridesMultiplexer
         )
+        let key = TerminalConnectionOwner.targetKey(for: owner)
         do {
-            let output = try await RemoteExecProbe.run(
-                command,
-                on: owner,
-                timeout: 6,
-                maxResponseBytes: 128 * 1024
+            let result = try await RemotePortScanCache.shared.result(
+                for: key,
+                command: command,
+                nonce: nonce,
+                owner: owner
             )
-            let result = RemotePortScanParser.parse(output, nonce: nonce)
             consecutiveFailures = 0
             if terminal.remotePorts != result.ports {
                 terminal.remotePorts = result.ports

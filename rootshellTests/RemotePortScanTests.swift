@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 final class RemotePortScanTests: XCTestCase {
@@ -94,5 +95,68 @@ final class RemotePortScanTests: XCTestCase {
         XCTAssertTrue(command.hasPrefix("sh -c "))
         XCTAssertTrue(command.contains("::RSPORTS_\(generatedNonce)::"))
         XCTAssertTrue(command.contains("::END_\(generatedNonce)::"))
+    }
+
+    #if os(macOS)
+    /// `Process` is unavailable on iOS; the shell-level check runs on macOS.
+    func testScriptIsValidPOSIXShell() throws {
+        let script = RemotePortScanCommand.script(nonce: nonce)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-n"]
+        let input = Pipe()
+        process.standardInput = input
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        input.fileHandleForWriting.write(Data(script.utf8))
+        input.fileHandleForWriting.closeFile()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0, "the remote shell must be able to parse the script")
+    }
+    #endif
+
+    /// Ports are attributed to the connection that started them; a host whose
+    /// process tree cannot be read keeps the unfiltered answer instead.
+    func testScriptAttributesPortsToThisConnection() {
+        let script = RemotePortScanCommand.script(nonce: nonce)
+        XCTAssertTrue(script.contains("--RSLISTEN--"))
+        XCTAssertTrue(script.contains("M conn"))
+        XCTAssertTrue(script.contains("M all"))
+        XCTAssertTrue(script.contains("sshd"))
+        XCTAssertTrue(script.contains("ps -A -o pid=,ppid=,tty=,comm="))
+    }
+
+    func testUnfilteredScriptListsEveryPort() {
+        let script = RemotePortScanCommand.script(nonce: nonce, filterOwnership: false)
+        XCTAssertTrue(script.contains("M all"))
+        XCTAssertFalse(script.contains("--RSLISTEN--"))
+    }
+
+    func testParserIgnoresOwnershipMarkers() {
+        let result = RemotePortScanParser.parse(output("""
+        M conn
+        L 1 127.0.0.1:9090
+        M all
+        L 2 127.0.0.1:9091
+        """), nonce: nonce)
+
+        XCTAssertEqual(result.ports.map(\.number), [9090, 9091])
+    }
+
+    /// tmux/herdr/mosh detach their server, so ancestry cannot attribute; the
+    /// scan must then keep the unfiltered answer.
+    func testScriptFallsBackWhenTheSessionHasNoTTY() {
+        let script = RemotePortScanCommand.script(nonce: nonce)
+        XCTAssertTrue(script.contains("ps -A -o pid=,ppid=,tty=,comm="))
+        XCTAssertTrue(script.contains("detached"))
+    }
+
+    /// The script is wrapped in single quotes for `sh -c`, so one stray
+    /// apostrophe (in a comment, say) splits it and the remote shell runs
+    /// garbage. The macOS-only `sh -n` test never runs on iOS, so check the
+    /// quoting itself here.
+    func testScriptKeepsItsShellQuotingBalanced() {
+        let script = RemotePortScanCommand.script(nonce: nonce)
+        XCTAssertEqual(script.filter { $0 == "'" }.count % 2, 0)
     }
 }

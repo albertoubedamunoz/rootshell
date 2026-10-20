@@ -25,6 +25,11 @@ extension Ghostty.TerminalView {
         if remotePortMonitor == nil {
             remotePortMonitor = RemotePortMonitor(terminal: self)
         }
+        // The surface usually reports occlusion before the session becomes
+        // ready, so `setOcclusion` has already run by now and this monitor
+        // never saw it. Seed visibility from the surface's current state,
+        // otherwise the first scan only happens after a tab switch.
+        remotePortMonitor?.setVisible(isTabVisible)
         remotePortMonitor?.start()
     }
 
