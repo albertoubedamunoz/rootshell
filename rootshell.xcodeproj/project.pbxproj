@@ -173,6 +173,8 @@
 		47AF05A00000000000000A03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift */; };
 		47AF05A00000000000000A04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift */; };
 		47AF05A00000000000000A05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF05A00000000000000B05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift */; };
+		47AF06430000000000000B01 /* rootshell/Features/ListeningPorts/RemotePort.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF06430000000000000A01 /* rootshell/Features/ListeningPorts/RemotePort.swift */; };
+		47AF06430000000000000B02 /* rootshell/Features/ListeningPorts/RemotePortScanCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF06430000000000000A02 /* rootshell/Features/ListeningPorts/RemotePortScanCommand.swift */; };
 		47AF0F1D0000000000000B01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */; };
 		47AF0F1D0000000000000B02 /* rootshell/Core/Terminal/TerminalTargetKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */; };
 		47AF0F1D0000000000000B03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */; };
@@ -182,8 +184,6 @@
 		47AF0F1D0000000000000B07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift */; };
 		47AF0F1D0000000000000B08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF0F1D0000000000000A08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift */; };
 		47AF1A7E0000000000000B01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF1A7E0000000000000A01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift */; };
-		47AF06430000000000000B01 /* rootshell/Features/ListeningPorts/RemotePort.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF06430000000000000A01 /* rootshell/Features/ListeningPorts/RemotePort.swift */; };
-		47AF06430000000000000B02 /* rootshell/Features/ListeningPorts/RemotePortScanCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF06430000000000000A02 /* rootshell/Features/ListeningPorts/RemotePortScanCommand.swift */; };
 		47B9B9322F996A6D003FFF58 /* AppIconUnderscore.icon in Resources */ = {isa = PBXBuildFile; fileRef = 47B9B9312F996A6D003FFF58 /* AppIconUnderscore.icon */; };
 		47CD00000E00000000000000 /* SwiftkubeClient in Frameworks */ = {isa = PBXBuildFile; productRef = 477408A42ED5F6B60035CE92 /* SwiftkubeClient */; };
 		47CD00000F00000000000000 /* jq_ios in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, xros, ); productRef = 47JQPKG12FB00000AABB0001 /* jq_ios */; };
@@ -684,6 +684,8 @@
 		47AF05A00000000000000B03 /* rootshell/Features/ProgramIdentity/ProgramCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ProgramCatalog.swift; sourceTree = SOURCE_ROOT; };
 		47AF05A00000000000000B04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ShellProgramReports.swift; sourceTree = SOURCE_ROOT; };
 		47AF05A00000000000000B05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift; sourceTree = SOURCE_ROOT; };
+		47AF06430000000000000A01 /* rootshell/Features/ListeningPorts/RemotePort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ListeningPorts/RemotePort.swift; sourceTree = SOURCE_ROOT; };
+		47AF06430000000000000A02 /* rootshell/Features/ListeningPorts/RemotePortScanCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ListeningPorts/RemotePortScanCommand.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A01 /* rootshell/Core/Shell/InitialDirectoryCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Shell/InitialDirectoryCommand.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A02 /* rootshell/Core/Terminal/TerminalTargetKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Terminal/TerminalTargetKey.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A03 /* rootshell/Features/Tmux/TmuxCommandQuoting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxCommandQuoting.swift; sourceTree = SOURCE_ROOT; };
@@ -693,8 +695,6 @@
 		47AF0F1D0000000000000A07 /* rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/OpenInFolder/OpenInFolderPlacement.swift; sourceTree = SOURCE_ROOT; };
 		47AF0F1D0000000000000A08 /* rootshell/Features/OpenInFolder/OpenInFolderRecents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/OpenInFolder/OpenInFolderRecents.swift; sourceTree = SOURCE_ROOT; };
 		47AF1A7E0000000000000A01 /* rootshell/Core/Networking/Geo/IPAddressExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Networking/Geo/IPAddressExtractor.swift; sourceTree = SOURCE_ROOT; };
-		47AF06430000000000000A01 /* rootshell/Features/ListeningPorts/RemotePort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ListeningPorts/RemotePort.swift; sourceTree = SOURCE_ROOT; };
-		47AF06430000000000000A02 /* rootshell/Features/ListeningPorts/RemotePortScanCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/ListeningPorts/RemotePortScanCommand.swift; sourceTree = SOURCE_ROOT; };
 		47B9B9312F996A6D003FFF58 /* AppIconUnderscore.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIconUnderscore.icon; sourceTree = "<group>"; };
 		47C100012F990000BBCC0001 /* Debug-China.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Debug-China.xcconfig"; sourceTree = "<group>"; };
 		47C100022F990000BBCC0002 /* Release-China.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release-China.xcconfig"; sourceTree = "<group>"; };
@@ -7115,7 +7115,7 @@
 			repositoryURL = "https://github.com/kitknox/trzsz-ssh-rootshell.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.2.18;
+				version = 0.2.19;
 			};
 		};
 		47XZPKG02FF00000AABB0000 /* XCRemoteSwiftPackageReference "xz_ios-rootshell" */ = {
