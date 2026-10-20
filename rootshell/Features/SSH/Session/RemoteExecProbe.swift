@@ -108,6 +108,11 @@ enum RemoteExecProbe {
         if let citadel = sessionOwner.session as? CitadelSSHSession, citadel.client != nil {
             return true
         }
+        // Mosh carries no exec channel, but the SSH connection that spawned
+        // mosh-server is retained for exactly this probe.
+        if let mosh = sessionOwner.session as? MoshSession, mosh.controlClient != nil {
+            return true
+        }
         #endif
         return false
     }
@@ -214,9 +219,13 @@ enum RemoteExecProbe {
         // LIVE connections only. Opening a connection of our own for a
         // background probe would cost an extra authentication, and on a host
         // with 2FA it would prompt the user out of nowhere.
-        guard let session = sessionOwner.session as? CitadelSSHSession,
-              let client = session.client
-        else {
+        let client: SSHClient
+        if let mosh = sessionOwner.session as? MoshSession, let control = mosh.controlClient {
+            client = control
+        } else if let session = sessionOwner.session as? CitadelSSHSession,
+                  let citadelClient = session.client {
+            client = citadelClient
+        } else {
             throw ProbeError.unsupportedSession
         }
 

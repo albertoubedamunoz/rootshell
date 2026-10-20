@@ -264,6 +264,21 @@ final class TrzszSession: TerminalSession {
     /// Port forward manager for TSSH transport
     private var trzszPortForwardManager: TrzszPortForwardManager?
 
+    /// Forwarder for ports started from the remote-port pill, created on
+    /// demand when the connection has no configured forwards to reuse.
+    private var adHocTrzszPortForwardManager: TrzszPortForwardManager?
+
+    /// An on-demand manager that already exists wins over the configured one,
+    /// so its forwards stay findable when the configured one is rebuilt.
+    func adHocForwarding(create: Bool) -> AdHocForwarding? {
+        if let adHocTrzszPortForwardManager { return adHocTrzszPortForwardManager }
+        if let trzszPortForwardManager { return trzszPortForwardManager }
+        guard create, let transportRef = goTransport?.activeTransportRef else { return nil }
+        let manager = TrzszPortForwardManager(transportRef: transportRef, config: .none)
+        adHocTrzszPortForwardManager = manager
+        return manager
+    }
+
     /// SSH agent manager for agent forwarding
     private var agentManager: SSHAgentManager?
 
@@ -430,6 +445,8 @@ final class TrzszSession: TerminalSession {
         stopPeriodicStateUpdates()
         let previousForwards = trzszPortForwardManager
         trzszPortForwardManager = nil
+        adHocTrzszPortForwardManager?.stopAllForwards()
+        adHocTrzszPortForwardManager = nil
         relayRecoveryTask = Task { [weak self] in
             guard let self else { return }
             defer { self.relayRecoveryTask = nil }
@@ -1899,6 +1916,8 @@ final class TrzszSession: TerminalSession {
 
         trzszPortForwardManager?.stopAllForwards()
         trzszPortForwardManager = nil
+        adHocTrzszPortForwardManager?.stopAllForwards()
+        adHocTrzszPortForwardManager = nil
 
         agentManager = nil
         agentBridge = nil
@@ -2551,3 +2570,7 @@ extension TrzszSession {
 // MARK: - Auth banner card
 
 extension TrzszSession: SSHAuthBannerCardProviding {}
+
+// MARK: - AdHocForwardingProviding
+
+extension TrzszSession: AdHocForwardingProviding {}

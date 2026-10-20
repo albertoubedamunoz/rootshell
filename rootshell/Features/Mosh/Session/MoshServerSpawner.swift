@@ -11,6 +11,40 @@ import NIOCore
 import NIOSSH
 import OSLog
 
+/// The SSH connection that spawned mosh-server, kept alive so the remote-port
+/// pill can run its scan and open loopback forwards. Mosh itself carries no
+/// exec or forwarding channel; this side connection is the only way to reach
+/// the host after the mosh transport takes over.
+@MainActor
+final class MoshControlConnection {
+    let client: SSHClient
+    private let jumpClient: SSHClient?
+    private var portForwardManager: PortForwardManager?
+
+    init(client: SSHClient, jumpClient: SSHClient?) {
+        self.client = client
+        self.jumpClient = jumpClient
+    }
+
+    /// The same SSH client hosts both the scan probes and the ad hoc forwards.
+    func forwarding(create: Bool) -> PortForwardManager? {
+        if let portForwardManager { return portForwardManager }
+        guard create else { return nil }
+        let manager = PortForwardManager(client: client, config: .none)
+        portForwardManager = manager
+        return manager
+    }
+
+    func close() async {
+        if let portForwardManager {
+            await portForwardManager.stopAllForwards()
+            self.portForwardManager = nil
+        }
+        try? await client.close()
+        try? await jumpClient?.close()
+    }
+}
+
 /// Spawns mosh-server on a remote host via SSH
 ///
 /// Flow:
@@ -75,6 +109,10 @@ final class MoshServerSpawner {
 
     /// Jump client reference for cleanup
     private var jumpClient: SSHClient?
+
+    /// The live SSH connection left open after mosh-server starts. The mosh
+    /// session takes ownership; a later spawn replaces and closes the old one.
+    private(set) var controlConnection: MoshControlConnection?
 
     /// Bootstrap SSH negotiated algorithms (captured before SSH closes)
     private(set) var negotiatedKeyExchange: String?
@@ -148,13 +186,34 @@ final class MoshServerSpawner {
 
         // Execute via SSH using the resolved host
         // mosh-server with -s will read SSH_CONNECTION and bind to this interface
-        let output = try await executeSSHCommand(command, config: sshConfig, resolvedHost: resolvedHost)
+        let (output, client) = try await executeSSHCommand(
+            command, config: sshConfig, resolvedHost: resolvedHost
+        )
 
         // Update state
         delegate?.spawner(self, didChangeState: .spawningServer)
 
-        // Parse the MOSH CONNECT response
-        let (port, key) = try MoshBase64Key.parseServerResponse(output)
+        // Parse the MOSH CONNECT response. A parse failure is a spawn failure:
+        // the client is not useful without a session key.
+        let port: Int
+        let key: MoshBase64Key
+        do {
+            (port, key) = try MoshBase64Key.parseServerResponse(output)
+        } catch {
+            try? await client.close()
+            try? await jumpClient?.close()
+            throw error
+        }
+
+        // The mosh transport carries no exec channel, so keep this SSH
+        // connection for the remote-port scan and ad hoc forwards. A repeated
+        // spawn (resume fallback) replaces the previous one.
+        if let previous = controlConnection {
+            controlConnection = nil
+            Task { await previous.close() }
+        }
+        controlConnection = MoshControlConnection(client: client, jumpClient: jumpClient)
+        jumpClient = nil
 
         Self.logger.info("Mosh-server spawned on port \(port)")
 
@@ -178,13 +237,17 @@ final class MoshServerSpawner {
     ///   - command: The command to execute
     ///   - config: SSH configuration
     ///   - resolvedHost: The pre-resolved IP address to connect to
-    private func executeSSHCommand(_ command: String, config: SSHConfig, resolvedHost: String) async throws -> String {
+    private func executeSSHCommand(_ command: String, config: SSHConfig, resolvedHost: String) async throws -> (output: String, client: SSHClient) {
         // Create the SSH client using Citadel
         let client = try await createSSHClient(config: config, resolvedHost: resolvedHost)
+        let jump = jumpClient
+        var keepClient = false
         defer {
-            Task {
-                try? await client.close()
-                try? await self.jumpClient?.close()
+            if !keepClient {
+                Task {
+                    try? await client.close()
+                    try? await jump?.close()
+                }
             }
         }
 
@@ -258,7 +321,8 @@ final class MoshServerSpawner {
             }
         }
 
-        return stdout
+        keepClient = true
+        return (stdout, client)
     }
 
     /// Creates an SSH client for command execution

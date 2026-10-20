@@ -924,6 +924,14 @@ actor TSSHCallGate {
         }
     }
 
+    /// Stops one forward. Go waits up to 5 s for its connections to drain.
+    func stopForward(on forwarderRef: TSSHForwarderRef, forwardID: String) async {
+        let forwarder = registry.withLock { $0.forwarders[forwarderRef] }
+        guard let forwarder else { return }
+        nonisolated(unsafe) let f = forwarder
+        await runOnWorker { f.stopForward(forwardID) }
+    }
+
     func close(_ forwarderRef: TSSHForwarderRef) async {
         let forwarder = registry.withLock { $0.forwarders[forwarderRef] }
         guard let forwarder else { return }

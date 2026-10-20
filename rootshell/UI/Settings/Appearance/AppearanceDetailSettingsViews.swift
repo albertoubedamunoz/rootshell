@@ -648,6 +648,19 @@ struct WindowSettingsView: View {
                     .font(.caption)
             }
 
+            Section {
+                SettingDescribedToggle(
+                    Settings.Window.showRemotePorts,
+                    title: "Show Remote Ports",
+                    description: "Shows a globe at the bottom-right of the terminal that lists the TCP ports the connected host listens on. Choosing a port forwards it to this device and opens it in an in-app browser tab.")
+                .themedRow()
+            } header: {
+                SettingGroupHeader("Remote Ports", group: .window)
+            } footer: {
+                Text("While this is on, each visible terminal polls the host for its listening ports every few seconds. Off by default so the scan only runs when you ask for it.")
+                    .font(.caption)
+            }
+
             // EDR is meaningless on visionOS, so the Display section (and its HDR
             // brightness boost) is excluded there. The Full Screen / home-indicator
             // toggles and the Always On Display slider are iOS-only concepts, so they stay

@@ -155,6 +155,57 @@
         }
       }
     },
+    "Could Not Open Port" : {
+      "comment" : "Alert title when forwarding a port fails",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开端口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法開啟埠"
+          }
+        }
+      }
+    },
+    "Copy Local URL" : {
+      "comment" : "Copies the forwarded local URL",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝本地 URL"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷貝本機 URL"
+          }
+        }
+      }
+    },
+    "Address" : {
+      "comment" : "远程端口预览页地址栏的无障碍标签",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位址"
+          }
+        }
+      }
+    },
     "\nEncrypted keys with passphrases are supported" : {
       "localizations" : {
         "ar" : {
@@ -614,6 +665,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "  - %@"
+          }
+        }
+      }
+    },
+    "The connection is not ready." : {
+      "comment" : "Error when forwarding before the session is up",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接尚未就绪。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連線尚未就緒。"
+          }
+        }
+      }
+    },
+    "Stop Forward" : {
+      "comment" : "Menu item that tears down a forward",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止转发"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止轉送"
+          }
+        }
+      }
+    },
+    "Shows a globe at the bottom-right of the terminal that lists the TCP ports the connected host listens on. Choosing a port forwards it to this device and opens it in an in-app browser tab." : {
+      "comment" : "Setting description for the remote-ports pill",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在终端右下角显示一个地球按钮，列出已连接主机正在监听的 TCP 端口。选择一个端口会把它转发到本设备，并在应用内的浏览器标签页中打开。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在終端右下角顯示一個地球按鈕，列出已連線主機正在監聽的 TCP 埠。選擇一個埠會將它轉送到本裝置，並在 App 內的瀏覽器分頁中開啟。"
+          }
+        }
+      }
+    },
+    "Show Remote Ports" : {
+      "comment" : "Setting title",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示远程端口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示遠端連接埠"
+          }
+        }
+      }
+    },
+    "Remote Ports" : {
+      "comment" : "Section header and globe accessibility label",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远程端口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "遠端連接埠"
+          }
+        }
+      }
+    },
+    "Reload" : {
+      "comment" : "Reloads the port preview page",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新载入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新載入"
+          }
+        }
+      }
+    },
+    "Port forwarding is unavailable for this connection." : {
+      "comment" : "Error when the transport cannot forward",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此连接不支持端口转发。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此連線不支援連接埠轉送。"
           }
         }
       }
@@ -873360,6 +873530,23 @@
         }
       }
     },
+    "While this is on, each visible terminal polls the host for its listening ports every few seconds. Off by default so the scan only runs when you ask for it." : {
+      "comment" : "Footer explaining the polling cost of the remote-ports pill",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启后，每个可见终端都会每隔几秒向主机查询一次监听端口。默认关闭，只有你需要时才扫描。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟後，每個可見終端都會每隔幾秒向主機查詢一次監聽埠。預設關閉，只有你需要時才掃描。"
+          }
+        }
+      }
+    },
     "Whimsical visitors drift across occasionally" : {
       "comment" : "Background effect description for butterflies",
       "localizations" : {
@@ -887876,6 +888063,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "縮放窗格 %@：%@"
+          }
+        }
+      }
+    },
+    "Opening port %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在打开端口 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在開啟連接埠 %lld"
           }
         }
       }

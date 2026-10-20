@@ -217,6 +217,14 @@ nonisolated extension Settings {
             "roundedPanes", default: false, group: .window, policy: .localByDefault,
             configKey: "rounded-panes",
             title: String(localized: "Rounded Panes", comment: "Setting title"))
+        /// The globe at the bottom-right of the terminal that lists the host's
+        /// listening TCP ports. Off by default: while it is on, each visible
+        /// pane polls the host every few seconds, which is a standing cost the
+        /// user should opt into rather than inherit.
+        static let showRemotePorts = SettingKey(
+            "showRemotePorts", default: false, group: .window, policy: .localByDefault,
+            configKey: "show-remote-ports",
+            title: String(localized: "Show Remote Ports", comment: "Setting title"))
         static let confirmBeforeClosingPane = SettingKey(
             "confirmBeforeClosingPane", default: false, group: .window,
             configKey: "confirm-before-closing-pane",
@@ -255,6 +263,7 @@ nonisolated extension Settings {
             fullScreenLaunchNoticeDismissed.erased, extendUnderHomeIndicator.erased,
             splitFocusBorderStyle.erased, splitFocusBorderColor.erased, splitFocusBorderCustomColor.erased,
             roundedPanes.erased,
+            showRemotePorts.erased,
             confirmBeforeClosingPane.erased, confirmBeforeClosingTab.erased,
             lastWidth.erased, lastHeight.erased, lastOriginX.erased, lastOriginY.erased, lastHasOrigin.erased,
             titlebarLeadingInset.erased, quickSettingsHUDWidth.erased, quickSettingsHUDHeight.erased,
