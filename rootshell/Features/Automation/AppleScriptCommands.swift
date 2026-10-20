@@ -154,4 +154,55 @@ final class RootshellOpenCommand: NSScriptCommand {
     }
 }
 
+/// `focus pane`: focuses a terminal pane across all windows and tabs by its surface UUID.
+@objc(RootshellFocusPaneCommand)
+final class RootshellFocusPaneCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        let rawUUIDString = (directParameter as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? (evaluatedArguments?["paneId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let rawUUIDString, !rawUUIDString.isEmpty, let targetUUID = UUID(uuidString: rawUUIDString) else {
+            scriptErrorNumber = NSArgumentsWrongScriptError
+            scriptErrorString = "Expected a valid pane UUID string."
+            return false
+        }
+
+        // Navigation finishes asynchronously; `true` means the pane was found.
+        return MainActor.assumeIsolated { () -> Bool in
+            guard let resolved = PushNotificationRouter.resolve(surfaceID: targetUUID) else {
+                scriptErrorNumber = NSInternalScriptError
+                scriptErrorString = "No focusable terminal pane with UUID: \(rawUUIDString)"
+                return false
+            }
+            PushNotificationRouter.navigate(to: resolved)
+            return true
+        }
+    }
+}
+
+/// `current pane id`: the focused terminal pane in the frontmost window, or
+/// "" when a non-terminal pane or a control-mode gateway has focus.
+@objc(RootshellCurrentPaneIdCommand)
+final class RootshellCurrentPaneIdCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        MainActor.assumeIsolated { () -> String in
+            guard let view = TmuxWindowRegistry.frontmostTabsModel()?.selectedTab?.focusedTerminal,
+                  !view.isLiveMultiplexerGateway else { return "" }
+            return view.uuid.uuidString
+        }
+    }
+}
+
+/// `list pane ids`: every focusable terminal pane, in a stable order.
+@objc(RootshellListPaneIdsCommand)
+final class RootshellListPaneIdsCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        MainActor.assumeIsolated { () -> [String] in
+            TmuxWindowRegistry.terminalPanes()
+                .filter { !$0.view.isLiveMultiplexerGateway }
+                .map { $0.view.uuid.uuidString }
+        }
+    }
+}
+
 #endif

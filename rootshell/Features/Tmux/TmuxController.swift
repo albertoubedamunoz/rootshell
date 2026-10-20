@@ -2842,6 +2842,34 @@ enum TmuxWindowRegistry {
         liveModels()
     }
 
+    /// Every terminal leaf with its window and tab.
+    static func terminalPanes() -> [(windowId: String, tab: TabModel, view: Ghostty.TerminalView)] {
+        var panes: [(windowId: String, tab: TabModel, view: Ghostty.TerminalView)] = []
+        for (windowId, model) in liveModels() {
+            for tab in model.tabs {
+                for view in tab.splitTree.terminalLeaves {
+                    panes.append((windowId, tab, view))
+                }
+            }
+        }
+        return panes
+    }
+
+    /// The key window, else the one last key, else the first with a focused terminal.
+    static func frontmostTabsModel() -> TabsModel? {
+        let windows = liveModels()
+        if let sceneID = WindowFocusRegistry.shared.mostRecentKeySceneSessionId(),
+           let window = windows.first(where: {
+               TerminalWindowRegistry.sceneSessionId(for: $0.windowId) == sceneID
+           }) {
+            return window.model
+        }
+        return windows.lazy.map(\.model).first(where: {
+            $0.selectedTab?.focusedTerminal != nil
+        }) ?? windows.first?.model
+    }
+
+    /// Sorted by window id so callers see a stable order, not hash order.
     private static func liveModels() -> [(windowId: String, model: TabsModel)] {
         var stale: [String] = []
         var live: [(windowId: String, model: TabsModel)] = []
@@ -2855,18 +2883,12 @@ enum TmuxWindowRegistry {
         for windowId in stale {
             models.removeValue(forKey: windowId)
         }
+        live.sort { $0.windowId < $1.windowId }
         return live
     }
 
     static func gatewayView(ownerTerminalUUID owner: UUID) -> Ghostty.TerminalView? {
-        for (_, model) in liveModels() {
-            for tab in model.tabs {
-                if let view = tab.splitTree.terminalLeaves.first(where: { $0.uuid == owner }) {
-                    return view
-                }
-            }
-        }
-        return nil
+        terminalPanes().first(where: { $0.view.uuid == owner })?.view
     }
 
     static func gatewayTab(ownerTerminalUUID owner: UUID) -> (windowId: String, model: TabsModel, tab: TabModel)? {
