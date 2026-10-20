@@ -179,6 +179,7 @@ final class TrzszPortForwardManager {
     /// One Go forwarder per manager, shared by configured and status-bar
     /// forwards. Concurrent callers wait for the same creation.
     private func ensureForwarder() async throws -> TSSHForwarderRef {
+        guard !isStopped else { throw PortForwardError.sessionClosed }
         if let forwarderRef { return forwarderRef }
         if let forwarderCreation {
             let ref = try await forwarderCreation.value

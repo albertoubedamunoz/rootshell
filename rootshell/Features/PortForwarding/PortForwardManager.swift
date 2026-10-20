@@ -264,9 +264,13 @@ final class PortForwardManager {
     ) async throws -> AdHocForwardHandle {
         if let existing = adHocForward(forRemotePort: remotePort) { return existing }
         if let pending = adHocStarts[remotePort] { return try await pending.value }
+        // Capture the generation before the task can run: a task queued
+        // before stopAllForwards must not insert a listener after teardown.
+        let generation = adHocGeneration
         let task = Task {
             try await self.bindAdHocLocalForward(
-                remoteHost: remoteHost, remotePort: remotePort, preferredLocalPort: preferredLocalPort
+                remoteHost: remoteHost, remotePort: remotePort, preferredLocalPort: preferredLocalPort,
+                generation: generation
             )
         }
         adHocStarts[remotePort] = task
@@ -283,9 +287,9 @@ final class PortForwardManager {
     private func bindAdHocLocalForward(
         remoteHost: String,
         remotePort: UInt16,
-        preferredLocalPort: UInt16?
+        preferredLocalPort: UInt16?,
+        generation: Int
     ) async throws -> AdHocForwardHandle {
-        let generation = adHocGeneration
         let forwardID = UUID()
         let listener = LocalForwardListener()
         let client = self.client
