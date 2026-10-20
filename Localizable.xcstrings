@@ -155,57 +155,6 @@
         }
       }
     },
-    "Could Not Open Port" : {
-      "comment" : "Alert title when forwarding a port fails",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法打开端口"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法開啟埠"
-          }
-        }
-      }
-    },
-    "Copy Local URL" : {
-      "comment" : "Copies the forwarded local URL",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拷贝本地 URL"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拷貝本機 URL"
-          }
-        }
-      }
-    },
-    "Address" : {
-      "comment" : "远程端口预览页地址栏的无障碍标签",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "地址"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "位址"
-          }
-        }
-      }
-    },
     "\nEncrypted keys with passphrases are supported" : {
       "localizations" : {
         "ar" : {
@@ -665,125 +614,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "  - %@"
-          }
-        }
-      }
-    },
-    "The connection is not ready." : {
-      "comment" : "Error when forwarding before the session is up",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "连接尚未就绪。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連線尚未就緒。"
-          }
-        }
-      }
-    },
-    "Stop Forward" : {
-      "comment" : "Menu item that tears down a forward",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止转发"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止轉送"
-          }
-        }
-      }
-    },
-    "Shows a globe at the bottom-right of the terminal that lists the TCP ports the connected host listens on. Choosing a port forwards it to this device and opens it in an in-app browser tab." : {
-      "comment" : "Setting description for the remote-ports pill",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在终端右下角显示一个地球按钮，列出已连接主机正在监听的 TCP 端口。选择一个端口会把它转发到本设备，并在应用内的浏览器标签页中打开。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在終端右下角顯示一個地球按鈕，列出已連線主機正在監聽的 TCP 埠。選擇一個埠會將它轉送到本裝置，並在 App 內的瀏覽器分頁中開啟。"
-          }
-        }
-      }
-    },
-    "Show Remote Ports" : {
-      "comment" : "Setting title",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示远程端口"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顯示遠端連接埠"
-          }
-        }
-      }
-    },
-    "Remote Ports" : {
-      "comment" : "Section header and globe accessibility label",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "远程端口"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "遠端連接埠"
-          }
-        }
-      }
-    },
-    "Reload" : {
-      "comment" : "Reloads the port preview page",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新载入"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新載入"
-          }
-        }
-      }
-    },
-    "Port forwarding is unavailable for this connection." : {
-      "comment" : "Error when the transport cannot forward",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此连接不支持端口转发。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此連線不支援連接埠轉送。"
           }
         }
       }
@@ -31371,6 +31201,160 @@
         }
       }
     },
+    "→%u" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "→%u"
+          }
+        }
+      }
+    },
     "↑↓ Navigate   ↵ Change   ⌘F Search   Esc Close" : {
       "localizations" : {
         "ar" : {
@@ -52211,7 +52195,7 @@
       }
     },
     "Add" : {
-      "comment" : "Add button\nExternal SSH agents add discovered agent button\nLocal SSH agent audit action",
+      "comment" : "Add button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -60379,6 +60363,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已加入"
+          }
+        }
+      }
+    },
+    "Address" : {
+      "comment" : "远程端口预览页地址栏的无障碍标签",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "العنوان"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adreça"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresa"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osoite"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כתובת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cím"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indirizzo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "주소"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adres"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adres"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endereço"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endereço"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresă"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Naslov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adress"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Адреса"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Địa chỉ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位址"
           }
         }
       }
@@ -73055,7 +73194,7 @@
       }
     },
     "Always" : {
-      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
+      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -151224,7 +151363,7 @@
       }
     },
     "Client" : {
-      "comment" : "HTTP capture field\nLocal SSH agent client rule identity section",
+      "comment" : "HTTP capture field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -187687,7 +187826,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button\nShare link: copied to clipboard",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nShare link: copied to clipboard",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -190312,6 +190451,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拷貝指向 %@ 的連結"
+          }
+        }
+      }
+    },
+    "Copy Local URL" : {
+      "comment" : "Copies the forwarded local URL",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نسخ URL المحلي"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia l'URL local"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopírovat místní URL"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiér lokal URL"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokale URL kopieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar URL local"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopioi paikallinen URL"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier l’URL locale"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "העתק URL מקומי"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helyi URL másolása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia URL locale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ローカルURLをコピー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로컬 URL 복사"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopier lokal URL"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokale URL kopiëren"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiuj lokalny URL"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar URL Local"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar URL Local"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiază URL-ul local"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiraj lokalni URL"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiera lokal URL"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копіювати локальний URL"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sao chép URL cục bộ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝本地 URL"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷貝本機 URL"
           }
         }
       }
@@ -195105,6 +195399,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法載入模型。請檢查你的 ChatGPT 登入狀態，然後重試。"
+          }
+        }
+      }
+    },
+    "Could Not Open Port" : {
+      "comment" : "Alert title when forwarding a port fails",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر فتح المنفذ"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No s'ha pogut obrir el port"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port nelze otevřít"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunne ikke åbne port"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port konnte nicht geöffnet werden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo abrir el puerto"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porttia ei voitu avata"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’ouvrir le port"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא ניתן לפתוח את הפורט"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nem sikerült megnyitni a portot"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile aprire la porta"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ポートを開けませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포트를 열 수 없음"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunne ikke åpne port"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan poort niet openen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie można otworzyć portu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não Foi Possível Abrir a Porta"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não Foi Possível Abrir a Porta"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portul nu a putut fi deschis"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vrat ni bilo mogoče odpreti"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunde inte öppna porten"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалося відкрити порт"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể mở cổng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开端口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法開啟埠"
           }
         }
       }
@@ -232515,7 +232964,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
+      "comment" : "Location Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -297584,7 +298033,7 @@
       }
     },
     "Failed" : {
-      "comment" : "Local SSH agent audit outcome\nTailscale SSH egress state",
+      "comment" : "Tailscale SSH egress state",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -363242,7 +363691,7 @@
       }
     },
     "Identity" : {
-      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
+      "comment" : "OpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -365408,7 +365857,7 @@
       }
     },
     "Import" : {
-      "comment" : "External agent identity import button\nImport button",
+      "comment" : "Import button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -382869,6 +383318,7 @@
       }
     },
     "Installs or updates rootshell-notify, pairs this device, and configures available Claude Code and Codex hooks." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -383018,6 +383468,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "安裝或更新 rootshell-notify、配對這部裝置，並設定可用的 Claude Code 與 Codex 掛鉤。"
+          }
+        }
+      }
+    },
+    "Installs or updates rootshell-notify, pairs this device, and configures available Claude Code, Codex, Pi, OMP and Hermes integrations." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يثبّت rootshell-notify أو يحدّثه، ويقرن هذا الجهاز، ويهيّئ تكاملات Claude Code وCodex وPi وOMP وHermes المتاحة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instal·la o actualitza rootshell-notify, vincula aquest dispositiu i configura les integracions disponibles de Claude Code, Codex, Pi, OMP i Hermes."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nainstaluje nebo aktualizuje rootshell-notify, spáruje toto zařízení a nakonfiguruje dostupné integrace Claude Code, Codex, Pi, OMP a Hermes."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerer eller opdaterer rootshell-notify, parrer denne enhed og konfigurerer tilgængelige integrationer til Claude Code, Codex, Pi, OMP og Hermes."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installiert oder aktualisiert rootshell-notify, koppelt dieses Gerät und konfiguriert verfügbare Integrationen für Claude Code, Codex, Pi, OMP und Hermes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala o actualiza rootshell-notify, empareja este dispositivo y configura las integraciones disponibles de Claude Code, Codex, Pi, OMP y Hermes."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asentaa tai päivittää rootshell-notifyn, muodostaa pariliitoksen tälle laitteelle ja määrittää käytettävissä olevat Claude Code-, Codex-, Pi-, OMP- ja Hermes-integraatiot."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installe ou met à jour rootshell-notify, jumelle cet appareil et configure les intégrations Claude Code, Codex, Pi, OMP et Hermes disponibles."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מתקין או מעדכן את rootshell-notify, מבצע התאמה למכשיר זה ומגדיר את השילובים הזמינים של Claude Code, Codex, Pi, OMP ו-Hermes."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Telepíti vagy frissíti a rootshell-notify eszközt, párosítja ezt az eszközt, és beállítja az elérhető Claude Code, Codex, Pi, OMP és Hermes integrációkat."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installa o aggiorna rootshell-notify, abbina questo dispositivo e configura le integrazioni disponibili di Claude Code, Codex, Pi, OMP e Hermes."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rootshell-notify をインストールまたは更新し、このデバイスをペアリングして、利用可能な Claude Code、Codex、Pi、OMP、Hermes の連携を設定します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rootshell-notify를 설치 또는 업데이트하고, 이 기기를 페어링하며, 사용 가능한 Claude Code, Codex, Pi, OMP 및 Hermes 통합을 구성합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerer eller oppdaterer rootshell-notify, kobler sammen denne enheten og konfigurerer tilgjengelige integrasjoner for Claude Code, Codex, Pi, OMP og Hermes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installeert of werkt rootshell-notify bij, koppelt dit apparaat en configureert de beschikbare integraties voor Claude Code, Codex, Pi, OMP en Hermes."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instaluje lub aktualizuje rootshell-notify, paruje to urządzenie i konfiguruje dostępne integracje Claude Code, Codex, Pi, OMP oraz Hermes."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala ou atualiza o rootshell-notify, pareia este dispositivo e configura as integrações disponíveis do Claude Code, Codex, Pi, OMP e Hermes."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala ou atualiza o rootshell-notify, emparelha este dispositivo e configura as integrações disponíveis do Claude Code, Codex, Pi, OMP e Hermes."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalează sau actualizează rootshell-notify, asociază acest dispozitiv și configurează integrările Claude Code, Codex, Pi, OMP și Hermes disponibile."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Namesti ali posodobi rootshell-notify, seznani to napravo in nastavi razpoložljive integracije za Claude Code, Codex, Pi, OMP in Hermes."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerar eller uppdaterar rootshell-notify, parar ihop den här enheten och konfigurerar tillgängliga integrationer för Claude Code, Codex, Pi, OMP och Hermes."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Встановлює або оновлює rootshell-notify, створює пару з цим пристроєм і налаштовує доступні інтеграції Claude Code, Codex, Pi, OMP та Hermes."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cài đặt hoặc cập nhật rootshell-notify, ghép đôi thiết bị này và cấu hình các tích hợp Claude Code, Codex, Pi, OMP và Hermes có sẵn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安装或更新 rootshell-notify，配对此设备，并配置可用的 Claude Code、Codex、Pi、OMP 和 Hermes 集成。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安裝或更新 rootshell-notify、配對這部裝置，並設定可用的 Claude Code、Codex、Pi、OMP 與 Hermes 整合。"
           }
         }
       }
@@ -415312,7 +415916,7 @@
       }
     },
     "Last Used" : {
-      "comment" : "Local SSH agent client rule last used label\nVPN quick connect: caption above the last VPN's name",
+      "comment" : "VPN quick connect: caption above the last VPN's name",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -432607,7 +433211,7 @@
       }
     },
     "Local SSH Agent" : {
-      "comment" : "Local SSH agent settings title\nSetting title\nSettings row: local SSH agent",
+      "comment" : "Setting title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -466275,7 +466879,7 @@
       }
     },
     "Name" : {
-      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nLocal SSH agent client rule identity name label\nStorage metadata field name placeholder\nStorage provider field",
+      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nStorage metadata field name placeholder\nStorage provider field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -498390,7 +498994,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nHTTP capture: no host decrypted\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nHTTP capture: no host decrypted\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -508597,7 +509201,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings VPN row: nothing running\nSettings status: disabled\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings VPN row: nothing running\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -509216,7 +509820,7 @@
       }
     },
     "On" : {
-      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nSettings status: enabled\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -520494,6 +521098,314 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在打開「接續互通」資料串流。"
+          }
+        }
+      }
+    },
+    "Opening port %lld" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ فتح المنفذ %lld"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrint el port %lld"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevírání portu %lld"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åbner port %lld"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port %lld wird geöffnet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abriendo el puerto %lld"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avataan porttia %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouverture du port %lld"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פותח את פורט %lld"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld. port megnyitása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apertura della porta %lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ポート %lld を開いています"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포트 %lld 여는 중"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpner port %lld"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poort %lld openen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwieranie portu %lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrindo a porta %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A abrir a porta %lld"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se deschide portul %lld"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpiranje vrat %lld"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppnar port %lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкриття порту %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang mở cổng %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在打开端口 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在開啟連接埠 %lld"
+          }
+        }
+      }
+    },
+    "Opening port %u" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ فتح المنفذ %u"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrint el port %u"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otevírání portu %u"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åbner port %u"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port %u wird geöffnet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abriendo el puerto %u"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avataan porttia %u"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouverture du port %u"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פותח את פורט %u"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%u. port megnyitása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apertura della porta %u"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ポート %u を開いています"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포트 %u 여는 중"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Åpner port %u"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poort %u openen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwieranie portu %u"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrindo a porta %u"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A abrir a porta %u"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se deschide portul %u"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odpiranje vrat %u"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppnar port %u"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкриття порту %u"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang mở cổng %u"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在打开端口 %u"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在開啟連接埠 %u"
           }
         }
       }
@@ -537185,7 +538097,7 @@
       }
     },
     "Path" : {
-      "comment" : "Local SSH agent client rule identity path label\nStorage addressing style: bucket in the URL path",
+      "comment" : "Storage addressing style: bucket in the URL path",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -550302,6 +551214,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "連接埠轉送"
+          }
+        }
+      }
+    },
+    "Port forwarding is unavailable for this connection." : {
+      "comment" : "Remote ports: transport cannot forward",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة توجيه المنافذ غير متاحة لهذا الاتصال."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El reenviament de ports no està disponible per a aquesta connexió."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přesměrování portů není pro toto připojení k dispozici."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portvideresendelse er ikke tilgængelig for denne forbindelse."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portweiterleitung ist für diese Verbindung nicht verfügbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El reenvío de puertos no está disponible para esta conexión."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portin välitys ei ole käytettävissä tälle yhteydelle."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La redirection de port n’est pas disponible pour cette connexion."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "העברת פורטים אינה זמינה עבור חיבור זה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A porttovábbítás nem érhető el ennél a kapcsolatnál."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'inoltro porte non è disponibile per questa connessione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この接続ではポートフォワーディングを利用できません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 연결에서는 포트 포워딩을 사용할 수 없습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portvideresending er ikke tilgjengelig for denne tilkoblingen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poortdoorschakeling is niet beschikbaar voor deze verbinding."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przekierowanie portów jest niedostępne dla tego połączenia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O encaminhamento de porta não está disponível para esta conexão."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O reencaminhamento de portas não está disponível para esta ligação."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redirecționarea de port nu este disponibilă pentru această conexiune."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posredovanje vrat za to povezavo ni na voljo."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portvidarebefordring är inte tillgänglig för den här anslutningen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переадресація портів недоступна для цього з’єднання."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chuyển tiếp cổng không khả dụng cho kết nối này."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此连接不支持端口转发。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此連線不支援連接埠轉送。"
           }
         }
       }
@@ -588458,6 +589525,161 @@
         }
       }
     },
+    "Reload" : {
+      "comment" : "Reloads the port preview page",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة التحميل"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recarrega"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znovu načíst"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genindlæs"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu laden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recargar"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lataa uudelleen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recharger"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "טען מחדש"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Újratöltés"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricarica"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再読み込み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새로 고침"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last inn på nytt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herladen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odśwież"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recarregar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recarregar"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reîncarcă"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znova naloži"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladda om"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезавантажити"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tải lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新载入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新載入"
+          }
+        }
+      }
+    },
     "Reload Config" : {
       "localizations" : {
         "ar" : {
@@ -591701,6 +592923,161 @@
         }
       }
     },
+    "Remote Ports" : {
+      "comment" : "Section header and globe accessibility label",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المنافذ البعيدة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ports remots"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vzdálené porty"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fjernporte"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernte Ports"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puertos remotos"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etäportit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ports distants"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פורטים מרוחקים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Távoli portok"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porte remote"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リモートポート"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원격 포트"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksterne porter"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Externe poorten"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porty zdalne"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portas Remotas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portas Remotas"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porturi la distanță"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oddaljena vrata"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fjärrportar"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Віддалені порти"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cổng từ xa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远程端口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "遠端連接埠"
+          }
+        }
+      }
+    },
     "Remote session" : {
       "comment" : "Fallback clipboard-history source label for an OSC 52 write",
       "localizations" : {
@@ -592630,7 +594007,7 @@
       }
     },
     "Remove" : {
-      "comment" : "Local SSH agent audit action\nStorage metadata: remove field",
+      "comment" : "Storage metadata: remove field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -675905,6 +677282,161 @@
         }
       }
     },
+    "Show Remote Ports" : {
+      "comment" : "Setting title",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار المنافذ البعيدة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra els ports remots"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazit vzdálené porty"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis fjernporte"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernte Ports anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar puertos remotos"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä etäportit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les ports distants"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצג פורטים מרוחקים"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Távoli portok megjelenítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra porte remote"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リモートポートを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원격 포트 표시"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis eksterne porter"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Externe poorten tonen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż porty zdalne"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar Portas Remotas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar Portas Remotas"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează porturile la distanță"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prikaži oddaljena vrata"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa fjärrportar"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показувати віддалені порти"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiển thị cổng từ xa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示远程端口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示遠端連接埠"
+          }
+        }
+      }
+    },
     "Show SSID and access point on Lock Screen" : {
       "localizations" : {
         "ar" : {
@@ -679779,6 +681311,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "當 SSH 工作階段協商的是傳統（非後量子）金鑰交換時，在連線後顯示橫幅，此方式易受先收集後解密攻擊。請參閱 openssh.com/pq.html。"
+          }
+        }
+      }
+    },
+    "Shows a globe at the bottom-right of the terminal that lists the TCP ports the connected host listens on. Choosing a port forwards it to this device and opens it in an in-app browser tab." : {
+      "comment" : "Setting description for the remote-ports pill",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يعرض كرة أرضية في أسفل يمين الطرفية تسرد منافذ TCP التي يستمع عليها المضيف المتصل. يؤدي اختيار منفذ إلى توجيهه إلى هذا الجهاز وفتحه في علامة تبويب متصفح داخل التطبيق."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra un globus a la part inferior dreta del terminal amb els ports TCP on escolta l'amfitrió connectat. En triar un port, es reenvia a aquest dispositiu i s'obre en una pestanya del navegador de l'app."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazí v pravém dolním rohu terminálu glóbus se seznamem portů TCP, na kterých připojený hostitel naslouchá. Výběrem portu jej přesměrujete na toto zařízení a otevřete na kartě prohlížeče v aplikaci."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viser en globus nederst til højre i terminalen med de TCP-porte, som den forbundne vært lytter på. Når du vælger en port, videresendes den til denne enhed og åbnes i en browserfane i appen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt unten rechts im Terminal einen Globus mit den TCP-Ports, auf denen der verbundene Host lauscht. Wenn Sie einen Port auswählen, wird er auf dieses Gerät weitergeleitet und in einem Browser-Tab in der App geöffnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra un globo en la esquina inferior derecha del terminal con los puertos TCP en los que escucha el host conectado. Al elegir un puerto, se reenvía a este dispositivo y se abre en una pestaña del navegador integrado en la app."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näyttää päätteen oikeassa alakulmassa maapallon, joka luettelee TCP-portit, joita yhdistetty isäntä kuuntelee. Kun valitset portin, se välitetään tähän laitteeseen ja avataan sovelluksen sisäisen selaimen välilehdessä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche un globe en bas à droite du terminal qui liste les ports TCP sur lesquels l’hôte connecté écoute. Choisir un port le redirige vers cet appareil et l’ouvre dans un onglet du navigateur intégré à l’app."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מציג גלובוס בפינה הימנית התחתונה של המסוף, שמפרט את פורטי ה-TCP שהמארח המחובר מאזין להם. בחירת פורט מעבירה אותו למכשיר זה ופותחת אותו בלשונית דפדפן בתוך האפליקציה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A terminál jobb alsó sarkában egy földgömböt jelenít meg, amely felsorolja azokat a TCP-portokat, amelyeken a csatlakoztatott gazdagép figyel. Egy port kiválasztásakor a rendszer továbbítja azt erre az eszközre, és megnyitja egy alkalmazáson belüli böngészőlapon."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra un globo in basso a destra nel terminale con l'elenco delle porte TCP su cui è in ascolto l'host connesso. Scegliendo una porta, questa viene inoltrata a questo dispositivo e aperta in una scheda del browser integrato nell'app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ターミナルの右下に地球儀を表示し、接続先ホストが待ち受けている TCP ポートを一覧表示します。ポートを選ぶと、このデバイスに転送され、アプリ内ブラウザのタブで開きます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "터미널 오른쪽 아래에 연결된 호스트가 수신 대기 중인 TCP 포트 목록을 보여 주는 지구본을 표시합니다. 포트를 선택하면 이 기기로 포워딩되고 앱 내 브라우저 탭에서 열립니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viser en globus nederst til høyre i terminalen med TCP-portene den tilkoblede verten lytter på. Når du velger en port, videresendes den til denne enheten og åpnes i en nettleserfane i appen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toont rechtsonder in de terminal een wereldbol met de TCP-poorten waarop de verbonden host luistert. Als je een poort kiest, wordt die naar dit apparaat doorgeschakeld en geopend in een browsertabblad in de app."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyświetla w prawym dolnym rogu terminala globus z listą portów TCP, na których nasłuchuje połączony host. Wybranie portu przekierowuje go na to urządzenie i otwiera w karcie przeglądarki w aplikacji."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra um globo no canto inferior direito do terminal com as portas TCP em que o host conectado está escutando. Ao escolher uma porta, ela é encaminhada para este dispositivo e aberta em uma aba do navegador integrado ao app."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra um globo no canto inferior direito do terminal com as portas TCP em que o anfitrião ligado está à escuta. Ao escolher uma porta, esta é reencaminhada para este dispositivo e aberta num separador do navegador integrado na app."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează un glob în colțul din dreapta jos al terminalului, cu porturile TCP pe care ascultă gazda conectată. Alegerea unui port îl redirecționează către acest dispozitiv și îl deschide într-o filă de browser din aplicație."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V spodnjem desnem kotu terminala prikaže globus s seznamom vrat TCP, na katerih posluša povezani gostitelj. Ko izberete vrata, se posredujejo v to napravo in odprejo v zavihku brskalnika v aplikaciji."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visar en jordglob längst ned till höger i terminalen som listar de TCP-portar som den anslutna värden lyssnar på. När du väljer en port vidarebefordras den till den här enheten och öppnas i en webbläsarflik i appen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показує в правому нижньому куті термінала глобус зі списком портів TCP, які прослуховує під’єднаний хост. Якщо вибрати порт, його буде переспрямовано на цей пристрій і відкрито у вкладці вбудованого браузера."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiển thị một quả địa cầu ở góc dưới bên phải terminal, liệt kê các cổng TCP mà máy chủ đang kết nối lắng nghe. Chọn một cổng sẽ chuyển tiếp cổng đó tới thiết bị này và mở trong một tab trình duyệt trong ứng dụng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在终端右下角显示一个地球按钮，列出已连接主机正在监听的 TCP 端口。选择一个端口会把它转发到本设备，并在应用内的浏览器标签页中打开。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在終端右下角顯示一個地球按鈕，列出已連線主機正在監聽的 TCP 埠。選擇一個埠會將它轉送到本裝置，並在 App 內的瀏覽器分頁中開啟。"
           }
         }
       }
@@ -703285,7 +704972,7 @@
       }
     },
     "SSH Agent" : {
-      "comment" : "Agent key section header\nSetting group title",
+      "comment" : "Setting group title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -716565,6 +718252,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "停止聽寫"
+          }
+        }
+      }
+    },
+    "Stop Forward" : {
+      "comment" : "Menu item that tears down a forward",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إيقاف التوجيه"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atura el reenviament"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zastavit přesměrování"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop videresendelse"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiterleitung beenden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detener reenvío"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lopeta välitys"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter la redirection"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפסק העברה"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Továbbítás leállítása"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrompi inoltro"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "転送を停止"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포워딩 중지"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopp videresending"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doorschakeling stoppen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zatrzymaj przekierowanie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parar Encaminhamento"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parar Reencaminhamento"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oprește redirecționarea"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustavi posredovanje"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stoppa vidarebefordran"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зупинити переспрямування"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dừng chuyển tiếp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止转发"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止轉送"
           }
         }
       }
@@ -760591,6 +762433,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "該指令會取代你的登入 Shell，因此它在同一個登入環境中啟動，SHELL 仍會回報帳號中設定的 Shell。有些 Shell 只有在明確傳入 --login 之類的旗標時才會以登入方式執行。"
+          }
+        }
+      }
+    },
+    "The connection is not ready." : {
+      "comment" : "Remote ports: no live session",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الاتصال غير جاهز."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexió no està preparada."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Připojení není připraveno."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forbindelsen er ikke klar."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung ist nicht bereit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La conexión no está lista."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yhteys ei ole valmis."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion n’est pas prête."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החיבור אינו מוכן."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A kapcsolat nem áll készen."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connessione non è pronta."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続の準備ができていません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결이 준비되지 않았습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilkoblingen er ikke klar."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De verbinding is niet gereed."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Połączenie nie jest gotowe."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A conexão não está pronta."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A ligação não está pronta."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexiunea nu este pregătită."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povezava ni pripravljena."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anslutningen är inte redo."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "З’єднання не готове."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kết nối chưa sẵn sàng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接尚未就绪。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連線尚未就緒。"
           }
         }
       }
@@ -832574,6 +834571,7 @@
       }
     },
     "Updates rootshell-notify and refreshes Claude Code and Codex hooks. Existing pairings are kept." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -832723,6 +834721,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更新 rootshell-notify 並重新整理 Claude Code 與 Codex 掛鉤。現有的配對會保留。"
+          }
+        }
+      }
+    },
+    "Updates rootshell-notify and refreshes Claude Code, Codex, Pi, OMP and Hermes integrations. Existing pairings are kept." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يحدّث rootshell-notify ويجدّد تكاملات Claude Code وCodex وPi وOMP وHermes. ويُحتفظ بعمليات الاقتران الحالية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualitza rootshell-notify i refresca les integracions de Claude Code, Codex, Pi, OMP i Hermes. Les vinculacions existents es conserven."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualizuje rootshell-notify a obnoví integrace Claude Code, Codex, Pi, OMP a Hermes. Stávající párování zůstanou zachována."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opdaterer rootshell-notify og opdaterer integrationerne til Claude Code, Codex, Pi, OMP og Hermes. Eksisterende parringer bevares."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisiert rootshell-notify und erneuert die Integrationen für Claude Code, Codex, Pi, OMP und Hermes. Bestehende Kopplungen bleiben erhalten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualiza rootshell-notify y renueva las integraciones de Claude Code, Codex, Pi, OMP y Hermes. Los emparejamientos existentes se conservan."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Päivittää rootshell-notifyn sekä Claude Code-, Codex-, Pi-, OMP- ja Hermes-integraatiot. Olemassa olevat pariliitokset säilytetään."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Met à jour rootshell-notify et actualise les intégrations Claude Code, Codex, Pi, OMP et Hermes. Les jumelages existants sont conservés."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מעדכן את rootshell-notify ומרענן את השילובים של Claude Code, Codex, Pi, OMP ו-Hermes. ההתאמות הקיימות נשמרות."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frissíti a rootshell-notify eszközt, és megújítja a Claude Code, Codex, Pi, OMP és Hermes integrációkat. A meglévő párosítások megmaradnak."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiorna rootshell-notify e ricarica le integrazioni di Claude Code, Codex, Pi, OMP e Hermes. Gli abbinamenti esistenti vengono mantenuti."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rootshell-notify を更新し、Claude Code、Codex、Pi、OMP、Hermes の連携を再設定します。既存のペアリングは維持されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rootshell-notify를 업데이트하고 Claude Code, Codex, Pi, OMP 및 Hermes 통합을 새로 고칩니다. 기존 페어링은 유지됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oppdaterer rootshell-notify og fornyer integrasjonene for Claude Code, Codex, Pi, OMP og Hermes. Eksisterende sammenkoblinger beholdes."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Werkt rootshell-notify bij en vernieuwt de integraties voor Claude Code, Codex, Pi, OMP en Hermes. Bestaande koppelingen blijven behouden."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualizuje rootshell-notify i odświeża integracje Claude Code, Codex, Pi, OMP oraz Hermes. Istniejące parowania zostają zachowane."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atualiza o rootshell-notify e recarrega as integrações do Claude Code, Codex, Pi, OMP e Hermes. Os pareamentos existentes são mantidos."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atualiza o rootshell-notify e renova as integrações do Claude Code, Codex, Pi, OMP e Hermes. Os emparelhamentos existentes são mantidos."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizează rootshell-notify și reîmprospătează integrările Claude Code, Codex, Pi, OMP și Hermes. Asocierile existente sunt păstrate."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posodobi rootshell-notify in osveži integracije za Claude Code, Codex, Pi, OMP in Hermes. Obstoječe seznanitve se ohranijo."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uppdaterar rootshell-notify och förnyar integrationerna för Claude Code, Codex, Pi, OMP och Hermes. Befintliga ihopparningar behålls."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оновлює rootshell-notify та поновлює інтеграції Claude Code, Codex, Pi, OMP і Hermes. Наявні пари зберігаються."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cập nhật rootshell-notify và làm mới các tích hợp Claude Code, Codex, Pi, OMP và Hermes. Các ghép đôi hiện có được giữ nguyên."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 rootshell-notify 并刷新 Claude Code、Codex、Pi、OMP 和 Hermes 集成。现有配对会保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 rootshell-notify 並重新整理 Claude Code、Codex、Pi、OMP 與 Hermes 整合。現有的配對會保留。"
           }
         }
       }
@@ -870753,7 +872905,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
+      "comment" : "Agent usage window title: weekly quota",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -873533,6 +875685,144 @@
     "While this is on, each visible terminal polls the host for its listening ports every few seconds. Off by default so the scan only runs when you ask for it." : {
       "comment" : "Footer explaining the polling cost of the remote-ports pill",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أثناء تفعيل هذا الخيار، تستعلم كل طرفية مرئية من المضيف عن منافذه المستمعة كل بضع ثوانٍ. وهو معطّل افتراضيًا حتى لا يجري الفحص إلا عندما تطلبه."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mentre està activat, cada terminal visible consulta a l'amfitrió els seus ports en escolta cada pocs segons. Està desactivat per defecte perquè l'escaneig només s'executi quan ho demanis."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Když je tato volba zapnutá, každý viditelný terminál se každých několik sekund dotazuje hostitele na jeho naslouchající porty. Ve výchozím stavu je vypnutá, aby kontrola probíhala jen na vaše vyžádání."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mens dette er slået til, spørger hver synlig terminal værten om dens lyttende porte med få sekunders mellemrum. Slået fra som standard, så scanningen kun kører, når du beder om det."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solange dies aktiviert ist, fragt jedes sichtbare Terminal den Host alle paar Sekunden nach seinen lauschenden Ports ab. Standardmäßig aus, damit der Scan nur läuft, wenn Sie ihn anfordern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mientras esté activado, cada terminal visible consulta al host sus puertos a la escucha cada pocos segundos. Desactivado por defecto para que el análisis solo se ejecute cuando lo pidas."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kun tämä on päällä, jokainen näkyvä pääte kysyy isännältä sen kuuntelevia portteja muutaman sekunnin välein. Oletuksena pois päältä, joten tarkistus tehdään vain pyynnöstäsi."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lorsque cette option est activée, chaque terminal visible interroge l’hôte toutes les quelques secondes pour connaître ses ports en écoute. Désactivée par défaut afin que l’analyse ne s’exécute que lorsque vous la demandez."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כשאפשרות זו פעילה, כל מסוף גלוי שואל את המארח מדי כמה שניות על הפורטים שהוא מאזין להם. כבויה כברירת מחדל כדי שהסריקה תרוץ רק כשתבקש."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amíg ez be van kapcsolva, minden látható terminál néhány másodpercenként lekérdezi a gazdagéptől a figyelő portjait. Alapértelmezés szerint ki van kapcsolva, így a keresés csak akkor fut, amikor kéri."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando questa opzione è attiva, ogni terminale visibile interroga l'host sulle sue porte in ascolto ogni pochi secondi. Disattivata per impostazione predefinita, così la scansione viene eseguita solo quando la richiedi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オンにすると、表示中の各ターミナルが数秒ごとにホストへ待ち受けポートを問い合わせます。デフォルトではオフなので、スキャンは必要なときだけ実行されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 옵션이 켜져 있으면 보이는 각 터미널이 몇 초마다 호스트에 수신 대기 포트를 조회합니다. 기본적으로 꺼져 있어 요청할 때만 스캔이 실행됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mens dette er på, spør hver synlige terminal verten om portene den lytter på, med noen sekunders mellomrom. Av som standard, slik at skanningen bare kjører når du ber om det."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zolang dit aan staat, vraagt elke zichtbare terminal de host om de paar seconden naar zijn luisterende poorten. Standaard uit, zodat de scan alleen draait wanneer je erom vraagt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdy ta opcja jest włączona, każdy widoczny terminal co kilka sekund odpytuje hosta o porty, na których nasłuchuje. Domyślnie wyłączona, aby skanowanie działało tylko wtedy, gdy o to poprosisz."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enquanto isso estiver ativado, cada terminal visível consulta o host sobre as portas em escuta a cada poucos segundos. Desativado por padrão para que a verificação só seja executada quando você pedir."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enquanto esta opção estiver ativada, cada terminal visível consulta o anfitrião sobre as portas à escuta a cada poucos segundos. Desativada por predefinição para que a análise só seja executada quando a pedir."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cât timp această opțiune este activă, fiecare terminal vizibil interoghează gazda la câteva secunde despre porturile pe care ascultă. Dezactivată implicit, astfel încât scanarea rulează doar când o solicitați."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ko je to vklopljeno, vsak viden terminal vsakih nekaj sekund povpraša gostitelja po vratih, na katerih posluša. Privzeto izklopljeno, da se pregled izvede le, ko ga zahtevate."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "När detta är på frågar varje synlig terminal värden efter dess lyssnande portar med några sekunders mellanrum. Av som standard så att genomsökningen bara körs när du ber om det."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поки цей параметр увімкнено, кожен видимий термінал кожні кілька секунд запитує в хоста його порти, що прослуховуються. Типово вимкнено, щоб сканування виконувалося лише на ваш запит."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khi bật tùy chọn này, mỗi terminal đang hiển thị sẽ hỏi máy chủ về các cổng đang lắng nghe sau mỗi vài giây. Mặc định tắt để việc quét chỉ chạy khi bạn yêu cầu."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
@@ -888063,22 +890353,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "縮放窗格 %@：%@"
-          }
-        }
-      }
-    },
-    "Opening port %lld" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在打开端口 %lld"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在開啟連接埠 %lld"
           }
         }
       }
