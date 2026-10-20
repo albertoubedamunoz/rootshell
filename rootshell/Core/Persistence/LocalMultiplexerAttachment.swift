@@ -105,9 +105,12 @@ public nonisolated struct LocalMultiplexerAttachment: Codable, Equatable, Sendab
 
     public func command(arguments: [String]) -> String {
         let cleared = ["TMUX", "TMUX_PANE", "ZELLIJ", "ZELLIJ_SESSION_NAME", "HERDR_ENV", "ZMX_SESSION", "ZMX_SESSION_PREFIX"]
-        return (["/usr/bin/env"] + cleared.flatMap { ["-u", $0] }
-            + launchEnvironment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
-            + [launchExecutable] + arguments).map(Self.quote).joined(separator: " ")
+        var parts: [String] = ["/usr/bin/env"]
+        parts.append(contentsOf: cleared.flatMap { ["-u", $0] })
+        parts.append(contentsOf: launchEnvironment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" })
+        parts.append(launchExecutable)
+        parts.append(contentsOf: arguments)
+        return parts.map(Self.quote).joined(separator: " ")
     }
 }
 

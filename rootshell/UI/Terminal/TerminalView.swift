@@ -589,6 +589,12 @@ extension Ghostty {
         /// Set on the gateway view while it drives a herdr session in
         /// control mode. nil for pane views and non-herdr sessions.
         var herdrController: HerdrController?
+
+        /// Every projected pane's shell inherits a live gateway's UUID, so
+        /// it never identifies a single pane.
+        var isLiveMultiplexerGateway: Bool {
+            tmuxController?.isActive == true || herdrController?.didEnd == false
+        }
         var herdrGatewayHost: UIHostingController<HerdrGatewayView>?
         /// Covers a projected pane another herdr client holds (single-owner servers).
         var herdrPaneControlHost: UIHostingController<HerdrPaneControlOverlay>?
