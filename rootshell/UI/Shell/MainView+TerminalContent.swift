@@ -1552,9 +1552,15 @@ extension MainView {
             )
             .overlay(alignment: .bottomTrailing) {
                 if showRemotePorts, let portsTerminal {
-                    ListeningPortsPill(terminal: portsTerminal) { preview in
-                        openPortPreviewTab(preview)
-                    }
+                    ListeningPortsPill(
+                        terminal: portsTerminal,
+                        onOpen: { preview in
+                            openPortPreviewTab(preview)
+                        },
+                        // Leave room for the pill's own 12 pt side padding so a
+                        // long chip row scrolls instead of leaving the column.
+                        maxWidth: max(120, terminalWidth - 24)
+                    )
                     // Expanded/busy state belongs to one pane.
                     .id(portsTerminal.uuid)
                     .padding(.bottom, portPillKeyboardLift)

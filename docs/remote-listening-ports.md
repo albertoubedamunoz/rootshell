@@ -14,6 +14,7 @@ after a hover (pointer) or tap (touch).
 | Mouse leaves | Ports stay for three seconds, then collapse |
 | Touch | Ports stay until the globe is tapped again or a port is chosen |
 | Port click | Opens a new app tab with an in-app `WKWebView` for the forwarded page |
+| Many ports | The row scrolls sideways in a narrow pane; the globe stays put |
 
 The page's text is zoomed against a 16 pt web baseline using the terminal's
 effective font size, so a 14 pt terminal and the page read at the same size.
@@ -42,8 +43,10 @@ bootstrap.
 
 ## Configuration
 
-Settings → Terminal → **Show Remote Ports** (`show-remote-ports`). Enabled by
-default; disabling it stops the scan and hides the globe.
+Settings → Appearance → Window → **Remote Ports** (`show-remote-ports`). Off by
+default: each visible pane polls the host every five seconds while it is on, so
+the scan is something you switch on rather than inherit. Turning it off stops
+the scan at the next tick and hides the globe.
 
 The scan runs every five seconds while the pane is visible and the app is in the
 foreground, and backs off on failure. Only listeners owned by the SSH user are

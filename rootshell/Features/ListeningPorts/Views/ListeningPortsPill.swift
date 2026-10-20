@@ -21,8 +21,14 @@ struct PortPreview: Identifiable {
 }
 
 struct ListeningPortsPill: View {
+    /// Diameter of the collapsed globe button, in points.
+    static let globeSize: CGFloat = 39
+
     @ObservedObject var terminal: Ghostty.TerminalView
     let onOpen: (PortPreview) -> Void
+    /// Width the pill may occupy inside the terminal column. The chip row is
+    /// clamped to this, so a narrow pane scrolls instead of overflowing.
+    let maxWidth: CGFloat
 
     @State private var expanded = false
     @State private var hovering = false
@@ -31,6 +37,9 @@ struct ListeningPortsPill: View {
     /// Remote port -> local port, read back from the connection's forwards.
     @State private var localPorts: [UInt16: UInt16] = [:]
     @State private var errorMessage: String?
+    /// Natural width of the chip row, measured so the scroller can be sized
+    /// to the content when it fits and clamped when it does not.
+    @State private var chipsWidth: CGFloat = 0
 
     private static let collapseDelay: Duration = .seconds(3)
 
@@ -40,17 +49,11 @@ struct ListeningPortsPill: View {
                 globeButton
 
                 if expanded {
-                    // Too many ports for the width scroll instead of pushing
-                    // the globe offscreen.
-                    ViewThatFits(in: .horizontal) {
-                        portRow
-                        ScrollView(.horizontal) {
-                            portRow
-                        }
-                        .scrollIndicators(.hidden)
-                        // A small overlay scroll view; UIKit 26 would blur its edges.
-                        .modifier(ScrollEdgeEffectHiddenModifier())
-                    }
+                    // The chips stay on one line. When the pane is too narrow
+                    // for them — an iPhone in portrait leaves room for a few —
+                    // the row scrolls sideways instead of pushing the globe
+                    // offscreen or clipping the last ports.
+                    portScroller
                 }
             }
             .padding(.horizontal, expanded ? 8 : 0)
@@ -95,6 +98,40 @@ struct ListeningPortsPill: View {
         }
     }
 
+    /// The chip row, scrolled sideways when the pane cannot show every port.
+    private var portScroller: some View {
+        ScrollView(.horizontal) {
+            portRow
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: PortRowWidthKey.self, value: proxy.size.width)
+                    }
+                )
+        }
+        .scrollIndicators(.hidden)
+        .scrollDisabled(!isChipRowScrollable)
+        .frame(width: chipRowWidth)
+        // A small overlay scroll view; UIKit 26 would blur its edges.
+        .modifier(ScrollEdgeEffectHiddenModifier())
+        .onPreferenceChange(PortRowWidthKey.self) { width in
+            guard abs(width - chipsWidth) > 0.5 else { return }
+            chipsWidth = width
+        }
+    }
+
+    /// Room left for chips once the globe and the pill's padding are paid for.
+    private var chipSpace: CGFloat {
+        max(0, maxWidth - Self.globeSize - 16 - 4)
+    }
+
+    /// nil until the row has been measured, so the first pass keeps its ideal size.
+    private var chipRowWidth: CGFloat? {
+        guard chipsWidth > 0 else { return nil }
+        return min(chipsWidth, chipSpace)
+    }
+
+    private var isChipRowScrollable: Bool { chipsWidth > chipSpace + 0.5 }
+
     private var portRow: some View {
         HStack(spacing: 4) {
             ForEach(terminal.remotePorts) { port in
@@ -123,11 +160,11 @@ struct ListeningPortsPill: View {
             Image(systemName: "globe")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.primary)
-                .frame(width: 39, height: 39)
+                .frame(width: Self.globeSize, height: Self.globeSize)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .frame(width: 39, height: 39)
+        .frame(width: Self.globeSize, height: Self.globeSize)
         .accessibilityLabel("Remote Ports")
     }
 
@@ -245,3 +282,10 @@ struct ListeningPortsPill: View {
     }
 }
 
+/// Natural width of the chip row, so the scroller can clamp itself to the pane.
+private struct PortRowWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
