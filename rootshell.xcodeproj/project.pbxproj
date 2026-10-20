@@ -144,6 +144,7 @@
 		47AEC0020000000000000003 /* rootshell/Core/Shell/LoginShellCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */; };
 		47AF04300000000000000A01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04300000000000000B01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift */; };
 		47AF04310000000000000A01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */; };
+		47AF06500000000000000A01 /* rootshell/Features/Tmux/TmuxLocalFocusGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF06500000000000000B01 /* rootshell/Features/Tmux/TmuxLocalFocusGate.swift */; };
 		47AF04710000000000000001 /* rootshell/Core/Keybinds/ModTapState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */; };
 		47AF04710000000000000003 /* rootshell/Core/Keybinds/KeyTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */; platformFilter = ios; };
 		47AF04710000000000000005 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */; };
@@ -660,6 +661,7 @@
 		47AEC0020000000000000010 /* rootshell/Core/Shell/LoginShellCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Shell/LoginShellCommand.swift; sourceTree = SOURCE_ROOT; };
 		47AF04300000000000000B01 /* rootshell/Features/Multiplexer/MuxSessionTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Multiplexer/MuxSessionTarget.swift; sourceTree = SOURCE_ROOT; };
 		47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxWindowCloseState.swift; sourceTree = SOURCE_ROOT; };
+		47AF06500000000000000B01 /* rootshell/Features/Tmux/TmuxLocalFocusGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Features/Tmux/TmuxLocalFocusGate.swift; sourceTree = SOURCE_ROOT; };
 		47AF04710000000000000002 /* rootshell/Core/Keybinds/ModTapState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/ModTapState.swift; sourceTree = SOURCE_ROOT; };
 		47AF04710000000000000004 /* rootshell/Core/Keybinds/KeyTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/KeyTrigger.swift; sourceTree = SOURCE_ROOT; };
 		47AF04710000000000000006 /* rootshell/Core/Keybinds/HardwareKeyboardText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rootshell/Core/Keybinds/HardwareKeyboardText.swift; sourceTree = SOURCE_ROOT; };
@@ -1348,6 +1350,7 @@
 				47AF05A00000000000000B04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift */,
 				47AF05A00000000000000B05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift */,
 				47AF04310000000000000B01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift */,
+				47AF06500000000000000B01 /* rootshell/Features/Tmux/TmuxLocalFocusGate.swift */,
 				47AF04990000000000000B01 /* rootshell/Core/Keybinds/MenuKeyEquivalentPolicy.swift */,
 				47AF04A10000000000000B01 /* rootshell/Features/Mosh/Protocol/Transport/MoshTimestampEcho.swift */,
 				47AF05740000000000000B01 /* rootshell/Core/Terminal/TerminalURLRequestParser.swift */,
@@ -2390,6 +2393,7 @@
 				47AF05A00000000000000A04 /* rootshell/Features/ProgramIdentity/ShellProgramReports.swift in Sources */,
 				47AF05A00000000000000A05 /* rootshell/Features/ProgramIdentity/ShellProgramReportEncoder.swift in Sources */,
 				47AF04310000000000000A01 /* rootshell/Features/Tmux/TmuxWindowCloseState.swift in Sources */,
+				47AF06500000000000000A01 /* rootshell/Features/Tmux/TmuxLocalFocusGate.swift in Sources */,
 				47AF04990000000000000A01 /* rootshell/Core/Keybinds/MenuKeyEquivalentPolicy.swift in Sources */,
 				47AF04A10000000000000A01 /* rootshell/Features/Mosh/Protocol/Transport/MoshTimestampEcho.swift in Sources */,
 				47AF05740000000000000A01 /* rootshell/Core/Terminal/TerminalURLRequestParser.swift in Sources */,
