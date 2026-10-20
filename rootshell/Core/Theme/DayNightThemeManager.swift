@@ -169,6 +169,25 @@ final class DayNightThemeManager: ObservableObject {
             }
         }
 
+        // Closing the observed scene need not make any other window key
+        NotificationCenter.default.addObserver(
+            forName: UIScene.didDisconnectNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let strongSelf = self else { return }
+            nonisolated(unsafe) let scene = notification.object as? UIScene
+            Task { @MainActor in
+                #if !targetEnvironment(macCatalyst)
+                if UIApplication.shared.applicationState == .background {
+                    strongSelf.reattachOrphanedTraitObserver(disconnecting: scene)
+                    return
+                }
+                #endif
+                strongSelf.syncWithInterfaceStyle(disconnecting: scene)
+            }
+        }
+
         appearanceModeTask = Task { @MainActor [weak self] in
             for await _ in AppearanceManager.shared.appearanceModeDidChange.values {
                 self?.syncWithInterfaceStyle()
@@ -239,10 +258,10 @@ final class DayNightThemeManager: ObservableObject {
     }
 
     /// Re-reads the effective interface style (system or forced Appearance) and applies its theme.
-    private func syncWithInterfaceStyle() {
+    private func syncWithInterfaceStyle(disconnecting scene: UIScene? = nil) {
         guard enabled else { return }
 
-        reattachOrphanedTraitObserver()
+        reattachOrphanedTraitObserver(disconnecting: scene)
 
         let nowLight = Self.currentInterfaceStyleIsLight()
         if nowLight != isCurrentlyLight {
@@ -254,10 +273,10 @@ final class DayNightThemeManager: ObservableObject {
 
     // MARK: - Trait Observer
 
-    private func setupTraitObserver() {
+    private func setupTraitObserver(excluding excludedScene: UIScene? = nil) {
         guard traitObserverView == nil else { return }
 
-        if let window = Self.keyWindow() {
+        if let window = Self.keyWindow(excluding: excludedScene) {
             attachTraitObserver(to: window)
         } else {
             // Window not ready yet — listen for both scene activation and window
@@ -364,12 +383,13 @@ final class DayNightThemeManager: ObservableObject {
     }
 
     /// A closed window stops delivering trait changes to the observer inside it.
-    private func reattachOrphanedTraitObserver() {
+    private func reattachOrphanedTraitObserver(disconnecting disconnected: UIScene? = nil) {
         guard let observer = traitObserverView else { return }
-        if let scene = observer.window?.windowScene, scene.activationState != .unattached { return }
+        if let scene = observer.window?.windowScene, scene !== disconnected,
+           scene.activationState != .unattached { return }
         Self.logger.info("Trait observer's window closed, reattaching")
         teardownTraitObserver()
-        setupTraitObserver()
+        setupTraitObserver(excluding: disconnected)
     }
 
     private func teardownTraitObserver() {
@@ -378,10 +398,13 @@ final class DayNightThemeManager: ObservableObject {
         cleanupPendingObservers()
     }
 
-    private static func keyWindow() -> UIWindow? {
-        UIApplication.shared.connectedScenes
+    /// Key window of a foreground scene first; a disconnecting scene can still be listed.
+    private static func keyWindow(excluding excludedScene: UIScene? = nil) -> UIWindow? {
+        let scenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .first?.keyWindow
+            .filter { $0 !== excludedScene }
+        let foreground = scenes.filter { $0.activationState == .foregroundActive }
+        return (foreground + scenes).lazy.compactMap(\.keyWindow).first
     }
 }
 
