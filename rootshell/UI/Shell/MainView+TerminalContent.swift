@@ -1063,7 +1063,7 @@ extension MainView {
         return padding
     }
 
-    enum TerminalTabsLayer {
+    enum TerminalTabsLayer: Equatable {
         case content
         /// Text Above Effect pane backgrounds, laid out exactly like the content.
         case underlay
@@ -1264,6 +1264,22 @@ extension MainView {
                     // An animated close would fade a translucent tab over the
                     // reveal backdrop. Hidden tabs are at opacity 0 anyway.
                     .transition(.identity)
+                } else if let preview = tab.webPreview, layer == .content {
+                    // A remote-port page lives in an ordinary app tab: keep
+                    // the app foreground so its loopback forward stays alive.
+                    let metrics = appTabSwipeVisualMetrics(for: tab.id, width: width)
+                    PortPreviewTabView(
+                        preview: preview,
+                        roundedPanes: roundedPanes,
+                        integratedTabJoin: integratedTabsJoinCards && showsHorizontalTabHeader
+                            ? integratedTabJoin : nil
+                    )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .opacity(metrics.opacity)
+                        .offset(x: metrics.offsetX)
+                        .zIndex(metrics.zIndex)
+                        .allowsHitTesting(index == selectedTabIndex && appTabSwipeState == nil)
+                        .transition(.identity)
                 }
             }
         }
@@ -1504,6 +1520,16 @@ extension MainView {
         let fileManagerWidth = columns.fileManager
         let httpCaptureWidth = columns.httpCapture
         let terminalWidth = columns.terminal
+        let portsTerminal = terminals.indices.contains(selectedTabIndex)
+            ? terminals[selectedTabIndex].focusedPane?.asTerminal
+            : nil
+        // The terminal column ignores the keyboard, so the pill must lift
+        // itself above it; otherwise the globe sits under the software
+        // keyboard on iPhone and cannot be tapped.
+        let portPillKeyboardLift = max(
+            effectManager.keyboardHeight,
+            portsTerminal?.reservedKeyboardToolbarHeightAtBottom ?? 0
+        )
 
         HStack(spacing: 0) {
             if let dockedSidebarTheme {
@@ -1524,6 +1550,23 @@ extension MainView {
                     ? dockedWidth
                     : 0
             )
+            .overlay(alignment: .bottomTrailing) {
+                if showRemotePorts, let portsTerminal {
+                    ListeningPortsPill(
+                        terminal: portsTerminal,
+                        onOpen: { preview in
+                            openPortPreviewTab(preview)
+                        },
+                        // Leave room for the pill's own 12 pt side padding so a
+                        // long chip row scrolls instead of leaving the column.
+                        maxWidth: max(120, terminalWidth - 24)
+                    )
+                    // Expanded/busy state belongs to one pane.
+                    .id(portsTerminal.uuid)
+                    .padding(.bottom, portPillKeyboardLift)
+                    .opacity(tabExpose.isActive ? 0 : 1)
+                }
+            }
 
             fileManagerSidebarColumn(width: fileManagerWidth, totalWidth: geometry.size.width)
 
@@ -1918,5 +1961,22 @@ private struct TmuxReconnectSwipeFallbackView: UIViewRepresentable {
             leftSwipe.delegate = coordinator
             rightSwipe.delegate = coordinator
         }
+    }
+}
+
+// MARK: - Remote Port Pages
+
+extension MainView {
+    /// Opens a forwarded remote port in its own app tab. The tab has no
+    /// terminal: `terminalTabsStack` renders a WKWebView for `webPreview`.
+    func openPortPreviewTab(_ preview: PortPreview) {
+        let title = ":\(preview.remotePort)"
+        let tab = TabModel(paneView: nil, title: title, windowId: windowId)
+        tab.webPreview = preview
+        tab.title = title
+        tabsModel.insertTab(tab, at: selectedTabIndex + 1)
+        // A web tab has no terminal to render a first frame, so make it the
+        // displayed tab immediately instead of waiting for the reveal gate.
+        tabsModel.displayedTabID = tab.id
     }
 }

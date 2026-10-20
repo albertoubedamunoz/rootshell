@@ -65,13 +65,17 @@ final class LocalForwardListener: @unchecked Sendable {
     /// Uses `MultiThreadedEventLoopGroup.singleton` for the ServerBootstrap because
     /// ServerBootstrap requires SelectableEventLoop (incompatible with NIOTSEventLoop
     /// used by MPTCP connections).
+    ///
+    /// `reuseAddress: false` makes the bind fail while anything else listens on
+    /// the port, including the wildcard address.
     func start(
         bindHost: String,
         bindPort: Int,
+        reuseAddress: Bool = true,
         onConnection: @escaping @Sendable (Channel) -> EventLoopFuture<Void>
     ) async throws -> Int {
         let channel = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
-            .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+            .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: reuseAddress ? 1 : 0)
             .childChannelInitializer { childChannel in
                 onConnection(childChannel)
             }
@@ -123,6 +127,21 @@ final class PortForwardManager {
 
     /// Status of each forward
     private var forwardStatus: [UUID: PortForwardStatus] = [:]
+
+    /// Local listeners started from the remote-port status bar. Unlike
+    /// `localForwardTasks`, these are keyed by their own id: several of them
+    /// bind port 0 at once, so the configured bind port is not unique.
+    private var adHocForwards: [UUID: AdHocForward] = [:]
+    private var adHocForwardByRemotePort: [UInt16: UUID] = [:]
+    /// One bind per remote port at a time; a second caller shares it.
+    private var adHocStarts: [UInt16: Task<AdHocForwardHandle, Error>] = [:]
+    /// Bumped by stopAllForwards so a bind finishing after teardown is dropped.
+    private var adHocGeneration = 0
+
+    private struct AdHocForward {
+        let handle: AdHocForwardHandle
+        let listener: LocalForwardListener
+    }
 
     /// Callback for forwarding errors (non-fatal, reported to UI)
     var onForwardError: ((PortForwardConfig.PortForward, Error) -> Void)?
@@ -218,10 +237,125 @@ final class PortForwardManager {
             SOCKSPortRegistry.shared.releaseAll(forwardID: forward.id)
         }
 
+        // Stop status-bar forwards too. Sessions call stopAllForwards during
+        // teardown, so a closed tab never leaves a loopback listener behind.
+        adHocGeneration += 1
+        let adHoc = adHocForwards
+        adHocForwards.removeAll()
+        adHocForwardByRemotePort.removeAll()
+        for forward in adHoc.values {
+            await forward.listener.stop()
+        }
+
         // Update all statuses to stopped
         for forward in config.forwards {
             updateStatus(forward, .stopped)
         }
+    }
+
+    // MARK: - Ad Hoc Forwarding (status bar)
+
+    /// Starts a loopback listener for one remote port. The caller owns the
+    /// handle and must pass it to `stopAdHocLocalForward` when done.
+    func startAdHocLocalForward(
+        remoteHost: String,
+        remotePort: UInt16,
+        preferredLocalPort: UInt16?
+    ) async throws -> AdHocForwardHandle {
+        if let existing = adHocForward(forRemotePort: remotePort) { return existing }
+        if let pending = adHocStarts[remotePort] { return try await pending.value }
+        // Capture the generation before the task can run: a task queued
+        // before stopAllForwards must not insert a listener after teardown.
+        let generation = adHocGeneration
+        let task = Task {
+            try await self.bindAdHocLocalForward(
+                remoteHost: remoteHost, remotePort: remotePort, preferredLocalPort: preferredLocalPort,
+                generation: generation
+            )
+        }
+        adHocStarts[remotePort] = task
+        defer {
+            if adHocStarts[remotePort] == task { adHocStarts.removeValue(forKey: remotePort) }
+        }
+        return try await task.value
+    }
+
+    func adHocForward(forRemotePort remotePort: UInt16) -> AdHocForwardHandle? {
+        adHocForwardByRemotePort[remotePort].flatMap { adHocForwards[$0]?.handle }
+    }
+
+    private func bindAdHocLocalForward(
+        remoteHost: String,
+        remotePort: UInt16,
+        preferredLocalPort: UInt16?,
+        generation: Int
+    ) async throws -> AdHocForwardHandle {
+        let forwardID = UUID()
+        let listener = LocalForwardListener()
+        let client = self.client
+        let onBytesReceived = self.onBytesReceived
+        let onBytesSent = self.onBytesSent
+        let onConnectionOpened = self.onConnectionOpened
+        let onConnectionClosed = self.onConnectionClosed
+        let onSSHChannelError: @Sendable (Error) -> Void = { [weak self] error in
+            Task { @MainActor [weak self] in self?.handleSSHChannelError(error) }
+        }
+        let onSSHChannelSuccess: @Sendable () -> Void = { [weak self] in
+            Task { @MainActor [weak self] in self?.handleSSHChannelSuccess() }
+        }
+
+        let bind: (Int) async throws -> Int = { bindPort in
+            try await listener.start(bindHost: "127.0.0.1", bindPort: bindPort, reuseAddress: false) { inboundChannel in
+                Self.handleLocalConnection(
+                    inboundChannel: inboundChannel,
+                    targetHost: remoteHost,
+                    targetPort: Int(remotePort),
+                    client: client,
+                    forwardID: forwardID,
+                    onBytesReceived: onBytesReceived,
+                    onBytesSent: onBytesSent,
+                    onConnectionOpened: onConnectionOpened,
+                    onConnectionClosed: onConnectionClosed,
+                    onSSHChannelError: onSSHChannelError,
+                    onSSHChannelSuccess: onSSHChannelSuccess
+                )
+            }
+        }
+
+        // The preferred local port is a convenience, not a requirement: one a
+        // local server already uses falls back to an ephemeral port.
+        let preferred = preferredLocalPort.flatMap { LoopbackPort.isFree($0) ? Int($0) : nil } ?? 0
+        let boundPort: Int
+        do {
+            boundPort = try await bind(preferred)
+        } catch {
+            guard preferred > 0, (error as? IOError)?.errnoCode == EADDRINUSE else { throw error }
+            Self.logger.info("Preferred local port \(preferred) unavailable, using an ephemeral port")
+            boundPort = try await bind(0)
+        }
+        guard generation == adHocGeneration else {
+            await listener.stop()
+            throw PortForwardError.sessionClosed
+        }
+
+        let handle = AdHocForwardHandle(
+            id: forwardID,
+            remotePort: remotePort,
+            localPort: UInt16(boundPort)
+        )
+        adHocForwards[forwardID] = AdHocForward(handle: handle, listener: listener)
+        adHocForwardByRemotePort[remotePort] = forwardID
+        Self.logger.info("Ad hoc forward 127.0.0.1:\(boundPort) -> \(remoteHost):\(remotePort)")
+        return handle
+    }
+
+    func stopAdHocLocalForward(_ handle: AdHocForwardHandle) async {
+        guard let forward = adHocForwards.removeValue(forKey: handle.id) else { return }
+        if adHocForwardByRemotePort[forward.handle.remotePort] == handle.id {
+            adHocForwardByRemotePort.removeValue(forKey: forward.handle.remotePort)
+        }
+        await forward.listener.stop()
+        Self.logger.info("Stopped ad hoc forward for remote port \(handle.remotePort)")
     }
 
     // MARK: - Local Forwarding (-L)
@@ -625,3 +759,7 @@ final class PortForwardManager {
         }
     }
 }
+
+// MARK: - AdHocForwarding
+
+extension PortForwardManager: AdHocForwarding {}

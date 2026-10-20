@@ -65,6 +65,8 @@ extension MainView {
         var persisted: [(tab: TabModel, serialized: SerializableTab)] = []
         persisted.reserveCapacity(terminals.count)
         for tab in terminals {
+            // Remote-port web previews have no session to restore.
+            if tab.webPreview != nil { continue }
             // herdr control-mode tabs are rebuilt from the server on the next
             // attach; their panes are not sessions of their own.
             if tab.isHerdrWindow || tab.splitTree.contains(where: { $0.asTerminal?.isHerdrPane == true }) {

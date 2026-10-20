@@ -96,6 +96,7 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
     }
 
     func sessionDidEnd() {
+        stopRemotePortMonitor()
         invalidateWritingAssistance(resetDocument: true)
         // Cancel connection success timer if session ends prematurely.
         self.sessionController.cancelConnectionSuccessTimer()
@@ -136,6 +137,7 @@ extension Ghostty.TerminalView: TerminalSessionControllerHost {
     }
 
     func sessionDidBecomeReady() {
+        startRemotePortMonitor()
         invalidateWritingAssistance(resetDocument: true)
         // Clear restoration state if we were reconnecting from restore
         if self.restorationState == .connectingFromRestore, restoredLocalMultiplexerAttachment == nil {

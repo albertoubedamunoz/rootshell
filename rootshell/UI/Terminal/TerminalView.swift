@@ -456,6 +456,9 @@ extension Ghostty {
                     tmuxReportedPaneTitle = nil
                     tmuxReportedCurrentCommand = nil
                 }
+                if (tmuxPaneBinding == nil) != (oldValue == nil) {
+                    syncProjectedRemotePortMonitor()
+                }
                 refreshPanePresentationTitle()
             }
         }
@@ -482,6 +485,7 @@ extension Ghostty {
                 }
                 if (herdrPaneBinding == nil) != (oldValue == nil) {
                     invalidateWritingAssistance(resetDocument: true)
+                    syncProjectedRemotePortMonitor()
                     refreshPanePresentationTitle()
                 }
             }
@@ -866,6 +870,23 @@ extension Ghostty {
         // and suppressed while the app is backgrounded; the cached value is
         // released to the @Published property by `replayCachedSessionStateOnForeground()`.
         @Published var connectionHealth: ConnectionHealth?
+
+        /// Listening TCP ports discovered on the host behind this pane.
+        /// Updated only by `RemotePortMonitor` while the pane is visible.
+        @Published var remotePorts: [RemotePort] = []
+
+        /// Owns the scan loop; created when the session becomes ready.
+        var remotePortMonitor: RemotePortMonitor?
+
+        /// Owns the loopback forwards started from the status pill. Created
+        /// lazily because it captures this view.
+        private var cachedRemotePortForwarder: RemotePortForwarder?
+        var remotePortForwarder: RemotePortForwarder {
+            if let cachedRemotePortForwarder { return cachedRemotePortForwarder }
+            let forwarder = RemotePortForwarder(terminal: self)
+            cachedRemotePortForwarder = forwarder
+            return forwarder
+        }
 
         /// Most recent connection-health value observed from the SSH session.
         /// Cached in a non-observed property so we can keep it up to date while
@@ -1724,6 +1745,7 @@ extension Ghostty {
         /// Call this from MainView when closing a tab/split.
         func cleanup(reason: CleanupReason = .sceneTeardown) {
             ScrollbackPersistenceManager.shared.unregisterTerminal(uuid: self.uuid)
+            stopRemotePortMonitor()
 
             #if targetEnvironment(macCatalyst)
             clearCursorRegistration()
@@ -3016,6 +3038,7 @@ extension Ghostty {
 
             // Notify session of visibility change for CPU throttling
             session?.setTabVisible(visible)
+            setRemotePortMonitorVisible(visible)
 
             surfaceController.setOcclusion(visible)
             if visible { updateHerdrGatewayOverlay() }

@@ -9,6 +9,7 @@ import Combine
 import Foundation
 import OSLog
 import UIKit
+import Citadel
 
 /// Mosh terminal session
 ///
@@ -165,6 +166,21 @@ final class MoshSession: TerminalSession {
 
     /// Server spawner
     private var spawner: MoshServerSpawner?
+
+    /// SSH connection kept alive after spawn for out-of-band scans and
+    /// loopback forwards. Mosh itself has no exec or forwarding channel.
+    private var controlConnection: MoshControlConnection?
+
+    /// Mosh forwards through the retained SSH control connection.
+    func adHocForwarding(create: Bool) -> AdHocForwarding? {
+        controlConnection?.forwarding(create: create)
+    }
+
+    /// The SSH client a remote-port probe may use, when the control
+    /// connection is still alive.
+    var controlClient: SSHClient? {
+        controlConnection?.client
+    }
 
     /// Transport layer
     private var transport: MoshTransport?
@@ -826,6 +842,13 @@ final class MoshSession: TerminalSession {
 
             let spawnResult = try await spawner.spawn(resolvedHost: connectionHost)
             self.currentSpawnResult = spawnResult
+            // Adopt the connection the spawner now keeps alive. It hosts the
+            // remote-port scan and forwards for this mosh session. A re-spawn
+            // uses a new spawner, so the previous connection is closed here.
+            if let previous = self.controlConnection, previous !== spawner.controlConnection {
+                Task { await previous.close() }
+            }
+            self.controlConnection = spawner.controlConnection
 
             // Capture bootstrap SSH algorithms from spawn
             self.bootstrapKeyExchange = spawnResult.sshKeyExchange
@@ -1775,6 +1798,13 @@ extension MoshSession: MoshStateSync.Delegate {
         stateSync = nil
         transport?.disconnect()
         transport = nil
+        // The retained spawn connection hosts any status-bar forwards; close
+        // it with the session so no loopback listener survives.
+        let control = controlConnection
+        controlConnection = nil
+        if let control {
+            Task { await control.close() }
+        }
         isRunning = false
         if roamBannerState != nil { roamBannerState = nil }  // Clear banner on session end
 
@@ -2151,3 +2181,7 @@ extension MoshSession {
 // MARK: - Auth banner card
 
 extension MoshSession: SSHAuthBannerCardProviding {}
+
+// MARK: - AdHocForwardingProviding
+
+extension MoshSession: AdHocForwardingProviding {}

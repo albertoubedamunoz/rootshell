@@ -356,6 +356,7 @@ struct MainView: View {
     @Setting(Settings.Sidebar.pinned) var tabSidebarPinned
     /// Draws panes and docked columns as rounded cards; see PaneCardStyle.
     @Setting(Settings.Window.roundedPanes) var roundedPanes
+    @Setting(Settings.Window.showRemotePorts) var showRemotePorts
 
     /// When the floating (non-pinned) sidebar is open, auto-close it after the
     /// user selects a tab. Off by default (sidebar stays open until dismissed).
