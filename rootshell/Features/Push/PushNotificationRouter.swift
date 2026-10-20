@@ -158,44 +158,38 @@ enum PushNotificationRouter {
         var legacyBoundMatches: [Resolved] = []
         var unboundUUIDMatches: [Resolved] = []
 
-        for (windowId, model) in TmuxWindowRegistry.allWindows() {
-            for tab in model.tabs {
-                for pane in tab.splitTree {
-                    guard let view = pane as? Ghostty.TerminalView else { continue }
-                    let resolved = Resolved(
-                        windowId: windowId,
-                        tabID: tab.id,
-                        surfaceID: view.uuid
-                    )
-                    if let tmuxPaneId, let binding = view.tmuxPaneBinding,
-                       binding.paneId == tmuxPaneId,
-                       let tmuxServer = route.tmuxServer,
-                       let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
-                       controller.ownerTerminalUUIDForNotifications == binding.parentUUID,
-                       controller.pushRouteServerIdentity == tmuxServer {
-                        canonicalTmuxMatches.append(resolved)
-                    } else if route.tmuxServer == nil,
-                              let paneUUID, let tmuxPaneId,
-                              let binding = view.tmuxPaneBinding,
-                              binding.parentUUID == paneUUID,
-                              binding.paneId == tmuxPaneId {
-                        // Exact compatibility path for notifications sent by a
-                        // pre-canonical rootshell-notify build.
-                        legacyBoundMatches.append(resolved)
-                    } else if let paneUUID,
-                              view.tmuxPaneBinding == nil,
-                              view.tmuxController?.isActive != true,
-                              view.herdrPaneBinding == nil,
-                              view.herdrController?.didEnd != false,
-                              view.uuid == paneUUID {
-                        // Ordinary (non-control-mode) tmux sets TMUX_PANE but
-                        // remains a regular terminal view. Its UUID is still
-                        // an exact identity, not a heuristic fallback. Never
-                        // select a control-mode gateway while its canonical
-                        // server query or projected panes are still pending.
-                        unboundUUIDMatches.append(resolved)
-                    }
-                }
+        for (windowId, tab, view) in TmuxWindowRegistry.terminalPanes() {
+            let resolved = Resolved(
+                windowId: windowId,
+                tabID: tab.id,
+                surfaceID: view.uuid
+            )
+            if let tmuxPaneId, let binding = view.tmuxPaneBinding,
+               binding.paneId == tmuxPaneId,
+               let tmuxServer = route.tmuxServer,
+               let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
+               controller.ownerTerminalUUIDForNotifications == binding.parentUUID,
+               controller.pushRouteServerIdentity == tmuxServer {
+                canonicalTmuxMatches.append(resolved)
+            } else if route.tmuxServer == nil,
+                      let paneUUID, let tmuxPaneId,
+                      let binding = view.tmuxPaneBinding,
+                      binding.parentUUID == paneUUID,
+                      binding.paneId == tmuxPaneId {
+                // Exact compatibility path for notifications sent by a
+                // pre-canonical rootshell-notify build.
+                legacyBoundMatches.append(resolved)
+            } else if let paneUUID,
+                      view.tmuxPaneBinding == nil,
+                      view.herdrPaneBinding == nil,
+                      !view.isLiveMultiplexerGateway,
+                      view.uuid == paneUUID {
+                // Ordinary (non-control-mode) tmux sets TMUX_PANE but
+                // remains a regular terminal view. Its UUID is still
+                // an exact identity, not a heuristic fallback. Never
+                // select a control-mode gateway while its canonical
+                // server query or projected panes are still pending.
+                unboundUUIDMatches.append(resolved)
             }
         }
         let matches: [Resolved]
@@ -216,27 +210,30 @@ enum PushNotificationRouter {
     private static func resolveHerdr(_ route: PushRoute) -> Resolved? {
         var destinations: [Resolved] = []
         var candidates: [PushHerdrRoute.Candidate] = []
-        for (windowId, model) in TmuxWindowRegistry.allWindows() {
-            for tab in model.tabs {
-                for pane in tab.splitTree {
-                    guard let view = pane as? Ghostty.TerminalView else { continue }
-                    let candidate: PushHerdrRoute.Candidate
-                    if let binding = view.herdrPaneBinding,
-                       let controller = HerdrController.controller(forGateway: binding.gatewayUUID) {
-                        candidate = .init(server: controller.pushRouteServerIdentity,
-                            terminal: binding.terminalId, isActive: controller.isActive && !controller.didEnd)
-                    } else if view.herdrPaneBinding == nil, view.herdrController?.didEnd != false,
-                              view.tmuxPaneBinding == nil, view.tmuxController == nil {
-                        candidate = .init(server: nil, terminal: "", isActive: true,
-                                          surfaceID: view.uuid, isOrdinary: true)
-                    } else { continue }
-                    destinations.append(Resolved(windowId: windowId, tabID: tab.id, surfaceID: view.uuid))
-                    candidates.append(candidate)
-                }
-            }
+        for (windowId, tab, view) in TmuxWindowRegistry.terminalPanes() {
+            let candidate: PushHerdrRoute.Candidate
+            if let binding = view.herdrPaneBinding,
+               let controller = HerdrController.controller(forGateway: binding.gatewayUUID) {
+                candidate = .init(server: controller.pushRouteServerIdentity,
+                    terminal: binding.terminalId, isActive: controller.isActive && !controller.didEnd)
+            } else if view.herdrPaneBinding == nil, view.herdrController?.didEnd != false,
+                      view.tmuxPaneBinding == nil, view.tmuxController == nil {
+                candidate = .init(server: nil, terminal: "", isActive: true,
+                                  surfaceID: view.uuid, isOrdinary: true)
+            } else { continue }
+            destinations.append(Resolved(windowId: windowId, tabID: tab.id, surfaceID: view.uuid))
+            candidates.append(candidate)
         }
         guard let index = PushHerdrRoute.matchingIndex(route: route, candidates: candidates) else { return nil }
         return destinations[index]
+    }
+
+    /// A pane by its own TerminalView UUID, as AppleScript's `list pane ids`
+    /// reports it. Projected panes match; a live gateway never does.
+    static func resolve(surfaceID: UUID) -> Resolved? {
+        guard let match = TmuxWindowRegistry.terminalPanes().first(where: { $0.view.uuid == surfaceID }),
+              !match.view.isLiveMultiplexerGateway else { return nil }
+        return Resolved(windowId: match.windowId, tabID: match.tab.id, surfaceID: surfaceID)
     }
 
     static func isViewed(_ resolved: Resolved) -> Bool {
@@ -388,6 +385,16 @@ enum PushNotificationRouter {
 
     static func navigate(to resolved: Resolved) {
         Task { @MainActor in
+            #if STANDALONE && targetEnvironment(macCatalyst)
+            // The visor is a non-activating panel; surfacing a regular window
+            // would leave the target hidden.
+            if resolved.windowId == "visor" {
+                VisorController.shared.show()
+                NotificationCenter.default.post(name: .navigateToTerminal, object: nil,
+                                                userInfo: ["tabID": resolved.tabID, "surfaceID": resolved.surfaceID])
+                return
+            }
+            #endif
             // A tap from a hidden/background app: wait for the system to finish
             // activating before touching focus, or the responder chain detaches.
             if UIApplication.shared.applicationState != .active {

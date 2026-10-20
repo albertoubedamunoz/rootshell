@@ -189,6 +189,14 @@ final class PaneFullScreenController {
         exit(animated: false)
     }
 
+    /// Another pane in the same tab is being focused: hand back without
+    /// restoring focus to the full-screen pane.
+    func exitForSiblingFocus() {
+        guard isActive else { return }
+        onDidExit = nil
+        exit(animated: false)
+    }
+
     private func finishExit() {
         guard let container else { return }
         isExitAnimating = false

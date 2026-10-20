@@ -13,6 +13,8 @@ final class WindowFocusRegistry {
 
     private var keyStateBySceneId: [String: Bool] = [:]
     private var lastKeySceneId: String?
+    /// Survives the app losing key status; cleared only when its scene goes away.
+    private var mostRecentKeySceneId: String?
 
     private init() {}
 
@@ -21,6 +23,7 @@ final class WindowFocusRegistry {
         keyStateBySceneId[sceneSessionId] = isKey
         if isKey {
             lastKeySceneId = sceneSessionId
+            mostRecentKeySceneId = sceneSessionId
         } else if lastKeySceneId == sceneSessionId {
             lastKeySceneId = keyStateBySceneId.first(where: { $0.value })?.key
         }
@@ -29,6 +32,9 @@ final class WindowFocusRegistry {
     func remove(sceneSessionId: String) {
         guard !sceneSessionId.isEmpty else { return }
         keyStateBySceneId.removeValue(forKey: sceneSessionId)
+        if mostRecentKeySceneId == sceneSessionId {
+            mostRecentKeySceneId = nil
+        }
         if lastKeySceneId == sceneSessionId {
             lastKeySceneId = keyStateBySceneId.first(where: { $0.value })?.key
         }
@@ -39,5 +45,10 @@ final class WindowFocusRegistry {
             return lastKeySceneId
         }
         return keyStateBySceneId.first(where: { $0.value })?.key
+    }
+
+    /// The key scene, or the last one that was key while another app is active.
+    func mostRecentKeySceneSessionId() -> String? {
+        activeSceneSessionId() ?? mostRecentKeySceneId
     }
 }

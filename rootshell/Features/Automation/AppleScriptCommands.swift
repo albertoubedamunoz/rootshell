@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import UIKit
 import os
 
 private let logger = Logger(subsystem: "com.rootshell", category: "Automation")
@@ -168,62 +167,40 @@ final class RootshellFocusPaneCommand: NSScriptCommand {
             return false
         }
 
-        return MainActor.assumeIsolated {
-            for (windowId, model) in TmuxWindowRegistry.allWindows() {
-                for tab in model.tabs {
-                    if tab.splitTree.terminalLeaves.contains(where: { $0.uuid == targetUUID }) {
-                        PushNotificationRouter.navigate(to: .init(
-                            windowId: windowId,
-                            tabID: tab.id,
-                            surfaceID: targetUUID
-                        ))
-                        return true
-                    }
-                }
+        // Navigation finishes asynchronously; `true` means the pane was found.
+        return MainActor.assumeIsolated { () -> Bool in
+            guard let resolved = PushNotificationRouter.resolve(surfaceID: targetUUID) else {
+                scriptErrorNumber = NSInternalScriptError
+                scriptErrorString = "No focusable terminal pane with UUID: \(rawUUIDString)"
+                return false
             }
-            scriptErrorNumber = NSInternalScriptError
-            scriptErrorString = "No terminal pane found with UUID: \(rawUUIDString)"
-            return false
+            PushNotificationRouter.navigate(to: resolved)
+            return true
         }
     }
 }
 
-/// `current pane id`: returns the surface UUID of the focused pane in the frontmost active window.
+/// `current pane id`: the focused terminal pane in the frontmost window, or
+/// "" when a non-terminal pane or a control-mode gateway has focus.
 @objc(RootshellCurrentPaneIdCommand)
 final class RootshellCurrentPaneIdCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        MainActor.assumeIsolated {
-            let preferredSceneId = CatalystAppDelegate.preferredRegularScene()?.session.persistentIdentifier
-            let all = TmuxWindowRegistry.allWindows()
-            let targetModel = all.first(where: { TerminalWindowRegistry.sceneSessionId(for: $0.windowId) == preferredSceneId })?.model
-                ?? all.first?.model
-
-            if let model = targetModel, let tab = model.selectedTab {
-                if let focused = tab.focusedTerminal {
-                    return focused.uuid.uuidString
-                } else if let first = tab.splitTree.terminalLeaves.first {
-                    return first.uuid.uuidString
-                }
-            }
-            return ""
+        MainActor.assumeIsolated { () -> String in
+            guard let view = TmuxWindowRegistry.frontmostTabsModel()?.selectedTab?.focusedTerminal,
+                  !view.isLiveMultiplexerGateway else { return "" }
+            return view.uuid.uuidString
         }
     }
 }
 
-/// `list pane ids`: returns all surface UUIDs across all tabs and windows.
+/// `list pane ids`: every focusable terminal pane, in a stable order.
 @objc(RootshellListPaneIdsCommand)
 final class RootshellListPaneIdsCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        MainActor.assumeIsolated {
-            var paneUUIDs: [String] = []
-            for (_, model) in TmuxWindowRegistry.allWindows() {
-                for tab in model.tabs {
-                    for terminal in tab.splitTree.terminalLeaves {
-                        paneUUIDs.append(terminal.uuid.uuidString)
-                    }
-                }
-            }
-            return paneUUIDs
+        MainActor.assumeIsolated { () -> [String] in
+            TmuxWindowRegistry.terminalPanes()
+                .filter { !$0.view.isLiveMultiplexerGateway }
+                .map { $0.view.uuid.uuidString }
         }
     }
 }

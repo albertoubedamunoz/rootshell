@@ -352,24 +352,11 @@ struct PushCommandSection: View {
         }
     }
 
-    private static var focusedTabsModel: TabsModel? {
-        let windows = TmuxWindowRegistry.allWindows()
-        if let activeSceneID = WindowFocusRegistry.shared.activeSceneSessionId(),
-           let activeWindow = windows.first(where: {
-               TerminalWindowRegistry.sceneSessionId(for: $0.windowId) == activeSceneID
-           }) {
-            return activeWindow.model
-        }
-        return windows.lazy.map(\.model).first(where: {
-            $0.selectedTab?.focusedTerminal != nil
-        }) ?? windows.first?.model
-    }
-
     static var focusedTerminal: Ghostty.TerminalView? {
-        focusedTabsModel?.selectedTab?.focusedTerminal
+        TmuxWindowRegistry.frontmostTabsModel()?.selectedTab?.focusedTerminal
     }
 
     static var focusedConnectionInfo: ConnectionInfo? {
-        focusedTabsModel?.selectedTab?.connectionInfo
+        TmuxWindowRegistry.frontmostTabsModel()?.selectedTab?.connectionInfo
     }
 }

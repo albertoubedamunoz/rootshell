@@ -251,6 +251,17 @@ extension MainView {
         // Find the pane view by surface ID
         for paneView in terminals[tabIndex].splitTree {
             if paneView.uuid == surfaceID {
+                // The tab-change watchdog never sees a same-tab move.
+                let tree = terminals[tabIndex].splitTree
+                if let fullScreenPane = paneFullScreen.pane, fullScreenPane !== paneView,
+                   tree.contains(where: { $0 === fullScreenPane }) {
+                    paneFullScreen.exitForSiblingFocus()
+                }
+                // A local zoom hides the target; tmux and herdr move zoom on select themselves.
+                if let zoomed = tree.zoomed, !zoomed.contains(paneView),
+                   paneView.asTerminal.map({ !$0.isTmuxPane && !$0.isHerdrPane }) ?? true {
+                    terminals[tabIndex].splitTree = tree.toggleZoom(for: zoomed)
+                }
                 setFocusedPane(paneView, inTab: tabIndex)
                 Ghostty.logger.info("Navigated to terminal \(surfaceID.uuidString.prefix(8)) in tab \(tabIndex)")
                 return

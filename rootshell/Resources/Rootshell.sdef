@@ -36,7 +36,7 @@
 				<cocoa key="profile"/>
 			</parameter>
 		</command>
-		<command name="focus pane" code="RTSHfpan" description="Focus a terminal pane by its surface UUID (from LC_ROOTSHELL_PANE).">
+		<command name="focus pane" code="RTSHfpan" description="Focus a terminal pane by its surface UUID (from list pane ids, current pane id, or LC_ROOTSHELL_PANE outside tmux and herdr control mode).">
 			<cocoa class="RootshellFocusPaneCommand"/>
 			<direct-parameter optional="yes" description="The surface UUID of the pane to focus.">
 				<type type="text"/>
@@ -44,11 +44,11 @@
 			<parameter name="with id" code="rpid" type="text" optional="yes" description="The surface UUID of the pane to focus.">
 				<cocoa key="paneId"/>
 			</parameter>
-			<result type="boolean" description="True if the pane was found and focused."/>
+			<result type="boolean" description="True if the pane was found; focusing it completes asynchronously."/>
 		</command>
-		<command name="current pane id" code="RTSHcpid" description="Get the surface UUID of the currently focused terminal pane.">
+		<command name="current pane id" code="RTSHcpid" description="Get the surface UUID of the focused terminal pane in the frontmost window.">
 			<cocoa class="RootshellCurrentPaneIdCommand"/>
-			<result type="text" description="The surface UUID of the focused terminal pane, or an empty string if none."/>
+			<result type="text" description="The surface UUID of the focused terminal pane, or an empty string if a non-terminal pane has focus."/>
 		</command>
 		<command name="list pane ids" code="RTSHlpid" description="Get the surface UUIDs of all open terminal panes.">
 			<cocoa class="RootshellListPaneIdsCommand"/>
