@@ -169,6 +169,8 @@ extension TmuxController {
         // `show @hidden` reply converges. (id=tmux-hidden-windows)
         if sessionIdentityChanged {
             reloadHiddenWindows(forSessionId: id)
+            // ROOTSHELL-TMUX (id=tmux-focus-echo-gate)
+            localFocusGate.removeAll()
         }
         if changed {
             invalidateConnectionInfoSession()

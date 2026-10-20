@@ -285,6 +285,8 @@ final class TmuxController {
     var nextReplyTag: UInt32 = 1
     var pendingReplies: [UInt32: CheckedContinuation<TmuxCommandReply, any Error>] = [:]
     var replyTimeouts: [UInt32: Task<Void, Never>] = [:]
+    /// ROOTSHELL-TMUX (id=tmux-focus-echo-gate)
+    var localFocusGate = TmuxLocalFocusGate()
     /// Last `list-sessions` result, read synchronously by context menus.
     var cachedSessions: [TmuxControlSession] = []
     /// Mirrors the attached session's `@hidden` option; reloaded on attach/switch.
@@ -1495,6 +1497,17 @@ final class TmuxController {
 
     private func setFocus(windowId: Int, paneId: Int) {
         guard !windowCloseState.contains(windowId), let tab = windowTabs[windowId] else { return }
+        // tmux broadcasts the current window to every client, so only locally
+        // originated focus may change the selected tab.
+        let isLocalSplitFocus: Bool = {
+            guard let pending = pendingSplitFocus[windowId] else { return false }
+            return !pending.existingPaneIds.contains(paneId)
+        }()
+        // Before the flag-consuming checks below. ROOTSHELL-TMUX (id=tmux-focus-echo-gate)
+        if !isLocalSplitFocus, localFocusGate.suppresses(windowId: windowId, paneId: paneId) {
+            TmuxDebugLogger.shared.event("FOCUS", "ignored stale local echo win=\(windowId) pane=\(paneId)")
+            return
+        }
         let hostModel = hostTabsModel(forWindowId: windowId)
         // ROOTSHELL-TMUX (id=tmux-session-switch-focus)
         let isSessionSwitchFocus = pendingSessionSwitchWindowSelection == nil
@@ -1517,13 +1530,6 @@ final class TmuxController {
         }
 
         let targetIsSelected = hostModel.selectedTabID == tab.id
-
-        // tmux broadcasts the current window to every client, so only locally
-        // originated focus may change the selected tab.
-        let isLocalSplitFocus: Bool = {
-            guard let pending = pendingSplitFocus[windowId] else { return false }
-            return !pending.existingPaneIds.contains(paneId)
-        }()
         let mayChangeSelection = isInitialFocus || isSessionSwitchFocus || targetIsSelected || isLocalSplitFocus
 
         if !mayChangeSelection {
@@ -1543,6 +1549,31 @@ final class TmuxController {
             if let pending = pendingSplitFocus[windowId],
                !pending.existingPaneIds.contains(paneId) {
                 clearPendingSplitFocus(windowId: windowId)
+            }
+        }
+    }
+
+    /// Both commands go out in one task turn to keep their FIFO order. The release
+    /// rides the reconcile serializer so echoes that arrived before the reply
+    /// still hit the gate. ROOTSHELL-TMUX (id=tmux-focus-echo-gate)
+    func requestLocalSelectPane(windowId: Int, paneId: Int) {
+        let token = localFocusGate.noteSent(windowId: windowId, paneId: paneId)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if !self.didEnd, !self.isDetaching, !self.ownerSurfaceFreed {
+                let data = Data("select-window -t @\(windowId)\n".utf8)
+                TmuxDebugLogger.shared.command(kind: "select-window", bytes: data.count)
+                data.withUnsafeBytes { raw in
+                    guard let base = raw.baseAddress else { return }
+                    ghostty_surface_tmux_command(
+                        self.ownerSurface,
+                        base.assumingMemoryBound(to: CChar.self),
+                        UInt(data.count))
+                }
+            }
+            _ = try? await self.sendCommandWithReply("select-pane -t %\(paneId)", timeout: .seconds(3))
+            TmuxReconcileSerializer.shared.enqueue { [weak self] in
+                self?.localFocusGate.noteCompleted(token)
             }
         }
     }
@@ -1593,6 +1624,7 @@ final class TmuxController {
             clearForeignConstraint(windowId: windowId)
             // ROOTSHELL-TMUX (id=tmux-session-switch-focus)
             clearPendingSplitFocus(windowId: windowId)
+            localFocusGate.remove(windowId: windowId)
         }
 
         // Teardown (empty windowIds) clears in memory only; the server keeps
@@ -3367,16 +3399,14 @@ extension Ghostty.TerminalView {
     }
 
     /// User-initiated focus only; echoing programmatic focus makes multiple clients
-    /// oscillate. Separate sends so each command owns its %begin/%end block.
-    /// ROOTSHELL-TMUX (id=tmux-select-pane-user-only)
+    /// oscillate. ROOTSHELL-TMUX (id=tmux-select-pane-user-only)
     @MainActor
     func requestTmuxSelectPane() {
         guard let binding = tmuxPaneBinding,
               let controller = TmuxController.controller(forOwnerSurface: binding.parentSurface),
               controller.isActive
         else { return }
-        sendTmuxCommand("select-window -t @\(binding.windowId)\n", to: binding.parentSurface)
-        sendTmuxCommand("select-pane -t %\(binding.paneId)\n", to: binding.parentSurface)
+        controller.requestLocalSelectPane(windowId: binding.windowId, paneId: binding.paneId)
     }
 
     /// Local teardown is driven entirely by the resulting reconcile.
