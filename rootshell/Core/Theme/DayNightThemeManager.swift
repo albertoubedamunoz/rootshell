@@ -77,6 +77,9 @@ final class DayNightThemeManager: ObservableObject {
     /// Whether the initial theme has been applied with a real window
     private var hasAppliedInitialTheme = false
 
+    /// Follows the in-app Appearance setting without waiting on the observer's trait pass
+    private var appearanceModeTask: Task<Void, Never>?
+
     private static let logger = Logger(subsystem: "com.rootshell", category: "DayNightTheme")
 
     // MARK: - Initialization
@@ -146,8 +149,29 @@ final class DayNightThemeManager: ObservableObject {
             ) { [weak self] _ in
                 guard let strongSelf = self else { return }
                 Task { @MainActor in
-                    strongSelf.handleForegroundReturn()
+                    strongSelf.syncWithInterfaceStyle()
                 }
+            }
+        }
+
+        // A newly key window replaces an observer whose window has closed
+        NotificationCenter.default.addObserver(
+            forName: UIWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let strongSelf = self else { return }
+            Task { @MainActor in
+                #if !targetEnvironment(macCatalyst)
+                guard UIApplication.shared.applicationState != .background else { return }
+                #endif
+                strongSelf.syncWithInterfaceStyle()
+            }
+        }
+
+        appearanceModeTask = Task { @MainActor [weak self] in
+            for await _ in AppearanceManager.shared.appearanceModeDidChange.values {
+                self?.syncWithInterfaceStyle()
             }
         }
     }
@@ -214,14 +238,15 @@ final class DayNightThemeManager: ObservableObject {
         }
     }
 
-    private func handleForegroundReturn() {
+    /// Re-reads the effective interface style (system or forced Appearance) and applies its theme.
+    private func syncWithInterfaceStyle() {
         guard enabled else { return }
 
-        Self.logger.info("App returned to foreground, verifying theme state")
+        reattachOrphanedTraitObserver()
 
         let nowLight = Self.currentInterfaceStyleIsLight()
         if nowLight != isCurrentlyLight {
-            Self.logger.info("System appearance changed while backgrounded, correcting")
+            Self.logger.info("Interface style is now \(nowLight ? "light" : "dark"), correcting")
             isCurrentlyLight = nowLight
             applyCurrentTheme()
         }
@@ -300,7 +325,7 @@ final class DayNightThemeManager: ObservableObject {
             guard let self else { return }
             #if !targetEnvironment(macCatalyst)
             // Background flips are the system's light/dark snapshot passes;
-            // handleForegroundReturn applies the real change.
+            // syncWithInterfaceStyle applies the real change on return.
             guard UIApplication.shared.applicationState != .background else { return }
             #endif
             guard self.isCurrentlyLight != isLight else { return }
@@ -320,6 +345,7 @@ final class DayNightThemeManager: ObservableObject {
         if actuallyLight != isCurrentlyLight {
             Self.logger.info("Correcting initial appearance to \(actuallyLight ? "light" : "dark")")
             isCurrentlyLight = actuallyLight
+            if hasAppliedInitialTheme { applyCurrentTheme() }
         }
         // Always apply on first window attachment to ensure Ghostty surfaces
         // (which may have been created with a stale theme) get updated.
@@ -335,6 +361,15 @@ final class DayNightThemeManager: ObservableObject {
             ThemeManager.shared.currentTheme = theme
             ThemeManager.shared.themeDidChange.send(theme)
         }
+    }
+
+    /// A closed window stops delivering trait changes to the observer inside it.
+    private func reattachOrphanedTraitObserver() {
+        guard let observer = traitObserverView else { return }
+        if let scene = observer.window?.windowScene, scene.activationState != .unattached { return }
+        Self.logger.info("Trait observer's window closed, reattaching")
+        teardownTraitObserver()
+        setupTraitObserver()
     }
 
     private func teardownTraitObserver() {
