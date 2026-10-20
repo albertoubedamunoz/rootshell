@@ -653,8 +653,11 @@ extension Ghostty.TerminalView {
         // Note: tmux/herdr auto-connect is handled via SSH exec request for all session types
         // (SSHSession, CitadelSSHSession, TrzszSession) — no terminal input needed.
         if let launchCommand, !launchCommand.isEmpty {
-            let commandWithNewline = launchCommand + "\n"
-            if let data = commandWithNewline.data(using: .utf8) {
+            // Return is CR; Windows consoles don't submit on LF.
+            let commandWithReturn = launchCommand
+                .replacingOccurrences(of: "\r\n", with: "\r")
+                .replacingOccurrences(of: "\n", with: "\r") + "\r"
+            if let data = commandWithReturn.data(using: .utf8) {
                 let charCount = launchCommand.count
                 if multiplexerAutoEnabled {
                     // Delay to let the multiplexer start before sending launch command
