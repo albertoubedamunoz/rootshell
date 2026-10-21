@@ -233116,6 +233116,23 @@
         }
       }
     },
+    "Demo: docs build finished, artifacts uploaded" : {
+      "comment" : "Demo seed text (debug builds only)",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：文档构建完成，产物已上传"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：文件建置完成，產物已上傳"
+          }
+        }
+      }
+    },
     "Demo: editing src/session/store.ts · 58%" : {
       "comment" : "Demo seed text (debug builds only)",
       "localizations" : {
