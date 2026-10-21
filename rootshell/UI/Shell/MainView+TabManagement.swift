@@ -477,6 +477,8 @@ extension MainView {
         performLocalShellAction(description: "open a local shell tab") {
             self.openTerminalTab(config: .local(workingDirectory: request.localDirectory),
                                  title: String(localized: "Local Shell"), suppressesTabBarAnimation: true)
+            // Close Connections like its Open button does; its dismissal hands the new tab focus.
+            if self.showConnectionSidebar, !self.terminals.isEmpty { self.showConnectionSidebar = false }
         }
     }
 
