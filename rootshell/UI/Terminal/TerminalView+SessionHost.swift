@@ -188,10 +188,6 @@ extension Ghostty.TerminalView {
     var terminalResponseTmuxGatewayOwnerKey: Int { tmuxGatewayOwnerKey }
     var terminalResponseHasTmuxController: Bool { tmuxController != nil }
 
-    func terminalResponseShouldFilterSizeReports(for session: TerminalSession) -> Bool {
-        shouldFilterSizeReportsNow(session: session)
-    }
-
     var terminalUUID: UUID { uuid }
     var terminalConnectionConfig: ConnectionConfig {
         get { connectionConfig }
