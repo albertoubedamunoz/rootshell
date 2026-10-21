@@ -1,7 +1,7 @@
 " Vim support file to detect file types
 "
 " Maintainer:		The Vim Project <https://github.com/vim/vim>
-" Last Change:		2026 Feb 18
+" Last Change:		2026 Sep 24
 " Former Maintainer:	Bram Moolenaar <Bram@vim.org>
 
 " If the filetype can be detected from extension or file name(the final path component),
@@ -91,6 +91,9 @@ au BufNewFile,BufRead */.aptitude/config       setf aptconf
 " Arch Inventory file
 au BufNewFile,BufRead .arch-inventory,=tagging-method	setf arch
 
+" atlas or kawasaki_as
+au BufNewFile,BufRead *.as call dist#ft#FTas()
+
 " Active Server Pages (with Visual Basic Script)
 au BufNewFile,BufRead *.asa
 	\ if exists("g:filetype_asa") |
@@ -119,10 +122,16 @@ au BufNewFile,BufRead */boot/grub/menu.lst,*/boot/grub/grub.conf,*/etc/grub.conf
 " *.mc omitted - used by dist#ft#McSetf()
 au BufNewFile,BufRead *.demo,*.dm{1,2,3,t},*.wxm,maxima-init.mac setf maxima
 
+" ObjectScript routine or assembly
+au BufNewFile,BufRead *.mac			call dist#ft#FTmac()
+
+" Argo CD configuration
+au BufNewFile,BufRead */argocd/config		setf yaml
+
 " Assembly (all kinds)
 " *.lst is not pure assembly, it has two extra columns (address, byte codes)
 " *.[sS], *.[aA] usually Assembly - GNU
-au BufNewFile,BufRead *.asm,*.[sS],*.[aA],*.mac,*.lst	call dist#ft#FTasm()
+au BufNewFile,BufRead *.asm,*.[sS],*.[aA],*.lst	call dist#ft#FTasm()
 
 " BASIC or Visual Basic
 au BufNewFile,BufRead *.bas			call dist#ft#FTbas()
@@ -175,6 +184,9 @@ if has("fname_case")
   " There is another check for BUILD and BUCK further below.
   au BufNewFile,BufRead *.BUILD,BUILD,BUCK		setf bzl
 endif
+
+" Bazel rc file, the workspace location used before Bazel 0.17
+au BufNewFile,BufRead */tools/bazel.rc			setf bazelrc
 
 " Bundle config
 au BufNewFile,BufRead */.bundle/config			setf yaml
@@ -275,7 +287,7 @@ au BufNewFile,BufRead *.cpy
 
 " Dockerfile; Podman uses the same syntax with name Containerfile
 " Also see Dockerfile.* below.
-au BufNewFile,BufRead Containerfile,Dockerfile,dockerfile,*.[dD]ockerfile	setf dockerfile
+au BufNewFile,BufRead Containerfile,Dockerfile,dockerfile	setf dockerfile
 
 " Enlightenment configuration files
 au BufNewFile,BufRead *enlightenment/*.cfg	setf c
@@ -295,6 +307,9 @@ au BufNewFile,BufRead *.eu,*.ew,*.exu,*.exw  call dist#ft#EuphoriaCheck()
 if has("fname_case")
    au BufNewFile,BufRead *.EU,*.EW,*.EX,*.EXU,*.EXW  call dist#ft#EuphoriaCheck()
 endif
+
+" Evcxr history
+au BufNewFile,BufRead */evcxr/history.txt		setf rust
 
 " Execline (s6) scripts
 au BufNewFile,BufRead *s6*/\(up\|down\|run\|finish\)    setf execline
@@ -571,6 +586,9 @@ au BufNewFile,BufRead *.pro			call dist#ft#ProtoCheck('idlang')
 
 " Initng
 au BufNewFile,BufRead */etc/initng/*/*.i,*.ii	setf initng
+
+" Intel HEX or ObjectScript routine
+au BufNewFile,BufRead *.int			call dist#ft#FTint()
 
 " Innovation Data Processing
 au BufNewFile,BufRead upstream.dat\c,upstream.*.dat\c,*.upstream.dat\c	setf upstreamdat
@@ -853,7 +871,10 @@ if has("fname_case")
 else
   au BufNewFile,BufRead *.pl				call dist#ft#FTpl()
 endif
-au BufNewFile,BufRead *.plx,*.al,*.psgi			setf perl
+au BufNewFile,BufRead *.plx,*.psgi			setf perl
+
+" Perl AutoLoader or AL (Dynamics 365 Business Central)
+au BufNewFile,BufRead *.al				call dist#ft#FTal()
 
 " Perl, XPM or XPM2
 au BufNewFile,BufRead *.pm
@@ -884,7 +905,14 @@ au BufNewFile,BufRead requirements/*.txt	setf requirements
 au BufNewFile,BufRead requires/*.txt		setf requirements
 
 " Pkl
-au BufNewFile,BufRead *.pkl,*.pcf,pkl-lsp://*	setf pkl
+au BufNewFile,BufRead PklProject,*.pkl,*.pcf,pkl-lsp://*	setf pkl
+
+" WIC kickstarter files
+au BufNewFile,BufRead *.wks,*.wks.in,*.wks.inc	setf wks
+
+" Portage
+au BufNewFile,BufRead */portage/make.conf/*.conf,*/portage/make.conf	setf sh
+au BufNewFile,BufRead */portage/{bin,}repos.conf/*.conf			setf confini
 
 " Povray, Pascal, PHP or assembly
 au BufNewFile,BufRead *.inc			call dist#ft#FTinc()
@@ -1026,6 +1054,7 @@ au BufNewFile,BufRead *.decl,*.dcl,*.dec
 " Gentoo ebuilds and Arch Linux PKGBUILDs are actually bash scripts.
 " NOTE: Patterns ending in a star are further down, these have lower priority.
 au BufNewFile,BufRead .bashrc,bashrc,bash.bashrc,.bash[_-]profile,.bash[_-]logout,.bash[_-]aliases,.bash[_-]history,bash-fc[-.],*.ebuild,*.bash,*.eclass,PKGBUILD,*.bats,*.cygport call dist#ft#SetFileTypeSH("bash")
+au BufNewFile,BufRead ~/.x{init,server}rc,/etc/X11/xinit/x{initrc{,.d/*},serverrc} setf sh
 au BufNewFile,BufRead .kshrc,*.ksh call dist#ft#SetFileTypeSH("ksh")
 au BufNewFile,BufRead */etc/profile,.profile,*.sh,*.envrc,.envrc.* call dist#ft#SetFileTypeSH(getline(1))
 " Shell script (Arch Linux) or PHP file (Drupal)
@@ -1049,12 +1078,12 @@ au BufNewFile,BufRead .zshrc,.zshenv,.zlogin,.zlogout,.zcompdump,.zsh_history se
 au BufNewFile,BufRead *.zsh,*.zsh-theme,*.zunit		setf zsh
 
 " Scheme, Supertux configuration, Lips.js history, Guile init file ("racket" patterns are now separate, see above)
-au BufNewFile,BufRead *.scm,*.ss,*.sld,*.stsg,*/supertux2/config,.lips_repl_history,.guile	setf scheme
+au BufNewFile,BufRead *.scm,*.ss,*.sld,*.stwm,*.stl,*.stxt,*.sprite,*.strf,*.satc,*.stcd,*.stf,*.stcp,*.music,*.stsg,*/supertux2/config,*/supertux2/*/info,.lips_repl_history,.guile	setf scheme
 
 " SiSU
 au BufNewFile,BufRead *.sst.meta,*.-sst.meta,*._sst.meta setf sisu
 
-" Smalltalk (and Rexx, TeX, and Visual Basic)
+" Smalltalk (and ObjectScript, Rexx, TeX, and Visual Basic)
 au BufNewFile,BufRead *.cls			call dist#ft#FTcls()
 
 " SMIL or XML
@@ -1093,6 +1122,12 @@ au BufNewFile,BufRead */etc/ssh/ssh_config.d/*.conf		setf sshconfig
 
 " OpenSSH server configuration
 au BufNewFile,BufRead */etc/ssh/sshd_config.d/*.conf	setf sshdconfig
+
+" OpenSSH public keys, authorized keys, signing keys, host keys
+au BufNewFile,BufRead */.ssh/?*.pub,/etc/ssh/?*.pub               setf sshpublickey
+au BufNewFile,BufRead */.ssh/authorized_keys                      setf sshauthorizedkeys
+au BufNewFile,BufRead */.ssh/known_hosts,/etc/ssh/ssh_known_hosts setf sshknownhosts
+au BufNewFile,BufRead allowed_signers,*.allowed_signers           setf sshallowedsigners
 
 " OpenVPN configuration
 au BufNewFile,BufRead */openvpn/*/*.conf	setf openvpn
@@ -1303,7 +1338,7 @@ au BufNewFile,BufRead *Xmodmap			setf xmodmap
 au BufNewFile,BufRead *.y			call dist#ft#FTy()
 
 " Yaml
-au BufNewFile,BufRead */.kube/config,*/.kube/kuberc	setf yaml
+au BufNewFile,BufRead buf.lock,*/.kube/config,*/.kube/kuberc	setf yaml
 
 " yum conf (close enough to dosini)
 au BufNewFile,BufRead */etc/yum.conf		setf dosini
@@ -1396,7 +1431,7 @@ au BufNewFile,BufRead [cC]hange[lL]og*
 	\|endif
 
 " Crontab
-au BufNewFile,BufRead crontab,crontab.*,*/etc/cron.d/*		call s:StarSetf('crontab')
+au BufNewFile,BufRead crontab,crontab.*,crontabs.*,*/etc/cron.d/*		call s:StarSetf('crontab')
 
 " dnsmasq(8) configuration
 au BufNewFile,BufRead */etc/dnsmasq.d/*		call s:StarSetf('dnsmasq')
@@ -1571,6 +1606,9 @@ au BufNewFile,BufRead *vimrc*			call s:StarSetf('vim')
 " Subversion commit file
 au BufNewFile,BufRead svn-commit*.tmp		setf svn
 
+" Wireguard config
+au BufNewFile,BufRead */etc/wireguard/*.conf    setf dosini
+
 " X resources file
 au BufNewFile,BufRead Xresources*,*/app-defaults/*,*/Xresources/* call s:StarSetf('xdefaults')
 
@@ -1605,6 +1643,10 @@ au BufNewFile,BufRead *.txt
 	\|   setf text
 	\| endif
 
+" Ghostty configuration
+au BufNewFile,BufRead */ghostty/config                      setf ghostty
+au BufNewFile,BufRead */ghostty/themes/*                    call s:StarSetf('ghostty')
+au BufNewFile,BufRead */com.mitchellh.ghostty/config        setf ghostty
 
 
 " Generic log file

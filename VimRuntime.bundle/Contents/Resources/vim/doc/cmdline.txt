@@ -1,4 +1,4 @@
-*cmdline.txt*	For Vim version 9.2.  Last change: 2026 Feb 14
+*cmdline.txt*	For Vim version 9.2.  Last change: 2026 Sep 30
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -56,7 +56,7 @@ history tables:
 These are completely separate.  Each history can only be accessed when
 entering the same type of line.
 Use the 'history' option to set the number of lines that are remembered
-(default: 50).
+(default: 200).
 Notes:
 - When you enter a command-line that is exactly the same as an older one, the
   old one is removed (to avoid repeated commands moving older commands out of
@@ -466,14 +466,15 @@ CTRL-L		A match is done on the pattern in front of the cursor.  If
 	                                            *c_CTRL-G* */_CTRL-G*
 CTRL-G		When 'incsearch' is set, entering a search pattern for "/" or
 		"?" and the current match is displayed then CTRL-G will move
-		to the next match (does not take |search-offset| into account)
+		to the next match.  The |search-offset| is applied when <CR>
+		is pressed, but does not affect the match highlighting.
 		Use CTRL-T to move to the previous match.  Hint: on a regular
 		keyboard G is below T.
 	                                            *c_CTRL-T* */_CTRL-T*
 CTRL-T		When 'incsearch' is set, entering a search pattern for "/" or
 		"?" and the current match is displayed then CTRL-T will move
-		to the previous match (does not take |search-offset| into
-		account).
+		to the previous match.  The |search-offset| is applied when
+		<CR> is pressed, but does not affect the match highlighting.
 		Use CTRL-G to move to the next match.  Hint: on a regular
 		keyboard T is above G.
 
@@ -622,11 +623,13 @@ line.  If you want to use '|' in an argument, precede it with '\'.
 
 These commands see the '|' as their argument, and can therefore not be
 followed by another Vim command:
+    :append
     :argdo
     :autocmd
     :bufdo
     :cdo
     :cfdo
+    :change
     :command
     :cscope
     :debug
@@ -638,6 +641,7 @@ followed by another Vim command:
     :help
     :helpfind
     :helpgrep
+    :insert
     :lcscope
     :ldo
     :lfdo
@@ -1101,7 +1105,7 @@ Note: these are typed literally, they are not special keys!
 		   It differs from <slnum> in that <sflnum> is replaced with
 		   the script line number in any situation.  *E961*
 							*:<client>* *<client>*
-	<client>   is replaced with the {clinetid} of the last received
+	<client>   is replaced with the {clientid} of the last received
 		   message in |server2client()|
 
 							 *filename-modifiers*
@@ -1262,6 +1266,16 @@ In the command-line window the command line can be edited just like editing
 text in any window.  It is a special kind of window, because you cannot leave
 it in a normal way.
 
+If you often type `q:` when you meant `:q`, you can map `q` so that it puts
+":q" on the command line instead of opening the command-line window, while
+still ending a recording when one is in progress: >
+
+	nnoremap <expr><script> q reg_recording() != '' ? 'q' : '<SID>_qmode_'
+	nnoremap <SID>_qmode_: :<C-U>q
+	nnoremap <SID>_qmode_  q
+<
+Note that starting a recording with `qa` now waits for 'timeoutlen', because
+`q` has become the start of a longer mapping.
 
 OPEN						*c_CTRL-F* *q:* *q/* *q?*
 
@@ -1427,16 +1441,15 @@ For example, you can turn the native |:find| command into a fuzzy, interactive
 file picker: >
 
 	set findfunc=Find
+	let s:filescache = []
 	func Find(arg, _)
 	  if empty(s:filescache)
-	    let s:filescache = globpath('.', '**', 1, 1)
+	    autocmd CmdlineLeave : ++once let s:filescache = []
+	    let s:filescache = expand('**', 1, 1)
 	    call filter(s:filescache, '!isdirectory(v:val)')
-	    call map(s:filescache, "fnamemodify(v:val, ':.')")
 	  endif
-	  return a:arg == '' ? s:filescache : matchfuzzy(s:filescache, a:arg)
+	  return empty(a:arg) ? s:filescache : matchfuzzy(s:filescache, a:arg)
 	endfunc
-	let s:filescache = []
-	autocmd CmdlineEnter : let s:filescache = []
 
 The `:Grep` command searches for lines matching a pattern and updates the
 results dynamically as you type (triggered after two characters; note: needs

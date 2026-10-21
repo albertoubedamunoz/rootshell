@@ -1,4 +1,4 @@
-*popup.txt*	For Vim version 9.2.  Last change: 2026 Feb 18
+*popup.txt*	For Vim version 9.2.  Last change: 2026 Sep 30
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -23,6 +23,7 @@ Displaying text in a popup window.	*popup* *popup-window* *popupwin*
    Popup scrollbar		|popup-scrollbar|
    Popup opacity		|popup-opacity|
    Popup mask			|popup-mask|
+   Popup image			|popup-image|
 4. Examples			|popup-examples|
 
 
@@ -44,8 +45,11 @@ A popup window can be used for such things as:
 The text in the popup window can be colored with |text-properties|.  It is
 also possible to use syntax highlighting.
 
-The default color used is "Pmenu".  If you prefer something else use the
-"highlight" argument or the 'wincolor' option, e.g.: >
+The default colors are taken from |hl-Popup| (body), |hl-PopupBorder|
+(border) and |hl-PopupTitle| (title), which all link to |hl-Pmenu| by
+default for backward compatibility.  Override them to give general popup
+windows a different look than the popup completion menu, or use the
+"highlight" argument or the 'wincolor' option for a per-popup override: >
 	hi MyPopupColor ctermbg=lightblue guibg=lightblue
 	call setwinvar(winid, '&wincolor', 'MyPopupColor')
 
@@ -75,9 +79,11 @@ wrapping, lines in the buffer.  It can be limited with the "maxheight"
 property.  You can use empty lines to increase the height or the "minheight"
 property.
 
-The width of the window is normally equal to the longest visible line in the
-buffer.  It can be limited with the "maxwidth" property.  You can use spaces
-to increase the width or use the "minwidth" property.
+The width of the window is normally equal to the longest line in the buffer,
+also when that line is not displayed.  This keeps the width the same while
+scrolling through the popup.  It can be limited with the "maxwidth" property,
+which is a good idea when the buffer may contain long lines.  You can use
+spaces to increase the width or use the "minwidth" property.
 
 By default the 'wrap' option is set, so that no text disappears.  Otherwise,
 if there is not enough space then the window is shifted left in order to
@@ -254,7 +260,7 @@ popup_clear([{force}])
 		when it is the current window.  If a terminal is running in a
 		popup it is killed.
 
-		Return type: |Number|
+		Return type: void
 
 
 popup_close({id} [, {result}])				*popup_close()*
@@ -269,7 +275,7 @@ popup_close({id} [, {result}])				*popup_close()*
 		Can also be used as a |method|: >
 			GetPopup()->popup_close()
 <
-		Return type: |Number|
+		Return type: void
 
 
 popup_create({what}, {options})				*popup_create()*
@@ -351,7 +357,7 @@ popup_filter_menu({id}, {key})				*popup_filter_menu()*
 		To add shortcut keys, see the example here:
 		|popup_menu-shortcut-example|
 
-		Return type: |Number|
+		Return type: |vim9-boolean|
 
 
 popup_filter_yesno({id}, {key})				*popup_filter_yesno()*
@@ -363,7 +369,7 @@ popup_filter_yesno({id}, {key})				*popup_filter_yesno()*
 		keys are ignored.
 		See the example here: |popup_dialog-example|
 
-		Return type: |Number|
+		Return type: |vim9-boolean|
 
 
 popup_findecho()					*popup_findecho()*
@@ -421,6 +427,11 @@ popup_getoptions({id})					*popup_getoptions()*
 		"textprop", "textpropid" and "textpropwin" are only present
 		when "textprop" was set.
 
+		The "image" entry is a dictionary with the same fields as
+		returned by |image_info()|.  Note that if the image is created
+		directly by the popup, the "id" field will not be present, see
+		|popup-image|.
+
 		If popup window {id} is not found an empty Dict is returned.
 
 		Can also be used as a |method|: >
@@ -471,7 +482,7 @@ popup_hide({id})						*popup_hide()*
 		Can also be used as a |method|: >
 			GetPopup()->popup_hide()
 <
-		Return type: |Number|
+		Return type: void
 
 
 popup_list()						 *popup_list()*
@@ -542,7 +553,7 @@ popup_move({id}, {options})					*popup_move()*
 		Can also be used as a |method|: >
 			GetPopup()->popup_move(options)
 <
-		Return type: |Number|
+		Return type: void
 
 
 popup_notification({what}, {options})			 *popup_notification()*
@@ -603,6 +614,7 @@ popup_setoptions({id}, {options})			*popup_setoptions()*
 			firstline
 			flip
 			highlight
+			image
 			mapping
 			mask
 			moved
@@ -624,7 +636,7 @@ popup_setoptions({id}, {options})			*popup_setoptions()*
 		Can also be used as a |method|: >
 			GetPopup()->popup_setoptions(options)
 <
-		Return type: |Number|
+		Return type: void
 
 
 popup_settext({id}, {text})				*popup_settext()*
@@ -636,7 +648,7 @@ popup_settext({id}, {text})				*popup_settext()*
 		Can also be used as a |method|: >
 			GetPopup()->popup_settext('hello')
 <
-		Return type: |Number|
+		Return type: void
 
 
 popup_show({id})						*popup_show()*
@@ -712,6 +724,15 @@ The second argument of |popup_create()| is a dictionary with options:
 			when "textprop" is present.
 	textpropid	Used to identify the text property when "textprop" is
 			present.  Use zero to reset.
+	clipwindow	Only used when "textprop" is set.  When TRUE the popup
+			is kept within the window containing the text
+			property: if the text property scrolls past that
+			window's top, bottom, left or right edge, the popup
+			is clipped at that edge instead of being drawn
+			outside it.  Once the text property has scrolled out
+			of the window the popup is hidden.
+			Default FALSE.
+			See |popup-clipwindow|.
 	fixed		When FALSE (the default), and:
 			 - "pos" is "botleft" or "topleft", and
 			 - the popup would be truncated at the right edge of
@@ -751,6 +772,10 @@ The second argument of |popup_create()| is a dictionary with options:
 			border one line of padding is added to put the title
 			on.  You might want to add one or more spaces at the
 			start and end as padding.
+			The title uses |hl-PopupTitle| by default; if
+			"borderhighlight" is set the top border highlight is
+			used instead, and if "highlight"/'wincolor' is set
+			that is used.
 	wrap		TRUE to make the lines wrap (default TRUE).
 	drag		TRUE to allow the popup to be dragged with the mouse
 			by grabbing at the border.  Has no effect if the
@@ -773,6 +798,8 @@ The second argument of |popup_create()| is a dictionary with options:
 			the popup window.
 	highlight	Highlight group name to use for the text, stored in
 			the 'wincolor' option.
+	highlights	Highlight group overrides, stored in the
+			'winhighlight' option (same format).
 	opacity		Opacity of the popup, a value between 0 and 100:
 			0 is fully transparent (background text fully visible)
 			100 is fully opaque (default, no transparency)
@@ -780,6 +807,9 @@ The second argument of |popup_create()| is a dictionary with options:
 			underlying text, making it partially transparent.
 			Requires 'termguicolors' to be set.
 			Also see |popup-opacity|.
+	image		Dictionary for displaying an image.  See |image_add()|
+			for required fields, or you can provide the "id" field
+			only, see |popup-image|.
 	padding		List with numbers, defining the padding
 			above/right/below/left of the popup (similar to CSS).
 			An empty list uses a padding of 1 all around.  The
@@ -797,6 +827,8 @@ The second argument of |popup_create()| is a dictionary with options:
 			the highlight for the top/right/bottom/left border.
 			Example: ['TopColor', 'RightColor', 'BottomColor,
 			'LeftColor']
+			When not given and "highlight"/'wincolor' is also not
+			set, |hl-PopupBorder| is used.
 	borderchars	List with characters, defining the character to use
 			for the top/right/bottom/left border.  Optionally
 			followed by the character to use for the
@@ -947,6 +979,31 @@ If the window for which the popup was defined is closed, the popup is closed.
 If the popup cannot fit in the desired position, it may show at a nearby
 position.
 
+
+CLIP TEXTPROP POPUP TO HOST WINDOW			*popup-clipwindow*
+
+When the popup is anchored to a text property in a split window, the popup is
+by default drawn relative to the whole screen and may extend past the edges of
+the window that contains the text property (the "host window").  Setting
+"clipwindow" to TRUE keeps the popup within window's content area:
+parts of the popup that fall outside the window are clipped, and the popup is
+hidden once the text property has scrolled entirely past one of the edges.
+
+Example: a tall popup anchored above the cursor that should never spill into
+the window below the split: >
+	call popup_create(body, #{
+		\ textprop: 'marker',
+		\ textpropid: id,
+		\ pos: 'topleft',
+		\ line: -1, col: 0,
+		\ posinvert: v:false,
+		\ clipwindow: v:true,
+		\ })
+<
+With "posinvert" left at its default (TRUE) the popup may be flipped to the
+opposite side of the text property when there is no room; set it to FALSE to
+keep the requested side and rely on "clipwindow" to clip the overflow.
+
 Some hints:
 - To avoid collision with other plugins the text property type name has to be
   unique.  You can also use the "bufnr" item to make it local to a buffer.
@@ -1065,8 +1122,9 @@ The opacity value ranges from 0 to 100:
     1-99	Partially transparent - the popup background is blended with
 		the underlying text, making both partially visible.
 
-The transparency effect requires using the GUI or having 'termguicolors'
-enabled in the terminal. Without it, the opacity setting has no effect.
+The transparency effect requires using the GUI, having 'termguicolors'
+enabled, or running in a 256-color terminal.  On terminals with fewer
+than 256 colors the opacity setting has no effect.
 
 When a popup is transparent:
 - The popup's background color is blended with the background text
@@ -1108,6 +1166,84 @@ For example, to make the last 10 columns of the last line transparent:
 
 To make the four corners transparent:
 	[[1, 1, 1, 1], [-1, -1, 1, 1], [1, 1, -1, -1], [-1, -1, -1, -1]]
+
+POPUP IMAGE						*image* *popup-image*
+
+Vim is capable of displaying graphical images, in both the terminal and GUI.
+To do this, it must link with the pixman library, which you may install via
+your package manager on Unix, or via vcpkg on MS-Windows.  You may see if
+images are supported by checking |+image| and |+image_popup|.
+
+A popup window may additionally render an image.  To do this, pass a field
+named "image" containing a dictionary to |popup_create()| or
+|popup_setoptions()|.  The dictionary may either have the same fields as in
+|image_add()|, or it may reference an image via its ID using the "id" field.
+The "id" field is prioritized first, see |image_add()|, |image_discard()|, and
+|image_info()|.
+
+When an image is directly created by a popup window (e.g. "id" is not used),
+then it is considered internal and can not be referenced anywhere else.
+
+To unset a previously set image from a popup window pass an empty dictionary: >
+	call popup_setoptions(winid, #{image: {}})
+<
+							*image-backends*
+There are two terminal image protocols supported on all platforms.  The
+protocol to use is chosen using the 'imageprotocol' option:
+
+    sixel   Uses the sixel protocol to display images.
+    kitty   Uses the kitty graphics protocol.  This is the recommended
+	    protocol to use in the terminal if it is available, as it is much
+	    more performant than sixel.
+
+When using the GUI, the GTK4, GTK3, and Win32 versions of Vim are supported.
+
+To see what image backend is currently being used, use the |v:imagebackend|
+variable.
+
+							*image-options*
+When passing an RGBA buffer, Vim expects it to be endian independent and non
+alpha pre-multiplied.  For RGB images, each pixel should be exactly 3 bytes,
+a padding byte is not supported by Vim.
+
+The dimensions of a popup containing an image are automatically calculated
+based on the image dimensions and terminal/GUI cell size.  However, you may
+override it using the "minwidth", "minheight", "maxwidth", and "maxheight"
+fields.
+
+Images are not scaled, if a popup window is smaller than the image it
+contains, then the image will be cropped instead.
+
+							*image-animation*
+The image of a popup window can be changed at runtime using
+|popup_setoptions()|.  When the new image has the same format, width, and
+height as the existing image, the existing image will be modified in place.
+This is performant enough for frame-by-frame animation, using a |timer|.
+
+For RGBA buffers that need to blend cleanly into the editor's actual backdrop,
+the script can call |getbgcolor()| to obtain the current background colour as
+[r, g, b] and pre-composite anti-aliased edges against it.
+
+Minimal RGB example - a 4x4 red square popped at the cursor: >
+	let pixels = repeat([0xff, 0x00, 0x00], 4 * 4)->list2blob()
+	call popup_create('', #{
+	      \ image: #{ data: pixels, width: 4, height: 4 },
+	      \ line: 'cursor+1', col: 'cursor',
+	      \ })
+
+Real-world example - pipe a PNG through GraphicsMagick and pop the resulting
+raw RGB bytes: >
+	let png = 'cat.png'
+	let dim = split(system('gm identify -format "%w %h" '
+		\ .. shellescape(png)))
+	let [w, h] = [str2nr(dim[0]), str2nr(dim[1])]
+	call system('gm convert ' .. shellescape(png)
+		\ .. ' -depth 8 rgb:/tmp/cat.rgb')
+	let blob = readblob('/tmp/cat.rgb')
+	call popup_create('', #{
+	      \ image: #{ data: blob, width: w, height: h },
+	      \ line: 1, col: 1, border: [], padding: [0, 0, 0, 0],
+	      \ })
 
 ==============================================================================
 4. Examples						*popup-examples*

@@ -410,8 +410,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/vim-rootshell.git",
       "state" : {
-        "revision" : "49d5deb3274c9609486244d27526a7efeda3fe79",
-        "version" : "0.1.1"
+        "revision" : "89fdb95b3ba246a75b6a7488dcc99c5ebbb02eb8",
+        "version" : "0.2.0"
       }
     },
     {

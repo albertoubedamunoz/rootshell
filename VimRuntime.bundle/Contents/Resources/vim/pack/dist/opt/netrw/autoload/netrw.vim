@@ -1,25 +1,7 @@
 " Creator:    Charles E Campbell
 " Previous Maintainer: Luca Saccarola <github.e41mv@aleeas.com>
 " Maintainer: This runtime file is looking for a new maintainer.
-" Last Change:
-" 2025 Aug 07 by Vim Project (use correct "=~#" for netrw_stylesize option #17901)
-" 2025 Aug 07 by Vim Project (netrw#BrowseX() distinguishes remote files #17794)
-" 2025 Aug 22 by Vim Project netrw#Explore handle terminal correctly #18069
-" 2025 Sep 05 by Vim Project ensure netrw#fs#Dirname() returns trailing slash #18199
-" 2025 Sep 11 by Vim Project only keep cursor position in tree mode #18275
-" 2025 Sep 17 by Vim Project tighten the regex to handle remote compressed archives #18318
-" 2025 Sep 18 by Vim Project 'equalalways' not always respected #18358
-" 2025 Oct 01 by Vim Project fix navigate to parent folder #18464
-" 2025 Oct 26 by Vim Project fix parsing of remote user names #18611
-" 2025 Oct 27 by Vim Project align comment after #18611
-" 2025 Nov 01 by Vim Project fix NetrwChgPerm #18674
-" 2025 Nov 13 by Vim Project don't wipe unnamed buffers #18740
-" 2025 Nov 18 by Vim Project use UNC paths when using scp and Windows paths #18764
-" 2025 Nov 28 by Vim Project fix undefined variable in *NetrwMenu #18829
-" 2025 Dec 26 by Vim Project fix use of g:netrw_cygwin #19015
-" 2026 Jan 19 by Vim Project do not create swapfiles #18854
-" 2026 Feb 15 by Vim Project fix global variable initialization for MS-Windows #19287
-" 2026 Feb 21 by Vim Project better absolute path detection on MS-Windows #19477
+" Last Change: 2026 Oct 14
 " Copyright:  Copyright (C) 2016 Charles E. Campbell {{{1
 "             Permission is hereby granted to use and distribute this code,
 "             with or without modifications, provided that this copyright
@@ -393,8 +375,7 @@ if has("win32")
 else
   call s:NetrwInit("g:netrw_glob_escape",'*[]?`{~$\')
 endif
-call s:NetrwInit("g:netrw_menu_escape",'.&? \')
-call s:NetrwInit("g:netrw_tmpfile_escape",' &;')
+call s:NetrwInit("g:netrw_menu_escape",'.&? \|')
 call s:NetrwInit("s:netrw_map_escape","<|\n\r\\\<C-V>\"")
 if has("gui_running") && (&enc == 'utf-8' || &enc == 'utf-16' || &enc == 'ucs-4')
   let s:treedepthstring= "│ "
@@ -437,7 +418,7 @@ endif
 "                == 6: Texplore
 function netrw#Explore(indx,dosplit,style,...)
   if !exists("b:netrw_curdir")
-    let b:netrw_curdir= getcwd()
+    let b:netrw_curdir= netrw#fs#Cwd(0)
   endif
 
   " record current file for Rexplore's benefit
@@ -525,8 +506,8 @@ function netrw#Explore(indx,dosplit,style,...)
   NetrwKeepj norm! 0
 
   if a:0 > 0
-    if a:1 =~ '^\~' && (has("unix") || g:netrw_cygwin)
-      let dirname= simplify(substitute(a:1,'\~',expand("$HOME"),''))
+    if a:1 =~ '^\~' && (has("unix") || has("win32") || g:netrw_cygwin)
+      let dirname= simplify(substitute(a:1,'^\~',escape(expand("$HOME"),'\&~'),''))
     elseif a:1 == '.'
       let dirname= simplify(exists("b:netrw_curdir")? b:netrw_curdir : getcwd())
       if dirname !~ '/$'
@@ -543,6 +524,10 @@ function netrw#Explore(indx,dosplit,style,...)
     " clear explore
     call s:NetrwClearExplore()
     return
+  endif
+  " Win32: Use forward slashes
+  if !g:netrw_cygwin && has("win32")
+    let dirname= substitute(dirname,'\','/','g')
   endif
 
   if dirname =~ '\.\./\=$'
@@ -586,15 +571,15 @@ function netrw#Explore(indx,dosplit,style,...)
   endif
 
   if starpat == 0 && a:indx >= 0
-    " [Explore Hexplore Vexplore Sexplore] [dirname]
     if dirname == ""
       let dirname= curfiledir
     endif
+    " [Explore Hexplore Vexplore Sexplore] [dirname]
     if dirname =~# '^scp://' || dirname =~ '^ftp://'
       call netrw#Nread(2,dirname)
     else
       if dirname == ""
-        let dirname= getcwd()
+        let dirname= netrw#fs#Cwd(0)
       elseif has("win32") && !g:netrw_cygwin
         " Windows : check for a drive specifier, or else for a remote share name ('\\Foo' or '//Foo',
         " depending on whether backslashes have been converted to forward slashes by earlier code).
@@ -979,16 +964,19 @@ function netrw#Obtain(islocal,fname,...)
     let tgtdir= getcwd()
   endif
 
-  if exists("b:netrw_islocal") && b:netrw_islocal
+  if a:islocal
     " obtain a file from local b:netrw_curdir to (local) tgtdir
     if exists("b:netrw_curdir") && getcwd() != b:netrw_curdir
       let topath = netrw#fs#ComposePath(tgtdir,"")
+      " names in the listing are relative to b:netrw_curdir, not to vim's current directory
+      let fnamelist = map(copy(fnamelist), {_, fname -> isabsolutepath(fname) ? fname : netrw#fs#ComposePath(b:netrw_curdir, fname)})
       if has("win32") && !g:netrw_cygwin
-        " transfer files one at time
+        " transfer files one at time; "copy" in cmd.exe does not handle the
+        " composed paths reliably, use filecopy() as s:NetrwMarkFileCopy() does
         for fname in fnamelist
-          call system(g:netrw_localcopycmd.g:netrw_localcopycmdopt." ".netrw#os#Escape(fname)." ".netrw#os#Escape(topath))
-          if v:shell_error != 0
-            call netrw#msg#Notify('WARNING', printf('consider setting g:netrw_localcopycmd<%s> to something that works', g:netrw_localcopycmd))
+          let tgt = netrw#fs#ComposePath(tgtdir, fnamemodify(fname, ':t'))
+          if !filecopy(fname, tgt)
+            call netrw#msg#Notify('ERROR', printf('copy failed, unable to filecopy() <%s> to <%s>', fname, tgt))
             return
           endif
         endfor
@@ -1014,7 +1002,7 @@ function netrw#Obtain(islocal,fname,...)
     endif
     call s:NetrwMethod(b:netrw_curdir)
     if !s:NetrwValidateHostname(g:netrw_machine)
-        call netrw#msg#Notify('ERROR', 'Rejecting invalid hostname: <%s>', g:netrw_machine)
+        call netrw#msg#Notify('ERROR', printf('Rejecting invalid hostname: <%s>', g:netrw_machine))
         return
     endif
 
@@ -1815,14 +1803,14 @@ function netrw#NetRead(mode,...)
             ".........................................
         " NetRead: (sftp) NetRead Method #9 {{{3
         elseif     b:netrw_method  == 9
-            call netrw#os#Execute(s:netrw_silentxfer."!".g:netrw_sftp_cmd." ".netrw#os#Escape(g:netrw_machine.":".b:netrw_fname,1)." ".tmpfile)
+            call netrw#os#Execute(s:netrw_silentxfer."!".g:netrw_sftp_cmd." ".netrw#os#Escape(g:netrw_machine.":".b:netrw_fname,1)." ".netrw#os#Escape(tmpfile,1))
             let result          = s:NetrwGetFile(readcmd, tmpfile, b:netrw_method)
             let b:netrw_lastfile = choice
 
             ".........................................
         " NetRead: (file) NetRead Method #10 {{{3
         elseif      b:netrw_method == 10 && exists("g:netrw_file_cmd")
-            call netrw#os#Execute(s:netrw_silentxfer."!".g:netrw_file_cmd." ".netrw#os#Escape(b:netrw_fname,1)." ".tmpfile)
+            call netrw#os#Execute(s:netrw_silentxfer."!".g:netrw_file_cmd." ".netrw#os#Escape(b:netrw_fname,1)." ".netrw#os#Escape(tmpfile,1))
             let result           = s:NetrwGetFile(readcmd, tmpfile, b:netrw_method)
             let b:netrw_lastfile = choice
 
@@ -2591,13 +2579,29 @@ endfunction
 
 " s:NetrwValidateHostname:  Validate that the hostname is valid {{{2
 " Input:
-"   hostname
+"   hostname, may include an optional username and port number, e.g.
+"       user@hostname:port
+"   allow a alphanumeric hostname or an IPv(4/6) address
 " Output:
 "  true if g:netrw_machine is valid according to RFC1123 #Section 2
 function s:NetrwValidateHostname(hostname)
-    " RFC1123#section-2 mandates, a valid hostname starts with letters or digits
-    " so reject everyhing else
-    return a:hostname =~? '^[a-z0-9]'
+  " Username:
+  let user_pat = '\%([a-zA-Z0-9._-]\+@\)\?'
+  " Hostname: 1-64 chars, alphanumeric/dots/hyphens.
+  " No leading/trailing dots/hyphens.
+  let host_pat = '[a-zA-Z0-9_]\%([-a-zA-Z0-9._]\{0,62}[a-zA-Z0-9_]\)\?'
+  " Port: 16 bit unsigned integer
+  let port_pat = '\%(:\d\{1,5\}\)\?$'
+
+  " IPv4: 1-3 digits separated by dots
+  let ipv4_pat = '\%(\d\{1,3}\.\)\{3\}\d\{1,3\}'
+
+  " IPv6: Hex, colons, and optional brackets
+  let ipv6_pat = '\[\?\%([a-fA-F0-9:]\{2,}\)\+\]\?'
+
+  return a:hostname =~? '^'.user_pat.host_pat.port_pat ||
+       \ a:hostname =~? '^'.user_pat.ipv4_pat.port_pat ||
+       \ a:hostname =~? '^'.user_pat.ipv6_pat.port_pat
 endfunction
 
 " NetUserPass: set username and password for subsequent ftp transfer {{{2
@@ -2710,7 +2714,7 @@ endfunction
 
 "  s:NetrwBookHistHandler: {{{2
 "    0: (user: <mb>)   bookmark current directory
-"    1: (user: <gb>)   change to the bookmarked directory
+"    1: (user: <gb>)   change to the bookmarked path
 "    2: (user: <qb>)   list bookmarks
 "    3: (browsing)     records current directory history
 "    4: (user: <u>)    go up   (previous) directory, using history
@@ -2740,11 +2744,33 @@ function s:NetrwBookHistHandler(chg,curdir)
         endtry
 
     elseif a:chg == 1
-        " change to the bookmarked directory
-        if exists("g:netrw_bookmarklist[v:count-1]")
-            exe "NetrwKeepj e ".fnameescape(g:netrw_bookmarklist[v:count-1])
+        " change to bookmarked path
+        if exists("g:netrw_bookmarklist") && !empty(g:netrw_bookmarklist)
+            let len_bookmarklist = len(g:netrw_bookmarklist)
+            let bookmark_num = v:count
+
+            " v:count value is set to zero if no count (prefix) is given to the `gb` map
+            if bookmark_num == 0
+                " list bookmarks and prompt for a bookmark number
+                let goto_list = [" # | Goto Bookmark:"]
+                let i = 0
+                while i < len_bookmarklist
+                    call add(goto_list, printf("%3d| %s", i + 1, g:netrw_bookmarklist[i]))
+                    let i += 1
+                endwhile
+                let bookmark_num = inputlist(goto_list)
+            endif
+
+            if bookmark_num > 0
+                if bookmark_num <= len_bookmarklist
+                    exe "NetrwKeepj e " . fnameescape(g:netrw_bookmarklist[bookmark_num - 1])
+                else
+                    echomsg "Sorry, bookmark#" . bookmark_num . " doesn't exist!"
+                endif
+            endif
+            " Exit silently if user cancels with `q` or empty after inputlist()
         else
-            echomsg "Sorry, bookmark#".v:count." doesn't exist!"
+            echo "Bookmark list is empty."
         endif
 
     elseif a:chg == 2
@@ -2845,16 +2871,38 @@ function s:NetrwBookHistHandler(chg,curdir)
         endif
 
     elseif a:chg == 6
-        if exists("s:netrwmarkfilelist_{curbufnr}")
+        if exists("s:netrwmarkfilelist_{curbufnr}") && !empty(s:netrwmarkfilelist_{curbufnr})
             call s:NetrwBookmark(1)
             echo "removed marked files from bookmarks"
+        elseif exists("g:netrw_bookmarklist") && !empty(g:netrw_bookmarklist)
+            let len_bookmarklist = len(g:netrw_bookmarklist)
+            let bookmark_num = v:count
+
+            " v:count value is set to zero if no count (prefix) is given to the `gb` map
+            if bookmark_num == 0
+                " list bookmarks and prompt for a bookmark number
+                let goto_list = [" # | Delete Bookmark:"]
+                let i = 0
+                while i < len_bookmarklist
+                    call add(goto_list, printf("%3d| %s", i + 1, g:netrw_bookmarklist[i]))
+                    let i += 1
+                endwhile
+                let bookmark_num = inputlist(goto_list)
+            endif
+
+            if bookmark_num > 0
+                if bookmark_num <= len_bookmarklist
+                    let bookmark_path = g:netrw_bookmarklist[bookmark_num - 1]
+                    call s:MergeBookmarks()
+                    NetrwKeepj call remove(g:netrw_bookmarklist, bookmark_num - 1)
+                    echo "removed " . bookmark_path . " from g:netrw_bookmarklist."
+                else
+                    echomsg "Sorry, bookmark#" . bookmark_num . " doesn't exist!"
+                endif
+            endif
+            " Exit silently if user cancels with `q` or empty after inputlist()
         else
-            " delete the v:count'th bookmark
-            let iremove = v:count
-            let dremove = g:netrw_bookmarklist[iremove - 1]
-            call s:MergeBookmarks()
-            NetrwKeepj call remove(g:netrw_bookmarklist,iremove-1)
-            echo "removed ".dremove." from g:netrw_bookmarklist"
+            echo "Bookmark list is empty."
         endif
 
         try
@@ -2938,7 +2986,7 @@ function s:NetrwBookHistSave()
         while ( first || cnt != g:netrw_dirhistcnt )
             let lastline= lastline + 1
             if exists("g:netrw_dirhist_{cnt}")
-                call setline(lastline,'let g:netrw_dirhist_'.cnt."='".g:netrw_dirhist_{cnt}."'")
+                call setline(lastline,'let g:netrw_dirhist_'.cnt.'='.string(g:netrw_dirhist_{cnt}))
             endif
             let first   = 0
             let cnt     = ( cnt - 1 ) % g:netrw_dirhistmax
@@ -3042,7 +3090,7 @@ function s:NetrwBrowse(islocal,dirname)
     elseif !a:islocal && dirname !~ '[\/]$' && dirname !~ '^"'
         " s:NetrwBrowse :  remote regular file handler {{{3
         if bufname(dirname) != ""
-            exe "NetrwKeepj b ".bufname(dirname)
+            exe "NetrwKeepj b ".fnameescape(bufname(dirname))
         else
             " attempt transfer of remote regular file
 
@@ -3732,13 +3780,14 @@ function s:NetrwBookmarkMenu()
         if exists("g:netrw_bookmarklist") && g:netrw_bookmarklist != [] && g:netrw_dirhistmax > 0
             let cnt= 1
             for bmd in g:netrw_bookmarklist
-                let bmd= escape(bmd,g:netrw_menu_escape)
+                let ebmd= escape(bmd,g:netrw_menu_escape)
+                let fbmd= escape(fnameescape(bmd),'|')
 
                 " show bookmarks for goto menu
-                exe 'sil! menu '.g:NetrwMenuPriority.".2.".cnt." ".g:NetrwTopLvlMenu.'Bookmarks.'.bmd.'    :e '.bmd."\<cr>"
+                exe 'sil! menu '.g:NetrwMenuPriority.".2.".cnt." ".g:NetrwTopLvlMenu.'Bookmarks.'.ebmd.'    :e '.fbmd."\<cr>"
 
                 " show bookmarks for deletion menu
-                exe 'sil! menu '.g:NetrwMenuPriority.".8.2.".cnt." ".g:NetrwTopLvlMenu.'Bookmarks\ and\ History.Bookmark\ Delete.'.bmd.'   '.cnt."mB"
+                exe 'sil! menu '.g:NetrwMenuPriority.".8.2.".cnt." ".g:NetrwTopLvlMenu.'Bookmarks\ and\ History.Bookmark\ Delete.'.ebmd.'   '.cnt."mB"
                 let cnt= cnt + 1
             endfor
 
@@ -3754,7 +3803,8 @@ function s:NetrwBookmarkMenu()
                 let priority = g:netrw_dirhistcnt + histcnt
                 if exists("g:netrw_dirhist_{cnt}")
                     let histdir= escape(g:netrw_dirhist_{cnt},g:netrw_menu_escape)
-                    exe 'sil! menu '.g:NetrwMenuPriority.".3.".priority." ".g:NetrwTopLvlMenu.'History.'.histdir.'    :e '.histdir."\<cr>"
+                    let ehistdir= escape(fnameescape(g:netrw_dirhist_{cnt}),'|')
+                    exe 'sil! menu '.g:NetrwMenuPriority.".3.".priority." ".g:NetrwTopLvlMenu.'History.'.histdir.'    :e '.ehistdir."\<cr>"
                 endif
                 let first = 0
                 let cnt   = ( cnt - 1 ) % g:netrw_dirhistmax
@@ -3820,7 +3870,7 @@ function s:NetrwBrowseChgDir(islocal, newdir, cursor, ...)
     endif
 
     " set up o/s-dependent directory recognition pattern
-    let dirpat = has("amiga") ? '[\/:]$' : '[\/]$'
+    let dirpat = has("amiga") || has('win32') ? '[\/:]$' : '/$'
 
     if newdir !~ dirpat && !(a:islocal && isdirectory(s:NetrwFile(netrw#fs#ComposePath(dirname, newdir))))
         " ------------------------------
@@ -3894,7 +3944,7 @@ function s:NetrwBrowseChgDir(islocal, newdir, cursor, ...)
                             let curwin= winnr()
                             exe "NetrwKeepj keepalt ".winnr("$")."wincmd w"
                             vs
-                            exe "NetrwKeepj keepalt ".g:netrw_chgwin."wincmd ".curwin
+                            exe "NetrwKeepj keepalt ".curwin."wincmd w"
                         endif
                         exe "NetrwKeepj keepalt ".g:netrw_chgwin."wincmd w"
                     endif
@@ -4412,10 +4462,10 @@ endfunction
 
 "  s:NetrwHome: this function determines a "home" for saving bookmarks and history {{{2
 function s:NetrwHome()
-    if has('nvim')
-        let home = netrw#fs#PathJoin(stdpath('state'), 'netrw')
-    elseif exists('g:netrw_home')
+    if exists('g:netrw_home')
         let home = expand(g:netrw_home)
+    elseif has('nvim')
+        let home = netrw#fs#PathJoin(stdpath('state'), 'netrw')
     elseif exists('$MYVIMDIR')
         let home = expand('$MYVIMDIR')->substitute('/$', '', '')
     else
@@ -4438,7 +4488,7 @@ function s:NetrwHome()
         if exists("g:netrw_mkdir")
             call system(g:netrw_mkdir." ".s:ShellEscape(s:NetrwFile(home)))
         else
-            call mkdir(home)
+            call mkdir(home, 'p')
         endif
     endif
 
@@ -4813,6 +4863,12 @@ endfunction
 
 " s:NetrwMaps: {{{2
 function s:NetrwMaps(islocal)
+    " remove B flag from 'cpo' so that \<CR>, \<Bar>, etc. inside
+    " interpolated path names play back as literal text rather than
+    " the actual key — without this, a crafted directory name can
+    " inject keystrokes into the cmdline the mapping is typing
+    let _cpo = &cpo
+    set cpo-=B
 
     " mouse <Plug> maps: {{{3
     if g:netrw_mousemaps && g:netrw_retmap
@@ -4936,7 +4992,7 @@ function s:NetrwMaps(islocal)
             nno  <buffer> <silent>              <Plug>NetrwSLeftmouse   :exec "norm! \<lt>leftmouse>"<bar>call <SID>NetrwSLeftmouse(1)<cr>
             nno  <buffer> <silent>              <Plug>NetrwSLeftdrag    :exec "norm! \<lt>leftmouse>"<bar>call <SID>NetrwSLeftdrag(1)<cr>
             nmap <buffer> <silent>              <Plug>Netrw2Leftmouse   -
-                exe 'nnoremap <buffer> <silent> <rightmouse>  :exec "norm! \<lt>leftmouse>"<bar>call <SID>NetrwLocalRm("'.mapsafecurdir.'")<cr>'
+            exe 'nnoremap <buffer> <silent> <rightmouse>  :exec "norm! \<lt>leftmouse>"<bar>call <SID>NetrwLocalRm("'.mapsafecurdir.'")<cr>'
             exe 'vnoremap <buffer> <silent> <rightmouse>  :exec "norm! \<lt>leftmouse>"<bar>call <SID>NetrwLocalRm("'.mapsafecurdir.'")<cr>'
         endif
         exe 'nnoremap <buffer> <silent> <nowait> <del>       :call <SID>NetrwLocalRm("'.mapsafecurdir.'")<cr>'
@@ -5057,6 +5113,7 @@ function s:NetrwMaps(islocal)
         " support user-specified maps
         call netrw#UserMaps(0)
     endif " }}}3
+    let &cpo = _cpo
 endfunction
 
 " s:NetrwCommands: set up commands                              {{{2
@@ -5124,7 +5181,7 @@ endfunction
 "    s:netrwmarkfilelist_#  -- holds list of marked files in current-buffer's directory (#==bufnr())
 "
 "  Creates a marked file match string
-"    s:netrwmarfilemtch_#   -- used with 2match to display marked files
+"    s:netrwmarkfilemtch_#   -- used with 2match to display marked files
 "
 "  Creates a buffer version of islocal
 "    b:netrw_islocal
@@ -5136,75 +5193,71 @@ function s:NetrwMarkFile(islocal,fname)
     endif
     let curdir = s:NetrwGetCurdir(a:islocal)
 
-    let ykeep   = @@
-    let curbufnr= bufnr("%")
-    let leader= '\%(^\|\s\)\zs'
-    if a:fname =~ '\a$'
-        let trailer = '\>[@=|\/\*]\=\ze\%(  \|\t\|$\)'
-    else
-        let trailer = '[@=|\/\*]\=\ze\%(  \|\t\|$\)'
-    endif
+    let ykeep    = @@
+    let curbufnr = bufnr("%")
+    let leader   = '\%(^\|\s\)\zs'
+    let word_boundary_trailer = '\>[@=|\/\*]\=\ze\%(  \|\t\|$\)'
+    let fallback_trailer      = '[@=|\/\*]\=\ze\%(  \|\t\|$\)'
+    let trailer = (a:fname =~ '\a$') ? word_boundary_trailer : fallback_trailer
 
     if exists("s:netrwmarkfilelist_".curbufnr)
         " markfile list pre-exists
-        let b:netrw_islocal= a:islocal
+        let b:netrw_islocal = a:islocal
 
         if index(s:netrwmarkfilelist_{curbufnr},a:fname) == -1
             " append filename to buffer's markfilelist
-            call add(s:netrwmarkfilelist_{curbufnr},a:fname)
-            let s:netrwmarkfilemtch_{curbufnr}= s:netrwmarkfilemtch_{curbufnr}.'\|'.leader.escape(a:fname,g:netrw_markfileesc).trailer
+            call add(s:netrwmarkfilelist_{curbufnr},substitute(a:fname,'[|@]$','',''))
+            let s:netrwmarkfilemtch_{curbufnr} = s:netrwmarkfilemtch_{curbufnr}.'\|'.leader.escape(a:fname,g:netrw_markfileesc).trailer
 
         else
             " remove filename from buffer's markfilelist
-            call filter(s:netrwmarkfilelist_{curbufnr},'v:val != a:fname')
+            call filter(s:netrwmarkfilelist_{curbufnr}, {_, v -> v !=# a:fname})
             if s:netrwmarkfilelist_{curbufnr} == []
                 " local markfilelist is empty; remove it entirely
                 call s:NetrwUnmarkList(curbufnr,curdir)
             else
                 " rebuild match list to display markings correctly
-                let s:netrwmarkfilemtch_{curbufnr}= ""
-                let first                         = 1
+                let s:netrwmarkfilemtch_{curbufnr} = ""
+                let first = 1
                 for fname in s:netrwmarkfilelist_{curbufnr}
+                    let curtrailer = (fname =~ '\a$') ? word_boundary_trailer : fallback_trailer
+
+                    let match_str = leader.escape(fname, g:netrw_markfileesc).curtrailer
                     if first
-                        let s:netrwmarkfilemtch_{curbufnr}= s:netrwmarkfilemtch_{curbufnr}.leader.escape(fname,g:netrw_markfileesc).trailer
+                        let s:netrwmarkfilemtch_{curbufnr} = match_str
                     else
-                        let s:netrwmarkfilemtch_{curbufnr}= s:netrwmarkfilemtch_{curbufnr}.'\|'.leader.escape(fname,g:netrw_markfileesc).trailer
+                        let s:netrwmarkfilemtch_{curbufnr} = s:netrwmarkfilemtch_{curbufnr}.'\|'.match_str
                     endif
-                    let first= 0
+                    let first = 0
                 endfor
             endif
         endif
 
     else
         " initialize new markfilelist
-
-        let s:netrwmarkfilelist_{curbufnr}= []
+        let s:netrwmarkfilelist_{curbufnr} = []
         call add(s:netrwmarkfilelist_{curbufnr},substitute(a:fname,'[|@]$','',''))
 
         " build initial markfile matching pattern
-        if a:fname =~ '/$'
-            let s:netrwmarkfilemtch_{curbufnr}= leader.escape(a:fname,g:netrw_markfileesc)
-        else
-            let s:netrwmarkfilemtch_{curbufnr}= leader.escape(a:fname,g:netrw_markfileesc).trailer
-        endif
+        let s:netrwmarkfilemtch_{curbufnr} = leader.escape(a:fname,g:netrw_markfileesc).trailer
     endif
 
     " handle global markfilelist
     if exists("s:netrwmarkfilelist")
-        let dname= netrw#fs#ComposePath(b:netrw_curdir,a:fname)
+        let dname = netrw#fs#ComposePath(b:netrw_curdir,a:fname)
         if index(s:netrwmarkfilelist,dname) == -1
             " append new filename to global markfilelist
             call add(s:netrwmarkfilelist,netrw#fs#ComposePath(b:netrw_curdir,a:fname))
         else
             " remove new filename from global markfilelist
-            call filter(s:netrwmarkfilelist,'v:val != "'.dname.'"')
+            call filter(s:netrwmarkfilelist, {_, v -> v !=# dname})
             if s:netrwmarkfilelist == []
                 unlet s:netrwmarkfilelist
             endif
         endif
     else
         " initialize new global-directory markfilelist
-        let s:netrwmarkfilelist= []
+        let s:netrwmarkfilelist = []
         call add(s:netrwmarkfilelist,netrw#fs#ComposePath(b:netrw_curdir,a:fname))
     endif
 
@@ -5284,6 +5337,8 @@ function s:NetrwMarkFileCompress(islocal)
                 if a:islocal
                     if g:netrw_keepdir
                         let fname= netrw#os#Escape(netrw#fs#ComposePath(curdir,fname))
+                    else
+                        let fname= netrw#os#Escape(fname)
                     endif
                     call system(exe." ".fname)
                     if v:shell_error
@@ -5618,6 +5673,8 @@ function s:NetrwMarkFileExe(islocal,enbloc)
                 if a:islocal
                     if g:netrw_keepdir
                         let fname= netrw#os#Escape(netrw#fs#WinPath(netrw#fs#ComposePath(curdir,fname)))
+                    else
+                        let fname= netrw#os#Escape(netrw#fs#WinPath(fname))
                     endif
                 else
                     let fname= netrw#os#Escape(netrw#fs#WinPath(b:netrw_curdir.fname))
@@ -6321,7 +6378,7 @@ function s:NetrwUnMarkFile(islocal)
     endif
 
     let ibuf= 1
-    while ibuf < bufnr("$")
+    while ibuf <= bufnr("$")
         if exists("s:netrwmarkfilelist_".ibuf)
             unlet s:netrwmarkfilelist_{ibuf}
             unlet s:netrwmarkfilemtch_{ibuf}
@@ -7100,7 +7157,7 @@ function s:NetrwTgtMenu()
                 let tgtdict[bmd]= cnt
                 let ebmd= escape(bmd,g:netrw_menu_escape)
                 " show bookmarks for goto menu
-                exe 'sil! menu <silent> '.g:NetrwMenuPriority.".19.1.".cnt." ".g:NetrwTopLvlMenu.'Targets.'.ebmd." :call netrw#MakeTgt('".bmd."')\<cr>"
+                exe 'sil! menu <silent> '.g:NetrwMenuPriority.".19.1.".cnt." ".g:NetrwTopLvlMenu.'Targets.'.ebmd." :call netrw#MakeTgt(".escape(string(bmd),'|').")\<cr>"
                 let cnt= cnt + 1
             endfor
         endif
@@ -7118,7 +7175,7 @@ function s:NetrwTgtMenu()
                     endif
                     let tgtdict[histentry] = histcnt
                     let ehistentry         = escape(histentry,g:netrw_menu_escape)
-                    exe 'sil! menu <silent> '.g:NetrwMenuPriority.".19.2.".priority." ".g:NetrwTopLvlMenu.'Targets.'.ehistentry."     :call netrw#MakeTgt('".histentry."')\<cr>"
+                    exe 'sil! menu <silent> '.g:NetrwMenuPriority.".19.2.".priority." ".g:NetrwTopLvlMenu.'Targets.'.ehistentry."     :call netrw#MakeTgt(".escape(string(histentry),'|').")\<cr>"
                 endif
                 let histcnt = histcnt + 1
             endwhile
@@ -7216,7 +7273,7 @@ function s:NetrwTreeDisplay(dir,depth)
         " hide given patterns
         let listhide= split(g:netrw_list_hide,',')
         for pat in listhide
-            call filter(w:netrw_treedict[dir],'v:val !~ "'.escape(pat,'\\').'"')
+            call filter(w:netrw_treedict[dir], {_, v -> v !~# pat})
         endfor
 
     elseif g:netrw_hide == 2
@@ -8264,7 +8321,7 @@ function netrw#FileUrlEdit(fname)
     endif
 
     exe "sil doau BufReadPre ".fname2396e
-    exe 'NetrwKeepj keepalt edit '.plainfname
+    exe 'NetrwKeepj keepalt edit '. fnameescape(plainfname)
     exe 'sil! NetrwKeepj keepalt bdelete '.fnameescape(a:fname)
 
     exe "sil doau BufReadPost ".fname2396e
@@ -8631,7 +8688,16 @@ function s:NetrwLocalRename(path) range
             endif
 
             NetrwKeepj norm! 0
+            let reset_ssl = 0
+            if exists('+shellslash') && !&ssl
+                let reset_ssl = 1
+                set ssl
+            endif
+            " Consistently use / as directory separator
             let oldname= netrw#fs#ComposePath(a:path,curword)
+            if reset_ssl
+                set nossl
+            endif
 
             call inputsave()
             let newname= input("Moving ".oldname." to : ",substitute(oldname,'/*$','','e'))
@@ -8752,7 +8818,7 @@ function s:NetrwLocalRmFile(path, fname, all)
             call netrw#msg#Notify('ERROR', printf("unable to delete <%s>!", rmfile))
         else
             " Remove file only if there are no pending changes
-            execute printf('silent! bwipeout %s', rmfile)
+            execute printf('silent! bwipeout %s', fnameescape(rmfile))
         endif
 
     elseif dir && (all || empty(ok))
@@ -8807,8 +8873,7 @@ endfunction
 
 "  netrw#RFC2396: converts %xx into characters {{{2
 function netrw#RFC2396(fname)
-    let fname = escape(substitute(a:fname,'%\(\x\x\)','\=printf("%c","0x".submatch(1))','ge')," \t")
-    return fname
+    return substitute(a:fname, '%\(\x\x\)', '\=printf("%c","0x".submatch(1))', 'ge')
 endfunction
 
 " netrw#UserMaps: supports user-specified maps {{{2
@@ -8940,14 +9005,17 @@ function s:GetTempfile(fname)
     endif
 
     " use fname's suffix for the temporary file
+    " Restrict the suffix to word characters so shell metacharacters in a
+    " remote filename (e.g. sftp://host/foo.txt;id) cannot ride along into
+    " the tempfile name and out into a downstream shell command.
     if a:fname != ""
-        if a:fname =~ '\.[^./]\+$'
+        if a:fname =~ '\.\w\+$'
             if a:fname =~ '\.tar\.gz$' || a:fname =~ '\.tar\.bz2$' || a:fname =~ '\.tar\.xz$'
-                let suffix = ".tar".substitute(a:fname,'^.*\(\.[^./]\+\)$','\1','e')
+                let suffix = ".tar".substitute(a:fname,'^.*\(\.\w\+\)$','\1','e')
             elseif a:fname =~ '.txz$'
-                let suffix = ".txz".substitute(a:fname,'^.*\(\.[^./]\+\)$','\1','e')
+                let suffix = ".txz".substitute(a:fname,'^.*\(\.\w\+\)$','\1','e')
             else
-                let suffix = substitute(a:fname,'^.*\(\.[^./]\+\)$','\1','e')
+                let suffix = substitute(a:fname,'^.*\(\.\w\+\)$','\1','e')
             endif
             let tmpfile= substitute(tmpfile,'\.tmp$','','e')
             let tmpfile .= suffix
@@ -8961,37 +9029,45 @@ endfunction
 " s:MakeSshCmd: transforms input command using USEPORT HOSTNAME into {{{2
 "               a correct command for use with a system() call
 function s:MakeSshCmd(sshcmd)
-    if s:user == ""
-        let sshcmd = substitute(a:sshcmd,'\<HOSTNAME\>',s:machine,'')
-    else
-        let sshcmd = substitute(a:sshcmd,'\<HOSTNAME\>',s:user."@".s:machine,'')
+    let machine = shellescape(s:machine, 1)
+    if s:user != ''
+        let machine    = shellescape(s:user, 1).'@'.machine
     endif
+    let sshcmd = substitute(a:sshcmd,'\<HOSTNAME\>',machine,'')
     if exists("g:netrw_port") && g:netrw_port != ""
-        let sshcmd= substitute(sshcmd,"USEPORT",g:netrw_sshport.' '.g:netrw_port,'')
+        let sshcmd= substitute(sshcmd,"USEPORT",g:netrw_sshport.' '.shellescape(g:netrw_port,1),'')
     elseif exists("s:port") && s:port != ""
-        let sshcmd= substitute(sshcmd,"USEPORT",g:netrw_sshport.' '.s:port,'')
+        let sshcmd= substitute(sshcmd,"USEPORT",g:netrw_sshport.' '.shellescape(s:port,1),'')
     else
         let sshcmd= substitute(sshcmd,"USEPORT ",'','')
     endif
     return sshcmd
 endfunction
 
-" s:MakeBookmark: enters a bookmark into Netrw's bookmark system   {{{2
+" s:MakeBookmark: enters a bookmark into Netrw's bookmark system {{{2
+" Note that bookmark paths should always be absolute.
 function s:MakeBookmark(fname)
 
     if !exists("g:netrw_bookmarklist")
-        let g:netrw_bookmarklist= []
+        let g:netrw_bookmarklist = []
     endif
 
-    if index(g:netrw_bookmarklist,a:fname) == -1
-        " curdir not currently in g:netrw_bookmarklist, so include it
-        if isdirectory(s:NetrwFile(a:fname)) && a:fname !~ '/$'
-            call add(g:netrw_bookmarklist,a:fname.'/')
-        elseif a:fname !~ '/'
-            call add(g:netrw_bookmarklist,getcwd()."/".a:fname)
-        else
-            call add(g:netrw_bookmarklist,a:fname)
-        endif
+    " Normalize path to prevent duplicate entries
+    let bookmark_path = netrw#fs#AbsPath(s:NetrwFile(a:fname))
+    let ignore_case = 0
+    if has('win32')
+        let bookmark_path = substitute(bookmark_path, '\\', '/', 'ge')
+        let ignore_case = 1
+    endif
+    let bookmark_path = simplify(bookmark_path)
+
+    if isdirectory(bookmark_path) && bookmark_path !~ '/$'
+        let bookmark_path .= '/'
+    endif
+
+    if index(g:netrw_bookmarklist, bookmark_path, 0, ignore_case) == -1
+        " Not currently in the bookmarks list, so include it
+        call add(g:netrw_bookmarklist, bookmark_path)
         call sort(g:netrw_bookmarklist)
     endif
 
@@ -9227,12 +9303,9 @@ function s:NetrwLcd(newdir)
 
     if err472
         call netrw#msg#Notify('ERROR', printf('unable to change directory to <%s> (permissions?)', a:newdir))
-        if exists("w:netrw_prvdir")
-            let a:newdir= w:netrw_prvdir
-        else
+        if !exists("w:netrw_prvdir")
             call s:NetrwOptionsRestore("w:")
             exe "setl ".g:netrw_bufsettings
-            let a:newdir= dirname
         endif
         return -1
     endif
