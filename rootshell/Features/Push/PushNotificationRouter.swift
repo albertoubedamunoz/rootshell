@@ -286,6 +286,18 @@ enum PushNotificationRouter {
                 }
             }
             noteDelivered(identifier: notification.request.identifier, pane: resolved.surfaceID, status: status)
+            if header.kind == "agent" {
+                // The island mirrors this push. `eid` is the dedupe key: a raw
+                // delivery that later gets replaced by its decrypted re-post
+                // must not show up as two rows.
+                LiveActivityManager.shared.noteAgentEvent(
+                    id: PushEnvelope(userInfo: content.userInfo)?.eid ?? notification.request.identifier,
+                    agent: header.agent ?? "",
+                    status: header.status ?? "",
+                    at: notification.date,
+                    deepLink: Self.paneDeepLink(surfaceID: resolved.surfaceID)
+                )
+            }
         } else {
             deliveryReconciler.trackFresh(identifier: notification.request.identifier,
                                           header: header, receivedAt: notification.date)
@@ -306,6 +318,9 @@ enum PushNotificationRouter {
     /// Called from the attention router's seen pass: looking at the pane
     /// answers its push notifications too.
     static func paneViewed(_ pane: UUID) {
+        // Looking at the pane answers the island too, whether or not there is
+        // still a notification to withdraw.
+        LiveActivityManager.shared.markAgentRead(surfaceID: pane)
         guard let ids = deliveredIdentifiers.removeValue(forKey: pane), !ids.isEmpty else { return }
         NotificationManager.shared.removeNotifications(identifiers: Array(ids))
     }
@@ -324,6 +339,7 @@ enum PushNotificationRouter {
         }
         if let resolved = resolve(header.route) {
             pending = nil
+            if header.kind == "agent" { LiveActivityManager.shared.markAgentRead(surfaceID: resolved.surfaceID) }
             navigate(to: resolved)
         } else {
             // A notification response has already activated the process, but
@@ -335,8 +351,95 @@ enum PushNotificationRouter {
         }
     }
 
+    // MARK: - Live Activity inbox deep links
+
+    /// A Live Activity row points at one pane; the fold row points at the pass.
+    /// Resolved here rather than in the view so retry logic (projection still
+    /// pending, tab not restored yet) is shared with notification taps.
+    static func handleLiveActivityURL(_ url: URL) -> Bool {
+        guard url.scheme == "rootshell" else { return false }
+        switch url.host {
+        case "pane":
+            guard let raw = url.pathComponents.dropFirst().first,
+                  let surfaceID = UUID(uuidString: raw) else { return false }
+            openInboxItem(surfaceID: surfaceID)
+            return true
+        case "inbox":
+            // The fold row and a tap on the compact island land on the inbox,
+            // not on the tab switcher: the inbox is where a message can be
+            // read and answered.
+            NotificationCenter.default.post(name: .showAgentInbox, object: nil)
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// An inbox row tap. The exact pane is preferred, because that is where
+    /// the message came from; when the pane is gone (session closed, tmux pane
+    /// recreated) the tab that the message named is still the right place to
+    /// land, so fall back to it instead of doing nothing.
+    static func openInboxRow(deepLink: URL?, tabTitle: String?) {
+        // A pane URL always "succeeds" (it arms a retry when the surface is not
+        // projecting yet), which would stop us from ever reaching the tab
+        // fallback. Resolve first, and only accept the deep link when it lands.
+        if let deepLink, deepLink.host == "pane",
+           let raw = deepLink.pathComponents.dropFirst().first,
+           let surfaceID = UUID(uuidString: raw) {
+            if resolve(surfaceID: surfaceID) != nil {
+                _ = handleLiveActivityURL(deepLink)
+                return
+            }
+        } else if let deepLink, handleLiveActivityURL(deepLink) {
+            return
+        }
+        guard let tabTitle,
+              let match = TerminalWindowRegistry.tabID(matchingTitle: tabTitle),
+              let model = TerminalWindowRegistry.tabsModel(for: match.windowId),
+              let tab = model.tabs.first(where: { $0.id == match.tabID }) else {
+            logger.info("inbox row: no pane and no tab titled \(tabTitle ?? "-", privacy: .public)")
+            return
+        }
+        guard let surfaceID = tab.focusedPane?.uuid ?? tab.splitTree.first?.uuid else { return }
+        navigate(to: Resolved(windowId: match.windowId, tabID: match.tabID, surfaceID: surfaceID))
+    }
+
+    /// `rootshell://pane/<surface-uuid>` — the tap target of one inbox row.
+    static func paneDeepLink(surfaceID: UUID) -> URL {
+        URL(string: "rootshell://pane/\(surfaceID.uuidString)")!
+    }
+
+    private static func openInboxItem(surfaceID: UUID) {
+        if let resolved = resolve(surfaceID: surfaceID) {
+            pendingInboxPane = nil
+            LiveActivityManager.shared.markAgentRead(surfaceID: surfaceID)
+            navigate(to: resolved)
+        } else {
+            // The pane may still be projecting (tmux/herdr) or its window may
+            // not have restored yet. bindingsDidChange retries this.
+            pendingInboxPane = InboxPaneRetry(surfaceID: surfaceID, expires: Date().addingTimeInterval(60))
+        }
+    }
+
+    private struct InboxPaneRetry {
+        let surfaceID: UUID
+        let expires: Date
+    }
+
+    private static var pendingInboxPane: InboxPaneRetry?
+
+    private static func retryPendingInboxPane() {
+        guard let p = pendingInboxPane else { return }
+        guard p.expires > Date() else { pendingInboxPane = nil; return }
+        guard let resolved = resolve(surfaceID: p.surfaceID) else { return }
+        pendingInboxPane = nil
+        LiveActivityManager.shared.markAgentRead(surfaceID: p.surfaceID)
+        navigate(to: resolved)
+    }
+
     /// Retried when tabs restore, multiplexer panes project, or a scene activates.
     static func retryPending() {
+        retryPendingInboxPane()
         guard let p = pending else { return }
         guard p.expires > Date() else { pending = nil; return }
         guard let resolved = resolve(p.route) else { return }

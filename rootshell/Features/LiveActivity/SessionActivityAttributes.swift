@@ -88,6 +88,21 @@ nonisolated struct SessionActivityAttributes: ActivityAttributes, Sendable {
         /// with existing call sites that don't set this field.
         var appIconVariant: String = ""
 
+        // MARK: - Agent Inbox (privacy option A)
+
+        /// Unread agent events, newest first, capped at the Lock Screen row
+        /// limit. **The type carries no title and no body** — option A of the
+        /// Live Activity privacy decision: `content-state` is plaintext and
+        /// the widget extension renders it without passing through the
+        /// Notification Service Extension, so message text must never enter
+        /// it. `AgentInboxItem` has no field that could hold one.
+        var agentItems: [AgentInboxItem] = []
+
+        /// Total unread agent events. Can exceed `agentItems.count` (the
+        /// array is capped); the expanded island folds the difference into a
+        /// single "N more" row.
+        var agentUnreadTotal: Int = 0
+
         /// Asset name for the widget's composed display PNG matching
         /// `appIconVariant`. Mirrors `AppIconManager.AppIconVariant.previewAssetName`.
         /// The widget's asset catalog carries copies of these imagesets so
@@ -117,6 +132,134 @@ nonisolated struct SessionActivityAttributes: ActivityAttributes, Sendable {
             default:                     return "AppIconPreview"
             }
         }
+    }
+}
+
+extension SessionActivityAttributes.ContentState {
+    /// Rows the expanded Dynamic Island shows before folding.
+    ///
+    /// Height budget: header 20 + 3 × 34 + footer 22 ≈ 144pt, inside the
+    /// 84–160pt expanded range (see DESIGN §6). Never raise this without
+    /// redoing that arithmetic — the island cannot scroll.
+    static let expandedAgentItemLimit = 3
+
+    /// Rows the Lock Screen banner shows. The banner is a full 160pt card, so
+    /// it can afford two more than the island.
+    static let lockScreenAgentItemLimit = 5
+
+    /// Unread total, floored at what is actually carried so the badge can
+    /// never disagree with the list it labels.
+    var agentUnreadCount: Int { max(agentUnreadTotal, agentItems.count) }
+
+    var hasAgentInbox: Bool { agentUnreadCount > 0 }
+
+    /// Most recently received event — drives compact leading/most recent tap.
+    var agentInboxMostRecent: AgentInboxItem? { agentItems.first }
+
+    var agentInboxExpandedItems: [AgentInboxItem] {
+        Array(agentItems.prefix(Self.expandedAgentItemLimit))
+    }
+
+    /// Lock Screen rows. One line is held back for the fold row when there is
+    /// overflow, so the card never grows past five lines.
+    var agentInboxLockScreenRows: [AgentInboxItem] {
+        let limit = agentUnreadCount > Self.lockScreenAgentItemLimit
+            ? Self.lockScreenAgentItemLimit - 1
+            : Self.lockScreenAgentItemLimit
+        return Array(agentItems.prefix(limit))
+    }
+
+    /// Events the Lock Screen could not draw.
+    var agentInboxLockScreenFoldedCount: Int {
+        max(0, agentUnreadCount - agentInboxLockScreenRows.count)
+    }
+
+    /// Events that did not fit on the island — the "N more" row.
+    var agentInboxFoldedCount: Int {
+        max(0, agentUnreadCount - Self.expandedAgentItemLimit)
+    }
+
+    /// Distinct agents among the carried rows, for the expanded header.
+    var agentInboxAgentCount: Int { Set(agentItems.map(\.agent)).count }
+
+    /// True when any carried event is waiting on the user.
+    var agentInboxHasBlocked: Bool {
+        agentItems.contains { AgentInboxStatus(raw: $0.status) == .blocked }
+    }
+}
+
+/// One agent event on the island.
+///
+/// **Privacy option A, enforced by the type system:** there is no `title` and
+/// no `body` here, and there must never be. The Live Activity `content-state`
+/// is plaintext and is rendered by the widget extension directly — it does not
+/// pass through the Notification Service Extension that decrypts pushes — so
+/// anything in this struct is visible to anyone holding the phone and to
+/// whatever produced the payload. The island answers "which agent, what state,
+/// how long ago"; the message itself is only readable after tapping through.
+nonisolated struct AgentInboxItem: Codable, Hashable, Sendable, Identifiable {
+    /// Push event id (`eid`), used to dedupe a redelivered event.
+    var id: String
+
+    /// Manifest agent id (`claude`, `codex`, `pi`, …), not a display name.
+    var agent: String
+
+    /// Push status verbatim: `blocked` / `done` / `failed`.
+    var status: String
+
+    /// When the event arrived. Rows are ordered by this, newest first.
+    var at: Date
+
+    /// Pane to open on tap: `rootshell://pane/<surface-uuid>`.
+    var deepLink: URL
+
+    init(id: String, agent: String, status: String, at: Date, deepLink: URL) {
+        self.id = id
+        self.agent = agent
+        self.status = status
+        self.at = at
+        self.deepLink = deepLink
+    }
+}
+
+/// Presentation-only view of `AgentInboxItem.status`. Kept out of the wire
+/// format so an unknown status from a newer relay degrades instead of failing
+/// to decode.
+nonisolated enum AgentInboxStatus: String, Sendable {
+    case blocked
+    case failed
+    case done
+    case other
+
+    init(raw: String) {
+        self = AgentInboxStatus(rawValue: raw) ?? .other
+    }
+}
+
+/// App-group marker written by the island's "mark all read" intent.
+///
+/// A `LiveActivityIntent` runs in the widget extension, which cannot mutate the
+/// app's unread state — but it can end the activity immediately. The marker is
+/// how the app learns about that action on its next activation, so the island
+/// does not respawn with the events the user just dismissed (DESIGN §2.5).
+nonisolated enum AgentInboxReadMarker {
+    private static let key = "live_activity_agent_inbox_read_at"
+
+    private static var defaults: UserDefaults? {
+        UserDefaults(suiteName: AppIdentifiers.defaultAppGroupID)
+    }
+
+    static func markRead(at date: Date = Date()) {
+        defaults?.set(date.timeIntervalSince1970, forKey: key)
+    }
+
+    static func lastReadAt() -> Date? {
+        guard let interval = defaults?.object(forKey: key) as? TimeInterval else { return nil }
+        return Date(timeIntervalSince1970: interval)
+    }
+
+    static func clear() {
+        defaults?.removeObject(forKey: key)
     }
 }
 
@@ -163,6 +306,12 @@ extension SessionActivityAttributes.ContentState {
         agentIdleCount = try c.decodeIfPresent(Int.self, forKey: .agentIdleCount) ?? 0
         agentCountsFrozen = try c.decodeIfPresent(Bool.self, forKey: .agentCountsFrozen) ?? false
         appIconVariant = try c.decodeIfPresent(String.self, forKey: .appIconVariant) ?? ""
+        // A state written before the inbox existed has no rows and no total.
+        // A malformed row must not take the whole activity down either: the
+        // island is a glance surface, so drop what cannot be read and keep
+        // the session/VPN fields that still decode.
+        agentItems = (try? c.decodeIfPresent([AgentInboxItem].self, forKey: .agentItems)) ?? []
+        agentUnreadTotal = try c.decodeIfPresent(Int.self, forKey: .agentUnreadTotal) ?? agentItems.count
     }
 }
 #endif

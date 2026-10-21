@@ -17604,6 +17604,23 @@
         }
       }
     },
+    "%lld d ago" : {
+      "comment" : "Inbox relative time",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 天前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 天前"
+          }
+        }
+      }
+    },
     "%lld done" : {
       "comment" : "Agent status rollup: number of completed agents",
       "localizations" : {
@@ -18988,6 +19005,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已設定 %lld 個轉發"
+          }
+        }
+      }
+    },
+    "%lld hr ago" : {
+      "comment" : "Inbox relative time",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 小时前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 小時前"
           }
         }
       }
@@ -20545,6 +20579,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld 分鐘"
+          }
+        }
+      }
+    },
+    "%lld min ago" : {
+      "comment" : "Inbox relative time",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分钟前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分鐘前"
           }
         }
       }
@@ -63453,6 +63504,23 @@
         }
       }
     },
+    "Agent Inbox" : {
+      "comment" : "Inbox title",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收件箱"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收件匣"
+          }
+        }
+      }
+    },
     "Agent Notifications" : {
       "comment" : "Setting title",
       "localizations" : {
@@ -68394,6 +68462,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "匯入的所有設定檔都會儲存到此檔案夾中。若不使用檔案夾，請選擇 \"Root\"，或建立一個新的檔案夾。"
+          }
+        }
+      }
+    },
+    "All Messages" : {
+      "comment" : "Inbox filter",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
           }
         }
       }
@@ -86775,6 +86860,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "封存"
+          }
+        }
+      }
+    },
+    "Archive Message" : {
+      "comment" : "Inbox row action",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "归档"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "封存"
+          }
+        }
+      }
+    },
+    "Archived" : {
+      "comment" : "Inbox section",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已归档"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已封存"
           }
         }
       }
@@ -232963,6 +233082,91 @@
         }
       }
     },
+    "Demo: Bash wants to run `wrangler deploy --env prod`" : {
+      "comment" : "Demo seed text (debug builds only)",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：Bash 想执行 `wrangler deploy --env prod`"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：Bash 想執行 `wrangler deploy --env prod`"
+          }
+        }
+      }
+    },
+    "Demo: dependency install failed, lockfile conflict" : {
+      "comment" : "Demo seed text (debug builds only)",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：依赖安装失败，lockfile 版本冲突"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：依賴安裝失敗，lockfile 版本衝突"
+          }
+        }
+      }
+    },
+    "Demo: editing src/session/store.ts · 58%" : {
+      "comment" : "Demo seed text (debug builds only)",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：编辑 src/session/store.ts · 58%"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：編輯 src/session/store.ts · 58%"
+          }
+        }
+      }
+    },
+    "Demo: keep Clerk sessions, self-host Auth.js" : {
+      "comment" : "Demo seed text (debug builds only)",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：评估 Clerk 会话，自托管 Auth.js"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：評估 Clerk 工作階段，自架 Auth.js"
+          }
+        }
+      }
+    },
+    "Demo: retry button after the 10s timeout, 14 tests pass" : {
+      "comment" : "Demo seed text (debug builds only)",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：10s 超时后加重试按钮，14 个测试通过"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：10s 逾時後加重試按鈕，14 個測試通過"
+          }
+        }
+      }
+    },
     "Denied" : {
       "comment" : "Location Diary authorization status",
       "localizations" : {
@@ -298341,6 +298545,23 @@
         }
       }
     },
+    "Failed Runs" : {
+      "comment" : "Inbox filter",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失败"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失敗"
+          }
+        }
+      }
+    },
     "Failed to access credentials: %@" : {
       "comment" : "VPN error: could not load the SSH credential; detail is the reason",
       "localizations" : {
@@ -310403,6 +310624,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "指紋：%@"
+          }
+        }
+      }
+    },
+    "Finished" : {
+      "comment" : "Inbox section",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成"
           }
         }
       }
@@ -355821,6 +356059,23 @@
         }
       }
     },
+    "Hook messages from your agents land here." : {
+      "comment" : "Inbox empty state description",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来自 Claude、Codex 等 agent 的 hook 消息会汇总到这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來自 Claude、Codex 等 agent 的 hook 訊息會彙總到這裡。"
+          }
+        }
+      }
+    },
     "Horizontal" : {
       "localizations" : {
         "ar" : {
@@ -375271,6 +375526,23 @@
         }
       }
     },
+    "In Progress" : {
+      "comment" : "Inbox section",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进行中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "進行中"
+          }
+        }
+      }
+    },
     "In the local shell, ping reaches tailnet devices; mtr, traceroute and nc don't." : {
       "comment" : "Tailscale rootshell Only footer",
       "localizations" : {
@@ -394290,6 +394562,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kanagawa Wave"
+          }
+        }
+      }
+    },
+    "Just Now" : {
+      "comment" : "Inbox relative time",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刚刚"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剛剛"
           }
         }
       }
@@ -444635,6 +444924,23 @@
         }
       }
     },
+    "Mark All Read" : {
+      "comment" : "Inbox action",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部已读"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部已讀"
+          }
+        }
+      }
+    },
     "Markdown image" : {
       "comment" : "Attachment upload insert format",
       "localizations" : {
@@ -468734,6 +469040,23 @@
         }
       }
     },
+    "Needs You" : {
+      "comment" : "Inbox section",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待处理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待處理"
+          }
+        }
+      }
+    },
     "Needs input" : {
       "localizations" : {
         "ar" : {
@@ -481858,6 +482181,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "尚無擷取工作階段。"
+          }
+        }
+      }
+    },
+    "No Agent Messages" : {
+      "comment" : "Inbox empty state title",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无 agent 消息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫無 agent 訊息"
           }
         }
       }
@@ -520327,6 +520667,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開啟工作樹…"
+          }
+        }
+      }
+    },
+    "Open to Decide" : {
+      "comment" : "Inbox row action",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开并确认"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟並確認"
           }
         }
       }
@@ -890353,6 +890710,132 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "縮放窗格 %@：%@"
+          }
+        }
+      }
+    },
+    "Hook messages from Claude, Codex and other agents land here." : {
+      "comment" : "Inbox empty state",
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来自 Claude、Codex 等代理的 hook 消息会汇总到这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來自 Claude、Codex 等代理的 hook 訊息會彙整到這裡。"
+          }
+        }
+      }
+    },
+    "Inbox" : {
+      "comment" : "Inbox screen title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收件箱"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收件匣"
+          }
+        }
+      }
+    },
+    "Just now" : {
+      "comment" : "Inbox relative time",
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刚刚"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剛剛"
+          }
+        }
+      }
+    },
+    "Mark all read" : {
+      "comment" : "Inbox action",
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部标记已读"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部標記已讀"
+          }
+        }
+      }
+    },
+    "Needs you" : {
+      "comment" : "Inbox section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待处理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待處理"
+          }
+        }
+      }
+    },
+    "No agent messages" : {
+      "comment" : "Inbox empty state",
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无代理消息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫無代理訊息"
+          }
+        }
+      }
+    },
+    "Open to decide" : {
+      "comment" : "Inbox row action",
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开以处理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟以處理"
           }
         }
       }

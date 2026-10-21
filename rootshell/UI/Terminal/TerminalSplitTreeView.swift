@@ -2308,6 +2308,8 @@ extension Notification.Name {
     static let touchModeChanged = Notification.Name("com.rootshell.touchModeChanged")
     static let keyboardToolbarHardwareSettingChanged = Notification.Name("com.rootshell.keyboardToolbarHardwareSettingChanged")
     static let showTabSwitcher = Notification.Name("com.rootshell.showTabSwitcher")
+    /// The island's fold row asks for the agent inbox screen.
+    static let showAgentInbox = Notification.Name("com.rootshell.showAgentInbox")
     static let toggleTabExpose = Notification.Name("com.rootshell.toggleTabExpose")
     static let previousGroup = Notification.Name("com.rootshell.previousGroup")
     static let nextGroup = Notification.Name("com.rootshell.nextGroup")

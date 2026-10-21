@@ -151,6 +151,7 @@ extension MainView {
         }
     }
 
+
     @ViewBuilder
     func applySheetModifiers<V: View>(_ view: V, sheetTheme: ResolvedSheetTheme) -> some View {
         let dashboardHost = applyHerdrDashboard(view)
@@ -326,6 +327,29 @@ extension MainView {
                       let leafId = info["leafId"] as? UUID else { return }
                 handleTrzszTransferLeafRemoval(tabId: tabId, leafId: leafId)
             }
+            // The inbox is a first-class screen of the app, not a detour: it is
+            // presented here (inside MainView) so it inherits the same theme
+            // environment as every other sheet. The island's tap lands on it,
+            // and SwiftUI silently drops a second presentation while the
+            // connection sheet is up — so close that one first, then present
+            // after its dismissal animation.
+            .onReceive(NotificationCenter.default.publisher(for: .showAgentInbox)) { _ in
+                showConnectionSidebar = false
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(450))
+                    showAgentInbox = true
+                }
+            }
+            // The app opens on its normal screen; a right-swipe from the
+            // leading edge (or an island tap) brings the inbox up, themed like
+            // every other panel. Mechanics live in the modifier so this chain
+            // stays type-checkable.
+            .modifier(AgentInboxSheetModifier(
+                isPresented: $showAgentInbox,
+                themeColors: sheetTheme.themeColors,
+                accentColor: sheetTheme.accentColor,
+                colorScheme: sheetTheme.colorScheme
+            ))
             .modifier(ConnectionSidebarModifier(
                 showSidebar: $showConnectionSidebar,
                 contentID: AnyHashable(connectionSidebarInitialTab),
@@ -536,7 +560,6 @@ extension MainView {
                 )
             }
     }
-
 }
 
 /// "Ask Each Time" close of a tmux or herdr control-mode tab: close on the

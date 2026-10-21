@@ -317,6 +317,7 @@ class LiveActivityManager {
             Self.logger.info("Adopting orphaned Live Activity \(primary.id) from previous launch")
             currentActivity = primary
             lastPublishedState = primary.content.state
+            adoptAgentInbox(from: primary.content.state)
             isActivityActive = true
             // activityStartDate isn't recoverable from ActivityKit; leave it
             // nil so the next updateActivity / startActivity uses Date(). The
@@ -434,6 +435,10 @@ class LiveActivityManager {
     func reconcileAfterActivation() {
         let start = CFAbsoluteTimeGetCurrent()
         LifecycleDebugLogger.shared.checkpoint("LiveActivity.reconcile.enter")
+        // The island's "mark all read" intent runs in the widget extension and
+        // can only leave a timestamp behind; apply it before publishing so the
+        // activity does not come back with rows the user already dismissed.
+        consumeInboxReadMarker()
         if isAgentInfoEnabled {
             refreshAgentCountsCache()
         }
@@ -936,6 +941,133 @@ class LiveActivityManager {
         }
     }
 
+    // MARK: - Agent Inbox
+
+    /// Unread agent events shown on the island, newest first.
+    ///
+    /// This array is the source of truth; the content state only carries a
+    /// prefix of it because the Lock Screen draws at most five rows. The rows
+    /// hold no message text — see `AgentInboxItem`.
+    @ObservationIgnored
+    private var agentInboxItems: [AgentInboxItem] = []
+
+    /// What we keep in memory. Past the lock-screen rows the extra events only
+    /// exist to keep the folded total honest, so the cap can be generous
+    /// without touching the island's 4KB budget.
+    private static let agentInboxMemoryLimit = 50
+
+    /// Unread total published on the island.
+    private var agentInboxUnreadTotal: Int { agentInboxItems.count }
+
+    /// Unread events shown under the current filter. Mirrors
+    /// `displayedAgentCount`: the VPN Only filter hides agent content entirely,
+    /// and the agent toggle gates the whole feature.
+    var displayedAgentInboxCount: Int {
+        guard isAgentInfoEnabled, sessionFilter != .vpnOnly else { return 0 }
+        return agentInboxUnreadTotal
+    }
+
+    /// Rows plus folded total for the current filter.
+    private var displayedAgentInbox: (items: [AgentInboxItem], total: Int) {
+        guard displayedAgentInboxCount > 0 else { return ([], 0) }
+        return (Array(agentInboxItems.prefix(SessionActivityAttributes.ContentState.lockScreenAgentItemLimit)),
+                agentInboxUnreadTotal)
+    }
+
+    /// Records one delivered agent event and refreshes the island.
+    ///
+    /// Called from `PushNotificationRouter` at the point a push is actually
+    /// surfaced — an event the user is already looking at never reaches here.
+    /// Everything about the message except "which agent, what status, when" is
+    /// dropped on the floor: the island cannot carry it (privacy option A).
+    func noteAgentEvent(id: String, agent: String, status: String, at date: Date = Date(), deepLink: URL) {
+        guard isEnabled, isAgentInfoEnabled, sessionFilter != .vpnOnly else { return }
+        consumeInboxReadMarker()
+        // A redelivered push must not add a second row or, worse, jump back to
+        // the top of the list.
+        guard !agentInboxItems.contains(where: { $0.id == id }) else { return }
+        // Anything at or before the last "mark all read" was already answered:
+        // a ledger replay or a late duplicate must not bring it back.
+        if let readAt = AgentInboxReadMarker.lastReadAt(), date <= readAt { return }
+
+        agentInboxItems.insert(
+            AgentInboxItem(id: id, agent: agent, status: status, at: date, deepLink: deepLink),
+            at: 0
+        )
+        if agentInboxItems.count > Self.agentInboxMemoryLimit {
+            agentInboxItems.removeLast(agentInboxItems.count - Self.agentInboxMemoryLimit)
+        }
+
+        // A hook that needs an answer is exactly the event a previously
+        // dismissed island should come back for.
+        userDismissed = false
+        cancelStartRetry(resetAttempts: true)
+        reconcileActivityLifecycle(reason: "agent event")
+    }
+
+    /// Drops one event by id. No-op when it is not in the inbox.
+    func markAgentRead(itemID: String) {
+        guard agentInboxItems.contains(where: { $0.id == itemID }) else { return }
+        agentInboxItems.removeAll { $0.id == itemID }
+        endIfEmpty()
+    }
+
+    /// Drops every event that points at one pane — the same path
+    /// `PushNotificationRouter.paneViewed` already uses for notification
+    /// withdrawal, so looking at a pane answers both surfaces at once.
+    func markAgentRead(surfaceID: UUID) {
+        let before = agentInboxItems.count
+        agentInboxItems.removeAll { item in
+            guard let id = UUID(uuidString: item.deepLink.lastPathComponent) else { return false }
+            return id == surfaceID
+        }
+        guard agentInboxItems.count != before else { return }
+        endIfEmpty()
+    }
+
+    /// Clears the whole inbox. The island is only ended when nothing else —
+    /// sessions, VPN, WiFi/network info — still has a claim on it; sessions
+    /// must survive a "mark all read".
+    func markAllAgentRead() {
+        guard !agentInboxItems.isEmpty else { return }
+        agentInboxItems.removeAll()
+        AgentInboxReadMarker.markRead()
+        reconcileActivityLifecycle(reason: "agent inbox marked read")
+    }
+
+    /// Re-reads eligibility and ends the island only if nothing else — a
+    /// session, VPN, WiFi/network info — still wants it. An empty inbox alone
+    /// must never leave a "0 unread" island behind.
+    func endIfEmpty() {
+        guard isEnabled else { return }
+        reconcileActivityLifecycle(reason: "agent inbox changed")
+    }
+
+    /// Applies a "mark all read" performed on the island by the widget intent,
+    /// which can only leave a timestamp in the app group: the intent runs in
+    /// the widget extension and cannot see this array.
+    ///
+    /// The timestamp stays behind as a watermark — `noteAgentEvent` refuses
+    /// anything at or before it — so clearing the island once cannot be undone
+    /// by a replayed delivery record.
+    private func consumeInboxReadMarker() {
+        guard let readAt = AgentInboxReadMarker.lastReadAt(), !agentInboxItems.isEmpty else { return }
+        let before = agentInboxItems.count
+        agentInboxItems.removeAll { $0.at <= readAt }
+        let cleared = before - agentInboxItems.count
+        if cleared > 0 {
+            Self.logger.info("Agent inbox: \(cleared) event(s) cleared by island intent")
+        }
+    }
+
+    /// Seed the in-memory inbox from an activity this process just adopted.
+    /// The activity's state is the only record of what the island is already
+    /// showing; without this the first republish would silently empty it.
+    private func adoptAgentInbox(from state: SessionActivityAttributes.ContentState) {
+        guard agentInboxItems.isEmpty, !state.agentItems.isEmpty else { return }
+        agentInboxItems = state.agentItems
+    }
+
     // MARK: - Filter Logic
 
     /// Computed filtered session count based on current filter
@@ -952,6 +1084,9 @@ class LiveActivityManager {
 
     /// Build a ContentState based on the current filter
     private func filteredContentState(at date: Date) -> SessionActivityAttributes.ContentState {
+        // Read once: the island and the Lock Screen draw the same prefix, and
+        // the folded total has to agree with the rows it labels.
+        let inbox = displayedAgentInbox
         switch sessionFilter {
         case .vpnOnly:
             return SessionActivityAttributes.ContentState(
@@ -976,7 +1111,9 @@ class LiveActivityManager {
                 networkASName: isNetworkInfoEnabled ? lastNetworkASName : nil,
                 networkCountryFlag: isNetworkInfoEnabled ? lastNetworkCountryFlag : nil,
                 networkType: isNetworkInfoEnabled ? lastNetworkType : nil,
-                appIconVariant: AppIconManager.shared.selectedVariant.rawValue
+                appIconVariant: Self.currentIconVariant,
+                agentItems: inbox.items,
+                agentUnreadTotal: inbox.total
             )
 
         case .diary:
@@ -1007,7 +1144,9 @@ class LiveActivityManager {
                 agentWorkingCount: shownAgentWorkingCount,
                 agentAttentionCount: shownAgentAttentionCount,
                 agentIdleCount: shownAgentIdleCount,
-                appIconVariant: AppIconManager.shared.selectedVariant.rawValue
+                appIconVariant: Self.currentIconVariant,
+                agentItems: inbox.items,
+                agentUnreadTotal: inbox.total
             )
 
         case .all, .infoOnly:
@@ -1044,7 +1183,9 @@ class LiveActivityManager {
                 agentWorkingCount: shownAgentWorkingCount,
                 agentAttentionCount: shownAgentAttentionCount,
                 agentIdleCount: shownAgentIdleCount,
-                appIconVariant: AppIconManager.shared.selectedVariant.rawValue
+                appIconVariant: Self.currentIconVariant,
+                agentItems: inbox.items,
+                agentUnreadTotal: inbox.total
             )
         }
     }
@@ -1073,6 +1214,9 @@ class LiveActivityManager {
         // Coding agents keep the activity alive on their own (a tssh-only
         // user has no diary sessions to do it), except in VPN Only mode.
         if displayedAgentCount > 0 { return true }
+        // An unread agent event is its own reason to be on the island: a hook
+        // that needs an answer must be reachable without the app running.
+        if displayedAgentInboxCount > 0 { return true }
         // Info Only: keep activity alive on WiFi/Network info alone.
         // Require at least one info source enabled to avoid an empty widget.
         if sessionFilter == .infoOnly && (isWiFiInfoEnabled || isNetworkInfoEnabled) {
@@ -1081,8 +1225,37 @@ class LiveActivityManager {
         return false
     }
 
+    /// Icon the island draws. `-AgentInboxDemoIcon <Variant>` pins it in debug
+    /// builds so the switcher can be exercised without tapping the system
+    /// icon-change alert; shipping builds always follow the real selection.
+    static var currentIconVariant: String {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-AgentInboxDemoIcon"), index + 1 < arguments.count {
+            return arguments[index + 1]
+        }
+        #endif
+        return AppIconManager.shared.selectedVariant.rawValue
+    }
+
+    #if DEBUG
+    /// Design-review hook: puts the island into the agent-inbox state without
+    /// depending on settings or a real hook push. Debug builds only.
+    func debugSeedAgentInbox(_ items: [AgentInboxItem]) {
+        isEnabled = true
+        isAgentInfoEnabled = true
+        agentInboxItems = items
+        userDismissed = false
+        cancelStartRetry(resetAttempts: true)
+        reconcileActivityLifecycle(reason: "debug seed")
+    }
+    #endif
+
     private func reconcileActivityLifecycle(reason: String) {
         dropInactiveCurrentActivityIfNeeded()
+        #if DEBUG
+        Self.logger.info("reconcile(\(reason, privacy: .public)) enabled=\(self.isEnabled) agentInfo=\(self.isAgentInfoEnabled) items=\(self.agentInboxItems.count) eligible=\(self.hasEligibleActivityContent) current=\(self.currentActivity != nil)")
+        #endif
 
         guard hasEligibleActivityContent else {
             cancelStartRetry(resetAttempts: true)
@@ -1116,6 +1289,7 @@ class LiveActivityManager {
         Self.logger.info("Adopting existing Live Activity \(primary.id) during lifecycle reconciliation")
         currentActivity = primary
         lastPublishedState = primary.content.state
+        adoptAgentInbox(from: primary.content.state)
         isActivityActive = true
         observeActivityState()
         startInfoPollingDeferred()
@@ -1281,6 +1455,9 @@ class LiveActivityManager {
         isActivityActive = false
         cancelAgentPublish()
         lastPublishedState = nil
+        // Nothing eligible is left, so the rows describing those events are
+        // stale: they must not resurrect the next time an island starts.
+        agentInboxItems.removeAll()
 
         // Stop WiFi polling and network bridge, clean up shared favicons
         stopWiFiPolling()
