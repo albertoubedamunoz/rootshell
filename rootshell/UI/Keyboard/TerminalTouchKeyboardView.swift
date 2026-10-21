@@ -274,6 +274,40 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             setNeedsLayout()
         }
     }
+    /// The fold in content coordinates while the keyboard is split around it.
+    private var splitFoldSpan: ClosedRange<Double>?
+    /// The typing rows are currently built as split halves.
+    private var splitActive: Bool { splitFoldSpan != nil }
+    /// Main toolbar columns around the fold; toolbar drawer rows snap to them.
+    private var toolbarColumns: Model.SplitColumns?
+
+    /// The half-open Duo's vertical fold, as UIKit reserves it in this view.
+    /// Queried here: the app window's regions don't convert into the keyboard window.
+    private var splitFoldFrame: CGRect? {
+        guard #available(iOS 27.1, *) else { return nil }
+        return reservedRegions(kind: .division).map(\.frame).first { $0.height > $0.width }
+    }
+
+    private func splitLayout(leading: CGFloat, width: CGFloat)
+        -> (rows: [Model.SplitRow], metrics: Model.SplitMetrics, fold: ClosedRange<Double>)? {
+        guard !isFloating, !isEmbeddedPreview, window != nil, let fold = splitFoldFrame else { return nil }
+        guard fold.minX - leading > 0, fold.maxX - leading < width else { return nil }
+        let rows = Model.splitRows(Model.rows(page: page))
+        let span = Double(fold.minX - leading)...Double(fold.maxX - leading)
+        return Model.splitMetrics(rows, width: Double(width), fold: span).map { (rows, $0, span) }
+    }
+
+    /// Columns for a row inset 5pt on each side, as the toolbar and drawers are.
+    private func splitColumns(count: Int, width: CGFloat) -> Model.SplitColumns? {
+        splitFoldSpan.flatMap {
+            Model.splitColumns(count: count, width: Double(width - 10), fold: ($0.lowerBound - 5)...($0.upperBound - 5))
+        }
+    }
+
+    /// Toolbar capacity excludes the fold, so no slot is lost to the crease.
+    private func toolbarWidth(_ width: CGFloat) -> CGFloat {
+        width - CGFloat(splitFoldSpan.map(Model.splitFoldBlock) ?? 0)
+    }
     /// Row height and top remainder for a height UIKit fixed; nil when self-sizing.
     private var hostFill: (rowHeight: CGFloat, top: CGFloat)?
     private var contentTop: CGFloat { hostFill?.top ?? 0 }
@@ -620,6 +654,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             pinch.isEnabled = !usesSystemPlacement
             placementPinch = pinch
             addGestureRecognizer(pinch)
+        }
+        if #available(iOS 27.1, *) {
+            // Folding moves the division region without resizing the keyboard.
+            addInteraction(UIHingeInteraction { [weak self] _, _ in self?.setNeedsLayout() })
         }
         loadToolbarConfiguration()
         if KeyboardToolbarManager.shared.drawerOpenByDefault {
@@ -1082,7 +1120,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     private func rebuildKeysForWidth(_ width: CGFloat) {
         (controls + rows.flatMap { $0 }).forEach { $0.removeFromSuperview() }
-        let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: width, drawerToggle: configuredDrawerToggle)
+        let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: toolbarWidth(width), drawerToggle: configuredDrawerToggle)
         controls = toolbar.main.map { makeCap($0, small: true) }
         toolbarDrawerKeys = toolbar.drawers
         rebuildToolbarDrawers()
@@ -1090,7 +1128,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             cap.isAccessibilityElement = false
         }
         bringSubviewToFront(writingAssistanceButton)
-        rows = Model.rows(page: page).map { $0.map { makeCap($0) } }
+        let typingRows = splitActive ? Model.splitRows(Model.rows(page: page)).map { $0.left + $0.right } : Model.rows(page: page)
+        rows = typingRows.map { $0.map { makeCap($0) } }
         bringSubviewToFront(styleMenuButton)
         bringSubviewToFront(preview)
         bringSubviewToFront(accents)
@@ -1120,14 +1159,26 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         controlGlass.frame = CGRect(x: leading + 2, y: top + 2, width: max(0, width - 4), height: toolbarHeight - 4)
         controlGlass.layer.cornerRadius = min(22, (keyboardHeight.toolbarRowHeight - 4) / 2)
         layoutBackgroundEffect()
-        let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: width, drawerToggle: configuredDrawerToggle)
+        let split = splitLayout(leading: leading, width: width)
+        let wasSplit = splitActive
+        splitFoldSpan = split?.fold
+        if splitActive != wasSplit {
+            cancelInteraction(preservingModifiers: true)
+            rebuildKeysForWidth(width)
+        }
+        let toolbar = Model.toolbarKeys(main: configuredMain, drawers: configuredDrawers, width: toolbarWidth(width), drawerToggle: configuredDrawerToggle)
         if controls.map(\.key) != toolbar.main || toolbarDrawerKeys != toolbar.drawers {
             cancelInteraction(preservingModifiers: true)
             rebuildKeysForWidth(width)
             rebuildDrawer()
             setNeedsLayout()
         }
-        for (cap, rect) in zip(controls, Model.frames(keys: controls.map(\.key), width: width, y: top + toolbarDrawerHeight, height: keyboardHeight.toolbarRowHeight, inset: 5)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
+        toolbarColumns = splitColumns(count: controls.count, width: width)
+        let controlFrames = toolbarColumns.map { columns in
+            controls.indices.map { CGRect(x: 5 + CGFloat(columns.x(column: $0)), y: top + toolbarDrawerHeight,
+                                          width: CGFloat(columns.unit), height: keyboardHeight.toolbarRowHeight) }
+        } ?? Model.frames(keys: controls.map(\.key), width: width, y: top + toolbarDrawerHeight, height: keyboardHeight.toolbarRowHeight, inset: 5)
+        for (cap, rect) in zip(controls, controlFrames) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
         if let cap = controls.first(where: { $0.key.action == .toolbar(KeyID.writingAssistance.keyValue) }) {
             writingAssistanceButton.frame = cap.frame
             writingAssistanceButton.isHidden = false
@@ -1178,11 +1229,14 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         #endif
         if drawerOpen {
             if toolPage == .shortcuts {
-                presets.frame = CGRect(x: leading + 8, y: y + 3, width: max(0, width - 16), height: 30)
+                // Split, the picker stays left of the fold.
+                let presetWidth = splitFoldSpan.map { CGFloat($0.lowerBound - Model.splitFoldClearance) - 8 } ?? width - 16
+                presets.frame = CGRect(x: leading + 8, y: y + 3, width: max(0, presetWidth), height: 30)
             }
             let presetHeight: CGFloat = toolPage == .shortcuts ? 38 : 0
             drawer.frame = CGRect(x: leading + 5, y: y + presetHeight, width: max(0, width - 10), height: max(0, contentHeight - presetHeight))
-            let cellWidth = drawer.bounds.width / CGFloat(drawerColumns)
+            let columns = splitColumns(count: drawerColumns, width: width)
+            let cellWidth = columns.map { CGFloat($0.unit) } ?? drawer.bounds.width / CGFloat(drawerColumns)
             let rowCount = (drawerButtons.count + drawerColumns - 1) / drawerColumns
             let preferredCellHeight: CGFloat = compact ? 40 : 46
             // Fit every navigation key, including F12, without scrolling.
@@ -1190,7 +1244,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 ? min(preferredCellHeight, drawer.bounds.height / CGFloat(max(1, rowCount)))
                 : preferredCellHeight
             for (i, button) in drawerButtons.enumerated() {
-                button.frame = CGRect(x: CGFloat(i % drawerColumns) * cellWidth + 2, y: CGFloat(i / drawerColumns) * cellHeight + 2,
+                let x = columns.map { CGFloat($0.x(column: i % drawerColumns)) } ?? CGFloat(i % drawerColumns) * cellWidth
+                button.frame = CGRect(x: x + 2, y: CGFloat(i / drawerColumns) * cellHeight + 2,
                                       width: max(0, cellWidth - 4), height: max(0, cellHeight - 4))
             }
             drawer.contentSize = CGSize(width: drawer.bounds.width, height: CGFloat(rowCount) * cellHeight)
@@ -1208,7 +1263,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 // its end keys inside the rounded screen corners.
                 inset = max(2, min(width / 10, deviceBottomInset - min(leading, trailing)))
             }
-            for (cap, rect) in zip(row, Model.frames(keys: row.map(\.key), width: width, y: y, height: rowHeight, inset: inset)) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
+            let frames = split.map {
+                Model.splitFrames($0.rows[index], metrics: $0.metrics, width: width, y: y, height: rowHeight,
+                                  towardFold: index == 1, outerInset: index == 3 ? inset - 2 : 0)
+            } ?? Model.frames(keys: row.map(\.key), width: width, y: y, height: rowHeight, inset: inset)
+            for (cap, rect) in zip(row, frames) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
             y += rowHeight
         }
         if let cap = keyboardSwitchCap, !cap.isHidden, styleOverride == nil {
@@ -2011,16 +2070,20 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         row.frame = CGRect(x: leading + 5, y: contentTop + CGFloat(position) * rowHeight, width: max(0, width - 10), height: rowHeight)
         // Snap to the main toolbar row's columns so drawer keys sit under its keys,
         // whether or not the row scrolls. Long titles span whole columns.
-        let unit = max(1, row.bounds.width / max(1, controls.reduce(0) { $0 + $1.key.weight }))
-        var x: CGFloat = 0
-        for button in buttons {
+        let unit = toolbarColumns.map { CGFloat($0.unit) }
+            ?? max(1, row.bounds.width / max(1, controls.reduce(0) { $0 + $1.key.weight }))
+        let widths = buttons.map { button -> CGFloat in
             let title = button.keycap.icon.image == nil ? button.keycap.key.title : ""
             let titleWidth = title.count <= 4 ? 0 : (title as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 13, weight: .medium)]).width + 20
-            let buttonWidth = unit * max(1, (min(120, titleWidth) / unit).rounded(.up))
-            button.frame = CGRect(x: x, y: 2, width: buttonWidth, height: rowHeight - 4)
-            x += buttonWidth
+            return unit * max(1, (min(120, titleWidth) / unit).rounded(.up))
         }
-        row.contentSize = CGSize(width: x, height: rowHeight)
+        // Split, keys continue past the fold's block, as the main row does.
+        let origins = toolbarColumns?.positions(widths: widths.map { Double($0) }).map { CGFloat($0) }
+            ?? widths.indices.map { widths[..<$0].reduce(0, +) }
+        for (button, (x, width)) in zip(buttons, zip(origins, widths)) {
+            button.frame = CGRect(x: x, y: 2, width: width, height: rowHeight - 4)
+        }
+        row.contentSize = CGSize(width: zip(origins, widths).map { $0 + $1 }.max() ?? 0, height: rowHeight)
     }
 
     private func toggleToolbarDrawer() {

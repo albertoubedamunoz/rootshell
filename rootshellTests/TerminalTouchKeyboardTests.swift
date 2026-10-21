@@ -940,6 +940,119 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(toolbar.top, 397, accuracy: 0.001)
     }
 
+    func testSplitRowsMirrorTheSystemHalves() {
+        let rows = Model.splitRows(Model.rows(page: .letters))
+        func titles(_ keys: [Model.Key]) -> [String] { keys.map(\.title) }
+        XCTAssertEqual(titles(rows[0].left).joined(), "qwert")
+        XCTAssertEqual(titles(rows[0].right).joined(), "yuiop")
+        // Odd rows repeat their middle key in both halves.
+        XCTAssertEqual(titles(rows[1].left).joined(), "asdfg")
+        XCTAssertEqual(titles(rows[1].right).joined(), "ghjkl")
+        XCTAssertEqual(titles(rows[2].left), ["Shift", "z", "x", "c", "v"])
+        XCTAssertEqual(titles(rows[2].right), ["v", "b", "n", "m", "Delete"])
+        XCTAssertEqual(rows[3].left.map(\.action), [.page, .switchKeyboard, .text(" ")])
+        XCTAssertEqual(rows[3].right.map(\.action), [.text(" "), .key("\r")])
+        // Space widens each bottom half to the widest row.
+        for half in [rows[3].left, rows[3].right] {
+            XCTAssertEqual(half.reduce(0) { $0 + $1.weight }, 5.5, accuracy: 0.001)
+        }
+    }
+
+    func testSplitRowsKeepEveryKeyOnEveryPage() {
+        for page in Model.Page.allCases {
+            let rows = Model.rows(page: page)
+            let split = Model.splitRows(rows)
+            XCTAssertEqual(split.count, rows.count)
+            for (row, halves) in zip(rows, split) {
+                XCTAssertFalse(halves.left.isEmpty)
+                XCTAssertFalse(halves.right.isEmpty)
+                XCTAssertEqual(Set((halves.left + halves.right).map(\.title)), Set(row.map(\.title)))
+            }
+        }
+    }
+
+    func testSplitHalvesAreCenteredInEachSideLikeTheSystemKeyboard() throws {
+        let rows = Model.splitRows(Model.rows(page: .letters))
+        // The simulator's half-open Duo: a 951pt keyboard and the division
+        // region (with its 20pt interaction margins) down the middle.
+        let fold = 455.5...495.5
+        let metrics = try XCTUnwrap(Model.splitMetrics(rows, width: 951, fold: fold))
+        XCTAssertEqual(metrics.unit, 56, accuracy: 0.001)
+        XCTAssertEqual(metrics.halfWidth, 308, accuracy: 0.001)
+        // Equal room from the screen edge and from the crease, on both sides.
+        XCTAssertEqual(metrics.leftMinX, 68.75, accuracy: 0.001)
+        XCTAssertEqual(951 - (metrics.rightMinX + metrics.halfWidth), 68.75, accuracy: 0.001)
+        for (index, row) in rows.enumerated() {
+            let frames = Model.splitFrames(row, metrics: metrics, width: 951, y: 0, height: 44, towardFold: index == 1)
+            let left = frames.prefix(row.left.count), right = frames.dropFirst(row.left.count)
+            XCTAssertLessThanOrEqual(left.last!.maxX, fold.lowerBound - Model.splitFoldClearance + 0.001)
+            XCTAssertGreaterThanOrEqual(right.first!.minX, fold.upperBound + Model.splitFoldClearance - 0.001)
+            for (key, frame) in zip(row.left + row.right, frames) {
+                XCTAssertEqual(frame.width, 56 * key.weight, accuracy: 0.001)
+            }
+        }
+        // Top row against the outer edges, middle row half a key toward the fold.
+        let top = Model.splitFrames(rows[0], metrics: metrics, width: 951, y: 0, height: 44)
+        let middle = Model.splitFrames(rows[1], metrics: metrics, width: 951, y: 0, height: 44, towardFold: true)
+        XCTAssertEqual(top.first!.minX, 68.75, accuracy: 0.001)
+        XCTAssertEqual(top.last!.maxX, 882.25, accuracy: 0.001)
+        XCTAssertEqual(middle.first!.minX - top.first!.minX, 28, accuracy: 0.001)
+        XCTAssertEqual(top.last!.maxX - middle.last!.maxX, 28, accuracy: 0.001)
+    }
+
+    func testSplitBottomRowClearsRoundedCornersWhenHalvesReachTheEdges() throws {
+        let rows = Model.splitRows(Model.rows(page: .letters))
+        let metrics = try XCTUnwrap(Model.splitMetrics(rows, width: 700, fold: 340...360))
+        XCTAssertEqual(metrics.leftMinX, 11, accuracy: 0.001)
+        let bottom = Model.splitFrames(rows[3], metrics: metrics, width: 700, y: 0, height: 44, outerInset: 20)
+        XCTAssertEqual(bottom.first!.minX, 22, accuracy: 0.001)
+        XCTAssertEqual(bottom.last!.maxX, 678, accuracy: 0.001)
+    }
+
+    func testSplitToolbarColumnsHugEdgesAndClearTheFold() throws {
+        let fold = 435.0...455.0
+        for count in [1, 2, 4, 8, 10, 21] {
+            let columns = try XCTUnwrap(Model.splitColumns(count: count, width: 880, fold: fold))
+            let frames = (0..<count).map { columns.x(column: $0) }.map { $0...($0 + columns.unit) }
+            for frame in frames {
+                XCTAssertTrue(frame.upperBound <= fold.lowerBound - Model.splitFoldClearance + 0.001
+                    || frame.lowerBound >= fold.upperBound + Model.splitFoldClearance - 0.001)
+            }
+            for (left, right) in zip(frames, frames.dropFirst()) {
+                XCTAssertLessThanOrEqual(left.upperBound, right.lowerBound + 0.001)
+            }
+            XCTAssertEqual(frames.first!.lowerBound, 0, accuracy: 0.001)
+            if count > 1 { XCTAssertEqual(frames.last!.upperBound, 880, accuracy: 0.001) }
+        }
+        // Grids split evenly around a centered fold.
+        XCTAssertEqual(Model.splitColumns(count: 8, width: 880, fold: fold)?.leftCount, 4)
+        XCTAssertEqual(Model.splitColumns(count: 4, width: 880, fold: fold)?.leftCount, 2)
+        XCTAssertNil(Model.splitColumns(count: 4, width: 880, fold: 0...10))
+        XCTAssertEqual(Model.splitFoldBlock(fold), 20 + Model.splitFoldClearance * 2, accuracy: 0.001)
+    }
+
+    func testDrawerKeysThatWouldReachTheFoldContinueInTheRightBlock() throws {
+        let columns = try XCTUnwrap(Model.splitColumns(count: 10, width: 880, fold: 435...455))
+        let unit = columns.unit
+        XCTAssertEqual(columns.leftCount, 5)
+        // A wide key never straddles the fold, and the rest follow it.
+        let origins = columns.positions(widths: [unit, unit, unit, unit, 2 * unit, unit])
+        XCTAssertEqual(origins[3], 3 * unit, accuracy: 0.001)
+        XCTAssertEqual(origins[4], columns.rightStart, accuracy: 0.001)
+        XCTAssertEqual(origins[5], columns.rightStart + 2 * unit, accuracy: 0.001)
+        // Snapped keys sit under the main row's columns on both sides.
+        let snapped = columns.positions(widths: Array(repeating: unit, count: 12))
+        for column in 0..<10 { XCTAssertEqual(snapped[column], columns.x(column: column), accuracy: 0.001) }
+        XCTAssertEqual(snapped[11], columns.rightStart + 6 * unit, accuracy: 0.001)
+    }
+
+    func testSplitNeedsRoomOnBothSidesOfTheFold() {
+        let rows = Model.splitRows(Model.rows(page: .letters))
+        XCTAssertNil(Model.splitMetrics(rows, width: 360, fold: 170...190))
+        XCTAssertNil(Model.splitMetrics(rows, width: 900, fold: 100...120))
+        XCTAssertNotNil(Model.splitMetrics(rows, width: 900, fold: 300...320))
+    }
+
     func testQWERTYOrderAndSpaceWidth() {
         let rows = Model.rows(page: .letters)
         XCTAssertEqual(rows[0].map(\.title).joined(), "qwertyuiop")
