@@ -128,6 +128,30 @@ enum PushNotificationRouter {
         if createdClaim { deliveryReconciler.ingest([record]) }
         deliveryReconciler.trackFresh(identifier: request.identifier, header: header, receivedAt: record.receivedAt)
         reconcileDeliveries()
+
+        // A push that arrives while the app is backgrounded has no
+        // `willPresent` callback, so this is the only place that can feed the
+        // island while the process is alive. Foreground deliveries take the
+        // `willPresent` path instead; that path also sees the local re-post,
+        // so adding here unconditionally would count the event twice.
+        if header.kind == "agent",
+           UIApplication.shared.applicationState != .active,
+           let resolved = resolve(header.route),
+           !isViewed(resolved) {
+            let meta = inboxMetadata(for: resolved)
+            LiveActivityManager.shared.noteAgentEvent(
+                id: eid,
+                agent: header.agent ?? "",
+                status: header.status ?? "",
+                at: record.receivedAt,
+                deepLink: paneDeepLink(surfaceID: resolved.surfaceID),
+                summary: header.body.flatMap { $0.isEmpty ? nil : $0 } ?? header.title,
+                host: header.route?.host ?? meta.host,
+                tab: meta.title,
+                windowId: resolved.windowId,
+                tabID: resolved.tabID
+            )
+        }
     }
 
     static func attentionStatus(_ status: String?) -> AgentAttentionStatus? {
@@ -290,12 +314,18 @@ enum PushNotificationRouter {
                 // The island mirrors this push. `eid` is the dedupe key: a raw
                 // delivery that later gets replaced by its decrypted re-post
                 // must not show up as two rows.
+                let meta = Self.inboxMetadata(for: resolved)
                 LiveActivityManager.shared.noteAgentEvent(
                     id: PushEnvelope(userInfo: content.userInfo)?.eid ?? notification.request.identifier,
                     agent: header.agent ?? "",
                     status: header.status ?? "",
                     at: notification.date,
-                    deepLink: Self.paneDeepLink(surfaceID: resolved.surfaceID)
+                    deepLink: Self.paneDeepLink(surfaceID: resolved.surfaceID),
+                    summary: header.body.flatMap { $0.isEmpty ? nil : $0 } ?? header.title,
+                    host: header.route?.host ?? meta.host,
+                    tab: meta.title,
+                    windowId: resolved.windowId,
+                    tabID: resolved.tabID
                 )
             }
         } else {
@@ -367,41 +397,74 @@ enum PushNotificationRouter {
         case "inbox":
             // The fold row and a tap on the compact island land on the inbox,
             // not on the tab switcher: the inbox is where a message can be
-            // read and answered.
-            NotificationCenter.default.post(name: .showAgentInbox, object: nil)
+            // read and answered. This goes through the router rather than a
+            // notification: on a cold launch the URL arrives before MainView
+            // has subscribed, and the old post died with the scene.
+            AgentInboxRouter.shared.present()
             return true
         default:
             return false
         }
     }
 
-    /// An inbox row tap. The exact pane is preferred, because that is where
-    /// the message came from; when the pane is gone (session closed, tmux pane
-    /// recreated) the tab that the message named is still the right place to
-    /// land, so fall back to it instead of doing nothing.
-    static func openInboxRow(deepLink: URL?, tabTitle: String?) {
-        // A pane URL always "succeeds" (it arms a retry when the surface is not
-        // projecting yet), which would stop us from ever reaching the tab
-        // fallback. Resolve first, and only accept the deep link when it lands.
+    /// An inbox row tap. The tab recorded with the event comes first: the
+    /// person asked to land on the host's tab, and a tab id survives title
+    /// drift and pane recreation. If that tab is gone, the host, then the
+    /// recorded title, and only then the exact pane link are tried.
+    static func openInboxRow(deepLink: URL?, tabTitle: String?, host: String?,
+                             windowId: String? = nil, tabID: UUID? = nil) {
+        if let resolved = resolvedTab(windowId: windowId, tabID: tabID) {
+            navigate(to: resolved)
+            return
+        }
+        if let host,
+           let resolved = resolvedTab(TerminalWindowRegistry.tabID(matchingHost: host)) {
+            navigate(to: resolved)
+            return
+        }
+        // The tab's title is the name the message recorded, but live titles
+        // follow the focused session ("ghostty", a cwd, an agent status), so a
+        // title that no longer matches is normal.
+        if let tabTitle,
+           let resolved = resolvedTab(TerminalWindowRegistry.tabID(matchingTitle: tabTitle)) {
+            navigate(to: resolved)
+            return
+        }
+        // Last resort: the pane itself. A pane URL always "succeeds" (it arms a
+        // retry when the surface is not projecting yet), which is why this is
+        // tried only after the tab-level identities above.
         if let deepLink, deepLink.host == "pane",
            let raw = deepLink.pathComponents.dropFirst().first,
-           let surfaceID = UUID(uuidString: raw) {
-            if resolve(surfaceID: surfaceID) != nil {
-                _ = handleLiveActivityURL(deepLink)
-                return
-            }
-        } else if let deepLink, handleLiveActivityURL(deepLink) {
+           let surfaceID = UUID(uuidString: raw),
+           resolve(surfaceID: surfaceID) != nil {
+            _ = handleLiveActivityURL(deepLink)
             return
         }
-        guard let tabTitle,
-              let match = TerminalWindowRegistry.tabID(matchingTitle: tabTitle),
+        logger.info("inbox row: no tab or host; tab=\(tabTitle ?? "-", privacy: .public) host=\(host ?? "-", privacy: .public)")
+    }
+
+    private static func resolvedTab(windowId: String?, tabID: UUID?) -> Resolved? {
+        guard let windowId, let tabID else { return nil }
+        return resolvedTab((windowId, tabID))
+    }
+
+    private static func resolvedTab(_ match: (windowId: String, tabID: UUID)?) -> Resolved? {
+        guard let match,
               let model = TerminalWindowRegistry.tabsModel(for: match.windowId),
-              let tab = model.tabs.first(where: { $0.id == match.tabID }) else {
-            logger.info("inbox row: no pane and no tab titled \(tabTitle ?? "-", privacy: .public)")
-            return
+              let tab = model.tabs.first(where: { $0.id == match.tabID }),
+              let surfaceID = tab.focusedPane?.uuid ?? tab.splitTree.first?.uuid else { return nil }
+        return Resolved(windowId: match.windowId, tabID: match.tabID, surfaceID: surfaceID)
+    }
+
+    /// Host and title of the tab a resolved pane belongs to. The host from the
+    /// push route is descriptive metadata; the tab's own connection host is the
+    /// value the inbox can match against after the pane is gone.
+    private static func inboxMetadata(for resolved: Resolved) -> (host: String?, title: String?) {
+        guard let model = TerminalWindowRegistry.tabsModel(for: resolved.windowId),
+              let tab = model.tabs.first(where: { $0.id == resolved.tabID }) else {
+            return (nil, nil)
         }
-        guard let surfaceID = tab.focusedPane?.uuid ?? tab.splitTree.first?.uuid else { return }
-        navigate(to: Resolved(windowId: match.windowId, tabID: match.tabID, surfaceID: surfaceID))
+        return (model.groupHostLabel(for: tab), tab.title)
     }
 
     /// `rootshell://pane/<surface-uuid>` — the tap target of one inbox row.
@@ -645,6 +708,7 @@ enum PushNotificationRouter {
                 continue
             }
             guard let (header, decryptedLocally) = decryptedHeader(from: n.request.content.userInfo) else { continue }
+            restoreAgentInboxRow(from: n, header: header)
             if decryptedLocally {
                 // Delivered raw while the app was not running: replace it with the decrypted version.
                 let eid = PushEnvelope(userInfo: n.request.content.userInfo)?.eid ?? n.request.identifier
@@ -657,5 +721,32 @@ enum PushNotificationRouter {
         }
         deliveryReconciler.ingest(PushSharedState().load())
         bindingsDidChange()
+    }
+
+    /// A notification that is still in Notification Center was delivered while
+    /// the app could not run (suspended, terminated, or handled only by the
+    /// extension). Rebuild the island's unread row from it on activation; the
+    /// inbox store's read state keeps already-opened rows from coming back.
+    private static func restoreAgentInboxRow(from notification: UNNotification, header: PushHeader) {
+        guard header.kind == "agent",
+              notification.date > Date().addingTimeInterval(-12 * 60 * 60),
+              let resolved = resolve(header.route),
+              !isViewed(resolved) else { return }
+        let eid = PushEnvelope(userInfo: notification.request.content.userInfo)?.eid
+            ?? notification.request.identifier
+        let meta = inboxMetadata(for: resolved)
+        LiveActivityManager.shared.noteAgentEvent(
+            id: eid,
+            agent: header.agent ?? "",
+            status: header.status ?? "",
+            at: notification.date,
+            deepLink: paneDeepLink(surfaceID: resolved.surfaceID),
+            summary: header.body.flatMap { $0.isEmpty ? nil : $0 } ?? header.title,
+            host: header.route?.host ?? meta.host,
+            tab: meta.title,
+            windowId: resolved.windowId,
+            tabID: resolved.tabID,
+            isRestore: true
+        )
     }
 }

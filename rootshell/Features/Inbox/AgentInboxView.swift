@@ -15,6 +15,23 @@ import RootshellPushKit
 import Combine
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
+/// The inbox is an iPhone surface: its drawer follows the leading edge and its
+/// entry point is the Dynamic Island. iPad deliberately has no inbox code path —
+/// a half-ported drawer there read as a different feature.
+enum AgentInboxPlatform {
+    static var isSupported: Bool {
+        #if canImport(UIKit)
+        UIDevice.current.userInterfaceIdiom == .phone
+        #else
+        false
+        #endif
+    }
+}
+
 /// Presentation state shared by the island's deep links and this screen.
 @MainActor
 @Observable
@@ -27,6 +44,7 @@ final class AgentInboxRouter {
     var highlightedID: String?
 
     func present(highlighting id: String? = nil) {
+        guard AgentInboxPlatform.isSupported else { return }
         highlightedID = id
         isPresented = true
     }
@@ -67,9 +85,9 @@ struct AgentInboxView: View {
 
     private var sections: [AgentInboxSection] {
         switch filter {
-        case .all: [.needsYou, .working, .done]
+        case .all: [.needsYou, .failed, .working, .done, .archived]
         case .needsYou: [.needsYou]
-        case .failed: [.done]
+        case .failed: [.failed]
         }
     }
 
@@ -81,10 +99,6 @@ struct AgentInboxView: View {
     private var surfaceScheme: ColorScheme {
         guard let theme = sheetThemeColors else { return colorScheme }
         return theme.isDarkSurface ? .dark : .light
-    }
-
-    private var accentTint: Color {
-        sheetThemeColors?.inboxAccent ?? .accentColor
     }
 
     private var cardFill: Color {
@@ -133,7 +147,8 @@ struct AgentInboxView: View {
                                                 now: now,
                                                 highlighted: highlight == row.id,
                                                 onOpen: { open(row) },
-                                                onArchive: { store.archive(row.id) }
+                                                onArchive: { store.archive(row.id) },
+                                                allowsArchive: row.section != .working
                                             )
                                             if index < rows.count - 1 {
                                                 Rectangle()
@@ -167,14 +182,6 @@ struct AgentInboxView: View {
             .agentInboxPage(sheetThemeColors)
             .environment(\.colorScheme, surfaceScheme)
             .toolbarColorScheme(surfaceScheme, for: .navigationBar)
-            .agentInboxSwipeBack { close() }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 40).onEnded { value in
-                    guard value.translation.width < -70,
-                          abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
-                    close()
-                }
-            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(sheetThemeColors?.pageFill ?? Color(uiColor: .systemGroupedBackground), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -182,47 +189,37 @@ struct AgentInboxView: View {
                 // The bar's own title ignored `toolbarColorScheme` in this stack and
                 // stayed black on a dark bar; a principal item resolves `.primary`
                 // against the scheme we force below instead.
+                //
+                // No Done and no checkmark: the inbox is left by opening a row or
+                // swiping it away, and mass-marking read is an island action. A
+                // top bar full of buttons made both exits compete with chrome.
                 ToolbarItem(placement: .principal) {
                     Text(String(localized: "Agent Inbox", comment: "Inbox title"))
                         .font(.headline)
                         .foregroundStyle(.primary)
                 }
-                // A pushed page uses the system back button; the sheet needs its
-                // own, because a sheet has no navigation bar of its own.
-                if embedsNavigation {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button(String(localized: "Done", comment: "Done button")) {
-                            if let onClose { onClose() } else { dismiss() }
-                        }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    // A text button in a glass capsule reads as a primary action;
-                    // the icon alone sits at the weight of the rest of the bar.
-                    Button {
-                        store.markAllRead()
-                    } label: {
-                        Image(systemName: "checkmark.circle")
-                    }
-                    .tint(accentTint)
-                    .disabled(store.unreadCount == 0)
-                    .accessibilityLabel(String(localized: "Mark All Read", comment: "Inbox action"))
-                }
             }
         .onReceive(Timer.publish(every: 20, on: .main, in: .common).autoconnect()) { tick in
             now = tick
+            // Idle rows move to the archive after an hour, and archive rows
+            // disappear two hours after they arrived there.
+            store.sweepExpired(now: tick)
+            #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+            LiveActivityManager.shared.sweepAgentArchiveNow()
+            #endif
         }
         .onAppear {
             now = Date()
+            store.sweepExpired(now: now)
             flash(AgentInboxRouter.shared.highlightedID)
             AgentInboxRouter.shared.highlightedID = nil
         }
     }
 
     private func visibleRows(in section: AgentInboxSection) -> [AgentInboxRow] {
-        let rows = store.rows(in: section)
-        guard filter == .failed else { return rows }
-        return rows.filter { $0.status == .failed }
+        // `failed` is its own section now, so a row can never be in the wrong
+        // group for the selected filter.
+        store.rows(in: section)
     }
 
     /// Tapping a row opens its pane; the shell handles the navigation and then
@@ -232,14 +229,28 @@ struct AgentInboxView: View {
     }
 
     private func open(_ row: AgentInboxRow) {
-        // Opening a row is a read; the island's count has to drop with it.
-        store.markRead(deepLink: row.deepLink)
+        // An in-progress row is presence, not a message: tapping it must not
+        // navigate, close the inbox, or move it to the archive. Only archived
+        // rows with a working origin (legacy data) still navigate.
+        guard row.section != .working else { return }
+        // Opening a row is an action: move it into the archive, and drop it
+        // from the island immediately even if navigation has no pane to land on.
+        store.archive(row.id)
+        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+        // Rebuild from the store, not just remove one id: the island counts and
+        // the inbox sections must come from the same unread set.
+        LiveActivityManager.shared.syncAgentInboxFromStore()
+        #endif
         close()
         Task { @MainActor in
             // Let the panel finish dismissing first, otherwise the tab switch
             // happens behind it and looks like nothing moved.
             try? await Task.sleep(for: .milliseconds(320))
-            PushNotificationRouter.openInboxRow(deepLink: row.deepLink, tabTitle: row.tab)
+            PushNotificationRouter.openInboxRow(deepLink: row.deepLink,
+                                                tabTitle: row.tab,
+                                                host: row.host,
+                                                windowId: row.windowId,
+                                                tabID: row.tabID)
         }
     }
 
@@ -285,6 +296,8 @@ private struct AgentInboxRowView: View {
     let highlighted: Bool
     let onOpen: () -> Void
     let onArchive: () -> Void
+    /// False for in-progress rows: they are presence, not a message.
+    var allowsArchive: Bool = true
 
     var body: some View {
         Button(action: onOpen) {
@@ -321,7 +334,15 @@ private struct AgentInboxRowView: View {
                     Text(AgentInboxTime.short(row.receivedAt, now: now))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    AgentInboxStatusDot(status: row.status)
+                    HStack(spacing: 4) {
+                        AgentInboxStatusDot(status: row.status)
+                        if let label = archivedStatusLabel {
+                            Text(label)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 14)
@@ -332,11 +353,7 @@ private struct AgentInboxRowView: View {
         .background(
             highlighted ? Color.accentColor.opacity(0.10) : Color.clear
         )
-        .contextMenu {
-            Button(role: .destructive, action: onArchive) {
-                Label(String(localized: "Archive Message", comment: "Inbox row action"), systemImage: "archivebox")
-            }
-        }
+        .inboxArchiveMenu(enabled: allowsArchive, action: onArchive)
     }
 
     /// The app's list surfaces are soft translucent cards rather than the
@@ -347,10 +364,6 @@ private struct AgentInboxRowView: View {
     private var surfaceScheme: ColorScheme {
         guard let theme = sheetThemeColors else { return colorScheme }
         return theme.isDarkSurface ? .dark : .light
-    }
-
-    private var accentTint: Color {
-        sheetThemeColors?.inboxAccent ?? .accentColor
     }
 
     private var cardFill: Color {
@@ -364,6 +377,34 @@ private struct AgentInboxRowView: View {
     private var location: String? {
         let parts = [row.host, row.tab].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// The archive keeps the status the event had when it was moved there.
+    /// Only archived rows spell it out; elsewhere the dot already carries it.
+    private var archivedStatusLabel: String? {
+        guard row.isArchived else { return nil }
+        switch row.status {
+        case .blocked: return String(localized: "Needs You", comment: "Archived row status")
+        case .failed: return String(localized: "Failed Runs", comment: "Archived row status")
+        case .done: return String(localized: "Finished", comment: "Archived row status")
+        case .other: return String(localized: "In Progress", comment: "Archived row status")
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func inboxArchiveMenu(enabled: Bool, action: @escaping () -> Void) -> some View {
+        if enabled {
+            contextMenu {
+                Button(role: .destructive, action: action) {
+                    Label(String(localized: "Archive Message", comment: "Inbox row action"),
+                          systemImage: "archivebox")
+                }
+            }
+        } else {
+            self
+        }
     }
 }
 

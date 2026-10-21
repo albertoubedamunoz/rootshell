@@ -4,92 +4,211 @@ import UIKit
 
 private let inboxGestureLog = Logger(subsystem: "com.rootshell", category: "InboxGesture")
 
-/// Presents the agent inbox as a pushed page and provides the swipe entries.
+/// Presents the agent inbox as a drawer that tracks the finger.
+///
+/// The inbox is a page of its own, but it is not a navigation push: pushing
+/// animates the new page in from the trailing edge, which reads backwards when
+/// the person is dragging in from the leading edge. Here the page starts
+/// off-screen to the left, follows the drag 1:1, and slides back out to the
+/// left when it closes, so the movement always matches the gesture.
 ///
 /// Lives in its own modifier because `MainView`'s presentation chain is already
 /// at the limit of what the type-checker will resolve in a single expression.
-enum AgentInboxRoute: Hashable { case inbox }
-
 struct AgentInboxSheetModifier: ViewModifier {
-    @Binding var isPresented: Bool
     let themeColors: SheetThemeColors?
     let accentColor: Color?
     let colorScheme: ColorScheme?
+    /// False while another sheet owns the screen; the leading edge gesture
+    /// must not fight the sidebar or settings.
+    var canOpen: () -> Bool = { true }
 
-    @State private var path: [AgentInboxRoute] = []
+    /// 0 = fully closed, 1 = fully open. Tracks the finger while a pan runs.
+    @State private var progress: CGFloat = 0
+    @State private var mounted = false
+    @State private var dragging = false
+    @State private var width: CGFloat = 1
 
     func body(content: Content) -> some View {
-        NavigationStack(path: $path) {
+        if AgentInboxPlatform.isSupported {
+            phoneBody(content)
+        } else {
             content
-                .toolbar(.hidden, for: .navigationBar)
-                // Swipe right from the leading edge opens the inbox. The terminal
-                // is a UIKit view that takes every touch inside it, so this has to
-                // be a screen-edge recogniser rather than a SwiftUI gesture.
-                .background(
-                    ScreenEdgePan(edge: .left, enabled: path.isEmpty) {
-                        isPresented = true
-                    }
+        }
+    }
+
+    private func phoneBody(_ content: Content) -> some View {
+        content
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { width = max(proxy.size.width, 1) }
+                        .onChange(of: proxy.size.width) { _, newWidth in
+                            width = max(newWidth, 1)
+                        }
+                }
+            )
+            .background(alignment: .leading) {
+                // iPhone only: on iPad the same leading edge already pulls the
+                // vertical tab sidebar in, and that gesture owns the edge.
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    EdgePan(
+                        enabled: !AgentInboxRouter.shared.isPresented,
+                        canBegin: canOpen,
+                        onBegan: beginOpening,
+                        onChanged: updateOpening,
+                        onEnded: finishOpening
+                    )
                     .frame(width: 0, height: 0)
-                )
-                .navigationDestination(for: AgentInboxRoute.self) { _ in
-                    AgentInboxView(onClose: { isPresented = false }, embedsNavigation: false)
-                        // The bar belongs to this pushed view, so its colour
-                        // scheme has to be set here as well; setting it only on
-                        // the stack's root left the title rendering in the
-                        // system scheme (black on a dark bar).
-                        .toolbarColorScheme(themeColors.map { $0.isDarkSurface ? .dark : .light } ?? colorScheme,
-                                            for: .navigationBar)
-                        .themedSheet(
-                            themeColors: themeColors,
-                            accentColor: accentColor,
-                            colorScheme: colorScheme
+                }
+            }
+            .overlay {
+                if mounted {
+                    inbox
+                        .offset(x: -width * (1 - progress))
+                        .background(
+                            CloseDrawerPan(
+                                enabled: AgentInboxRouter.shared.isPresented,
+                                onBegan: beginClosing,
+                                onChanged: updateClosing,
+                                onEnded: finishClosing
+                            )
+                            .frame(width: 0, height: 0)
                         )
                 }
+            }
+            // `isPresented` can already be true on the first render — the island
+            // deep link sets it while the scene is still being built — and
+            // `onChange` never fires for an initial value. Reading it here (and
+            // in `onAppear`) is what makes a cold launch from the island land on
+            // the inbox instead of the terminal.
+            .onAppear { sync(presented: AgentInboxRouter.shared.isPresented, animated: false) }
+            .onChange(of: AgentInboxRouter.shared.isPresented) { _, presented in
+                guard !dragging else { return }
+                sync(presented: presented, animated: true)
+            }
+    }
+
+    private var inbox: some View {
+        AgentInboxView(onClose: { closeDrawer() }, embedsNavigation: true)
+            .toolbarColorScheme(themeColors.map { $0.isDarkSurface ? .dark : .light } ?? colorScheme,
+                                for: .navigationBar)
+            .themedSheet(
+                themeColors: themeColors,
+                accentColor: accentColor,
+                colorScheme: colorScheme
+            )
+    }
+
+    // MARK: - Leading-edge open
+
+    private func beginOpening() {
+        guard !AgentInboxRouter.shared.isPresented else { return }
+        dragging = true
+        mounted = true
+        progress = 0
+    }
+
+    private func updateOpening(_ translation: CGFloat) {
+        guard dragging, !AgentInboxRouter.shared.isPresented else { return }
+        progress = min(1, max(0, translation / width))
+    }
+
+    private func finishOpening(_ translation: CGFloat, _ velocity: CGFloat) {
+        guard dragging, !AgentInboxRouter.shared.isPresented else {
+            dragging = false
+            return
         }
-        // `isPresented` can already be true on the first render — the island deep
-        // link sets it while the scene is still being built — and `onChange` never
-        // fires for an initial value. That is why a tap used to land on the
-        // terminal with no inbox in sight.
-        .onAppear { sync(presented: isPresented) }
-        .onChange(of: isPresented) { _, presented in sync(presented: presented) }
-        .onChange(of: path) { _, newPath in
-            if newPath.isEmpty, isPresented { isPresented = false }
+        dragging = false
+        // A short flick should open even when the travel was small; a slow drag
+        // that stopped before halfway should fall back.
+        let projected = progress + velocity / width * 0.12
+        if projected > 0.35 {
+            openDrawer()
+        } else {
+            closeDrawer()
         }
     }
 
-    private func sync(presented: Bool) {
+    // MARK: - Inbox swipe-left close
+
+    private func beginClosing() {
+        guard AgentInboxRouter.shared.isPresented else { return }
+        dragging = true
+    }
+
+    private func updateClosing(_ translation: CGFloat) {
+        guard dragging, AgentInboxRouter.shared.isPresented else { return }
+        progress = max(0, min(1, 1 + translation / width))
+    }
+
+    private func finishClosing(_ translation: CGFloat, _ velocity: CGFloat) {
+        guard dragging, AgentInboxRouter.shared.isPresented else {
+            dragging = false
+            return
+        }
+        dragging = false
+        // Leftward velocity closes; a rightward flick returns to the inbox.
+        if progress < 0.65 || velocity < -500 {
+            closeDrawer()
+        } else {
+            openDrawer()
+        }
+    }
+
+    // MARK: - State
+
+    private func openDrawer() {
+        mounted = true
+        AgentInboxRouter.shared.isPresented = true
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            progress = 1
+        }
+    }
+
+    private func closeDrawer() {
+        AgentInboxRouter.shared.isPresented = false
+        guard mounted else { return }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            progress = 0
+        } completion: {
+            guard !AgentInboxRouter.shared.isPresented, progress == 0 else { return }
+            mounted = false
+        }
+    }
+
+    private func sync(presented: Bool, animated: Bool) {
         if presented {
-            if path.isEmpty { path = [.inbox] }
-        } else if !path.isEmpty {
-            path.removeAll()
+            mounted = true
+            if animated {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { progress = 1 }
+            } else {
+                progress = 1
+            }
+        } else if mounted {
+            if animated {
+                closeDrawer()
+            } else {
+                progress = 0
+                mounted = false
+            }
         }
-    }
-}
-
-// MARK: - Swipe to go back
-
-extension View {
-    /// Swipe **left** anywhere on the page to go back to the main screen.
-    ///
-    /// A SwiftUI `DragGesture` loses this to the list's scroll recogniser, and a
-    /// `UISwipeGestureRecognizer` attached to the window never sees the touch:
-    /// the pan has to live on the page's own view controller, and it has to be
-    /// allowed to run *alongside* scrolling or vertical drags stop working.
-    func agentInboxSwipeBack(_ action: @escaping () -> Void) -> some View {
-        background(
-            HorizontalPan(onSwipeLeft: action)
-                .frame(width: 0, height: 0)
-        )
     }
 }
 
 #if canImport(UIKit)
-private struct ScreenEdgePan: UIViewRepresentable {
-    let edge: UIRectEdge
+/// Window-level leading-edge pan. The terminal is a UIKit view that takes every
+/// touch inside it, so this cannot be a SwiftUI `DragGesture`.
+private struct EdgePan: UIViewRepresentable {
     let enabled: Bool
-    let onTrigger: () -> Void
+    let canBegin: () -> Bool
+    let onBegan: () -> Void
+    let onChanged: (CGFloat) -> Void
+    let onEnded: (CGFloat, CGFloat) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onTrigger: onTrigger) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(enabled: enabled, canBegin: canBegin,
+                    onBegan: onBegan, onChanged: onChanged, onEnded: onEnded)
+    }
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
@@ -99,18 +218,39 @@ private struct ScreenEdgePan: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.onTrigger = onTrigger
+        context.coordinator.enabled = enabled
+        context.coordinator.canBegin = canBegin
+        context.coordinator.onBegan = onBegan
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
         context.coordinator.recognizer?.isEnabled = enabled
         context.coordinator.attach(from: uiView, attempts: 12)
     }
 
-    final class Coordinator: NSObject {
-        var onTrigger: () -> Void
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.detach()
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var enabled: Bool
+        var canBegin: () -> Bool
+        var onBegan: () -> Void
+        var onChanged: (CGFloat) -> Void
+        var onEnded: (CGFloat, CGFloat) -> Void
         weak var host: UIView?
-        var recognizer: UIScreenEdgePanGestureRecognizer?
+        private(set) var recognizer: UIScreenEdgePanGestureRecognizer?
         private var attached = false
 
-        init(onTrigger: @escaping () -> Void) { self.onTrigger = onTrigger }
+        init(enabled: Bool, canBegin: @escaping () -> Bool,
+             onBegan: @escaping () -> Void,
+             onChanged: @escaping (CGFloat) -> Void,
+             onEnded: @escaping (CGFloat, CGFloat) -> Void) {
+            self.enabled = enabled
+            self.canBegin = canBegin
+            self.onBegan = onBegan
+            self.onChanged = onChanged
+            self.onEnded = onEnded
+        }
 
         func attach(from view: UIView, attempts: Int) {
             guard !attached, attempts > 0 else { return }
@@ -123,26 +263,61 @@ private struct ScreenEdgePan: UIViewRepresentable {
                 let pan = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(Self.handle(_:)))
                 pan.edges = .left
                 pan.cancelsTouchesInView = false
+                pan.delegate = self
+                pan.isEnabled = self.enabled
                 window.addGestureRecognizer(pan)
                 self.host = window
                 self.recognizer = pan
                 self.attached = true
+                inboxGestureLog.info("edge pan attached")
             }
         }
 
+        func detach() {
+            if let recognizer { host?.removeGestureRecognizer(recognizer) }
+            recognizer = nil
+            host = nil
+            attached = false
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard enabled, canBegin(), recognizer?.state != .began else { return false }
+            guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+            let velocity = pan.velocity(in: pan.view)
+            // Inward and clearly horizontal: a vertical drag near the edge is a
+            // scroll, not the drawer.
+            return velocity.x > 0 && abs(velocity.x) > abs(velocity.y) * 1.2
+        }
+
         @objc private func handle(_ pan: UIScreenEdgePanGestureRecognizer) {
-            guard pan.state == .ended, let view = pan.view else { return }
-            let translation = pan.translation(in: view)
-            guard translation.x > 50, abs(translation.y) < 90 else { return }
-            onTrigger()
+            guard enabled, let view = pan.view else { return }
+            let translation = pan.translation(in: view).x
+            switch pan.state {
+            case .began:
+                onBegan()
+            case .changed:
+                onChanged(translation)
+            case .ended, .cancelled, .failed:
+                onEnded(translation, pan.velocity(in: view).x)
+            default:
+                break
+            }
         }
     }
 }
 
-private struct HorizontalPan: UIViewRepresentable {
-    let onSwipeLeft: () -> Void
+/// Page-level pan that only starts on a leftward horizontal drag. The pan has
+/// to live on the page's own view controller, and it has to be allowed to run
+/// alongside scrolling or vertical drags stop working.
+private struct CloseDrawerPan: UIViewRepresentable {
+    let enabled: Bool
+    let onBegan: () -> Void
+    let onChanged: (CGFloat) -> Void
+    let onEnded: (CGFloat, CGFloat) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onSwipeLeft: onSwipeLeft) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(enabled: enabled, onBegan: onBegan, onChanged: onChanged, onEnded: onEnded)
+    }
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
@@ -153,7 +328,11 @@ private struct HorizontalPan: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.onSwipeLeft = onSwipeLeft
+        context.coordinator.enabled = enabled
+        context.coordinator.onBegan = onBegan
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+        context.coordinator.recognizer?.isEnabled = enabled
         context.coordinator.attach(from: uiView, attempts: 12)
     }
 
@@ -162,20 +341,29 @@ private struct HorizontalPan: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        var onSwipeLeft: () -> Void
+        var enabled: Bool
+        var onBegan: () -> Void
+        var onChanged: (CGFloat) -> Void
+        var onEnded: (CGFloat, CGFloat) -> Void
         weak var host: UIView?
-        private var recognizer: UIPanGestureRecognizer?
+        private(set) var recognizer: UIPanGestureRecognizer?
         private var attached = false
-        private var fired = false
+        private var began = false
 
-        init(onSwipeLeft: @escaping () -> Void) { self.onSwipeLeft = onSwipeLeft }
+        init(enabled: Bool,
+             onBegan: @escaping () -> Void,
+             onChanged: @escaping (CGFloat) -> Void,
+             onEnded: @escaping (CGFloat, CGFloat) -> Void) {
+            self.enabled = enabled
+            self.onBegan = onBegan
+            self.onChanged = onChanged
+            self.onEnded = onEnded
+        }
 
         func attach(from view: UIView, attempts: Int) {
             guard !attached, attempts > 0 else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak view] in
                 guard let self, let view else { return }
-                // The page's own view controller: a pan added here sees touches
-                // over the list as well, which a window-level recogniser does not.
                 guard let host = view.parentViewController?.view ?? view.window else {
                     self.attach(from: view, attempts: attempts - 1)
                     return
@@ -183,11 +371,12 @@ private struct HorizontalPan: UIViewRepresentable {
                 let pan = UIPanGestureRecognizer(target: self, action: #selector(Self.handle(_:)))
                 pan.delegate = self
                 pan.cancelsTouchesInView = false
+                pan.isEnabled = self.enabled
                 host.addGestureRecognizer(pan)
                 self.host = host
                 self.recognizer = pan
                 self.attached = true
-                inboxGestureLog.info("pan attached to \(type(of: host), privacy: .public)")
+                inboxGestureLog.info("close pan attached to \(type(of: host), privacy: .public)")
             }
         }
 
@@ -199,24 +388,33 @@ private struct HorizontalPan: UIViewRepresentable {
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
-                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            true
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard enabled, let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
+            let velocity = pan.velocity(in: pan.view)
+            // Only a leftward horizontal drag belongs to the drawer; everything
+            // else stays with the list's own scrolling.
+            return velocity.x < 0 && abs(velocity.x) > abs(velocity.y) * 1.2
+        }
 
         @objc private func handle(_ pan: UIPanGestureRecognizer) {
-            guard let view = pan.view else { return }
-            let translation = pan.translation(in: view)
-            inboxGestureLog.debug("pan \(pan.state.rawValue) dx=\(translation.x) dy=\(translation.y)")
+            guard enabled, let view = pan.view else { return }
+            let translation = pan.translation(in: view).x
+            let velocity = pan.velocity(in: view).x
             switch pan.state {
             case .began:
-                fired = false
-            case .changed, .ended:
-                // Leftward and clearly horizontal: the person is moving to the
-                // next page, not scrolling the list.
-                if !fired,
-                   translation.x < -70,
-                   abs(translation.x) > abs(translation.y) * 1.5 {
-                    fired = true
-                    onSwipeLeft()
-                }
+                began = true
+                onBegan()
+            case .changed:
+                guard began else { return }
+                onChanged(translation)
+            case .ended, .cancelled, .failed:
+                guard began else { return }
+                began = false
+                onEnded(translation, velocity)
             default:
                 break
             }

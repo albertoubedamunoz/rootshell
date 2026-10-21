@@ -120,7 +120,6 @@ struct MainView: View {
     @State var showToolbarSettings = false
     @State var settingsDestination: SettingsDestination?
     @State var showConnectionSidebar = false
-    @State var showAgentInbox = false
     @State var connectionSidebarInitialTab: ConnectionSidebarTab = .lastUsed
     @State var showPasswordPromptSheet = false
     @State var passwordPromptProfile: ConnectionProfile?

@@ -329,26 +329,25 @@ extension MainView {
             }
             // The inbox is a first-class screen of the app, not a detour: it is
             // presented here (inside MainView) so it inherits the same theme
-            // environment as every other sheet. The island's tap lands on it,
-            // and SwiftUI silently drops a second presentation while the
-            // connection sheet is up — so close that one first, then present
-            // after its dismissal animation.
-            .onReceive(NotificationCenter.default.publisher(for: .showAgentInbox)) { _ in
-                showConnectionSidebar = false
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(450))
-                    showAgentInbox = true
-                }
+            // environment as every other sheet. The island's tap lands on it.
+            // The router is read through `AgentInboxRouter.shared`, not the
+            // notification it used to post: a cold launch delivers the URL
+            // before this view has subscribed, and that post was lost.
+            .onChange(of: AgentInboxRouter.shared.isPresented) { _, presented in
+                if presented { showConnectionSidebar = false }
             }
             // The app opens on its normal screen; a right-swipe from the
             // leading edge (or an island tap) brings the inbox up, themed like
             // every other panel. Mechanics live in the modifier so this chain
             // stays type-checkable.
             .modifier(AgentInboxSheetModifier(
-                isPresented: $showAgentInbox,
                 themeColors: sheetTheme.themeColors,
                 accentColor: sheetTheme.accentColor,
-                colorScheme: sheetTheme.colorScheme
+                colorScheme: sheetTheme.colorScheme,
+                // The connection panel is part of the home screen, not a modal
+                // detour: a right-swipe over it must still reach the inbox. Any
+                // other presented sheet owns the gesture.
+                canOpen: { !isAnySheetPresented || showConnectionSidebar }
             ))
             .modifier(ConnectionSidebarModifier(
                 showSidebar: $showConnectionSidebar,

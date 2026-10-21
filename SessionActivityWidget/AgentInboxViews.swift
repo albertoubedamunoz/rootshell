@@ -152,7 +152,10 @@ enum AgentInboxBadge {
     }
 
     static func tint(_ state: SessionActivityAttributes.ContentState) -> AnyShapeStyle {
-        state.agentInboxHasBlocked ? AnyShapeStyle(.orange) : AnyShapeStyle(.white)
+        if state.agentInboxHasBlocked { return AnyShapeStyle(.orange) }
+        if state.agentInboxHasFailed { return AnyShapeStyle(.red) }
+        if state.agentInboxDoneUnreadCount > 0 { return AnyShapeStyle(.green) }
+        return AnyShapeStyle(.white)
     }
 }
 
@@ -245,17 +248,37 @@ struct AgentInboxCompactTrailing: View {
     let state: SessionActivityAttributes.ContentState
 
     var body: some View {
-        HStack(spacing: 1) {
-            if state.agentInboxHasBlocked {
-                Image(systemName: "exclamationmark")
-                    .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(.orange)
+        HStack(spacing: 3) {
+            if state.agentInboxBlockedUnreadCount > 0 {
+                statusCount(state.agentInboxBlockedUnreadCount, tint: .orange)
             }
-            Text(AgentInboxBadge.text(state))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AgentInboxBadge.tint(state))
-                .contentTransition(.numericText())
+            if state.agentInboxDoneUnreadCount > 0 {
+                statusCount(state.agentInboxDoneUnreadCount, tint: .green)
+            }
+            if state.agentInboxFailedUnreadCount > 0 {
+                statusCount(state.agentInboxFailedUnreadCount, tint: .red)
+            }
+            if state.agentInboxBlockedUnreadCount == 0,
+               state.agentInboxDoneUnreadCount == 0,
+               state.agentInboxFailedUnreadCount == 0 {
+                Text(AgentInboxBadge.text(state))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AgentInboxBadge.tint(state))
+                    .monospacedDigit()
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func statusCount(_ count: Int, tint: Color) -> some View {
+        HStack(spacing: 1) {
+            Circle()
+                .fill(tint)
+                .frame(width: 5, height: 5)
+            Text(count > 9 ? "9+" : "\(count)")
+                .font(.system(size: 10, weight: .semibold))
                 .monospacedDigit()
+                .foregroundStyle(tint)
         }
     }
 }
@@ -288,6 +311,10 @@ struct AgentInboxMinimal: View {
                 .background(
                     Capsule().fill(state.agentInboxHasBlocked
                                    ? AnyShapeStyle(.orange)
+                                   : state.agentInboxHasFailed
+                                   ? AnyShapeStyle(.red)
+                                   : state.agentInboxDoneUnreadCount > 0
+                                   ? AnyShapeStyle(.green)
                                    : AnyShapeStyle(.white.opacity(0.25)))
                 )
         }
@@ -309,13 +336,46 @@ struct AgentInboxExpandedHeader: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
-            if state.agentInboxAgentCount > 1 {
+            // One chip per state the island answers: waiting, finished, broken.
+            // Working rows stay in the inbox; a glance cannot act on them.
+            if state.agentInboxBlockedUnreadCount > 0
+                || state.agentInboxDoneUnreadCount > 0
+                || state.agentInboxFailedUnreadCount > 0 {
+                HStack(spacing: 6) {
+                    if state.agentInboxBlockedUnreadCount > 0 {
+                        statusCount(state.agentInboxBlockedUnreadCount,
+                                    symbol: "exclamationmark.circle.fill",
+                                    tint: .orange,
+                                    label: AgentInboxText.status("blocked") ?? "")
+                    }
+                    if state.agentInboxDoneUnreadCount > 0 {
+                        statusCount(state.agentInboxDoneUnreadCount,
+                                    symbol: "checkmark.circle.fill",
+                                    tint: .green,
+                                    label: AgentInboxText.status("done") ?? "")
+                    }
+                    if state.agentInboxFailedUnreadCount > 0 {
+                        statusCount(state.agentInboxFailedUnreadCount,
+                                    symbol: "xmark.circle.fill",
+                                    tint: .red,
+                                    label: AgentInboxText.status("failed") ?? "")
+                    }
+                }
+            } else if state.agentInboxAgentCount > 1 {
                 Text(AgentInboxText.agents(state.agentInboxAgentCount))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         }
+    }
+
+    private func statusCount(_ count: Int, symbol: String, tint: Color, label: String) -> some View {
+        Label("\(count)", systemImage: symbol)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(tint)
+            .labelStyle(.titleAndIcon)
+            .accessibilityLabel("\(count) \(label)")
     }
 }
 
@@ -468,7 +528,32 @@ struct AgentInboxLockScreenView: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
-            if state.agentInboxAgentCount > 1 {
+            if state.agentInboxBlockedUnreadCount > 0 {
+                Label("\(state.agentInboxBlockedUnreadCount)", systemImage: "exclamationmark.circle.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .labelStyle(.titleAndIcon)
+                    .accessibilityLabel("\(state.agentInboxBlockedUnreadCount) \(AgentInboxText.status("blocked") ?? "")")
+            }
+            if state.agentInboxDoneUnreadCount > 0 {
+                Label("\(state.agentInboxDoneUnreadCount)", systemImage: "checkmark.circle.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .labelStyle(.titleAndIcon)
+                    .accessibilityLabel("\(state.agentInboxDoneUnreadCount) \(AgentInboxText.status("done") ?? "")")
+            }
+            if state.agentInboxFailedUnreadCount > 0 {
+                Label("\(state.agentInboxFailedUnreadCount)", systemImage: "xmark.circle.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .labelStyle(.titleAndIcon)
+                    .accessibilityLabel("\(state.agentInboxFailedUnreadCount) \(AgentInboxText.status("failed") ?? "")")
+            }
+
+            if state.agentInboxBlockedUnreadCount == 0,
+               state.agentInboxDoneUnreadCount == 0,
+               state.agentInboxFailedUnreadCount == 0,
+               state.agentInboxAgentCount > 1 {
                 Text("\u{00B7}")
                     .font(.caption2)
                     .foregroundStyle(subtitleStyle)
@@ -535,6 +620,9 @@ struct AgentInboxMarkAllReadIntent: LiveActivityIntent {
 
             state.agentItems = []
             state.agentUnreadTotal = 0
+            state.agentInboxBlockedCount = 0
+            state.agentInboxFailedCount = 0
+            state.agentInboxDoneCount = 0
             let content = ActivityContent(state: state, staleDate: nil)
 
             if hasOtherContent {

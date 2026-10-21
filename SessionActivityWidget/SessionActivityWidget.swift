@@ -307,31 +307,21 @@ struct SessionActivityWidget: Widget {
             // The agent behind the newest event, in its brand tint.
             AgentInboxCompactLeading(state: state)
         } compactTrailing: {
-            HStack(spacing: 3) {
-                // Unread total: `9+`, or `!` while something is blocked.
-                AgentInboxCompactTrailing(state: state)
-                // The session count keeps an icon so it can never be mistaken
-                // for a second unread number.
-                if state.sessionCount > 0 {
-                    Label("\(state.sessionCount)", systemImage: "terminal")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                if state.wifiSSID != nil {
-                    Image(systemName: "wifi")
-                        .font(.caption2)
-                        .foregroundStyle(.cyan)
-                }
-                if state.vpnStatus != nil {
-                    Image(systemName: "network.badge.shield.half.filled")
-                        .font(.caption2)
-                        .foregroundStyle(.green)
-                }
-            }
+            // Three status counts only. Session/WiFi/VPN still travel in the
+            // expanded trailing region; the compact pill is too narrow to hold
+            // both and the counts are the reason the island is up.
+            AgentInboxCompactTrailing(state: state)
         } minimal: {
             // Squeezed to a circle by another app's activity: mark plus a
             // corner count, no text.
             AgentInboxMinimal(state: state)
         }
+        // The expanded island's default side margins clipped the agent name and
+        // the relative time on 6.1" phones. 8pt still keeps the content clear of
+        // the rounded corners while giving the rows the width the system allows.
+        .contentMargins(.horizontal, 8, for: .expanded)
+        // A tap anywhere that is not a row goes to the inbox, including the
+        // header and the session/VPN hints; rows keep their own pane links.
+        .widgetURL(AgentInboxLinks.inbox)
     }
 }

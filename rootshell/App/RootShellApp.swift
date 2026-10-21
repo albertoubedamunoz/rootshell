@@ -96,7 +96,7 @@ struct RootShellApp: App {
         WindowGroup(id: "main-terminal") {
             Group {
                 #if DEBUG
-                if Self.inboxOnly {
+                if Self.inboxOnly && AgentInboxPlatform.isSupported {
                     // Design review only: `-AgentInboxOnly` boots straight into
                     // the inbox so it can be screenshotted without the
                     // onboarding / connection sheets.
@@ -121,7 +121,9 @@ struct RootShellApp: App {
                     // Settings load asynchronously; seeding before they land
                     // means `isEnabled` is still false and no island appears.
                     try? await Task.sleep(for: .seconds(10))
-                    AgentInboxStore.shared.seedDemoIfRequested()
+                    if AgentInboxPlatform.isSupported {
+                        AgentInboxStore.shared.seedDemoIfRequested()
+                    }
                     #endif
                     guard ProtectedDataGuard.isAvailable else { return }
 

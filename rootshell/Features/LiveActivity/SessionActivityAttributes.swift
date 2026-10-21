@@ -103,6 +103,13 @@ nonisolated struct SessionActivityAttributes: ActivityAttributes, Sendable {
         /// single "N more" row.
         var agentUnreadTotal: Int = 0
 
+        /// Unread events by status, counted before `agentItems` is capped. The
+        /// island and the inbox must agree on how many "needs you" and "failed"
+        /// rows there are even when the carried array cannot hold them all.
+        var agentInboxBlockedCount: Int = 0
+        var agentInboxFailedCount: Int = 0
+        var agentInboxDoneCount: Int = 0
+
         /// Asset name for the widget's composed display PNG matching
         /// `appIconVariant`. Mirrors `AppIconManager.AppIconVariant.previewAssetName`.
         /// The widget's asset catalog carries copies of these imagesets so
@@ -186,6 +193,28 @@ extension SessionActivityAttributes.ContentState {
     var agentInboxHasBlocked: Bool {
         agentItems.contains { AgentInboxStatus(raw: $0.status) == .blocked }
     }
+
+    /// Exact unread blocked/failed counts. The wire fields are authoritative
+    /// when present; older activities (written before the fields existed) fall
+    /// back to the rows they did carry.
+    var agentInboxBlockedUnreadCount: Int {
+        if agentInboxBlockedCount > 0 { return agentInboxBlockedCount }
+        return agentItems.lazy.filter { AgentInboxStatus(raw: $0.status) == .blocked }.count
+    }
+
+    var agentInboxFailedUnreadCount: Int {
+        if agentInboxFailedCount > 0 { return agentInboxFailedCount }
+        return agentItems.lazy.filter { AgentInboxStatus(raw: $0.status) == .failed }.count
+    }
+
+    var agentInboxDoneUnreadCount: Int {
+        if agentInboxDoneCount > 0 { return agentInboxDoneCount }
+        return agentItems.lazy.filter { AgentInboxStatus(raw: $0.status) == .done }.count
+    }
+
+    /// Failed events are a distinct section in the inbox, so the island tints
+    /// for them separately from a blocked prompt.
+    var agentInboxHasFailed: Bool { agentInboxFailedUnreadCount > 0 }
 }
 
 /// One agent event on the island.
@@ -312,6 +341,9 @@ extension SessionActivityAttributes.ContentState {
         // the session/VPN fields that still decode.
         agentItems = (try? c.decodeIfPresent([AgentInboxItem].self, forKey: .agentItems)) ?? []
         agentUnreadTotal = try c.decodeIfPresent(Int.self, forKey: .agentUnreadTotal) ?? agentItems.count
+        agentInboxBlockedCount = try c.decodeIfPresent(Int.self, forKey: .agentInboxBlockedCount) ?? 0
+        agentInboxFailedCount = try c.decodeIfPresent(Int.self, forKey: .agentInboxFailedCount) ?? 0
+        agentInboxDoneCount = try c.decodeIfPresent(Int.self, forKey: .agentInboxDoneCount) ?? 0
     }
 }
 #endif

@@ -100,6 +100,29 @@ enum TerminalWindowRegistry {
         return prefixMatch
     }
 
+    /// A tab connected to a host. An inbox message outlives the pane that
+    /// produced it; when the pane is gone, the host is the next most stable
+    /// identity the message carries, and the tab's title may have moved on.
+    static func tabID(matchingHost host: String) -> (windowId: String, tabID: UUID)? {
+        let needle = TabGroupID.normalizeHost(host).lowercased()
+        guard !needle.isEmpty else { return nil }
+        var loose: (String, UUID)?
+        for (windowId, weakModel) in models {
+            guard let model = weakModel.model else { continue }
+            for tab in model.tabs {
+                let connection = model.groupHostLabel(for: tab)?.lowercased()
+                if connection == needle { return (windowId, tab.id) }
+                if loose == nil, let connection, connection.contains(needle) {
+                    loose = (windowId, tab.id)
+                }
+                if loose == nil, tab.title.lowercased().contains(needle) {
+                    loose = (windowId, tab.id)
+                }
+            }
+        }
+        return loose
+    }
+
     static func targets(excluding sourceWindowId: String) -> [TerminalWindowTransferTarget] {
         models
             .compactMap { windowId, weakModel -> TerminalWindowTransferTarget? in
