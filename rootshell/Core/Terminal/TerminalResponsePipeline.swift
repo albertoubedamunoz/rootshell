@@ -8,8 +8,6 @@ protocol TerminalResponsePipelineHost: AnyObject {
     var terminalResponseReadQueue: DispatchQueue { get }
     var terminalResponseTmuxGatewayOwnerKey: Int { get }
     var terminalResponseHasTmuxController: Bool { get }
-
-    func terminalResponseShouldFilterSizeReports(for session: TerminalSession) -> Bool
 }
 
 /// Owns Ghostty response-pipe monitoring for a terminal session.
@@ -23,7 +21,6 @@ final class TerminalResponsePipeline {
     private weak var host: TerminalResponsePipelineHost?
 
     private var responseReadSource: DispatchSourceRead?
-    private var sizeReportCarryOver = Data()
     private var gatewayReportFilterState: GatewayReportFilterState = .ground
     private let gatewayFastPath = TerminalResponseGatewayFastPath()
 
@@ -60,7 +57,6 @@ final class TerminalResponsePipeline {
         responseEventContinuation = nil
         responseReadSource?.cancel()
         responseReadSource = nil
-        sizeReportCarryOver.removeAll(keepingCapacity: true)
         gatewayReportFilterState = .ground
     }
 
@@ -104,7 +100,6 @@ final class TerminalResponsePipeline {
             queue: host.terminalResponseReadQueue
         )
         responseReadSource = source
-        sizeReportCarryOver.removeAll()
         gatewayReportFilterState = .ground
 
         let coalescer = TerminalResponsePasteCoalescer()
@@ -205,19 +200,9 @@ final class TerminalResponsePipeline {
             return
         }
 
-        if host.terminalResponseShouldFilterSizeReports(for: session) {
-            guard let filtered = Self.filterSizeReports(
-                from: data,
-                carryOver: &sizeReportCarryOver
-            ) else {
-                return
-            }
-            session.sendInput(filtered)
-        } else if let pane = session as? HerdrPaneSession {
-            sizeReportCarryOver.removeAll(keepingCapacity: true)
+        if let pane = session as? HerdrPaneSession {
             pane.sendResponse(data)
         } else {
-            sizeReportCarryOver.removeAll(keepingCapacity: true)
             session.sendInput(data)
         }
     }
@@ -225,11 +210,6 @@ final class TerminalResponsePipeline {
     private func flushAndCancel(pendingPaste: Data?, session: TerminalSession?) {
         if let pendingPaste, let session {
             session.sendInput(pendingPaste)
-        }
-        if let session, !sizeReportCarryOver.isEmpty {
-            let remaining = sizeReportCarryOver
-            sizeReportCarryOver.removeAll()
-            session.sendInput(remaining)
         }
         cancel()
     }
@@ -287,88 +267,6 @@ final class TerminalResponsePipeline {
             else if b == 0x1B { state = .strEsc }
         case .strEsc:
             state = .ground
-        }
-    }
-
-    nonisolated static func filterSizeReports(
-        from data: Data,
-        carryOver: inout Data
-    ) -> Data? {
-        let sizeReportParams: Set<Int> = [4, 6, 8, 48]
-
-        var input: Data
-        if carryOver.isEmpty {
-            input = data
-        } else {
-            input = carryOver
-            input.append(data)
-            carryOver.removeAll(keepingCapacity: true)
-        }
-
-        return input.withUnsafeBytes { rawBuffer -> Data? in
-            guard let bytes = rawBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
-                return nil
-            }
-            let count = rawBuffer.count
-
-            var result = Data()
-            result.reserveCapacity(count)
-            var i = 0
-
-            while i < count {
-                if bytes[i] == 0x1B {
-                    if i + 1 >= count {
-                        carryOver.append(bytes[i])
-                        i += 1
-                        continue
-                    }
-                    if bytes[i + 1] == 0x5B {
-                        let seqStart = i
-                        i += 2
-
-                        var firstParam = 0
-                        var parsingFirstParam = true
-
-                        while i < count && bytes[i] >= 0x30 && bytes[i] <= 0x3F {
-                            if parsingFirstParam {
-                                if bytes[i] >= 0x30 && bytes[i] <= 0x39 {
-                                    firstParam = firstParam * 10 + Int(bytes[i] - 0x30)
-                                } else {
-                                    parsingFirstParam = false
-                                }
-                            }
-                            i += 1
-                        }
-
-                        if i >= count {
-                            carryOver.append(Data(bytes: bytes + seqStart, count: count - seqStart))
-                            break
-                        }
-
-                        if bytes[i] >= 0x40 && bytes[i] <= 0x7E {
-                            let finalByte = bytes[i]
-                            i += 1
-
-                            if finalByte == 0x74 && sizeReportParams.contains(firstParam) {
-                                continue
-                            }
-
-                            result.append(bytes + seqStart, count: i - seqStart)
-                        } else {
-                            result.append(bytes + seqStart, count: i - seqStart)
-                        }
-                    } else {
-                        result.append(bytes[i])
-                        i += 1
-                    }
-                } else {
-                    let next = rawBuffer.firstOffset(of: 0x1B, in: i..<count) ?? count
-                    result.append(bytes + i, count: next - i)
-                    i = next
-                }
-            }
-
-            return result.isEmpty ? nil : result
         }
     }
 }

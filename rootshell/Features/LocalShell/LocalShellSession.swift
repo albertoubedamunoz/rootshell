@@ -87,12 +87,6 @@ final class LocalShellSession: TerminalSession, EmbeddedConnectionConfigProvidin
         case scriptReadPrompt              // Script waiting for `read` builtin input
         case wasmRunning                   // .wasm binary executing in the WKWebView-hosted runtime
         case vpnRunning                    // Native vpn command running
-
-        /// Whether this mode is an active trzsz (tssh) session.
-        var isTrzsz: Bool {
-            if case .trzszSession = self { return true }
-            return false
-        }
     }
 
     // SSH/SCP/SFTP/Mosh/Trzsz mode state

@@ -76,6 +76,8 @@ struct ConnectionSidebarModifier<PhoneContent: View, SidebarContent: View>: View
                         backdropAlpha: themeColors != nil ? 0.4 : 0.5,
                         contentID: contentID,
                         preventDismissal: preventDismissal,
+                        // Off while undismissable: the empty state's responder owns New Tab keys then.
+                        escapeDismisses: !preventDismissal,
                         content: {
                             ConnectionSidebarPanelView(
                                 preventDismissal: preventDismissal,

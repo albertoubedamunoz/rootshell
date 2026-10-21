@@ -1,4 +1,4 @@
-*starting.txt*	For Vim version 9.2.  Last change: 2026 Feb 18
+*starting.txt*	For Vim version 9.2.  Last change: 2026 Sep 08
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -252,7 +252,8 @@ a slash.  Thus "-R" means recovery and "-/R" readonly.
 		":sh", filtering, the |system()| function, backtick expansion
 		and libcall().
 		Also disallowed are |delete()|, |rename()|, |mkdir()|,
-		|job_start()|, |setenv()| etc.
+		|job_start()|, |setenv()| and setting environment variables,
+		etc.
 		Interfaces, such as Python, Ruby and Lua, are also disabled,
 		since they could be used to execute shell commands.  Perl uses
 		the Safe module.
@@ -441,6 +442,16 @@ a slash.  Thus "-R" means recovery and "-/R" readonly.
 							*--ttyfail*
 --ttyfail	When the stdin or stdout is not a terminal (tty) then exit
 		right away.
+
+							*--stdio-channel*
+--stdio-channel	Use the stdin and stdout of Vim for a channel instead of for a
+		terminal.  Implies "-es": nothing is displayed, no Ex commands
+		are read and the GUI is not started.  A script opens the
+		channel with |ch_open()| and the address "stdio".
+		See |channel-stdio|.
+		After the startup commands and scripts have been executed Vim
+		waits for messages on the channel and exits when it is closed.
+		{only available when compiled with the |+channel| feature}
 
 							*-d*
 -d		Start in diff mode, like |vimdiff|.
@@ -640,6 +651,12 @@ a slash.  Thus "-R" means recovery and "-/R" readonly.
 		which can be used to run gvim in a kpart widget.  The format
 		of the output is: >
 			WID: 12345\n
+
+--display {display}					*--display*
+		Run Vim on {display}, connecting to that X server instead of
+		the one in $DISPLAY.  The "--display" long form is accepted
+		only by the GTK+ 2 or GTK+ 3 GUI, see also |-display|.
+		{only available with the |+xterm_clipboard| feature}
 
 --role {role}						*--role*
 		GTK+ 2 GUI only.  Set the role of the main window to {role}.
@@ -1468,8 +1485,8 @@ This saves the current Session, and starts off the command to load another.
 A session includes all tab pages, unless "tabpages" was removed from
 'sessionoptions'. |tab-page|
 
-The |SessionLoadPost| autocmd event is triggered after a session file is
-loaded/sourced.
+The |SessionLoadPre| autocmd event is triggered before a session file is
+loaded/sourced and |SessionLoadPost| autocmd event is triggered after.
 						*SessionLoad-variable*
 While the session file is loading, the SessionLoad global variable is set to
 1.  Plugins can use this to postpone some work until the SessionLoadPost event
@@ -1571,6 +1588,24 @@ viminfo file.  Session files are used to save the state of a specific editing
 Session.  You could have several Session files, one for each project you are
 working on.  Viminfo and Session files together can be used to effectively
 enter Vim and directly start working in your desired setup. |session-file|
+
+							*viminfo-security*
+A viminfo file written by Vim is plain text and contains Vim expressions for
+|List|, |Dictionary| and |Tuple| values.  When "!" is in 'viminfo' at the time
+Vim processes the file as a viminfo file, those expressions are evaluated.
+
+The default value of 'viminfo' does not include "!", so by default no
+expression evaluation happens.
+
+Opening a viminfo file in a buffer (e.g. with |:edit|) is harmless; Vim only
+displays the file contents.  The risk is letting Vim process an untrusted file
+through the viminfo machinery, which happens when:
+- |:rviminfo| is used on the file, or
+- 'viminfofile' is set to point at it, or
+- the file is placed at the path Vim already reads as viminfo
+  |viminfo-file-name|
+
+In any of those cases, do not have "!" in 'viminfo' if you do not trust it.
 
 							*viminfo-read*
 When Vim is started and the 'viminfo' option is non-empty, the contents of

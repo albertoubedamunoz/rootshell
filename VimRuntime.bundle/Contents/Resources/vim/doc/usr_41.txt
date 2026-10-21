@@ -1,4 +1,4 @@
-*usr_41.txt*	For Vim version 9.2.  Last change: 2026 Feb 16
+*usr_41.txt*	For Vim version 9.2.  Last change: 2026 Sep 30
 
 
 		     VIM USER MANUAL	by Bram Moolenaar
@@ -921,11 +921,32 @@ Floating point computation:				*float-functions*
 	isnan()			check for not a number
 
 Blob manipulation:					*blob-functions*
-	blob2list()		get a list of numbers from a blob
-	list2blob()		get a blob from a list of numbers
-	reverse()		reverse the order of numbers in a blob
+	get()			get a byte without error for wrong index
+	len()			number of bytes in a Blob
+	empty()			check if Blob is empty
+	insert()		insert a byte somewhere in a Blob
+	add()			append a byte to a Blob
+	extend()		append a Blob to a Blob
+	extendnew()		make a new Blob and append bytes
+	remove()		remove one or more bytes from a Blob
+	copy()			make a copy of a Blob
+	filter()		remove selected bytes from a Blob
+	map()			change each byte of a Blob
+	mapnew()		make a new Blob with changed bytes
+	foreach()		apply function to Blob bytes
+	reduce()		reduce a Blob to a value
+	slice()			take a slice of a Blob
+	blob2list()		get a list of numbers from a Blob
+	list2blob()		get a Blob from a list of numbers
+	blob2str()		get a list of strings from a Blob
+	str2blob()		get a Blob from a list of strings
+	base64_encode()		encode a Blob into a base64 String
+	base64_decode()		decode a base64 String into a Blob
+	reverse()		reverse the order of bytes in a Blob
+	string()		String representation of a Blob
 	index()			index of a value in a Blob
 	indexof()		index in a Blob where an expression is true
+	repeat()		repeat a Blob multiple times
 	items()			get List of Blob index-value pairs
 
 Other computation:					*bitwise-function*
@@ -1081,6 +1102,8 @@ Buffers, windows and the argument list:
 	tabpagebuflist()	return List of buffers in a tab page
 	tabpagenr()		get the number of a tab page
 	tabpagewinnr()		like winnr() for a specified tab page
+	tabpanel_getinfo()	get current state of the tabpanel
+	tabpanel_scroll()	scroll the tabpanel
 	winnr()			get the window number for the current window
 	bufwinid()		get the window ID of a specific buffer
 	bufwinnr()		get the window number of a specific buffer
@@ -1201,6 +1224,7 @@ Interactive:					*interactive-functions*
 	inputrestore()		restore typeahead
 
 GUI:						*gui-functions*
+	getbgcolor()		get current background colour as [r, g, b]
 	getfontname()		get name of current font being used
 	getwinpos()		position of the Vim window
 	getwinposx()		X position of the Vim window
@@ -1287,23 +1311,24 @@ Testing:				    *test-functions*
 
 Inter-process communication:		    *channel-functions*
 	ch_canread()		check if there is something to read
-	ch_open()		open a channel
 	ch_close()		close a channel
 	ch_close_in()		close the in part of a channel
+	ch_evalexpr()		evaluate an expression over channel
+	ch_evalraw()		evaluate a raw string over channel
+	ch_getbufnr()		get the buffer number for a channel
+	ch_getjob()		get the Job of a channel
+	ch_info()		get information about a channel
+	ch_listen()		listen on a channel
+	ch_log()		write a message in the channel log
+	ch_logfile()		start logging channel activity
+	ch_open()		open a channel
 	ch_read()		read a message from a channel
 	ch_readblob()		read a Blob from a channel
 	ch_readraw()		read a raw message from a channel
 	ch_sendexpr()		send a JSON message over a channel
 	ch_sendraw()		send a raw message over a channel
-	ch_evalexpr()		evaluate an expression over channel
-	ch_evalraw()		evaluate a raw string over channel
+	ch_setoptions()		set channel options
 	ch_status()		get status of a channel
-	ch_getbufnr()		get the buffer number of a channel
-	ch_getjob()		get the job associated with a channel
-	ch_info()		get channel information
-	ch_log()		write a message in the channel log file
-	ch_logfile()		set the channel log file
-	ch_setoptions()		set the options for a channel
 	json_encode()		encode an expression to a JSON string
 	json_decode()		decode a JSON string to Vim types
 	js_encode()		encode an expression to a JSON string
@@ -1430,12 +1455,19 @@ Sound:							*sound-functions*
 	sound_playfile()	play a sound file
 	sound_stop()		stop playing a sound
 
+Images:							*image-functions*
+	image_add()		add an image
+	image_discard()		discard an image
+	image_info()		get information about image(s)
+
 Various:					*various-functions*
 	mode()			get current editing mode
 	state()			get current busy state
 	visualmode()		last visual mode used
 	exists()		check if a variable, function, etc. exists
 	exists_compiled()	like exists() but check at compile time
+	getinfo()		get the definition of a function, command,
+				option or Vim variable
 	has()			check if a feature is supported in Vim
 	changenr()		return number of most recent change
 	cscope_connection()	check if a cscope connection exists

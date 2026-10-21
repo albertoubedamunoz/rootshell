@@ -6,13 +6,8 @@
 "                    @Konfekt
 "                    @tpope (s:Help())
 "                    @lacygoill
-" Last Change:       2025 Aug 07
-" 2025 Aug 06 by Vim Project (add gf maps #17881)
-" 2025 Aug 08 by Vim Project (add Vim script complete function #17871)
-" 2025 Aug 12 by Vim Project (improve vimgoto script #17970))
-" 2025 Aug 16 by Vim Project set com depending on Vim9 or legacy script
-" 2026 Jan 26 by Vim Project set path to common Vim directories #19219
-" 2026 Feb 03 by Vim Project update s:Help to improve detecting functions #19320
+" Last Change:       2026 Jun 27
+" 2026 Aug 02 by Vim project: Update 'path' setting #20908
 
 " Only do this when not done yet for this buffer
 if exists("b:did_ftplugin")
@@ -113,7 +108,7 @@ command! -buffer -nargs=1 VimKeywordPrg :exe 'help' s:Help(<q-args>)
 setlocal keywordprg=:VimKeywordPrg
 
 " Comments starts with # in Vim9 script.  We have to guess which one to use.
-if "\n" .. getline(1, 32)->join("\n") =~# '\n\s*vim9\%[script]\>'
+if "\n" .. getline(1, 32)->join("\n") =~# '\nvim9s\%[cript]\>'
   setlocal commentstring=#\ %s
   " Set 'comments' to format dashed lists in comments, for Vim9 script.
   setlocal com=sO:#\ -,mO:#\ \ ,eO:##,:#\\\ ,:#
@@ -141,7 +136,7 @@ endif
 
 " set 'path' to common Vim directories
 setlocal path-=/usr/include
-setlocal path+=pack/**,runtime/**,autoload/**,colors/**,compiler/**,ftplugin/**,indent/**,keymap/**,macros/**,plugin/**,syntax/**,after/**
+setlocal path+=pack/**,runtime/**,autoload/**,colors/**,compiler/**,ftplugin/**,indent/**,keymap/**,macros/**,plugin/**,syntax/**,after/**,python/**
 
 if !exists("no_plugin_maps") && !exists("no_vim_maps")
   let b:did_add_maps = 1
@@ -204,15 +199,17 @@ if exists("loaded_matchit")
   \ '\<aug\%[roup]\s\+\%(END\>\)\@!\S:\<aug\%[roup]\s\+END\>,' ..
   \ '\<class\>:\<endclass\>,' ..
   \ '\<interface\>:\<endinterface\>,' ..
-  \ '\<enum\>:\<endenum\>'
+  \ '\<enum\>:\<endenum\>,' ..
+  "\ :let-heredoc
+  \ '\%(=<<\s\+\%(\%(trim\s\+eval\|eval\s\+trim\|trim\|eval\)\s\+\)\=\)\@16<=\(\l\@!\S\+\):\%(^\s*\)\@<=\1$'
 
   " Ignore syntax region commands and settings, any 'en*' would clobber
   " if-endif.
   " - set spl=de,en
   " - au! FileType javascript syntax region foldBraces start=/{/ end=/}/ …
-  " Also ignore here-doc and dictionary keys (vimVar).
+  " Also ignore heredoc content and dictionary keys (vimVar).
   let b:match_skip = 'synIDattr(synID(line("."), col("."), 1), "name")
-                    \ =~? "comment\\|string\\|vimSynReg\\|vimSet\\|vimLetHereDoc\\|vimVar"'
+                    \ =~? "comment\\|string\\|vimSynReg\\|vimSet\\|vimLetHeredoc$\\|vimVar"'
 endif
 
 let &cpo = s:cpo_save

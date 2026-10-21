@@ -1083,33 +1083,6 @@ extension Ghostty.TerminalView {
         sessionController.cancelReconnection()
     }
 
-    /// Whether size report filtering should be active right now for this session.
-    /// Currently scoped to trzsz (tssh) sessions only, where the issue is observed.
-    /// Checks dynamically so it tracks LocalShellSession mode changes (e.g., user
-    /// typed `tssh` at a local prompt, or returned to local shell after embedded session).
-    func shouldFilterSizeReportsNow(session: TerminalSession) -> Bool {
-        switch connectionConfig {
-        case .trzsz, .trzszTransfer:
-            return true
-        case .shellLaunchedTrzsz:
-            #if !targetEnvironment(macCatalyst)
-            if let localSession = session as? LocalShellSession {
-                return localSession.sessionMode.isTrzsz
-            }
-            #endif
-            return true
-        case .local:
-            #if !targetEnvironment(macCatalyst)
-            if let localSession = session as? LocalShellSession {
-                return localSession.sessionMode.isTrzsz
-            }
-            #endif
-            return false
-        default:
-            return false
-        }
-    }
-
     /// Monitors Ghostty's response pipe for terminal responses (e.g., cursor position queries)
     /// and forwards them back to the session for bidirectional terminal communication.
     /// Works with both SSH and Catalyst local shell sessions.

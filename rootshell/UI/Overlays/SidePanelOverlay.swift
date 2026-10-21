@@ -61,7 +61,7 @@ struct SidePanelOverlay<Content: View>: UIViewControllerRepresentable {
     var preventDismissal: Bool = false
     var resignFirstResponderOnDismiss: Bool = false
     /// Close the panel on the ESC key via a UIKit key command. Opt-in because
-    /// some panels deliberately ignore ESC (the connection sidebar). See the
+    /// the tab sidebar's search field must keep first responder. See the
     /// controller property for why this lives at the UIKit layer.
     var escapeDismisses: Bool = false
     @ViewBuilder var content: () -> Content
@@ -185,6 +185,10 @@ class SidePanelOverlayViewController: UIViewController {
         backdropView.alpha = 0
         backdropView.addTarget(self, action: #selector(handleBackdropTap), for: .touchUpInside)
         view.addSubview(backdropView)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleTextDidEndEditing(_:)),
+            name: UITextField.textDidEndEditingNotification, object: nil
+        )
 
         addChild(hostingController)
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
@@ -362,6 +366,34 @@ class SidePanelOverlayViewController: UIViewController {
         onClose?()
     }
 
+    /// Takes first responder for the ESC command only when nothing in the panel
+    /// holds it; a focused field (e.g. a profile search) keeps its own keys.
+    private func claimEscapeResponderIfUnfocused() {
+        guard escapeDismisses, currentPresented, !panelHoldsFirstResponder else { return }
+        // Pointless work while backgrounded. Not a secure-draw guard: this
+        // controller has no inputView and only wires up ESC, so it cannot
+        // present a keyboard. The panel's own keyboard-bearing field
+        // (SidebarSearchField) carries that gate.
+        guard UIApplication.shared.applicationState != .background else { return }
+        becomeFirstResponder()
+    }
+
+    private var panelHoldsFirstResponder: Bool {
+        func holds(_ view: UIView) -> Bool { view.isFirstResponder || view.subviews.contains(where: holds) }
+        return holds(hostingController.view)
+    }
+
+    /// A panel field losing focus (tab switch, Return) leaves no responder; reclaim ESC.
+    @objc
+    private func handleTextDidEndEditing(_ notification: Notification) {
+        guard escapeDismisses,
+              let field = notification.object as? UIView,
+              field.isDescendant(of: hostingController.view) else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.claimEscapeResponderIfUnfocused()
+        }
+    }
+
     /// Fully-hidden transform for the current edge. Phone bottom-sheet adopters
     /// drop the panel off the bottom; everyone else slides it past its edge.
     var hiddenTransform: CGAffineTransform {
@@ -411,14 +443,7 @@ class SidePanelOverlayViewController: UIViewController {
             // cancels the pending grab if a rapid re-close already happened.
             if escapeDismisses {
                 DispatchQueue.main.async { [weak self] in
-                    guard let self, self.escapeDismisses, self.currentPresented else { return }
-                    // Pointless work while backgrounded. Not a secure-draw
-                    // guard: this controller has no inputView and only wires up
-                    // ESC, so it cannot present a keyboard. The panel's own
-                    // keyboard-bearing field (SidebarSearchField) carries that
-                    // gate.
-                    guard UIApplication.shared.applicationState != .background else { return }
-                    self.becomeFirstResponder()
+                    self?.claimEscapeResponderIfUnfocused()
                 }
             }
         } else {

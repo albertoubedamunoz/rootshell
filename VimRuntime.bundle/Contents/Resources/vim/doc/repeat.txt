@@ -1,4 +1,4 @@
-*repeat.txt*	For Vim version 9.2.  Last change: 2026 Feb 14
+*repeat.txt*	For Vim version 9.2.  Last change: 2026 Oct 13
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -67,9 +67,12 @@ This also makes it faster.
 Instead of the '/' which surrounds the {pattern}, you can use any other
 single byte character, but not an alphabetic character, '\', '"', '|' or '!'.
 This is useful if you want to include a '/' in the search pattern or
-replacement string.
+replacement string.  The closing delimiter is optional when [cmd] is not
+given, and the pattern then terminates at <EOL>.
 
 For the definition of a pattern, see |pattern|.
+
+The default [cmd] is `:print`.
 
 NOTE [cmd] may contain a range; see |collapse| and |edit-paragraph-join| for
 examples.
@@ -453,6 +456,9 @@ For writing a Vim script, see chapter 41 of the user manual |usr_41.txt|.
 			are executed first.  This process applies to all
 			nested ":try"s in the script.  The outermost ":endtry"
 			then stops sourcing the script.
+
+			In |Vim9| script `:finish` cannot be shortened, to
+			improve script readability.
 
 All commands and command sequences can be repeated by putting them in a named
 register and then executing it.  There are two ways to get the commands in the
