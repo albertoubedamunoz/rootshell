@@ -976,11 +976,18 @@ extension SequenceStep.KeyCombo {
         var result = byte
 
         if ctrl {
-            // Ctrl+symbol: for some symbols this maps to control codes
-            // e.g. Ctrl+[ = ESC (0x1B), Ctrl+\\ = 0x1C, Ctrl+] = 0x1D
-            if byte >= 0x40 && byte <= 0x7F {
-                result = byte & 0x1F
+            // Like Ghostty's legacy encoder: Shift is consumed into the US-shifted character
+            // (Ctrl+Shift+- = Ctrl+_ = 0x1F); no control byte means CSI u
+            // (Ctrl+Shift+[ = Ctrl+{ = ESC[123;5u).
+            let effective = shift ? Self.usShiftedCharacters[char] ?? char : char
+            // Fixterms exception: shifted @ is CSI u, not NUL.
+            guard !(shift && effective == "@"), let control = Self.legacyControlByte(effective) else {
+                let modParam = 1 + (alt ? 2 : 0) + 4
+                return Data("\u{1B}[\(effective.asciiValue ?? byte);\(modParam)u".utf8)
             }
+            result = control
+        } else if shift, let shifted = Self.usShiftedCharacters[char] {
+            result = shifted.asciiValue ?? byte
         }
 
         if alt {
@@ -989,6 +996,28 @@ extension SequenceStep.KeyCombo {
 
         return Data([result])
     }
+
+    /// Ctrl byte for a non-letter, matching Ghostty's `ctrlSeq` table plus Ctrl+[ = ESC.
+    private static func legacyControlByte(_ char: Character) -> UInt8? {
+        switch char {
+        case "0", "1", "9": return char.asciiValue
+        case "2", "@": return 0x00
+        case "3", "[": return 0x1B
+        case "4", "\\": return 0x1C
+        case "5", "]": return 0x1D
+        case "6", "^", "~": return 0x1E
+        case "7", "/", "_": return 0x1F
+        case "8", "?": return 0x7F
+        default: return nil
+        }
+    }
+
+    /// US-layout Shift mapping for digits and unshifted punctuation.
+    private static let usShiftedCharacters: [Character: Character] = [
+        "`": "~", "1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "6": "^",
+        "7": "&", "8": "*", "9": "(", "0": ")", "-": "_", "=": "+",
+        "[": "{", "]": "}", "\\": "|", ";": ":", "'": "\"", ",": "<", ".": ">", "/": "?",
+    ]
 
     private func specialKeyData(_ key: SequenceStep.SpecialKey, ctrl: Bool, alt: Bool, shift: Bool) -> Data {
         let hasModifiers = ctrl || alt || shift
