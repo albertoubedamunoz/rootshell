@@ -3,6 +3,32 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.15-171 - October 22, 2026
+
+### tssh and Terminal Graphics
+
+- **Terminal Size Replies:** Fixed terminal window and character-cell size replies being dropped over tssh, including when running tssh from the local shell. Remote apps such as terminal-browser can now obtain the pixel measurements needed to size graphics, fixing corrupt or incomplete rendering. macOS local shells and regular SSH connections were not affected.
+
+### New Tab and Keyboard Focus
+
+- **Command+T:** Fixed opening a local shell behind the Connections panel and leaving it without keyboard focus, including after exiting the last shell. Creating the shell now closes the panel and focuses the new tab.
+- **Escape:** Escape now dismisses the Connections panel when a terminal is open, including on older iPadOS versions. Focused search fields retain their keyboard input.
+
+### Custom Keys and Swipe Gestures
+
+- **Symbol Picker:** Added a Symbols tab to the key-combination picker for custom toolbar keys and swipe gesture sequences. Choose punctuation and symbols directly and combine them with modifiers. Editing an existing symbol opens the Symbols tab.
+- **Shift and Ctrl Combinations:** Fixed combinations with digits and punctuation, including Shift+1, Ctrl+[, and Ctrl+Shift+-. These now send the corresponding shifted characters or terminal key sequences.
+
+### iPhone Duo Touch Keyboard
+
+- **Split Terminal Keyboard:** On iOS 27.1 and later, rootshell's docked terminal keyboard splits into two halves around the fold when iPhone Duo is half open, with a space bar on each side. This adds split mode to the terminal keyboard; the system keyboard already supported it.
+- **Fold-Aware Layout:** Toolbar buttons, drawer keys, and navigation and shortcut grids stay clear of the fold. The layout updates as the hinge moves and keeps the bottom row clear of rounded screen corners.
+
+### Local Shell (iOS/visionOS)
+
+- **Vim Update:** Updated bundled Vim to 9.2.1225, including upstream security fixes and refreshed syntax highlighting, filetype plugins, and completion support.
+- **Vim Runtime Files:** Restored missing runtime files that could cause errors when opening Rust, shell, TypeScript, PHP, and SQL files or using Python indentation. Trimmed unused documentation to reduce the runtime bundle size.
+
 ## 1.0.15-170 - October 20, 2026
 
 ### Security Updates
