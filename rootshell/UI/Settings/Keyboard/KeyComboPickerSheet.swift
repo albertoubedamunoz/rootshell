@@ -37,7 +37,7 @@ struct KeyComboPickerSheet: View {
             switch key {
             case .letter: _activeTab = State(initialValue: .letters)
             case .digit: _activeTab = State(initialValue: .numbers)
-            case .symbol: _activeTab = State(initialValue: .numbers)
+            case .symbol: _activeTab = State(initialValue: .symbols)
             case .special: _activeTab = State(initialValue: .special)
             }
         } else {
@@ -48,12 +48,14 @@ struct KeyComboPickerSheet: View {
     enum KeyTab: String, CaseIterable {
         case letters = "Letters"
         case numbers = "Numbers"
+        case symbols = "Symbols"
         case special = "Special"
 
         var displayName: String {
             switch self {
             case .letters: return String(localized: "Letters", comment: "Key tab: letter keys")
             case .numbers: return String(localized: "Numbers", comment: "Key tab: number keys")
+            case .symbols: return String(localized: "Symbols", comment: "Key tab: punctuation and symbol keys")
             case .special: return String(localized: "Special", comment: "Key tab: special keys")
             }
         }
@@ -127,6 +129,8 @@ struct KeyComboPickerSheet: View {
                             letterGrid
                         case .numbers:
                             numberGrid
+                        case .symbols:
+                            symbolGrid
                         case .special:
                             specialGrid
                         }
@@ -179,6 +183,18 @@ struct KeyComboPickerSheet: View {
                 keyButton(
                     label: String(char),
                     key: .digit(char)
+                )
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var symbolGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 10), spacing: 6) {
+            ForEach(Array("`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?"), id: \.self) { char in
+                keyButton(
+                    label: String(char),
+                    key: .symbol(char)
                 )
             }
         }
