@@ -46,6 +46,14 @@ extension MainView {
         showQuickSettingsOverlay = false
         showOpenInFolderOverlay = false
         showIPLookup = false
+        // The floating tab sidebar / Exposé can still be up when the island's
+        // URL arrives (it is an overlay, not a sheet). Every other overlay here
+        // dismisses it before taking the screen — the inbox did not, so an
+        // island tap with the switcher up put the inbox *behind* it and looked
+        // like "the inbox sent me into tab expose".
+        if showingTabSwitcher && !tabSidebarIsDocked {
+            showingTabSwitcher = false
+        }
         yieldPanelSlotToAgentInbox(agentInboxPresentation)
 
         if isPhone {
