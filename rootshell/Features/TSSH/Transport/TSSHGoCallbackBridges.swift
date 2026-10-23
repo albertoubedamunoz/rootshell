@@ -25,31 +25,121 @@ import IOKit
 /// Calls land on background goroutine threads; the transport's nonisolated
 /// hooks own the dispatch back onto Swift's main actor / output sinks.
 nonisolated final class TrzszGoOutputBridge: NSObject, IosbridgeTSSHOutputCallbackProtocol, @unchecked Sendable {
-    private weak var transport: TrzszGoTransport?
+    private enum Phase: Sendable {
+        case live
+        /// The transport replaced this session on purpose; its closing output and exit must not reach the pane.
+        case retired
+        /// A replacement session: an end before its ready marker fails the swap rather than the pane.
+        case probation(MainChannelMarkerScanner, MainChannelReadiness)
+    }
 
-    init(transport: TrzszGoTransport) {
+    private weak var transport: TrzszGoTransport?
+    private let phase: OSAllocatedUnfairLock<Phase>
+
+    init(transport: TrzszGoTransport, probation: (marker: Data, readiness: MainChannelReadiness)? = nil) {
         self.transport = transport
+        self.phase = OSAllocatedUnfairLock(initialState: probation.map {
+            .probation(MainChannelMarkerScanner(marker: $0.marker), $0.readiness)
+        } ?? .live)
         super.init()
     }
 
+    func retire() {
+        endPhase()?.resolve(false)
+    }
+
+    /// Retires the bridge, returning the readiness it was still on probation for.
+    private func endPhase() -> MainChannelReadiness? {
+        phase.withLock { phase in
+            defer { phase = .retired }
+            if case .probation(_, let readiness) = phase { return readiness }
+            return nil
+        }
+    }
+
+    /// The transport for an end event, or nil when the event is dropped.
+    private var transportForEnd: TrzszGoTransport? {
+        let isLive = phase.withLock { phase in
+            if case .live = phase { return true }
+            return false
+        }
+        guard isLive else {
+            retire()
+            return nil
+        }
+        return transport
+    }
+
     func onOutput(_ data: Data?) {
-        guard let data, let transport else { return }
-        transport.emitOutputFromGoCallback(data)
+        guard let data else { return }
+        let (passes, attached) = phase.withLock { phase -> (Bool, MainChannelReadiness?) in
+            switch phase {
+            case .retired:
+                return (false, nil)
+            case .live:
+                return (true, nil)
+            case .probation(var scanner, let readiness):
+                guard scanner.scan(data) else {
+                    phase = .probation(scanner, readiness)
+                    return (true, nil)
+                }
+                phase = .live
+                return (true, readiness)
+            }
+        }
+        if passes, let transport { transport.emitOutputFromGoCallback(data) }
+        attached?.resolve(true)
     }
 
     func onError(_ message: String?) {
-        guard let message, let transport else { return }
+        guard let message, let transport = transportForEnd else { return }
         transport.deferGoCallbackEvent(.error(message))
     }
 
     func onExit(_ exitCode: Int) {
-        guard let transport else { return }
+        guard let transport = transportForEnd else { return }
         transport.deferGoCallbackEvent(.exit(exitCode))
     }
 
     func onClose() {
-        guard let transport else { return }
+        guard let transport = transportForEnd else { return }
         transport.deferGoCallbackEvent(.close)
+    }
+}
+
+/// One-shot result of a replacement session's probation; the first resolve wins.
+nonisolated final class MainChannelReadiness: Sendable {
+    private struct State: Sendable {
+        var result: Bool?
+        var waiter: CheckedContinuation<Bool, Never>?
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    func resolve(_ ready: Bool) {
+        let waiter = state.withLock { state -> CheckedContinuation<Bool, Never>? in
+            guard state.result == nil else { return nil }
+            state.result = ready
+            defer { state.waiter = nil }
+            return state.waiter
+        }
+        waiter?.resume(returning: ready)
+    }
+
+    /// Waits for the result, resolving false after `timeout`.
+    func wait(timeout: Duration) async -> Bool {
+        let timer = Task { [self] in
+            try? await Task.sleep(for: timeout)
+            if !Task.isCancelled { resolve(false) }
+        }
+        defer { timer.cancel() }
+        return await withCheckedContinuation { continuation in
+            let result = state.withLock { state -> Bool? in
+                if state.result == nil { state.waiter = continuation }
+                return state.result
+            }
+            if let result { continuation.resume(returning: result) }
+        }
     }
 }
 

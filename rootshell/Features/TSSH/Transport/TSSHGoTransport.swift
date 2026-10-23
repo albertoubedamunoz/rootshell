@@ -774,11 +774,11 @@ final class TrzszGoTransport: NSObject {
 
     /// Creates a new Go-side session for Shell/Start.
     /// Called by openSessionStream() before requesting PTY + shell.
-    private func createSession() async throws {
+    private func createSession(output: TrzszGoOutputBridge? = nil) async throws {
         guard let tRef = transportRef else {
             throw TrzszError.connectionFailed("No transport available")
         }
-        let bridge = TrzszGoOutputBridge(transport: self)
+        let bridge = output ?? TrzszGoOutputBridge(transport: self)
         do {
             let sRef = try await TSSHCallGate.shared.newSession(on: tRef, output: bridge)
             self.sessionRef = sRef
@@ -927,6 +927,45 @@ final class TrzszGoTransport: NSObject {
             Self.logger.info("Session stream opened with exec command, LANG=\(localeDescription) (cmd=\(execCommand))")
         } else {
             Self.logger.info("Session stream opened with shell, LANG=\(localeDescription)")
+        }
+    }
+
+    /// Swaps the main session for a new one running `execCommand`. Go allows
+    /// one main session per transport, so the old one is closed (ending its
+    /// remote process) before the new one opens. Throws unless the new one
+    /// shows `readyMarker` in time.
+    func replaceSessionStream(cols: Int, rows: Int, execCommand: String, readyMarker: Data, agentEnabled: Bool) async throws {
+        guard transportRef != nil, let priorSession = sessionRef else {
+            throw TrzszError.connectionFailed("No session to replace")
+        }
+        callbackBridge?.retire()
+        sessionRef = nil
+        callbackBridge = nil
+        cachedSessionID = nil
+        do {
+            try await TSSHCallGate.shared.close(priorSession)
+        } catch {
+            Self.logger.warning("Closing the replaced session failed: \(error.localizedDescription)")
+        }
+        outputSink.emit(MainChannelReset.bytes)
+        let readiness = MainChannelReadiness()
+        let bridge = TrzszGoOutputBridge(transport: self, probation: (readyMarker, readiness))
+        do {
+            try await createSession(output: bridge)
+            try await openSessionStream(cols: cols, rows: rows, execCommand: execCommand, agentEnabled: agentEnabled)
+            guard await readiness.wait(timeout: mainChannelReadyTimeout) else {
+                throw TrzszError.connectionFailed("The replacement session ended before it was ready")
+            }
+        } catch {
+            // Drop the replacement, so the fallback opens fresh.
+            bridge.retire()
+            if callbackBridge === bridge, let half = sessionRef {
+                sessionRef = nil
+                callbackBridge = nil
+                cachedSessionID = nil
+                try? await TSSHCallGate.shared.close(half)
+            }
+            throw error
         }
     }
 

@@ -21,52 +21,6 @@ nonisolated enum MuxScreenGate {
     }
 }
 
-/// Checks whether a detachable multiplexer has a shell underneath it.
-nonisolated enum MuxDetachGate {
-    static func hasFallbackShell(
-        hasRemoteCommand: Bool,
-        hasInitialCommandLaunch: Bool,
-        tmuxAutoEnable: Bool,
-        herdrAutoEnable: Bool,
-        zmxAutoEnable: Bool
-    ) -> Bool {
-        !(hasRemoteCommand || hasInitialCommandLaunch || tmuxAutoEnable || herdrAutoEnable || zmxAutoEnable)
-    }
-}
-
-/// Classifies a detach-and-reattach attempt from its client-count census.
-nonisolated enum MuxZmxDetachTransfer {
-    enum Result: Equatable {
-        case confirmed
-        case unchanged
-        case detachedOnly
-        case ambiguous
-    }
-
-    static func classify(
-        sourceBefore: Int,
-        targetBefore: Int,
-        sourceAfter: Int,
-        targetAfter: Int
-    ) -> Result {
-        if sourceAfter == sourceBefore - 1,
-           targetAfter == targetBefore + 1 {
-            return .confirmed
-        }
-        if sourceAfter == sourceBefore,
-           targetAfter == targetBefore {
-            return .unchanged
-        }
-        // A single-client source proves this pane reached its fallback shell.
-        if sourceBefore == 1,
-           sourceAfter == 0,
-           targetAfter == targetBefore {
-            return .detachedOnly
-        }
-        return .ambiguous
-    }
-}
-
 /// zmx-only first-tick shortcuts. zmx tabs are 1:1 with its sessions, so a
 /// known session name is also the id of the one pane it is safe to request
 /// before topology arrives; tmux/zellij/herdr pane ids are not addressable

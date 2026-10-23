@@ -54,18 +54,11 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         return MuxScript.wrap(body, nonce: nonce)
     }
 
-    /// Switching is deliberately not gated on the session's client count.
-    /// Several clients on one session is a supported setup, and declining the
-    /// switch left a pane on a shared session unable to move at all. What zmx
-    /// will not do is pick the pane that asked: it sends the switch to the
-    /// session's leader client. A vacant leadership is taken by resize, which
-    /// costs the running program nothing. One another client already holds is
-    /// left alone: the only way to move it is to write bytes into the pty, and
-    /// no byte sequence is inert for every program. The switch then lands on
-    /// that other client instead, and `parseFocusResult` declines to confirm a
-    /// switch on a session other clients are attached to for that reason
-    /// (neurosnap/zmx#260 asks for a switch addressed to one client, which
-    /// would settle both halves of this).
+    /// zmx sends this switch to the session's leader client, not to the pane
+    /// that asked (neurosnap/zmx#260). The feed only runs it for a pane with no
+    /// client of its own to replace that holds its session alone, so the leader
+    /// is this pane or nobody; a vacant leadership is taken by resize, which
+    /// costs the running program nothing.
     func focusScript(session: String?, tabID: String) -> String {
         guard let session, !session.isEmpty, session != tabID else {
             return MuxScript.wrap("true", nonce: Self.focusNonce)
@@ -137,17 +130,10 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         return body
     }
 
-    /// Confirms the fire-and-forget switch by comparing client counts.
-    ///
-    /// The deltas say that a client moved, never which one, and zmx routes the
-    /// switch to whichever client leads the session. Confirmation is therefore
-    /// claimed only for a session this pane holds alone, where the client that
-    /// left can only be ours. With other clients attached, a switch zmx applied
-    /// to somebody else's terminal produces the same deltas, so this declines
-    /// rather than name the pane after a session it may never have entered; the
-    /// feed keeps the name it has until the next detect reads the real one.
-    /// Telling the two apart needs a switch addressed to one client, which zmx
-    /// has no way to express (neurosnap/zmx#260).
+    /// Confirms the fire-and-forget switch by comparing client counts. The
+    /// deltas say that a client moved, never which one, so this declines for a
+    /// session other clients share rather than name the pane after a session
+    /// it may never have entered.
     func parseFocusResult(output: String, session: String?, tabID: String) -> Bool {
         guard let session, !session.isEmpty, session != tabID else {
             return true
@@ -188,8 +174,8 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
         census.sessions = Set(sessions.map(\.name))
         guard !sessions.isEmpty else { return nil }
 
-        // Feeds the detach switch's confirmation and the bound-session
-        // liveness check from the listing already in hand.
+        // Feeds the switch gate and the bound-session liveness check from
+        // the listing already in hand.
         census.clients = sessions.reduce(into: [:]) { counts, info in
             if let clients = info.clientCount { counts[info.name] = clients }
         }
@@ -351,10 +337,8 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
 
     private let census = Census()
 
-    /// Client count captured by the latest topology tick. The detach-based
-    /// focus path snapshots these two values before it writes to the pane,
-    /// then confirms the transfer with a fresh `zmx list` rather than
-    /// optimistically changing the pane's binding.
+    /// Client count captured by the latest topology tick, which decides
+    /// whether the leader-routed switch can only move this pane.
     func clientCount(for session: String) -> Int? {
         census.clients[session]
     }
@@ -494,8 +478,8 @@ nonisolated struct ZmxExposeAdapter: MultiplexerExposeAdapter {
     }
 
     /// Trailing caption note. The client count is the one fact worth surfacing:
-    /// zmx routes a switch to the session's LEADER client, so a session another
-    /// terminal also holds may move that terminal instead of this pane.
+    /// a pane that cannot replace its own client declines to switch away from a
+    /// session another terminal also holds.
     private static func badge(for info: ZmxSessionInfo) -> String? {
         guard let clients = info.clientCount, clients > 1 else { return nil }
         return String(

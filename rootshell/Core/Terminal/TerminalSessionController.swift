@@ -468,7 +468,9 @@ final class TerminalSessionController {
         localSessionCreateGeneration &+= 1
         let generation = localSessionCreateGeneration
         let recovery = host.terminalLocalMultiplexerRecovery
-        let shell = LocalShellSettings.command
+        let shellOverride = host.terminalPendingLocalShellCommand
+        host.terminalPendingLocalShellCommand = nil
+        let shell = shellOverride ?? LocalShellSettings.command
         Ghostty.logger.info("Creating Catalyst shell session: \(surfaceSize.cols)x\(surfaceSize.rows), cwd=\(workingDirectory ?? "nil"), shell=\(shell ?? "login")")
 
         CatalystLocalShellSession.create(
@@ -476,7 +478,7 @@ final class TerminalSessionController {
             cols: surfaceSize.cols,
             workingDirectory: workingDirectory,
             shell: shell,
-            enableShellIntegration: true,
+            enableShellIntegration: shellOverride == nil,
             paneToken: host.terminalUUID.uuidString,
             recoveryAttachment: recovery
         ) { [weak self] result in
