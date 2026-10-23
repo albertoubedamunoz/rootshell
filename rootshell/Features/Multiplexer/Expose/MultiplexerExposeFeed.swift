@@ -37,6 +37,8 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
     private var loop: Task<Void, Never>?
     private var focusTask: Task<Void, Never>?
     private var sleeper: Task<Void, Never>?
+    /// A wake that arrived while a tick was in flight, with no sleep yet to cut short.
+    private var wakePending = false
     private var stopTask: Task<Void, Never>?
     private var cacheEvictionTask: Task<Void, Never>?
     private var visiblePanes: Set<String> = []
@@ -321,6 +323,7 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         loop = nil
         sleeper?.cancel()
         sleeper = nil
+        wakePending = false
     }
 
     private func cancelFocus() {
@@ -360,6 +363,33 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         }
     }
 
+    /// Whether `focus(tabID:)` would act now. Before the first live tick a zmx
+    /// pane may not know its client count, so selecting is a no-op until then.
+    func canFocus(tabID: String) -> Bool {
+        guard let terminal, let adapter else { return false }
+        let session = sessionName
+        guard session != tabID else { return true }
+        if type == .zmx, let session, !session.isEmpty {
+            guard state == .live else { return false }
+            if canReplaceZmxClient(terminal: terminal, tabID: tabID) { return true }
+            guard holdsZmxSessionAlone(session) else { return false }
+        }
+        return adapter.canFocus(session: session, tabID: tabID)
+    }
+
+    private func holdsZmxSessionAlone(_ session: String) -> Bool {
+        (adapter as? ZmxExposeAdapter)?.clientCount(for: session) == 1
+    }
+
+    /// Mirrors the checks `replaceZmxClient` makes before it acts.
+    private func canReplaceZmxClient(terminal: Ghostty.TerminalView, tabID: String) -> Bool {
+        #if targetEnvironment(macCatalyst)
+        if terminal.localZmxAttachShell(sessionName: tabID) != nil { return true }
+        #endif
+        return terminal.session is MainChannelReplacing
+            && MuxSessionTarget(type: .zmx, sessionName: tabID)?.execCommand != nil
+    }
+
     /// Switch the multiplexer to `tabID`. Independent of the tick loop so it
     /// still runs while the exposé is already dismissing.
     func focus(tabID: String) {
@@ -375,7 +405,7 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
             if replaceZmxClient(terminal: terminal, session: session, tabID: tabID) { return }
             // Without a client of its own to replace, the pane can only use zmx's
             // leader-routed switch, which is ours only while we hold the session alone.
-            guard (adapter as? ZmxExposeAdapter)?.clientCount(for: session) == 1 else {
+            guard holdsZmxSessionAlone(session) else {
                 Self.logger.info("zmx switch declined: other clients share this session")
                 return
             }
@@ -464,6 +494,7 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
     }
 
     private func wake() {
+        wakePending = true
         sleeper?.cancel()
     }
 
@@ -614,9 +645,14 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
             case .immediate:
                 continue
             case .wait(let seconds):
+                if wakePending {
+                    wakePending = false
+                    continue
+                }
                 let sleeper = Task<Void, Never> { try? await Task.sleep(for: .seconds(seconds)) }
                 self.sleeper = sleeper
                 await sleeper.value
+                wakePending = false
                 guard isCurrent(generation) else { return }
             }
         }

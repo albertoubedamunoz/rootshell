@@ -802,6 +802,9 @@ extension Ghostty {
         var localMultiplexerTrackingRevision: UInt64 = 0
         var localMultiplexerAttachment: LocalMultiplexerAttachment?
         var restoredLocalMultiplexerAttachment: LocalMultiplexerAttachment?
+        /// The zmx client a local Exposé switch replaced, whose binary and
+        /// environment the next switch reuses before the tracker sees the new one.
+        var localZmxClientTemplate: LocalMultiplexerAttachment?
         // Remains set for this fresh PTY so late layout callbacks cannot replay
         // stale multiplexer ANSI after the new client has already attached.
         var skipLocalMultiplexerScrollback = false

@@ -113,18 +113,25 @@ extension Ghostty.TerminalView {
     /// Restarts this pane's PTY as the attached zmx's own client for
     /// `sessionName`, so only this pane leaves its current session.
     func replaceLocalZmxAttachment(sessionName: String) -> Bool {
-        guard case .local = connectionConfig, restoredLocalMultiplexerAttachment == nil,
-              let current = localMultiplexerAttachment, current.kind == "zmx" else { return false }
-        let command = current.command(arguments: ["attach", sessionName])
-        let shell = "/bin/zsh -lc " + LoginShellCommand.singleQuoted("exec " + command)
-        // The helper launches a plain login shell for anything longer.
-        guard shell.count <= 1024 else { return false }
+        guard let shell = localZmxAttachShell(sessionName: sessionName) else { return false }
+        localZmxClientTemplate = localMultiplexerAttachment ?? localZmxClientTemplate
         pendingLocalShellCommand = shell
         session?.onSessionEnd = nil
         sessionController.teardown(reason: .sceneTeardown)
         localMultiplexerAttachment = nil
         _ = sessionController.startSession()
         return true
+    }
+
+    /// The PTY command for `replaceLocalZmxAttachment`, or nil when this pane
+    /// has no known zmx client to replace.
+    func localZmxAttachShell(sessionName: String) -> String? {
+        guard case .local = connectionConfig, restoredLocalMultiplexerAttachment == nil,
+              let current = localMultiplexerAttachment ?? localZmxClientTemplate, current.kind == "zmx" else { return nil }
+        let command = current.command(arguments: ["attach", sessionName])
+        let shell = "/bin/zsh -lc " + LoginShellCommand.singleQuoted("exec " + command)
+        // The helper launches a plain login shell for anything longer.
+        return shell.count <= 1024 ? shell : nil
     }
     #endif
 }
