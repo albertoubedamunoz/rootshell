@@ -541,7 +541,7 @@ extension Ghostty.TerminalView {
                     bindRawMultiplexer(target.type, sessionName: target.sessionName, tmuxSocket: target.tmuxSocket,
                                        tmuxSocketSelector: target.configuredTmuxSocket)
                 } else {
-                    bindPassthroughMultiplexer(target.type, sessionName: target.sessionName, canDetachSwitch: false)
+                    bindPassthroughMultiplexer(target.type, sessionName: target.sessionName)
                 }
             }
             return
@@ -550,7 +550,7 @@ extension Ghostty.TerminalView {
         // Keep zmx's transparent identity separate from raw multiplexer
         // bindings, since raw bindings also suppress agent attention.
         if sshConfig.zmxAutoEnable, let name = sshConfig.zmxSessionNameForConnection {
-            bindPassthroughMultiplexer(.zmx, sessionName: name, canDetachSwitch: false)
+            bindPassthroughMultiplexer(.zmx, sessionName: name)
         }
 
         guard rawMultiplexer == nil else { return }
@@ -596,10 +596,24 @@ extension Ghostty.TerminalView {
     /// Records a transparent multiplexer identity without affecting agent
     /// attention. The session name is required because it cannot be inferred
     /// safely from a host with multiple sessions.
-    func bindPassthroughMultiplexer(_ type: MultiplexerType, sessionName: String, canDetachSwitch: Bool) {
+    func bindPassthroughMultiplexer(_ type: MultiplexerType, sessionName: String) {
         guard !type.ownsAlternateScreen else { return }
         guard passthroughMultiplexer == nil else { return }
-        passthroughMultiplexer = .init(type: type, sessionName: sessionName, canDetachSwitch: canDetachSwitch)
+        passthroughMultiplexer = .init(type: type, sessionName: sessionName)
+    }
+
+    /// Points reconnect and relaunch at the zmx session this pane switched to.
+    func recordZmxResumeTarget(sessionName: String) {
+        guard let target = MuxSessionTarget(type: .zmx, sessionName: sessionName) else { return }
+        switch connectionConfig {
+        case .ssh(let config):
+            connectionConfig = .ssh(config.resumingMultiplexer(target))
+        case .trzsz(var config):
+            config.sshConfig = config.sshConfig.resumingMultiplexer(target)
+            connectionConfig = .trzsz(config)
+        default:
+            break
+        }
     }
 
     /// Maps a configured command to the multiplexer it starts, or nil when it
@@ -1036,7 +1050,7 @@ extension Ghostty.TerminalView {
             // the inner program's agent state. Clear the prefix because the
             // discovered name is already the fully resolved socket name.
             attachCommand = "ZMX_SESSION_PREFIX= zmx attach \"\(escapedName)\""
-            bindPassthroughMultiplexer(.zmx, sessionName: session.name, canDetachSwitch: true)
+            bindPassthroughMultiplexer(.zmx, sessionName: session.name)
 
             // Use the reported directory until OSC 7 provides a fresher value.
             if let cwd = session.workingDirectory, cwd.hasPrefix("/") {
@@ -1057,12 +1071,6 @@ extension Ghostty.TerminalView {
             sendUserInput(data)
         }
         dismissSessionDiscovery()
-    }
-
-    /// Builds the zmx attach line used when focus reattaches through the shell.
-    func zmxAttachInputLine(sessionName: String) -> String {
-        let escapedName = sessionName.shellEscapedForDoubleQuotes
-        return multiplexerAttachInputLine("ZMX_SESSION_PREFIX= zmx attach \"\(escapedName)\"")
     }
 
     private func multiplexerAttachInputLine(_ attachCommand: String) -> String {

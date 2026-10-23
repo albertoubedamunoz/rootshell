@@ -1011,18 +1011,6 @@ struct SSHConfig: Codable, Hashable {
         return launchCommand
     }
 
-    /// Whether the channel replaced the interactive shell with a command.
-    var hasExecTakeoverCommand: Bool {
-        !MuxDetachGate.hasFallbackShell(
-            hasRemoteCommand: !(remoteCommand?.isEmpty ?? true) || muxResumeTarget?.execCommand != nil,
-            hasInitialCommandLaunch: initialLaunchCommand != nil,
-            tmuxAutoEnable: tmuxAutoEnable,
-            // Control mode keeps the interactive shell; herdr runs out of band.
-            herdrAutoEnable: herdrAutoEnable && !herdrControlModeEnabled,
-            zmxAutoEnable: zmxAutoEnable
-        )
-    }
-
     /// Returns the exec command to use, if any. An initial directory wraps the
     /// base command (or the login shell) in a `cd`.
     var effectiveExecCommand: String? {

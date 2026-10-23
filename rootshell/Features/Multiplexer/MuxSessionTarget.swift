@@ -77,7 +77,8 @@ nonisolated struct MuxSessionTarget: Codable, Equatable, Hashable, Sendable {
         case .zellij:
             command = "exec zellij attach \(name)"
         case .zmx:
-            command = "ZMX_SESSION_PREFIX= exec zmx attach \(name)"
+            // An inherited ZMX_SESSION turns attach into a leader-routed switch.
+            command = "ZMX_SESSION= ZMX_SESSION_PREFIX= exec zmx attach \(name)"
         }
         return LoginShellCommand.runInPOSIXShell(LoginShellCommand.pathPrefix + command)
     }

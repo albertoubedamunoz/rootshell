@@ -167,7 +167,7 @@ final class MuxSessionTargetTests: XCTestCase {
             LoginShellCommand.pathPrefix + "exec zellij attach \"project\""))
         let zmx = try XCTUnwrap(MuxSessionTarget(type: .zmx, sessionName: "prefix-project"))
         XCTAssertEqual(zmx.execCommand, LoginShellCommand.runInPOSIXShell(
-            LoginShellCommand.pathPrefix + "ZMX_SESSION_PREFIX= exec zmx attach \"prefix-project\""))
+            LoginShellCommand.pathPrefix + "ZMX_SESSION= ZMX_SESSION_PREFIX= exec zmx attach \"prefix-project\""))
     }
 
     func testSessionNamesAreQuotedAcrossBothShellLayers() throws {

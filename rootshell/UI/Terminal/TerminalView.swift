@@ -542,10 +542,6 @@ extension Ghostty {
             /// binding instantly. Only a primary frame AFTER ownership means
             /// the multiplexer detached or exited.
             var hasOwnedAltScreen: Bool = false
-            /// Whether focus may detach this zmx client and reattach through
-            /// the shell beneath it. Auto-started clients have no shell to
-            /// fall back to, so they must use leader-addressed IPC instead.
-            var canDetachSwitch: Bool = false
         }
         var rawMultiplexer: RawMultiplexerBinding?
 
@@ -661,6 +657,11 @@ extension Ghostty {
         /// One-shot: a command (AppleScript `with command`) typed into the
         /// local shell once it starts. Consumed by TerminalSessionController.
         var pendingStartupCommand: String?
+
+        /// One-shot: the next local PTY runs this in place of the login shell,
+        /// so a zmx switch replaces the pane's client. Consumed by
+        /// TerminalSessionController.
+        var pendingLocalShellCommand: String?
 
         // MARK: UI State
 

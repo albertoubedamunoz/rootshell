@@ -71,6 +71,8 @@ protocol TerminalSessionControllerHost: TerminalSessionHost, TerminalResponsePip
     var terminalPendingFileToOpen: String? { get set }
     /// One-shot command typed into the local shell after it starts.
     var terminalPendingStartupCommand: String? { get set }
+    /// One-shot command the next local PTY runs in place of the login shell.
+    var terminalPendingLocalShellCommand: String? { get set }
 
     func terminalSetError(_ error: Error)
     func terminalNotifySessionDidChange()

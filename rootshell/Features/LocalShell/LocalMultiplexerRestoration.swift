@@ -109,6 +109,23 @@ extension Ghostty.TerminalView {
         _ = releaseLocalMultiplexerScrollbackGate()
         _ = sessionController.startSession()
     }
+
+    /// Restarts this pane's PTY as the attached zmx's own client for
+    /// `sessionName`, so only this pane leaves its current session.
+    func replaceLocalZmxAttachment(sessionName: String) -> Bool {
+        guard case .local = connectionConfig, restoredLocalMultiplexerAttachment == nil,
+              let current = localMultiplexerAttachment, current.kind == "zmx" else { return false }
+        let command = current.command(arguments: ["attach", sessionName])
+        let shell = "/bin/zsh -lc " + LoginShellCommand.singleQuoted("exec " + command)
+        // The helper launches a plain login shell for anything longer.
+        guard shell.count <= 1024 else { return false }
+        pendingLocalShellCommand = shell
+        session?.onSessionEnd = nil
+        sessionController.teardown(reason: .sceneTeardown)
+        localMultiplexerAttachment = nil
+        _ = sessionController.startSession()
+        return true
+    }
     #endif
 }
 
@@ -226,7 +243,7 @@ final class LocalMultiplexerTracker {
                             AgentAttentionCenter.shared.topologyDidChange()
                         }
                     } else if view.passthroughMultiplexer?.sessionName != attachment.sessionName {
-                        view.passthroughMultiplexer = .init(type: type, sessionName: attachment.sessionName, canDetachSwitch: true)
+                        view.passthroughMultiplexer = .init(type: type, sessionName: attachment.sessionName)
                     }
                 }
                 if view.localMultiplexerAttachment != attachment {
