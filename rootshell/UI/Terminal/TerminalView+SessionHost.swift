@@ -229,6 +229,10 @@ extension Ghostty.TerminalView {
         get { pendingStartupCommand }
         set { pendingStartupCommand = newValue }
     }
+    var terminalPendingLocalShellCommand: String? {
+        get { pendingLocalShellCommand }
+        set { pendingLocalShellCommand = newValue }
+    }
     var terminalHasPendingScrollbackRestore: Bool {
         pendingScrollbackRestore || pendingScrollbackRestoreForLayout
     }

@@ -18,7 +18,7 @@ import os.log
 /// SSH session that uses Citadel's high-level API for connections
 /// Supports jump host (ProxyJump) functionality via Citadel's jump() method
 @MainActor
-final class CitadelSSHSession: SSHTerminalSession {
+final class CitadelSSHSession: SSHTerminalSession, MainChannelReplacing {
     private nonisolated static let logger = Logger(subsystem: "com.rootshell", category: "CitadelSSHSession")
 
     /// Overall connection timeout for Citadel connections
@@ -224,6 +224,14 @@ final class CitadelSSHSession: SSHTerminalSession {
 
     /// Flag to track if we received an exit status from the shell (indicates normal exit vs network failure)
     private var receivedExitStatus: Bool = false
+
+    /// The PTY channel that owns stdin and output. An adopted replacement
+    /// takes over its own generation, so an older channel cannot end the session.
+    private var mainChannelGeneration = 0
+    /// Last generation handed out; every swap attempt gets a fresh one, so an
+    /// abandoned attempt that finishes late never matches the live channel.
+    private var lastMainChannelGeneration = 0
+    private var pendingChannelSwap: MainChannelSwap?
 
     // OpenSSH-style escape-character filter (~. disconnect, ~? help, etc.)
     private let escapeFilter = SSHEscapeFilter()
@@ -931,55 +939,52 @@ final class CitadelSSHSession: SSHTerminalSession {
     /// competing with UI work on MainActor. Only state mutation and the one-shot setup
     /// hop through MainActor. Output dispatch goes through `outputSink`, which is
     /// lock-protected and honours later rebinding of `onOutput`/`onOutputData`.
-    private nonisolated func handlePTYSession(inbound: TTYOutput, outbound: TTYStdinWriter) async throws {
+    private nonisolated func handlePTYSession(
+        inbound: TTYOutput,
+        outbound: TTYStdinWriter,
+        generation: Int,
+        swap: MainChannelSwap?
+    ) async throws {
         let sink = self.outputSink
         var firstByteLogged = false
+        // A replacement's output is held until its ready marker; the old channel keeps the pane meanwhile.
+        var held: Data? = swap == nil ? nil : Data()
+        var scanner = swap.map { MainChannelMarkerScanner(marker: $0.readyMarker) }
 
-        // One-shot setup on MainActor.
-        await MainActor.run {
-            self.stdinWriter = outbound
+        if swap == nil {
+            // One-shot setup on MainActor.
+            await MainActor.run {
+                self.installStdinPipeline(outbound)
 
-            // Single ordered writer for stdin — see the property doc on
-            // `stdinStreamContinuation`. Fresh stream per PTY session; the
-            // teardown paths finish() it so the loop exits.
-            let (stdinStream, stdinContinuation) = AsyncStream.makeStream(of: ByteBuffer.self)
-            self.stdinStreamContinuation = stdinContinuation
-            self.stdinWriterTask = Task {
-                for await buffer in stdinStream {
-                    do {
-                        try await outbound.write(buffer)
-                    } catch {
-                        Self.logger.error("Failed to write to SSH: \(error.localizedDescription)")
+                Self.logger.info("SSH session ready, firing onReady callback")
+                self.transition(to: .running)
+                self.onReady?()
+
+                // Start port forwarding if configured
+                if self.config.portForwardConfig.hasActiveForwards, let client = self.client {
+                    let manager = PortForwardManager(client: client, config: self.config.portForwardConfig)
+                    manager.onForwardError = { forward, error in
+                        Self.logger.error("Port forward \(forward.displayString) failed: \(error.localizedDescription)")
+                    }
+                    self.portForwardManager = manager
+
+                    // Start forwards in background task (non-blocking)
+                    Task {
+                        await manager.startAllForwards()
                     }
                 }
+
+                // Start health monitoring
+                self.startHealthMonitoring()
             }
-
-            Self.logger.info("SSH session ready, firing onReady callback")
-            self.transition(to: .running)
-            self.onReady?()
-
-            // Start port forwarding if configured
-            if self.config.portForwardConfig.hasActiveForwards, let client = self.client {
-                let manager = PortForwardManager(client: client, config: self.config.portForwardConfig)
-                manager.onForwardError = { forward, error in
-                    Self.logger.error("Port forward \(forward.displayString) failed: \(error.localizedDescription)")
-                }
-                self.portForwardManager = manager
-
-                // Start forwards in background task (non-blocking)
-                Task {
-                    await manager.startAllForwards()
-                }
-            }
-
-            // Start health monitoring
-            self.startHealthMonitoring()
         }
 
         // Output loop runs off MainActor — dispatches each chunk through OutputSink
         // without an actor hop, matching SSHSession's zero-hop behavior while still
         // honouring dynamic callback rebinding.
         for try await output in inbound {
+            // A replaced channel is cancelled; its closing bytes (zmx's reset) are dropped.
+            if Task.isCancelled { break }
             switch output {
             case .stdout(let buffer), .stderr(let buffer):
                 if !firstByteLogged {
@@ -987,15 +992,26 @@ final class CitadelSSHSession: SSHTerminalSession {
                     let n = buffer.readableBytes
                     Self.logger.info("PTY session: first inbound byte received (n=\(n) bytes)")
                 }
-                if let bytesView = buffer.getBytes(at: buffer.readerIndex, length: buffer.readableBytes) {
-                    sink.emit(Data(bytesView))
+                guard let bytesView = buffer.getBytes(at: buffer.readerIndex, length: buffer.readableBytes) else { break }
+                let data = Data(bytesView)
+                guard var pending = held, let swap else {
+                    sink.emit(data)
+                    break
                 }
+                pending.append(data)
+                held = pending
+                guard scanner?.scan(data) == true else { break }
+                held = nil
+                guard await self.adoptReplacement(outbound, generation: generation, swap: swap) else { return }
+                sink.emit(pending)
 
             case .exitStatus(let code):
                 // Shell exited normally - deterministic signal (user typed exit or Ctrl+D).
                 Self.logger.info("Received exit status: \(code)")
                 await MainActor.run {
-                    self.receivedExitStatus = true
+                    if self.mainChannelGeneration == generation {
+                        self.receivedExitStatus = true
+                    }
                 }
             }
         }
@@ -1003,6 +1019,26 @@ final class CitadelSSHSession: SSHTerminalSession {
         if !firstByteLogged {
             Self.logger.error("PTY session ended before any inbound bytes — pty-req or shell-req likely rejected by server")
         }
+    }
+
+    /// Moves the pane onto a replacement channel that has shown its ready
+    /// marker. Returns false when the swap was abandoned or the session ended.
+    private func adoptReplacement(_ outbound: TTYStdinWriter, generation: Int, swap: MainChannelSwap) -> Bool {
+        guard swap.isWaiting, isRunning, !userInitiatedStop, !Task.isCancelled else {
+            swap.finish(.failure(MainChannelSwapError.unavailable))
+            return false
+        }
+        finishStdinStream()
+        installStdinPipeline(outbound)
+        mainChannelGeneration = generation
+        receivedExitStatus = false
+        sessionTask = swap.task
+        swap.previous?.cancel()
+        outputSink.emit(MainChannelReset.bytes)
+        try? setSize(pty.windowSize)
+        Self.logger.info("Main PTY channel replaced (generation \(generation))")
+        swap.finish(.success(()))
+        return true
     }
 
     private func startPTYSession() {
@@ -1159,8 +1195,62 @@ final class CitadelSSHSession: SSHTerminalSession {
             startAskpassForwarding(client: client)
         }
 
-        sessionTask = Task { @MainActor [weak self] in
-            guard let self = self else { return }
+        sessionTask = makeMainChannelTask(
+            client: client,
+            command: config.effectiveExecCommand,
+            agentDelegate: agentDelegate,
+            generation: mainChannelGeneration,
+            swap: nil
+        )
+    }
+
+    /// Swaps the pane's PTY channel for one running `execCommand` on this
+    /// connection. The old channel keeps the pane until the new one shows
+    /// `readyMarker`, so `fallbackCommand` is never needed here.
+    func replaceMainChannel(execCommand: String, fallbackCommand: String, readyMarker: Data) async throws {
+        guard isRunning, !userInitiatedStop, let client, pendingChannelSwap == nil else {
+            throw MainChannelSwapError.unavailable
+        }
+        let swap = MainChannelSwap(previous: sessionTask, readyMarker: readyMarker)
+        pendingChannelSwap = swap
+        defer { pendingChannelSwap = nil }
+        let deadline = Task { @MainActor in
+            try? await Task.sleep(for: mainChannelReadyTimeout)
+            guard !Task.isCancelled else { return }
+            swap.abandon()
+        }
+        defer { deadline.cancel() }
+        try await withCheckedThrowingContinuation { (ready: CheckedContinuation<Void, Error>) in
+            swap.ready = ready
+            swap.task = makeMainChannelTask(
+                client: client,
+                command: execCommand,
+                agentDelegate: agentManager?.createDelegate(),
+                generation: nextMainChannelGeneration(),
+                swap: swap
+            )
+        }
+    }
+
+    private func nextMainChannelGeneration() -> Int {
+        lastMainChannelGeneration &+= 1
+        return lastMainChannelGeneration
+    }
+
+    /// Runs one PTY channel on `client` until it ends. Only the channel of the
+    /// current `mainChannelGeneration` may end the session.
+    private func makeMainChannelTask(
+        client: SSHClient,
+        command: String?,
+        agentDelegate: SSHAgentDelegate?,
+        generation: Int,
+        swap: MainChannelSwap?
+    ) -> Task<Void, Never> {
+        Task { @MainActor [weak self] in
+            guard let self = self else {
+                swap?.finish(.failure(MainChannelSwapError.unavailable))
+                return
+            }
 
             do {
                 let terminalSize = self.pty.windowSize
@@ -1196,20 +1286,25 @@ final class CitadelSSHSession: SSHTerminalSession {
                 Self.logger.info("PTY session: pty-req sent, awaiting first inbound byte")
 
                 // Use PTY with exec request for remote command/tmux, or plain PTY for interactive shell
-                if let execCommand = self.config.effectiveExecCommand {
+                if let execCommand = command {
                     try await client.withPTYExec(ptyRequest, command: execCommand, environment: envVars, agentDelegate: agentDelegate) { [weak self] inbound, outbound in
                         guard let self = self else { return }
-                        try await self.handlePTYSession(inbound: inbound, outbound: outbound)
+                        try await self.handlePTYSession(inbound: inbound, outbound: outbound, generation: generation, swap: swap)
                     }
                 } else {
                     try await client.withPTY(ptyRequest, environment: envVars, agentDelegate: agentDelegate) { [weak self] inbound, outbound in
                         guard let self = self else { return }
-                        try await self.handlePTYSession(inbound: inbound, outbound: outbound)
+                        try await self.handlePTYSession(inbound: inbound, outbound: outbound, generation: generation, swap: swap)
                     }
                 }
 
                 // Session ended - check if this was expected or not
                 await MainActor.run {
+                    // A replaced channel, or a replacement that never took over.
+                    guard self.mainChannelGeneration == generation else {
+                        swap?.finish(.failure(MainChannelSwapError.unavailable))
+                        return
+                    }
                     Self.logger.info("PTY session stream ended")
                     let wasRunning = self.isRunning
                     self.isRunning = false
@@ -1236,6 +1331,10 @@ final class CitadelSSHSession: SSHTerminalSession {
 
             } catch {
                 await MainActor.run {
+                    guard self.mainChannelGeneration == generation else {
+                        swap?.finish(.failure(error))
+                        return
+                    }
                     if self.isRunning {
                         Self.logger.error("SSH PTY error: \(error.localizedDescription)")
 
@@ -1285,6 +1384,24 @@ final class CitadelSSHSession: SSHTerminalSession {
         stdinStreamContinuation?.finish()
         stdinStreamContinuation = nil
         stdinWriterTask = nil
+    }
+
+    /// Single ordered writer for stdin — see the property doc on
+    /// `stdinStreamContinuation`. Fresh stream per PTY channel; the
+    /// teardown paths finish() it so the loop exits.
+    private func installStdinPipeline(_ outbound: TTYStdinWriter) {
+        stdinWriter = outbound
+        let (stdinStream, stdinContinuation) = AsyncStream.makeStream(of: ByteBuffer.self)
+        stdinStreamContinuation = stdinContinuation
+        stdinWriterTask = Task {
+            for await buffer in stdinStream {
+                do {
+                    try await outbound.write(buffer)
+                } catch {
+                    Self.logger.error("Failed to write to SSH: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     // MARK: - Remote credential requests
@@ -1349,6 +1466,7 @@ final class CitadelSSHSession: SSHTerminalSession {
     private func cleanup() {
         sessionTask?.cancel()
         sessionTask = nil
+        pendingChannelSwap?.abandon()
         stdinWriter = nil
         pendingResize = nil
         finishStdinStream()
@@ -1636,6 +1754,34 @@ final class CitadelSSHSession: SSHTerminalSession {
 
     nonisolated deinit {
         sessionTask?.cancel()
+    }
+}
+
+/// One `replaceMainChannel` call: the channel it supersedes and the caller
+/// waiting for the new one to show its ready marker or fail.
+private final class MainChannelSwap {
+    let previous: Task<Void, Never>?
+    nonisolated let readyMarker: Data
+    var task: Task<Void, Never>?
+    var ready: CheckedContinuation<Void, Error>?
+
+    init(previous: Task<Void, Never>?, readyMarker: Data) {
+        self.previous = previous
+        self.readyMarker = readyMarker
+    }
+
+    var isWaiting: Bool { ready != nil }
+
+    func finish(_ result: Result<Void, Error>) {
+        ready?.resume(with: result)
+        ready = nil
+    }
+
+    /// Gives up on a replacement that never showed its marker; the old channel stays.
+    func abandon() {
+        guard isWaiting else { return }
+        task?.cancel()
+        finish(.failure(MainChannelSwapError.notReady))
     }
 }
 

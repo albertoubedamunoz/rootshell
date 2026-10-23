@@ -291,13 +291,13 @@ final class TabExposeController {
     func select(_ id: UUID) {
         guard isActive, tabIDs.contains(id) else { return }
         if showsMultiplexer {
+            // A tab the feed can't switch to yet stays put rather than dismissing without switching.
+            guard let muxFeed, let tab = muxFeed.tab(uuid: id), muxFeed.canFocus(tabID: tab.id) else { return }
             highlightedTabID = id
             pendingSelectedTabID = nil
             observer?.tabExposeDidChangeCells(self)
-            if let tab = muxFeed?.tab(uuid: id) {
-                onCommitHaptic?()
-                muxFeed?.focus(tabID: tab.id)
-            }
+            onCommitHaptic?()
+            muxFeed.focus(tabID: tab.id)
             settle(to: 0, fast: false)
             return
         }

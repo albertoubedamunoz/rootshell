@@ -37,6 +37,8 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
     private var loop: Task<Void, Never>?
     private var focusTask: Task<Void, Never>?
     private var sleeper: Task<Void, Never>?
+    /// A wake that arrived while a tick was in flight, with no sleep yet to cut short.
+    private var wakePending = false
     private var stopTask: Task<Void, Never>?
     private var cacheEvictionTask: Task<Void, Never>?
     private var visiblePanes: Set<String> = []
@@ -321,6 +323,7 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         loop = nil
         sleeper?.cancel()
         sleeper = nil
+        wakePending = false
     }
 
     private func cancelFocus() {
@@ -360,6 +363,33 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         }
     }
 
+    /// Whether `focus(tabID:)` would act now. Before the first live tick a zmx
+    /// pane may not know its client count, so selecting is a no-op until then.
+    func canFocus(tabID: String) -> Bool {
+        guard let terminal, let adapter else { return false }
+        let session = sessionName
+        guard session != tabID else { return true }
+        if type == .zmx, let session, !session.isEmpty {
+            guard state == .live else { return false }
+            if canReplaceZmxClient(terminal: terminal, tabID: tabID) { return true }
+            guard holdsZmxSessionAlone(session) else { return false }
+        }
+        return adapter.canFocus(session: session, tabID: tabID)
+    }
+
+    private func holdsZmxSessionAlone(_ session: String) -> Bool {
+        (adapter as? ZmxExposeAdapter)?.clientCount(for: session) == 1
+    }
+
+    /// Mirrors the checks `replaceZmxClient` makes before it acts.
+    private func canReplaceZmxClient(terminal: Ghostty.TerminalView, tabID: String) -> Bool {
+        #if targetEnvironment(macCatalyst)
+        if terminal.localZmxAttachShell(sessionName: tabID) != nil { return true }
+        #endif
+        return terminal.session is MainChannelReplacing
+            && MuxSessionTarget(type: .zmx, sessionName: tabID)?.execCommand != nil
+    }
+
     /// Switch the multiplexer to `tabID`. Independent of the tick loop so it
     /// still runs while the exposé is already dismissing.
     func focus(tabID: String) {
@@ -371,28 +401,14 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         // Avoid resetting terminal state when the selected tab is already active.
         guard session != tabID else { return }
 
-        // Use the pane's own PTY when a shell is known to be available below zmx.
-        if type == .zmx, let sourceBinding = terminal.passthroughMultiplexer,
-           sourceBinding.canDetachSwitch,
-           let session, !session.isEmpty, session != tabID {
-            guard let zmxAdapter = adapter as? ZmxExposeAdapter,
-                  let sourceClients = zmxAdapter.clientCount(for: session),
-                  let targetClients = zmxAdapter.clientCount(for: tabID)
-            else {
-                Self.logger.warning("detach focus has no client census; leaving the pane untouched")
+        if type == .zmx, let session, !session.isEmpty {
+            if replaceZmxClient(terminal: terminal, session: session, tabID: tabID) { return }
+            // Without a client of its own to replace, the pane can only use zmx's
+            // leader-routed switch, which is ours only while we hold the session alone.
+            guard holdsZmxSessionAlone(session) else {
+                Self.logger.info("zmx switch declined: other clients share this session")
                 return
             }
-            prepareForPassthroughSwitch(terminal)
-            performZmxDetachSwitch(
-                terminal: terminal,
-                session: session,
-                tabID: tabID,
-                sourceClients: sourceClients,
-                targetClients: targetClients,
-                sourceBinding: sourceBinding,
-                focusRun: focusRun
-            )
-            return
         }
 
         guard adapter.canFocus(session: session, tabID: tabID) else {
@@ -431,133 +447,54 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         }
     }
 
-    /// Delay after detach so the remote pty can finish its cleanup.
-    private static let zmxDetachSettleDelay: TimeInterval = 0.4
-    private static let zmxDetachConfirmationDelay: TimeInterval = 0.35
-    private static let zmxDetachSwitchAttempts = 3
-    private static let zmxDetachCensusScript = MuxScript.wrap(
-        "echo \"::SESSIONS::\"; ZMX_SESSION= zmx list 2>/dev/null",
-        nonce: "detach-census"
-    )
-
-    /// Move a detachable zmx pane by typing into its own PTY.
-    private func performZmxDetachSwitch(
-        terminal: Ghostty.TerminalView,
-        session: String,
-        tabID: String,
-        sourceClients: Int,
-        targetClients: Int,
-        sourceBinding: Ghostty.TerminalView.RawMultiplexerBinding,
-        focusRun: UInt64
-    ) {
-        // Seed the title before typing so an echoed command cannot win the race.
-        let originalTitle = terminal.title
-        if terminal.userOverrideTitle == nil {
-            terminal.title = tabID
+    /// Moves only this pane: zmx sends an `attach` issued from inside a session
+    /// to that session's leader, which may be another terminal (neurosnap/zmx#260),
+    /// so the pane's own client is replaced by one attached to `tabID` instead.
+    /// Returns false when this pane has no client it can replace.
+    private func replaceZmxClient(terminal: Ghostty.TerminalView, session: String, tabID: String) -> Bool {
+        #if targetEnvironment(macCatalyst)
+        if terminal.replaceLocalZmxAttachment(sessionName: tabID) {
+            // The old client closed with its PTY, so its own reset never arrives.
+            terminal.surfaceOutputPipeline.writeDirect(MainChannelReset.bytes)
+            Self.noteZmxSwap(on: terminal, from: session, to: tabID)
+            wake()
+            return true
         }
-        let inputLine = terminal.zmxAttachInputLine(sessionName: tabID)
-        focusTask = Task { [weak self, weak terminal] in
-            guard let self, let terminal else { return }
-            @MainActor func isCurrentFocus() -> Bool {
-                !Task.isCancelled && self.focusGeneration == focusRun
-                    && self.terminal === terminal
-                    && terminal.passthroughMultiplexer == sourceBinding
-            }
-            var confirmed = false
-            defer {
-                if !confirmed, self.focusGeneration == focusRun {
-                    terminal.titleSuppressedUntil = nil
-                    terminal.pendingCommandEcho = nil
-                    if terminal.userOverrideTitle == nil, terminal.title == tabID {
-                        terminal.title = originalTitle
-                    }
-                }
-            }
-            var needsDetach = true
-            switchAttempts: for attempt in 0..<Self.zmxDetachSwitchAttempts {
-                guard isCurrentFocus() else { return }
-                if needsDetach {
-                    terminal.sendUserInput(Data([0x1C]))
-                    try? await Task.sleep(for: .seconds(Self.zmxDetachSettleDelay))
-                    guard isCurrentFocus() else { return }
-                }
-
-                terminal.pendingCommandEcho = (
-                    command: inputLine.trimmingCharacters(in: .whitespacesAndNewlines),
-                    until: Date().addingTimeInterval(Ghostty.TerminalView.commandEchoTitleWindow)
+        #endif
+        guard let replacing = terminal.session as? MainChannelReplacing,
+              let command = MuxSessionTarget(type: .zmx, sessionName: tabID)?.execCommand,
+              let fallback = MuxSessionTarget(type: .zmx, sessionName: session)?.execCommand
+        else { return false }
+        // Not a `focusTask`: cancelling a swap halfway could leave the pane with no client.
+        Task { [weak self, weak terminal] in
+            do {
+                try await replacing.replaceMainChannel(
+                    execCommand: command, fallbackCommand: fallback, readyMarker: ZmxAttachMarker.bytes
                 )
-                terminal.titleSuppressedUntil = Date()
-                    .addingTimeInterval(Self.zmxDetachSettleDelay + 1)
-                if let data = inputLine.data(using: .utf8) {
-                    guard isCurrentFocus() else { return }
-                    terminal.sendUserInput(data)
-                }
-                terminal.titleSuppressedUntil = nil
-
-                try? await Task.sleep(for: .seconds(Self.zmxDetachConfirmationDelay))
-                guard isCurrentFocus() else { return }
-                guard let counts = await self.fetchZmxDetachCensus(on: terminal),
-                      let sourceAfter = counts[session],
-                      let targetAfter = counts[tabID]
-                else {
-                    Self.logger.warning("detach focus could not read its confirmation census")
-                    break
-                }
-
-                switch MuxZmxDetachTransfer.classify(
-                    sourceBefore: sourceClients,
-                    targetBefore: targetClients,
-                    sourceAfter: sourceAfter,
-                    targetAfter: targetAfter
-                ) {
-                case .confirmed:
-                    guard isCurrentFocus() else { return }
-                    confirmed = true
-                    self.notePassthroughFocus(tabID: tabID)
-                    self.wake()
-                    return
-                case .unchanged:
-                    needsDetach = true
-                case .detachedOnly:
-                    needsDetach = false
-                case .ambiguous:
-                    Self.logger.warning("detach focus census changed ambiguously; refusing to type again")
-                    break switchAttempts
-                }
-                if attempt < Self.zmxDetachSwitchAttempts - 1 { continue }
+            } catch {
+                Self.logger.warning("zmx client swap failed: \(error.localizedDescription)")
+                return
             }
-
-            Self.logger.warning("detach focus did not confirm after retries; leaving the binding unchanged")
+            // The pane moved even if exposé has since switched to another pane.
+            guard let terminal, terminal.session === replacing else { return }
+            Self.noteZmxSwap(on: terminal, from: session, to: tabID)
+            if let self, self.terminal === terminal { self.wake() }
         }
+        return true
     }
 
-    private func fetchZmxDetachCensus(on terminal: Ghostty.TerminalView) async -> [String: Int]? {
-        for attempt in 0..<Self.focusAttempts {
-            do {
-                let output = try await RemoteExecProbe.run(
-                    Self.zmxDetachCensusScript,
-                    on: terminal,
-                    timeout: 4,
-                    maxResponseBytes: Self.focusMaxResponseBytes
-                )
-                let sessions = ZmxDiscoveryParser.parse(output: output)
-                return sessions.reduce(into: [:]) { counts, info in
-                    if let clients = info.clientCount { counts[info.name] = clients }
-                }
-            } catch RemoteExecProbe.ProbeError.busy {
-                try? await Task.sleep(for: .milliseconds(250))
-                if attempt == Self.focusAttempts - 1 {
-                    Self.logger.warning("detach focus confirmation abandoned: transport busy")
-                }
-            } catch {
-                Self.logger.warning("detach focus confirmation failed: \(error.localizedDescription)")
-                return nil
-            }
+    /// Records a completed swap on the pane, which may no longer be this feed's.
+    private static func noteZmxSwap(on terminal: Ghostty.TerminalView, from session: String, to tabID: String) {
+        terminal.passthroughMultiplexer = .init(type: .zmx, sessionName: tabID)
+        terminal.recordZmxResumeTarget(sessionName: tabID)
+        // Seed the title because zmx may not replay one for a new session.
+        if session != tabID, terminal.userOverrideTitle == nil {
+            terminal.title = tabID
         }
-        return nil
     }
 
     private func wake() {
+        wakePending = true
         sleeper?.cancel()
     }
 
@@ -575,8 +512,7 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
 
     private func notePassthroughFocus(tabID: String) {
         guard let terminal, let type, !type.ownsAlternateScreen else { return }
-        let canDetachSwitch = terminal.passthroughMultiplexer?.canDetachSwitch ?? false
-        terminal.passthroughMultiplexer = .init(type: type, sessionName: tabID, canDetachSwitch: canDetachSwitch)
+        terminal.passthroughMultiplexer = .init(type: type, sessionName: tabID)
 
         // Seed the title because zmx may not replay one for a new session.
         guard sessionName != tabID else { return }
@@ -631,21 +567,13 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
         if identityChanged { resetSession() }
         configure(detected)
         if let terminal, !detected.type.ownsAlternateScreen, let name = detected.sessionName {
-            // Process inspection cannot distinguish an interactive attach
-            // from an exec takeover, but the connection configuration can.
-            let canDetachSwitch = terminal.connectionConfig.sshConfigForHistory
-                .map { !$0.hasExecTakeoverCommand } ?? true
             if terminal.passthroughMultiplexer?.type == detected.type {
                 // Validation may discover that an in-place/session change
                 // updated the socket-backed name while the old slot was
                 // cached. Refresh the exact identity before serving it.
-                terminal.passthroughMultiplexer = .init(
-                    type: detected.type,
-                    sessionName: name,
-                    canDetachSwitch: canDetachSwitch
-                )
+                terminal.passthroughMultiplexer = .init(type: detected.type, sessionName: name)
             } else {
-                terminal.bindPassthroughMultiplexer(detected.type, sessionName: name, canDetachSwitch: canDetachSwitch)
+                terminal.bindPassthroughMultiplexer(detected.type, sessionName: name)
             }
         }
         onChange?()
@@ -717,9 +645,14 @@ final class MultiplexerExposeFeed: MuxPreviewFrameSource {
             case .immediate:
                 continue
             case .wait(let seconds):
+                if wakePending {
+                    wakePending = false
+                    continue
+                }
                 let sleeper = Task<Void, Never> { try? await Task.sleep(for: .seconds(seconds)) }
                 self.sleeper = sleeper
                 await sleeper.value
+                wakePending = false
                 guard isCurrent(generation) else { return }
             }
         }

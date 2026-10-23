@@ -34,7 +34,7 @@ private final class TerminationProgress {
 }
 
 @MainActor
-final class TrzszSession: TerminalSession {
+final class TrzszSession: TerminalSession, MainChannelReplacing {
 
     // MARK: - TerminalSession Protocol
 
@@ -419,6 +419,7 @@ final class TrzszSession: TerminalSession {
 
     /// Session credentials for resume
     private var savedCredentials: TrzszSessionCredentials?
+    private var mainChannelSwapInFlight = false
     private var relayRebuildRequested = false
     private var resumeLoopActive = false
     private var relayRecoveryTask: Task<Void, Never>?
@@ -1430,6 +1431,56 @@ final class TrzszSession: TerminalSession {
         onReady?()
 
         await startConfiguredPortForwards(on: transport)
+    }
+
+    /// Swaps the main PTY for one running `execCommand`. The old session has to
+    /// close first, so a failed open or one that never shows `readyMarker`
+    /// reopens the pane on `fallbackCommand`.
+    func replaceMainChannel(execCommand: String, fallbackCommand: String, readyMarker: Data) async throws {
+        guard isRunning, !userInitiatedDisconnect, !didEndSession, !mainChannelSwapInFlight,
+              let transport = goTransport else {
+            throw MainChannelSwapError.unavailable
+        }
+        mainChannelSwapInFlight = true
+        defer { mainChannelSwapInFlight = false }
+        let size = pty.windowSize
+        let cols = Int(size.cols > 0 ? size.cols : 80)
+        let rows = Int(size.rows > 0 ? size.rows : 24)
+        let agentEnabled = config.sshConfig.agentConfig.enabled
+        do {
+            try await transport.replaceSessionStream(
+                cols: cols, rows: rows, execCommand: execCommand, readyMarker: readyMarker, agentEnabled: agentEnabled
+            )
+        } catch {
+            Self.logger.warning("Main session swap failed: \(error.localizedDescription)")
+            if goTransport === transport {
+                do {
+                    try await transport.openSessionStream(cols: cols, rows: rows, execCommand: fallbackCommand, agentEnabled: agentEnabled)
+                    recordMainSessionID(transport.sessionID)
+                } catch {
+                    // No main session is left, so end the pane rather than leave it dead.
+                    Self.logger.error("Reopening the replaced session failed: \(error.localizedDescription)")
+                    endSession(shouldDeleteCredentials: true, shouldCloseTransport: true, emitSessionEnd: true)
+                }
+            }
+            throw error
+        }
+        guard goTransport === transport else { throw MainChannelSwapError.unavailable }
+        lastSentResize = size
+        pendingResize = nil
+        recordMainSessionID(transport.sessionID)
+        // Same SIGWINCH nudge as the first open: the exec'd program may read the size early.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(10))
+            self?.goTransport?.resize(cols: cols, rows: rows)
+        }
+    }
+
+    /// Points resume at the main session that replaced the saved one.
+    private func recordMainSessionID(_ id: UInt64?) {
+        guard var credentials = savedCredentials, credentials.sessionID != id else { return }
+        credentials.sessionID = id
+        persist(credentials, reason: "main session swap")
     }
 
     /// Run after either opening a new PTY or attaching an existing one.

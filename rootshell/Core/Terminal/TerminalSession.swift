@@ -130,3 +130,52 @@ protocol SSHTerminalSession: TerminalSession {
 extension SSHTerminalSession {
     func consumeAuthBanners() -> [String] { [] }
 }
+
+/// Sessions that can swap the pane's PTY channel for a new command on the
+/// live connection. The swap commits only once the new channel's output
+/// contains `readyMarker`, and the old channel's end never ends the session.
+/// A failed swap throws with the pane still on the old command, reopening it
+/// with `fallbackCommand` where the old channel had to close first.
+@MainActor
+protocol MainChannelReplacing: AnyObject {
+    func replaceMainChannel(execCommand: String, fallbackCommand: String, readyMarker: Data) async throws
+}
+
+enum MainChannelSwapError: Error {
+    case unavailable
+    case notReady
+}
+
+/// How long a replacement channel has to show its ready marker.
+nonisolated let mainChannelReadyTimeout: Duration = .seconds(10)
+
+/// Written at a channel swap, before the new program's first byte: what zmx's
+/// own client sends when it leaves a terminal (RIS plus default fg/bg/cursor
+/// colours), so the replaced program's modes cannot leak into the new one.
+nonisolated enum MainChannelReset {
+    static let bytes = Data("\u{1B}c\u{1B}]110\u{1B}\\\u{1B}]111\u{1B}\\\u{1B}]112\u{1B}\\".utf8)
+}
+
+/// zmx's attach clear, written only after its client has connected to the
+/// session daemon; failures before that exit without it. Releases through
+/// 0.8.1 write exactly this; later ones prefix `ESC[0m`.
+nonisolated enum ZmxAttachMarker {
+    static let bytes = Data("\u{1B}[2J\u{1B}[H".utf8)
+}
+
+/// Finds a marker in a byte stream, across chunk boundaries.
+nonisolated struct MainChannelMarkerScanner: Sendable {
+    let marker: Data
+    private var tail = Data()
+
+    init(marker: Data) {
+        self.marker = marker
+    }
+
+    mutating func scan(_ chunk: Data) -> Bool {
+        let window = tail + chunk
+        if window.range(of: marker) != nil { return true }
+        tail = Data(window.suffix(max(marker.count - 1, 0)))
+        return false
+    }
+}
