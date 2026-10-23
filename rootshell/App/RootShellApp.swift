@@ -49,10 +49,6 @@ struct RootShellApp: App {
     /// open, which is a major reason new windows felt slow.
     @MainActor private static var didRunAppStartupTasks = false
 
-    #if DEBUG
-    private static let inboxOnly = ProcessInfo.processInfo.arguments.contains("-AgentInboxOnly")
-    #endif
-
     init() {
         let appInit = LaunchSignposts.begin("launch.appInit")
         defer { LaunchSignposts.end("launch.appInit", appInit) }
@@ -94,20 +90,7 @@ struct RootShellApp: App {
 
     var body: some Scene {
         WindowGroup(id: "main-terminal") {
-            Group {
-                #if DEBUG
-                if Self.inboxOnly && AgentInboxPlatform.isSupported {
-                    // Design review only: `-AgentInboxOnly` boots straight into
-                    // the inbox so it can be screenshotted without the
-                    // onboarding / connection sheets.
-                    AgentInboxView()
-                } else {
-                    DuoSceneHost { MainView() }
-                }
-                #else
-                DuoSceneHost { MainView() }
-                #endif
-            }
+            DuoSceneHost { MainView() }
                 .overlay { MCPApprovalOverlay() }
                 .environmentObject(ghosttyApp)
                 .preferredColorScheme(appearanceManager.colorScheme)
@@ -118,12 +101,7 @@ struct RootShellApp: App {
                 .alwaysOnDisplay()
                 .task {
                     #if DEBUG
-                    // Settings load asynchronously; seeding before they land
-                    // means `isEnabled` is still false and no island appears.
-                    try? await Task.sleep(for: .seconds(10))
-                    if AgentInboxPlatform.isSupported {
-                        AgentInboxStore.shared.seedDemoIfRequested()
-                    }
+                    AgentInboxStore.shared.seedDemoIfRequested()
                     #endif
                     guard ProtectedDataGuard.isAvailable else { return }
 
@@ -214,7 +192,7 @@ struct RootShellApp: App {
                     LaunchSignposts.event("app.startupTask.end")
                 }
                 .onOpenURL { url in
-                    // Live Activity inbox rows and the fold row.
+                    // Live Activity inbox rows and the inbox itself.
                     if PushNotificationRouter.handleLiveActivityURL(url) {
                         return
                     }

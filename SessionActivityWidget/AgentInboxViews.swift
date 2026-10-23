@@ -4,7 +4,7 @@
 //
 //  "Agent inbox" presentation for the session Live Activity: the same island
 //  aggregates every agent's unread hook notifications instead of opening one
-//  activity per agent or per message (DESIGN §6).
+//  activity per agent or per message.
 //
 //  Privacy option A is enforced by the data, not by the view: `AgentInboxItem`
 //  has no title and no body, so there is nothing here that could render one.
@@ -82,6 +82,7 @@ enum AgentInboxMark {
         case "helix":               return "waveform.path"
         case "vim":                 return "text.cursor"
         case "hermes":              return "bolt.horizontal"
+        case "dsh":                 return "brain"
         default:                    return "terminal"
         }
     }
@@ -100,6 +101,7 @@ enum AgentInboxMark {
         case "helix":     return Color(.sRGB, red: 0.96, green: 0.45, blue: 0.62, opacity: 1)
         case "vim":       return Color(.sRGB, red: 0.34, green: 0.78, blue: 0.44, opacity: 1)
         case "hermes":    return Color(.sRGB, red: 0.96, green: 0.70, blue: 0.30, opacity: 1)
+        case "dsh":       return Color(.sRGB, red: 0.30, green: 0.42, blue: 0.99, opacity: 1)
         default:          return .secondary
         }
     }
@@ -118,6 +120,7 @@ enum AgentInboxMark {
         case "helix":    return "Helix"
         case "vim":      return "Vim"
         case "hermes":   return "Hermes"
+        case "dsh":      return "DeepSeek"
         default:         return agent.isEmpty ? "" : agent.capitalized
         }
     }
@@ -132,11 +135,6 @@ enum AgentInboxMark {
         case .other:   return AnyShapeStyle(.secondary)
         }
     }
-}
-
-enum AgentInboxLinks {
-    /// Where a tap on the island (or the fold row) lands: the inbox screen.
-    static let inbox = URL(string: "rootshell://inbox")!
 }
 
 // MARK: - Badge
@@ -156,6 +154,39 @@ enum AgentInboxBadge {
         if state.agentInboxHasFailed { return AnyShapeStyle(.red) }
         if state.agentInboxDoneUnreadCount > 0 { return AnyShapeStyle(.green) }
         return AnyShapeStyle(.white)
+    }
+}
+
+/// The Unread Count layout's compact mark: a tray and the count, tinted by
+/// the most urgent unread status.
+struct AgentInboxCompactBadge: View {
+    let state: SessionActivityAttributes.ContentState
+
+    var body: some View {
+        HStack(spacing: 1) {
+            Image(systemName: "tray.full.fill")
+                .font(.caption2)
+            Text(AgentInboxBadge.text(state))
+                .font(.caption)
+                .monospacedDigit()
+        }
+        .foregroundStyle(AgentInboxBadge.tint(state))
+    }
+}
+
+/// The Unread Count layout's line in the expanded island and on the Lock Screen.
+struct AgentInboxBadgeLine: View {
+    let state: SessionActivityAttributes.ContentState
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "tray.full.fill")
+                .font(.caption2)
+                .foregroundStyle(AgentInboxBadge.tint(state))
+            Text(AgentInboxText.unread(state.agentUnreadCount))
+                .font(.caption)
+                .lineLimit(1)
+        }
     }
 }
 
@@ -419,7 +450,7 @@ struct AgentInboxExpandedList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(state.agentInboxExpandedItems) { item in
-                Link(destination: item.deepLink) {
+                Link(destination: AgentInboxLinks.item(item.id)) {
                     AgentInboxRow(item: item)
                 }
                 .buttonStyle(.plain)
@@ -486,7 +517,7 @@ struct AgentInboxLockScreenView: View {
             header
 
             ForEach(rows) { item in
-                Link(destination: item.deepLink) {
+                Link(destination: AgentInboxLinks.item(item.id)) {
                     AgentInboxRow(item: item, height: 18,
                                   titleFont: .caption2.weight(.semibold),
                                   detailFont: .caption2,
@@ -594,10 +625,8 @@ struct AgentInboxLockScreenView: View {
 
 /// Clears the inbox without bringing the app forward.
 ///
-/// A `LiveActivityIntent` runs in the widget extension and cannot touch the
-/// app's unread state, so it does the two things it can: ends (or updates)
-/// the activity immediately, and leaves a timestamp in the app group for the
-/// app to consume on its next activation (DESIGN §2.5).
+/// Runs in the widget extension, so it can only update the activity and leave
+/// a watermark in the app group; the inbox treats older rows as read.
 struct AgentInboxMarkAllReadIntent: LiveActivityIntent {
     static var title: LocalizedStringResource { "Mark All as Read" }
 
@@ -623,6 +652,7 @@ struct AgentInboxMarkAllReadIntent: LiveActivityIntent {
             state.agentInboxBlockedCount = 0
             state.agentInboxFailedCount = 0
             state.agentInboxDoneCount = 0
+            state.agentInboxLayout = ""
             let content = ActivityContent(state: state, staleDate: nil)
 
             if hasOtherContent {

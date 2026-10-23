@@ -76,6 +76,7 @@ extension MainView {
             showOpenInFolderOverlay ||
             fileManagerOwnsKeyboard ||
             httpCaptureHoldsKeyboard ||
+            agentInboxOwnsKeyboard ||
             // The iPhone presentation is a sheet that owns the keyboard. On
             // regular width the clipboard manager is a passthrough glass HUD (like
             // the Find HUD, which is intentionally absent here) and must NOT count
@@ -151,7 +152,6 @@ extension MainView {
         }
     }
 
-
     @ViewBuilder
     func applySheetModifiers<V: View>(_ view: V, sheetTheme: ResolvedSheetTheme) -> some View {
         let dashboardHost = applyHerdrDashboard(view)
@@ -213,6 +213,7 @@ extension MainView {
             #if !CHINA_BUILD
             .modifier(httpCapturePhoneSheetModifier(sheetTheme: sheetTheme))
             #endif
+            .modifier(agentInboxPhoneSheetModifier(sheetTheme: sheetTheme))
             .sheet(item: $connectionInfoToShow) { info in
                 ConnectionInfoSheet(info: info)
                     .themedSheet(themeColors: sheetTheme.themeColors, accentColor: sheetTheme.accentColor, colorScheme: sheetTheme.colorScheme)
@@ -327,28 +328,10 @@ extension MainView {
                       let leafId = info["leafId"] as? UUID else { return }
                 handleTrzszTransferLeafRemoval(tabId: tabId, leafId: leafId)
             }
-            // The inbox is a first-class screen of the app, not a detour: it is
-            // presented here (inside MainView) so it inherits the same theme
-            // environment as every other sheet. The island's tap lands on it.
-            // The router is read through `AgentInboxRouter.shared`, not the
-            // notification it used to post: a cold launch delivers the URL
-            // before this view has subscribed, and that post was lost.
-            .onChange(of: AgentInboxRouter.shared.isPresented) { _, presented in
-                if presented { showConnectionSidebar = false }
+            // The island's deep link can land before this window exists.
+            .onChange(of: AgentInboxRouter.shared.pendingOpen, initial: true) { _, pending in
+                if pending { consumePendingAgentInboxOpen() }
             }
-            // The app opens on its normal screen; a right-swipe from the
-            // leading edge (or an island tap) brings the inbox up, themed like
-            // every other panel. Mechanics live in the modifier so this chain
-            // stays type-checkable.
-            .modifier(AgentInboxSheetModifier(
-                themeColors: sheetTheme.themeColors,
-                accentColor: sheetTheme.accentColor,
-                colorScheme: sheetTheme.colorScheme,
-                // The connection panel is part of the home screen, not a modal
-                // detour: a right-swipe over it must still reach the inbox. Any
-                // other presented sheet owns the gesture.
-                canOpen: { !isAnySheetPresented || showConnectionSidebar }
-            ))
             .modifier(ConnectionSidebarModifier(
                 showSidebar: $showConnectionSidebar,
                 contentID: AnyHashable(connectionSidebarInitialTab),
@@ -559,6 +542,7 @@ extension MainView {
                 )
             }
     }
+
 }
 
 /// "Ask Each Time" close of a tmux or herdr control-mode tab: close on the

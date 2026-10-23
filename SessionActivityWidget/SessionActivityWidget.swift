@@ -22,7 +22,7 @@ private struct AdaptiveLockScreenWrapper: View {
     /// phone's size. The Apple Watch tile keeps its existing single-glance
     /// layout: five rows do not fit in `.small`.
     private var showsInbox: Bool {
-        state.hasAgentInbox && activityFamily != .small
+        state.usesInboxLayout && activityFamily != .small
     }
 
     var body: some View {
@@ -33,11 +33,8 @@ private struct AdaptiveLockScreenWrapper: View {
                 SessionActivityLockScreenView(state: state)
             }
         }
-        // A tap anywhere that is not a row goes to the inbox: the island is the
-        // inbox's overview, not a shortcut into whichever pane fired last.
-        // Always the inbox: a tap that opens the app with no URL lands on the
-        // terminal and reads as "the island did nothing".
-        .widgetURL(AgentInboxLinks.inbox)
+        // Only the inbox layout changes where a tap lands.
+        .widgetURL(state.usesInboxLayout ? AgentInboxLinks.inbox : nil)
         .activityBackgroundTint(colorScheme == .dark ? .black.opacity(0.2) : nil)
         .activitySystemActionForegroundColor(colorScheme == .dark ? .white : nil)
     }
@@ -52,7 +49,7 @@ struct SessionActivityWidget: Widget {
         } dynamicIsland: { context in
             // `DynamicIslandExpandedContentBuilder` cannot branch, so the two
             // compositions are separate `DynamicIsland` values.
-            context.state.hasAgentInbox
+            context.state.usesInboxLayout
                 ? Self.agentInboxIsland(context.state)
                 : Self.sessionIsland(context.state)
         }
@@ -101,6 +98,10 @@ struct SessionActivityWidget: Widget {
                     // Coding agents in expanded center
                     if state.agentTotalCount > 0 {
                         AgentSummaryLine(state: state)
+                    }
+
+                    if state.showsInboxBadge {
+                        AgentInboxBadgeLine(state: state)
                     }
 
                     // VPN info in expanded center
@@ -238,6 +239,9 @@ struct SessionActivityWidget: Widget {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         } compactTrailing: {
             HStack(spacing: 2) {
+                if state.showsInboxBadge {
+                    AgentInboxCompactBadge(state: state)
+                }
                 if state.agentAttentionCount > 0 {
                     Image(systemName: "exclamationmark.bubble.fill")
                         .font(.caption2)
@@ -273,7 +277,7 @@ struct SessionActivityWidget: Widget {
 
     // MARK: - Agent inbox island
 
-    /// One island for every agent (DESIGN §6): three rows newest-first, a
+    /// One island for every agent: three rows newest-first, a
     /// folded "N more" line, and the bulk action. The island cannot scroll,
     /// so the fourth event never gets its own row.
     private static func agentInboxIsland(

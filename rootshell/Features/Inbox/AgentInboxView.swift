@@ -2,72 +2,65 @@
 //  AgentInboxView.swift
 //  rootshell
 //
-//  The inbox screen. This is the only place besides the terminal where the
-//  message text is allowed: the person has unlocked the device and opened the
-//  app. Rows are grouped by what has to happen, not by which agent spoke.
-//
-//  Layout follows the app's other lists (inset-grouped `List`, system section
-//  headers, `.subheadline` / `.caption2` type ramp) and every string goes
-//  through `String(localized:)` so the screen tracks the system language.
+//  The inbox panel content, shared by the sidebar column, the HUD and the
+//  iPhone sheet. Rows are grouped by what has to happen, not by which agent
+//  spoke. This is the only place besides the terminal that shows message text.
 //
 
-import RootshellPushKit
-import Combine
 import SwiftUI
 
-#if canImport(UIKit)
-import UIKit
-#endif
-
-/// The inbox is an iPhone surface: its drawer follows the leading edge and its
-/// entry point is the Dynamic Island. iPad deliberately has no inbox code path —
-/// a half-ported drawer there read as a different feature.
-enum AgentInboxPlatform {
-    static var isSupported: Bool {
-        #if canImport(UIKit)
-        UIDevice.current.userInterfaceIdiom == .phone
-        #else
-        false
-        #endif
-    }
-}
-
-/// Presentation state shared by the island's deep links and this screen.
+/// Open requests from outside a window: the island's deep link and a cold
+/// launch that arrives before any `MainView` is listening.
 @MainActor
 @Observable
 final class AgentInboxRouter {
     static let shared = AgentInboxRouter()
 
-    var isPresented = false
-    /// Highlighted briefly after arriving from the island so the row the person
-    /// tapped is findable in a list that may have moved on.
+    /// Set until a window opens the inbox.
+    var pendingOpen = false
+    /// Flashed once so the row the person came for is findable.
     var highlightedID: String?
 
-    func present(highlighting id: String? = nil) {
-        guard AgentInboxPlatform.isSupported else { return }
+    func requestOpen(highlighting id: String? = nil) {
         highlightedID = id
-        isPresented = true
+        pendingOpen = true
     }
 }
 
 struct AgentInboxView: View {
-    @Environment(\.dismiss) private var dismiss
+    enum Style {
+        case sidebar
+        case overlay
+        case full
+        case sheet
+
+        var presentation: PanelPresentation? {
+            switch self {
+            case .sidebar: .sidebar
+            case .overlay: .overlay
+            case .full: .full
+            case .sheet: nil
+            }
+        }
+    }
+
+    let style: Style
+    let onClose: () -> Void
+    /// Switches between presentations; nil where only one presentation exists.
+    let onSwitchPresentation: ((PanelPresentation) -> Void)?
+
     @Environment(\.colorScheme) private var colorScheme
-    /// The sheet's own card colour, so the inbox cards are the same fill as
-    /// every other panel in the app rather than a white system row on a dark
-    /// sheet.
     @Environment(\.sheetThemeColors) private var sheetThemeColors
-    /// Set when the inbox is hosted in the app's own drawer instead of a sheet.
-    var onClose: (() -> Void)?
-    /// False when the caller already provides a `NavigationStack` (the inbox is
-    /// then a pushed page and the system owns the interactive back gesture).
-    var embedsNavigation: Bool = true
     @State private var store = AgentInboxStore.shared
     @State private var filter: Filter = .all
     @State private var highlight: String?
     @State private var flashTask: Task<Void, Never>?
-    /// Drives the relative timestamps: row bodies read this, so "2 分钟前"
-    /// becomes "3 分钟前" on its own instead of freezing at first render.
+    /// The row whose pane is no longer open, briefly.
+    @State private var unreachableID: String?
+    /// The row being resolved while a control-mode client reconnects.
+    @State private var resolvingID: String?
+    @State private var unreachableTask: Task<Void, Never>?
+    /// Drives the relative timestamps.
     @State private var now = Date()
 
     enum Filter: String, CaseIterable, Identifiable {
@@ -91,11 +84,8 @@ struct AgentInboxView: View {
         }
     }
 
-    /// Matches the app's own card surfaces: a soft translucent fill with an
-    /// 18pt radius, rather than the system's grouped grey list rows.
-    /// The page's own luminance decides how semantic colours resolve. The app can
-    /// run a dark terminal theme while the system is in light mode; without this
-    /// `.secondary` is black-on-black and the timestamps disappear.
+    /// A dark terminal theme can run under a light system scheme; semantic
+    /// colours must resolve against the panel's own surface.
     private var surfaceScheme: ColorScheme {
         guard let theme = sheetThemeColors else { return colorScheme }
         return theme.isDarkSurface ? .dark : .light
@@ -110,147 +100,153 @@ struct AgentInboxView: View {
     }
 
     var body: some View {
-        if embedsNavigation {
-            NavigationStack { pageContent }
-        } else {
-            pageContent
+        VStack(spacing: 0) {
+            header
+            Divider()
+            list
         }
-    }
-
-    @ViewBuilder
-    private var pageContent: some View {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    AgentInboxFilterBar(filter: $filter)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-
-                    if store.isEmpty {
-                        ContentUnavailableView(
-                            String(localized: "No Agent Messages", comment: "Inbox empty state title"),
-                            systemImage: "tray",
-                            description: Text(String(localized: "Hook messages from your agents land here.", comment: "Inbox empty state detail"))
-                        )
-                        .padding(.top, 40)
-                    } else {
-                        ForEach(sections, id: \.self) { section in
-                            let rows = visibleRows(in: section)
-                            if !rows.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    AgentInboxSectionHeader(section: section, count: rows.count)
-                                        .padding(.horizontal, 4)
-
-                                    VStack(spacing: 0) {
-                                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                                            AgentInboxRowView(
-                                                row: row,
-                                                now: now,
-                                                highlighted: highlight == row.id,
-                                                onOpen: { open(row) },
-                                                onArchive: { store.archive(row.id) },
-                                                allowsArchive: row.section != .working
-                                            )
-                                            if index < rows.count - 1 {
-                                                Rectangle()
-                                                    .fill(cardStroke)
-                                                    .frame(height: 0.5)
-                                                    .padding(.leading, 50)
-                                            }
-                                        }
-                                    }
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                            .fill(cardFill)
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                            .strokeBorder(cardStroke, lineWidth: 0.5)
-                                    )
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                        }
-                    }
-                }
-                .padding(.bottom, 24)
-                // On iPad the cards otherwise stretch the full 13-inch width and
-                // every row turns into a banner; cap the column and centre it.
-                .frame(maxWidth: 680, alignment: .leading)
-                .frame(maxWidth: .infinity)
+        .environment(\.colorScheme, surfaceScheme)
+        .background(style == .sheet ? sheetThemeColors?.background.ignoresSafeArea() : nil)
+        .task {
+            while !Task.isCancelled {
+                now = Date()
+                store.sweepExpired(now: now)
+                try? await Task.sleep(for: .seconds(20))
             }
-            .themedList()
-            .agentInboxPage(sheetThemeColors)
-            .environment(\.colorScheme, surfaceScheme)
-            .toolbarColorScheme(surfaceScheme, for: .navigationBar)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(sheetThemeColors?.pageFill ?? Color(uiColor: .systemGroupedBackground), for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                // The bar's own title ignored `toolbarColorScheme` in this stack and
-                // stayed black on a dark bar; a principal item resolves `.primary`
-                // against the scheme we force below instead.
-                //
-                // No Done and no checkmark: the inbox is left by opening a row or
-                // swiping it away, and mass-marking read is an island action. A
-                // top bar full of buttons made both exits compete with chrome.
-                ToolbarItem(placement: .principal) {
-                    Text(String(localized: "Agent Inbox", comment: "Inbox title"))
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                }
-            }
-        .onReceive(Timer.publish(every: 20, on: .main, in: .common).autoconnect()) { tick in
-            now = tick
-            // Idle rows move to the archive after an hour, and archive rows
-            // disappear two hours after they arrived there.
-            store.sweepExpired(now: tick)
-            #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-            LiveActivityManager.shared.sweepAgentArchiveNow()
-            #endif
         }
         .onAppear {
-            now = Date()
-            store.sweepExpired(now: now)
             flash(AgentInboxRouter.shared.highlightedID)
             AgentInboxRouter.shared.highlightedID = nil
         }
     }
 
-    private func visibleRows(in section: AgentInboxSection) -> [AgentInboxRow] {
-        // `failed` is its own section now, so a row can never be in the wrong
-        // group for the selected filter.
-        store.rows(in: section)
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "tray").foregroundStyle(Color.accentColor)
+            Text(String(localized: "Agent Inbox", comment: "Inbox title"))
+                .font(.headline)
+            Spacer(minLength: 4)
+            if let onSwitchPresentation, let current = style.presentation {
+                PanelPresentationMenu(current: current, onSwitch: onSwitchPresentation)
+                    .equatable()
+            }
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary)
+            }
+            .help(String(localized: "Close (esc)", comment: "Agent inbox close button tooltip"))
+            .accessibilityLabel(String(localized: "Close Agent Inbox", comment: "Agent inbox close button"))
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
-    /// Tapping a row opens its pane; the shell handles the navigation and then
-    /// the pane counts as read, which is what clears the island.
-    private func close() {
-        if let onClose { onClose() } else { dismiss() }
+    // MARK: - List
+
+    /// A native list: rows scroll only vertically, and archive is the
+    /// system swipe action rather than a long-press lift.
+    @ViewBuilder
+    private var list: some View {
+        VStack(spacing: 0) {
+            AgentInboxFilterBar(filter: $filter)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+            if store.isEmpty {
+                ContentUnavailableView(
+                    String(localized: "No Agent Messages", comment: "Inbox empty state title"),
+                    systemImage: "tray",
+                    description: Text(String(localized: "Hook messages from your agents land here.", comment: "Inbox empty state detail"))
+                )
+                .frame(maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(sections, id: \.self) { section in
+                        let rows = store.rows(in: section)
+                        if !rows.isEmpty {
+                            Section {
+                                ForEach(rows) { row in
+                                    rowView(row)
+                                }
+                            } header: {
+                                AgentInboxSectionHeader(section: section, count: rows.count)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+            }
+        }
     }
 
+    private func rowView(_ row: AgentInboxRow) -> some View {
+        let canArchive = row.section != .working && row.section != .archived
+        return AgentInboxRowView(
+            row: row,
+            now: now,
+            highlighted: highlight == row.id,
+            unreachable: unreachableID == row.id,
+            resolving: resolvingID == row.id,
+            onOpen: { open(row) }
+        )
+        .listRowBackground(cardFill)
+        .listRowSeparatorTint(cardStroke)
+        .listRowInsets(EdgeInsets())
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if canArchive {
+                Button { store.archive(row.id) } label: {
+                    Label(String(localized: "Archive Message", comment: "Inbox row action"), systemImage: "archivebox")
+                }
+                .tint(.indigo)
+            }
+        }
+        .contextMenu {
+            if canArchive {
+                Button { store.archive(row.id) } label: {
+                    Label(String(localized: "Archive Message", comment: "Inbox row action"), systemImage: "archivebox")
+                }
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    /// Opening a row is the action: its pane opens and it moves to the
+    /// archive. The docked column stays up beside the terminal; anything
+    /// covering the terminal closes first. A pane that is gone says so instead
+    /// of landing somewhere else.
     private func open(_ row: AgentInboxRow) {
-        // An in-progress row is presence, not a message: tapping it must not
-        // navigate, close the inbox, or move it to the archive. Only archived
-        // rows with a working origin (legacy data) still navigate.
-        guard row.section != .working else { return }
-        // Opening a row is an action: move it into the archive, and drop it
-        // from the island immediately even if navigation has no pane to land on.
-        store.archive(row.id)
-        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-        // Rebuild from the store, not just remove one id: the island counts and
-        // the inbox sections must come from the same unread set.
-        LiveActivityManager.shared.syncAgentInboxFromStore()
-        #endif
-        close()
+        // An in-progress row is presence, not a message.
+        guard row.section != .working, resolvingID == nil else { return }
+        resolvingID = row.id
         Task { @MainActor in
-            // Let the panel finish dismissing first, otherwise the tab switch
-            // happens behind it and looks like nothing moved.
-            try? await Task.sleep(for: .milliseconds(320))
-            PushNotificationRouter.openInboxRow(deepLink: row.deepLink,
-                                                tabTitle: row.tab,
-                                                host: row.host,
-                                                windowId: row.windowId,
-                                                tabID: row.tabID)
+            defer { resolvingID = nil }
+            guard let target = await PushNotificationRouter.resolveInboxRowWhenReady(row) else {
+                showUnreachable(row.id)
+                return
+            }
+            store.archive(row.id)
+            guard style != .sidebar else {
+                PushNotificationRouter.navigate(to: target)
+                return
+            }
+            onClose()
+            // The sheet must finish dismissing, or the tab switch happens behind it.
+            if style == .sheet { try? await Task.sleep(for: .milliseconds(350)) }
+            PushNotificationRouter.navigate(to: PushNotificationRouter.resolveInboxRow(row) ?? target)
+        }
+    }
+
+    private func showUnreachable(_ id: String) {
+        unreachableID = id
+        unreachableTask?.cancel()
+        unreachableTask = Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            unreachableID = nil
         }
     }
 
@@ -278,40 +274,32 @@ private struct AgentInboxSectionHeader: View {
         }
         .font(.footnote.weight(.semibold))
         .foregroundStyle(.secondary)
-        // Keep the sentence casing in every language: `textCase(nil)` stops the
-        // grouped list from forcing uppercase, which does nothing for Chinese
-        // and shouts for no reason in English.
         .textCase(nil)
     }
 }
 
 private struct AgentInboxRowView: View {
-    @Environment(\.colorScheme) private var colorScheme
-    /// The sheet's own card colour, so the inbox cards are the same fill as
-    /// every other panel in the app rather than a white system row on a dark
-    /// sheet.
-    @Environment(\.sheetThemeColors) private var sheetThemeColors
     let row: AgentInboxRow
     let now: Date
     let highlighted: Bool
+    let unreachable: Bool
+    let resolving: Bool
     let onOpen: () -> Void
-    let onArchive: () -> Void
-    /// False for in-progress rows: they are presence, not a message.
-    var allowsArchive: Bool = true
 
     var body: some View {
         Button(action: onOpen) {
             HStack(alignment: .top, spacing: 10) {
                 AgentInboxGlyph(agent: row.agent)
+                    .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(row.summary ?? row.agent)
+                    Text(row.summary ?? AgentInboxGlyph.displayName(for: row.agent))
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    // Which machine this came from: hooks fire on several hosts
-                    // at once, and two rows can otherwise look identical.
+                    // Hooks fire on several hosts at once; two rows can
+                    // otherwise look identical.
                     if let host = row.host {
                         HStack(spacing: 5) {
                             AgentInboxHostChip(host: host)
@@ -323,17 +311,27 @@ private struct AgentInboxRowView: View {
                             }
                         }
                         .padding(.top, 1)
-                    } else if let location {
-                        Text(location)
+                    } else if let tab = row.tab {
+                        Text(tab)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
+
+                    if unreachable {
+                        Text(String(localized: "This pane is no longer open.", comment: "Inbox row: its pane cannot be found"))
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
-                Spacer(minLength: 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .trailing, spacing: 6) {
-                    Text(AgentInboxTime.short(row.receivedAt, now: now))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    if resolving {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Text(AgentInboxTime.short(row.receivedAt, now: now))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                     HStack(spacing: 4) {
                         AgentInboxStatusDot(status: row.status)
                         if let label = archivedStatusLabel {
@@ -344,43 +342,17 @@ private struct AgentInboxRowView: View {
                         }
                     }
                 }
+                .fixedSize()
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(
-            highlighted ? Color.accentColor.opacity(0.10) : Color.clear
-        )
-        .inboxArchiveMenu(enabled: allowsArchive, action: onArchive)
-    }
-
-    /// The app's list surfaces are soft translucent cards rather than the
-    /// system's grouped grey, so the inbox reads as part of the app.
-    /// The page's own luminance decides how semantic colours resolve. The app can
-    /// run a dark terminal theme while the system is in light mode; without this
-    /// `.secondary` is black-on-black and the timestamps disappear.
-    private var surfaceScheme: ColorScheme {
-        guard let theme = sheetThemeColors else { return colorScheme }
-        return theme.isDarkSurface ? .dark : .light
-    }
-
-    private var cardFill: Color {
-        sheetThemeColors?.cardFill ?? Color(uiColor: .secondarySystemGroupedBackground)
-    }
-
-    private var cardStroke: Color {
-        sheetThemeColors?.cardStroke ?? Color(uiColor: .separator).opacity(0.5)
-    }
-
-    private var location: String? {
-        let parts = [row.host, row.tab].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        .background(highlighted ? Color.accentColor.opacity(0.10) : Color.clear)
     }
 
     /// The archive keeps the status the event had when it was moved there.
-    /// Only archived rows spell it out; elsewhere the dot already carries it.
     private var archivedStatusLabel: String? {
         guard row.isArchived else { return nil }
         switch row.status {
@@ -392,97 +364,33 @@ private struct AgentInboxRowView: View {
     }
 }
 
-private extension View {
-    @ViewBuilder
-    func inboxArchiveMenu(enabled: Bool, action: @escaping () -> Void) -> some View {
-        if enabled {
-            contextMenu {
-                Button(role: .destructive, action: action) {
-                    Label(String(localized: "Archive Message", comment: "Inbox row action"),
-                          systemImage: "archivebox")
-                }
-            }
-        } else {
-            self
-        }
-    }
-}
-
+/// The agent's mark, drawn like the sidebar and tab bar draw it.
 struct AgentInboxGlyph: View {
     let agent: String
 
-    /// The shipped artwork is drawn for notification thumbnails: Codex is a
-    /// white knot on transparency, oh-my-pi is near-black strokes with orange
-    /// accents. One fixed plate colour makes half of them vanish, so the plate
-    /// follows the mark's own luminance — light mark on a dark plate, dark mark
-    /// on a light one. Brand colours are never recoloured, only the backdrop.
-    private static let darkPlate = Color(white: 0.11)
-    private static let lightPlate = Color(white: 0.94)
-
     var body: some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(Self.plate(for: Self.logo(for: agent)))
-            .frame(width: 22, height: 22)
-            .overlay {
-                if let logo = Self.logo(for: agent) {
-                    Image(uiImage: logo)
-                        .resizable()
-                        .scaledToFit()
-                        .padding(3)
-                } else {
-                    Image(systemName: "terminal")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.8))
-                }
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
-            )
-    }
-
-    private static func plate(for image: UIImage?) -> Color {
-        guard let image, let cg = image.cgImage else { return darkPlate }
-        return averageLuminance(cg) > 0.55 ? darkPlate : lightPlate
-    }
-
-    /// Average luminance of the opaque pixels, sampled on a 16pt grid.
-    private static func averageLuminance(_ cg: CGImage) -> Double {
-        let side = 16
-        var pixels = [UInt8](repeating: 0, count: side * side * 4)
-        guard let context = CGContext(
-            data: &pixels,
-            width: side,
-            height: side,
-            bitsPerComponent: 8,
-            bytesPerRow: side * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return 0.5 }
-        context.draw(cg, in: CGRect(x: 0, y: 0, width: side, height: side))
-        var total = 0.0
-        var count = 0.0
-        for index in stride(from: 0, to: pixels.count, by: 4) where pixels[index + 3] > 102 {
-            total += 0.2126 * Double(pixels[index])
-                + 0.7152 * Double(pixels[index + 1])
-                + 0.0722 * Double(pixels[index + 2])
-            count += 255
+        let id = AgentInboxAgentID.manifestID(for: agent)
+        if AgentBrandMark.mark(for: id) != nil {
+            AgentBrandMark(agentID: id, size: 18)
+                .frame(width: 22, height: 22)
+        } else {
+            AgentBrandMark(mark: .symbol("terminal"), size: 16)
+                .frame(width: 22, height: 22)
         }
-        return count > 0 ? total / count : 0.5
     }
 
-    /// The same artwork the push notification uses as its attachment, so the
-    /// inbox and the notification agree on what each agent looks like.
-    private static func logo(for agent: String) -> UIImage? {
-        if let cached = logoCache[agent] { return cached }
-        guard let url = PushAgentLogoAttachment.resourceURL(for: agent),
-              let data = try? Data(contentsOf: url),
-              let image = UIImage(data: data) else { return nil }
-        logoCache[agent] = image
-        return image
+    /// Product names are proper nouns and are not localized.
+    static func displayName(for agent: String) -> String {
+        switch AgentInboxAgentID.manifestID(for: agent) {
+        case "claude": "Claude"
+        case "codex": "Codex"
+        case "pi": "Pi"
+        case "omp": "oh-my-pi"
+        case "dsh": "DeepSeek"
+        case "hermes": "Hermes"
+        default: agent
+        }
     }
-
-    private static var logoCache: [String: UIImage] = [:]
 }
 
 struct AgentInboxStatusDot: View {
@@ -514,8 +422,7 @@ struct AgentInboxStatusDot: View {
     }
 }
 
-/// Compact elapsed time. `Text(_, style: .relative)` prints "3 分钟 13 秒",
-/// which is too wide for a trailing edge and reads like a stopwatch.
+/// Compact elapsed time; `Text(_, style: .relative)` reads like a stopwatch.
 enum AgentInboxTime {
     static func short(_ date: Date, now: Date = Date()) -> String {
         let seconds = max(0, now.timeIntervalSince(date))
@@ -532,12 +439,6 @@ enum AgentInboxTime {
     }
 }
 
-
-/// The inbox filter, sized like the app's own controls.
-///
-/// The system segmented control collapses to ~32pt here, which reads as a
-/// stray control rather than part of the screen; this keeps the app's card
-/// surface, radius and type scale instead.
 private struct AgentInboxFilterBar: View {
     @Binding var filter: AgentInboxView.Filter
     @Environment(\.colorScheme) private var colorScheme
@@ -556,7 +457,7 @@ private struct AgentInboxFilterBar: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .fill(selected ? selectedFill : Color.clear)
@@ -578,10 +479,7 @@ private struct AgentInboxFilterBar: View {
     }
 }
 
-
-/// The machine a message came from. Rendered as a small chip rather than plain
-/// grey text so a glance at the list separates hosts when several are pushing
-/// at the same time.
+/// The machine a message came from.
 struct AgentInboxHostChip: View {
     let host: String
     @Environment(\.colorScheme) private var colorScheme
