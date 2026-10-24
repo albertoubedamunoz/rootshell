@@ -187,8 +187,22 @@ final class TerminalFloatingKeyboardState {
     var presentation: TerminalTouchKeyboardModel.PresentationState?
     var temporarilyUseSystemKeyboard = false
     var requestedWithHardware = false
-    var placement = TerminalTouchKeyboardModel.Placement.docked
-    var anchor = CGPoint(x: 1, y: 0.85)
+    /// The last placement and card position, so a relaunch keeps the keyboard detached.
+    private static let placementKey = "terminalTouchKeyboardDetached"
+    private static let anchorKey = "terminalTouchKeyboardDetachedAnchor"
+    var placement: TerminalTouchKeyboardModel.Placement =
+        UserDefaults.standard.bool(forKey: TerminalFloatingKeyboardState.placementKey) ? .floating : .docked {
+        didSet { UserDefaults.standard.set(placement == .floating, forKey: Self.placementKey) }
+    }
+    var anchor: CGPoint = {
+        guard let stored = UserDefaults.standard.array(forKey: TerminalFloatingKeyboardState.anchorKey) as? [Double],
+              stored.count == 2 else { return CGPoint(x: 1, y: 0.85) }
+        return CGPoint(x: stored[0], y: stored[1])
+    }()
+
+    func saveAnchor() {
+        UserDefaults.standard.set([Double(anchor.x), Double(anchor.y)], forKey: Self.anchorKey)
+    }
 
     func copyChoices(from other: TerminalFloatingKeyboardState) {
         guard self !== other else { return }
@@ -285,6 +299,7 @@ final class TerminalFloatingKeyboardOverlay: UIView {
                 UIView.animate(withDuration: 0.2) { self.keyboard.frame = settled }
             }
             state.anchor = TerminalTouchKeyboardModel.floatingAnchor(for: settled, in: available)
+            state.saveAnchor()
             if allowDock && TerminalTouchKeyboardModel.shouldDockAfterDrag(proposed, in: available) { onDock?() }
         }
     }
@@ -300,17 +315,19 @@ final class TerminalFloatingKeyboardOverlay: UIView {
     func attach(to window: UIWindow) {
         window.addSubview(self)
         guard let root = window.rootViewController else { return }
-        let host = UIViewController()
+        let host = TerminalFloatingKeyboardPresentationHost()
         host.view = self
         root.addChild(host)
         host.didMove(toParent: root)
         presentationHost = host
+        if #available(iOS 27.1, *) { root.setNeedsUpdateOfVerticalBarConfiguration() }
     }
 
     func detach() {
-        if let host = presentationHost {
+        if let host = presentationHost, let root = host.parent {
             host.willMove(toParent: nil)
             host.removeFromParent()
+            if #available(iOS 27.1, *) { root.setNeedsUpdateOfVerticalBarConfiguration() }
         }
         // UIKit may already have mounted the compact toolbar host. A stale
         // overlay must not remove the keyboard from its new container.
@@ -322,6 +339,17 @@ final class TerminalFloatingKeyboardOverlay: UIView {
             keyboard.removeFromSuperview()
         }
         removeFromSuperview()
+    }
+}
+
+/// Presents the card's menus. As the root's newest child it also becomes the one
+/// the root asks about the vertical bar, so it passes on the app content's answer.
+private final class TerminalFloatingKeyboardPresentationHost: UIViewController {
+    @available(iOS 27.1, *)
+    override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
+        var content = parent?.children.first { $0 !== self }
+        while let child = content?.childForPreferredVerticalBarBehavior { content = child }
+        return content?.preferredVerticalBarBehavior ?? .automatic
     }
 }
 
