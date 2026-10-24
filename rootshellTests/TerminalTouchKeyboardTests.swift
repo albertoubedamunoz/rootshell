@@ -807,6 +807,22 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(frames[3], rows[3][0])
     }
 
+    func testDetachedBottomRowGivesSwitchKeyWidthToPageAndReturn() {
+        for page in [Model.Page.letters, .numbers, .symbols] {
+            let bottom = Model.rows(page: page, floating: true)[3]
+            let frames = Model.frames(keys: bottom, width: 316, y: 0, height: 54, inset: 2)
+            XCTAssertEqual(bottom.reduce(0) { $0 + $1.weight }, Model.rows(page: page)[3].reduce(0) { $0 + $1.weight }, accuracy: 0.001)
+            XCTAssertEqual(frames[1].width, 0, "The switch key moves to the footer")
+            XCTAssertEqual(frames[0].width, frames[3].width)
+            XCTAssertEqual(frames[0].width, 2.5 * 31.2, accuracy: 0.001)
+            var placed = frames
+            placed[1] = CGRect(x: 8, y: 66, width: 56, height: 40)
+            let g = Model.typingGeometry(keys: [bottom], frames: [placed], minX: 0, width: 316, overhang: 0, touchCorrection: true)
+            XCTAssertNil(g.hit(at: CGPoint(x: 36, y: 86)), "Footer touches belong to the switch button")
+            XCTAssertEqual(g.hit(at: CGPoint(x: 36, y: 53)), 0)
+        }
+    }
+
     func testChangingPagesKeepsLatchedModifiersButReleasesHeldTouches() {
         var modifiers = Model.Modifiers()
         modifiers.begin(.control)

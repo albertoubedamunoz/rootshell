@@ -546,7 +546,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var rowHeight: CGFloat {
         if let hostFill, !isToolbarOnly { return hostFill.rowHeight }
         if isFloating {
-            return min(44, max(28, (floatingAvailableHeight - toolbarHeight - 44 - (suggestionsEnabled ? 36 : 0)) / 4))
+            // Apple's floating keyboard uses phone rows, so the phone-tuned touch rules fit it.
+            let phoneRow = Model.Height.large.rowHeight(verticallyCompact: false, pad: false)
+            return min(phoneRow, max(28, (floatingAvailableHeight - toolbarHeight - bottomInset - (suggestionsEnabled ? 36 : 0)) / 4))
         }
         return keyboardHeight.rowHeight(verticallyCompact: compact, pad: traitCollection.userInterfaceIdiom == .pad)
     }
@@ -758,6 +760,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         guard isFloating != floating else { return }
         cancelInteraction(preservingModifiers: true)
         isFloating = floating
+        rebuildKeys()
         layer.shadowColor = UIColor.black.cgColor
         layer.cornerRadius = floating ? 24 : 0
         layer.cornerCurve = .continuous
@@ -1157,8 +1160,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             cap.isAccessibilityElement = false
         }
         bringSubviewToFront(writingAssistanceButton)
-        let typingRows = splitActive ? Model.splitRows(Model.rows(page: page)).map { $0.left + $0.right } : Model.rows(page: page)
-        rows = typingRows.map { $0.map { makeCap($0) } }
+        let typingRows = splitActive ? Model.splitRows(Model.rows(page: page)).map { $0.left + $0.right } : Model.rows(page: page, floating: isFloating)
+        // In the detached footer the switch key draws plain, like Apple's globe.
+        rows = typingRows.map { $0.map { makeCap($0, small: isFloating && $0.action == .switchKeyboard) } }
         bringSubviewToFront(styleMenuButton)
         bringSubviewToFront(preview)
         bringSubviewToFront(accents)
@@ -1287,7 +1291,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         rows.flatMap { $0 }.forEach { $0.isHidden = isToolbarOnly || drawerOpen }
         for (index, row) in rows.enumerated() {
             var inset: CGFloat = index == 1 && page == .letters ? width / 20 + 2 : 2
-            if index == 3, extendsIntoBottomSafeArea, traitCollection.userInterfaceIdiom == .phone {
+            if index == 3, extendsIntoBottomSafeArea, !isFloating, traitCollection.userInterfaceIdiom == .phone {
                 // Keep the entire bottom row at its normal height while fitting
                 // its end keys inside the rounded screen corners.
                 inset = max(2, min(width / 10, deviceBottomInset - min(leading, trailing)))
@@ -1298,6 +1302,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             } ?? Model.frames(keys: row.map(\.key), width: width, y: y, height: rowHeight, inset: inset)
             for (cap, rect) in zip(row, frames) { cap.frame = rect.offsetBy(dx: leading, dy: 0) }
             y += rowHeight
+        }
+        if isFloating, let cap = keyboardSwitchCap {
+            // Left of the handle and level with it, where Apple's globe sits.
+            cap.frame = CGRect(x: 8, y: bounds.height - 42, width: 56, height: 40)
         }
         if let cap = keyboardSwitchCap, !cap.isHidden, styleOverride == nil {
             styleMenuButton.frame = cap.frame
@@ -1765,7 +1773,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 }
             } else if case .text(let text) = cap.key.action {
                 cap.updateColor()
-                cap.label.text = text == " " ? "space" : (modifierState.isActive(.shift) ? text.uppercased() : text)
+                cap.setLegend(text == " " ? "space" : (modifierState.isActive(.shift) ? text.uppercased() : text))
             }
         }
         for button in toolbarDrawerButtons.flatMap({ $0 }) {
@@ -1841,7 +1849,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         accentChoices = variants.map { shifted ? String($0).uppercased() : String($0) }
         accents.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for value in accentChoices {
-            let label = UILabel(); label.text = value; label.textAlignment = .center; label.font = .systemFont(ofSize: 24)
+            let label = UILabel(); label.text = value; label.textAlignment = .center
+            label.font = .systemFont(ofSize: 24 * TerminalTouchLegend.scale(value), weight: TerminalTouchLegend.weight(.regular, for: value))
             accents.addArrangedSubview(label)
         }
         let width = min(bounds.width - 8, CGFloat(accentChoices.count) * 38)

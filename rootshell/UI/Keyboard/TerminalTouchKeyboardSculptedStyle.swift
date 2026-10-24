@@ -330,9 +330,9 @@ final class TerminalTouchSculptedKeycap: TerminalTouchKeycap {
         let height = plate.bounds.height
         let preferred: CGFloat = toolbarKey ? 13 : (drawerKey
             ? (subtitleLabel.isHidden && key.title.count <= 4 ? 17 : 12)
-            : (key.title.count == 1 ? 25 : 16))
+            : (key.title.count == 1 ? 25 * legendScale : 16))
         label.font = .systemFont(ofSize: min(preferred, max(12, height - 6)),
-                                 weight: toolbarKey || drawerKey || key.title.count > 1 ? .medium : .regular)
+                                 weight: toolbarKey || drawerKey || key.title.count > 1 ? .medium : legendWeight(.regular))
         label.frame = CGRect(x: 3, y: 0, width: max(0, plate.bounds.width - 6), height: max(0, height - (locked ? 4 : 0)))
         if drawerKey {
             label.numberOfLines = subtitleLabel.isHidden ? 2 : 1
@@ -496,7 +496,6 @@ final class TerminalTouchSculptedKeyPreview: TerminalTouchKeyPreview {
         accessibilityElementsHidden = true
         artwork.isUserInteractionEnabled = false
         addSubview(artwork)
-        label.font = .systemFont(ofSize: 32, weight: .regular)
         label.textAlignment = .center
         label.adjustsFontSizeToFitWidth = true
         label.minimumScaleFactor = 0.65

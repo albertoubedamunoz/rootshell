@@ -681,7 +681,9 @@ nonisolated enum TerminalTouchKeyboardModel {
         return (pressed ? 0.75 : (character ? 1.0 : 0.79), 0.08)
     }
 
-    static func rows(page: Page) -> [[Key]] {
+    /// A detached card moves the Apple Keyboard key to its footer, as Apple's
+    /// floating keyboard does with its globe, so the row matches Apple's widths.
+    static func rows(page: Page, floating: Bool = false) -> [[Key]] {
         func text(_ string: String) -> [Key] { string.map { Key(title: String($0), action: .text(String($0))) } }
         let shift = Key(title: "Shift", action: .modifier(.shift), symbol: "shift", weight: 1.5)
         let delete = Key(title: "Delete", action: .key("\u{7f}"), symbol: "delete.left", weight: 1.5)
@@ -703,10 +705,10 @@ nonisolated enum TerminalTouchKeyboardModel {
             third = [Key(title: "123", action: .page, weight: 1.5)] + text(".,?!'`;") + [delete]
         }
         return [first, second, third, [
-            Key(title: page == .letters ? "123" : "ABC", action: .page, weight: 1.25),
-            Key(title: "Apple Keyboard", action: .switchKeyboard, symbol: "keyboard", weight: 1.15),
-            Key(title: "space", action: .text(" "), weight: 5.8, accessibility: "Space. Hold and drag to move the terminal cursor."),
-            Key(title: "return", action: .key("\r"), symbol: "return", weight: 1.8)
+            Key(title: page == .letters ? "123" : "ABC", action: .page, weight: floating ? 2.5 : 1.25),
+            Key(title: "Apple Keyboard", action: .switchKeyboard, symbol: "keyboard", weight: floating ? 0 : 1.15),
+            Key(title: "space", action: .text(" "), weight: floating ? 5 : 5.8, accessibility: "Space. Hold and drag to move the terminal cursor."),
+            Key(title: "return", action: .key("\r"), symbol: "return", weight: floating ? 2.5 : 1.8)
         ]]
     }
 
