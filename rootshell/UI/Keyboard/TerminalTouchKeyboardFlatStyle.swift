@@ -51,6 +51,9 @@ final class TerminalTouchFlatKeycap: TerminalTouchKeycap {
             let preferred: CGFloat = key.title.count <= 4 ? 17 : 13
             let size = max(10, (preferred * iconSize.height / 23).rounded())
             if label.font.pointSize != size { label.font = .systemFont(ofSize: size, weight: .medium) }
+        } else if key.title.count == 1 {
+            let size = 25 * legendScale, weight = legendWeight(.regular)
+            if label.font.pointSize != size { label.font = .systemFont(ofSize: size, weight: weight) }
         }
     }
     override func updateColor() {
@@ -106,7 +109,6 @@ final class TerminalTouchFlatKeyPreview: TerminalTouchKeyPreview {
         layer.cornerRadius = 10
         clipsToBounds = true
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 32)
         addSubview(label)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }

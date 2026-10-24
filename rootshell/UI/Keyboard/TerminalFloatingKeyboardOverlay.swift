@@ -31,6 +31,9 @@ final class TerminalTouchKeyboardWindowState {
     /// Controller whose terminal presents the keyboard. nil between a genuine
     /// focus loss and the next terminal claiming it.
     weak var owner: TerminalKeyboardAccessoryController?
+    /// The terminal whose focus went outside the app while its card stayed up.
+    weak var parkedOwner: TerminalKeyboardAccessoryController?
+    private var keyboardShowObserver: NSObjectProtocol?
     /// The state whose choices the live keyboard currently shows.
     private(set) var displayedState: TerminalFloatingKeyboardState?
     var overlay: TerminalFloatingKeyboardOverlay?
@@ -69,7 +72,19 @@ final class TerminalTouchKeyboardWindowState {
         return created
     }
 
-    private init(window: UIWindow) { self.window = window }
+    private init(window: UIWindow) {
+        self.window = window
+        // Another field bringing up the system keyboard ends a parked card.
+        keyboardShowObserver = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.owner == nil, self.parkedOwner != nil else { return }
+                self.parkedOwner = nil
+                self.dismissOverlay()
+            }
+        }
+    }
 
     static func forWindow(_ window: UIWindow) -> TerminalTouchKeyboardWindowState {
         if let state = windows.object(forKey: window) { return state }
@@ -82,6 +97,7 @@ final class TerminalTouchKeyboardWindowState {
         if foldRegion != fold {
             let changesActivity = (foldRegion == nil) != (fold == nil)
             foldRegion = fold
+            overlay?.foldRegion = fold
             // Never create the keyboard just to clear a flag it would default to.
             if changesActivity { keyboard.fillsHostHeight = fold != nil }
             NotificationCenter.default.post(name: .terminalFoldRegionDidChange, object: window)
@@ -111,14 +127,12 @@ final class TerminalTouchKeyboardWindowState {
     private func snapshotDisplayedState() {
         guard let displayedState else { return }
         displayedState.presentation = keyboard.presentationState
-        displayedState.nativeFloatingPosition = input.floatingPosition
     }
 
     private func display(_ state: TerminalFloatingKeyboardState) {
         keyboard.setBackgroundEffectSurface(state.backgroundEffect)
         guard displayedState !== state else { return }
         displayedState = state
-        input.restoreFloatingPosition(state.nativeFloatingPosition)
         let presentation = state.presentation ?? Self.initialPresentation()
         state.presentation = presentation
         keyboard.restorePresentationState(presentation)
@@ -144,6 +158,7 @@ final class TerminalTouchKeyboardWindowState {
         let keyboard = TerminalTouchKeyboardView()
         keyboard.fillsHostHeight = foldRegion != nil
         keyboard.setBackgroundEffectSurface(nil)
+        keyboard.onReclaimFocus = { [weak self] in self?.parkedOwner?.reclaimParkedTouchKeyboard() ?? false }
         keyboard.onModifiersChanged = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.modifiersChanged($0)) }
         keyboard.onDismiss = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.dismiss) }
         keyboard.onPinHidden = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.pinHidden) }
@@ -185,12 +200,25 @@ final class TerminalTouchKeyboardWindowState {
 @MainActor
 final class TerminalFloatingKeyboardState {
     var backgroundEffect = TerminalKeyboardEffectSurface()
-    var nativeFloatingPosition: (origin: CGPoint, screen: UIScreen)?
     var presentation: TerminalTouchKeyboardModel.PresentationState?
     var temporarilyUseSystemKeyboard = false
     var requestedWithHardware = false
-    var placement = TerminalTouchKeyboardModel.Placement.docked
-    var anchor = CGPoint(x: 1, y: 0.85)
+    /// The last placement and card position, so a relaunch keeps the keyboard detached.
+    private static let placementKey = "terminalTouchKeyboardDetached"
+    private static let anchorKey = "terminalTouchKeyboardDetachedAnchor"
+    var placement: TerminalTouchKeyboardModel.Placement =
+        UserDefaults.standard.bool(forKey: TerminalFloatingKeyboardState.placementKey) ? .floating : .docked {
+        didSet { UserDefaults.standard.set(placement == .floating, forKey: Self.placementKey) }
+    }
+    var anchor: CGPoint = {
+        guard let stored = UserDefaults.standard.array(forKey: TerminalFloatingKeyboardState.anchorKey) as? [Double],
+              stored.count == 2 else { return CGPoint(x: 1, y: 0.85) }
+        return CGPoint(x: stored[0], y: stored[1])
+    }()
+
+    func saveAnchor() {
+        UserDefaults.standard.set([Double(anchor.x), Double(anchor.y)], forKey: Self.anchorKey)
+    }
 
     func copyChoices(from other: TerminalFloatingKeyboardState) {
         guard self !== other else { return }
@@ -199,7 +227,6 @@ final class TerminalFloatingKeyboardState {
         let previousEffect = backgroundEffect
         backgroundEffect = other.backgroundEffect
         other.backgroundEffect = previousEffect
-        nativeFloatingPosition = other.nativeFloatingPosition
         presentation = other.presentation
         temporarilyUseSystemKeyboard = other.temporarilyUseSystemKeyboard
         requestedWithHardware = other.requestedWithHardware
@@ -218,6 +245,10 @@ final class TerminalFloatingKeyboardOverlay: UIView {
     var isHostActive: (() -> Bool)?
     var inputRegion: CGRect? {
         didSet { if oldValue != inputRegion { dragOrigin = nil; setNeedsLayout() } }
+    }
+    /// The Duo's fold in window coordinates; the card settles beside it.
+    var foldRegion: CGRect? {
+        didSet { if oldValue != foldRegion { setNeedsLayout() } }
     }
 
     init(keyboard: TerminalTouchKeyboardView, state: TerminalFloatingKeyboardState) {
@@ -242,7 +273,9 @@ final class TerminalFloatingKeyboardOverlay: UIView {
 
     private var available: CGRect {
         let region = inputRegion.map { convert($0, from: window) }
-        return TerminalKeyboardGeometry.inputRegion(region, in: bounds.inset(by: safeAreaInsets))
+        // Landscape side insets hold the app's side controls; the card may cover them.
+        let insets = UIEdgeInsets(top: safeAreaInsets.top, left: 0, bottom: safeAreaInsets.bottom, right: 0)
+        return TerminalKeyboardGeometry.inputRegion(region, in: bounds.inset(by: insets))
             .insetBy(dx: 12, dy: 12)
     }
 
@@ -250,8 +283,8 @@ final class TerminalFloatingKeyboardOverlay: UIView {
         super.layoutSubviews()
         guard available.width > 0, available.height > 0 else { return }
         keyboard.floatingAvailableHeight = available.height
-        let frame = TerminalTouchKeyboardModel.floatingFrame(in: available,
-            height: keyboard.intrinsicContentSize.height, anchor: state.anchor)
+        let frame = settledFrame(TerminalTouchKeyboardModel.floatingFrame(in: available,
+            height: keyboard.intrinsicContentSize.height, anchor: state.anchor))
         if keyboard.frame.size != frame.size {
             if keyboard.frame.width != frame.width { keyboard.cancelInteraction(preservingModifiers: true) }
             dragOrigin = nil
@@ -277,11 +310,41 @@ final class TerminalFloatingKeyboardOverlay: UIView {
             height: keyboard.intrinsicContentSize.height, anchor: state.anchor)
         if ended {
             dragOrigin = nil
+            let settled = settledFrame(keyboard.frame)
+            if settled != keyboard.frame {
+                UIView.animate(withDuration: 0.2) { self.keyboard.frame = settled }
+            }
+            state.anchor = TerminalTouchKeyboardModel.floatingAnchor(for: settled, in: available)
+            state.saveAnchor()
             if allowDock && TerminalTouchKeyboardModel.shouldDockAfterDrag(proposed, in: available) { onDock?() }
         }
     }
 
+    private func settledFrame(_ frame: CGRect) -> CGRect {
+        TerminalTouchKeyboardModel.floatingFrame(frame, avoiding: foldRegion.map { convert($0, from: window) }, in: available)
+    }
+
+    /// UIKit presents the card's menus from a view controller found above the
+    /// button; a bare window subview has none, so the menus never appear.
+    private weak var presentationHost: UIViewController?
+
+    func attach(to window: UIWindow) {
+        window.addSubview(self)
+        guard let root = window.rootViewController else { return }
+        let host = TerminalFloatingKeyboardPresentationHost()
+        host.view = self
+        root.addChild(host)
+        host.didMove(toParent: root)
+        presentationHost = host
+        if #available(iOS 27.1, *) { root.setNeedsUpdateOfVerticalBarConfiguration() }
+    }
+
     func detach() {
+        if let host = presentationHost, let root = host.parent {
+            host.willMove(toParent: nil)
+            host.removeFromParent()
+            if #available(iOS 27.1, *) { root.setNeedsUpdateOfVerticalBarConfiguration() }
+        }
         // UIKit may already have mounted the compact toolbar host. A stale
         // overlay must not remove the keyboard from its new container.
         if keyboard.superview === self {
@@ -292,6 +355,17 @@ final class TerminalFloatingKeyboardOverlay: UIView {
             keyboard.removeFromSuperview()
         }
         removeFromSuperview()
+    }
+}
+
+/// Presents the card's menus. As the root's newest child it also becomes the one
+/// the root asks about the vertical bar, so it passes on the app content's answer.
+private final class TerminalFloatingKeyboardPresentationHost: UIViewController {
+    @available(iOS 27.1, *)
+    override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
+        var content = parent?.children.first { $0 !== self }
+        while let child = content?.childForPreferredVerticalBarBehavior { content = child }
+        return content?.preferredVerticalBarBehavior ?? .automatic
     }
 }
 

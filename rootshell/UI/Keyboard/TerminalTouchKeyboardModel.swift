@@ -535,6 +535,12 @@ nonisolated enum TerminalTouchKeyboardModel {
         pageSwipe(translation: CGPoint(x: translation.y, y: translation.x), duration: duration).map { -$0 }
     }
 
+    /// The arrow a joystick drag points at; nil inside the dead zone.
+    static func joystickArrow(dx: Double, dy: Double) -> String? {
+        guard hypot(dx, dy) >= 18 else { return nil }
+        return abs(dx) > abs(dy) ? (dx > 0 ? "\u{1b}[C" : "\u{1b}[D") : (dy > 0 ? "\u{1b}[B" : "\u{1b}[A")
+    }
+
     /// A letter this recent means the user is mid-word (LatinIME's 350ms).
     /// Merged-touch splitting and page swipes both use it, so no touch can be both.
     static let typingBurst: TimeInterval = 0.35
@@ -675,7 +681,9 @@ nonisolated enum TerminalTouchKeyboardModel {
         return (pressed ? 0.75 : (character ? 1.0 : 0.79), 0.08)
     }
 
-    static func rows(page: Page) -> [[Key]] {
+    /// A detached card moves the Apple Keyboard key to its footer, as Apple's
+    /// floating keyboard does with its globe, so the row matches Apple's widths.
+    static func rows(page: Page, floating: Bool = false) -> [[Key]] {
         func text(_ string: String) -> [Key] { string.map { Key(title: String($0), action: .text(String($0))) } }
         let shift = Key(title: "Shift", action: .modifier(.shift), symbol: "shift", weight: 1.5)
         let delete = Key(title: "Delete", action: .key("\u{7f}"), symbol: "delete.left", weight: 1.5)
@@ -697,10 +705,10 @@ nonisolated enum TerminalTouchKeyboardModel {
             third = [Key(title: "123", action: .page, weight: 1.5)] + text(".,?!'`;") + [delete]
         }
         return [first, second, third, [
-            Key(title: page == .letters ? "123" : "ABC", action: .page, weight: 1.25),
-            Key(title: "Apple Keyboard", action: .switchKeyboard, symbol: "keyboard", weight: 1.15),
-            Key(title: "space", action: .text(" "), weight: 5.8, accessibility: "Space. Hold and drag to move the terminal cursor."),
-            Key(title: "return", action: .key("\r"), symbol: "return", weight: 1.8)
+            Key(title: page == .letters ? "123" : "ABC", action: .page, weight: floating ? 2.5 : 1.25),
+            Key(title: "Apple Keyboard", action: .switchKeyboard, symbol: "keyboard", weight: floating ? 0 : 1.15),
+            Key(title: "space", action: .text(" "), weight: floating ? 5 : 5.8, accessibility: "Space. Hold and drag to move the terminal cursor."),
+            Key(title: "return", action: .key("\r"), symbol: "return", weight: floating ? 2.5 : 1.8)
         ]]
     }
 
@@ -862,6 +870,23 @@ nonisolated enum TerminalTouchKeyboardModel {
                       y: available.minY + (available.height - size.height) * y, width: size.width, height: size.height)
     }
 
+    /// Moves a floating card off the Duo's fold, to the side holding most of it
+    /// when the card fits there. All rects share coordinates.
+    static func floatingFrame(_ frame: CGRect, avoiding fold: CGRect?, in available: CGRect) -> CGRect {
+        guard let fold, frame.intersects(fold) else { return frame }
+        var moved = frame
+        if fold.height > fold.width {
+            let fitsBefore = fold.minX - available.minX >= frame.width, fitsAfter = available.maxX - fold.maxX >= frame.width
+            if fitsBefore && (frame.midX < fold.midX || !fitsAfter) { moved.origin.x = fold.minX - frame.width }
+            else if fitsAfter { moved.origin.x = fold.maxX }
+        } else {
+            let fitsBefore = fold.minY - available.minY >= frame.height, fitsAfter = available.maxY - fold.maxY >= frame.height
+            if fitsBefore && (frame.midY < fold.midY || !fitsAfter) { moved.origin.y = fold.minY - frame.height }
+            else if fitsAfter { moved.origin.y = fold.maxY }
+        }
+        return moved
+    }
+
     static func floatingAnchor(for frame: CGRect, in available: CGRect) -> CGPoint {
         let travelX = available.width - frame.width, travelY = available.height - frame.height
         return CGPoint(x: travelX > 0 ? min(1, max(0, (frame.minX - available.minX) / travelX)) : 0.5,
@@ -870,14 +895,6 @@ nonisolated enum TerminalTouchKeyboardModel {
 
     static func shouldDockAfterDrag(_ frame: CGRect, in available: CGRect) -> Bool {
         frame.maxY >= available.maxY - 18 && abs(frame.midX - available.midX) < available.width * 0.2
-    }
-
-    /// Preserve UIKit's card size while keeping a dragged native panel on screen.
-    static func clampedFloatingDragFrame(_ frame: CGRect, in available: CGRect) -> CGRect {
-        guard !available.isEmpty, !frame.isEmpty else { return frame }
-        return CGRect(x: min(max(frame.minX, available.minX), max(available.minX, available.maxX - frame.width)),
-                      y: min(max(frame.minY, available.minY), max(available.minY, available.maxY - frame.height)),
-                      width: frame.width, height: frame.height)
     }
 
     /// Detect an existing native floating input region.

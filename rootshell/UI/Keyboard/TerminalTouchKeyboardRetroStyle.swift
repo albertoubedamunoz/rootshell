@@ -142,8 +142,8 @@ final class TerminalTouchRetroKeycap: TerminalTouchKeycap {
         plate.bounds = CGRect(origin: .zero, size: size)
         plate.center = CGPoint(x: bounds.midX, y: bounds.midY)
         plate.isHidden = size.width <= 6 || size.height <= 6
-        let preferred: CGFloat = small ? 13 : (drawer ? (subtitleLabel.isHidden ? 16 : 12) : (key.title.count == 1 ? 23 : 15))
-        let weight: UIFont.Weight = character && !small && !drawer ? .regular : .medium
+        let preferred: CGFloat = small ? 13 : (drawer ? (subtitleLabel.isHidden ? 16 : 12) : (key.title.count == 1 ? 23 * legendScale : 15))
+        let weight: UIFont.Weight = character && !small && !drawer ? legendWeight(.regular) : .medium
         label.font = retroLegendFont(design, size: min(preferred, max(10, size.height * 0.6)), weight: weight)
         let lift = Art.legendOffset(role: role, design: design, pressed: false)
         let bottom: CGFloat = locked ? 4 : 0
@@ -253,7 +253,7 @@ final class TerminalTouchRetroKeyPreview: TerminalTouchKeyPreview {
         super.init(frame: CGRect(x: 0, y: 0, width: 52, height: 55))
         isUserInteractionEnabled = false; isAccessibilityElement = false; accessibilityElementsHidden = true
         addSubview(artwork)
-        label.font = retroLegendFont(design, size: 30, weight: .regular)
+        legend = (30, .regular)
         label.textAlignment = .center; label.adjustsFontSizeToFitWidth = true; label.minimumScaleFactor = 0.6
         addSubview(label)
         registerForTraitChanges([UITraitUserInterfaceStyle.self, UITraitDisplayScale.self, UITraitAccessibilityContrast.self]) {
@@ -262,6 +262,7 @@ final class TerminalTouchRetroKeyPreview: TerminalTouchKeyPreview {
         prepareArtwork()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func legendFont(size: CGFloat, weight: UIFont.Weight) -> UIFont { retroLegendFont(design, size: size, weight: weight) }
     override func layoutSubviews() {
         super.layoutSubviews()
         label.frame = bounds.insetBy(dx: 6, dy: 4)

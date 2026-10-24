@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// Counts hinge updates; a terminal may reclaim focus the system took once per fold.
+@MainActor
+enum DuoHingeEvents {
+    private(set) static var generation = 0
+    static func noteChange() { generation &+= 1 }
+}
+
 /// The navigation container is installed once for the lifetime of the scene;
 /// folding only changes its chrome, never the identity of MainView.
 /// iPhone only: on iPad this stack captures pushes from side-panel NavigationStacks.
@@ -54,6 +61,7 @@ private struct DuoSceneContext<Content: View>: View {
                 // reserved regions, never from the continuous hinge angle.
                 hasHinge = update.hinge != nil
                 isClosed = update.hinge?.status == .closed
+                DuoHingeEvents.noteChange()
             }
     }
 

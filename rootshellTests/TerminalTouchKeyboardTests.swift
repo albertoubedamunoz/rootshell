@@ -594,18 +594,22 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertFalse(Model.shouldDockAfterDrag(corner, in: available))
     }
 
-    func testSystemFloatingDragPreservesNativeSizeAndClampsToKeyboardWindow() {
-        let screen = CGRect(x: 12, y: 36, width: 1000, height: 700)
-        let native = CGRect(x: 1200, y: -300, width: 342, height: 286)
-        let moved = Model.clampedFloatingDragFrame(native, in: screen)
-        XCTAssertEqual(moved, CGRect(x: 670, y: 36, width: 342, height: 286))
-        XCTAssertTrue(screen.contains(moved))
-        // A smaller app window must not be used as the native drag boundary.
-        XCTAssertGreaterThan(moved.maxX, 500)
-        let rotated = CGRect(x: 12, y: 36, width: 600, height: 900)
-        XCTAssertTrue(rotated.contains(Model.clampedFloatingDragFrame(moved, in: rotated)))
-        let short = CGRect(x: 12, y: 36, width: 300, height: 200)
-        XCTAssertEqual(Model.clampedFloatingDragFrame(native, in: short).origin, short.origin)
+    func testFloatingCardSettlesBesideTheFold() {
+        let available = CGRect(x: 0, y: 0, width: 900, height: 600)
+        let fold = CGRect(x: 440, y: 0, width: 20, height: 600)
+        let card = CGRect(x: 260, y: 200, width: 320, height: 268)
+        // Mostly left of the crease, and the left side fits it.
+        XCTAssertEqual(Model.floatingFrame(card, avoiding: fold, in: available).minX, 120)
+        XCTAssertEqual(Model.floatingFrame(card.offsetBy(dx: 120, dy: 0), avoiding: fold, in: available).minX, 460)
+        // Clear of the crease, the card stays put.
+        let clear = card.offsetBy(dx: -260, dy: 0)
+        XCTAssertEqual(Model.floatingFrame(clear, avoiding: fold, in: available), clear)
+        XCTAssertEqual(Model.floatingFrame(card, avoiding: nil, in: available), card)
+        // A side too narrow for the card sends it to the other side.
+        let offCenter = CGRect(x: 200, y: 0, width: 20, height: 600)
+        XCTAssertEqual(Model.floatingFrame(card.offsetBy(dx: -150, dy: 0), avoiding: offCenter, in: available).minX, 220)
+        let horizontal = CGRect(x: 0, y: 290, width: 900, height: 20)
+        XCTAssertEqual(Model.floatingFrame(CGRect(x: 0, y: 250, width: 320, height: 268), avoiding: horizontal, in: available).minY, 310)
     }
 
     func testSystemFloatingWidthAdaptsWithoutMistakingNarrowDockedWindows() {
@@ -801,6 +805,22 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         for index in 1..<4 { XCTAssertEqual(frames[index].minY, frames[index - 1].maxY, accuracy: 0.001) }
         XCTAssertEqual(frames[2].maxY, 162, "Space's top edge stays put")
         XCTAssertEqual(frames[3], rows[3][0])
+    }
+
+    func testDetachedBottomRowGivesSwitchKeyWidthToPageAndReturn() {
+        for page in [Model.Page.letters, .numbers, .symbols] {
+            let bottom = Model.rows(page: page, floating: true)[3]
+            let frames = Model.frames(keys: bottom, width: 316, y: 0, height: 54, inset: 2)
+            XCTAssertEqual(bottom.reduce(0) { $0 + $1.weight }, Model.rows(page: page)[3].reduce(0) { $0 + $1.weight }, accuracy: 0.001)
+            XCTAssertEqual(frames[1].width, 0, "The switch key moves to the footer")
+            XCTAssertEqual(frames[0].width, frames[3].width)
+            XCTAssertEqual(frames[0].width, 2.5 * 31.2, accuracy: 0.001)
+            var placed = frames
+            placed[1] = CGRect(x: 8, y: 66, width: 56, height: 40)
+            let g = Model.typingGeometry(keys: [bottom], frames: [placed], minX: 0, width: 316, overhang: 0, touchCorrection: true)
+            XCTAssertNil(g.hit(at: CGPoint(x: 36, y: 86)), "Footer touches belong to the switch button")
+            XCTAssertEqual(g.hit(at: CGPoint(x: 36, y: 53)), 0)
+        }
     }
 
     func testChangingPagesKeepsLatchedModifiersButReleasesHeldTouches() {
@@ -1121,6 +1141,14 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         document.apply(.text("next", eligible: true))
         XCTAssertEqual(document.document, "explain the next")
         XCTAssertEqual(context(document)?.word, "next")
+    }
+
+    func testJoystickArrowUsesDeadZoneAndDominantAxis() {
+        XCTAssertNil(Model.joystickArrow(dx: 10, dy: 10))
+        XCTAssertEqual(Model.joystickArrow(dx: 30, dy: 10), "\u{1b}[C")
+        XCTAssertEqual(Model.joystickArrow(dx: -30, dy: 10), "\u{1b}[D")
+        XCTAssertEqual(Model.joystickArrow(dx: 5, dy: 25), "\u{1b}[B")
+        XCTAssertEqual(Model.joystickArrow(dx: 5, dy: -25), "\u{1b}[A")
     }
 
     func testSuggestionReplacementDoesNotEraseComplexGraphemes() {
