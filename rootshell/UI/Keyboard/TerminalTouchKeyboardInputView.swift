@@ -37,6 +37,15 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
         return tap
     }()
     private var hostingGeneration = 0
+    private var keyboardBottom: NSLayoutConstraint?
+    private var measuredFooter: CGFloat = 0
+    private weak var observedHost: UIView?
+    private var hostBoundsObservation: NSKeyValueObservation?
+    /// How far the card extends past this view into UIKit's floating footer,
+    /// so its bottom edge sits where Apple's keyboard's does.
+    private var footerOverlap: CGFloat {
+        keyboard.usesSystemPlacement && isNativeFloating && keyboard.superview === self ? measuredFooter : 0
+    }
 
     func setUsesSystemPlacement(_ value: Bool) {
         guard keyboard.usesSystemPlacement != value else { return }
@@ -87,7 +96,13 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
     /// container: a full-width interim host then has nothing to show.
     override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric,
-               height: suppressed || awaitingFloatingLayout ? 0 : keyboard.intrinsicContentSize.height)
+               height: suppressed || awaitingFloatingLayout ? 0 : max(0, keyboard.intrinsicContentSize.height - footerOverlap))
+    }
+
+    /// Touches on the part of the card inside UIKit's footer.
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        super.point(inside: point, with: event)
+            || (footerOverlap > 0 && !keyboard.isHidden && keyboard.frame.contains(point))
     }
 
     private var expectsNativeFloating: Bool {
@@ -138,6 +153,7 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
 
     func updateHeight() {
         let height = intrinsicContentSize.height
+        keyboardBottom?.constant = footerOverlap
         guard abs(heightConstraint.constant - height) > 0.5 else { return }
         heightConstraint.constant = height
         invalidateIntrinsicContentSize()
@@ -291,10 +307,32 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
                                                          isPad: traitCollection.userInterfaceIdiom == .pad) else {
             removeHandleTapGuard()
             floatingPanel.detach()
+            observedHost = nil
+            hostBoundsObservation = nil
             return
         }
         let showsCard = keyboard.usesSystemPlacement && isNativeFloating && !suppressed && keyboard.superview === self
         if !showsCard { removeHandleTapGuard() }
+        // UIKit adds and drops its footer without laying this view out.
+        let observed = showsCard ? superview : nil
+        if observedHost !== observed {
+            observedHost = observed
+            hostBoundsObservation = observed?.layer.observe(\.bounds) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.setNeedsLayout() }
+            }
+        }
+        if showsCard, !keyboard.isHidden, bounds.height > 0, let host = superview,
+           abs(host.bounds.width - bounds.width) < 1,
+           abs(host.convert(host.bounds, to: nil).width - host.bounds.width) < 1 {
+            // UIKit reserves a footer below a floating input for its handle, but
+            // not on every layout, so it is measured each time.
+            let footer = host.bounds.height - bounds.height
+            let overlap = footer > 0.5 && footer < 100 ? footer : 0
+            if abs(overlap - measuredFooter) > 0.5 {
+                measuredFooter = overlap
+                updateHeight()
+            }
+        }
         floatingPanel.update(input: self, content: showsCard ? keyboard : nil)
     }
 
@@ -306,11 +344,13 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
         keyboard.isHidden = suppressed || awaitingFloatingLayout
         keyboard.translatesAutoresizingMaskIntoConstraints = false
         addSubview(keyboard)
+        let bottom = keyboard.bottomAnchor.constraint(equalTo: bottomAnchor)
+        keyboardBottom = bottom
         NSLayoutConstraint.activate([
             keyboard.leadingAnchor.constraint(equalTo: leadingAnchor),
             keyboard.trailingAnchor.constraint(equalTo: trailingAnchor),
             keyboard.topAnchor.constraint(equalTo: topAnchor),
-            keyboard.bottomAnchor.constraint(equalTo: bottomAnchor)
+            bottom
         ])
         updateHeight()
     }
