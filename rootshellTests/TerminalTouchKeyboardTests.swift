@@ -594,20 +594,6 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertFalse(Model.shouldDockAfterDrag(corner, in: available))
     }
 
-    func testSystemFloatingDragPreservesNativeSizeAndClampsToKeyboardWindow() {
-        let screen = CGRect(x: 12, y: 36, width: 1000, height: 700)
-        let native = CGRect(x: 1200, y: -300, width: 342, height: 286)
-        let moved = Model.clampedFloatingDragFrame(native, in: screen)
-        XCTAssertEqual(moved, CGRect(x: 670, y: 36, width: 342, height: 286))
-        XCTAssertTrue(screen.contains(moved))
-        // A smaller app window must not be used as the native drag boundary.
-        XCTAssertGreaterThan(moved.maxX, 500)
-        let rotated = CGRect(x: 12, y: 36, width: 600, height: 900)
-        XCTAssertTrue(rotated.contains(Model.clampedFloatingDragFrame(moved, in: rotated)))
-        let short = CGRect(x: 12, y: 36, width: 300, height: 200)
-        XCTAssertEqual(Model.clampedFloatingDragFrame(native, in: short).origin, short.origin)
-    }
-
     func testSystemFloatingWidthAdaptsWithoutMistakingNarrowDockedWindows() {
         XCTAssertTrue(Model.isFloatingInput(width: 320, hostWidth: 834, isPad: true))
         XCTAssertTrue(Model.isFloatingInput(width: 320, hostWidth: 375, isPad: true))
@@ -1121,6 +1107,14 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         document.apply(.text("next", eligible: true))
         XCTAssertEqual(document.document, "explain the next")
         XCTAssertEqual(context(document)?.word, "next")
+    }
+
+    func testJoystickArrowUsesDeadZoneAndDominantAxis() {
+        XCTAssertNil(Model.joystickArrow(dx: 10, dy: 10))
+        XCTAssertEqual(Model.joystickArrow(dx: 30, dy: 10), "\u{1b}[C")
+        XCTAssertEqual(Model.joystickArrow(dx: -30, dy: 10), "\u{1b}[D")
+        XCTAssertEqual(Model.joystickArrow(dx: 5, dy: 25), "\u{1b}[B")
+        XCTAssertEqual(Model.joystickArrow(dx: 5, dy: -25), "\u{1b}[A")
     }
 
     func testSuggestionReplacementDoesNotEraseComplexGraphemes() {

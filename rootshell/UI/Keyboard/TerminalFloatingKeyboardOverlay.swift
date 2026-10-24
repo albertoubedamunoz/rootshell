@@ -111,14 +111,12 @@ final class TerminalTouchKeyboardWindowState {
     private func snapshotDisplayedState() {
         guard let displayedState else { return }
         displayedState.presentation = keyboard.presentationState
-        displayedState.nativeFloatingPosition = input.floatingPosition
     }
 
     private func display(_ state: TerminalFloatingKeyboardState) {
         keyboard.setBackgroundEffectSurface(state.backgroundEffect)
         guard displayedState !== state else { return }
         displayedState = state
-        input.restoreFloatingPosition(state.nativeFloatingPosition)
         let presentation = state.presentation ?? Self.initialPresentation()
         state.presentation = presentation
         keyboard.restorePresentationState(presentation)
@@ -185,7 +183,6 @@ final class TerminalTouchKeyboardWindowState {
 @MainActor
 final class TerminalFloatingKeyboardState {
     var backgroundEffect = TerminalKeyboardEffectSurface()
-    var nativeFloatingPosition: (origin: CGPoint, screen: UIScreen)?
     var presentation: TerminalTouchKeyboardModel.PresentationState?
     var temporarilyUseSystemKeyboard = false
     var requestedWithHardware = false
@@ -199,7 +196,6 @@ final class TerminalFloatingKeyboardState {
         let previousEffect = backgroundEffect
         backgroundEffect = other.backgroundEffect
         other.backgroundEffect = previousEffect
-        nativeFloatingPosition = other.nativeFloatingPosition
         presentation = other.presentation
         temporarilyUseSystemKeyboard = other.temporarilyUseSystemKeyboard
         requestedWithHardware = other.requestedWithHardware

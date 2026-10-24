@@ -270,15 +270,33 @@ final class TerminalKeyboardAccessoryController: NSObject {
         toolbarOnlyMode && toolbarOnlyUsesPrimaryInputView
     }
 
+    private struct AppliedSuppression: Equatable {
+        let input: ObjectIdentifier
+        let suppressed: Bool
+        let toolbar: Bool
+        let toolbarActive: Bool
+        let bottomInset: CGFloat
+        let pinned: Bool
+        let keyboardHost: ObjectIdentifier?
+        let inputSuppressed: Bool
+        let toolbarOnly: Bool
+    }
+    private var appliedSuppression: AppliedSuppression?
+
     private func updateTouchKeyboardInputSuppression() {
         guard let scope = touchKeyboardInputScope else { return }
         let toolbar = usesCompactTouchKeyboard
-        if toolbar && !scope.keyboard.isToolbarOnly {
-            currentTouchKeyboardState.nativeFloatingPosition = scope.input.floatingPosition
-        }
         // Suppress native placement before shrinking the content, otherwise a
         // toolbar layout can overwrite the saved floating position or dock it.
         let suppressed = !usesFullTouchKeyboard || (!touchSystemFloating && touchKeyboardPlacement == .floating)
+        // UIKit polls the input-view getters hundreds of times a second; only
+        // reapply when something changed.
+        let applied = AppliedSuppression(input: ObjectIdentifier(scope.input), suppressed: suppressed, toolbar: toolbar,
+            toolbarActive: usesTouchKeyboardToolbar, bottomInset: scope.toolbarInput.reservedBottomInset,
+            pinned: keyboardPinnedHidden, keyboardHost: scope.keyboard.superview.map(ObjectIdentifier.init),
+            inputSuppressed: scope.input.suppressed, toolbarOnly: scope.keyboard.isToolbarOnly)
+        guard applied != appliedSuppression else { return }
+        appliedSuppression = applied
         if suppressed { scope.input.setSuppressed(true) }
         scope.toolbarInput.isActive = usesTouchKeyboardToolbar
         scope.keyboard.setToolbarPresentation(only: toolbar,
@@ -409,13 +427,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
         guard let keyboard = touchKeyboard, let input = touchKeyboardInputView,
               keyboard.usesSystemPlacement != touchSystemFloating else { return }
         (host as? Ghostty.TerminalView)?.prepareTouchKeyboardSwitch()
-        if keyboard.usesSystemPlacement {
-            currentTouchKeyboardState.nativeFloatingPosition = input.floatingPosition
-            if input.isNativeFloating { currentTouchKeyboardState.placement = .floating }
-        }
+        if keyboard.usesSystemPlacement, input.isNativeFloating { currentTouchKeyboardState.placement = .floating }
         // Reconcile against the presentation itself: settings can change while
         // no terminal owns it, so a controller's cached setting is insufficient.
-        // Release native drag callbacks before an overlay installs its own.
         input.setUsesSystemPlacement(touchSystemFloating)
         dismissFloatingTouchKeyboard()
         if touchSystemFloating || touchKeyboardPlacement == .docked {

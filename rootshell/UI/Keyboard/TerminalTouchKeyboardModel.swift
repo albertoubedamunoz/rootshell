@@ -535,6 +535,12 @@ nonisolated enum TerminalTouchKeyboardModel {
         pageSwipe(translation: CGPoint(x: translation.y, y: translation.x), duration: duration).map { -$0 }
     }
 
+    /// The arrow a joystick drag points at; nil inside the dead zone.
+    static func joystickArrow(dx: Double, dy: Double) -> String? {
+        guard hypot(dx, dy) >= 18 else { return nil }
+        return abs(dx) > abs(dy) ? (dx > 0 ? "\u{1b}[C" : "\u{1b}[D") : (dy > 0 ? "\u{1b}[B" : "\u{1b}[A")
+    }
+
     /// A letter this recent means the user is mid-word (LatinIME's 350ms).
     /// Merged-touch splitting and page swipes both use it, so no touch can be both.
     static let typingBurst: TimeInterval = 0.35
@@ -870,14 +876,6 @@ nonisolated enum TerminalTouchKeyboardModel {
 
     static func shouldDockAfterDrag(_ frame: CGRect, in available: CGRect) -> Bool {
         frame.maxY >= available.maxY - 18 && abs(frame.midX - available.midX) < available.width * 0.2
-    }
-
-    /// Preserve UIKit's card size while keeping a dragged native panel on screen.
-    static func clampedFloatingDragFrame(_ frame: CGRect, in available: CGRect) -> CGRect {
-        guard !available.isEmpty, !frame.isEmpty else { return frame }
-        return CGRect(x: min(max(frame.minX, available.minX), max(available.minX, available.maxX - frame.width)),
-                      y: min(max(frame.minY, available.minY), max(available.minY, available.maxY - frame.height)),
-                      width: frame.width, height: frame.height)
     }
 
     /// Detect an existing native floating input region.

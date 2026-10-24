@@ -259,6 +259,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var pinchPlacement: Model.Placement?
     var onPlacementRequested: ((Model.Placement) -> Void)? { didSet { refreshPlacementActions() } }
     var onFloatingDrag: ((CGPoint, Bool) -> Void)?
+    /// UIKit's floating-keyboard handle in the system container; ours forwards to it.
+    var systemFloatingHandle: (() -> UIView?)?
     var onFloatingDragCancelled: (() -> Void)?
     var onFloatingNudge: ((CGPoint) -> Void)?
     private(set) var isFloating = false
@@ -462,6 +464,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let checker = UITextChecker()
     private var suggestionTask: Task<Void, Never>?
     private var sequenceTask: Task<Void, Never>?
+    private var drawerJoystickTask: Task<Void, Never>?
+    private var drawerJoystickDirection: String?
     private var lastSuggestionContext: Model.SuggestionContext?
     private var observations = Set<AnyCancellable>()
     private var heightConstraint: NSLayoutConstraint!
@@ -765,6 +769,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             self.onPlacementRequested?(self.isFloating ? .docked : .floating)
             return true
         }]
+        // UIKit's handle has no step-by-step move to forward.
+        guard !usesSystemPlacement else {
+            grabber.accessibilityCustomActions = nil
+            return
+        }
         grabber.accessibilityCustomActions = [
             (String(localized: "Move left"), CGPoint(x: -44, y: 0)),
             (String(localized: "Move right"), CGPoint(x: 44, y: 0)),
@@ -805,11 +814,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     @objc private func dragFloatingKeyboard(_ gesture: UIPanGestureRecognizer) {
-        guard isFloating else { return }
-        // A system hosting item may be scaled by UIKit and moves during the
-        // pan. Measure in its stationary window so one finger-point is one
-        // window-point; the app overlay already supplies a stationary parent.
-        let translation = gesture.translation(in: usesSystemPlacement ? window : superview)
+        guard isFloating, !usesSystemPlacement else { return }
+        let translation = gesture.translation(in: superview)
         switch gesture.state {
         case .began, .changed: onFloatingDrag?(translation, false)
         case .ended: onFloatingDrag?(translation, true)
@@ -981,7 +987,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         var bands = [CGRect(x: 0, y: contentTop, width: bounds.width, height: toolbarHeight)]
         if !isToolbarOnly {
             if drawerOpen {
-                bands.append(drawer.frame)
+                bands.append(CGRect(x: 0, y: drawer.frame.minY, width: bounds.width, height: drawer.frame.height))
             } else {
                 bands += rows.compactMap { row -> CGRect? in
                     guard let first = row.first, first.frame.height > 0 else { return nil }
@@ -1324,6 +1330,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard bounds.contains(point) else { return nil }
+        // UIKit's own handle moves the system container and remembers the position.
+        if usesSystemPlacement, !grabber.isHidden, grabber.frame.contains(point), let handle = systemFloatingHandle?() {
+            return handle
+        }
         // Typing bounds overhang the toolbar's bottom edge; letters win there.
         // Before the typing grid, which also covers the Apple Keyboard key.
         if !styleMenuButton.isHidden, styleMenuButton.frame.contains(point) { return styleMenuButton }
@@ -1475,22 +1485,13 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 continue
             }
             if contact.initial.key.action == .joystick {
-                let dx = point.x - contact.origin.x, dy = point.y - contact.origin.y
-                let direction: String? = hypot(dx, dy) < 18 ? nil :
-                    (abs(dx) > abs(dy) ? (dx > 0 ? "\u{1b}[C" : "\u{1b}[D") : (dy > 0 ? "\u{1b}[B" : "\u{1b}[A"))
+                let direction = Model.joystickArrow(dx: point.x - contact.origin.x, dy: point.y - contact.origin.y)
                 if direction != contact.direction {
                     contact.task?.cancel()
                     contact.direction = direction
                     if let direction {
                         contact.consumed = true
-                        keyPressed(direction, modifiers: [])
-                        contact.task = Task { @MainActor [weak self, weak contact] in
-                            try? await Task.sleep(for: .milliseconds(320))
-                            while !Task.isCancelled, let self, let contact, contact.direction == direction, self.canSend {
-                                self.keyPressed(direction, modifiers: [])
-                                try? await Task.sleep(for: .milliseconds(55))
-                            }
-                        }
+                        contact.task = startJoystickArrow(direction) { [weak contact] in contact?.direction == direction }
                     }
                 }
                 continue
@@ -1526,6 +1527,30 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             }
         }
         refreshContactFeedback()
+    }
+
+    /// Sends `direction` now, then repeats it while `holds` stays true.
+    private func startJoystickArrow(_ direction: String, holds: @escaping @MainActor () -> Bool) -> Task<Void, Never> {
+        keyPressed(direction, modifiers: [])
+        return Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(320))
+            while !Task.isCancelled, let self, holds(), self.canSend {
+                self.keyPressed(direction, modifiers: [])
+                try? await Task.sleep(for: .milliseconds(55))
+            }
+        }
+    }
+
+    /// Drawer-row joysticks are buttons in a scrolling row, so they drag with a pan.
+    @objc private func dragDrawerJoystick(_ pan: UIPanGestureRecognizer) {
+        let translation = pan.translation(in: self)
+        let tracking = pan.state == .began || pan.state == .changed
+        let direction = tracking ? Model.joystickArrow(dx: translation.x, dy: translation.y) : nil
+        guard direction != drawerJoystickDirection else { return }
+        drawerJoystickTask?.cancel()
+        drawerJoystickDirection = direction
+        guard let direction, canSend else { return }
+        drawerJoystickTask = startJoystickArrow(direction) { [weak self] in self?.drawerJoystickDirection == direction }
     }
 
     private func move(_ contact: Contact, to point: CGPoint) {
@@ -1664,6 +1689,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         steampunkMachinery?.resetContactFeedback()
         retroBackdrop?.resetContactFeedback()
         sequenceTask?.cancel(); sequenceTask = nil
+        drawerJoystickTask?.cancel(); drawerJoystickTask = nil; drawerJoystickDirection = nil
         if !preservingSuggestions {
             suggestionTask?.cancel(); suggestionTask = nil
             lastSuggestionContext = nil
@@ -2088,10 +2114,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     private func toggleToolbarDrawer() {
         cancelInteraction(preservingModifiers: true, preservingSuggestions: true)
-        // Keep system-detached resizing local to the card's container; the native
-        // keyboard window also owns unrelated presentation/positioning views.
-        let systemDetached = isFloating && usesSystemPlacement
-        let layoutRoot: UIView = systemDetached ? (superview ?? self) : (window ?? superview ?? self)
+        // UIKit sizes a self-sizing input's hosting item when the keyboard window lays out.
+        let layoutRoot: UIView = window ?? superview ?? self
         layoutRoot.layoutIfNeeded()
         layoutIfNeeded()
         let oldRows = toolbarDrawerRows
@@ -2100,7 +2124,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             cycle: KeyboardToolbarManager.shared.drawerToggleMode == .cycle)
         let outgoing = rebuildToolbarDrawers(preservingRows: true)
         let incoming = toolbarDrawerRows.filter { !oldRows.contains($0) }
-        let animated = window != nil && !UIAccessibility.isReduceMotionEnabled
+        // UIKit resizes the system container inside an animation block, but the card
+        // mask cannot follow it, so its backdrop would show through for a moment.
+        let animated = window != nil && !UIAccessibility.isReduceMotionEnabled && !(isFloating && usesSystemPlacement)
 
         // Lay out new keys before fading them in. Existing rows retain their
         // frames and horizontal scroll offsets until the animation starts.
@@ -2182,6 +2208,12 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                     } else { self.perform(key) }
                 }
                 button.interactionMode = toolbarInteractionMode
+                if key.action == .joystick {
+                    // Overflow puts the joystick here in narrow cards; its drags must not scroll the row.
+                    let drag = UIPanGestureRecognizer(target: self, action: #selector(dragDrawerJoystick(_:)))
+                    button.addGestureRecognizer(drag)
+                    row.panGestureRecognizer.require(toFail: drag)
+                }
                 button.accessibilityLabel = key.accessibility ?? key.title
                 if key.action == .toolbar(KeyID.writingAssistance.keyValue) {
                     button.showsMenuAsPrimaryAction = true
