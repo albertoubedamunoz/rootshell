@@ -23,6 +23,8 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
     /// we saw so the first disconnect can hold the keys back too.
     private static let lastNativeFloatingKey = "terminalTouchKeyboardLastNativeFloating"
     private var hasObservedNativeLayout = false
+    /// A hold ran out on a full-width host, so that host is a real dock.
+    private var floatingHoldExpired = false
     private var transitionFallback: DispatchWorkItem?
     private var transitionTask: Task<Void, Never>?
     private var heightConstraint: NSLayoutConstraint!
@@ -129,6 +131,7 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
         // A genuine system docking must still be honored once the transition
         // finishes, even if UIKit never restores a narrow floating container.
         endFloatingHold()
+        floatingHoldExpired = true
         updateHeight()
         setNeedsLayout()
     }
@@ -169,7 +172,18 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
             super.layoutSubviews()
             return
         }
+        // Presenting a floating keyboard, UIKit can lay it out full width first.
+        if !floating, !floatingHoldExpired, expectsNativeFloating,
+           !(isNativeFloating && shouldHideAfterDocking?() == true) {
+            beginFloatingHold()
+            keyboard.isHidden = true
+            updateAppearance()
+            updateHeight()
+            super.layoutSubviews()
+            return
+        }
         if floating {
+            floatingHoldExpired = false
             endFloatingHold()
             updateAppearance()
         }
@@ -220,7 +234,10 @@ final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDele
     }
 
     override func willMove(toWindow newWindow: UIWindow?) {
-        if newWindow !== window { hostingGeneration += 1 }
+        if newWindow !== window {
+            hostingGeneration += 1
+            floatingHoldExpired = false
+        }
         super.willMove(toWindow: newWindow)
     }
 
