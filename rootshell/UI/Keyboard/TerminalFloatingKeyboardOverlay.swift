@@ -243,7 +243,9 @@ final class TerminalFloatingKeyboardOverlay: UIView {
 
     private var available: CGRect {
         let region = inputRegion.map { convert($0, from: window) }
-        return TerminalKeyboardGeometry.inputRegion(region, in: bounds.inset(by: safeAreaInsets))
+        // Landscape side insets hold the app's side controls; the card may cover them.
+        let insets = UIEdgeInsets(top: safeAreaInsets.top, left: 0, bottom: safeAreaInsets.bottom, right: 0)
+        return TerminalKeyboardGeometry.inputRegion(region, in: bounds.inset(by: insets))
             .insetBy(dx: 12, dy: 12)
     }
 
