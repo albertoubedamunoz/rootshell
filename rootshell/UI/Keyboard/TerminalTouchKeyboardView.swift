@@ -537,6 +537,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var canSend: Bool {
         !isHidden && window?.windowScene?.activationState == .foregroundActive && host?.touchKeyboardCanSend == true
     }
+    /// Returns a parked card's focus to its terminal before the first key.
+    var onReclaimFocus: (() -> Bool)?
+    private var canSendReclaimingFocus: Bool {
+        canSend || (onReclaimFocus?() == true && canSend)
+    }
     private var compact: Bool { traitCollection.verticalSizeClass == .compact }
     private var rowHeight: CGFloat {
         if let hostFill, !isToolbarOnly { return hostFill.rowHeight }
@@ -1381,7 +1386,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         hidePageIndicator()
-        guard canSend else { return }
+        guard canSendReclaimingFocus else { return }
         sequenceTask?.cancel()
         for touch in touches.sorted(by: { $0.timestamp < $1.timestamp }) { beginContact(touch) }
         refreshContactFeedback()
@@ -2016,7 +2021,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             subtitle: subtitle, toolbar: container != nil, palette: keycapPalette)
         button.accessibilityLabel = [title, subtitle].compactMap { $0 }.joined(separator: ", ")
         button.addAction(UIAction { [weak self] _ in self?.feedback() }, for: .touchDown)
-        button.addAction(UIAction { [weak self] _ in guard self?.canSend == true else { return }; action() }, for: .touchUpInside)
+        button.addAction(UIAction { [weak self] _ in guard self?.canSendReclaimingFocus == true else { return }; action() }, for: .touchUpInside)
         if repeats { button.enableRepeat { [weak self] in guard self?.canSend == true else { return }; action() } }
         (container ?? drawer).addSubview(button)
         if container == nil { drawerButtons.append(button) }

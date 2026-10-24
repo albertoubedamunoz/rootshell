@@ -69,6 +69,11 @@ final class TerminalKeyboardAccessoryController: NSObject {
         get { ownedTouchKeyboardScope?.overlay }
         set { ownedTouchKeyboardScope?.overlay = newValue }
     }
+    /// One automatic focus reclaim, re-armed by a normal claim or a new hinge
+    /// event, so the app never trades focus back and forth with the system.
+    private var focusReclaimArmed = true
+    private var reclaimHingeGeneration = -1
+    private var isReclaimingFocus = false
     /// Owner displaced by the last claim, so a refused focus change can hand
     /// the keyboard straight back to the responder that kept focus.
     private weak var displacedTouchKeyboardOwner: TerminalKeyboardAccessoryController?
@@ -116,6 +121,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         touchKeyboardWindowState = scope
         let ownerChanged = scope.owner !== self
         displacedTouchKeyboardOwner = ownerChanged ? scope.owner : nil
+        scope.parkedOwner = nil
+        if !isReclaimingFocus { focusReclaimArmed = true }
         if ownerChanged {
             scope.owner?.releaseTouchKeyboardState()
             scope.owner = self
@@ -155,10 +162,32 @@ final class TerminalKeyboardAccessoryController: NSObject {
         onActiveKeyboardModifiersChanged?([])
         // A floating overlay is outside UIKit's input hierarchy. Remove it on
         // genuine focus loss, but let an incoming terminal claim it first.
-        DispatchQueue.main.async { [weak scope] in
+        // Focus taken outside the app, as the system does during a Duo fold,
+        // is asked back once. If the system takes it again, the card stays
+        // until a key press reclaims it.
+        DispatchQueue.main.async { [weak self, weak scope] in
             guard let scope, scope.owner == nil else { return }
+            if let self, scope.overlay != nil,
+               let terminal = self.host as? Ghostty.TerminalView, terminal.lostFocusOutsideWindow {
+                if self.focusReclaimArmed || DuoHingeEvents.generation != self.reclaimHingeGeneration {
+                    self.focusReclaimArmed = false
+                    self.reclaimHingeGeneration = DuoHingeEvents.generation
+                    self.isReclaimingFocus = true
+                    let reclaimed = terminal.becomeFirstResponder()
+                    self.isReclaimingFocus = false
+                    if reclaimed { return }
+                }
+                scope.parkedOwner = self
+                return
+            }
             scope.dismissOverlay()
         }
+    }
+
+    /// A key press on a parked card returns focus to its terminal first.
+    func reclaimParkedTouchKeyboard() -> Bool {
+        guard let terminal = host as? Ghostty.TerminalView else { return false }
+        return terminal.isFirstResponder || terminal.becomeFirstResponder()
     }
 
     /// Undo a claim after UIKit refused the focus change. The outgoing
@@ -372,7 +401,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
             keyboard.setFloating(true)
             let overlay = TerminalFloatingKeyboardOverlay(keyboard: keyboard, state: currentTouchKeyboardState)
             // The overlay outlives this owner; route through the scope.
-            overlay.isHostActive = { [weak scope] in scope?.owner?.touchKeyboardIsActive == true }
+            overlay.isHostActive = { [weak scope] in
+                scope?.owner?.touchKeyboardIsActive == true || scope?.parkedOwner != nil
+            }
             overlay.onDock = { [weak scope] in scope?.owner?.setTouchKeyboardPlacement(.docked) }
             overlay.frame = window.bounds
             overlay.inputRegion = scope.inputRegion

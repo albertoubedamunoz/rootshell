@@ -31,6 +31,9 @@ final class TerminalTouchKeyboardWindowState {
     /// Controller whose terminal presents the keyboard. nil between a genuine
     /// focus loss and the next terminal claiming it.
     weak var owner: TerminalKeyboardAccessoryController?
+    /// The terminal whose focus went outside the app while its card stayed up.
+    weak var parkedOwner: TerminalKeyboardAccessoryController?
+    private var keyboardShowObserver: NSObjectProtocol?
     /// The state whose choices the live keyboard currently shows.
     private(set) var displayedState: TerminalFloatingKeyboardState?
     var overlay: TerminalFloatingKeyboardOverlay?
@@ -69,7 +72,19 @@ final class TerminalTouchKeyboardWindowState {
         return created
     }
 
-    private init(window: UIWindow) { self.window = window }
+    private init(window: UIWindow) {
+        self.window = window
+        // Another field bringing up the system keyboard ends a parked card.
+        keyboardShowObserver = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.owner == nil, self.parkedOwner != nil else { return }
+                self.parkedOwner = nil
+                self.dismissOverlay()
+            }
+        }
+    }
 
     static func forWindow(_ window: UIWindow) -> TerminalTouchKeyboardWindowState {
         if let state = windows.object(forKey: window) { return state }
@@ -143,6 +158,7 @@ final class TerminalTouchKeyboardWindowState {
         let keyboard = TerminalTouchKeyboardView()
         keyboard.fillsHostHeight = foldRegion != nil
         keyboard.setBackgroundEffectSurface(nil)
+        keyboard.onReclaimFocus = { [weak self] in self?.parkedOwner?.reclaimParkedTouchKeyboard() ?? false }
         keyboard.onModifiersChanged = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.modifiersChanged($0)) }
         keyboard.onDismiss = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.dismiss) }
         keyboard.onPinHidden = { [weak self] in self?.owner?.handleTouchKeyboardEvent(.pinHidden) }

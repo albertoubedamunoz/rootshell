@@ -3262,6 +3262,19 @@ extension Ghostty {
             return DraggableHUDHostView.ownsFirstResponder(in: window)
         }
 
+        /// Focus went somewhere outside the app, as the system takes it during a
+        /// Duo fold: nothing in the window took it and nothing here wants it.
+        var lostFocusOutsideWindow: Bool {
+            guard let window, isLogicallyFocused, !isFirstResponder, windowIsActiveForFocus(),
+                  !overlayOwnsKeyboard, !isModalPresented(), !isHUDFieldFocused() else { return false }
+            return Self.firstResponder(in: window) == nil
+        }
+
+        private static func firstResponder(in view: UIView) -> UIView? {
+            if view.isFirstResponder { return view }
+            return view.subviews.lazy.compactMap { firstResponder(in: $0) }.first
+        }
+
         private func syncFocusForWindowStateChange(sceneIsDeactivating: Bool = false) {
             let windowActive = windowIsActiveForFocus()
             #if !targetEnvironment(macCatalyst)
