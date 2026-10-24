@@ -82,6 +82,7 @@ final class TerminalTouchKeyboardWindowState {
         if foldRegion != fold {
             let changesActivity = (foldRegion == nil) != (fold == nil)
             foldRegion = fold
+            overlay?.foldRegion = fold
             // Never create the keyboard just to clear a flag it would default to.
             if changesActivity { keyboard.fillsHostHeight = fold != nil }
             NotificationCenter.default.post(name: .terminalFoldRegionDidChange, object: window)
@@ -215,6 +216,10 @@ final class TerminalFloatingKeyboardOverlay: UIView {
     var inputRegion: CGRect? {
         didSet { if oldValue != inputRegion { dragOrigin = nil; setNeedsLayout() } }
     }
+    /// The Duo's fold in window coordinates; the card settles beside it.
+    var foldRegion: CGRect? {
+        didSet { if oldValue != foldRegion { setNeedsLayout() } }
+    }
 
     init(keyboard: TerminalTouchKeyboardView, state: TerminalFloatingKeyboardState) {
         self.keyboard = keyboard
@@ -246,8 +251,8 @@ final class TerminalFloatingKeyboardOverlay: UIView {
         super.layoutSubviews()
         guard available.width > 0, available.height > 0 else { return }
         keyboard.floatingAvailableHeight = available.height
-        let frame = TerminalTouchKeyboardModel.floatingFrame(in: available,
-            height: keyboard.intrinsicContentSize.height, anchor: state.anchor)
+        let frame = settledFrame(TerminalTouchKeyboardModel.floatingFrame(in: available,
+            height: keyboard.intrinsicContentSize.height, anchor: state.anchor))
         if keyboard.frame.size != frame.size {
             if keyboard.frame.width != frame.width { keyboard.cancelInteraction(preservingModifiers: true) }
             dragOrigin = nil
@@ -273,11 +278,38 @@ final class TerminalFloatingKeyboardOverlay: UIView {
             height: keyboard.intrinsicContentSize.height, anchor: state.anchor)
         if ended {
             dragOrigin = nil
+            let settled = settledFrame(keyboard.frame)
+            if settled != keyboard.frame {
+                UIView.animate(withDuration: 0.2) { self.keyboard.frame = settled }
+            }
+            state.anchor = TerminalTouchKeyboardModel.floatingAnchor(for: settled, in: available)
             if allowDock && TerminalTouchKeyboardModel.shouldDockAfterDrag(proposed, in: available) { onDock?() }
         }
     }
 
+    private func settledFrame(_ frame: CGRect) -> CGRect {
+        TerminalTouchKeyboardModel.floatingFrame(frame, avoiding: foldRegion.map { convert($0, from: window) }, in: available)
+    }
+
+    /// UIKit presents the card's menus from a view controller found above the
+    /// button; a bare window subview has none, so the menus never appear.
+    private weak var presentationHost: UIViewController?
+
+    func attach(to window: UIWindow) {
+        window.addSubview(self)
+        guard let root = window.rootViewController else { return }
+        let host = UIViewController()
+        host.view = self
+        root.addChild(host)
+        host.didMove(toParent: root)
+        presentationHost = host
+    }
+
     func detach() {
+        if let host = presentationHost {
+            host.willMove(toParent: nil)
+            host.removeFromParent()
+        }
         // UIKit may already have mounted the compact toolbar host. A stale
         // overlay must not remove the keyboard from its new container.
         if keyboard.superview === self {

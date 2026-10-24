@@ -41,6 +41,24 @@ extension TerminalTouchKeyboardHost {
 }
 
 /// UIKit cancels the ordinary button tap when this recognizer starts repeating.
+/// The switch key's style menu. Outside the keyboard window UIKit no longer
+/// cancels the touch when the menu opens, so lifting would also tap the key.
+private final class TerminalTouchMenuKeyButton: UIButton {
+    private(set) var showedMenu = false
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        showedMenu = false
+        super.touchesBegan(touches, with: event)
+    }
+
+    override func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
+                                         willDisplayMenuFor configuration: UIContextMenuConfiguration,
+                                         animator: (any UIContextMenuInteractionAnimating)?) {
+        super.contextMenuInteraction(interaction, willDisplayMenuFor: configuration, animator: animator)
+        showedMenu = true
+    }
+}
+
 class TerminalTouchRepeatingButton: UIButton {
     override var isHighlighted: Bool {
         didSet { updateContactAppearance() }
@@ -447,7 +465,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private let presets = UISegmentedControl(items: Model.Preset.allCases.map(\.rawValue))
     private let writingAssistanceButton = TerminalTouchRepeatingButton(type: .system)
     /// Covers the Apple Keyboard key: tap switches keyboards, hold opens the style menu.
-    private let styleMenuButton = UIButton(type: .custom)
+    private let styleMenuButton = TerminalTouchMenuKeyButton(type: .custom)
     private let grabber = UIButton(type: .system)
     private var drawerButtons: [TerminalTouchDrawerButton] = []
     private var drawerColumns = 6
@@ -634,7 +652,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         styleMenuButton.addAction(UIAction { [weak self] _ in self?.pressKeyboardSwitch(false) },
                                   for: [.touchUpInside, .touchUpOutside, .touchCancel, .menuActionTriggered])
         styleMenuButton.addAction(UIAction { [weak self] _ in
-            guard let self, let cap = self.keyboardSwitchCap else { return }
+            guard let self, !self.styleMenuButton.showedMenu, let cap = self.keyboardSwitchCap else { return }
             self.perform(cap.key)
         }, for: .primaryActionTriggered)
         addSubview(styleMenuButton)
@@ -758,7 +776,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         grabber.accessibilityHint = usesSystemPlacement
             ? String(localized: "Drag to move.")
             : String(localized: "Drag to move. Double-tap to dock.")
-        guard !isToolbarOnly, traitCollection.userInterfaceIdiom == .pad, onPlacementRequested != nil else {
+        guard !isToolbarOnly, onPlacementRequested != nil else {
             keyboardSwitch?.accessibilityCustomActions = nil
             grabber.accessibilityCustomActions = nil
             return
@@ -2027,12 +2045,24 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
 
     private func keyboardStyleMenuItems() -> [UIMenuElement] {
         let current = keyboardStyle
-        return Model.Style.allCases.map { style in
+        let styles: [UIMenuElement] = Model.Style.allCases.map { style in
             UIAction(title: style.displayName, state: style == current ? .on : .off) { _ in
                 guard SettingsStore.shared.value(Settings.Keyboard.touchStyle) != style else { return }
                 SettingsStore.shared.set(Settings.Keyboard.touchStyle, style)
             }
         }
+        // UIKit places the system container; only the in-app card can be requested.
+        guard !isToolbarOnly, !usesSystemPlacement, !isEmbeddedPreview, onPlacementRequested != nil else { return styles }
+        let placements = [(Model.Placement.docked, String(localized: "Docked")),
+                          (Model.Placement.floating, String(localized: "Detached"))].map { placement, title in
+            UIAction(title: title, state: (placement == .floating) == isFloating ? .on : .off) { [weak self] _ in
+                guard let self, (placement == .floating) != self.isFloating else { return }
+                self.cancelInteraction()
+                // Move containers after the menu has finished dismissing.
+                DispatchQueue.main.async { [weak self] in self?.onPlacementRequested?(placement) }
+            }
+        }
+        return styles + [UIMenu(options: .displayInline, children: placements)]
     }
 
     private func writingAssistanceMenu() -> UIMenu {

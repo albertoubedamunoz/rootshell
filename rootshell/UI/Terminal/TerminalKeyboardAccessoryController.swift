@@ -75,7 +75,11 @@ final class TerminalKeyboardAccessoryController: NSObject {
     private let fallbackTouchKeyboardState = TerminalFloatingKeyboardState()
     private var boundTouchKeyboardState: TerminalFloatingKeyboardState?
     private var touchKeyboardEnabled = SettingsStore.shared.value(Settings.Keyboard.touchEnabled)
-    private var touchSystemFloating = SettingsStore.shared.value(Settings.Keyboard.touchSystemFloating)
+    private var touchSystemFloating = TerminalKeyboardAccessoryController.systemFloatingSetting
+    /// iPhone has no system floating keyboard, so it always detaches in the app.
+    private static var systemFloatingSetting: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && SettingsStore.shared.value(Settings.Keyboard.touchSystemFloating)
+    }
     private var touchStatePerTab = SettingsStore.shared.value(Settings.Keyboard.touchStatePerTab)
     private var floatingSyncScheduled = false
 
@@ -232,8 +236,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     }
 
     private var touchKeyboardPlacement: TerminalTouchKeyboardModel.Placement {
-        guard host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad,
-              host?.keyboardHostView.window != nil else { return .docked }
+        guard host?.keyboardHostView.window != nil else { return .docked }
         if touchSystemFloating {
             return touchKeyboardInputView?.isNativeFloating == true ? .floating : .docked
         }
@@ -373,8 +376,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
             overlay.onDock = { [weak scope] in scope?.owner?.setTouchKeyboardPlacement(.docked) }
             overlay.frame = window.bounds
             overlay.inputRegion = scope.inputRegion
+            overlay.foldRegion = scope.foldRegion
             floatingKeyboardOverlay = overlay
-            window.addSubview(overlay)
+            overlay.attach(to: window)
             // The retained keyboard can still have its old docked frame.
             // Size the card in its destination before making keys visible.
             overlay.setNeedsLayout()
@@ -387,8 +391,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     private func setTouchKeyboardPlacement(_ placement: TerminalTouchKeyboardModel.Placement) {
         guard !touchSystemFloating, usesFullTouchKeyboard, host?.keyboardIsFirstResponder == true,
-              let window = host?.keyboardHostView.window,
-              window.traitCollection.userInterfaceIdiom == .pad else { return }
+              host?.keyboardHostView.window != nil else { return }
         let state = currentTouchKeyboardState
         guard state.placement != placement else { return }
         (host as? Ghostty.TerminalView)?.prepareTouchKeyboardSwitch()
@@ -458,7 +461,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     private func touchKeyboardSettingsDidChange() {
         let enabled = SettingsStore.shared.value(Settings.Keyboard.touchEnabled)
-        let systemFloating = SettingsStore.shared.value(Settings.Keyboard.touchSystemFloating)
+        let systemFloating = Self.systemFloatingSetting
         let perTab = SettingsStore.shared.value(Settings.Keyboard.touchStatePerTab)
         let enabledChanged = enabled != touchKeyboardEnabled
         let changed = enabledChanged || systemFloating != touchSystemFloating || perTab != touchStatePerTab

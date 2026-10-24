@@ -868,6 +868,23 @@ nonisolated enum TerminalTouchKeyboardModel {
                       y: available.minY + (available.height - size.height) * y, width: size.width, height: size.height)
     }
 
+    /// Moves a floating card off the Duo's fold, to the side holding most of it
+    /// when the card fits there. All rects share coordinates.
+    static func floatingFrame(_ frame: CGRect, avoiding fold: CGRect?, in available: CGRect) -> CGRect {
+        guard let fold, frame.intersects(fold) else { return frame }
+        var moved = frame
+        if fold.height > fold.width {
+            let fitsBefore = fold.minX - available.minX >= frame.width, fitsAfter = available.maxX - fold.maxX >= frame.width
+            if fitsBefore && (frame.midX < fold.midX || !fitsAfter) { moved.origin.x = fold.minX - frame.width }
+            else if fitsAfter { moved.origin.x = fold.maxX }
+        } else {
+            let fitsBefore = fold.minY - available.minY >= frame.height, fitsAfter = available.maxY - fold.maxY >= frame.height
+            if fitsBefore && (frame.midY < fold.midY || !fitsAfter) { moved.origin.y = fold.minY - frame.height }
+            else if fitsAfter { moved.origin.y = fold.maxY }
+        }
+        return moved
+    }
+
     static func floatingAnchor(for frame: CGRect, in available: CGRect) -> CGPoint {
         let travelX = available.width - frame.width, travelY = available.height - frame.height
         return CGPoint(x: travelX > 0 ? min(1, max(0, (frame.minX - available.minX) / travelX)) : 0.5,

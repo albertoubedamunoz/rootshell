@@ -29,14 +29,12 @@ struct TerminalTouchKeyboardSettingsView: View {
                 Text("An optional English QWERTY keyboard for terminal sessions. Switch to Apple's keyboard for other languages, swipe typing, emoji, or dictation.")
             }
             Section {
-                if UIDevice.current.userInterfaceIdiom == .pad {
-                    Picker("Preview Placement", selection: $previewFloating) {
-                        Text("Docked").tag(false)
-                        Text("Detached").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .themedRow()
+                Picker("Preview Placement", selection: $previewFloating) {
+                    Text("Docked").tag(false)
+                    Text("Detached").tag(true)
                 }
+                .pickerStyle(.segmented)
+                .themedRow()
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top, spacing: 8) {
                         Text("❯").foregroundStyle(.secondary)
@@ -142,49 +140,53 @@ struct TerminalTouchKeyboardSettingsView: View {
                 } footer: {
                     Text("Use iPadOS’s floating keyboard container so the keyboard can move beyond the app window. Drag the … handle to move it. To float or dock in this mode, switch to Apple’s keyboard, change its placement, then switch back using the toolbar’s keyboard button. Turn this off to keep the detached keyboard inside rootshell and use pinch gestures on our keyboard.")
                 }
-                Section {
-                    Picker("Glass Style", selection: $floatingGlassStyle) {
-                        ForEach(TerminalTouchKeyboardModel.FloatingGlassStyle.allCases, id: \.self) { style in
-                            Text(style.displayName).tag(style)
-                        }
+            }
+            Section {
+                Picker("Glass Style", selection: $floatingGlassStyle) {
+                    ForEach(TerminalTouchKeyboardModel.FloatingGlassStyle.allCases, id: \.self) { style in
+                        Text(style.displayName).tag(style)
                     }
-                    .settingContextMenu(Settings.Keyboard.touchFloatingGlassStyle)
-                    .themedRow()
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Tint Strength")
-                                .settingRow(Settings.Keyboard.touchFloatingGlassTintOpacity)
-                            Spacer()
-                            Text(tintOpacity.wrappedValue, format: .wholePercent)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
-                        Slider(value: tintOpacity, in: 0...1, step: 0.05) {
-                            Text("Tint Strength")
-                        }
-                    }
-                    .disabled(floatingGlassStyle == .solid || reduceTransparency)
-                    .themedRow()
-                    Button {
-                        _floatingGlassStyle.reset()
-                        _floatingGlassTintOpacity.reset()
-                    } label: {
-                        Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
-                    }
-                    .themedRow()
-                } header: {
-                    Text("Detached Keyboard")
-                } footer: {
-                    Text("Customize the detached keyboard’s background. Clear reveals more content; Solid removes transparency. Tint Strength adjusts how much of the keyboard’s background color is added. Older iPadOS versions use blur. Reduce Transparency always uses a solid background.")
                 }
+                .settingContextMenu(Settings.Keyboard.touchFloatingGlassStyle)
+                .themedRow()
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Tint Strength")
+                            .settingRow(Settings.Keyboard.touchFloatingGlassTintOpacity)
+                        Spacer()
+                        Text(tintOpacity.wrappedValue, format: .wholePercent)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Slider(value: tintOpacity, in: 0...1, step: 0.05) {
+                        Text("Tint Strength")
+                    }
+                }
+                .disabled(floatingGlassStyle == .solid || reduceTransparency)
+                .themedRow()
+                Button {
+                    _floatingGlassStyle.reset()
+                    _floatingGlassTintOpacity.reset()
+                } label: {
+                    Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
+                }
+                .themedRow()
+            } header: {
+                Text("Detached Keyboard")
+            } footer: {
+                Text("Customize the detached keyboard’s background. Clear reveals more content; Solid removes transparency. Tint Strength adjusts how much of the keyboard’s background color is added. Older system versions use blur. Reduce Transparency always uses a solid background.")
             }
             Section("Terminal tools") {
-                if UIDevice.current.userInterfaceIdiom == .pad {
-                    Text("With Use System Detached Keyboard off, pinch inward to float the keyboard. Drag the … handle to move it. Spread two fingers or double-tap the handle to dock. Docking hides the keys when a hardware keyboard is connected.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .themedRow()
+                Group {
+                    if UIDevice.current.userInterfaceIdiom == .pad {
+                        Text("With Use System Detached Keyboard off, pinch inward or long-press the keyboard switch key and choose Detached to float the keyboard. Drag the … handle to move it. Spread two fingers, double-tap the handle, or choose Docked to dock. Docking hides the keys when a hardware keyboard is connected.")
+                    } else {
+                        Text("Long-press the keyboard switch key and choose Detached to float a smaller keyboard over the terminal, freeing the rest of the screen. Drag the … handle to move it. Double-tap the handle or choose Docked to dock.")
+                    }
                 }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .themedRow()
                 NavigationLink(value: SettingsSearchDestination.toolbarKeys) {
                     Label("Customize Toolbar", systemImage: "command")
                 }

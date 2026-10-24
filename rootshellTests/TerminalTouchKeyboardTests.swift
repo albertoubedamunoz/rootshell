@@ -594,6 +594,24 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertFalse(Model.shouldDockAfterDrag(corner, in: available))
     }
 
+    func testFloatingCardSettlesBesideTheFold() {
+        let available = CGRect(x: 0, y: 0, width: 900, height: 600)
+        let fold = CGRect(x: 440, y: 0, width: 20, height: 600)
+        let card = CGRect(x: 260, y: 200, width: 320, height: 268)
+        // Mostly left of the crease, and the left side fits it.
+        XCTAssertEqual(Model.floatingFrame(card, avoiding: fold, in: available).minX, 120)
+        XCTAssertEqual(Model.floatingFrame(card.offsetBy(dx: 120, dy: 0), avoiding: fold, in: available).minX, 460)
+        // Clear of the crease, the card stays put.
+        let clear = card.offsetBy(dx: -260, dy: 0)
+        XCTAssertEqual(Model.floatingFrame(clear, avoiding: fold, in: available), clear)
+        XCTAssertEqual(Model.floatingFrame(card, avoiding: nil, in: available), card)
+        // A side too narrow for the card sends it to the other side.
+        let offCenter = CGRect(x: 200, y: 0, width: 20, height: 600)
+        XCTAssertEqual(Model.floatingFrame(card.offsetBy(dx: -150, dy: 0), avoiding: offCenter, in: available).minX, 220)
+        let horizontal = CGRect(x: 0, y: 290, width: 900, height: 20)
+        XCTAssertEqual(Model.floatingFrame(CGRect(x: 0, y: 250, width: 320, height: 268), avoiding: horizontal, in: available).minY, 310)
+    }
+
     func testSystemFloatingWidthAdaptsWithoutMistakingNarrowDockedWindows() {
         XCTAssertTrue(Model.isFloatingInput(width: 320, hostWidth: 834, isPad: true))
         XCTAssertTrue(Model.isFloatingInput(width: 320, hostWidth: 375, isPad: true))
